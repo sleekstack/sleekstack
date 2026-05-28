@@ -1,0 +1,19 @@
+{
+  "name": "sleekstack",
+  "version": "0.0.1",
+  "private": true,
+  "description": "A full-stack Effect-native runtime architecture for React and Next.js.",
+  "license": "MIT",
+  "packageManager": "pnpm@10.0.0",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.0",
+    "typescript": "^5.8.0"
+  }
+}

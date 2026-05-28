@@ -1,0 +1,17 @@
+{
+  "name": "sleekstack",
+  "version": "0.0.1",
+  "description": "SleekStack CLI — top-level shim for the SleekStack monorepo",
+  "main": "bin/cli.js",
+  "bin": {
+    "sleekstack": "bin/cli.js"
+  },
+  "files": [
+    "bin"
+  ],
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  }
+}
+
