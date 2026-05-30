@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "description": "A full-stack Effect-native runtime architecture for React and Next.js.",
-  "license": "MIT",
+  "license": "MPL-2.0",
   "packageManager": "pnpm@10.0.0",
   "scripts": {
     "build": "turbo run build",
