@@ -33,6 +33,7 @@ milestone: 1
 **Requirements**: CORE-01, CORE-02, CORE-03, CORE-04, REACT-01, REACT-02, REACT-03, REACT-04, REACT-05, REACT-06, REACT-07, REACT-08
 
 **Success Criteria** (what must be TRUE):
+
   1. A developer can call `module({ name, layers, imports, exports })` and the returned Module compiles with correct TypeScript types, with unexported Tags absent from the public surface
   2. Defining two modules that mutually import each other throws synchronously at `module()` call time with a message showing the full cycle (e.g. `AuthModule → UserModule → AuthModule`)
   3. A component wrapped in `<LayerProvider provide={[SomeModule]}>` can call `useService(Tag)` and receive the resolved service; on first mount the component suspends briefly then renders with the service available
@@ -41,9 +42,20 @@ milestone: 1
   6. When a `LayerProvider` unmounts, all services it acquired are finalized in reverse acquisition order with no resource leaks observable in tests
 
 **Plans**: 4 plans
+**Wave 1**
+
 - [ ] 01-01-PLAN.md — Test + build infrastructure and failing test scaffolds (Nyquist Wave 0)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 01-02-PLAN.md — @sleekstack/core: module() + DFS cycle detection + type surface
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 01-03-PLAN.md — @sleekstack/react: LayerProvider + useService + Suspense cache (single scope)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 01-04-PLAN.md — Nested providers + shadowing + runnable playground demo
 
 **UI hint**: yes
@@ -59,6 +71,7 @@ milestone: 1
 **Requirements**: NEXT-01, NEXT-02, NEXT-03, NEXT-04
 
 **Success Criteria** (what must be TRUE):
+
   1. Calling `configureRuntime({ provide: [...] })` in `instrumentation.ts` registers a root layer that is shared across all server-side requests without re-initializing between requests
   2. A Next.js Server Action wrapped with `action(function* () { const db = yield* Database })` receives the global runtime's services and executes in an isolated per-request scope that finalizes after the action completes
   3. A data fetch wrapped with `query(function* () { ... })` executes in a per-request scope; concurrent requests do not share state between their scopes
@@ -77,6 +90,7 @@ milestone: 1
 **Requirements**: *(scope defined at planning time — no formal REQ-IDs yet; currently tracked as v2 in REQUIREMENTS.md)*
 
 **Success Criteria** (what must be TRUE):
+
   1. A developer can open the devtools panel and see a graph of all active `LayerProvider` scopes and their provided Tags at runtime
   2. Clicking a node in the graph shows the dependency chain for that Tag — which Module introduced it and which other Tags it depends on
   3. The devtools display a timeline of Layer acquisition and finalization events, making Suspense waterfalls and cleanup order visible
