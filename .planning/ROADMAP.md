@@ -41,10 +41,10 @@ milestone: 1
   5. Calling `useService(Tag)` with no ancestor `LayerProvider` providing that Tag throws an error that names the missing service and tells the developer which component needs a LayerProvider above it
   6. When a `LayerProvider` unmounts, all services it acquired are finalized in reverse acquisition order with no resource leaks observable in tests
 
-**Plans**: 4 plans
+**Plans**: 1/4 plans executed
 **Wave 1**
 
-- [ ] 01-01-PLAN.md — Test + build infrastructure and failing test scaffolds (Nyquist Wave 0)
+- [x] 01-01-PLAN.md — Test + build infrastructure and failing test scaffolds (Nyquist Wave 0)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -106,6 +106,6 @@ milestone: 1
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Core Runtime | 0/4 | Not started | - |
+| 1. Core Runtime | 1/4 | In Progress|  |
 | 2. Next.js Integration | 0/1 | Not started | - |
 | 3. Devtools | 0/1 | Not started | - |

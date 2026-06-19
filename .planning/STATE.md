@@ -4,12 +4,12 @@ milestone: v1.0
 milestone_name: milestone
 status: unknown
 stopped_at: Phase 1 context gathered
-last_updated: "2026-06-19T22:53:25.631Z"
+last_updated: "2026-06-19T23:34:05.567Z"
 progress:
   total_phases: 3
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 4
+  completed_plans: 1
   percent: 0
 ---
 
@@ -74,10 +74,21 @@ Phase 3 [          ] 0%   Devtools
 
 ## Session Continuity
 
-**Last session:** 2026-06-19T22:53:25.622Z
+**Last session:** 2026-06-19T23:33:56.285Z
 **Stopped at:** Phase 1 context gathered
 **Resume file:** .planning/phases/01-core-runtime/01-CONTEXT.md
 
 **Next action**: Run `/gsd-plan-phase 1` to create a detailed plan for Phase 1 — Core Runtime.
 
 **Phase 1 scope reminder**: CORE-01 through CORE-04 (module() API) + REACT-01 through REACT-08 (LayerProvider, useService, shadowing, cleanup). Rewrites existing prototype packages.
+
+## Performance Metrics
+
+| Phase | Plan | Duration | Notes |
+|-------|------|----------|-------|
+| Phase 01 P01 | 6 minutes | 2 tasks | 14 files |
+
+## Decisions
+
+- [Phase ?]: React test imports use ../index barrel to ensure per-test failures rather than file-level import errors in RED state
+- [Phase ?]: REACT-07 tests verify negative constraints about Runtime/Scope/Fiber not being exported — invariants that hold in both old and new implementations
