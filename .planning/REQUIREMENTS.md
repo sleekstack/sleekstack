@@ -10,10 +10,10 @@
 
 ### Core Runtime (@sleekstack/core)
 
-- [ ] **CORE-01**: `module()` accepts `name` (required), `layers`, `imports?`, `exports?` fields and returns a typed Module
-- [ ] **CORE-02**: `module()` detects circular imports at definition time and throws with a full cycle trace (e.g. `AuthModule → UserModule → AuthModule`)
+- [x] **CORE-01**: `module()` accepts `name` (required), `layers`, `imports?`, `exports?` fields and returns a typed Module
+- [x] **CORE-02**: `module()` detects circular imports at definition time and throws with a full cycle trace (e.g. `AuthModule → UserModule → AuthModule`)
 - [ ] **CORE-03**: Module `imports` are automatically pulled into any `LayerProvider` that includes the module; no manual re-declaration required
-- [ ] **CORE-04**: Module `exports` provide best-effort type-level isolation — exported Tags are surfaced to consumers, unexported Tags are not in the public type surface
+- [x] **CORE-04**: Module `exports` provide best-effort type-level isolation — exported Tags are surfaced to consumers, unexported Tags are not in the public type surface
 
 ### React Integration (@sleekstack/react)
 
@@ -59,10 +59,10 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CORE-01 | Phase 1 | Pending |
-| CORE-02 | Phase 1 | Pending |
+| CORE-01 | Phase 1 | Complete |
+| CORE-02 | Phase 1 | Complete |
 | CORE-03 | Phase 1 | Pending |
-| CORE-04 | Phase 1 | Pending |
+| CORE-04 | Phase 1 | Complete |
 | REACT-01 | Phase 1 | Pending |
 | REACT-02 | Phase 1 | Pending |
 | REACT-03 | Phase 1 | Pending |
