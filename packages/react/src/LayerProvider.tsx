@@ -37,8 +37,8 @@ function flattenModuleToLayer(mod: Module<any>): Layer.Layer<any, any, any> {
     allLayers.push(flattenModuleToLayer(imp))
   }
   if (allLayers.length === 0) {
-    // Empty module — return a no-op Layer
-    return Layer.empty
+    // Empty module — return a no-op Layer; cast to satisfy return type
+    return Layer.empty as unknown as Layer.Layer<any, any, any>
   }
   if (allLayers.length === 1) return allLayers[0]
   return Layer.mergeAll(...(allLayers as [Layer.Layer<any, any, any>, Layer.Layer<any, any, any>, ...Layer.Layer<any, any, any>[]]))
@@ -68,7 +68,7 @@ function assembleLayer(
   })
 
   if (layers.length === 0) {
-    return Layer.empty
+    return Layer.empty as unknown as Layer.Layer<any, any, any>
   }
   if (layers.length === 1) return layers[0]
   return Layer.mergeAll(...(layers as [Layer.Layer<any, any, any>, Layer.Layer<any, any, any>, ...Layer.Layer<any, any, any>[]]))
@@ -107,8 +107,13 @@ export function LayerProvider({ provide, children }: LayerProviderProps) {
   // unconditionally — only inside this null-guard (see RESEARCH.md Anti-Patterns).
   if (stateRef.current === null) {
     const composedLayer = assembleLayer(Array.from(provide))
+    // Cast to satisfy ProviderState.runtime type (ManagedRuntime<any, never>).
+    // ManagedRuntime.make infers the error type from the layer; we assert never here
+    // since the composed layer is self-contained (all deps provided internally).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const runtime = ManagedRuntime.make(composedLayer as Layer.Layer<any, any, never>) as any
     stateRef.current = {
-      runtime: ManagedRuntime.make(composedLayer),
+      runtime,
       cache: new Map(),
     }
   }
