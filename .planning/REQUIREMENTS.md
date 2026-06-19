@@ -57,8 +57,22 @@
 
 ## Traceability
 
-| Requirement | Phase |
-|-------------|-------|
-| CORE-01 through CORE-04 | Phase 1 |
-| REACT-01 through REACT-08 | Phase 1 |
-| NEXT-01 through NEXT-04 | Phase 2 |
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| CORE-01 | Phase 1 | Pending |
+| CORE-02 | Phase 1 | Pending |
+| CORE-03 | Phase 1 | Pending |
+| CORE-04 | Phase 1 | Pending |
+| REACT-01 | Phase 1 | Pending |
+| REACT-02 | Phase 1 | Pending |
+| REACT-03 | Phase 1 | Pending |
+| REACT-04 | Phase 1 | Pending |
+| REACT-05 | Phase 1 | Pending |
+| REACT-06 | Phase 1 | Pending |
+| REACT-07 | Phase 1 | Pending |
+| REACT-08 | Phase 1 | Pending |
+| NEXT-01 | Phase 2 | Pending |
+| NEXT-02 | Phase 2 | Pending |
+| NEXT-03 | Phase 2 | Pending |
+| NEXT-04 | Phase 2 | Pending |
+| Devtools scope | Phase 3 | Pending (scope TBD at planning time) |
