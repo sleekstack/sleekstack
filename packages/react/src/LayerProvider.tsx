@@ -256,8 +256,12 @@ export function LayerProvider({ provide, children }: LayerProviderProps) {
     }
 
     return () => {
-      // Unregister from parent FIRST (prevent double-disposal — parent calls child
-      // dispose, then child would try to dispose again from its own cleanup).
+      // Unregister from parent first (WR-04).
+      // NOTE: `unregister?.()` is a safe no-op if the parent already disposed this
+      // child (its entry was removed from _childDisposals during the LIFO iteration).
+      // The `lastIndexOf` guard in registerChildDispose handles this case gracefully —
+      // when idx === -1 it skips the splice. So "prevent double-disposal" is the
+      // happy-path description; the LIFO path is also covered by `stateRef.current === null`.
       unregister?.()
 
       if (stateRef.current !== null) {
