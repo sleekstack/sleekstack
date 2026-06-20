@@ -18,10 +18,10 @@
 ### React Integration (@sleekstack/react)
 
 - [x] **REACT-01**: `LayerProvider` accepts a `provide` prop that takes an array of Effect `Layer` values and `Module` values
-- [ ] **REACT-02**: Nested `LayerProvider` inherits services from the parent scope; inner scope finalizes before outer scope on unmount
+- [x] **REACT-02**: Nested `LayerProvider` inherits services from the parent scope; inner scope finalizes before outer scope on unmount
 - [x] **REACT-03**: `useService(Tag)` returns the service synchronously if already resolved in the current scope (sync-fast-path)
 - [x] **REACT-04**: `useService(Tag)` throws a Promise (Suspense integration) on first call when the service requires async resolution
-- [ ] **REACT-05**: A replacement in the `provide` array shadows a transitive dependency introduced via `imports` (shadowing override mechanism — no separate overrides prop)
+- [x] **REACT-05**: A replacement in the `provide` array shadows a transitive dependency introduced via `imports` (shadowing override mechanism — no separate overrides prop)
 - [x] **REACT-06**: Calling `useService(Tag)` when `Tag` is not provided in any ancestor `LayerProvider` throws a descriptive error: `"Service 'X' is not provided. Add XLayer to a LayerProvider above <Component>."`
 - [x] **REACT-07**: Effect `Runtime`, `Scope`, and `Fiber` are never exposed to users; `Context.Tag`, `Layer`, and `Effect` are the user-facing primitives (imported directly from `effect`)
 - [x] **REACT-08**: Services acquired within a `LayerProvider` scope are finalized (cleanup runs) when the `LayerProvider` unmounts, in reverse acquisition order

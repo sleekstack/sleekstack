@@ -16,7 +16,7 @@ milestone: 1
 
 ## Phases
 
-- [ ] **Phase 1: Core Runtime** - Implement @sleekstack/core and @sleekstack/react; prove React + Effect service graphs work
+- [x] **Phase 1: Core Runtime** - Implement @sleekstack/core and @sleekstack/react; prove React + Effect service graphs work (completed 2026-06-20)
 - [ ] **Phase 2: Next.js Integration** - Implement @sleekstack/next with request-scoped Effect environments
 - [ ] **Phase 3: Devtools** - Implement @sleekstack/devtools with graph visualization and lifecycle tracing
 
@@ -41,7 +41,7 @@ milestone: 1
   5. Calling `useService(Tag)` with no ancestor `LayerProvider` providing that Tag throws an error that names the missing service and tells the developer which component needs a LayerProvider above it
   6. When a `LayerProvider` unmounts, all services it acquired are finalized in reverse acquisition order with no resource leaks observable in tests
 
-**Plans**: 3/4 plans executed
+**Plans**: 4/4 plans complete
 **Wave 1**
 
 - [x] 01-01-PLAN.md — Test + build infrastructure and failing test scaffolds (Nyquist Wave 0)
@@ -56,7 +56,7 @@ milestone: 1
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 01-04-PLAN.md — Nested providers + shadowing + runnable playground demo
+- [x] 01-04-PLAN.md — Nested providers + shadowing + runnable playground demo
 
 **UI hint**: yes
 
@@ -106,6 +106,6 @@ milestone: 1
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Core Runtime | 3/4 | In Progress|  |
+| 1. Core Runtime | 4/4 | Complete   | 2026-06-20 |
 | 2. Next.js Integration | 0/1 | Not started | - |
 | 3. Devtools | 0/1 | Not started | - |
