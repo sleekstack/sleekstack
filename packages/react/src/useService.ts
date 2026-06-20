@@ -67,38 +67,37 @@ export function useService<T>(tag: Context.Tag<any, T>): T {
     )
   }
 
-  // Three-state cache check — ORDER IS CRITICAL (see RESEARCH.md Pitfall 3):
-  //   value first (sync fast-path), then error (before promise!), then promise (in-flight).
+  // Three-state discriminated cache check (CR-03) — ORDER IS CRITICAL (see RESEARCH.md Pitfall 3):
+  //   resolved first (sync fast-path), then rejected (before pending!), then pending (in-flight).
+  //
+  // Using status discriminant instead of `!== undefined` guards prevents an infinite Suspense
+  // loop when a service resolves to `undefined` or defects with `undefined` (CR-03).
   const cached = state.cache.get(tag)
 
-  // 1. Sync fast-path — service already resolved (REACT-03)
-  if (cached !== undefined && cached.value !== undefined) {
-    return cached.value as T
-  }
+  if (cached !== undefined) {
+    // 1. Sync fast-path — service already resolved (REACT-03)
+    if (cached.status === 'resolved') return cached.value as T
 
-  // 2. Error path — Layer acquisition failed; throw to nearest ErrorBoundary (D-06)
-  //    MUST be checked before promise to prevent re-suspending on a rejected promise (Pitfall 3)
-  if (cached !== undefined && cached.error !== undefined) {
-    throw cached.error
-  }
+    // 2. Error path — Layer acquisition failed; throw to nearest ErrorBoundary (D-06).
+    //    MUST be checked before pending to prevent re-suspending on a rejected entry (Pitfall 3).
+    if (cached.status === 'rejected') throw cached.error
 
-  // 3. In-flight Suspense — acquisition started, suspend while waiting (REACT-04)
-  if (cached !== undefined && cached.promise !== undefined) {
-    throw cached.promise
+    // 3. In-flight Suspense — acquisition started, suspend while waiting (REACT-04)
+    if (cached.status === 'pending') throw cached.promise
   }
 
   // 4. Cache miss — start acquisition via ManagedRuntime
   const promise = state.runtime
     .runPromise(tag as any)
     .then((val: unknown) => {
-      state.cache.set(tag, { value: val })
+      state.cache.set(tag, { status: 'resolved', value: val })
     })
     .catch((err: unknown) => {
-      state.cache.set(tag, { error: err })
+      state.cache.set(tag, { status: 'rejected', error: err })
     })
 
-  // Store promise entry — then/catch handlers will transition to value/error
-  state.cache.set(tag, { promise })
+  // Store pending entry — then/catch handlers will transition to resolved/rejected
+  state.cache.set(tag, { status: 'pending', promise })
 
   // First-time Suspense throw (REACT-04)
   throw promise

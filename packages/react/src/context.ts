@@ -15,14 +15,18 @@ import { createContext } from 'react'
 import type { ManagedRuntime } from 'effect'
 
 /**
- * A single cache entry for a resolved service.
- * One of: resolved (value), failed (error), or in-flight (promise).
+ * A single cache entry for a resolved service — discriminated union (CR-03).
+ *
+ * Using a `status` discriminant instead of optional fields prevents an
+ * infinite Suspense loop when a service legitimately resolves to `undefined`
+ * (or when a Layer defects with `undefined`). With optional fields, both
+ * `{ value: undefined }` and `{ error: undefined }` fail their `!== undefined`
+ * guards and fall through to a fresh cache-miss acquisition on every render.
  */
-export type CacheEntry = {
-  value?: unknown
-  promise?: Promise<any>
-  error?: any
-}
+export type CacheEntry =
+  | { status: 'pending'; promise: Promise<void> }
+  | { status: 'resolved'; value: unknown }
+  | { status: 'rejected'; error: unknown }
 
 /**
  * State held by each LayerProvider mount.
