@@ -109,19 +109,18 @@ function assembleLayer(
 }
 
 /**
- * Dispose a ManagedRuntime synchronously, with a fallback to async if needed.
- * Used in both the outer and inner cleanup paths.
+ * Dispose a ManagedRuntime asynchronously (fire-and-forget).
+ *
+ * The previous implementation used `runSyncExit(disposeEffect)` which silently
+ * returns `Exit.die(AsyncFiberException)` for any async finalizer steps — the
+ * try/catch never fires, so the scope leaks. `runtime.dispose()` is always
+ * async and correctly handles both sync and async finalizers (CR-01).
+ *
+ * In a React cleanup function we cannot await, so this is intentionally
+ * fire-and-forget. The runtime's internal scope manages finalization order.
  */
 function disposeRuntime(runtime: ManagedRuntime.ManagedRuntime<any, never>): void {
-  try {
-    runtime.runSyncExit(
-      (runtime as any).disposeEffect
-    )
-  } catch {
-    // Fallback to async dispose if runSyncExit is unavailable or throws.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ;(runtime as any).dispose?.()
-  }
+  void runtime.dispose()
 }
 
 // --- Component ---
