@@ -221,7 +221,8 @@ export function LayerProvider({ provide, children }: LayerProviderProps) {
 
   // WR-01: Development-mode warning when `provide` changes after initial mount.
   // The null-guard above means new layers are silently ignored — warn to help debugging.
-  if (process.env.NODE_ENV !== 'production') {
+  // Use typeof guard to avoid requiring @types/node for `process`.
+  if (typeof process === 'undefined' || (process as any).env?.NODE_ENV !== 'production') {
     if (provideRef.current !== provide) {
       console.warn(
         '[LayerProvider] The `provide` prop changed after mount. ' +
