@@ -14,4 +14,4 @@
 
 export { LayerProvider } from './LayerProvider'
 export { useService } from './useService'
-export type { LayerProviderProps } from './types'
+export type { LayerProviderProps } from './LayerProvider'

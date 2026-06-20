@@ -9,28 +9,7 @@
  * ServiceProvider, TryGetResult, tryGetService, provideService (D-03, D-04).
  */
 
-import type { ReactNode } from 'react'
-import type { Context, Layer } from 'effect'
-import type { Module } from '@sleekstack/core'
-
-/**
- * Props for the LayerProvider component.
- *
- * Wrap children in a `<Suspense>` boundary — LayerProvider does NOT auto-wrap (D-01).
- *
- * @example
- * ```tsx
- * <LayerProvider provide={[MyLayer, MyModule]}>
- *   <Suspense fallback={<Loading />}>
- *     <MyComponent />
- *   </Suspense>
- * </LayerProvider>
- * ```
- */
-export interface LayerProviderProps {
-  readonly provide: ReadonlyArray<Layer.Layer<any, any, any> | Module<any>>
-  readonly children?: ReactNode
-}
+import type { Context } from 'effect'
 
 /**
  * LayerProvider component — provides an Effect Layer graph to descendant components.
