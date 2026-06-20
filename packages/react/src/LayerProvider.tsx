@@ -176,10 +176,22 @@ export function LayerProvider({ provide, children }: LayerProviderProps) {
       // --- Nested provider: inherit parent's resolved Effect context ---
       // Extract the parent's built context synchronously. ManagedRuntime.runSync
       // builds the parent's layer on first access, then returns the context.
-      // This avoids async suspension and works for all Layer types used in practice
-      // (Layer.succeed, Layer.scoped with sync acquire — see Plan 01-04 design note).
-      const parentCtx = parentState.runtime.runSync(Effect.context<never>())
-      parentContextLayer = Layer.succeedContext(parentCtx) as unknown as Layer.Layer<any, any, any>
+      // This works for synchronous layers (Layer.succeed, Effect.sync) only.
+      //
+      // CR-04: If the parent layer contains async steps, runSync throws
+      // AsyncFiberException. We catch it and throw a descriptive Error instead of
+      // letting the raw AsyncFiberException surface during render.
+      try {
+        const parentCtx = parentState.runtime.runSync(Effect.context<never>())
+        parentContextLayer = Layer.succeedContext(parentCtx) as unknown as Layer.Layer<any, any, any>
+      } catch (e) {
+        throw new Error(
+          '[LayerProvider] Cannot create a nested LayerProvider when the parent layer ' +
+          'uses async Effect steps. Only synchronous layers (Layer.succeed, Effect.sync) ' +
+          'are supported as parent layers for nesting. ' +
+          'Original error: ' + String(e)
+        )
+      }
     }
 
     const composedLayer = assembleLayer(Array.from(provide), parentContextLayer)
