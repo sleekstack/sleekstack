@@ -165,6 +165,8 @@ export interface LayerProviderProps {
 export function LayerProvider({ provide, children }: LayerProviderProps) {
   const stateRef = useRef<ProviderState | null>(null)
   const parentState = useContext(ProviderContext)
+  // WR-01: track the original `provide` reference so we can warn in dev if it changes.
+  const provideRef = useRef(provide)
 
   // Initialize exactly once per mount (concurrent-safe null-guard).
   // Anti-pattern guarded: ManagedRuntime.make is NEVER called in every render body
@@ -215,6 +217,19 @@ export function LayerProvider({ provide, children }: LayerProviderProps) {
         }
       },
     }
+  }
+
+  // WR-01: Development-mode warning when `provide` changes after initial mount.
+  // The null-guard above means new layers are silently ignored — warn to help debugging.
+  if (process.env.NODE_ENV !== 'production') {
+    if (provideRef.current !== provide) {
+      console.warn(
+        '[LayerProvider] The `provide` prop changed after mount. ' +
+        'LayerProvider does not re-initialize on prop changes. ' +
+        'To use new layers, unmount and remount the LayerProvider.'
+      )
+    }
+    provideRef.current = provide
   }
 
   useEffect(() => {
