@@ -267,7 +267,7 @@ export function LayerProvider({ provide, children }: LayerProviderProps) {
         stateRef.current = null
       }
     }
-  }, []) // empty deps: only runs on mount/unmount
+  }, [parentState]) // WR-02: include parentState so re-registration runs when parent changes
 
   return (
     <ProviderContext.Provider value={stateRef.current}>
