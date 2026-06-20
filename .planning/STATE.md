@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: unknown
-stopped_at: Phase 1 context gathered
-last_updated: "2026-06-20T06:28:51.893Z"
+status: active
+stopped_at: Phase 1 complete — verified 2026-06-20
+last_updated: "2026-06-20T10:22:00.000Z"
 progress:
   total_phases: 3
   completed_phases: 1
@@ -19,7 +19,7 @@ progress:
 
 **Core value**: `useService(Tag)` resolves a service from the nearest `LayerProvider`, suspending on first acquisition and returning synchronously from cache thereafter — with deterministic cleanup on unmount.
 
-**Current focus**: Phase 1 — Core Runtime (`@sleekstack/core` + `@sleekstack/react`)
+**Current focus**: Phase 2 — Next.js Integration (`@sleekstack/next`)
 
 **Repository structure**: pnpm workspaces monorepo — `packages/core`, `packages/react`, `packages/next` (planned), `apps/playground`
 
@@ -27,12 +27,12 @@ progress:
 
 ## Current Position
 
-**Active phase**: Phase 1 — Core Runtime
-**Active plan**: 01-04 (next)
-**Phase status**: In progress — 3 of 4 plans complete
+**Active phase**: Phase 2 — Next.js Integration
+**Active plan**: (not started)
+**Phase status**: Phase 1 complete — Phase 2 not started
 
 ```
-Phase 1 [#######   ] 75%  Core Runtime (3/4 plans)
+Phase 1 [##########] 100% Core Runtime (4/4 plans, verified)
 Phase 2 [          ] 0%   Next.js Integration
 Phase 3 [          ] 0%   Devtools
 ```
@@ -59,6 +59,13 @@ Phase 3 [          ] 0%   Devtools
 - Circular import detection fires at `module()` definition time — earliest possible failure point
 - `@sleekstack/testing` is explicitly deferred — shadowing via `provide` covers the primary testing use case
 
+### Phase 1 open issues (post-phase improvements for Phase 2)
+
+- **CR-01**: `disposeRuntime` silent async-dispose failure — `runSyncExit` returns Exit.die instead of throwing on async boundary; fallback `dispose?.()` unreachable. Fix: inspect Exit tag, call `void runtime.dispose()` on failure.
+- **CR-02**: `package.json` `types` field points to `src/index.ts` (does not exist); actual barrel is `src/index.tsx`. Fix: one-line change.
+- **CR-03**: `useService` loops infinitely when a service resolves to `undefined` — value-presence check `!== undefined` is semantically wrong. Fix: discriminated `{ status }` union for CacheEntry.
+- **CR-04**: Nested `LayerProvider` crashes when parent has an async Layer — `runSync(Effect.context())` throws AsyncFiberException. Fix: guard with `cachedRuntime` check or throw a suspense promise.
+
 ### Deferred items
 
 - `@sleekstack/testing` — deferred; shadowing covers 80% of testing needs
@@ -74,13 +81,11 @@ Phase 3 [          ] 0%   Devtools
 
 ## Session Continuity
 
-**Last session:** 2026-06-20T06:28:36.959Z
-**Stopped at:** Completed 01-03-PLAN.md — LayerProvider + useService + ProviderContext implemented
-**Resume file:** .planning/phases/01-core-runtime/01-04-PLAN.md
+**Last session:** 2026-06-20T10:22:00.000Z
+**Stopped at:** Phase 1 verified — all 12 requirements pass, 32 tests green, 0 type errors
+**Resume file:** n/a — Phase 2 not planned yet
 
-**Next action**: Run `/gsd-execute-phase 01` to execute Plan 01-04 (nested provider scope + shadowing).
-
-**Phase 1 scope reminder**: CORE-01 through CORE-04 (module() API) + REACT-01 through REACT-08 (LayerProvider, useService, shadowing, cleanup). Rewrites existing prototype packages.
+**Next action**: Plan Phase 2 (Next.js Integration) or address Phase 1 open issues (CR-01..CR-04) first.
 
 ## Performance Metrics
 
@@ -99,3 +104,4 @@ Phase 3 [          ] 0%   Devtools
 - [Phase 01 P02]: name validation uses typeof guard + trim() to reject non-string/empty inputs; never used as object key (prototype-pollution prevention)
 - [Phase 01 P03]: Module detection in assembleLayer uses duck-typing (_name + _layers + _imports) rather than instanceof — keeps react package decoupled from core at runtime
 - [Phase 01 P03]: Layer.empty and ManagedRuntime.make require type casts (Layer<never,never,never> vs Layer<any,any,any>; ManagedRuntime<any,any> vs ManagedRuntime<any,never>) — semantically correct, TypeScript formality
+- [Phase 01 P04]: React 19 runs useEffect cleanups parent-before-child; inner-before-outer finalization achieved via registerChildDispose mechanism (parent calls registered child disposals LIFO before its own dispose)
