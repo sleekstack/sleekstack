@@ -43,6 +43,11 @@ import { ProviderContext } from './context'
 import type { ProviderState } from './context'
 import type { Module } from '@sleekstack/core'
 
+// Minimal process type declaration so `process.env.NODE_ENV` typechecks without
+// requiring @types/node in consumers (WR-01). Bundlers (Vite, webpack) replace this
+// with a literal at build time. Declare is scoped to this module.
+declare const process: { env: { NODE_ENV?: string } }
+
 // --- Internal helpers ---
 
 /**
@@ -221,8 +226,7 @@ export function LayerProvider({ provide, children }: LayerProviderProps) {
 
   // WR-01: Development-mode warning when `provide` changes after initial mount.
   // The null-guard above means new layers are silently ignored — warn to help debugging.
-  // Use typeof guard to avoid requiring @types/node for `process`.
-  if (typeof process === 'undefined' || (process as any).env?.NODE_ENV !== 'production') {
+  if (process.env.NODE_ENV !== 'production') {
     if (provideRef.current !== provide) {
       console.warn(
         '[LayerProvider] The `provide` prop changed after mount. ' +
