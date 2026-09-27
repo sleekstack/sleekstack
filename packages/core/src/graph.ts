@@ -43,6 +43,8 @@ export interface Graph {
   /** Nodes that lost every Tag they provide to a more local entry. */
   readonly shadowed: readonly GraphNode[]
   readonly shadowing: readonly Shadowing[]
+  /** Resolved dependency edges between live nodes (to = the winning provider). */
+  readonly edges: readonly { readonly from: string; readonly to: string; readonly tag: string }[]
   /** Everything composed: base first, then nodes in order. */
   readonly layer: Layer.Layer<any, any, never>
 }
@@ -125,7 +127,21 @@ export function buildGraph(input: readonly (Module | Entry)[]): Graph {
     winners.set(tag, top[0]!)
     if (ns.length > 1) lost.push([tag, top[0]!, ns.filter((n) => n !== top[0])])
   }
-  // ponytail: a declared Layer winning some Tags and losing others stays in the graph whole; split it if that case shows up
+  // A multi-Tag declared Layer is atomic: winning some Tags while losing others would let its
+  // losing outputs re-enter the context, so that split is rejected.
+  for (const n of all) {
+    const won = n.provides.filter((k) => winners.get(k) === n)
+    if (won.length > 0 && won.length < n.provides.length) {
+      const lostTag = n.provides.find((k) => winners.get(k) !== n)!
+      const other = winners.get(lostTag)!
+      throw new AmbiguousProvider({
+        tag: lostTag, modules: [other.module?.name ?? '(root)', n.module?.name ?? '(root)'],
+        message:
+          `Declared Layer "${n.id}" (${where(n)}) is only partially shadowed: "${lostTag}" is provided more ` +
+          `locally by ${where(other)}. Shadow every Tag it provides, or split the Layer.`,
+      })
+    }
+  }
   const live = all.filter((n) => !n.opaque && n.provides.some((k) => winners.get(k) === n))
   // Shadowed nodes share their Tag key with the winner; suffix the owning module to keep ids unique.
   const shadowedId = new Map(
@@ -154,7 +170,8 @@ export function buildGraph(input: readonly (Module | Entry)[]): Graph {
   const opaque = all.filter((n) => n.opaque)
   let acc: AnyLayer = opaque.length ? Layer.mergeAll(...(opaque.map((n) => n.layer) as [AnyLayer])) : (Layer.empty as unknown as AnyLayer)
   for (const n of ordered) acc = n.layer.pipe(Layer.provideMerge(acc))
-  return { nodes: ordered, opaque, shadowed, shadowing, layer: acc as Layer.Layer<any, any, never> }
+  const edges = ordered.flatMap((n) => n.requires.map((tag) => ({ from: n.id, to: winners.get(tag)!.id, tag })))
+  return { nodes: ordered, opaque, shadowed, shadowing, edges, layer: acc as Layer.Layer<any, any, never> }
 }
 
 /** Kahn ordering, dependencies first. `provider` maps a required Tag key to its node. Throws DependencyCycle. */
@@ -194,8 +211,6 @@ export function toposort<N extends { readonly id: string; readonly requires: rea
 }
 
 export function snapshot(graph: Graph): GraphSnapshot {
-  const provider = new Map<string, string>()
-  for (const n of graph.nodes) for (const k of n.provides) provider.set(k, n.id)
   const dto = (n: GraphNode, shadowed: boolean) => ({
     id: n.id,
     name: n.opaque ? n.id : n.provides.join('+'),
@@ -213,7 +228,7 @@ export function snapshot(graph: Graph): GraphSnapshot {
       ...graph.nodes.map((n) => dto(n, false)),
       ...graph.shadowed.map((n) => dto(n, true)),
     ],
-    edges: graph.nodes.flatMap((n) => n.requires.map((tag) => ({ from: n.id, to: provider.get(tag)!, tag }))),
+    edges: graph.edges.map((e) => ({ ...e })),
     shadowing: graph.shadowing.map((s) => ({ ...s, shadowed: [...s.shadowed] })),
   }
 }

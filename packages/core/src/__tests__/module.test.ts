@@ -10,8 +10,12 @@ describe('module()', () => {
     expect(() => module({ name: name as any })).toThrow(InvalidModule)
   })
 
-  it('rejects entries that are not definitions or Layers', () => {
-    expect(() => module({ name: 'M', entries: [{} as any] })).toThrow(/entry 0/)
+  it.each([
+    [{}, /entry 0 is not/],
+    [{ _tag: 'ServiceDefinition' }, /entry 0 is a malformed service definition/],
+    [{ _tag: 'DeclaredLayer', layer: Layer.empty }, /entry 0 is a malformed declared Layer/],
+  ])('rejects malformed entry %j with InvalidModule', (entry, msg) => {
+    expect(() => module({ name: 'M', entries: [entry as any] })).toThrow(msg)
   })
 
   it('keeps entries, imports, exports, lifetime', () => {

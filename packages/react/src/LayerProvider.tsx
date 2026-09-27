@@ -45,11 +45,6 @@ import { buildGraph, type Module } from '@sleekstack/core'
 
 // --- Internal helpers ---
 
-/** Flatten a Module (and its transitive imports) via the core graph builder. */
-function flattenModuleToLayer(mod: Module): Layer.Layer<any, any, any> {
-  return buildGraph([mod]).layer
-}
-
 /**
  * Assemble the final composed Layer for ManagedRuntime.make.
  *
@@ -62,17 +57,12 @@ function assembleLayer(
   provide: Array<Layer.Layer<any, any, any> | Module>,
   parentContextLayer?: Layer.Layer<any, any, any>
 ): Layer.Layer<any, any, any> {
-  // Expand Modules to their flattened Layer equivalents (CORE-03 auto-pull).
-  const ownLayers: Layer.Layer<any, any, any>[] = provide.map(entry => {
-    if (
-      entry !== null &&
-      typeof entry === 'object' &&
-      'entries' in entry && (entry as { _tag?: unknown })._tag === 'Module'
-    ) {
-      return flattenModuleToLayer(entry as Module)
-    }
-    return entry as Layer.Layer<any, any, any>
-  })
+  // One provide boundary resolves as one graph (modules + raw Layers), so modules can satisfy
+  // each other and ambiguity/duplicates are caught. Raw Layers without modules keep plain merge.
+  const hasModule = provide.some((e) => !Layer.isLayer(e))
+  const ownLayers: Layer.Layer<any, any, any>[] = hasModule
+    ? [buildGraph(provide as ReadonlyArray<Module>).layer]
+    : (provide as Layer.Layer<any, any, any>[])
 
   if (parentContextLayer) {
     // Nested provider: parent context first (lower precedence), own layers last (higher precedence).

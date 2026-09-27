@@ -103,14 +103,14 @@ const MockHttpClientLayer = Layer.succeed(HttpClient, {
 })
 
 // ---------------------------------------------------------------------------
-// module() definitions — demonstrates CORE-01 (module with name/layers/imports)
+// module() definitions — demonstrates CORE-01 (module with name/entries/imports)
 // and CORE-03 (imports auto-pulled into LayerProvider without manual re-declaration)
 // ---------------------------------------------------------------------------
 
 // HttpModule provides HttpClient only
 const HttpModule = module({
   name: 'HttpModule',
-  layers: [HttpClientLayer],
+  entries: [HttpClientLayer],
   exports: [HttpClient],
 })
 
@@ -118,7 +118,7 @@ const HttpModule = module({
 // HttpModule's layers (HttpClientLayer) are automatically pulled into scope (CORE-03).
 const AppModule = module({
   name: 'AppModule',
-  layers: [UserApiLayer],
+  entries: [UserApiLayer],
   imports: [HttpModule],
   exports: [UserApi],
 })
@@ -341,7 +341,7 @@ export default function ApiExample() {
                 — define services with finalizers; finalizers log to console on unmount
               </li>
               <li>
-                <strong>Modules:</strong> <code>module(&#123; name, layers, imports &#125;)</code>{' '}
+                <strong>Modules:</strong> <code>module(&#123; name, entries, imports &#125;)</code>{' '}
                 — group related layers; imports are automatically pulled into scope
               </li>
               <li>

@@ -63,6 +63,14 @@ describe('buildGraph', () => {
     expect((e as AmbiguousProvider).modules).toEqual(['A', 'B'])
   })
 
+  it('declared Layer shadowed on only some of its Tags -> AmbiguousProvider', () => {
+    const Both = declareLayer(Layer.merge(Layer.succeed(Db, 'd'), Layer.succeed(Repo, 'r')), { provides: [Db, Repo] })
+    const LocalDb = service(Db, {}, () => Effect.succeed('local'))
+    const e = err(() => buildGraph([module({ name: 'Lib', entries: [Both] }), LocalDb]))
+    expect(e).toBeInstanceOf(AmbiguousProvider)
+    expect((e as AmbiguousProvider).message).toMatch(/partially shadowed/)
+  })
+
   it('diamond whose shared module provides a Tag is deduped; provenance lists both paths', () => {
     const Shared = module({ name: 'Shared', entries: [ConfigDef], exports: [Config] })
     const B = module({ name: 'B', imports: [Shared] })

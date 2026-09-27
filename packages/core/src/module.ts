@@ -41,8 +41,11 @@ export function declareLayer<ROut, E, RIn>(
   options: { readonly provides: readonly AnyTag[]; readonly requires?: readonly AnyTag[]; readonly lifetime?: Lifetime },
 ): DeclaredLayer {
   if (!Layer.isLayer(layer)) throw new InvalidModule({ message: 'declareLayer(): expected an Effect Layer' })
-  if (!options.provides?.length) {
+  if (!isTagArray(options.provides) || options.provides.length === 0) {
     throw new InvalidModule({ message: 'declareLayer(): `provides` must list at least one Tag' })
+  }
+  if (options.requires !== undefined && !isTagArray(options.requires)) {
+    throw new InvalidModule({ message: 'declareLayer(): `requires` must be an array of Tags' })
   }
   return {
     _tag: 'DeclaredLayer',
@@ -55,6 +58,24 @@ export function declareLayer<ROut, E, RIn>(
 
 const isTagged = (x: unknown, tag: string): boolean =>
   typeof x === 'object' && x !== null && (x as { _tag?: unknown })._tag === tag
+
+const isTagArray = (x: unknown): boolean =>
+  Array.isArray(x) && x.every((t) => Context.isTag(t))
+
+/** Structural check for a tagged entry, so malformed values fail in module(), not buildGraph. */
+function entryProblem(e: unknown): string | undefined {
+  if (isServiceDefinition(e)) {
+    return Context.isTag(e.tag) && isTagArray(e.requires) && Layer.isLayer(e.layer)
+      ? undefined
+      : 'is a malformed service definition'
+  }
+  if (isDeclaredLayer(e)) {
+    return Layer.isLayer(e.layer) && isTagArray(e.provides) && e.provides.length > 0 && isTagArray(e.requires)
+      ? undefined
+      : 'is a malformed declared Layer'
+  }
+  return Layer.isLayer(e) ? undefined : 'is not a service definition, declared Layer, or Layer'
+}
 
 export const isModule = (x: unknown): x is Module => isTagged(x, 'Module')
 export const isDeclaredLayer = (x: unknown): x is DeclaredLayer => isTagged(x, 'DeclaredLayer')
@@ -72,14 +93,14 @@ export function module(config: {
     throw new InvalidModule({ message: `module(): 'name' must be a non-empty string, got: ${JSON.stringify(name)}` })
   }
   const entries = config.entries ?? []
+  if (!Array.isArray(entries)) throw new InvalidModule({ name, message: `module("${name}"): 'entries' must be an array` })
   entries.forEach((e, i) => {
-    if (!isServiceDefinition(e) && !isDeclaredLayer(e) && !Layer.isLayer(e)) {
-      throw new InvalidModule({
-        name,
-        message: `module("${name}"): entry ${i} is not a service definition, declared Layer, or Layer`,
-      })
-    }
+    const problem = entryProblem(e)
+    if (problem) throw new InvalidModule({ name, message: `module("${name}"): entry ${i} ${problem}` })
   })
+  if (config.exports !== undefined && !isTagArray(config.exports)) {
+    throw new InvalidModule({ name, message: `module("${name}"): 'exports' must be an array of Tags` })
+  }
   const imports = config.imports ?? []
   if (typeof imports !== 'function' && !Array.isArray(imports)) {
     throw new InvalidModule({ name, message: `module("${name}"): 'imports' must be an array or a thunk` })
