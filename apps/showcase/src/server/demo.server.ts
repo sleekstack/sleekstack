@@ -11,8 +11,9 @@ import { cookies } from 'next/headers'
 import { service, type Entry } from '@sleekstack/core'
 import { Effect } from 'effect'
 import { ActivityLog, Clock, type ActivityEvent } from '../domain/tags'
+import { DEMO_COOKIE } from '../domain/demo-cookie'
 
-export const DEMO_COOKIE = 'sleekstack_demo'
+export { DEMO_COOKIE }
 
 export async function isDemoMode(): Promise<boolean> {
   const store = await cookies()

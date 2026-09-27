@@ -1,15 +1,17 @@
 /**
  * apps/showcase/app/page.tsx
  *
- * Read-only board (R5): reads projects/tasks/comments through `query()`,
- * with demo-mode shadowing (R9) applied via per-call `provide`. The
- * interactive board — nested LayerProviders, forms wired to the Server
- * Actions in board.actions.ts — lands in task .3.
+ * The interactive board (R5, R7): reads projects/tasks/comments through
+ * `query()`, with demo-mode shadowing (R9) applied via per-call `provide`,
+ * then hands the data to the client `Board` (nested `LayerProvider`s,
+ * forms wired to the Server Actions in board.actions.ts).
  */
 import { query } from '@sleekstack/next'
 import { Effect } from 'effect'
 import { CommentRepo, ProjectRepo, TaskRepo } from '../src/domain/tags'
-import { demoEntries } from '../src/server/demo.server'
+import { Board } from '../src/client/Board'
+import { demoEntries, isDemoMode } from '../src/server/demo.server'
+import { Providers } from './providers'
 
 async function loadBoard() {
   const provide = await demoEntries()
@@ -31,28 +33,18 @@ async function loadBoard() {
 }
 
 export default async function HomePage() {
-  const board = await loadBoard()
+  const [board, demoMode] = await Promise.all([loadBoard(), isDemoMode()])
 
   return (
-    <main>
-      <h1>Team Task Board</h1>
-      <p>Read-only for now — the interactive board (nested scopes, forms) lands in task .3.</p>
-      {board.map(({ project, tasks }) => (
-        <section key={project.id}>
-          <h2>{project.name}</h2>
-          <ul>
-            {tasks.map(({ task, comments }) => (
-              <li key={task.id}>
-                {task.title} — {task.status} ({comments.length} comment{comments.length === 1 ? '' : 's'})
-              </li>
-            ))}
-          </ul>
-        </section>
-      ))}
-      <p>
-        See <a href="/log">/log</a> for the activity log, <a href="/graph">/graph</a> for the service graph, and{' '}
-        <a href="/errors">/errors</a> for the broken-graph gallery.
-      </p>
-    </main>
+    <Providers demoMode={demoMode}>
+      <main>
+        <h1>Team Task Board</h1>
+        <Board board={board} demoMode={demoMode} />
+        <p>
+          See <a href="/log">/log</a> for the activity log, <a href="/graph">/graph</a> for the service graph, and{' '}
+          <a href="/errors">/errors</a> for the broken-graph gallery.
+        </p>
+      </main>
+    </Providers>
   )
 }
