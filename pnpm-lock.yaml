@@ -91,6 +91,10 @@ importers:
       next:
         specifier: '>=15.0.0'
         version: 16.2.6(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+    devDependencies:
+      vitest:
+        specifier: ^4.1.9
+        version: 4.1.9(@types/node@22.20.1)(jsdom@29.1.1)(vite@8.0.16(@types/node@22.20.1))
 
   packages/react:
     dependencies:
