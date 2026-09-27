@@ -23,6 +23,8 @@ export interface ServiceDefinition<I, S, E, R, L extends Lifetime> {
   readonly tag: Context.Tag<I, S>
   readonly requires: readonly AnyTag[]
   readonly lifetime: L
+  /** false when `lifetime` was defaulted, so a module lifetime may apply */
+  readonly explicitLifetime: boolean
   readonly layer: Layer.Layer<I, E, R>
 }
 
@@ -49,6 +51,7 @@ export function service<
     tag,
     requires,
     lifetime: (options.lifetime ?? 'app') as L,
+    explicitLifetime: options.lifetime !== undefined,
     layer: Layer.scoped(tag, acquire) as unknown as Layer.Layer<I, E, Context.Tag.Identifier<Req[number]>>,
   }
 }

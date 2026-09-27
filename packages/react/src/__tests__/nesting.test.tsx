@@ -146,7 +146,7 @@ describe('LayerProvider shadowing — REACT-05: replacement Layer shadows transi
   it('[REACT-05] a module in the parent provide array has its deps shadowed by inner provide replacement', async () => {
     const CoreModule = module({
       name: 'CoreModule',
-      layers: [RealDatabaseLayer],
+      entries: [RealDatabaseLayer],
     })
 
     function DbConsumer() {
@@ -180,13 +180,13 @@ describe('module() imports in LayerProvider — CORE-03: Module imports are auto
     // ChildModule imports DatabaseModule — consumer should get DatabaseService without explicitly declaring it
     const DatabaseModule = module({
       name: 'DatabaseModule',
-      layers: [RealDatabaseLayer],
+      entries: [RealDatabaseLayer],
       exports: [DatabaseService],
     })
 
     const AppModule = module({
       name: 'AppModule',
-      layers: [UserLayer],
+      entries: [UserLayer],
       imports: [DatabaseModule],
     })
 
@@ -214,19 +214,19 @@ describe('module() imports in LayerProvider — CORE-03: Module imports are auto
   it('[CORE-03] a deeply imported Module (transitive import) is also pulled into scope', async () => {
     const DatabaseModule = module({
       name: 'DatabaseModule2',
-      layers: [RealDatabaseLayer],
+      entries: [RealDatabaseLayer],
       exports: [DatabaseService],
     })
 
     const UserModule = module({
       name: 'UserModule2',
-      layers: [UserLayer],
+      entries: [UserLayer],
       imports: [DatabaseModule],
     })
 
     const AppModule = module({
       name: 'AppModule2',
-      layers: [],
+      entries: [],
       imports: [UserModule], // Transitively imports DatabaseModule
     })
 

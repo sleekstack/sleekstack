@@ -41,29 +41,13 @@ import React, { useContext, useEffect, useRef } from 'react'
 import { ManagedRuntime, Layer, Effect } from 'effect'
 import { ProviderContext } from './context'
 import type { ProviderState } from './context'
-import type { Module } from '@sleekstack/core'
+import { buildGraph, type Module } from '@sleekstack/core'
 
 // --- Internal helpers ---
 
-/**
- * Flatten a Module value to a single composed Layer.
- * Recursively collects this module's layers and all imported modules' layers,
- * then merges with Layer.mergeAll (last-in wins for duplicate Tags).
- *
- * CORE-03: Imported modules are automatically pulled into scope — the consumer
- * only lists the top-level Module in provide; all transitive imports are included.
- */
-function flattenModuleToLayer(mod: Module<any>): Layer.Layer<any, any, any> {
-  const allLayers: Layer.Layer<any, any, any>[] = [...mod._layers]
-  for (const imp of mod._imports ?? []) {
-    allLayers.push(flattenModuleToLayer(imp))
-  }
-  if (allLayers.length === 0) {
-    // Empty module — return a no-op Layer; cast to satisfy return type
-    return Layer.empty as unknown as Layer.Layer<any, any, any>
-  }
-  if (allLayers.length === 1) return allLayers[0]
-  return Layer.mergeAll(...(allLayers as [Layer.Layer<any, any, any>, Layer.Layer<any, any, any>, ...Layer.Layer<any, any, any>[]]))
+/** Flatten a Module (and its transitive imports) via the core graph builder. */
+function flattenModuleToLayer(mod: Module): Layer.Layer<any, any, any> {
+  return buildGraph([mod]).layer
 }
 
 /**
@@ -75,7 +59,7 @@ function flattenModuleToLayer(mod: Module<any>): Layer.Layer<any, any, any> {
  * for duplicate Tags (REACT-05, Pitfall 2: last-in-array wins; ADR 0003).
  */
 function assembleLayer(
-  provide: Array<Layer.Layer<any, any, any> | Module<any>>,
+  provide: Array<Layer.Layer<any, any, any> | Module>,
   parentContextLayer?: Layer.Layer<any, any, any>
 ): Layer.Layer<any, any, any> {
   // Expand Modules to their flattened Layer equivalents (CORE-03 auto-pull).
@@ -83,11 +67,9 @@ function assembleLayer(
     if (
       entry !== null &&
       typeof entry === 'object' &&
-      '_name' in entry &&
-      '_layers' in entry &&
-      '_imports' in entry
+      'entries' in entry && (entry as { _tag?: unknown })._tag === 'Module'
     ) {
-      return flattenModuleToLayer(entry as Module<any>)
+      return flattenModuleToLayer(entry as Module)
     }
     return entry as Layer.Layer<any, any, any>
   })
@@ -127,7 +109,7 @@ function disposeRuntime(runtime: ManagedRuntime.ManagedRuntime<any, never>): voi
 // --- Component ---
 
 export interface LayerProviderProps {
-  readonly provide: ReadonlyArray<Layer.Layer<any, any, any> | Module<any>>
+  readonly provide: ReadonlyArray<Layer.Layer<any, any, any> | Module>
   readonly children?: React.ReactNode
 }
 

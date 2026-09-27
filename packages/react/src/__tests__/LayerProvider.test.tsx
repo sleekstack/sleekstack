@@ -12,6 +12,7 @@ import React, { Suspense } from 'react'
 import { Context, Layer, Effect } from 'effect'
 import { LayerProvider } from '../index'
 import { useService } from '../index'
+import { module } from '@sleekstack/core'
 
 // --- Test service setup ---
 
@@ -55,11 +56,9 @@ describe('LayerProvider — REACT-01: accepts a provide prop of Layer and Module
   })
 
   it('[REACT-01] provide prop accepts an array with mixed Layer and Module values without throwing', async () => {
-    // Module type with the new Module shape
-    const fakeModule = { _name: 'FakeModule', _layers: [TestLayer], _imports: [], _exports: [] }
-    // Should render and provide TestLayer via fakeModule._layers
+    const fakeModule = module({ name: 'FakeModule', entries: [TestLayer] })
     renderStrict(
-      <LayerProvider provide={[fakeModule as any]}>
+      <LayerProvider provide={[fakeModule]}>
         <Suspense fallback={<div data-testid="react01b-loading">loading</div>}>
           <ServiceConsumer />
         </Suspense>
