@@ -15,12 +15,28 @@ An Effect `Layer` that describes how to construct one or more services, includin
 _Avoid_: Provider, factory, ServiceProvider
 
 **Service**:
-The resolved runtime value obtained by providing a Tag to `useService()`. Distinct from the Tag (the identifier) and the Layer (the constructor).
+The resolved runtime value obtained by providing a Tag to `useService()`. Distinct from the Tag (the identifier), the Layer (the constructor), and the Service Definition (the helper that carries the constructor's dependency metadata).
 _Avoid_: Instance, dependency, singleton
 
+**Service Definition**:
+The output of `service(tag, { requires, lifetime }, make)` — an Effect Layer plus runtime metadata (provided Tag, required Tags, lifetime) that drives auto-wiring, readable dependency errors, and lifetime checks. A raw Layer carries none of this metadata; a Service Definition wraps it so the metadata and the Layer's requirement type cannot drift apart.
+_Avoid_: Definition, ServiceFactory, provider definition
+
+**Lifetime**:
+One of `app`, `request`, or `component` — how long a constructed service lives before it is finalized. Constrains which lifetimes may depend on which (the lifetime matrix: `app` on `app`; `request` on `app`+`request`; `component` on `app`+`component`; `request` and `component` never nest).
+_Avoid_: Scope kind, duration, lifecycle tier
+
 **Module**:
-A named group of Layers with explicit dependency declarations (`imports`) and a declared public surface (`exports`). The primary architectural unit in SleekStack. Created with `module()`.
+A named group of entries — Service Definitions, declared Layers, or bare Layers — with imports (other Modules, pulled in transitively) and exports (descriptive graph metadata only; see Graph). The primary architectural unit in SleekStack. Created with `module()`.
 _Avoid_: Package, bundle, plugin, feature
+
+**Graph**:
+The validated dependency structure produced by `buildGraph(entries)`: construction order, lifetime checks, and shadowing resolved across every entry and imported Module. `snapshot(graph)` exposes it as a serializable `GraphSnapshot` DTO (nodes, edges, lifetimes, owning module, private flag) for tooling such as devtools.
+_Avoid_: Dependency tree, container, registry
+
+**Captive Dependency**:
+A lifetime-safety violation where a longer-lived entry would depend on a shorter-lived one (e.g. `app` on `request`), which would otherwise capture a stale or already-finalized instance. Rejected by `buildGraph` per the lifetime matrix, naming both services and their lifetimes.
+_Avoid_: Lifetime leak, scope violation
 
 ### React integration concepts
 
