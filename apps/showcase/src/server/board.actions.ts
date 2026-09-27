@@ -10,18 +10,38 @@
  * `error.tsx`.
  */
 import { action } from '@sleekstack/next'
-import { Effect } from 'effect'
+import { Cause, Effect } from 'effect'
 import { ActivityLog, CommentRepo, TaskRepo, type CommentRecord, type TaskRecord, type TaskStatus } from '../domain/tags'
 import { RequestContext, UnitOfWork } from './request.server'
 import { demoEntries } from './demo.server'
 
 export type ActionResult<T> = { readonly ok: true; readonly data: T } | { readonly ok: false; readonly error: string }
 
+/**
+ * A modeled, expected failure (validation, "simulate failure"): the boundary
+ * below converts only *this* into `{ ok: false, error }`. Anything else — a
+ * defect, an unconfigured runtime, a finalizer failure surfacing as a
+ * rejection — rethrows, so it reaches `error.tsx` instead of being reported
+ * as a normal result.
+ */
+class ExpectedFailure extends Error {
+  readonly _tag = 'ExpectedFailure'
+}
+
+const fail = (message: string) => Effect.fail(new ExpectedFailure(message))
+
+/** Unwraps `action()`'s rejection: an `ExpectedFailure` becomes a result, anything else rethrows. */
 async function toResult<T>(run: () => Promise<T>): Promise<ActionResult<T>> {
   try {
     return { ok: true, data: await run() }
   } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    if (err instanceof Error && Cause.isCause(err.cause)) {
+      const failure = Cause.failureOption(err.cause)
+      if (failure._tag === 'Some' && failure.value instanceof ExpectedFailure) {
+        return { ok: false, error: failure.value.message }
+      }
+    }
+    throw err
   }
 }
 
@@ -37,7 +57,7 @@ export async function createTask(input: CreateTaskInput): Promise<ActionResult<T
     Effect.gen(function* () {
       yield* RequestContext
       const title = i.title.trim()
-      if (!title) return yield* Effect.fail(new Error('Task title cannot be empty'))
+      if (!title) return yield* fail('Task title cannot be empty')
       const taskRepo = yield* TaskRepo
       const activityLog = yield* ActivityLog
       const uow = yield* UnitOfWork
@@ -46,7 +66,7 @@ export async function createTask(input: CreateTaskInput): Promise<ActionResult<T
         created = taskRepo.create({ projectId: i.projectId, title })
         activityLog.record(`Task created: ${created.id} "${created.title}"`)
       })
-      if (i.simulateFailure) return yield* Effect.fail(new Error('Simulated failure: create rejected before commit'))
+      if (i.simulateFailure) return yield* fail('Simulated failure: create rejected before commit')
       yield* uow.commit
       return created
     }),
@@ -68,7 +88,7 @@ export async function moveTask(input: MoveTaskInput): Promise<ActionResult<TaskR
       const activityLog = yield* ActivityLog
       const uow = yield* UnitOfWork
       const existing = taskRepo.get(i.taskId)
-      if (!existing) return yield* Effect.fail(new Error(`Unknown task id: ${i.taskId}`))
+      if (!existing) return yield* fail(`Unknown task id: ${i.taskId}`)
       let moved!: TaskRecord
       uow.stage(() => {
         moved = taskRepo.move(i.taskId, i.status)
@@ -93,13 +113,13 @@ export async function addComment(input: AddCommentInput): Promise<ActionResult<C
     Effect.gen(function* () {
       yield* RequestContext
       const body = i.body.trim()
-      if (!body) return yield* Effect.fail(new Error('Comment body cannot be empty'))
+      if (!body) return yield* fail('Comment body cannot be empty')
       const taskRepo = yield* TaskRepo
       const commentRepo = yield* CommentRepo
       const activityLog = yield* ActivityLog
       const uow = yield* UnitOfWork
       const existing = taskRepo.get(i.taskId)
-      if (!existing) return yield* Effect.fail(new Error(`Unknown task id: ${i.taskId}`))
+      if (!existing) return yield* fail(`Unknown task id: ${i.taskId}`)
       let created!: CommentRecord
       uow.stage(() => {
         created = commentRepo.create({ taskId: i.taskId, body, authorId: i.authorId })

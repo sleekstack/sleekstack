@@ -6,20 +6,17 @@
  */
 import { buildGraph, snapshot, type GraphSnapshot } from '@sleekstack/core'
 import { appEntries } from '../../src/domain/modules.server'
-import { MockActivityLogDef, MockClockDef } from '../../src/server/demo.server'
+import { isDemoMode, MockActivityLogDef, MockClockDef } from '../../src/server/demo.server'
 
 /** Demo mode (R9): the mock ActivityLog/Clock shadow the real ones, shown in the Shadowing section below. */
 function buildAppSnapshot(demo: boolean): GraphSnapshot {
   return snapshot(buildGraph(demo ? [...appEntries, MockActivityLogDef, MockClockDef] : appEntries))
 }
 
-export default async function GraphPage({
-  searchParams,
-}: {
-  readonly searchParams: Promise<{ readonly demo?: string }>
-}) {
-  const { demo } = await searchParams
-  const snap = buildAppSnapshot(demo === '1' || demo === 'true')
+export default async function GraphPage() {
+  // Same server-side cookie check as demoEntries() (R9): a query param here would let
+  // this page disagree with what the board's queries/actions actually shadowed.
+  const snap = buildAppSnapshot(await isDemoMode())
 
   return (
     <main>

@@ -45,17 +45,34 @@ describe('showcase request scopes', () => {
     await expect(import('../server/runtime.server')).resolves.toBeDefined()
   })
 
-  it('20 concurrent createTask calls get distinct ids and all commit', async () => {
+  it('20 concurrent createTask calls open 20 distinct request ids, all commit, and none cross-talk', async () => {
     const { createTask } = await import('../server/board.actions')
     const before = await countTasks('proj_1')
+    const beforeLog = await logMessages()
     const results = await Promise.all(
       Array.from({ length: 20 }, (_, i) =>
         createTask({ projectId: 'proj_1', title: `Concurrent task ${i}` } satisfies CreateTaskInput)),
     )
     for (const result of results) expect(result.ok).toBe(true)
-    const ids = results.map((r) => (r.ok ? r.data.id : undefined))
-    expect(new Set(ids).size).toBe(20)
+    const taskIds = results.map((r) => (r.ok ? r.data.id : undefined))
+    expect(new Set(taskIds).size).toBe(20) // 20 distinct tasks were actually created (no lost writes)...
+
+    // Capture the log right after the 20 creates (before any further query adds its own
+    // open/close pair) so this slice contains exactly their 20 request scopes.
+    const added = (await logMessages()).slice(beforeLog.length)
     expect(await countTasks('proj_1')).toBe(before + 20)
+
+    // Each create ran in its own request scope: 20 distinct request ids that each got both
+    // an "opened" and a matching "closed" (no cross-talk between concurrent requests).
+    const closedIds = new Set<string>()
+    const seenOpen = new Set<string>()
+    for (const message of added) {
+      const opened = message.match(/^request (\S+) opened$/)?.[1]
+      if (opened) seenOpen.add(opened)
+      const closed = message.match(/^request (\S+) closed$/)?.[1]
+      if (closed && seenOpen.has(closed)) closedIds.add(closed)
+    }
+    expect(closedIds.size).toBe(20)
   })
 
   it('an empty title is rejected with a descriptive error; the store is unchanged', async () => {
