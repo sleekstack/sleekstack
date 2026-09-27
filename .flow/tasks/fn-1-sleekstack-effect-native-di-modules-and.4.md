@@ -36,9 +36,12 @@ Lifetime enforcement and the scope runtime every adapter sits on (R5, R6).
 - [ ] Interrupted build does not hang later builds
 
 ## Done summary
-TBD
+CaptiveDependency lifetime-matrix check in buildGraph (lifetime.ts, names both services + lifetimes; declared Layers checked, opaque excluded) and scope runtime (scope.ts: makeAppScope, child(lifetime, entries) with fresh memo map per scope, boundary-entry shadowing, reverse finalization with aggregated close Exit, dispose -> onFinalizerError, cleanup on construction failure/interrupt). Tests: lifetime.test.ts, scope.test.ts.
 
+baseline: green
+stage: impl-review - ran (codex: NEEDS_WORK -> SHIP, 2 rounds)
+memory capture skipped: memory not initialized
 ## Evidence
-- Commits:
-- Tests:
+- Commits: c922ad15fec06cf94a9f6c03e3c28e896617379a, c1938a1d3d860e50fbcb53fc8b219bcfd8004592
+- Tests: pnpm typecheck, pnpm test
 - PRs:
