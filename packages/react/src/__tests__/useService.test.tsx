@@ -6,7 +6,7 @@
  * Later plans turn them green.
  */
 import { describe, it, expect } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import { renderStrict } from './renderStrict'
 import React, { Suspense } from 'react'
 import { Context, Layer } from 'effect'
@@ -26,7 +26,10 @@ const CounterLayer = Layer.succeed(CounterService, { count: 42 })
 // --- REACT-03 Tests ---
 
 describe('useService — REACT-03: returns synchronously after first resolution (sync fast-path)', () => {
-  it('[REACT-03] after first resolution, a second render returns the same service synchronously without re-suspending', async () => {
+  // Known R9 gap: the current provider disposes + rebuilds its runtime on StrictMode's
+  // simulated unmount, so rerender re-suspends. `it.fails` keeps it under StrictMode;
+  // flip to `it` when the provider lifecycle tasks (.6-.8) land.
+  it.fails('[REACT-03] after first resolution, a second render returns the same service synchronously without re-suspending', async () => {
     let renderCount = 0
     let suspendCount = 0
     let resolvedCount = 0
@@ -45,9 +48,7 @@ describe('useService — REACT-03: returns synchronously after first resolution 
       }
     }
 
-    // Known gap: under StrictMode the current engine re-suspends on rerender. Switch to
-    // renderStrict once the engine rewrite (later fn-1 tasks) fixes it.
-    const { rerender } = render(
+    const { rerender } = renderStrict(
       <LayerProvider provide={[CounterLayer]}>
         <Suspense fallback={<div data-testid="loading">loading</div>}>
           <TrackingConsumer />
