@@ -19,7 +19,11 @@
  * exported, and `packages/react/src/LayerProvider.tsx` (the failed prior
  * approach — immediate dispose + ref reset, no cancellation) is not reused.
  *
- * Decision recorded in the spec's Decision Context.
+ * A single ordered trace (acquire / render / release, all pushed at the
+ * moment they happen) proves the properties directly, rather than comparing
+ * sets or a final snapshot: those would hide a render observing an
+ * already-released instance, or a double release, if the interleaving were
+ * wrong. Decision recorded in the spec's Decision Context.
  */
 import { describe, it, expect } from 'vitest'
 import { useEffect, useRef, useState } from 'react'
@@ -27,23 +31,49 @@ import { Context, Effect } from 'effect'
 import { buildGraph, makeAppScope, service, type AppScope, type ChildScope } from '@sleekstack/core'
 import { renderStrict } from './renderStrict'
 
-// --- Tracked component-lifetime service: counts acquires/releases, tags each instance ---
+// --- Ordered trace: every acquire/render/release records its position ---
+
+type Event = { readonly kind: 'acquire' | 'render' | 'release'; readonly id: number }
+
+/** Every render observed an id acquired strictly before, and released strictly after (or not yet). */
+function assertNeverRendersAReleasedInstance(trace: readonly Event[]): void {
+  const releasedAt = new Map<number, number>()
+  trace.forEach((e, i) => {
+    if (e.kind !== 'release') return
+    expect(releasedAt.has(e.id)).toBe(false) // no id released twice
+    releasedAt.set(e.id, i)
+  })
+  trace.forEach((e, i) => {
+    if (e.kind !== 'render') return
+    const releaseIndex = releasedAt.get(e.id)
+    if (releaseIndex !== undefined) expect(i).toBeLessThan(releaseIndex)
+  })
+}
+
+/** Every acquired id was eventually released exactly once — nothing leaks, nothing double-frees. */
+function assertEveryAcquisitionReleasedExactlyOnce(trace: readonly Event[]): void {
+  const acquired = trace.filter((e) => e.kind === 'acquire').map((e) => e.id).sort((a, b) => a - b)
+  const released = trace.filter((e) => e.kind === 'release').map((e) => e.id).sort((a, b) => a - b)
+  expect(released).toEqual(acquired)
+}
+
+// --- Tracked component-lifetime service: an acquire/release pair per instance, id per instance ---
 
 interface Counter {
   readonly id: number
 }
 const CounterTag = Context.GenericTag<Counter>('lifecycle-probe/Counter')
 
-const makeTrackedEntry = (log: string[]) => {
+const makeTrackedEntry = (trace: Event[]) => {
   let nextId = 0
   return service(CounterTag, { lifetime: 'component' }, () =>
     Effect.acquireRelease(
       Effect.sync(() => {
         const id = ++nextId
-        log.push(`+${id}`)
+        trace.push({ kind: 'acquire', id })
         return { id }
       }),
-      (counter) => Effect.sync(() => void log.push(`-${counter.id}`)),
+      (counter) => Effect.sync(() => void trace.push({ kind: 'release', id: counter.id })),
     ),
   )
 }
@@ -84,15 +114,15 @@ function useDeferredDisposeScope(app: AppScope, entries: Parameters<AppScope['ch
 function DeferredDisposeProbe({
   app,
   entries,
-  onId,
+  trace,
 }: {
   app: AppScope
   entries: Parameters<AppScope['child']>[1]
-  onId: (id: number) => void
+  trace: Event[]
 }) {
   const scope = useDeferredDisposeScope(app, entries)
   const counter = Context.get(scope.context, CounterTag)
-  onId(counter.id)
+  trace.push({ kind: 'render', id: counter.id })
   return null
 }
 
@@ -122,70 +152,72 @@ function useRebuildOnRemountScope(app: AppScope, entries: Parameters<AppScope['c
 function RebuildOnRemountProbe({
   app,
   entries,
-  onId,
+  trace,
 }: {
   app: AppScope
   entries: Parameters<AppScope['child']>[1]
-  onId: (id: number) => void
+  trace: Event[]
 }) {
   const scope = useRebuildOnRemountScope(app, entries)
   const counter = Context.get(scope.context, CounterTag)
-  onId(counter.id)
+  trace.push({ kind: 'render', id: counter.id })
   return null
 }
 
 // --- Assertions ---
 
 describe('React lifecycle probe (R9): StrictMode-safe component-scope strategy', () => {
-  it('[deferred dispose] resolves under renderStrict without exposing a disposed scope, one acquisition, one release on real unmount', async () => {
-    const log: string[] = []
+  it('[deferred dispose] never renders a released instance, exactly one acquisition, released once on real unmount', async () => {
+    const trace: Event[] = []
     const app = makeApp()
-    const entries = [makeTrackedEntry(log)]
-    const seenIds: number[] = []
+    const entries = [makeTrackedEntry(trace)]
 
-    const { unmount } = renderStrict(<DeferredDisposeProbe app={app} entries={entries} onId={(id) => seenIds.push(id)} />)
+    const { unmount } = renderStrict(<DeferredDisposeProbe app={app} entries={entries} trace={trace} />)
 
     // Let any StrictMode double-invoke settle (cancellation runs synchronously,
     // but give a microtask turn in case anything was queued).
     await Promise.resolve()
 
-    // No double acquisition visible after settle, and the context always exposed
-    // a live (non-disposed) instance — every render saw the same id.
-    expect(log.filter((e) => e.startsWith('+'))).toEqual(['+1'])
-    expect(new Set(seenIds)).toEqual(new Set([1]))
+    // No double acquisition visible after settle: the StrictMode double-invoke
+    // never disposed the instance every render saw.
+    expect(trace.filter((e) => e.kind === 'acquire')).toEqual([{ kind: 'acquire', id: 1 }])
+    assertNeverRendersAReleasedInstance(trace)
 
     unmount()
     await new Promise<void>((resolve) => queueMicrotask(() => queueMicrotask(() => resolve())))
 
-    expect(log).toEqual(['+1', '-1'])
+    // Still exactly one acquisition (real unmount released the same instance
+    // StrictMode's double-invoke reused, not a second one), every render saw
+    // id 1, and it was released exactly once.
+    expect(trace.filter((e) => e.kind === 'acquire')).toEqual([{ kind: 'acquire', id: 1 }])
+    expect(trace.filter((e) => e.kind === 'render').every((e) => e.id === 1)).toBe(true)
+    assertNeverRendersAReleasedInstance(trace)
+    assertEveryAcquisitionReleasedExactlyOnce(trace)
   })
 
-  it('[rebuild on remount] resolves under renderStrict without exposing a disposed scope, one visible instance, one release on real unmount', async () => {
-    const log: string[] = []
+  it('[rebuild on remount] never renders a released instance, one instance per acquisition, all released on real unmount', async () => {
+    const trace: Event[] = []
     const app = makeApp()
-    const entries = [makeTrackedEntry(log)]
-    const seenIds: number[] = []
+    const entries = [makeTrackedEntry(trace)]
 
-    const { unmount } = renderStrict(<RebuildOnRemountProbe app={app} entries={entries} onId={(id) => seenIds.push(id)} />)
+    const { unmount } = renderStrict(<RebuildOnRemountProbe app={app} entries={entries} trace={trace} />)
 
     await Promise.resolve()
 
     // Rebuild-on-remount acquires a fresh instance across the StrictMode
-    // mount/cleanup/remount cycle (id 1 built by the transient StrictMode
-    // render is disposed, id 2 rebuilt for the settled render) — but the id
-    // the *settled* (last) render exposed through context was never one
-    // whose release had already run: no consumer ever observed a disposed
-    // instance.
-    const releasedIds = () => new Set(log.filter((e) => e.startsWith('-')).map((e) => Number(e.slice(1))))
-    const settledId = seenIds.at(-1)!
-    expect(releasedIds().has(settledId)).toBe(false)
+    // mount/cleanup/remount cycle (the transient instance built for the
+    // StrictMode render is disposed, a new one is rebuilt for the settled
+    // render) — but no render ever observed an instance whose release had
+    // already run, in that exact ordered trace.
+    assertNeverRendersAReleasedInstance(trace)
+    expect(trace.filter((e) => e.kind === 'acquire').length).toBeGreaterThan(0)
 
     unmount()
     await new Promise<void>((resolve) => queueMicrotask(() => queueMicrotask(() => resolve())))
 
     // Every acquired instance (transient StrictMode build included) was
-    // eventually released; nothing leaks.
-    const acquiredIds = new Set(log.filter((e) => e.startsWith('+')).map((e) => Number(e.slice(1))))
-    expect(releasedIds()).toEqual(acquiredIds)
+    // eventually released exactly once; nothing leaks, nothing double-frees.
+    assertNeverRendersAReleasedInstance(trace)
+    assertEveryAcquisitionReleasedExactlyOnce(trace)
   })
 })
