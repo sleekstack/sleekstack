@@ -5,7 +5,7 @@
  * message. Each case is awaited on its own, isolated from the others.
  */
 import { describe, expect, it } from 'vitest'
-import { errorCases } from '../errors/cases.server'
+import { errorCases, runCase } from '../errors/cases.server'
 
 const expected: Record<string, { readonly tag?: string; readonly messageContains: string }> = {
   'missing-dependency': { tag: 'MissingDependency', messageContains: 'requires "errors.MissingDependency.dep"' },
@@ -25,11 +25,23 @@ describe('error gallery cases', () => {
 
   for (const errorCase of errorCases) {
     it(`${errorCase.id} throws its expected tag/message`, async () => {
-      const result = await errorCase.run()
+      const result = await runCase(errorCase)
       const want = expected[errorCase.id]!
-      if (want.tag) expect(result.tag).toBe(want.tag)
-      expect(result.tag).not.toBe('UNEXPECTED')
+      expect(errorCase.expectedTag).toBe(want.tag)
+      expect(result.tag).toBe(want.tag)
       expect(result.message).toContain(want.messageContains)
     })
   }
+
+  it('a case producing a different tag than it declares is classified UNEXPECTED', async () => {
+    const graphCase = errorCases.find((c) => c.id === 'missing-dependency')!
+    const rawCase = errorCases.find((c) => c.id === 'raw-layer-failure')!
+    for (const c of [graphCase, rawCase]) {
+      const result = await runCase({ ...c, expectedTag: 'SomethingElse' })
+      expect(result.tag).toBe('UNEXPECTED')
+      expect(result.message).toContain(`got ${c.expectedTag}`)
+    }
+    const rejecting = await runCase({ ...rawCase, run: () => Promise.reject(new Error('runner blew up')) })
+    expect(rejecting).toEqual({ tag: 'UNEXPECTED', message: 'runner blew up' })
+  })
 })

@@ -5,21 +5,13 @@
  * can't break the page), and shows the tagged error's `_tag` and message.
  * A case that fails to throw its expected tag renders "UNEXPECTED".
  */
-import { errorCases, type CaseResult } from '../../src/errors/cases.server'
+import { errorCases, runCase, type CaseResult } from '../../src/errors/cases.server'
 
 export default async function ErrorsPage() {
-  // Sequential, one case at a time, each isolated in its own try/catch: an
-  // unexpected rejection from one runner must never take the whole page down.
+  // Sequential, one case at a time, each isolated by `runCase`: an unexpected
+  // rejection (or wrong tag) from one runner never takes the whole page down.
   const results: { readonly case: (typeof errorCases)[number]; readonly result: CaseResult }[] = []
-  for (const errorCase of errorCases) {
-    let result: CaseResult
-    try {
-      result = await errorCase.run()
-    } catch (e) {
-      result = { tag: 'UNEXPECTED', message: e instanceof Error ? e.message : String(e) }
-    }
-    results.push({ case: errorCase, result })
-  }
+  for (const errorCase of errorCases) results.push({ case: errorCase, result: await runCase(errorCase) })
 
   return (
     <main>

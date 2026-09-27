@@ -26,6 +26,8 @@ export interface CaseResult {
 export interface ErrorCase {
   readonly id: string
   readonly label: string
+  /** The `_tag` this case must produce; anything else is shown as UNEXPECTED. */
+  readonly expectedTag: string
   readonly run: () => Promise<CaseResult>
 }
 
@@ -43,6 +45,7 @@ async function runGraphCase(build: () => unknown): Promise<CaseResult> {
 const missingDependency: ErrorCase = {
   id: 'missing-dependency',
   label: 'MissingDependency',
+  expectedTag: 'MissingDependency',
   run: () =>
     runGraphCase(() => {
       const Dep = Context.GenericTag<string>('errors.MissingDependency.dep')
@@ -55,6 +58,7 @@ const missingDependency: ErrorCase = {
 const dependencyCycle: ErrorCase = {
   id: 'dependency-cycle',
   label: 'DependencyCycle',
+  expectedTag: 'DependencyCycle',
   run: () =>
     runGraphCase(() => {
       const A = Context.GenericTag<string>('errors.DependencyCycle.a')
@@ -68,6 +72,7 @@ const dependencyCycle: ErrorCase = {
 const captiveDependency: ErrorCase = {
   id: 'captive-dependency',
   label: 'CaptiveDependency',
+  expectedTag: 'CaptiveDependency',
   run: () =>
     runGraphCase(() => {
       // request <-> component never nest (packages/core/src/lifetime.ts): a component-lifetime
@@ -83,6 +88,7 @@ const captiveDependency: ErrorCase = {
 const ambiguousProvider: ErrorCase = {
   id: 'ambiguous-provider',
   label: 'AmbiguousProvider',
+  expectedTag: 'AmbiguousProvider',
   run: () =>
     runGraphCase(() => {
       // Two entries at the SAME precedence (both direct/root, depth 0) — ambiguous, not
@@ -97,6 +103,7 @@ const ambiguousProvider: ErrorCase = {
 const moduleCycle: ErrorCase = {
   id: 'module-cycle',
   label: 'ModuleCycle',
+  expectedTag: 'ModuleCycle',
   run: () =>
     runGraphCase(() => {
       // Mutual thunk imports: an identity cycle, only reachable through forward references.
@@ -109,6 +116,7 @@ const moduleCycle: ErrorCase = {
 const duplicateModule: ErrorCase = {
   id: 'duplicate-module',
   label: 'DuplicateModule',
+  expectedTag: 'DuplicateModule',
   run: () =>
     runGraphCase(() => {
       // Two distinct module objects sharing a name — not the same object, so it's not a diamond.
@@ -122,6 +130,7 @@ const duplicateModule: ErrorCase = {
 const invalidModule: ErrorCase = {
   id: 'invalid-module',
   label: 'InvalidModule',
+  expectedTag: 'InvalidModule',
   run: () =>
     runGraphCase(() => {
       const Bad = module({ name: 'errors.InvalidModule.Bad', imports: [{} as never] })
@@ -137,6 +146,7 @@ const invalidModule: ErrorCase = {
 const rawLayerFailure: ErrorCase = {
   id: 'raw-layer-failure',
   label: 'Raw Layer failure',
+  expectedTag: 'RawLayerFailure',
   run: async () => {
     const FailingModule = module({
       name: 'errors.RawLayerFailure.Boom',
@@ -148,7 +158,9 @@ const rawLayerFailure: ErrorCase = {
       return { tag: 'UNEXPECTED', message: 'expected the raw Layer to fail to build, but it built successfully' }
     }
     const defect = Cause.squash(exit.cause)
-    return { tag: 'RawLayerFailure', message: defect instanceof Error ? defect.message : String(defect) }
+    const tag = (defect as { readonly _tag?: unknown })?._tag
+    // Only the raw-Layer build error itself counts; any other tagged defect is a mismatch.
+    return { tag: typeof tag === 'string' ? tag : 'RawLayerFailure', message: defect instanceof Error ? defect.message : String(defect) }
   },
 }
 
@@ -162,3 +174,19 @@ export const errorCases: readonly ErrorCase[] = [
   invalidModule,
   rawLayerFailure,
 ]
+
+/**
+ * Runs one case in isolation and classifies it: a rejection, or a tag other
+ * than the case's `expectedTag`, becomes `UNEXPECTED` (keeping what actually
+ * happened in the message). Used by both the /errors page and the tests.
+ */
+export async function runCase(errorCase: ErrorCase): Promise<CaseResult> {
+  let result: CaseResult
+  try {
+    result = await errorCase.run()
+  } catch (e) {
+    return { tag: 'UNEXPECTED', message: e instanceof Error ? e.message : String(e) }
+  }
+  if (result.tag === errorCase.expectedTag) return result
+  return { tag: 'UNEXPECTED', message: `expected ${errorCase.expectedTag}, got ${result.tag}: ${result.message}` }
+}
