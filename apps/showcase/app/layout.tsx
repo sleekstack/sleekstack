@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import Link from 'next/link'
 
 export const metadata = {
   title: 'SleekStack Showcase',
@@ -10,10 +11,10 @@ export default function RootLayout({ children }: { readonly children: ReactNode 
     <html lang="en">
       <body style={{ fontFamily: 'system-ui, sans-serif', margin: 0, padding: '1.5rem' }}>
         <nav style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
-          <a href="/">Board</a>
-          <a href="/log">Log</a>
-          <a href="/graph">Graph</a>
-          <a href="/errors">Errors</a>
+          <Link href="/">Board</Link>
+          <Link href="/log">Log</Link>
+          <Link href="/graph">Graph</Link>
+          <Link href="/errors">Errors</Link>
         </nav>
         {children}
       </body>

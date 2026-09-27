@@ -6,6 +6,7 @@
  * then hands the data to the client `Board` (nested `LayerProvider`s,
  * forms wired to the Server Actions in board.actions.ts).
  */
+import Link from 'next/link'
 import { query } from '@sleekstack/next'
 import { Effect } from 'effect'
 import { CommentRepo, ProjectRepo, TaskRepo } from '../src/domain/tags'
@@ -41,8 +42,8 @@ export default async function HomePage() {
         <h1>Team Task Board</h1>
         <Board board={board} demoMode={demoMode} />
         <p>
-          See <a href="/log">/log</a> for the activity log, <a href="/graph">/graph</a> for the service graph, and{' '}
-          <a href="/errors">/errors</a> for the broken-graph gallery.
+          See <Link href="/log">/log</Link> for the activity log, <Link href="/graph">/graph</Link> for the service graph, and{' '}
+          <Link href="/errors">/errors</Link> for the broken-graph gallery.
         </p>
       </main>
     </Providers>
