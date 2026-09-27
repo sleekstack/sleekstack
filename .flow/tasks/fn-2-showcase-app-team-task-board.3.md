@@ -42,9 +42,12 @@ The client board: the app → project → task-detail provider tree with async c
 - [ ] TBD
 
 ## Done summary
-TBD
+Implemented the client board UI for the showcase app: nested `LayerProvider`s (app → project → task-detail), async component-scoped services (ProjectFilterStore owning filter/selection state, DraftEditor owning the comment draft), StrictMode with exactly-once acquire/release, a client-side ScopeLog shown both on the board and next to the server activity log on /log, the "break detail" error-boundary path, and a cookie-driven demo-mode toggle that remounts the app LayerProvider (shadowing Clock client-side, mirroring demo.server.ts's server-side shadowing). Create/move/comment forms call the .2 Server Actions and render `{ok:false,error}` inline.
 
+Fixed one impl-review round (3 P2 findings: client-side Clock shadowing was missing, ProjectFilterStore didn't actually own filter/selection state, /log didn't show component-scope events) and one manually-tested bug the coordinator found after SHIP: `useSyncExternalStore` was missing its `getServerSnapshot` argument, which under Next's real streaming SSR (not exercised by jsdom RTL tests) threw "Missing getServerSnapshot", bailed the subtree to client-only rendering, and re-acquired a second component scope server-side, failing to resolve Clock (the reported FiberFailure). Added a streaming-SSR regression test (`renderToPipeableStream`) that reproduces it red-first and stays green with the fix. Verified against real `next dev`/`next start` (multiple GETs, with and without the demo cookie): no FiberFailure logged.
+
+stage: impl-review - ran [NEEDS_WORK -> SHIP] (round 1: 3 P2 findings — client Clock shadowing missing, ProjectFilterStore not owning filter/selection state, /log missing component-scope events; fixed, re-reviewed SHIP) then re-reviewed after a coordinator-reported manual bug fix (getServerSnapshot), final verdict SHIP
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 948341c529cc6cbc97dc3b4cfb7982d5fd53e15e, 4bb88edf318c53d3bbe6b0e75ffe45d6866d5525, a584cce94af7abb2549765b90984076048040f41, 7b239ab7cdb35e05a1daf7f5f44d961b4c312926
+- Tests: pnpm --filter showcase typecheck, pnpm --filter showcase test, pnpm --filter showcase build, GATE_SKIPPED: none (gate check → RUN: no honorable receipt for HEAD; full unittest run recorded, GREEN_RECEIPT: .flow/tmp/green-receipts/7b239ab7-unittest.json)
 - PRs:
