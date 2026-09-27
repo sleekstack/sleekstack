@@ -28,9 +28,11 @@ Make the safety net real before engine work (R10). CI currently triggers on `mai
 - [ ] `renderStrict` helper exists and is used by at least one test
 
 ## Done summary
-TBD
+CI now triggers on master pushes + PRs, checks core/react/next have test/typecheck scripts, then runs typecheck and test. @sleekstack/next has vitest (node) + tsconfig + placeholder test. The renderStrict helper (RTL reactStrictMode, which persists across rerender) is used by all React adapter suites. REACT-03 is marked it.fails under StrictMode as a known R9 provider-lifecycle gap; flip it to `it` in tasks .6-.8.
 
+baseline: green
+stage: impl-review - ran (codex: NEEDS_WORK x2 -> SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 2f495b9b99f88f5a8b5eb8c7fef862bfcd890758, 2d152b88fa4eca14d2e78179527e92f0780a6d52, 00b3c9659782c61090934458acb7fa4abe62ef77
+- Tests: pnpm typecheck, pnpm test
 - PRs:
