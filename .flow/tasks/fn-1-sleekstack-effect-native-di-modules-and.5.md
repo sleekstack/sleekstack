@@ -37,9 +37,11 @@ Next.js adapter on the core scope runtime (R8).
 - [ ] Per-op provide of an app-lifetime service overrides the global instance for that op only
 
 ## Done summary
-TBD
+Implemented the Next.js adapter (R8): `configureRuntime({ provide, onFinalizerError })` lazily builds the app scope on first use in a process-global slot (effect/GlobalValue), no-ops on the same config reference, and safely replaces the app runtime on a different config (generation-guarded against a build still in flight). `action(fn)` / `action({ provide }, fn)` and `query` open a fresh request scope per call via core's child-boundary API, always close it (success, typed failure, defect, or a synchronous throw from `fn`), reject with an `Error` whose `cause` carries the Effect Cause, reject stream-shaped results with a descriptive error, and route request-scope finalizer failures to `onFinalizerError` (sink errors swallowed) without changing the op's own result. Tests: packages/next/src/__tests__/next.test.ts (12 tests) cover all 9 spec acceptance criteria plus 3 regression tests for review findings (reconfigure race, synchronous-throw leak, throwing sink).
 
+baseline: green (sibling task .4 committed clean; no interim edits before this task started)
+stage: impl-review - ran (codex: NEEDS_WORK -> SHIP, 1 round; 3 P1/P2 findings fixed - reconfigure race, request-scope leak on synchronous throw, throwing finalizer sink)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: eecd2805adeacd46accdf1e585035404d3436bcb, 417a694f811203e9086e9dd0854f5d6b75947616
+- Tests: pnpm typecheck, pnpm test
 - PRs:
