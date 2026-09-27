@@ -10,8 +10,8 @@
 
 import { Cause, Context, Effect, Exit, Layer, Scope } from 'effect'
 import { AmbiguousProvider, MissingDependency } from './errors'
-import { toposort, type Graph } from './graph'
-import { isDeclaredLayer, isServiceDefinition, type Entry } from './module'
+import { resolveEntries, toposort, type Graph } from './graph'
+import type { Entry, Module } from './module'
 import type { Lifetime } from './service'
 
 type AnyLayer = Layer.Layer<any, any, any>
@@ -26,10 +26,11 @@ export interface ChildScope {
   readonly lifetime: Lifetime
   readonly context: Context.Context<any>
   /**
-   * Opens a nested scope. `entries` are child-boundary entries: built in the new scope with
-   * their lifetime coerced to it, shadowing parent instances inside that scope only.
+   * Opens a nested scope. `entries` are child-boundary entries (modules resolved like buildGraph's:
+   * imports, thunks, per-Tag locality): built in the new scope with their lifetime coerced to it,
+   * shadowing parent instances inside that scope only.
    */
-  readonly child: (lifetime: 'request' | 'component', entries?: readonly Entry[]) => Effect.Effect<ChildScope, unknown>
+  readonly child: (lifetime: 'request' | 'component', entries?: readonly (Entry | Module)[]) => Effect.Effect<ChildScope, unknown>
   /** Runs finalizers in reverse acquisition order; the Exit aggregates every failure. */
   readonly close: Effect.Effect<Exit.Exit<void, unknown>>
   /** Un-awaited close: failures go to `onFinalizerError`. */
@@ -37,17 +38,6 @@ export interface ChildScope {
 }
 
 export type AppScope = ChildScope
-
-const toLocal = (entry: Entry, i: number): Local => {
-  if (isServiceDefinition(entry)) {
-    return { id: entry.tag.key, provides: [entry.tag.key], requires: entry.requires.map((t) => t.key), layer: entry.layer }
-  }
-  if (isDeclaredLayer(entry)) {
-    const provides = entry.provides.map((t) => t.key)
-    return { id: provides.join('+'), provides, requires: entry.requires.map((t) => t.key), layer: entry.layer }
-  }
-  return { id: `opaque:boundary#${i}`, provides: [], requires: [], layer: entry as AnyLayer }
-}
 
 /** Builds `locals` over `parent` in a new scope with a fresh memo map; closes the scope on failure/interrupt. */
 const open = (
@@ -114,7 +104,8 @@ const open = (
             if (lifetime !== 'app' && lifetime !== childLifetime) {
               throw new Error(`A ${childLifetime} scope cannot be opened inside a ${lifetime} scope`)
             }
-            const extras = entries.map(toLocal)
+            const { live, opaque } = resolveEntries(entries)
+            const extras = [...opaque, ...live]
             const shadowed = new Set(extras.flatMap((e) => e.provides))
             // Every child scope owns fresh instances of its lifetime's nodes, even when nested in a same-lifetime parent.
             const fromGraph = [...graph.opaque, ...graph.nodes].filter(

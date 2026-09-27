@@ -7,7 +7,7 @@
  * then composes Layers. snapshot() turns the result into a JSON-safe DTO.
  */
 
-import { Layer } from 'effect'
+import { Cause, Context, Layer } from 'effect'
 import { walkModules } from './cycle'
 import { AmbiguousProvider, DependencyCycle, MissingDependency } from './errors'
 import { isDeclaredLayer, isModule, isServiceDefinition, type Entry, type Module } from './module'
@@ -27,6 +27,8 @@ export interface GraphNode {
   readonly private: boolean
   /** Import depth: 0 = passed directly to buildGraph; lower wins. */
   readonly depth: number
+  /** Tags this node declares but lost to a more local provider (built, not exposed). */
+  readonly lost: readonly string[]
   readonly layer: AnyLayer
 }
 
@@ -68,7 +70,32 @@ export interface GraphSnapshot {
 
 const where = (n: GraphNode) => (n.module ? `module "${n.module.name}"` : 'root entries')
 
-export function buildGraph(input: readonly (Module | Entry)[]): Graph {
+/** Raw-Layer construction failures carry the owning module's name; the original Cause is kept as `cause`. */
+const attributed = (layer: AnyLayer, module: Module | undefined): AnyLayer =>
+  module === undefined
+    ? layer
+    : Layer.catchAllCause(layer, (cause) =>
+        Layer.failCause(Cause.die(new Error(`Raw Layer in module "${module.name}" failed to build: ${Cause.squash(cause)}`, { cause }))),
+      )
+
+/** Only `keys` of a Layer's outputs: a partially shadowed declared Layer must not overwrite local winners. */
+const only = (layer: AnyLayer, keys: readonly string[]): AnyLayer =>
+  Layer.map(layer, (ctx) => Context.unsafeMake(new Map([...ctx.unsafeMap].filter(([k]) => keys.includes(k)))))
+
+export interface Resolved {
+  /** Metadata-carrying nodes winning at least one Tag; `provides` lists only the Tags they won. */
+  readonly live: readonly GraphNode[]
+  readonly opaque: readonly GraphNode[]
+  readonly shadowed: readonly GraphNode[]
+  readonly shadowing: readonly Shadowing[]
+  readonly winners: ReadonlyMap<string, GraphNode>
+}
+
+/**
+ * Module walk, node creation, and per-Tag shadowing by locality (steps 1-3 of buildGraph).
+ * Also resolves child-boundary entries (nested React providers, Next per-operation provide).
+ */
+export function resolveEntries(input: readonly (Module | Entry)[]): Resolved {
   // 1. Modules: identity walk; direct (non-module) inputs are depth 0.
   const visits = walkModules(input.filter(isModule))
   type Seen = { entry: Entry; module: Module | undefined; depth: number; paths: string[][] }
@@ -85,7 +112,7 @@ export function buildGraph(input: readonly (Module | Entry)[]): Graph {
   // 2. Nodes.
   let opaqueN = 0
   const all: GraphNode[] = [...seen.values()].map(({ entry, module, depth, paths }) => {
-    const base = { module, depth, paths }
+    const base = { module, depth, paths, lost: [] }
     const isPrivate = (provides: readonly string[]) =>
       module !== undefined && !provides.some((k) => module.exports.some((t) => t.key === k))
     if (isServiceDefinition(entry)) {
@@ -101,20 +128,20 @@ export function buildGraph(input: readonly (Module | Entry)[]): Graph {
       return {
         ...base, id: provides.join('+'), provides, requires: entry.requires.map((t) => t.key),
         lifetime: entry.lifetime ?? module?.lifetime ?? 'app',
-        opaque: false, private: isPrivate(provides), layer: entry.layer,
+        opaque: false, private: isPrivate(provides), layer: attributed(entry.layer, module),
       }
     }
     return {
       ...base, id: `opaque:${module?.name ?? 'root'}#${opaqueN++}`, provides: [], requires: [],
-      lifetime: module?.lifetime ?? 'app', opaque: true, private: module !== undefined, layer: entry as AnyLayer,
+      lifetime: module?.lifetime ?? 'app', opaque: true, private: module !== undefined, layer: attributed(entry as AnyLayer, module),
     }
   })
 
-  // 3. Shadowing by locality; same Tag at the same (best) depth -> ambiguous.
+  // 3. Per-Tag shadowing by locality; same Tag at the same (best) depth -> ambiguous.
   const byTag = new Map<string, GraphNode[]>()
   for (const n of all) for (const k of n.provides) byTag.set(k, [...(byTag.get(k) ?? []), n])
-  const winners = new Map<string, GraphNode>()
-  const lost: [tag: string, winner: GraphNode, losers: GraphNode[]][] = []
+  const won = new Map<string, GraphNode>()
+  const shadowing: Shadowing[] = []
   for (const [tag, ns] of byTag) {
     const best = Math.min(...ns.map((n) => n.depth))
     const top = ns.filter((n) => n.depth === best)
@@ -125,32 +152,34 @@ export function buildGraph(input: readonly (Module | Entry)[]): Graph {
         message: `Tag "${tag}" is provided by several entries at the same precedence: ${top.map(where).join(', ')}`,
       })
     }
-    winners.set(tag, top[0]!)
-    if (ns.length > 1) lost.push([tag, top[0]!, ns.filter((n) => n !== top[0])])
+    won.set(tag, top[0]!)
+    const losers = ns.filter((n) => n !== top[0])
+    if (losers.length) shadowing.push({ tag, winner: tag, shadowed: losers.map((n) => shadowedId(tag, n)) })
   }
-  // A multi-Tag declared Layer is atomic: winning some Tags while losing others would let its
-  // losing outputs re-enter the context, so that split is rejected.
+  // A declared Layer that won only some of its Tags is still built once, exposing only the Tags it won.
+  const live: GraphNode[] = []
+  const shadowed: GraphNode[] = []
+  const winners = new Map<string, GraphNode>()
   for (const n of all) {
-    const won = n.provides.filter((k) => winners.get(k) === n)
-    if (won.length > 0 && won.length < n.provides.length) {
-      const lostTag = n.provides.find((k) => winners.get(k) !== n)!
-      const other = winners.get(lostTag)!
-      throw new AmbiguousProvider({
-        tag: lostTag, modules: [other.module?.name ?? '(root)', n.module?.name ?? '(root)'],
-        message:
-          `Declared Layer "${n.id}" (${where(n)}) is only partially shadowed: "${lostTag}" is provided more ` +
-          `locally by ${where(other)}. Shadow every Tag it provides, or split the Layer.`,
-      })
+    if (n.opaque) continue
+    const mine = n.provides.filter((k) => won.get(k) === n)
+    if (mine.length === 0) {
+      shadowed.push(n)
+      continue
     }
+    const node = mine.length === n.provides.length
+      ? n
+      : { ...n, provides: mine, lost: n.provides.filter((k) => !mine.includes(k)), layer: only(n.layer, mine) }
+    live.push(node)
+    for (const k of mine) winners.set(k, node)
   }
-  const live = all.filter((n) => !n.opaque && n.provides.some((k) => winners.get(k) === n))
-  // Shadowed nodes share their Tag key with the winner; suffix the owning module to keep ids unique.
-  const shadowedId = new Map(
-    all.filter((n) => !n.opaque && !live.includes(n)).map((n) => [n, `${n.id}@${n.module?.name ?? '(root)'}`]),
-  )
-  const shadowed = [...shadowedId].map(([n, id]) => ({ ...n, id }))
-  const idOf = (n: GraphNode) => shadowedId.get(n) ?? n.id
-  const shadowing: Shadowing[] = lost.map(([tag, w, ls]) => ({ tag, winner: idOf(w), shadowed: ls.map(idOf) }))
+  return { live, opaque: all.filter((n) => n.opaque), shadowed, shadowing, winners }
+}
+
+const shadowedId = (tag: string, n: GraphNode) => `${tag}@${n.module?.name ?? '(root)'}`
+
+export function buildGraph(input: readonly (Module | Entry)[]): Graph {
+  const { live, opaque, shadowed, shadowing, winners } = resolveEntries(input)
 
   // 4. Dependencies (bare Layers cannot satisfy them: their outputs are invisible).
   for (const n of live) {
@@ -169,10 +198,10 @@ export function buildGraph(input: readonly (Module | Entry)[]): Graph {
   const ordered = toposort(live, (k) => winners.get(k)!)
 
   // 5. Compose: bare Layers first as a base, then nodes in order. No construction happens here.
-  const opaque = all.filter((n) => n.opaque)
   let acc: AnyLayer = opaque.length ? Layer.mergeAll(...(opaque.map((n) => n.layer) as [AnyLayer])) : (Layer.empty as unknown as AnyLayer)
   for (const n of ordered) acc = n.layer.pipe(Layer.provideMerge(acc))
-  const edges = ordered.flatMap((n) => n.requires.map((tag) => ({ from: n.id, to: winners.get(tag)!.id, tag })))
+  // Edge endpoints are Tag keys: the snapshot keys every provided Tag as its own node.
+  const edges = ordered.flatMap((n) => n.provides.flatMap((from) => n.requires.map((tag) => ({ from, to: tag, tag }))))
   return { nodes: ordered, opaque, shadowed, shadowing, edges, layer: acc as Layer.Layer<any, any, never> }
 }
 
@@ -213,22 +242,25 @@ export function toposort<N extends { readonly id: string; readonly requires: rea
 }
 
 export function snapshot(graph: Graph): GraphSnapshot {
-  const dto = (n: GraphNode, shadowed: boolean) => ({
-    id: n.id,
-    name: n.opaque ? n.id : n.provides.join('+'),
-    provides: [...n.provides],
+  // One DTO per provided Tag (canonical key; `Tag@Module` when shadowed), so multi-Tag
+  // declared Layers get collision-free ids and per-Tag privacy.
+  const dto = (n: GraphNode, tag: string | undefined, shadowed: boolean) => ({
+    id: tag === undefined ? n.id : shadowed ? shadowedId(tag, n) : tag,
+    name: tag ?? n.id,
+    provides: tag === undefined ? [] : [tag],
     lifetime: n.lifetime,
     module: n.module ? { id: n.module.name, name: n.module.name } : null,
     paths: n.paths.map((p) => [...p]),
-    private: n.private,
+    private: tag === undefined ? n.private : n.module !== undefined && !n.module.exports.some((t) => t.key === tag),
     opaque: n.opaque,
     shadowed,
   })
   return {
     nodes: [
-      ...graph.opaque.map((n) => dto(n, false)),
-      ...graph.nodes.map((n) => dto(n, false)),
-      ...graph.shadowed.map((n) => dto(n, true)),
+      ...graph.opaque.map((n) => dto(n, undefined, false)),
+      ...graph.nodes.flatMap((n) => n.provides.map((k) => dto(n, k, false))),
+      ...graph.nodes.flatMap((n) => n.lost.map((k) => dto(n, k, true))),
+      ...graph.shadowed.flatMap((n) => n.provides.map((k) => dto(n, k, true))),
     ],
     edges: graph.edges.map((e) => ({ ...e })),
     shadowing: graph.shadowing.map((s) => ({ ...s, shadowed: [...s.shadowed] })),

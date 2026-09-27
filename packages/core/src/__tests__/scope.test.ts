@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { Cause, Context, Deferred, Effect, Exit, Fiber } from 'effect'
-import { buildGraph, makeAppScope, service } from '../index'
+import { buildGraph, makeAppScope, module, service } from '../index'
 
 class A extends Context.Tag('A')<A, { n: number }>() {}
 class B extends Context.Tag('B')<B, { n: number }>() {}
@@ -74,6 +74,14 @@ describe('scope runtime', () => {
     expect(Context.get(local.context, Rq).a.n).toBe(2)
     expect(Context.get(plain.context, Rq).a.n).toBe(1)
     expect(Context.get(app.context, A).n).toBe(1)
+  })
+
+  it('child-boundary modules are resolved through imports and thunks', async () => {
+    const app = await run(makeAppScope(buildGraph([])))
+    const Leaf = module({ name: 'Leaf', entries: [service(B, {}, () => Effect.succeed({ n: 7 }))] })
+    const Mid = module({ name: 'Mid', imports: () => [Leaf] })
+    const child = await run(app.child('request', [module({ name: 'Top', imports: [Mid] })]))
+    expect(Context.get(child.context, B).n).toBe(7)
   })
 
   it('an interrupted build finalizes what it acquired and does not hang later builds', async () => {

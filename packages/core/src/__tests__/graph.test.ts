@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { Context, Effect, Layer } from 'effect'
+import { Cause, Context, Effect, Exit, Layer } from 'effect'
 import {
   AmbiguousProvider, buildGraph, declareLayer, DependencyCycle, MissingDependency, module, service, snapshot,
 } from '../index'
@@ -63,12 +63,36 @@ describe('buildGraph', () => {
     expect((e as AmbiguousProvider).modules).toEqual(['A', 'B'])
   })
 
-  it('declared Layer shadowed on only some of its Tags -> AmbiguousProvider', () => {
-    const Both = declareLayer(Layer.merge(Layer.succeed(Db, 'd'), Layer.succeed(Repo, 'r')), { provides: [Db, Repo] })
+  it('declared Layer shadowed on only some of its Tags: local wins that Tag, the Layer still provides the rest', async () => {
+    let built = 0
+    const Both = declareLayer(Layer.effectContext(Effect.sync(() => (built++, Context.make(Db, 'd').pipe(Context.add(Repo, 'r'))))), { provides: [Db, Repo] })
     const LocalDb = service(Db, {}, () => Effect.succeed('local'))
-    const e = err(() => buildGraph([module({ name: 'Lib', entries: [Both] }), LocalDb]))
-    expect(e).toBeInstanceOf(AmbiguousProvider)
-    expect((e as AmbiguousProvider).message).toMatch(/partially shadowed/)
+    const g = buildGraph([module({ name: 'Lib', entries: [Both] }), LocalDb])
+    const both = Effect.all([Db, Repo]) as Effect.Effect<[string, string], never, Db | Repo>
+    expect(await Effect.runPromise(Effect.provide(both, g.layer))).toEqual(['local', 'r'])
+    expect(built).toBe(1)
+    expect(g.shadowing).toEqual([{ tag: 'Db', winner: 'Db', shadowed: ['Db@Lib'] }])
+    const ids = snapshot(g).nodes.map((n) => [n.id, n.shadowed])
+    expect(ids).toEqual(expect.arrayContaining([['Db', false], ['Repo', false], ['Db@Lib', true]]))
+  })
+
+  it('multi-Tag declared Layer: snapshot ids are per Tag (no collision with an "A+B" key) with per-Tag privacy', () => {
+    class Joined extends Context.Tag('Db+Repo')<Joined, string>() {}
+    const Both = declareLayer(Layer.merge(Layer.succeed(Db, 'd'), Layer.succeed(Repo, 'r')), { provides: [Db, Repo] })
+    const J = service(Joined, { requires: [Repo] }, ([r]) => Effect.succeed(r))
+    const snap = snapshot(buildGraph([module({ name: 'Lib', entries: [Both, J], exports: [Db] })]))
+    const ids = snap.nodes.map((n) => n.id)
+    expect(new Set(ids).size).toBe(ids.length)
+    expect(Object.fromEntries(snap.nodes.map((n) => [n.id, n.private]))).toEqual({ Db: false, Repo: true, 'Db+Repo': true })
+    expect(snap.edges).toEqual([{ from: 'Db+Repo', to: 'Repo', tag: 'Repo' }])
+  })
+
+  it('raw-Layer construction failure names the owning module and keeps the original Cause', async () => {
+    const NeedsRepo = declareLayer(Layer.effect(Db, Repo), { provides: [Db] })
+    const exit = await Effect.runPromiseExit(Effect.provide(Db, buildGraph([module({ name: 'OwningModule', entries: [NeedsRepo] })]).layer as Layer.Layer<Db>))
+    const e = Exit.isFailure(exit) ? Cause.squash(exit.cause) : undefined
+    expect((e as Error).message).toMatch(/module "OwningModule".*Service not found: Repo/)
+    expect(Cause.isCause((e as Error).cause)).toBe(true)
   })
 
   it('diamond whose shared module provides a Tag is deduped; provenance lists both paths', () => {
