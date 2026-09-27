@@ -1,105 +1,68 @@
 /**
  * packages/react/src/useService.ts
  *
- * useService hook — resolves a service from the nearest LayerProvider via Suspense.
- *
- * Three-state cache protocol (in order):
- *   1. value present  → return synchronously (sync fast-path, REACT-03)
- *   2. error present  → throw error (error boundary, D-06; checked BEFORE promise — Pitfall 3)
- *   3. promise present → throw promise (in-flight Suspense, REACT-04)
- *   4. cache miss     → start acquisition, cache promise, throw promise (first-time Suspense)
- *
- * Security: error messages name the service Tag by identifier only; no internal Effect
- * stack traces or runtime internals are included (T-03-01, 01-RESEARCH.md Security Domain).
- *
- * @example
- * ```tsx
- * // IMPORTANT: wrap the component in a <Suspense> boundary — useService will throw
- * // a Promise on first acquisition (React Suspense protocol).
- * //
- * // <Suspense fallback={<Loading />}>
- * //   <MyComponent />
- * // </Suspense>
- *
- * function MyComponent() {
- *   const myService = useService(MyServiceTag)
- *   return <div>{myService.greet()}</div>
- * }
- * ```
+ * Resolves a service from the nearest LayerProvider's component scope. Suspends
+ * while the scope is being built, then returns synchronously (including
+ * `undefined`-valued services). Failures throw to the nearest error boundary.
+ * Wrap consumers in `<Suspense>`; LayerProvider does not add one.
  */
 
 import { useContext } from 'react'
-import type { Context } from 'effect'
-import { ProviderContext } from './context'
+import { Context } from 'effect'
+import type { ChildScope } from '@sleekstack/core'
+import { ProviderContext, type CacheEntry, type ProviderState } from './context'
 
-/**
- * Resolve a service from the nearest ancestor LayerProvider.
- *
- * On first call, suspends the component (throws a Promise) while the Layer acquires
- * the service. After resolution, returns the service synchronously from cache on every
- * subsequent render — no re-suspension (REACT-03).
- *
- * Wrap the calling component in a `<Suspense>` boundary. LayerProvider does NOT
- * auto-wrap children with Suspense (D-01).
- *
- * @param tag - The Effect Context.Tag identifying the service to resolve.
- * @returns The resolved service instance (type T).
- *
- * @throws {Error} if no ancestor LayerProvider exists — message names the service and
- *   instructs adding a LayerProvider above the component (REACT-06).
- * @throws {Promise} on first call while acquiring (Suspense protocol, REACT-04).
- * @throws {unknown} if the Layer's Effect fails during acquisition (caught by ErrorBoundary, D-06).
- */
-export function useService<T>(tag: Context.Tag<any, T>): T {
-  const state = useContext(ProviderContext)
+const tagName = (tag: Context.Tag<any, any>): string => (tag as { key?: string }).key ?? String(tag)
 
-  if (state === null) {
-    // Derive a readable service name from the Tag — identifier only, no stack details (T-03-01).
-    const tagName: string =
-      (tag as any)._tag ??
-      (tag as any).key ??
-      (tag as any).identifier ??
-      String(tag)
-
+const lookup = (scope: ChildScope, tag: Context.Tag<any, any>): unknown => {
+  const found = Context.getOption(scope.context, tag)
+  if (found._tag === 'None') {
     throw new Error(
-      `Service '${tagName}' is not provided. ` +
-      `Add a Layer for ${tagName} to a <LayerProvider> above this component.`
+      `Service "${tagName(tag)}" is not provided. Add it (or a module exporting it) to the provide prop of a <LayerProvider> above this component.`,
     )
   }
+  return found.value
+}
 
-  // Three-state cache check — ORDER IS CRITICAL (see RESEARCH.md Pitfall 3):
-  //   value first (sync fast-path), then error (before promise!), then promise (in-flight).
+function entryFor(state: ProviderState, tag: Context.Tag<any, any>): CacheEntry {
   const cached = state.cache.get(tag)
-
-  // 1. Sync fast-path — service already resolved (REACT-03)
-  if (cached !== undefined && cached.value !== undefined) {
-    return cached.value as T
-  }
-
-  // 2. Error path — Layer acquisition failed; throw to nearest ErrorBoundary (D-06)
-  //    MUST be checked before promise to prevent re-suspending on a rejected promise (Pitfall 3)
-  if (cached !== undefined && cached.error !== undefined) {
-    throw cached.error
-  }
-
-  // 3. In-flight Suspense — acquisition started, suspend while waiting (REACT-04)
-  if (cached !== undefined && cached.promise !== undefined) {
-    throw cached.promise
-  }
-
-  // 4. Cache miss — start acquisition via ManagedRuntime
-  const promise = state.runtime
-    .runPromise(tag as any)
-    .then((val: unknown) => {
-      state.cache.set(tag, { value: val })
+  if (cached) return cached
+  const s = state.scopeState
+  let entry: CacheEntry
+  if (s.status === 'rejected') {
+    entry = { status: 'rejected', error: s.error, promise: Promise.resolve() }
+  } else if (s.status === 'resolved') {
+    try {
+      const value = lookup(s.scope, tag)
+      entry = { status: 'resolved', value, promise: Promise.resolve(value) }
+    } catch (error) {
+      entry = { status: 'rejected', error, promise: Promise.resolve() }
+    }
+  } else {
+    const promise: Promise<unknown> = state.scope.then(
+      (scope) => {
+        const value = lookup(scope, tag)
+        Object.assign(entry, { status: 'resolved', value })
+      },
+    ).catch((error: unknown) => {
+      Object.assign(entry, { status: 'rejected', error })
     })
-    .catch((err: unknown) => {
-      state.cache.set(tag, { error: err })
-    })
+    entry = { status: 'pending', promise }
+  }
+  state.cache.set(tag, entry)
+  return entry
+}
 
-  // Store promise entry — then/catch handlers will transition to value/error
-  state.cache.set(tag, { promise })
-
-  // First-time Suspense throw (REACT-04)
-  throw promise
+export function useService<T>(tag: Context.Tag<any, T>): T {
+  const state = useContext(ProviderContext)
+  if (state === null) {
+    throw new Error(
+      `Service "${tagName(tag)}" is not provided: no <LayerProvider> above this component. Wrap it in a <LayerProvider provide={[...]}> that provides "${tagName(tag)}".`,
+    )
+  }
+  const entry = entryFor(state, tag)
+  // Order matters: resolved -> rejected -> pending.
+  if (entry.status === 'resolved') return entry.value as T
+  if (entry.status === 'rejected') throw entry.error
+  throw entry.promise
 }

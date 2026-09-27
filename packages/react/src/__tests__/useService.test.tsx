@@ -5,7 +5,7 @@
  * These tests are RED — the new useService implementation does not exist yet.
  * Later plans turn them green.
  */
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { screen, waitFor } from '@testing-library/react'
 import { renderStrict } from './renderStrict'
 import React, { Suspense } from 'react'
@@ -26,10 +26,7 @@ const CounterLayer = Layer.succeed(CounterService, { count: 42 })
 // --- REACT-03 Tests ---
 
 describe('useService — REACT-03: returns synchronously after first resolution (sync fast-path)', () => {
-  // Known R9 gap: the current provider disposes + rebuilds its runtime on StrictMode's
-  // simulated unmount, so rerender re-suspends. `it.fails` keeps it under StrictMode;
-  // flip to `it` when the provider lifecycle tasks (.6-.8) land.
-  it.fails('[REACT-03] after first resolution, a second render returns the same service synchronously without re-suspending', async () => {
+  it('[REACT-03] after first resolution, a second render returns the same service synchronously without re-suspending', async () => {
     let renderCount = 0
     let suspendCount = 0
     let resolvedCount = 0
@@ -154,5 +151,87 @@ describe('@sleekstack/react public exports — REACT-07: Runtime, Scope, Fiber a
     expect(exportKeys).not.toContain('EffectLib')
     expect(exportKeys).not.toContain('createService')
     expect(exportKeys).not.toContain('layer')
+  })
+})
+
+// --- R9 (task .7): status cache, errors ---
+
+describe('useService — R9 status cache and errors', () => {
+  class Boundary extends React.Component<{ id: string; children: React.ReactNode }, { error: unknown }> {
+    state = { error: undefined as unknown }
+    static getDerivedStateFromError(error: unknown) {
+      return { error }
+    }
+    render() {
+      return this.state.error !== undefined ? <div data-testid={this.props.id}>{String((this.state.error as Error).message ?? this.state.error)}</div> : this.props.children
+    }
+  }
+
+  it('suspends once, then returns an undefined-valued service synchronously', async () => {
+    const Undef = Context.GenericTag<undefined>('UndefinedService')
+    let suspends = 0
+    function C() {
+      try {
+        const v = useService(Undef)
+        return <div data-testid="undef">{v === undefined ? 'undefined' : 'defined'}</div>
+      } catch (t) {
+        if (t instanceof Promise) suspends++
+        throw t
+      }
+    }
+    const ui = (
+      <LayerProvider provide={[Layer.succeed(Undef, undefined)]}>
+        <Suspense fallback={null}>
+          <C />
+        </Suspense>
+      </LayerProvider>
+    )
+    const { rerender } = renderStrict(ui)
+    await waitFor(() => expect(screen.getByTestId('undef').textContent).toBe('undefined'))
+    const before = suspends
+    expect(before).toBeGreaterThan(0)
+    rerender(ui)
+    expect(screen.getByTestId('undef').textContent).toBe('undefined')
+    expect(suspends).toBe(before)
+  })
+
+  it('acquisition failure reaches the nearest ErrorBoundary', async () => {
+    const Failing = Context.GenericTag<{ x: number }>('FailingService')
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    function C() {
+      useService(Failing)
+      return <div>never</div>
+    }
+    renderStrict(
+      <LayerProvider provide={[Layer.fail(new Error('acquire boom')) as never]}>
+        <Boundary id="caught-X">
+          <Suspense fallback={null}>
+            <C />
+          </Suspense>
+        </Boundary>
+      </LayerProvider>,
+    )
+    await waitFor(() => expect(screen.getByTestId('caught-X').textContent).toContain('acquire boom'))
+    spy.mockRestore()
+  })
+
+  it('a Tag no provider supplies throws a descriptive error naming it', async () => {
+    const Absent = Context.GenericTag<{ x: number }>('AbsentService')
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    function C() {
+      useService(Absent)
+      return <div>never</div>
+    }
+    renderStrict(
+      <LayerProvider provide={[CounterLayer]}>
+        <Boundary id="caught-Y">
+          <Suspense fallback={null}>
+            <C />
+          </Suspense>
+        </Boundary>
+      </LayerProvider>,
+    )
+    await waitFor(() => expect(screen.getByTestId('caught-Y').textContent).toMatch(/"AbsentService" is not provided.*provide prop.*LayerProvider/))
+    spy.mockRestore()
   })
 })

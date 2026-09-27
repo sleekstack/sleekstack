@@ -12,7 +12,7 @@ import React, { Suspense } from 'react'
 import { Context, Layer, Effect } from 'effect'
 import { LayerProvider } from '../index'
 import { useService } from '../index'
-import { module } from '@sleekstack/core'
+import { module, service } from '@sleekstack/core'
 
 // --- Test service setup ---
 
@@ -164,5 +164,81 @@ describe('LayerProvider — REACT-08: scoped Layer finalizer runs on unmount', (
     await waitFor(() => {
       expect(cleanupSpy).toHaveBeenCalledOnce()
     })
+  })
+})
+
+// --- R9 (task .7): app scope, finalizers, error sink, provide warning ---
+
+describe('LayerProvider — R9 scope ownership and cleanup', () => {
+  const flush = () => new Promise((r) => setTimeout(r, 0))
+
+  it('finalizers run exactly once on unmount (StrictMode double-mount does not release)', async () => {
+    const acquire = vi.fn()
+    const release = vi.fn()
+    const L = Layer.scoped(CleanupService, Effect.acquireRelease(Effect.sync(() => (acquire(), { id: 'x', cleanup: () => {} })), () => Effect.sync(release)))
+    function C() {
+      return <div data-testid="once">{useService(CleanupService).id}</div>
+    }
+    const { unmount } = renderStrict(
+      <LayerProvider provide={[L]}>
+        <Suspense fallback={null}>
+          <C />
+        </Suspense>
+      </LayerProvider>,
+    )
+    await waitFor(() => expect(screen.getByTestId('once').textContent).toBe('x'))
+    await flush()
+    expect(release).not.toHaveBeenCalled()
+    unmount()
+    await flush()
+    await flush()
+    expect(acquire).toHaveBeenCalledOnce()
+    expect(release).toHaveBeenCalledOnce()
+  })
+
+  it('a top-level provider resolves app- and component-lifetime entries with no outer runtime', async () => {
+    const AppSvc = Context.GenericTag<{ n: string }>('AppLifetimeSvc')
+    const CompSvc = Context.GenericTag<{ n: string }>('ComponentLifetimeSvc')
+    const app = service(AppSvc, { lifetime: 'app' }, () => Effect.succeed({ n: 'app' }))
+    const comp = service(CompSvc, { requires: [AppSvc], lifetime: 'component' }, ([a]) => Effect.succeed({ n: `comp<${a.n}>` }))
+    function C() {
+      return <div data-testid="both">{`${useService(AppSvc).n}|${useService(CompSvc).n}`}</div>
+    }
+    renderStrict(
+      <LayerProvider provide={[app, comp]}>
+        <Suspense fallback={null}>
+          <C />
+        </Suspense>
+      </LayerProvider>,
+    )
+    await waitFor(() => expect(screen.getByTestId('both').textContent).toBe('app|comp<app>'))
+  })
+
+  it('a failing finalizer on unmount reaches onFinalizerError', async () => {
+    const sink = vi.fn()
+    const L = Layer.scoped(CleanupService, Effect.acquireRelease(Effect.sync(() => ({ id: 'f', cleanup: () => {} })), () => Effect.die(new Error('release boom'))))
+    function C() {
+      return <div data-testid="fin">{useService(CleanupService).id}</div>
+    }
+    const { unmount } = renderStrict(
+      <LayerProvider provide={[L]} onFinalizerError={sink}>
+        <Suspense fallback={null}>
+          <C />
+        </Suspense>
+      </LayerProvider>,
+    )
+    await waitFor(() => expect(screen.getByTestId('fin').textContent).toBe('f'))
+    unmount()
+    await waitFor(() => expect(sink).toHaveBeenCalledOnce())
+  })
+
+  it('warns in dev when provide entries change after mount', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { rerender } = renderStrict(<LayerProvider provide={[TestLayer]} />)
+    rerender(<LayerProvider provide={[TestLayer]} />)
+    expect(warn).not.toHaveBeenCalled()
+    rerender(<LayerProvider provide={[Layer.succeed(TestService, { getValue: () => 'other' })]} />)
+    expect(warn).toHaveBeenCalledOnce()
+    warn.mockRestore()
   })
 })
