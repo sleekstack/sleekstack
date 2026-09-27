@@ -242,3 +242,33 @@ describe('LayerProvider — R9 scope ownership and cleanup', () => {
     warn.mockRestore()
   })
 })
+
+describe('LayerProvider — R9 abandoned render', () => {
+  it('a provider render abandoned before commit acquires nothing', async () => {
+    const acquire = vi.fn()
+    const L = Layer.scoped(CleanupService, Effect.acquireRelease(Effect.sync(() => (acquire(), { id: 'a', cleanup: () => {} })), () => Effect.void))
+    function Throws(): never {
+      throw new Error('abandon')
+    }
+    class Catch extends React.Component<{ children: React.ReactNode }, { failed: boolean }> {
+      state = { failed: false }
+      static getDerivedStateFromError() {
+        return { failed: true }
+      }
+      render() {
+        return this.state.failed ? null : this.props.children
+      }
+    }
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    renderStrict(
+      <Catch>
+        <LayerProvider provide={[L]}>
+          <Throws />
+        </LayerProvider>
+      </Catch>,
+    )
+    await new Promise((r) => setTimeout(r, 10))
+    expect(acquire).not.toHaveBeenCalled()
+    spy.mockRestore()
+  })
+})

@@ -37,6 +37,8 @@ const sameEntries = (a: ReadonlyArray<unknown>, b: ReadonlyArray<unknown>) =>
 
 interface Owned {
   readonly state: ProviderState
+  /** Starts acquisition. Called from the commit effect, so an abandoned render acquires nothing. */
+  readonly start: () => void
   readonly close: () => Promise<void>
 }
 
@@ -51,9 +53,11 @@ function create(provide: ReadonlyArray<Entry | Module>, parent: ProviderState | 
   }
   const owned: ChildScope[] = [] // app (top-level only), then component; closed in reverse
 
+  let start!: () => void
+  const started = new Promise<void>((r) => (start = r))
   const opened: Promise<ChildScope> = parent
-    ? parent.scope.then((p) => Effect.runPromise(p.child('component', boundaryEntries(provide))))
-    : Effect.runPromise(Effect.suspend(() => makeAppScope(buildGraph([...provide]), { onFinalizerError: sink }))).then((app) => {
+    ? started.then(() => parent.scope).then((p) => Effect.runPromise(p.child('component', boundaryEntries(provide))))
+    : started.then(() => Effect.runPromise(Effect.suspend(() => makeAppScope(buildGraph([...provide]), { onFinalizerError: sink })))).then((app) => {
         owned.push(app)
         return Effect.runPromise(app.child('component'))
       })
@@ -76,7 +80,7 @@ function create(provide: ReadonlyArray<Entry | Module>, parent: ProviderState | 
       state.children.clear()
       for (const s of owned.reverse()) report(await Effect.runPromise(s.close))
     })())
-  return { state, close }
+  return { state, start, close }
 }
 
 export function LayerProvider({ provide, onFinalizerError, children }: LayerProviderProps) {
@@ -96,6 +100,7 @@ export function LayerProvider({ provide, onFinalizerError, children }: LayerProv
 
   useEffect(() => {
     const owned = ownedRef.current!
+    owned.start()
     // StrictMode remount before the deferred close ran: cancel it, keep the scope.
     if (pendingRef.current !== null) {
       pendingRef.current.cancelled = true
