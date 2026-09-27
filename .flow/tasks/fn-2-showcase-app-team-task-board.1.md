@@ -40,9 +40,10 @@ Create the Next 15 app skeleton and the whole service graph, plus the two pure-c
 - [ ] TBD
 
 ## Done summary
-TBD
+Scaffolded apps/showcase (Next 15 workspace app) with the full domain service graph (Infra/Data/Activity/App modules via service()/declareLayer), the /graph explorer and the 8-case /errors gallery, plus Vitest coverage for both. pnpm --filter showcase typecheck/test/build all green.
 
+stage: impl-review - ran [NEEDS_WORK -> SHIP] (1 P2 finding: /errors ran cases concurrently via Promise.all instead of sequentially/isolated per R3; fixed to a for..of loop with per-case try/catch)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 40064ca8d7e0f8023cbaa73e6c20f832a2de846a, f29ede0479fe5f15350d7948e2767d11a05f40fa
+- Tests: pnpm --filter showcase typecheck, pnpm --filter showcase test, pnpm --filter showcase build
 - PRs:
