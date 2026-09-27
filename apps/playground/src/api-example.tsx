@@ -15,92 +15,16 @@
  */
 
 import React, { Suspense } from 'react'
-import { Context, Layer, Effect } from 'effect'
 import { module } from '@sleekstack/core'
 import { LayerProvider, useService } from '@sleekstack/react'
+import { HttpClient, Logger, UserApi } from './tags'
+import { HttpClientLayer, LoggerLayer, MockHttpClientLayer, UserApiLayer } from './services.server'
 
 // ---------------------------------------------------------------------------
-// Service definitions — Tags defined with Context.GenericTag (ADR 0001: users
-// import from 'effect' directly; @sleekstack/core does NOT re-export these).
+// Tags (./tags.ts) and Layer implementations (./services.server.ts) live in
+// separable modules (R11): a bundle that imports only ./tags never drags in
+// the implementations — proved by src/__tests__/bundle.test.ts.
 // ---------------------------------------------------------------------------
-
-interface LoggerService {
-  log(message: string): void
-  prefix: string
-}
-
-interface HttpClientService {
-  get(url: string): Promise<string>
-}
-
-interface UserApiService {
-  getGreeting(name: string): Promise<string>
-}
-
-const Logger = Context.GenericTag<LoggerService>('Logger')
-const HttpClient = Context.GenericTag<HttpClientService>('HttpClient')
-const UserApi = Context.GenericTag<UserApiService>('UserApi')
-
-// ---------------------------------------------------------------------------
-// Layer definitions — Layer.scoped with Effect.acquireRelease so finalizers
-// are observable on unmount (REACT-08 demo).
-// ---------------------------------------------------------------------------
-
-const LoggerLayer = Layer.scoped(
-  Logger,
-  Effect.acquireRelease(
-    Effect.sync(() => {
-      const svc: LoggerService = {
-        prefix: '[App]',
-        log: (msg) => console.log('[App]', msg),
-      }
-      console.log('[Logger] acquired')
-      return svc
-    }),
-    () => Effect.sync(() => console.log('[Logger] released — scope finalized'))
-  )
-)
-
-const HttpClientLayer = Layer.scoped(
-  HttpClient,
-  Effect.acquireRelease(
-    Effect.sync((): HttpClientService => {
-      console.log('[HttpClient] acquired')
-      return {
-        async get(url: string): Promise<string> {
-          // Simulate a network call with mock data
-          await new Promise((r) => setTimeout(r, 200))
-          return `Response from ${url}`
-        },
-      }
-    }),
-    () => Effect.sync(() => console.log('[HttpClient] released — scope finalized'))
-  )
-)
-
-const UserApiLayer = Layer.scoped(
-  UserApi,
-  Effect.acquireRelease(
-    Effect.sync((): UserApiService => {
-      console.log('[UserApi] acquired')
-      return {
-        async getGreeting(name: string): Promise<string> {
-          await new Promise((r) => setTimeout(r, 100))
-          return `Hello, ${name}! (from UserApi)`
-        },
-      }
-    }),
-    () => Effect.sync(() => console.log('[UserApi] released — scope finalized'))
-  )
-)
-
-// Mock HttpClient for the nested/shadowed scope
-const MockHttpClientLayer = Layer.succeed(HttpClient, {
-  async get(url: string): Promise<string> {
-    // Returns a mocked response immediately (no delay)
-    return `[MOCK] Response from ${url}`
-  },
-})
 
 // ---------------------------------------------------------------------------
 // module() definitions — demonstrates CORE-01 (module with name/entries/imports)
