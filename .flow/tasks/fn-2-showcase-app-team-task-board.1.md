@@ -16,7 +16,7 @@ Create the Next 15 app skeleton and the whole service graph, plus the two pure-c
 - Tags only in `src/domain/tags.ts` (pattern `apps/playground/src/tags.ts`). Implementations in `*.server.ts`, which start with `import 'server-only'` and export `SERVER_ONLY_MARKER` (pattern `apps/playground/src/services.server.ts`). Vitest must alias `server-only` to an empty module.
 - Modules: e.g. Infra (Clock, Logger, IdGen, bare Layer), Data (Store, repos; private internal helper), Activity (ActivityLog via `declareLayer`), App (imports Data plus Activity through a thunk). Store is module-scoped with seeded fixtures.
 - `/graph`: a server component that renders `snapshot(buildGraph(appEntries))` as a table. Accept a `demo` flag argument now; wiring comes in .2.
-- `/errors`: each case is a function building one broken graph, run in its own try/catch at render and reporting `_tag` plus message.
+- `/errors`: each case is an async runner `() => Promise<{tag, message}>`, awaited one at a time and isolated. The graph-validation cases call `buildGraph` in a try/catch. The raw-Layer case can't fail at `buildGraph`, which only composes, so it builds the composed `graph.layer` in an isolated scope (`Effect.scoped(Layer.build(...))` via runPromiseExit) and reads the message from the Cause. The page and the test both await the runners.
 
 ### Investigation targets
 **Required:**

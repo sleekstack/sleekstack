@@ -1,13 +1,97 @@
 {
   "branch_name": "fn-2-showcase-app-team-task-board",
+  "completion_review_status": "unknown",
+  "completion_reviewed_at": null,
   "created_at": "2026-09-27T17:29:59.037385Z",
+  "default_impl": null,
+  "default_review": null,
+  "default_sync": null,
   "depends_on_epics": [
     "fn-1-sleekstack-effect-native-di-modules-and"
   ],
   "id": "fn-2-showcase-app-team-task-board",
+  "impl_review_rounds": {},
   "next_task": 1,
-  "plan_review_status": "unknown",
-  "plan_reviewed_at": null,
+  "plan_review_rounds": 1,
+  "plan_review_status": "needs_work",
+  "plan_reviewed_at": "2026-09-27T17:41:29.435770Z",
+  "review_attempts": [
+    {
+      "artifact_sha256": "081ad350a96a8c652404e3eef2067229d36eaa6f29f9a7e365d5fd4056f50f32",
+      "backend": "codex",
+      "base_sha": "553d281ea7f92d51d0b70a405a4c3688266ed7df",
+      "counter_kind": "plan",
+      "effort": "high",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-b1cb21c5079918b8efb58027000b0349",
+            "classification": "introduced",
+            "findingId": "finding-b1cb21c5079918b8efb58027000b0349",
+            "firstSeenThisRound": true,
+            "severity": "P0",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-953c76fd3255de99e4564490993b16c4",
+            "classification": "introduced",
+            "findingId": "finding-953c76fd3255de99e4564490993b16c4",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-2272359ed8c28292b6eddff8d80b5548",
+            "classification": "introduced",
+            "findingId": "finding-2272359ed8c28292b6eddff8d80b5548",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-53f60bce8bc95a92aed091d5cd9a911d",
+            "classification": "introduced",
+            "findingId": "finding-53f60bce8bc95a92aed091d5cd9a911d",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "plan"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "cb43796dd56bd27ac843efb3af164931e17db120",
+      "head_sha_observed": true,
+      "kind": "plan",
+      "model": "gpt-6-astra",
+      "outcome": "verdict",
+      "output_bytes": 188981,
+      "output_sha256": "4f838ce26d4a70445662ecaa4279a73c7d4093660fa769552280d75c09638c04",
+      "reservation_id": "eb05a9e096ea44be873e79610f855ef4",
+      "round_consumed": true,
+      "scope": "plan",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-09-27T17:41:29.432307Z",
+      "tool_calls": 13,
+      "verdict": "NEEDS_WORK"
+    }
+  ],
+  "review_hash_epoch": {},
+  "review_pending_rounds": {},
+  "review_reservations": {},
+  "review_transport_failures": {
+    "plan": 0
+  },
   "spec_path": ".flow/specs/fn-2-showcase-app-team-task-board.md",
   "status": "open",
   "title": "Showcase app: Team Task Board demonstrating every SleekStack feature",
@@ -22,5 +106,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-09-27T17:35:11.973299Z"
+  "updated_at": "2026-09-27T17:42:29.265314Z"
 }

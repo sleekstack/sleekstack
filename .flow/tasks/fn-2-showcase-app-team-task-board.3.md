@@ -14,7 +14,7 @@ The client board: the app → project → task-detail provider tree with async c
 - The root `providers.tsx` wraps `<React.StrictMode><LayerProvider key={demoMode} provide={[ClientModule, ...demoClientEntries]}>`.
 - ProjectView: `<LayerProvider provide={[ProjectFilterStore]}>`, an async component service built with Effect.sleep and acquireRelease that logs acquire and release.
 - TaskDetail mounts with `key={taskId}` and provides DraftEditor (async, scoped). A "break detail" control mounts a variant whose acquire fails; ErrorBoundary follows `apps/playground/src/api-example.tsx:139-150`.
-- Mutations call the .2 server actions from client handlers and show the rejection message inline. A "Simulate failure" checkbox is part of the create form.
+- Mutations call the .2 Server Actions from client handlers and render the `{ok:false, error}` result inline. They don't depend on thrown messages crossing the boundary. A "Simulate failure" checkbox is part of the create form.
 - ScopeLog is a client-side list fed by the component services' acquire and release, shown next to the server log.
 - Vitest: a jsdom project for *.test.tsx. Copy renderStrict from packages/react.
 
