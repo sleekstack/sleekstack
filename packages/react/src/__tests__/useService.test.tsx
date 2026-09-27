@@ -7,6 +7,7 @@
  */
 import { describe, it, expect } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
+import { renderStrict } from './renderStrict'
 import React, { Suspense } from 'react'
 import { Context, Layer } from 'effect'
 import { LayerProvider } from '../index'
@@ -44,6 +45,8 @@ describe('useService — REACT-03: returns synchronously after first resolution 
       }
     }
 
+    // Known gap: under StrictMode the current engine re-suspends on rerender. Switch to
+    // renderStrict once the engine rewrite (later fn-1 tasks) fixes it.
     const { rerender } = render(
       <LayerProvider provide={[CounterLayer]}>
         <Suspense fallback={<div data-testid="loading">loading</div>}>
@@ -94,7 +97,7 @@ describe('useService — REACT-06: throws descriptive error when no ancestor Lay
 
     expect(() => {
       // Render without any LayerProvider ancestor
-      render(<ComponentWithoutProvider />)
+      renderStrict(<ComponentWithoutProvider />)
     }).toThrow(/LayerProvider/i)
   })
 
@@ -108,7 +111,7 @@ describe('useService — REACT-06: throws descriptive error when no ancestor Lay
 
     let errorMessage = ''
     try {
-      render(<ComponentWithoutProvider />)
+      renderStrict(<ComponentWithoutProvider />)
     } catch (e) {
       errorMessage = (e as Error).message
     }

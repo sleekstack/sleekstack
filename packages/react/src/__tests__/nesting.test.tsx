@@ -6,7 +6,8 @@
  * Later plans turn them green.
  */
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
+import { renderStrict } from './renderStrict'
 import React, { Suspense } from 'react'
 import { Context, Layer, Effect } from 'effect'
 import { LayerProvider } from '../index'
@@ -43,7 +44,7 @@ describe('Nested LayerProvider — REACT-02: inherits parent scope, inner finali
       return <div data-testid="db-result">{db.query()}</div>
     }
 
-    render(
+    renderStrict(
       <LayerProvider provide={[RealDatabaseLayer]}>
         <Suspense fallback={<div>loading outer</div>}>
           {/* Inner provider does not provide DatabaseService — should inherit from parent */}
@@ -85,7 +86,7 @@ describe('Nested LayerProvider — REACT-02: inherits parent scope, inner finali
       return <div data-testid="user">{user.getUser()}</div>
     }
 
-    const { unmount } = render(
+    const { unmount } = renderStrict(
       <LayerProvider provide={[OuterScopedLayer]}>
         <Suspense fallback={<div>loading</div>}>
           <LayerProvider provide={[InnerScopedLayer]}>
@@ -123,7 +124,7 @@ describe('LayerProvider shadowing — REACT-05: replacement Layer shadows transi
       return <div data-testid="db">{db.query()}</div>
     }
 
-    render(
+    renderStrict(
       <LayerProvider provide={[RealDatabaseLayer]}>
         <Suspense fallback={<div>loading</div>}>
           {/* Inner provider shadows DatabaseService with a mock */}
@@ -153,7 +154,7 @@ describe('LayerProvider shadowing — REACT-05: replacement Layer shadows transi
       return <div data-testid="shadowed-db">{db.query()}</div>
     }
 
-    render(
+    renderStrict(
       <LayerProvider provide={[CoreModule]}>
         <Suspense fallback={<div>loading</div>}>
           {/* Inner provider replaces the DatabaseService from CoreModule with a mock */}
@@ -196,7 +197,7 @@ describe('module() imports in LayerProvider — CORE-03: Module imports are auto
       return <div data-testid="imported-db">{db.query()}</div>
     }
 
-    render(
+    renderStrict(
       // Only AppModule in provide — DatabaseModule is an import, should be auto-pulled
       <LayerProvider provide={[AppModule]}>
         <Suspense fallback={<div>loading</div>}>
@@ -234,7 +235,7 @@ describe('module() imports in LayerProvider — CORE-03: Module imports are auto
       return <div data-testid="transitive-db">{db.query()}</div>
     }
 
-    render(
+    renderStrict(
       <LayerProvider provide={[AppModule]}>
         <Suspense fallback={<div>loading</div>}>
           <TransitiveConsumer />

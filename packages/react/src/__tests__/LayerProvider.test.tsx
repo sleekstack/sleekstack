@@ -6,7 +6,8 @@
  * Later plans turn them green.
  */
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, waitFor, act } from '@testing-library/react'
+import { screen, waitFor, act } from '@testing-library/react'
+import { renderStrict } from './renderStrict'
 import React, { Suspense } from 'react'
 import { Context, Layer, Effect } from 'effect'
 import { LayerProvider } from '../index'
@@ -40,7 +41,7 @@ describe('LayerProvider — REACT-01: accepts a provide prop of Layer and Module
   it('[REACT-01] renders children and provides a service via provide prop containing a Layer', async () => {
     // This test checks the new `provide` prop API — not the old `layers` prop.
     // With the old prototype the provide prop is ignored; service resolution fails.
-    render(
+    renderStrict(
       <LayerProvider provide={[TestLayer]}>
         <Suspense fallback={<div data-testid="react01-loading">loading</div>}>
           <ServiceConsumer />
@@ -57,7 +58,7 @@ describe('LayerProvider — REACT-01: accepts a provide prop of Layer and Module
     // Module type with the new Module shape
     const fakeModule = { _name: 'FakeModule', _layers: [TestLayer], _imports: [], _exports: [] }
     // Should render and provide TestLayer via fakeModule._layers
-    render(
+    renderStrict(
       <LayerProvider provide={[fakeModule as any]}>
         <Suspense fallback={<div data-testid="react01b-loading">loading</div>}>
           <ServiceConsumer />
@@ -74,7 +75,7 @@ describe('LayerProvider — REACT-01: accepts a provide prop of Layer and Module
 
 describe('LayerProvider + useService — REACT-04: first useService call suspends, then resolves', () => {
   it('[REACT-04] Suspense fallback shows while service is resolving, then service resolves', async () => {
-    render(
+    renderStrict(
       <LayerProvider provide={[TestLayer]}>
         <Suspense fallback={<div data-testid="loading">loading...</div>}>
           <ServiceConsumer />
@@ -102,7 +103,7 @@ describe('LayerProvider + useService — REACT-04: first useService call suspend
       }
     }
 
-    render(
+    renderStrict(
       <LayerProvider provide={[TestLayer]}>
         <Suspense fallback={<div data-testid="fallback">loading</div>}>
           <CapturingSuspendComponent />
@@ -144,7 +145,7 @@ describe('LayerProvider — REACT-08: scoped Layer finalizer runs on unmount', (
       return <div data-testid="cleanup-service-id">{svc.id}</div>
     }
 
-    const { unmount } = render(
+    const { unmount } = renderStrict(
       <LayerProvider provide={[ScopedCleanupLayer]}>
         <Suspense fallback={<div>loading</div>}>
           <CleanupConsumer />

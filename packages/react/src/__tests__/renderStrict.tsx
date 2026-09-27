@@ -1,6 +1,6 @@
 import { render, type RenderOptions, type RenderResult } from '@testing-library/react'
-import { StrictMode, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 
-/** RTL `render` wrapped in `<StrictMode>`; all new React tests use this. */
+/** RTL `render` under StrictMode (persists across `rerender`); all new React tests use this. */
 export const renderStrict = (ui: ReactNode, options?: RenderOptions): RenderResult =>
-  render(<StrictMode>{ui}</StrictMode>, options)
+  render(ui, { ...options, reactStrictMode: true })
