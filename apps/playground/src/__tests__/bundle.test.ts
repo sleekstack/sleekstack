@@ -29,12 +29,34 @@ describe('playground bundle separation (R11)', () => {
 
       const clientChunk = chunks.find((c) => c.name === 'client-tags')
       expect(clientChunk).toBeDefined()
-      const clientSource = readFileSync(path.join(outDir, clientChunk!.fileName), 'utf8')
-      expect(clientSource).not.toContain(SERVER_ONLY_MARKER)
 
-      // Sanity: the marker exists somewhere in the build, so the assertion above isn't vacuous.
-      const markerFoundSomewhere = chunks.some((c) => readFileSync(path.join(outDir, c.fileName), 'utf8').includes(SERVER_ONLY_MARKER))
-      expect(markerFoundSomewhere).toBe(true)
+      // Walk the full chunk graph reachable from the client-tags entry (static +
+      // dynamic imports), not just its own (near-empty, re-exporting) file: a
+      // server implementation could otherwise leak into a shared chunk it imports.
+      const byFile = new Map(chunks.map((c) => [c.fileName, c]))
+      const reachable = new Set<string>()
+      const stack = [clientChunk!.fileName]
+      while (stack.length > 0) {
+        const fileName = stack.pop()!
+        if (reachable.has(fileName)) continue
+        reachable.add(fileName)
+        const chunk = byFile.get(fileName)
+        if (!chunk) continue
+        for (const dep of [...chunk.imports, ...chunk.dynamicImports]) stack.push(dep)
+      }
+      for (const fileName of reachable) {
+        const source = readFileSync(path.join(outDir, fileName), 'utf8')
+        expect(source, `${fileName} (reachable from the client-tags entry) must not contain SERVER_ONLY_MARKER`).not.toContain(
+          SERVER_ONLY_MARKER,
+        )
+      }
+
+      // Sanity: the marker exists somewhere in the full build, outside that reachable
+      // set, so the assertions above aren't vacuous (they'd also pass on an empty graph).
+      const markerFoundOutsideClientGraph = chunks.some(
+        (c) => !reachable.has(c.fileName) && readFileSync(path.join(outDir, c.fileName), 'utf8').includes(SERVER_ONLY_MARKER),
+      )
+      expect(markerFoundOutsideClientGraph).toBe(true)
     } finally {
       rmSync(outDir, { recursive: true, force: true })
     }

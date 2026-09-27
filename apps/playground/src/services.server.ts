@@ -10,10 +10,15 @@ import { HttpClient, Logger, UserApi } from './tags'
 
 export const SERVER_ONLY_MARKER = 'sleekstack-server-only-impl-9f2c1a4e'
 
+// Acquisitions genuinely suspend (Effect.sleep, not just a same-tick sync
+// return) so the nested LayerProvider in the demo mounts over a parent that
+// is still acquiring (R9: nested provider over async parent).
+
 export const LoggerLayer = Layer.scoped(
   Logger,
   Effect.acquireRelease(
-    Effect.sync(() => {
+    Effect.gen(function* () {
+      yield* Effect.sleep('30 millis')
       console.log(SERVER_ONLY_MARKER, '[Logger] acquired')
       return {
         prefix: '[App]',
@@ -27,11 +32,12 @@ export const LoggerLayer = Layer.scoped(
 export const HttpClientLayer = Layer.scoped(
   HttpClient,
   Effect.acquireRelease(
-    Effect.sync(() => {
+    Effect.gen(function* () {
+      yield* Effect.sleep('200 millis')
       console.log('[HttpClient] acquired')
       return {
         async get(url: string): Promise<string> {
-          await new Promise((r) => setTimeout(r, 200))
+          await new Promise((r) => setTimeout(r, 50))
           return `Response from ${url}`
         },
       }
@@ -43,11 +49,12 @@ export const HttpClientLayer = Layer.scoped(
 export const UserApiLayer = Layer.scoped(
   UserApi,
   Effect.acquireRelease(
-    Effect.sync(() => {
+    Effect.gen(function* () {
+      yield* Effect.sleep('100 millis')
       console.log('[UserApi] acquired')
       return {
         async getGreeting(name: string): Promise<string> {
-          await new Promise((r) => setTimeout(r, 100))
+          await new Promise((r) => setTimeout(r, 50))
           return `Hello, ${name}! (from UserApi)`
         },
       }
