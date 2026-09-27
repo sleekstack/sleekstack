@@ -10,11 +10,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { renderToPipeableStream } from 'react-dom/server'
 import { PassThrough } from 'node:stream'
-import type { ReactNode } from 'react'
+import { Suspense, useSyncExternalStore, type ReactNode } from 'react'
+import { LayerProvider, useService } from '@sleekstack/react'
 import { renderStrict } from './renderStrict'
 import { Board, type BoardProject } from '../client/Board'
 import { Providers } from '../../app/providers'
 import { scopeLog } from '../client/ScopeLog'
+import { DraftEditorPanel } from '../client/TaskDetail'
+import { DraftEditor, makeDraftEditorLayer } from '../client/component-services'
 
 /**
  * A real (streaming) SSR pass, unlike jsdom RTL rendering: `renderToPipeableStream`
@@ -165,5 +168,25 @@ describe('Board — R7/R8 nested component scopes', () => {
     const all = [...errors, ...consoleErrors]
     expect(all.some((m) => m.includes('getServerSnapshot'))).toBe(false)
     expect(all.some((m) => m.includes('Service not found'))).toBe(false)
+  })
+
+  it('the draft lives in the DraftEditor service: the panel reads and writes it there', async () => {
+    function Probe() {
+      const { draft } = useService(DraftEditor)
+      const value = useSyncExternalStore(draft.subscribe, draft.get, draft.get)
+      return <output aria-label="service draft">{value}</output>
+    }
+    renderStrict(
+      <Providers demoMode={false}>
+        <LayerProvider provide={[makeDraftEditorLayer('t1')]}>
+          <Suspense fallback={null}>
+            <DraftEditorPanel taskId="t1" />
+            <Probe />
+          </Suspense>
+        </LayerProvider>
+      </Providers>,
+    )
+    fireEvent.change(await screen.findByLabelText('new comment'), { target: { value: 'hello' } })
+    await waitFor(() => expect(screen.getByLabelText('service draft').textContent).toBe('hello'))
   })
 })

@@ -9,7 +9,7 @@
  * render `{ ok: false, error }` inline (R5) rather than depending on a
  * thrown message crossing the Server Action boundary.
  */
-import { Suspense, useState, useTransition } from 'react'
+import { Suspense, useState, useSyncExternalStore, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { LayerProvider, useService } from '@sleekstack/react'
 import { addComment, moveTask } from '../server/board.actions'
@@ -19,10 +19,11 @@ import { DraftEditor, makeBrokenDraftEditorLayer, makeDraftEditorLayer } from '.
 
 const STATUSES: readonly TaskStatus[] = ['todo', 'in_progress', 'done']
 
-function DraftEditorPanel({ taskId }: { readonly taskId: string }) {
-  const editor = useService(DraftEditor)
+export function DraftEditorPanel({ taskId }: { readonly taskId: string }) {
+  const { draft } = useService(DraftEditor)
   const router = useRouter()
-  const [body, setBody] = useState(editor.draft)
+  // The draft lives in the DraftEditor service, not local state (same getServerSnapshot note as ProjectView).
+  const body = useSyncExternalStore(draft.subscribe, draft.get, draft.get)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
@@ -34,7 +35,7 @@ function DraftEditorPanel({ taskId }: { readonly taskId: string }) {
         return
       }
       setError(null)
-      setBody('')
+      draft.set('')
       router.refresh()
     })
   }
@@ -44,7 +45,7 @@ function DraftEditorPanel({ taskId }: { readonly taskId: string }) {
       <textarea
         aria-label="new comment"
         value={body}
-        onChange={(e) => setBody(e.target.value)}
+        onChange={(e) => draft.set(e.target.value)}
         placeholder="Add a comment"
       />
       <button type="button" onClick={submit} disabled={pending}>

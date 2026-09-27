@@ -88,7 +88,8 @@ export const makeProjectFilterStoreLayer = (projectId: string) =>
   )
 
 export interface DraftEditorService {
-  readonly draft: string
+  /** The comment-draft buffer: lives (and dies) with the task-detail scope. */
+  readonly draft: ReactiveStore<string>
 }
 
 export const DraftEditor = Context.GenericTag<DraftEditorService>('DraftEditor')
@@ -102,7 +103,7 @@ export const makeDraftEditorLayer = (taskId: string) =>
           const clock = yield* Clock
           yield* Effect.sleep(10)
           logWithClock(clock, `acquire: DraftEditor (${taskId})`)
-          const service: DraftEditorService = { draft: '' }
+          const service: DraftEditorService = { draft: createStore('') }
           return service
         }),
         () =>
