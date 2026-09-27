@@ -25,8 +25,11 @@ export interface TaskWithComments {
 
 function ProjectBody({ project, tasks }: { readonly project: ProjectRecord; readonly tasks: readonly TaskWithComments[] }) {
   const store = useService(ProjectFilterStore)
-  const filter = useSyncExternalStore(store.filter.subscribe, store.filter.get)
-  const selectedTaskId = useSyncExternalStore(store.selectedTaskId.subscribe, store.selectedTaskId.get)
+  // `getServerSnapshot` (3rd arg): the store is per-mount and always starts
+  // at these values, so the server snapshot is the same accessor as the
+  // client one — required explicitly or React throws under SSR.
+  const filter = useSyncExternalStore(store.filter.subscribe, store.filter.get, store.filter.get)
+  const selectedTaskId = useSyncExternalStore(store.selectedTaskId.subscribe, store.selectedTaskId.get, store.selectedTaskId.get)
   const [title, setTitle] = useState('')
   const [simulateFailure, setSimulateFailure] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)

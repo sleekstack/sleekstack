@@ -8,10 +8,36 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { renderToPipeableStream } from 'react-dom/server'
+import { PassThrough } from 'node:stream'
+import type { ReactNode } from 'react'
 import { renderStrict } from './renderStrict'
 import { Board, type BoardProject } from '../client/Board'
 import { Providers } from '../../app/providers'
 import { scopeLog } from '../client/ScopeLog'
+
+/**
+ * A real (streaming) SSR pass, unlike jsdom RTL rendering: `renderToPipeableStream`
+ * waits out Suspense the way Next's SSR does, so a component service that
+ * resolves mid-render is re-rendered with its resolved value — the render
+ * path that actually hit "Missing getServerSnapshot" in `next dev` (RTL's
+ * `render`/`renderToString` never wait for a suspended promise to resolve).
+ */
+function ssrRender(node: ReactNode): Promise<{ errors: string[] }> {
+  const errors: string[] = []
+  return new Promise((resolve, reject) => {
+    const { pipe } = renderToPipeableStream(node, {
+      onShellError: reject,
+      onError(error) {
+        errors.push(String(error))
+      },
+      onAllReady() {
+        pipe(new PassThrough())
+        resolve({ errors })
+      },
+    })
+  })
+}
 
 const refresh = vi.fn()
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }))
@@ -113,5 +139,31 @@ describe('Board — R7/R8 nested component scopes', () => {
       expect(messages().filter((m) => m.startsWith('release: DraftEditor (t1)'))).toHaveLength(1)
       expect(messages().filter((m) => m.startsWith('release: ProjectFilterStore (p1)'))).toHaveLength(1)
     })
+  })
+
+  it('renders server-side without a "Missing getServerSnapshot" bailout (and the Clock FiberFailure it causes)', async () => {
+    // `next dev`'s real bug (found in manual testing): the server streams past
+    // ProjectView's Suspense fallback once its component service resolves,
+    // re-rendering ProjectBody with a resolved value — the render pass that
+    // hit "Missing getServerSnapshot" (useSyncExternalStore with no 3rd arg),
+    // which made React discard and re-render that subtree client-only,
+    // reacquiring — and logging as a FiberFailure — a *second* component
+    // scope server-side. Neither RTL's `render` nor `renderToString` waits
+    // out the Suspense boundary, so only a streaming SSR render reproduces it.
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    let errors: string[]
+    try {
+      ;({ errors } = await ssrRender(
+        <Providers demoMode={false}>
+          <Board board={board} demoMode={false} />
+        </Providers>,
+      ))
+    } finally {
+      spy.mockRestore()
+    }
+    const consoleErrors = spy.mock.calls.map((call) => String(call[0]))
+    const all = [...errors, ...consoleErrors]
+    expect(all.some((m) => m.includes('getServerSnapshot'))).toBe(false)
+    expect(all.some((m) => m.includes('Service not found'))).toBe(false)
   })
 })
