@@ -11,6 +11,7 @@ import { Layer } from 'effect'
 import { walkModules } from './cycle'
 import { AmbiguousProvider, DependencyCycle, MissingDependency } from './errors'
 import { isDeclaredLayer, isModule, isServiceDefinition, type Entry, type Module } from './module'
+import { checkLifetimes } from './lifetime'
 import type { Lifetime } from './service'
 
 type AnyLayer = Layer.Layer<any, any, any>
@@ -164,6 +165,7 @@ export function buildGraph(input: readonly (Module | Entry)[]): Graph {
       }
     }
   }
+  checkLifetimes(live, (k) => winners.get(k)!)
   const ordered = toposort(live, (k) => winners.get(k)!)
 
   // 5. Compose: bare Layers first as a base, then nodes in order. No construction happens here.

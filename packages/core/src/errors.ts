@@ -46,3 +46,12 @@ export type GraphError =
   | ModuleCycle
   | DuplicateModule
   | InvalidModule
+  | CaptiveDependency
+
+export class CaptiveDependency extends Data.TaggedError('CaptiveDependency')<{
+  readonly service: string
+  readonly lifetime: string
+  readonly dependency: string
+  readonly dependencyLifetime: string
+  readonly message: string
+}> {}
