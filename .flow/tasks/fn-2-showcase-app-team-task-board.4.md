@@ -35,9 +35,10 @@ Finalization: prove the client/server split on Next's real build output, add a b
 - [ ] TBD
 
 ## Done summary
-TBD
+Added a Next build-output bundle-split test (R10, verified by mutation), a Playwright smoke against next start (pages, create, simulated failure, validation error), CI wiring (showcase in the script loop, build + test:bundle, e2e job), and apps/showcase/README.md with an R1-R11 map, linked from the root README.
 
+stage: impl-review - ran (codex, SHIP first pass)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 2ff9b8c5528a9a142e2fee27d016583cf43071c2
+- Tests: pnpm typecheck && pnpm test, pnpm --filter showcase build && pnpm --filter showcase test:bundle, pnpm --filter showcase test:e2e, bundle mutation check: client import of infra.server (server-only removed) -> test:bundle fails
 - PRs:
