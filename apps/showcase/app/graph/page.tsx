@@ -6,14 +6,11 @@
  */
 import { buildGraph, snapshot, type GraphSnapshot } from '@sleekstack/core'
 import { appEntries } from '../../src/domain/modules.server'
+import { MockActivityLogDef, MockClockDef } from '../../src/server/demo.server'
 
-/**
- * `demo` accepted now for the page's shape; demo-mode shadowing (mock
- * ActivityLog/Clock via `provide`) is wired up in task .2.
- */
+/** Demo mode (R9): the mock ActivityLog/Clock shadow the real ones, shown in the Shadowing section below. */
 function buildAppSnapshot(demo: boolean): GraphSnapshot {
-  void demo
-  return snapshot(buildGraph(appEntries))
+  return snapshot(buildGraph(demo ? [...appEntries, MockActivityLogDef, MockClockDef] : appEntries))
 }
 
 export default async function GraphPage({

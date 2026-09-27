@@ -9,8 +9,9 @@
  * - Activity: ActivityLog via `declareLayer` (the graph's one declared
  *   node), importing Infra for Clock.
  * - App: imports Data and Activity through a thunk (forward-reference style
- *   import, demonstrating the lazy `Imports` form) and re-exports everything
- *   downstream code needs.
+ *   import, demonstrating the lazy `Imports` form), adds the request-lifetime
+ *   RequestContext/UnitOfWork (R5) as its own entries, and re-exports
+ *   everything downstream code needs.
  *
  * `appEntries` is what `/graph` and `/errors` (and the test suite) build.
  */
@@ -21,6 +22,7 @@ import { ClockDef, IdGenDef, InfraStartupLayer, LoggerDef } from './infra.server
 import { CommentRepoDef, ProjectRepoDef, TaskRepoDef } from './repos.server'
 import { StoreDef } from './store.server'
 import { ActivityLog, Clock, CommentRepo, IdGen, Logger, ProjectRepo, TaskRepo } from './tags'
+import { RequestContext, RequestContextDef, UnitOfWork, UnitOfWorkDef } from '../server/request.server'
 
 export const SERVER_ONLY_MARKER = 'sleekstack-showcase-server-only-9d7b3e12'
 
@@ -49,7 +51,8 @@ export const AppModule = module({
   name: 'App',
   // Forward-reference thunk (R1): resolved lazily rather than as a plain array.
   imports: () => [DataModule, ActivityModule],
-  exports: [ProjectRepo, TaskRepo, CommentRepo, ActivityLog, Clock, Logger, IdGen],
+  entries: [RequestContextDef, UnitOfWorkDef],
+  exports: [ProjectRepo, TaskRepo, CommentRepo, ActivityLog, Clock, Logger, IdGen, RequestContext, UnitOfWork],
 })
 
 export const appEntries = [AppModule]
