@@ -37,9 +37,12 @@ Production module + graph builder on top of the spike (R2, R3, R4, R7). All vali
 - [ ] GraphSnapshot round-trips through JSON.stringify/parse; covers nodes/edges/lifetimes/provenance/opaque/private
 
 ## Done summary
-TBD
+Production module()/declareLayer() with synchronous shape validation, buildGraph (identity import walk with thunk cycles -> ModuleCycle, DuplicateModule, diamond dedupe with provenance paths, locality shadowing, AmbiguousProvider incl. partial multi-Tag shadowing, MissingDependency with declareLayer hint, bare Layers as opaque base) and snapshot() JSON DTO; prototype React LayerProvider and playground migrated to the new module shape. Tests: core graph.test.ts, cycle.test.ts, module.test.ts, module-types.test-d.ts.
 
+baseline: green
+stage: impl-review - ran (codex: NEEDS_WORK -> SHIP, 2 rounds)
+memory capture skipped: memory not initialized
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 647ddba74cb5b0fa6c2bfe21fee6a46c310cdcfc, f5cbaea2fc2e62cfb9aef9e55da50ac2dfa4a215
+- Tests: pnpm typecheck, pnpm test
 - PRs:
