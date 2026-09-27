@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-09-27T07:10:40.963017Z",
+  "depends_on": [
+    "fn-1-sleekstack-effect-native-di-modules-and.3"
+  ],
+  "id": "fn-1-sleekstack-effect-native-di-modules-and.4",
+  "priority": null,
+  "spec": "fn-1-sleekstack-effect-native-di-modules-and",
+  "spec_path": ".flow/tasks/fn-1-sleekstack-effect-native-di-modules-and.4.md",
+  "status": "todo",
+  "title": "Core: lifetime check + scope runtime (fresh memo map per child scope, reverse finalization, failure reporting)",
+  "updated_at": "2026-09-27T07:20:26.148459Z"
+}

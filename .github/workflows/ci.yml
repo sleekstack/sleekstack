@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches:
-      - main
+      - master
 
   pull_request:
 
@@ -17,8 +17,6 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -32,3 +30,12 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+
+      - name: Require test/typecheck scripts
+        run: |
+          for pkg in core react next; do
+            node -e "const s=require('./packages/$pkg/package.json').scripts||{};for(const k of ['test','typecheck'])if(!s[k]){console.error('packages/$pkg missing script: '+k);process.exit(1)}"
+          done
+
+      - name: Test
+        run: pnpm test

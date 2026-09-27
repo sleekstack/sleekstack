@@ -1,0 +1,17 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-09-27T07:10:40.963078Z",
+  "depends_on": [
+    "fn-1-sleekstack-effect-native-di-modules-and.4",
+    "fn-1-sleekstack-effect-native-di-modules-and.6"
+  ],
+  "id": "fn-1-sleekstack-effect-native-di-modules-and.7",
+  "priority": null,
+  "spec": "fn-1-sleekstack-effect-native-di-modules-and",
+  "spec_path": ".flow/tasks/fn-1-sleekstack-effect-native-di-modules-and.7.md",
+  "status": "todo",
+  "title": "React adapter: LayerProvider + useService (component scope, status cache, errors)",
+  "updated_at": "2026-09-27T07:20:27.022365Z"
+}

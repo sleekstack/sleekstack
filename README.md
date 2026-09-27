@@ -75,11 +75,26 @@ This enables:
 ## Example Direction
 
 ```ts
-const auth = useService(Auth)
+import { Context, Effect } from 'effect'
+import { module, service } from '@sleekstack/core'
+
+class Auth extends Context.Tag('Auth')<Auth, { userId: string }>() {}
+
+// A Service Definition: an Effect Layer plus dependency + lifetime metadata.
+const AuthDef = service(Auth, { lifetime: 'component' }, () => Effect.succeed({ userId: 'u_1' }))
+
+const AuthModule = module({ name: 'auth', entries: [AuthDef], exports: [Auth] })
 ```
 
 ```tsx
-<LayerProvider layer={AuthLayer}>
+import { LayerProvider, useService } from '@sleekstack/react'
+
+function App() {
+  const auth = useService(Auth) // suspends until AuthDef resolves
+  return <div>{auth.userId}</div>
+}
+
+<LayerProvider provide={[AuthModule]}>
   <App />
 </LayerProvider>
 ```
@@ -88,15 +103,17 @@ const auth = useService(Auth)
 
 ## Current Status
 
-SleekStack is currently in early experimental development.
+SleekStack's core engine, Next.js adapter, and React adapter are implemented, with lifetime safety, module shadowing, and a serializable dependency graph in place across `packages/core`, `packages/next`, and `packages/react`.
 
-The primary goal right now is validating:
+Current surface:
 
-* React runtime integration
-* Suspense semantics
-* request-scoped environments
-* Effect interoperability
-* deterministic cleanup
+* Service Definitions (`service()`) — auto-wired, with readable missing-dependency and cycle errors
+* Modules (`module()`) — imports, exports (descriptive graph metadata), shadowing
+* lifetime-scoped services (`app` / `request` / `component`) with captive-dependency checks
+* a resolved, serializable dependency Graph (`buildGraph`, `snapshot`)
+* `@sleekstack/next` request scopes (`action`, `query`) and `@sleekstack/react`'s Suspense-native, StrictMode-safe `LayerProvider` / `useService`
+
+Still ahead: a devtools UI over the Graph value, session/transient/job lifetimes, and stream-aware request-scope finalization.
 
 ---
 
