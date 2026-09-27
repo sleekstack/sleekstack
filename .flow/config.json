@@ -2,7 +2,7 @@
   "$schema": "https://flow-next.dev/schema/flow-config.schema.json",
   "artifacts": {
     "html": {
-      "enabled": true
+      "enabled": false
     }
   },
   "chart": {
@@ -34,8 +34,8 @@
     "enabled": true
   },
   "review": {
-    "backend": "codex",
-    "maxIterations": 8
+    "backend": "codex:gpt-5.6-sol:medium",
+    "maxIterations": 4
   },
   "scouts": {
     "github": false

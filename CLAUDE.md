@@ -41,4 +41,12 @@ This project uses Flow-Next for ALL task tracking. `flowctl` comes from the flow
      then this block, then the agent definition's own default, then the session
      model. A model this harness cannot reach falls back to the session model
      with one note - routing never fails closed, and nothing here is validated. -->
+implementer: sonnet at medium
+thinking scout: sonnet
+fast scout: haiku
+
+Reviews run on the Codex backend (`.flow/config.json`), so `reviewer:` stays unset.
+Overrides for fn-1: dispatch the worker on `opus at medium` for tasks .2, .3, .4.
+Escalate any task to opus after two NEEDS_WORK rounds carrying P0/P1 findings.
+Plan-sync runs on sonnet.
 <!-- flow-next:model-routing:end -->
