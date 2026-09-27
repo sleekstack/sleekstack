@@ -9,7 +9,7 @@
  */
 
 import { Cause, Context, Effect, Exit, Layer, Scope } from 'effect'
-import { MissingDependency } from './errors'
+import { AmbiguousProvider, MissingDependency } from './errors'
 import { toposort, type Graph } from './graph'
 import { isDeclaredLayer, isServiceDefinition, type Entry } from './module'
 import type { Lifetime } from './service'
@@ -58,7 +58,18 @@ const open = (
   options: ScopeOptions,
 ): Effect.Effect<ChildScope, unknown> => {
   const byKey = new Map<string, Local>()
-  for (const n of locals) for (const k of n.provides) byKey.set(k, n)
+  for (const n of locals) {
+    for (const k of n.provides) {
+      const prev = byKey.get(k)
+      if (prev) {
+        throw new AmbiguousProvider({
+          tag: k, modules: [prev.id, n.id],
+          message: `Tag "${k}" is provided by several boundary entries of one ${lifetime} scope: "${prev.id}", "${n.id}"`,
+        })
+      }
+      byKey.set(k, n)
+    }
+  }
   for (const n of locals) {
     for (const r of n.requires) {
       if (!byKey.has(r) && !parent.unsafeMap.has(r)) {
@@ -105,13 +116,10 @@ const open = (
             }
             const extras = entries.map(toLocal)
             const shadowed = new Set(extras.flatMap((e) => e.provides))
-            // Same-lifetime nesting: the graph's nodes already live in the parent; build only extras.
-            const fromGraph =
-              lifetime === childLifetime
-                ? []
-                : [...graph.opaque, ...graph.nodes].filter(
-                    (n) => n.lifetime === childLifetime && !n.provides.some((k) => shadowed.has(k)),
-                  )
+            // Every child scope owns fresh instances of its lifetime's nodes, even when nested in a same-lifetime parent.
+            const fromGraph = [...graph.opaque, ...graph.nodes].filter(
+              (n) => n.lifetime === childLifetime && !n.provides.some((k) => shadowed.has(k)),
+            )
             return open(childLifetime, graph, context, [...fromGraph, ...extras], options)
           }),
       }

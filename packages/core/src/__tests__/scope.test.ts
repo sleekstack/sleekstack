@@ -93,6 +93,29 @@ describe('scope runtime', () => {
     expect(Context.get(next.context, X).n).toBe(1)
   })
 
+  it('nested same-lifetime scopes own distinct instances and finalize independently', async () => {
+    const log: string[] = []
+    let n = 0
+    const a = service(A, {}, () => Effect.succeed({ n: -1 }))
+    const c = service(Rq, { requires: [A], lifetime: 'component' }, ([x]) =>
+      Effect.acquireRelease(Effect.sync(() => ({ n: ++n, a: x })), (v) => Effect.sync(() => void log.push(`-${v.n}`))))
+    const app = await run(makeAppScope(buildGraph([a, c])))
+    const outer = await run(app.child('component'))
+    const inner = await run(outer.child('component'))
+    const o = Context.get(outer.context, Rq), i = Context.get(inner.context, Rq)
+    expect(i).not.toBe(o)
+    expect(i.a).toBe(o.a)
+    await run(inner.close)
+    expect(log).toEqual([`-${i.n}`])
+  })
+
+  it('rejects duplicate providers among boundary entries', async () => {
+    const app = await run(makeAppScope(buildGraph([])))
+    const dup = () => service(A, {}, () => Effect.succeed({ n: 0 }))
+    const exit = await Effect.runPromiseExit(app.child('request', [dup(), dup()]))
+    expect(Exit.isFailure(exit) && Cause.pretty(exit.cause)).toContain('AmbiguousProvider')
+  })
+
   it('rejects opening a request scope inside a component scope', async () => {
     const app = await run(makeAppScope(buildGraph([])))
     const comp = await run(app.child('component'))
