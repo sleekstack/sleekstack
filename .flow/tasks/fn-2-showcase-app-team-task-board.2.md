@@ -44,9 +44,10 @@ Wire `@sleekstack/next`: instrumentation, request-scoped RequestContext and Unit
 - [ ] TBD
 
 ## Done summary
-TBD
+Wired @sleekstack/next into the showcase app: instrumentation.ts (nodejs-guarded, single configureRuntime call with an onFinalizerError sink that logs and records to ActivityLog), request-scoped RequestContext (id + fake user, logs request open/close) and UnitOfWork (stages writes, committed explicitly last so a validation/simulated failure leaves the Store untouched), the createTask/moveTask/addComment Server Actions returning {ok,data}|{ok,error}, cookie-driven demo-mode shadowing of ActivityLog/Clock applied consistently across board.actions.ts, app/page.tsx, app/log/page.tsx and app/graph/page.tsx, and a Next 15 error.tsx boundary. requests.test.ts covers 20-concurrent request isolation (distinct ids, matched open/close, no cross-talk), validation/simulated-failure rollback, commit-once, finalizer-sink safety, ordered log entries, and demo shadowing. typecheck/test/build all green.
 
+stage: impl-review - ran [NEEDS_WORK -> SHIP] (3 findings: P1 toResult swallowing unexpected defects instead of letting them reach error.tsx, fixed via a tagged ExpectedFailure; P2 /graph using a ?demo= query param instead of the same cookie as demoEntries(), fixed; P2 concurrency test asserting distinct task ids instead of distinct request ids, fixed to assert 20 matched open/close request-id pairs)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 33c96c390e373471340ffd09e8a84caffa8144b5, c004615b0406befd4649b750b69038640445face
+- Tests: pnpm --filter showcase typecheck, pnpm --filter showcase test, pnpm --filter showcase build
 - PRs:
