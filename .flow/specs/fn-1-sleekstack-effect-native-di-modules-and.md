@@ -113,6 +113,7 @@ Signatures (shape, not implementation):
 - Hybrid inputs chosen because auto-wiring, lifetime checks, and graph data need runtime metadata Effect Layers do not carry; this supersedes ADR 0001's "core exports only module()" via a new ADR. [paraphrase]
 - Next before React: request scopes validate the engine without StrictMode/Suspense hazards that broke both prior attempts. [paraphrase]
 - Rejected: a hand-maintained dependency list separate from types (drifts silently); rebuilding the app runtime per request (defeats memoization); post-response hooks for request-scope close (cannot read request data, errors never reach the caller).
+- **Spike outcome (task .2): GO for the hybrid approach.** `service(tag, { requires, lifetime }, make)` carries runtime metadata that drives Kahn ordering (5 services in shuffled order wire and run), a readable `MissingDependency` ("Service \"Repo\" requires \"Db\", but no entry provides it") and `DependencyCycle` with Tag path; the Layer requirement type is derived from `requires`. Type-level captive check (`CaptiveViolations<Defs>`, readable violation strings) on a 50-service synthetic graph plus a 51-service violating variant: tsc check time 0.17-0.21s -> 0.22-0.24s (~+0.03s), instantiations 37.6k -> 100.4k (quadratic in graph size). Affordable at this scale: keep the type-level check as an opt-in over the full definition tuple, with the runtime check in `buildGraph` authoritative.
 - Prior art reviewed: mcrovero/effect-nextjs (per-invocation context, process-global runtime; no graph or lifetime checks) and tim-smart/effect-atom (per-scope runtime + Suspense hooks). Both inform, neither is adopted as a dependency.
 
 ## Phases, risks, rollout (deep)
@@ -162,3 +163,4 @@ Task fn-1-sleekstack-effect-native-di-modules-and.2 validates the hybrid approac
 | R9 | React adapter | .6, .7, .8 | — |
 | R10 | CI + StrictMode tests | .1 | — |
 | R11 | Client bundle separation | .8 | — |
+
