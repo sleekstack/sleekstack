@@ -34,9 +34,11 @@ Provider and hook rewritten on the core scope runtime with the probe's strategy 
 - [ ] A failing finalizer on unmount reaches `onFinalizerError`
 
 ## Done summary
-TBD
+Rewrote LayerProvider/useService on core's scope runtime: top-level provider owns app + component scopes, nested providers open child component scopes; discriminated status cache with stable promises; deferred dispose (task .6) with commit-gated acquisition; onFinalizerError sink; descriptive missing-service errors; dev warning on provide change. Tests in packages/react/src/__tests__/{useService,LayerProvider}.test.tsx cover each AC.
 
+baseline: green (pnpm typecheck, pnpm test)
+stage: impl-review - ran codex (NEEDS_WORK: render-time acquisition leaked on abandoned render -> fixed -> SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 1d5daf21b80fe75e20bedda64f79901603070fd3, f923e7c804b537e63db579bcd0b992051821a195
+- Tests: pnpm typecheck, pnpm test
 - PRs:
