@@ -26,9 +26,10 @@ Docs that the new design invalidates.
 - [ ] README example uses new API
 
 ## Done summary
-TBD
+Added ADR 0004 (hybrid service-definition metadata, supersedes ADR 0001's "core exports only module()"); amended ADR 0002 to descriptive-only exports (no compile-time or runtime enforcement, matching the graph snapshot's private flag); added Service Definition, Lifetime, Graph, and Captive Dependency terms to CONTEXT.md with Service disambiguated from Service Definition; refreshed README's example (service()/module()/LayerProvider provide array) and Current Status to reflect the implemented core/next/react surface.
 
+stage: impl-review - ran (codex triage-skip, docs-only diff, verdict SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: cae1b54c477b27cea8b66e01975bf9507d724372
+- Tests: pnpm typecheck, pnpm test, GATE_SKIPPED:codex-review:triage_skip - docs-only (5 files), verdict SHIP
 - PRs:
