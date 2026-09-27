@@ -17,7 +17,7 @@ import { Board, type BoardProject } from '../client/Board'
 import { Providers } from '../../app/providers'
 import { scopeLog } from '../client/ScopeLog'
 import { DraftEditorPanel } from '../client/TaskDetail'
-import { DraftEditor, makeDraftEditorLayer } from '../client/component-services'
+import { DraftEditor, makeDraftEditorLayer, selectionMemory } from '../client/component-services'
 
 /**
  * A real (streaming) SSR pass, unlike jsdom RTL rendering: `renderToPipeableStream`
@@ -58,6 +58,7 @@ const board: readonly BoardProject[] = [
 
 beforeEach(() => {
   scopeLog.reset()
+  selectionMemory.clear()
   refresh.mockClear()
 })
 
@@ -116,7 +117,7 @@ describe('Board — R7/R8 nested component scopes', () => {
     expect(await screen.findByRole('button', { name: /ship it/i })).not.toBeNull()
   })
 
-  it('the demo toggle triggers a refresh; a new demoMode key remounts and releases the old scopes', async () => {
+  it('the demo toggle triggers a refresh; a new demoMode key releases the old scopes and remounts the open detail', async () => {
     const { rerender } = renderStrict(
       <Providers demoMode={false}>
         <Board board={board} demoMode={false} />
@@ -141,7 +142,13 @@ describe('Board — R7/R8 nested component scopes', () => {
     await waitFor(() => {
       expect(messages().filter((m) => m.startsWith('release: DraftEditor (t1)'))).toHaveLength(1)
       expect(messages().filter((m) => m.startsWith('release: ProjectFilterStore (p1)'))).toHaveLength(1)
+      expect(messages().filter((m) => m.startsWith('acquire: DraftEditor (t1)'))).toHaveLength(2)
     })
+    // Released under the old scope, then acquired again under the new one: a remount, not a close.
+    const releaseIdx = messages().findIndex((m) => m.startsWith('release: DraftEditor (t1)'))
+    const reacquireIdx = messages().findLastIndex((m) => m.startsWith('acquire: DraftEditor (t1)'))
+    expect(releaseIdx).toBeLessThan(reacquireIdx)
+    expect(await screen.findByLabelText(/task detail: write spec/i)).not.toBeNull()
   })
 
   it('renders server-side without a "Missing getServerSnapshot" bailout (and the Clock FiberFailure it causes)', async () => {

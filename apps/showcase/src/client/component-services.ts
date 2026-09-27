@@ -58,6 +58,13 @@ export interface ProjectFilterStoreService {
   readonly selectedTaskId: ReactiveStore<string | null>
 }
 
+/**
+ * R9: each project's selected task id, kept at module scope (outside the
+ * scoped service) so the demo toggle's root remount reopens — remounts, not
+ * closes — an open task detail in the new scope.
+ */
+export const selectionMemory = new Map<string, string | null>()
+
 export const ProjectFilterStore = Context.GenericTag<ProjectFilterStoreService>('ProjectFilterStore')
 
 const logWithClock = (clock: ClockService, message: string) => scopeLog.record(`${message} at ${clock.now()}`)
@@ -74,7 +81,9 @@ export const makeProjectFilterStoreLayer = (projectId: string) =>
           const clock = yield* Clock
           yield* Effect.sleep(10)
           logWithClock(clock, `acquire: ProjectFilterStore (${projectId})`)
-          const service: ProjectFilterStoreService = { filter: createStore('all'), selectedTaskId: createStore(null) }
+          const selectedTaskId = createStore(selectionMemory.get(projectId) ?? null)
+          selectedTaskId.subscribe(() => selectionMemory.set(projectId, selectedTaskId.get()))
+          const service: ProjectFilterStoreService = { filter: createStore('all'), selectedTaskId }
           return service
         }),
         () =>
