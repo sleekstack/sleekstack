@@ -272,3 +272,69 @@ describe('LayerProvider — R9 abandoned render', () => {
     spy.mockRestore()
   })
 })
+
+describe('LayerProvider — R9 Suspense above the provider', () => {
+  it('an async scoped Layer under an outer Suspense acquires once and releases once', async () => {
+    const acquire = vi.fn()
+    const release = vi.fn()
+    const L = Layer.scoped(CleanupService, Effect.acquireRelease(Effect.sleep(10).pipe(Effect.andThen(() => Effect.sync(() => (acquire(), { id: 'o', cleanup: () => {} })))), () => Effect.sync(release)))
+    function C() {
+      return <div data-testid="outer-once">{useService(CleanupService).id}</div>
+    }
+    const { unmount } = renderStrict(
+      <Suspense fallback={null}>
+        <LayerProvider provide={[L]}>
+          <C />
+        </LayerProvider>
+      </Suspense>,
+    )
+    await waitFor(() => expect(screen.getByTestId('outer-once').textContent).toBe('o'))
+    expect(acquire).toHaveBeenCalledOnce()
+    unmount()
+    await waitFor(() => expect(release).toHaveBeenCalledOnce())
+    await new Promise((r) => setTimeout(r, 20))
+    expect(acquire).toHaveBeenCalledOnce()
+    expect(release).toHaveBeenCalledOnce()
+  })
+
+  it('a started scope whose render never commits is closed after the adoption window', async () => {
+    vi.useFakeTimers()
+    try {
+      const release = vi.fn()
+      const L = Layer.scoped(CleanupService, Effect.acquireRelease(Effect.succeed({ id: 'p', cleanup: () => {} }), () => Effect.sync(release)))
+      function C() {
+        return <div>{useService(CleanupService).id}</div>
+      }
+      function Throws(): never {
+        throw new Error('abandon')
+      }
+      class Catch extends React.Component<{ children: React.ReactNode }, { failed: boolean }> {
+        state = { failed: false }
+        static getDerivedStateFromError() {
+          return { failed: true }
+        }
+        render() {
+          return this.state.failed ? null : this.props.children
+        }
+      }
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      renderStrict(
+        <Catch>
+          <Suspense fallback={null}>
+            <LayerProvider provide={[L]}>
+              <C />
+              <Throws />
+            </LayerProvider>
+          </Suspense>
+        </Catch>,
+      )
+      await vi.advanceTimersByTimeAsync(100)
+      expect(release).not.toHaveBeenCalled()
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(release).toHaveBeenCalled()
+      spy.mockRestore()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})

@@ -14,7 +14,7 @@
  * Acquisition starts on commit, or earlier when a consumer suspends on it (a
  * <Suspense> above the provider keeps it from committing). A render that never
  * commits loses its refs, so its scope is parked for React's retry to adopt, and
- * closed if no render adopts it within ADOPT_MS of settling.
+ * closed if no render adopts it within ADOPT_MS once settled.
  */
 
 import React, { useContext, useEffect, useRef } from 'react'
@@ -40,24 +40,26 @@ interface Owned {
   readonly parent: ProviderState | null
   readonly close: () => Promise<void>
   committed: boolean
+  parkToken?: object
 }
 
 // ponytail: parked scopes are matched by (parent, provide entries), so identical uncommitted siblings may swap scopes; harmless since neither committed.
 const ADOPT_MS = 5000
 const parked = new Set<Owned>()
 
-/** Called once per render that created or adopted `owned` without committing yet. */
-const park = (owned: Owned) =>
-  setTimeout(() => {
-    if (owned.committed) return
-    parked.add(owned)
-    const settled = owned.state.started ? owned.state.scope.then(() => undefined, () => undefined) : Promise.resolve()
-    void settled.then(() =>
-      setTimeout(() => {
-        if (parked.delete(owned)) void owned.close()
-      }, ADOPT_MS),
-    )
-  })
+/** Called synchronously by each render that created or adopted `owned`, so a retry (or StrictMode's second render) can adopt it. */
+const park = (owned: Owned) => {
+  parked.add(owned)
+  const token = (owned.parkToken = {})
+  const gc = (): unknown =>
+    setTimeout(() => {
+      if (owned.parkToken !== token || !parked.has(owned)) return
+      if (owned.state.started && owned.state.scopeState.status === 'pending') return gc() // still acquiring
+      parked.delete(owned)
+      void owned.close()
+    }, ADOPT_MS)
+  gc()
+}
 
 const adopt = (provide: ReadonlyArray<Entry | Module>, parent: ProviderState | null): Owned | undefined => {
   for (const o of parked) {
