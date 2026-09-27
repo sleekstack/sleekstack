@@ -2,13 +2,18 @@
  * apps/showcase/app/log/page.tsx
  *
  * R6: the visible activity/finalizer log — request scope open/close (with
- * request id) and finalizer errors, in order. Component scope acquire/release
- * events are added in task .3.
+ * request id) and finalizer errors, in order — shown next to `ScopeLog`
+ * (task .3), the client-side list fed by component-scope acquire/release.
+ * A client component in a server page: since route navigation here is a
+ * client-side transition, `ScopeLog`'s module-scope event list survives the
+ * trip from the board, so events recorded while a task detail was open are
+ * still visible after navigating to /log.
  */
 import { query } from '@sleekstack/next'
 import { Effect } from 'effect'
 import { ActivityLog } from '../../src/domain/tags'
 import { demoEntries } from '../../src/server/demo.server'
+import { ScopeLog } from '../../src/client/ScopeLog'
 
 async function loadLog() {
   const provide = await demoEntries()
@@ -34,6 +39,7 @@ export default async function LogPage() {
           </li>
         ))}
       </ol>
+      <ScopeLog />
     </main>
   )
 }
