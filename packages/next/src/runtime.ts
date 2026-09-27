@@ -19,6 +19,8 @@ export interface RuntimeConfig {
 
 interface RuntimeSlot {
   config: RuntimeConfig | undefined
+  /** Bumped on every reconfigure, so a build started under a superseded config can detect it. */
+  generation: number
   appScope: AppScope | undefined
   building: Promise<AppScope> | undefined
 }
@@ -26,6 +28,7 @@ interface RuntimeSlot {
 const getSlot = (): RuntimeSlot =>
   globalValue('@sleekstack/next/runtime-slot', (): RuntimeSlot => ({
     config: undefined,
+    generation: 0,
     appScope: undefined,
     building: undefined,
   }))
@@ -49,10 +52,11 @@ export function configureRuntime(config: RuntimeConfig): void {
     console.warn(
       '[@sleekstack/next] configureRuntime() was called again with a different config; disposing the previous app runtime and replacing it.',
     )
-    const previousSink = sinkFor(slot.config)
+    // A build already in flight under the old config disposes itself once it resolves
+    // (the generation check in `ensureAppScope`), so only an already-built scope is disposed here.
     if (slot.appScope) slot.appScope.dispose()
-    else if (slot.building) slot.building.then((scope) => scope.dispose()).catch((error: unknown) => previousSink(Cause.die(error)))
   }
+  slot.generation++
   slot.config = config
   slot.appScope = undefined
   slot.building = undefined
@@ -73,11 +77,17 @@ export function ensureAppScope(): Promise<AppScope> {
   if (config === undefined) return Promise.reject(new RuntimeNotConfigured())
   if (slot.appScope) return Promise.resolve(slot.appScope)
   if (!slot.building) {
+    const generation = slot.generation
     const building: Promise<AppScope> = Effect.runPromise(
       makeAppScope(buildGraph(config.provide), { onFinalizerError: config.onFinalizerError }),
     )
       .then((scope) => {
-        slot.appScope = scope
+        if (slot.generation === generation) {
+          slot.appScope = scope
+        } else {
+          // Reconfigured while this build was in flight: never publish a scope for a superseded config.
+          scope.dispose()
+        }
         return scope
       })
       .catch((error: unknown) => {

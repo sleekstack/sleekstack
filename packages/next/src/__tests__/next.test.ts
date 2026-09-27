@@ -155,6 +155,72 @@ describe('@sleekstack/next', () => {
     expect(closeLog).toContain('close:one')
   })
 
+  it('a build in flight under a superseded config disposes itself instead of publishing a stale scope', async () => {
+    class Svc extends Context.Tag('next-test/RaceSvc')<Svc, { label: string }>() {}
+    const closeLog: string[] = []
+    const gate = new Promise<void>((resolve) => setTimeout(resolve, 10))
+    const configA = {
+      provide: [
+        service(Svc, {}, () =>
+          Effect.acquireRelease(
+            Effect.gen(function* () {
+              yield* Effect.promise(() => gate) // slow: still building when configureRuntime(B) runs
+              return { label: 'A' }
+            }),
+            () => Effect.sync(() => void closeLog.push('close:A')),
+          )),
+      ],
+    }
+    const configB = {
+      provide: [service(Svc, {}, () => Effect.succeed({ label: 'B' }))],
+    }
+    const readLabel = action(() => Effect.gen(function* () {
+      const s = yield* Svc
+      return s.label
+    }))
+
+    configureRuntime(configA)
+    const firstCall = readLabel() // starts building A's app scope
+    configureRuntime(configB) // supersedes A before its build resolves
+    expect(await firstCall).toBe('A') // in-flight call started under A still completes with A
+    expect(await readLabel()).toBe('B') // new calls use B
+
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(closeLog).toContain('close:A') // A's app scope was disposed, not left dangling
+  })
+
+  it('a synchronous throw from fn still closes the request scope', async () => {
+    class Rq extends Context.Tag('next-test/SyncThrowRq')<Rq, { id: number }>() {}
+    const closeLog: string[] = []
+    const rq = service(Rq, { lifetime: 'request' }, () =>
+      Effect.acquireRelease(Effect.succeed({ id: 1 }), () => Effect.sync(() => void closeLog.push('closed'))))
+    configureRuntime({ provide: [rq] })
+
+    const throwing = action(() => {
+      throw new Error('sync boom')
+    })
+    await expect(throwing()).rejects.toThrow()
+    expect(closeLog).toEqual(['closed'])
+  })
+
+  it('a throwing onFinalizerError sink does not change a successful operation result', async () => {
+    class Tracked extends Context.Tag('next-test/ThrowingSinkTracked')<Tracked, { n: number }>() {}
+    const tracked = service(Tracked, { lifetime: 'request' }, () =>
+      Effect.acquireRelease(Effect.succeed({ n: 1 }), () => Effect.die('finalizer boom')))
+    configureRuntime({
+      provide: [tracked],
+      onFinalizerError: () => {
+        throw new Error('sink boom')
+      },
+    })
+
+    const succeed = action(() => Effect.gen(function* () {
+      yield* Tracked
+      return 'ok'
+    }))
+    await expect(succeed()).resolves.toBe('ok')
+  })
+
   it('per-op provide of an app-lifetime service overrides the global instance for that op only', async () => {
     class AppSvc extends Context.Tag('next-test/AppSvc')<AppSvc, { n: number }>() {}
     const global = service(AppSvc, {}, () => Effect.succeed({ n: 1 }))

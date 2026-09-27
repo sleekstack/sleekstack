@@ -53,7 +53,10 @@ async function run<A extends readonly unknown[], R, E>(
   const appScope = await ensureAppScope()
   const program = Effect.gen(function* () {
     const requestScope = yield* appScope.child('request', options.provide ?? [])
-    return yield* fn(...args).pipe(
+    // Deferred: a synchronous throw from `fn(...args)` itself (before it returns an Effect) must
+    // still flow through this pipe so the request scope closes below, instead of escaping the
+    // Effect.gen as an unhandled exception.
+    return yield* Effect.suspend(() => fn(...args)).pipe(
       Effect.provide(requestScope.context as any),
       Effect.flatMap((value) => (isStreamShaped(value) ? Effect.fail(new StreamingResultNotSupported()) : Effect.succeed(value))),
       Effect.onExit(() =>
@@ -73,7 +76,12 @@ async function run<A extends readonly unknown[], R, E>(
 
 function reportRequestScopeFinalizerFailure(cause: Cause.Cause<unknown>): void {
   const sink = getConfiguredSink() ?? defaultFinalizerSink
-  sink(cause)
+  // A throwing sink must never turn a successful (or already-failed) op into a different outcome.
+  try {
+    sink(cause)
+  } catch (sinkError) {
+    console.error('[@sleekstack/next] onFinalizerError sink threw; swallowing so the op result is unaffected:', sinkError)
+  }
 }
 
 function makeOperation(): Operation {
