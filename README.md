@@ -113,6 +113,8 @@ Current surface:
 * a resolved, serializable dependency Graph (`buildGraph`, `snapshot`)
 * `@sleekstack/next` request scopes (`action`, `query`) and `@sleekstack/react`'s Suspense-native, StrictMode-safe `LayerProvider` / `useService`
 
+See [`apps/showcase`](apps/showcase/README.md) for a Next.js team task board that exercises all of it end to end.
+
 Still ahead: a devtools UI over the Graph value, session/transient/job lifetimes, and stream-aware request-scope finalization.
 
 ---

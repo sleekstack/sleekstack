@@ -15,3 +15,5 @@ dist/
 .turbo/
 .idea/
 *.tsbuildinfo
+test-results/
+playwright-report/
