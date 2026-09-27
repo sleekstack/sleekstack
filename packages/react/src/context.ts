@@ -29,6 +29,9 @@ export interface ProviderState {
   readonly onFinalizerError: (cause: Cause.Cause<unknown>) => void
   /** Closers of nested providers; run (LIFO) before this provider's own scopes close. */
   readonly children: Set<() => Promise<void>>
+  started: boolean
+  /** Starts acquisition (and the parent's). Called on commit or when a consumer suspends on `scope`. */
+  readonly start: () => void
 }
 
 export const ProviderContext = createContext<ProviderState | null>(null)

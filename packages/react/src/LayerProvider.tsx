@@ -10,6 +10,11 @@
  * on a microtask; StrictMode's synchronous remount cancels it and keeps the scope.
  * Closing runs nested providers first (LIFO), then the component scope, then the
  * app scope; finalizer failures go to `onFinalizerError` (default console.error).
+ *
+ * Acquisition starts on commit, or earlier when a consumer suspends on it (a
+ * <Suspense> above the provider keeps it from committing). A render that never
+ * commits loses its refs, so its scope is parked for React's retry to adopt, and
+ * closed if no render adopts it within ADOPT_MS of settling.
  */
 
 import React, { useContext, useEffect, useRef } from 'react'
@@ -26,20 +31,42 @@ export interface LayerProviderProps {
 
 const defaultSink = (cause: Cause.Cause<unknown>) => console.error(Cause.pretty(cause))
 
-const isModule = (e: Entry | Module): e is Module => (e as { _tag?: unknown })._tag === 'Module'
-
-// ponytail: nested boundaries take module entries flat (imports not walked); walk them if nested modules need imports.
-const boundaryEntries = (provide: ReadonlyArray<Entry | Module>): Entry[] =>
-  provide.flatMap((e) => (isModule(e) ? [...e.entries] : [e]))
-
 const sameEntries = (a: ReadonlyArray<unknown>, b: ReadonlyArray<unknown>) =>
   a === b || (a.length === b.length && a.every((x, i) => x === b[i]))
 
 interface Owned {
   readonly state: ProviderState
-  /** Starts acquisition. Called from the commit effect, so an abandoned render acquires nothing. */
-  readonly start: () => void
+  readonly provide: ReadonlyArray<Entry | Module>
+  readonly parent: ProviderState | null
   readonly close: () => Promise<void>
+  committed: boolean
+}
+
+// ponytail: parked scopes are matched by (parent, provide entries), so identical uncommitted siblings may swap scopes; harmless since neither committed.
+const ADOPT_MS = 5000
+const parked = new Set<Owned>()
+
+/** Called once per render that created or adopted `owned` without committing yet. */
+const park = (owned: Owned) =>
+  setTimeout(() => {
+    if (owned.committed) return
+    parked.add(owned)
+    const settled = owned.state.started ? owned.state.scope.then(() => undefined, () => undefined) : Promise.resolve()
+    void settled.then(() =>
+      setTimeout(() => {
+        if (parked.delete(owned)) void owned.close()
+      }, ADOPT_MS),
+    )
+  })
+
+const adopt = (provide: ReadonlyArray<Entry | Module>, parent: ProviderState | null): Owned | undefined => {
+  for (const o of parked) {
+    if (o.parent === parent && sameEntries(o.provide, provide)) {
+      parked.delete(o)
+      return o
+    }
+  }
+  return undefined
 }
 
 function create(provide: ReadonlyArray<Entry | Module>, parent: ProviderState | null, sink: ProviderState['onFinalizerError']): Owned {
@@ -53,10 +80,10 @@ function create(provide: ReadonlyArray<Entry | Module>, parent: ProviderState | 
   }
   const owned: ChildScope[] = [] // app (top-level only), then component; closed in reverse
 
-  let start!: () => void
-  const started = new Promise<void>((r) => (start = r))
+  let resolveStart!: () => void
+  const started = new Promise<void>((r) => (resolveStart = r))
   const opened: Promise<ChildScope> = parent
-    ? started.then(() => parent.scope).then((p) => Effect.runPromise(p.child('component', boundaryEntries(provide))))
+    ? started.then(() => parent.scope).then((p) => Effect.runPromise(p.child('component', [...provide])))
     : started.then(() => Effect.runPromise(Effect.suspend(() => makeAppScope(buildGraph([...provide]), { onFinalizerError: sink })))).then((app) => {
         owned.push(app)
         return Effect.runPromise(app.child('component'))
@@ -66,7 +93,13 @@ function create(provide: ReadonlyArray<Entry | Module>, parent: ProviderState | 
     return s
   })
 
-  const state: ProviderState = { scope, scopeState: { status: 'pending' }, cache: new Map(), onFinalizerError: sink, children: new Set() }
+  const start = () => {
+    if (state.started) return
+    state.started = true
+    parent?.start()
+    resolveStart()
+  }
+  const state: ProviderState = { scope, scopeState: { status: 'pending' }, cache: new Map(), onFinalizerError: sink, children: new Set(), started: false, start }
   scope.then(
     (s) => void (state.scopeState = { status: 'resolved', scope: s }),
     (error) => void (state.scopeState = { status: 'rejected', error }),
@@ -75,12 +108,13 @@ function create(provide: ReadonlyArray<Entry | Module>, parent: ProviderState | 
   let closing: Promise<void> | undefined
   const close = () =>
     (closing ??= (async () => {
+      if (!state.started) return
       await scope.catch(() => undefined)
       for (const child of [...state.children].reverse()) await child()
       state.children.clear()
       for (const s of owned.reverse()) report(await Effect.runPromise(s.close))
     })())
-  return { state, start, close }
+  return { state, provide, parent, close, committed: false }
 }
 
 export function LayerProvider({ provide, onFinalizerError, children }: LayerProviderProps) {
@@ -91,7 +125,8 @@ export function LayerProvider({ provide, onFinalizerError, children }: LayerProv
   const warned = useRef(false)
 
   if (ownedRef.current === null) {
-    ownedRef.current = create(provide, parent, onFinalizerError ?? parent?.onFinalizerError ?? defaultSink)
+    ownedRef.current = adopt(provide, parent) ?? create(provide, parent, onFinalizerError ?? parent?.onFinalizerError ?? defaultSink)
+    park(ownedRef.current)
   }
   if ((globalThis as { process?: { env?: { NODE_ENV?: string } } }).process?.env?.NODE_ENV !== 'production' && !warned.current && !sameEntries(initialProvide.current, provide)) {
     warned.current = true
@@ -100,7 +135,9 @@ export function LayerProvider({ provide, onFinalizerError, children }: LayerProv
 
   useEffect(() => {
     const owned = ownedRef.current!
-    owned.start()
+    owned.committed = true
+    parked.delete(owned)
+    owned.state.start()
     // StrictMode remount before the deferred close ran: cancel it, keep the scope.
     if (pendingRef.current !== null) {
       pendingRef.current.cancelled = true
@@ -112,8 +149,8 @@ export function LayerProvider({ provide, onFinalizerError, children }: LayerProv
       pendingRef.current = token
       queueMicrotask(() => {
         if (token.cancelled) return
-        parent?.children.delete(owned.close)
-        void owned.close()
+        // Stay registered until closed, so a closing parent awaits this close first.
+        void owned.close().finally(() => parent?.children.delete(owned.close))
         if (ownedRef.current === owned) ownedRef.current = null
       })
     }

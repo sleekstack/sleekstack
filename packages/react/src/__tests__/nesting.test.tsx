@@ -248,3 +248,61 @@ describe('module() imports in LayerProvider — CORE-03: Module imports are auto
     })
   })
 })
+
+describe('R9 review regressions', () => {
+  it('a nested provider resolves a module that only imports (via a thunk) the providing module', async () => {
+    const Leaf = module({ name: 'NestedLeaf', entries: [UserLayer] })
+    const Only = module({ name: 'NestedImportsOnly', imports: () => [Leaf] })
+    function C() {
+      return <div data-testid="nested-import">{useService(UserService).getUser()}</div>
+    }
+    renderStrict(
+      <LayerProvider provide={[RealDatabaseLayer]}>
+        <LayerProvider provide={[Only]}>
+          <Suspense fallback={null}>
+            <C />
+          </Suspense>
+        </LayerProvider>
+      </LayerProvider>,
+    )
+    await waitFor(() => expect(screen.getByTestId('nested-import').textContent).toBe('test-user'))
+  })
+
+  it('resolves when the only Suspense boundary wraps the providers', async () => {
+    function C() {
+      return <div data-testid="outer-suspense">{`${useService(DatabaseService).query()}|${useService(UserService).getUser()}`}</div>
+    }
+    renderStrict(
+      <Suspense fallback={<div>loading</div>}>
+        <LayerProvider provide={[RealDatabaseLayer]}>
+          <LayerProvider provide={[UserLayer]}>
+            <C />
+          </LayerProvider>
+        </LayerProvider>
+      </Suspense>,
+    )
+    await waitFor(() => expect(screen.getByTestId('outer-suspense').textContent).toBe('real-db-result|test-user'))
+  })
+
+  it('inner finalizes before outer with async finalizers', async () => {
+    const order: string[] = []
+    const scoped = <I, S>(tag: Context.Tag<I, S>, value: S, name: string, ms: number) =>
+      Layer.scoped(tag, Effect.acquireRelease(Effect.succeed(value), () => Effect.sleep(ms).pipe(Effect.andThen(() => order.push(name)))))
+    function C() {
+      return <div data-testid="async-fin">{useService(UserService).getUser()}</div>
+    }
+    const { unmount } = renderStrict(
+      <LayerProvider provide={[scoped(DatabaseService, { query: () => 'o' }, 'outer', 1)]}>
+        <LayerProvider provide={[scoped(UserService, { getUser: () => 'i' }, 'inner', 20)]}>
+          <Suspense fallback={null}>
+            <C />
+          </Suspense>
+        </LayerProvider>
+      </LayerProvider>,
+    )
+    await waitFor(() => expect(screen.getByTestId('async-fin').textContent).toBe('i'))
+    unmount()
+    await waitFor(() => expect(order).toHaveLength(2))
+    expect(order).toEqual(['inner', 'outer'])
+  })
+})

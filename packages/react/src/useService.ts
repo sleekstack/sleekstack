@@ -39,6 +39,7 @@ function entryFor(state: ProviderState, tag: Context.Tag<any, any>): CacheEntry 
       entry = { status: 'rejected', error, promise: Promise.resolve() }
     }
   } else {
+    state.start()
     const promise: Promise<unknown> = state.scope.then(
       (scope) => {
         const value = lookup(scope, tag)
