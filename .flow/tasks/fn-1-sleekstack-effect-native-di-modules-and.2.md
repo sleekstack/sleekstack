@@ -35,9 +35,11 @@ Early proof point (R1). Prove service metadata can drive ordering and readable e
 - [ ] Type-level captive check result and cost recorded; go/no-go written to Decision Context
 
 ## Done summary
-TBD
+Spike GO: service(tag, {requires, lifetime}, make) in packages/core/src/service.ts derives the Layer requirement type from requires and passes deps as an ordered tuple; order.ts does Kahn ordering with MissingDependency (names requiring service + missing Tag) and DependencyCycle (Tag path), plus wire() composing a working Layer. Type-level CaptiveViolations on a generated 50-service graph costs ~+0.03s check time (37.6k -> 100.4k instantiations); outcome recorded in spec Decision Context.
 
+baseline: green
+stage: impl-review - ran (codex: SHIP first pass)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 01a1b58d89548695faa8f75dcf5bc1f49b64636a
+- Tests: pnpm typecheck, pnpm test, tsc --noEmit --extendedDiagnostics (type-cost measurement)
 - PRs:
