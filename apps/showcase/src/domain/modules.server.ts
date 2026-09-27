@@ -5,12 +5,13 @@
  * - Infra: Clock, Logger, IdGen (`service()`) plus one self-contained bare
  *   Layer (the graph's opaque node).
  * - Data: Store (private — not in `exports`, the graph's one private node)
- *   plus the three repos, importing Infra directly.
+ *   plus the three repos and the request-lifetime UnitOfWork (it snapshots
+ *   the Store for atomic commits), importing Infra directly.
  * - Activity: ActivityLog via `declareLayer` (the graph's one declared
  *   node), importing Infra for Clock.
  * - App: imports Data and Activity through a thunk (forward-reference style
  *   import, demonstrating the lazy `Imports` form), adds the request-lifetime
- *   RequestContext/UnitOfWork (R5) as its own entries, and re-exports
+ *   RequestContext (R5) as its own entry, and re-exports
  *   everything downstream code needs.
  *
  * `appEntries` is what `/graph` and `/errors` (and the test suite) build.
@@ -35,9 +36,9 @@ export const InfraModule = module({
 export const DataModule = module({
   name: 'Data',
   imports: [InfraModule],
-  entries: [StoreDef, ProjectRepoDef, TaskRepoDef, CommentRepoDef],
+  entries: [StoreDef, ProjectRepoDef, TaskRepoDef, CommentRepoDef, UnitOfWorkDef],
   // Store is deliberately left out: it's private to this module (R2's privacy flag).
-  exports: [ProjectRepo, TaskRepo, CommentRepo],
+  exports: [ProjectRepo, TaskRepo, CommentRepo, UnitOfWork],
 })
 
 export const ActivityModule = module({
@@ -51,7 +52,7 @@ export const AppModule = module({
   name: 'App',
   // Forward-reference thunk (R1): resolved lazily rather than as a plain array.
   imports: () => [DataModule, ActivityModule],
-  entries: [RequestContextDef, UnitOfWorkDef],
+  entries: [RequestContextDef],
   exports: [ProjectRepo, TaskRepo, CommentRepo, ActivityLog, Clock, Logger, IdGen, RequestContext, UnitOfWork],
 })
 

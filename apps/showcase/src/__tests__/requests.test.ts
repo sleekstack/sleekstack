@@ -11,11 +11,13 @@
  * packages/next/src/__tests__/next.test.ts:6-7): order matters, so the
  * unconfigured case runs first, before anything configures the app runtime.
  */
-import { describe, expect, it } from 'vitest'
-import { Effect } from 'effect'
+import { describe, expect, it, vi } from 'vitest'
+import { Context, Effect } from 'effect'
+import { service } from '@sleekstack/core'
 import { action, query } from '@sleekstack/next'
 import { ActivityLog, TaskRepo } from '../domain/tags'
 import { __setDemoCookie } from '../test/next-headers-stub'
+import { UnitOfWork } from '../server/request.server'
 import type { AddCommentInput, CreateTaskInput, MoveTaskInput } from '../server/board.actions'
 
 const countTasks = (projectId: string) =>
@@ -119,13 +121,56 @@ describe('showcase request scopes', () => {
     expect(await countTasks('proj_1')).toBe(before + 1)
   })
 
-  it('a throwing onFinalizerError sink does not change a successful operation result', async () => {
-    // The library contract itself (a throwing sink never changes the op's outcome) is
-    // asserted in packages/next/src/__tests__/next.test.ts; this proves the app's own
-    // sink (runtime.server.ts's onFinalizerError) never surfaces as a rejection either.
-    const { createTask } = await import('../server/board.actions')
-    const result = await createTask({ projectId: 'proj_1', title: 'Sink safety' } satisfies CreateTaskInput)
-    expect(result.ok).toBe(true)
+  it('a commit whose second staged write throws applies nothing (atomic)', async () => {
+    const before = await countTasks('proj_1')
+    const op = action(() =>
+      Effect.gen(function* () {
+        const taskRepo = yield* TaskRepo
+        const uow = yield* UnitOfWork
+        uow.stage(() => void taskRepo.create({ projectId: 'proj_1', title: 'Half-applied' }))
+        uow.stage(() => {
+          throw new Error('second write failed')
+        })
+        yield* uow.commit
+      }),
+    )
+    await expect(op()).rejects.toThrow(/second write failed/)
+    expect(await countTasks('proj_1')).toBe(before)
+  })
+
+  it("the UnitOfWork's scope finalizer discards uncommitted staged writes", async () => {
+    const op = action(() =>
+      Effect.gen(function* () {
+        const uow = yield* UnitOfWork
+        uow.stage(() => {})
+        return uow
+      }),
+    )
+    const uow = await op()
+    expect(uow.pending()).toBe(0)
+  })
+
+  it("a request-scope finalizer failure goes to the app's sink (logged and recorded); a throwing sink leaves the result unchanged", async () => {
+    const Boom = Context.GenericTag<number>('requests.test.FinalizerBoom')
+    const BoomDef = service(Boom, { lifetime: 'request' }, () =>
+      Effect.acquireRelease(Effect.succeed(1), () => Effect.die('finalizer boom')))
+    const op = action({ provide: [BoomDef] }, () => Effect.map(Boom, () => 'ok'))
+
+    // The app's own sink: logs to the console and records to the ActivityLog.
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      await expect(op()).resolves.toBe('ok')
+      expect(spy.mock.calls.some((c) => String(c[0]).includes('[showcase] finalizer error'))).toBe(true)
+      await vi.waitFor(async () => expect((await logMessages()).some((m) => m.includes('finalizer boom'))).toBe(true))
+
+      // Now make the sink throw (its first statement, console.error, throws): same result.
+      spy.mockImplementationOnce(() => {
+        throw new Error('sink boom')
+      })
+      await expect(op()).resolves.toBe('ok')
+    } finally {
+      spy.mockRestore()
+    }
   })
 
   it('the log shows request open and close, in order and with matching ids, for a single call', async () => {
