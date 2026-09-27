@@ -12,6 +12,7 @@
     "next": ">=15.0.0"
   },
   "dependencies": {
+    "@sleekstack/core": "workspace:*",
     "effect": "^3.15.0"
   },
   "devDependencies": {
