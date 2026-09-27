@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-09-27T07:10:40.963099Z",
+  "depends_on": [
+    "fn-1-sleekstack-effect-native-di-modules-and.7"
+  ],
+  "id": "fn-1-sleekstack-effect-native-di-modules-and.8",
+  "priority": null,
+  "spec": "fn-1-sleekstack-effect-native-di-modules-and",
+  "spec_path": ".flow/tasks/fn-1-sleekstack-effect-native-di-modules-and.8.md",
+  "status": "todo",
+  "title": "React adapter: nested providers over async parents, inner-before-outer finalization, nested shadowing",
+  "updated_at": "2026-09-27T07:20:27.552533Z"
+}

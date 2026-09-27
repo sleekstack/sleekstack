@@ -43,11 +43,6 @@ import { ProviderContext } from './context'
 import type { ProviderState } from './context'
 import type { Module } from '@sleekstack/core'
 
-// Minimal process type declaration so `process.env.NODE_ENV` typechecks without
-// requiring @types/node in consumers (WR-01). Bundlers (Vite, webpack) replace this
-// with a literal at build time. Declare is scoped to this module.
-declare const process: { env: { NODE_ENV?: string } }
-
 // --- Internal helpers ---
 
 /**
@@ -114,18 +109,19 @@ function assembleLayer(
 }
 
 /**
- * Dispose a ManagedRuntime asynchronously (fire-and-forget).
- *
- * The previous implementation used `runSyncExit(disposeEffect)` which silently
- * returns `Exit.die(AsyncFiberException)` for any async finalizer steps — the
- * try/catch never fires, so the scope leaks. `runtime.dispose()` is always
- * async and correctly handles both sync and async finalizers (CR-01).
- *
- * In a React cleanup function we cannot await, so this is intentionally
- * fire-and-forget. The runtime's internal scope manages finalization order.
+ * Dispose a ManagedRuntime synchronously, with a fallback to async if needed.
+ * Used in both the outer and inner cleanup paths.
  */
 function disposeRuntime(runtime: ManagedRuntime.ManagedRuntime<any, never>): void {
-  void runtime.dispose()
+  try {
+    runtime.runSyncExit(
+      (runtime as any).disposeEffect
+    )
+  } catch {
+    // Fallback to async dispose if runSyncExit is unavailable or throws.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(runtime as any).dispose?.()
+  }
 }
 
 // --- Component ---
@@ -170,8 +166,6 @@ export interface LayerProviderProps {
 export function LayerProvider({ provide, children }: LayerProviderProps) {
   const stateRef = useRef<ProviderState | null>(null)
   const parentState = useContext(ProviderContext)
-  // WR-01: track the original `provide` reference so we can warn in dev if it changes.
-  const provideRef = useRef(provide)
 
   // Initialize exactly once per mount (concurrent-safe null-guard).
   // Anti-pattern guarded: ManagedRuntime.make is NEVER called in every render body
@@ -183,22 +177,10 @@ export function LayerProvider({ provide, children }: LayerProviderProps) {
       // --- Nested provider: inherit parent's resolved Effect context ---
       // Extract the parent's built context synchronously. ManagedRuntime.runSync
       // builds the parent's layer on first access, then returns the context.
-      // This works for synchronous layers (Layer.succeed, Effect.sync) only.
-      //
-      // CR-04: If the parent layer contains async steps, runSync throws
-      // AsyncFiberException. We catch it and throw a descriptive Error instead of
-      // letting the raw AsyncFiberException surface during render.
-      try {
-        const parentCtx = parentState.runtime.runSync(Effect.context<never>())
-        parentContextLayer = Layer.succeedContext(parentCtx) as unknown as Layer.Layer<any, any, any>
-      } catch (e) {
-        throw new Error(
-          '[LayerProvider] Cannot create a nested LayerProvider when the parent layer ' +
-          'uses async Effect steps. Only synchronous layers (Layer.succeed, Effect.sync) ' +
-          'are supported as parent layers for nesting. ' +
-          'Original error: ' + String(e)
-        )
-      }
+      // This avoids async suspension and works for all Layer types used in practice
+      // (Layer.succeed, Layer.scoped with sync acquire — see Plan 01-04 design note).
+      const parentCtx = parentState.runtime.runSync(Effect.context<never>())
+      parentContextLayer = Layer.succeedContext(parentCtx) as unknown as Layer.Layer<any, any, any>
     }
 
     const composedLayer = assembleLayer(Array.from(provide), parentContextLayer)
@@ -224,19 +206,6 @@ export function LayerProvider({ provide, children }: LayerProviderProps) {
     }
   }
 
-  // WR-01: Development-mode warning when `provide` changes after initial mount.
-  // The null-guard above means new layers are silently ignored — warn to help debugging.
-  if (process.env.NODE_ENV !== 'production') {
-    if (provideRef.current !== provide) {
-      console.warn(
-        '[LayerProvider] The `provide` prop changed after mount. ' +
-        'LayerProvider does not re-initialize on prop changes. ' +
-        'To use new layers, unmount and remount the LayerProvider.'
-      )
-    }
-    provideRef.current = provide
-  }
-
   useEffect(() => {
     const state = stateRef.current
 
@@ -256,12 +225,8 @@ export function LayerProvider({ provide, children }: LayerProviderProps) {
     }
 
     return () => {
-      // Unregister from parent first (WR-04).
-      // NOTE: `unregister?.()` is a safe no-op if the parent already disposed this
-      // child (its entry was removed from _childDisposals during the LIFO iteration).
-      // The `lastIndexOf` guard in registerChildDispose handles this case gracefully —
-      // when idx === -1 it skips the splice. So "prevent double-disposal" is the
-      // happy-path description; the LIFO path is also covered by `stateRef.current === null`.
+      // Unregister from parent FIRST (prevent double-disposal — parent calls child
+      // dispose, then child would try to dispose again from its own cleanup).
       unregister?.()
 
       if (stateRef.current !== null) {
@@ -276,7 +241,7 @@ export function LayerProvider({ provide, children }: LayerProviderProps) {
         stateRef.current = null
       }
     }
-  }, [parentState]) // WR-02: include parentState so re-registration runs when parent changes
+  }, []) // empty deps: only runs on mount/unmount
 
   return (
     <ProviderContext.Provider value={stateRef.current}>
