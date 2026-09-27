@@ -31,7 +31,7 @@ A named group of entries — Service Definitions, declared Layers, or bare Layer
 _Avoid_: Package, bundle, plugin, feature
 
 **Graph**:
-The validated dependency structure produced by `buildGraph(entries)`: construction order, lifetime checks, and shadowing resolved across every entry and imported Module. `snapshot(graph)` exposes it as a serializable `GraphSnapshot` DTO (nodes, edges, lifetimes, owning module, private flag) for tooling such as devtools.
+The validated dependency structure produced by `buildGraph(entries)`: construction order, lifetime checks, and shadowing resolved across every entry and imported Module. `snapshot(graph)` exposes it as a serializable `GraphSnapshot` DTO (one node per provided Tag, keyed by the Tag key, or `Tag@Module` when shadowed; edges; lifetimes; owning module; per-Tag private flag) for tooling such as devtools.
 _Avoid_: Dependency tree, container, registry
 
 **Captive Dependency**:
@@ -41,7 +41,7 @@ _Avoid_: Lifetime leak, scope violation
 ### React integration concepts
 
 **LayerProvider**:
-A React component that creates a runtime scope and makes a set of Layers and Modules available to its subtree via the `provide` prop. Nested LayerProviders inherit from their parent scope.
+A React component that creates a runtime scope and makes a set of Layers and Modules available to its subtree via the `provide` prop. Nested LayerProviders inherit from their parent scope, resolve Module imports (including thunks), and finalize before their parent. Acquisition suspends on first use and is StrictMode-safe via deferred dispose.
 _Avoid_: ServiceProvider, ScopeProvider, ContextProvider
 
 **Scope**:
@@ -49,7 +49,7 @@ An Effect `Scope` managed internally by a LayerProvider. Finalizes all acquired 
 _Avoid_: Lifecycle, container, context
 
 **Shadowing**:
-The mechanism by which a Layer or Module in a `provide` array overrides a transitive dependency introduced by a Module's `imports`. No separate override API exists — shadowing is implicit when the same Tag is satisfied by multiple entries.
+The mechanism by which a Layer or Module in a `provide` array overrides a transitive dependency introduced by a Module's `imports`. No separate override API exists — shadowing is implicit when the same Tag is satisfied by multiple entries. It is per Tag: a local entry can shadow one output of a multi-Tag declared Layer, and `AmbiguousProvider` fires only when two providers have equal precedence.
 _Avoid_: Overriding, mocking, replacing, substituting
 
 ### Next.js integration concepts
