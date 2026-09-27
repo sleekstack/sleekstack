@@ -31,9 +31,12 @@ Nesting semantics (R9) on top of the provider.
 - [ ] Playground build output does not contain the server-only marker; check runs in `pnpm test`
 
 ## Done summary
-TBD
+Implemented React adapter nesting semantics (R9): child LayerProvider builds a child scope off the parent scope, suspending while the parent is still async-acquiring (no synchronous parent-context extraction); inner finalizers run before outer on unmount; nested `provide` shadows parent entries for the subtree only. Playground updated to a genuinely async nested-provider demo (server module acquires via `Effect.sleep`) with Tags split from the server-only implementation module carrying a marker string; `apps/playground/src/__tests__/bundle.test.ts` (R11) now walks the full chunk graph (static + dynamic imports) reachable from the client entry and asserts the marker is absent.
 
+Resumed a stalled worker: prior commits 38bdf84 (feature) and deedd99 (fix for round-1 impl-review findings: genuine async parent acquisition + full chunk-graph bundle check) were already in place. This session verified the round-2 codex impl-review receipt (/tmp/impl-review-receipt-fn-1-sleekstack-effect-native-di-modules-and.8.json) already recorded SHIP at head_sha deedd99 (matching current HEAD) with 0 introduced / 0 pre-existing findings, ran the full verification suite (pnpm typecheck, pnpm test - 39 core + 30 react + 12 next + 1 playground bundle test, all green), and completed the task.
+
+stage: impl-review - ran [2026-09-27T14:10:43Z..2026-09-27T14:15:34Z] verdict SHIP (round 2, codex/gpt-5.6-sol, receipt /tmp/impl-review-receipt-fn-1-sleekstack-effect-native-di-modules-and.8.json; verified this session against current HEAD deedd99, not re-invoked)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 38bdf84608dfe3daa129a240dc12fbc9625a11d7, deedd99ea7dcb6c1d85adc61e0e6e2555c99f208
+- Tests: pnpm typecheck, pnpm test
 - PRs:
