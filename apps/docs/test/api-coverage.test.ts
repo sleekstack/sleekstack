@@ -11,7 +11,10 @@ function exportSymbols(file: string) {
   const program = ts.createProgram([file], { module: ts.ModuleKind.ESNext, moduleResolution: ts.ModuleResolutionKind.Bundler, jsx: ts.JsxEmit.ReactJSX, strict: true, skipLibCheck: true, noEmit: true })
   const checker = program.getTypeChecker()
   const moduleSymbol = checker.getSymbolAtLocation(program.getSourceFile(file)!)!
-  return { checker, symbols: checker.getExportsOfModule(moduleSymbol) }
+  // `@internal` exports are adapter plumbing, excluded from the reference like TypeDoc's excludeInternal.
+  const internal = (s: ts.Symbol) =>
+    (s.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(s) : s).getJsDocTags(checker).some((t) => t.name === 'internal')
+  return { checker, symbols: checker.getExportsOfModule(moduleSymbol).filter((s) => !internal(s)) }
 }
 
 const exportsOf = (file: string) => exportSymbols(file).symbols.map((s) => s.name)

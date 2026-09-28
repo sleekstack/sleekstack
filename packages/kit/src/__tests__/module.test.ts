@@ -71,3 +71,11 @@ describe('validateProvide over core walkProvide', () => {
     expect(() => snapshot(P)).toThrow(expect.objectContaining({ code: 'ModuleCycle' }))
   })
 })
+
+it('validateProvide tolerates a lazy import assigned after definition', () => {
+  const box: { m?: Module } = {}
+  const App = module({ name: 'Lazy', imports: () => [box.m!] })
+  expect(() => validateProvide([App])).not.toThrow()
+  box.m = module({ name: 'Later', provide: [layer(tag<string>('L'), () => 'l')] })
+  expect(() => buildGraph(unwrap([App]))).not.toThrow()
+})

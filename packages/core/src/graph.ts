@@ -89,6 +89,8 @@ export interface GraphSnapshot {
  * class Clock extends Context.Tag('Clock')<Clock, number>() {}
  * walkProvide([module({ name: 'app', exports: [Clock] })], (tag, mod) => console.log(tag.key, mod?.name))
  * ```
+ *
+ * @internal
  */
 export function walkProvide(input: readonly (Module | Entry)[], visit: (tag: Context.Tag<any, any>, module: Module | undefined) => void): void {
   const seen = new Set<Module>()
@@ -102,7 +104,13 @@ export function walkProvide(input: readonly (Module | Entry)[], visit: (tag: Con
     seen.add(x)
     x.entries.forEach((e) => entry(e, x))
     x.exports?.forEach((t) => visit(t, x))
-    ;(typeof x.imports === 'function' ? x.imports() : x.imports).forEach((i) => isModule(i) && walk(i))
+    let imports: readonly unknown[]
+    try {
+      imports = typeof x.imports === 'function' ? x.imports() : x.imports
+    } catch {
+      return // a thunk not yet resolvable is buildGraph's to report, at invocation
+    }
+    imports.forEach((i) => isModule(i) && walk(i))
   }
   input.forEach(walk)
 }
