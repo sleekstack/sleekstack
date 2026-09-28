@@ -29,6 +29,11 @@ export interface LayerProviderProps {
   /** Sink for finalizer failures on unmount. Inherited by nested providers. Default `console.error`. */
   readonly onFinalizerError?: (cause: Cause.Cause<unknown>) => void
   readonly children?: React.ReactNode
+  /**
+   * @internal Identity used to re-adopt this provider's scope across discarded renders. A wrapper component passes
+   * its own props object, which is stable across its retries; the default is these props.
+   */
+  readonly owner?: { readonly children?: React.ReactNode }
 }
 
 const defaultSink = (cause: Cause.Cause<unknown>) => console.error(Cause.pretty(cause))
@@ -101,7 +106,7 @@ const adopt = (props: LayerProviderProps, parent: ProviderState | null): Owned |
   let found: Owned | undefined
   for (const o of parked) {
     if (o.parent !== parent) continue
-    if (o.parkedBy === props) { found = o; break }
+    if (o.parkedBy === (props.owner ?? props)) { found = o; break }
     if (!found && o.stale && sameEntries(o.provide, props.provide) && sameShape((o.parkedBy as LayerProviderProps).children, props.children)) found = o
   }
   if (found) parked.delete(found)
@@ -189,7 +194,7 @@ export function LayerProvider(props: LayerProviderProps) {
 
   if (ownedRef.current === null) {
     ownedRef.current = adopt(props, parent) ?? create(provide, parent, onFinalizerError ?? parent?.onFinalizerError ?? defaultSink)
-    park(ownedRef.current, props)
+    park(ownedRef.current, props.owner ?? props)
   }
   if ((globalThis as { process?: { env?: { NODE_ENV?: string } } }).process?.env?.NODE_ENV !== 'production' && !warned.current && !sameEntries(initialProvide.current, provide)) {
     warned.current = true

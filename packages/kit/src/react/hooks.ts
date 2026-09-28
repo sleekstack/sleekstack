@@ -44,7 +44,8 @@ const toKit = (e: unknown) => normalize(Runtime.isFiberFailure(e) ? e[Runtime.Fi
  * export const App = () => <LayerProvider provide={provide}><main /></LayerProvider>
  * ```
  */
-export function LayerProvider({ provide, onFinalizerError, children }: LayerProviderProps): ReactNode {
+export function LayerProvider(props: LayerProviderProps): ReactNode {
+  const { provide, onFinalizerError, children } = props
   // Memoized on the reference so core's sameEntries / StrictMode adopt see a stable array.
   const lowered = useMemo(() => {
     try {
@@ -58,7 +59,7 @@ export function LayerProvider({ provide, onFinalizerError, children }: LayerProv
     () => onFinalizerError && ((cause: unknown) => onFinalizerError(toFinalizerError(Runtime.isFiberFailure(cause) ? cause[Runtime.FiberFailureCauseId] : cause))),
     [onFinalizerError],
   )
-  return createElement(CoreProvider, { provide: lowered, ...(sink && { onFinalizerError: sink }) }, children)
+  return createElement(CoreProvider, { provide: lowered, owner: props, ...(sink && { onFinalizerError: sink }) }, children)
 }
 
 const isThenable = (x: unknown) => typeof (x as { then?: unknown } | null)?.then === 'function'
