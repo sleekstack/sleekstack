@@ -6,7 +6,7 @@ Publishing steps (once you own the name):
 
 ```bash
 # from repo root
-pnpm install
+pnpm install                        # pnpm 11 (pinned in packageManager)
 # from package dir
 cd packages/cli
 npm login
