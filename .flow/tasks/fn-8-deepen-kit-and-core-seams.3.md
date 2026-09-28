@@ -15,9 +15,12 @@ Touches: packages/core/src/graph.ts, packages/core/src/index.ts, packages/kit/sr
 
 
 ## Done summary
-TBD
+Core gained walkProvide, a traversal-only walk that visits each module once, skips cycles and unresolvable import thunks, and does no validation. kit validateProvide is now just the DuplicateTag rule on top of it. Tests cover a shared fixture (kit walk vs core snapshot), DuplicateTag winning over AmbiguousProvider, a cycle that passes at definition time and fails at invocation, and a lazy import.
 
+Drift: walkProvide is tagged @internal, and TypeDoc drops @internal exports, so apps/docs/test/api-coverage.test.ts now skips @internal exports the same way.
+
+stage: impl-review - ran (codex gpt-6-astra: NEEDS_WORK -> SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 1a47c890ef73c23d4932838eb966abb8ef8e0be3, 0da642db8d788a5780353d28587da7f9dba8286a
+- Tests: pnpm typecheck && pnpm test --force, pnpm --filter docs build && pnpm --filter docs test
 - PRs:
