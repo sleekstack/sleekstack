@@ -374,6 +374,68 @@
       "task": "fn-8-deepen-kit-and-core-seams.3",
       "timestamp": "2026-09-28T16:47:16.162301Z",
       "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "1c1b8e09eabba48662fb5f02e0c2c41a3886d606c063744991989c6b7a439fa4",
+      "backend": "codex",
+      "base_sha": "52a823874d0aebe5c12625908fdea7adf61b5b6f",
+      "counter_kind": "impl",
+      "failure_class": "head_moved",
+      "finalized": {
+        "digest": "not_applicable",
+        "receipt": "not_applicable",
+        "status": "not_applicable"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "c695ec33e0119c2e5e078308c0d6caba836a5283",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "outcome": "transport_failure",
+      "output_bytes": 65,
+      "output_sha256": "2d5e9d9fe698752421e1e6e56905cd992be8e7ad61c19ccb4e0bf2cd1c4dc1c3",
+      "reservation_id": "fb91d770f6f54603ac7f73de98309e9e",
+      "round_consumed": false,
+      "scope": "impl:fn-8-deepen-kit-and-core-seams.4",
+      "superseded_by": null,
+      "task": "fn-8-deepen-kit-and-core-seams.4",
+      "timestamp": "2026-09-28T16:55:35.308725Z",
+      "verdict": null
+    },
+    {
+      "artifact_sha256": "4fdbaeaf510a50516e5f1c4b30d501375a3aaa062756ac290ad4df458c433204",
+      "backend": "codex",
+      "base_sha": "52a823874d0aebe5c12625908fdea7adf61b5b6f",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "f3ac6b00036fcdb7498d4d684fc28f7b98de4122",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 541,
+      "output_sha256": "9b20a9c3c86cc185697e759dfaf9ed93e0bbadfa3fb883afd76964359577cba2",
+      "reservation_id": "726130d6c865403b8d4054556fb90e1c",
+      "round_consumed": true,
+      "scope": "impl:fn-8-deepen-kit-and-core-seams.4",
+      "superseded_by": null,
+      "task": "fn-8-deepen-kit-and-core-seams.4",
+      "timestamp": "2026-09-28T16:59:52.406810Z",
+      "verdict": "NEEDS_HUMAN"
     }
   ],
   "review_hash_epoch": {
@@ -383,23 +445,13 @@
     "plan": 1,
     "plan#completion": 0
   },
-  "review_pending_rounds": {
-    "impl:fn-8-deepen-kit-and-core-seams.4": 1
-  },
-  "review_reservations": {
-    "fb91d770f6f54603ac7f73de98309e9e": {
-      "artifact_sha256": "1c1b8e09eabba48662fb5f02e0c2c41a3886d606c063744991989c6b7a439fa4",
-      "counter_scope": "impl:fn-8-deepen-kit-and-core-seams.4",
-      "epoch": 0,
-      "exclusive": true,
-      "forced": false,
-      "review_type": "impl"
-    }
-  },
+  "review_pending_rounds": {},
+  "review_reservations": {},
   "review_transport_failures": {
     "impl:fn-8-deepen-kit-and-core-seams.1": 0,
     "impl:fn-8-deepen-kit-and-core-seams.2": 0,
     "impl:fn-8-deepen-kit-and-core-seams.3": 0,
+    "impl:fn-8-deepen-kit-and-core-seams.4": 0,
     "plan": 0
   },
   "spec_path": ".flow/specs/fn-8-deepen-kit-and-core-seams.md",
@@ -416,5 +468,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-09-28T16:50:46.589123Z"
+  "updated_at": "2026-09-28T16:59:52.408460Z"
 }
