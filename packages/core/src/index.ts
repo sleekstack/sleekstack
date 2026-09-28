@@ -20,9 +20,10 @@ export {
   type GraphError,
 } from './errors'
 export { canDependOn } from './lifetime'
-export { makeAppScope, privateDependencyOf, Privacy, type AppScope, type ChildScope, type ScopeOptions } from './scope'
+export { makeAppScope, privateDependencyOf, resolveTag, Privacy, type AppScope, type ChildScope, type ScopeOptions } from './scope'
 /** Atom definitions: `make`, `writable`, `family`, `keepAlive`, `setIdleTTL`. */
 export * as Atom from './atom/Atom'
 /** The async state of Effect and Stream atoms. */
 export * as Result from './atom/Result'
 export { makeAtomStore, type AtomStore, type AtomStoreOptions } from './atom/AtomStore'
+export { atomStoreFor } from './atom/scope'

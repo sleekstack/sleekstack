@@ -20,6 +20,8 @@ export interface AtomStoreOptions {
   readonly scheduleTask?: (task: () => void) => void
   /** Idle time (ms) before an unused node is removed. Defaults to none (removed after one task). */
   readonly defaultIdleTTL?: number
+  /** @internal Wraps every Effect/Stream build before it forks (used by `atomStoreFor`). */
+  readonly wrapBuild?: (effect: Effect.Effect<any, any, any>, atom: Atom<any>) => Effect.Effect<any, any, any>
 }
 
 /** Atom state container: one per scope. */
@@ -68,6 +70,7 @@ const BUCKET_MS = 50
 export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
   const context = options.context ?? Context.empty()
   const onFinalizerError = options.onFinalizerError ?? ((e: unknown) => console.error(e))
+  const wrapBuild = options.wrapBuild ?? ((effect) => effect)
   const scheduleTask = options.scheduleTask ?? queueMicrotask
   const nodes = new Map<Atom<any>, Node>()
   const pending = new Set<Node>()
@@ -167,7 +170,7 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
       addFinalizer: (f: () => void) => { node.finalizers.push(f) },
       fork: <A, E>(effect: Effect.Effect<A, E, any>, onExit: (exit: Exit.Exit<A, E>) => void) => {
         const scope = Effect.runSync(Scope.make())
-        const fiber = Effect.runFork(effect.pipe(Scope.extend(scope), Effect.provide(context)) as Effect.Effect<A, E>)
+        const fiber = Effect.runFork(wrapBuild(effect, node.atom).pipe(Scope.extend(scope), Effect.provide(context)) as Effect.Effect<A, E>)
         let active = true
         node.finalizers.push(() => {
           active = false
