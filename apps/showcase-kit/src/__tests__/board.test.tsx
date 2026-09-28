@@ -67,6 +67,10 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
+// Scope acquisition runs through the Effect runtime; the first render in a cold
+// CI worker (module transform + runtime init) can exceed findBy*'s 1 s default.
+const SCOPE_LOAD_TIMEOUT = 5000
+
 const messages = () => scopeLog.list().map((e) => e.message)
 
 describe('Board — R7/R8 nested component scopes', () => {
@@ -77,7 +81,7 @@ describe('Board — R7/R8 nested component scopes', () => {
       </Providers>,
     )
 
-    fireEvent.click(await screen.findByRole('button', { name: /write spec/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /write spec/i }, { timeout: SCOPE_LOAD_TIMEOUT }))
 
     await waitFor(() => {
       expect(messages().filter((m) => m.startsWith('acquire: DraftEditor (t1)'))).toHaveLength(1)
@@ -101,8 +105,8 @@ describe('Board — R7/R8 nested component scopes', () => {
       </Providers>,
     )
 
-    fireEvent.click(await screen.findByRole('button', { name: /write spec/i }))
-    await screen.findByLabelText(/task detail: write spec/i)
+    fireEvent.click(await screen.findByRole('button', { name: /write spec/i }, { timeout: SCOPE_LOAD_TIMEOUT }))
+    await screen.findByLabelText(/task detail: write spec/i, {}, { timeout: SCOPE_LOAD_TIMEOUT })
 
     fireEvent.click(screen.getByLabelText(/break detail/i))
 
@@ -114,7 +118,7 @@ describe('Board — R7/R8 nested component scopes', () => {
     const alphaProject = screen.getByRole('region', { name: /project: alpha/i })
     expect(within(alphaProject).getByRole('button', { name: /create task/i })).not.toBeNull()
     // ...and the sibling project's task list is untouched.
-    expect(await screen.findByRole('button', { name: /ship it/i })).not.toBeNull()
+    expect(await screen.findByRole('button', { name: /ship it/i }, { timeout: SCOPE_LOAD_TIMEOUT })).not.toBeNull()
   })
 
   it('the demo toggle triggers a refresh; a new demoMode key releases the old scopes and remounts the open detail', async () => {
@@ -124,7 +128,7 @@ describe('Board — R7/R8 nested component scopes', () => {
       </Providers>,
     )
 
-    fireEvent.click(await screen.findByRole('button', { name: /write spec/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /write spec/i }, { timeout: SCOPE_LOAD_TIMEOUT }))
     await waitFor(() => expect(messages().some((m) => m.startsWith('acquire: DraftEditor (t1)'))).toBe(true))
 
     fireEvent.click(screen.getByRole('button', { name: /enter demo mode/i }))
@@ -148,7 +152,7 @@ describe('Board — R7/R8 nested component scopes', () => {
     const releaseIdx = messages().findIndex((m) => m.startsWith('release: DraftEditor (t1)'))
     const reacquireIdx = messages().findLastIndex((m) => m.startsWith('acquire: DraftEditor (t1)'))
     expect(releaseIdx).toBeLessThan(reacquireIdx)
-    expect(await screen.findByLabelText(/task detail: write spec/i)).not.toBeNull()
+    expect(await screen.findByLabelText(/task detail: write spec/i, {}, { timeout: SCOPE_LOAD_TIMEOUT })).not.toBeNull()
   })
 
   it('renders server-side without a "Missing getServerSnapshot" bailout (and the Clock FiberFailure it causes)', async () => {
@@ -192,7 +196,7 @@ describe('Board — R7/R8 nested component scopes', () => {
         </LayerProvider>
       </Providers>,
     )
-    fireEvent.change(await screen.findByLabelText('new comment'), { target: { value: 'hello' } })
+    fireEvent.change(await screen.findByLabelText('new comment', {}, { timeout: SCOPE_LOAD_TIMEOUT }), { target: { value: 'hello' } })
     await waitFor(() => expect(screen.getByLabelText('service draft').textContent).toBe('hello'))
   })
 })
