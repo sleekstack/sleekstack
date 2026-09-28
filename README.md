@@ -58,13 +58,18 @@ This enables:
 
 ---
 
-## Planned Packages
+## Packages
+
+| Package | What it is |
+|---------|------------|
+| [`@sleekstack/core`](packages/core/README.md) | Effect-native engine: Service Definitions, Modules, lifetimes, the Graph |
+| [`@sleekstack/next`](packages/next/README.md) | Next.js request scopes (`action`, `query`) |
+| [`@sleekstack/react`](packages/react/README.md) | Suspense-native `LayerProvider` / `useService` |
+| [`@sleekstack/kit`](packages/kit/README.md) | Effect-free facade over all three (`tag`, `layer`, `effect`, `module`) |
+
+Planned:
 
 ```txt
-@sleekstack/core
-@sleekstack/react
-@sleekstack/next
-@sleekstack/kit
 @sleekstack/rpc
 @sleekstack/query
 @sleekstack/devtools
@@ -100,21 +105,45 @@ function App() {
 </LayerProvider>
 ```
 
+### With the kit (no Effect types)
+
+```ts
+import { effect, layer, module, tag } from '@sleekstack/kit'
+
+interface Clock { now(): number }
+const Clock = tag<Clock>('Clock')
+const ClockLive = layer(Clock, { now: () => Date.now() })
+
+// A side effect with no service to expose: runs when its scope opens, cleans up when it closes.
+const tick = effect((clock) => {
+  const t = setInterval(() => console.log(clock.now()), 1_000)
+  return () => clearInterval(t)
+}, [Clock], { name: 'tick', lifetime: 'app' })
+
+export const AppModule = module({ name: 'app', provide: [ClockLive, tick], exports: [Clock] })
+```
+
+---
+
+## Documentation
+
+The docs site lives in [`apps/docs`](apps/docs/README.md): guides plus an API reference generated from TSDoc. Run `pnpm --filter docs dev` and open http://localhost:3000/docs.
+
 ---
 
 ## Current Status
 
-SleekStack's core engine, Next.js adapter, and React adapter are implemented, with lifetime safety, module shadowing, and a serializable dependency graph in place across `packages/core`, `packages/next`, and `packages/react`.
+SleekStack's core engine, Next.js adapter, React adapter and kit facade are implemented, with lifetime safety, module shadowing, and a serializable dependency graph in place across `packages/core`, `packages/next`, and `packages/react`.
 
 Current surface:
 
 * Service Definitions (`service()`) — auto-wired, with readable missing-dependency and cycle errors
-* Modules (`module()`) — imports, exports (descriptive graph metadata), shadowing
+* Modules (`module()`) — imports, enforced exports (private Tags are visible only inside their Module, ADR 0006), shadowing
 * lifetime-scoped services (`app` / `request` / `component`) with captive-dependency checks
 * a resolved, serializable dependency Graph (`buildGraph`, `snapshot`)
 * `@sleekstack/next` request scopes (`action`, `query`) and `@sleekstack/react`'s Suspense-native, StrictMode-safe `LayerProvider` / `useService`
 
-* `@sleekstack/kit` — an Effect-free facade (`tag`, `layer`, `module`, dependency arrays, one `SleekStackError`); see [`packages/kit`](packages/kit/README.md)
+* `@sleekstack/kit` — an Effect-free facade (`tag`, `layer`, `effect`, `module`, dependency arrays, one `SleekStackError`); see [`packages/kit`](packages/kit/README.md)
 
 See [`apps/showcase`](apps/showcase/README.md) for a Next.js team task board that exercises all of it end to end, and [`apps/showcase-kit`](apps/showcase-kit/README.md) for the same board built on the kit only.
 

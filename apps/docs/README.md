@@ -5,7 +5,7 @@ The SleekStack documentation site: Next.js 15 + Fumadocs, with an API reference 
 ```bash
 pnpm --filter docs dev     # http://localhost:3000 (generates the API reference first)
 pnpm --filter docs build   # generate:api, next build, then the internal link check
-pnpm --filter docs test    # link check + API coverage
+pnpm --filter docs test    # link check, API coverage, guides, stale-phrase check
 ```
 
 - Guides live in `content/docs/*.mdx`.
