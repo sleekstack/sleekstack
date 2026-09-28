@@ -9,22 +9,12 @@
 
 import { useContext } from 'react'
 import { Context } from 'effect'
-import { privateDependencyOf, type ChildScope } from '@sleekstack/core'
+import { resolveTag, type ChildScope } from '@sleekstack/core'
 import { ProviderContext, type CacheEntry, type ProviderState } from './context'
 
 const tagName = (tag: Context.Tag<any, any>): string => (tag as { key?: string }).key ?? String(tag)
 
-const lookup = (scope: ChildScope, tag: Context.Tag<any, any>): unknown => {
-  const found = Context.getOption(scope.context, tag)
-  if (found._tag === 'None') {
-    const hidden = privateDependencyOf(scope.context, tagName(tag), 'useService')
-    if (hidden) throw hidden
-    throw new Error(
-      `Service "${tagName(tag)}" is not provided. Add it (or a module exporting it) to the provide prop of a <LayerProvider> above this component.`,
-    )
-  }
-  return found.value
-}
+const lookup = (scope: ChildScope, tag: Context.Tag<any, any>): unknown => resolveTag(scope.context, tag, 'useService')
 
 function entryFor(state: ProviderState, tag: Context.Tag<any, any>): CacheEntry {
   const cached = state.cache.get(tag)

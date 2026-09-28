@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-6-docs-site-with-generated-api-reference",
   "spec_path": ".flow/tasks/fn-6-docs-site-with-generated-api-reference.2.md",
-  "status": "todo",
+  "status": "done",
   "title": "TSDoc on all public exports + summary/example checks",
   "updated_at": "2026-09-28T10:49:04.952262Z"
 }

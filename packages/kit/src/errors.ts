@@ -22,6 +22,7 @@ export type SleekStackErrorCode =
   | 'InvalidTag'
   | 'LayerFailed'
   | 'HandlerFailed'
+  | 'AtomCycle'
   | 'Unknown'
 
 /**
@@ -57,7 +58,7 @@ export interface FinalizerError {
 }
 
 const GRAPH_CODES = new Set<string>([
-  'MissingDependency', 'DependencyCycle', 'AmbiguousProvider', 'ModuleCycle', 'DuplicateModule', 'InvalidModule', 'CaptiveDependency', 'PrivateDependency',
+  'MissingDependency', 'DependencyCycle', 'AmbiguousProvider', 'ModuleCycle', 'DuplicateModule', 'InvalidModule', 'CaptiveDependency', 'PrivateDependency', 'AtomCycle',
 ])
 
 /** @internal A layer factory threw or rejected. */

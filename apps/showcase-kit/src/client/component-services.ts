@@ -3,12 +3,13 @@
  *
  * Client-safe component-lifetime services: `ProjectFilterStore` (project
  * scope: filter + selected task) and `DraftEditor` (task-detail scope: the
- * comment draft). Both acquire asynchronously, need `Clock` from the app-level
+ * comment draft, a kit atom). The filter store stays a plain store because
+ * ProjectView renders on the server and atoms are client only. Both acquire asynchronously, need `Clock` from the app-level
  * provider (real or mock, the client half of demo Shadowing), and log to
  * `scopeLog` on acquire/release. `makeBrokenDraftEditorLayer` is the
  * "break detail" failing variant.
  */
-import { layer, tag, withCleanup } from '@sleekstack/kit'
+import { atom, layer, tag, withCleanup, type WritableAtom } from '@sleekstack/kit'
 import { Clock, type ClockService } from '../domain/tags'
 import { scopeLog } from './ScopeLog'
 
@@ -65,8 +66,8 @@ export const makeProjectFilterStoreLayer = (projectId: string) =>
   }, [Clock], { lifetime: 'component' })
 
 export interface DraftEditorService {
-  /** The comment-draft buffer: lives (and dies) with the task-detail scope. */
-  readonly draft: ReactiveStore<string>
+  /** The comment-draft atom; its state lives (and dies) with the task-detail provider's atom store. */
+  readonly draft: WritableAtom<string>
 }
 
 export const DraftEditor = tag<DraftEditorService>('DraftEditor')
@@ -75,7 +76,7 @@ export const makeDraftEditorLayer = (taskId: string) =>
   layer(DraftEditor, async (clock) => {
     await sleep(10)
     logWithClock(clock, `acquire: DraftEditor (${taskId})`)
-    return withCleanup({ draft: createStore('') }, () => logWithClock(clock, `release: DraftEditor (${taskId})`))
+    return withCleanup({ draft: atom('') }, () => logWithClock(clock, `release: DraftEditor (${taskId})`))
   }, [Clock], { lifetime: 'component' })
 
 /** "Break detail": acquisition rejects, so `useService` throws to the ErrorBoundary. */

@@ -19,8 +19,9 @@
 
 import React, { useContext, useEffect, useRef } from 'react'
 import { Cause, Effect, Exit } from 'effect'
-import { buildGraph, makeAppScope, type ChildScope, type Entry, type Module } from '@sleekstack/core'
+import { atomStoreFor, buildGraph, makeAppScope, type ChildScope, type Entry, type Module } from '@sleekstack/core'
 import { ProviderContext, type ProviderState } from './context'
+import { settleSuspensions } from './atoms'
 
 /** Props for {@link LayerProvider}. */
 export interface LayerProviderProps {
@@ -28,12 +29,37 @@ export interface LayerProviderProps {
   /** Sink for finalizer failures on unmount. Inherited by nested providers. Default `console.error`. */
   readonly onFinalizerError?: (cause: Cause.Cause<unknown>) => void
   readonly children?: React.ReactNode
+  /**
+   * @internal Identity used to re-adopt this provider's scope across discarded renders. A wrapper component passes
+   * its own props object, which is stable across its retries; the default is these props.
+   */
+  readonly owner?: { readonly children?: React.ReactNode }
 }
 
 const defaultSink = (cause: Cause.Cause<unknown>) => console.error(Cause.pretty(cause))
 
 const sameEntries = (a: ReadonlyArray<unknown>, b: ReadonlyArray<unknown>) =>
   a === b || (a.length === b.length && a.every((x, i) => x === b[i]))
+
+/**
+ * Children equal up to re-creation: same element types and keys, equal primitive props. Functions and objects
+ * are skipped, since an ancestor's re-render makes new ones (inline callbacks, style objects).
+ */
+const sameShape = (a: unknown, b: unknown): boolean => {
+  if (Object.is(a, b)) return true
+  if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((x, i) => sameShape(x, b[i]))
+  if (!React.isValidElement(a) || !React.isValidElement(b) || a.type !== b.type || a.key !== b.key) return false
+  const pa = a.props as Record<string, unknown>
+  const pb = b.props as Record<string, unknown>
+  const keys = new Set([...Object.keys(pa), ...Object.keys(pb)])
+  return [...keys].every((k) => {
+    const x = pa[k]
+    const y = pb[k]
+    if (k === 'children') return sameShape(x, y)
+    const opaque = (v: unknown) => typeof v === 'function' || (typeof v === 'object' && v !== null)
+    return opaque(x) && opaque(y) ? true : Object.is(x, y)
+  })
+}
 
 interface Owned {
   readonly state: ProviderState
@@ -42,16 +68,30 @@ interface Owned {
   readonly close: () => Promise<void>
   committed: boolean
   parkToken?: object
+  /** Props object of the render that last parked this scope. */
+  parkedBy?: object
+  /** Parked by an earlier render pass (set on the microtask after parking); adoptable by an ancestor's retry. */
+  stale?: boolean
 }
 
-// ponytail: parked scopes are matched by (parent, provide entries), so identical uncommitted siblings may swap scopes; harmless since neither committed.
+// A retry of a discarded render (Suspense, time slicing) re-renders the same element, so it reuses the props
+// object; a sibling never does. Parked scopes are therefore adopted by props identity first. When an ancestor
+// re-renders (a retry of a component that renders the provider), props are new: the oldest parked scope with the
+// same parent, entries and children shape (sameShape) parked by an earlier task is adopted, so the retry awaits
+// it. Parked scopes turn adoptable only after their task, so siblings rendered together never share; across
+// passes, park order (render order) pairs each sibling with its own earlier scope.
+// ponytail: React exposes no identity for an uncommitted instance, so siblings with identical entries and
+// children shape rendered in different slices of one time-sliced pass can share; keys do not reach props.
 const ADOPT_MS = 5000
 const parked = new Set<Owned>()
 
 /** Called synchronously by each render that created or adopted `owned`, so a retry (or StrictMode's second render) can adopt it. */
-const park = (owned: Owned) => {
+const park = (owned: Owned, props: object) => {
   parked.add(owned)
   const token = (owned.parkToken = {})
+  owned.parkedBy = props
+  owned.stale = false
+  queueMicrotask(() => { if (owned.parkToken === token) owned.stale = true })
   const gc = (): unknown =>
     setTimeout(() => {
       if (owned.parkToken !== token || !parked.has(owned)) return
@@ -62,14 +102,15 @@ const park = (owned: Owned) => {
   gc()
 }
 
-const adopt = (provide: ReadonlyArray<Entry | Module>, parent: ProviderState | null): Owned | undefined => {
+const adopt = (props: LayerProviderProps, parent: ProviderState | null): Owned | undefined => {
+  let found: Owned | undefined
   for (const o of parked) {
-    if (o.parent === parent && sameEntries(o.provide, provide)) {
-      parked.delete(o)
-      return o
-    }
+    if (o.parent !== parent) continue
+    if (o.parkedBy === (props.owner ?? props)) { found = o; break }
+    if (!found && o.stale && sameEntries(o.provide, props.provide) && sameShape((o.parkedBy as LayerProviderProps).children, props.children)) found = o
   }
-  return undefined
+  if (found) parked.delete(found)
+  return found
 }
 
 function create(provide: ReadonlyArray<Entry | Module>, parent: ProviderState | null, sink: ProviderState['onFinalizerError']): Owned {
@@ -93,6 +134,11 @@ function create(provide: ReadonlyArray<Entry | Module>, parent: ProviderState | 
       })
   const scope = opened.then((s) => {
     owned.push(s)
+    // Registered on the scope after its services, so closing it interrupts atoms before service finalizers.
+    state.atoms = atomStoreFor(s, {
+      defaultIdleTTL: 400,
+      onFinalizerError: (e) => report(Exit.failCause(Cause.isCause(e) ? e : Cause.die(e))),
+    })
     return s
   })
 
@@ -102,7 +148,7 @@ function create(provide: ReadonlyArray<Entry | Module>, parent: ProviderState | 
     parent?.start()
     resolveStart()
   }
-  const state: ProviderState = { scope, scopeState: { status: 'pending' }, cache: new Map(), onFinalizerError: sink, children: new Set(), started: false, start }
+  const state: ProviderState = { scope, scopeState: { status: 'pending' }, cache: new Map(), atoms: undefined, onFinalizerError: sink, children: new Set(), started: false, start }
   scope.then(
     (s) => void (state.scopeState = { status: 'resolved', scope: s }),
     (error) => void (state.scopeState = { status: 'rejected', error }),
@@ -116,6 +162,7 @@ function create(provide: ReadonlyArray<Entry | Module>, parent: ProviderState | 
       for (const child of [...state.children].reverse()) await child()
       state.children.clear()
       for (const s of owned.reverse()) report(await Effect.runPromise(s.close))
+      if (state.atoms) settleSuspensions(state.atoms)
     })())
   return { state, provide, parent, close, committed: false }
 }
@@ -137,7 +184,8 @@ function create(provide: ReadonlyArray<Entry | Module>, parent: ProviderState | 
  * const App = () => <LayerProvider provide={[module({ name: 'app' })]}>...</LayerProvider>
  * ```
  */
-export function LayerProvider({ provide, onFinalizerError, children }: LayerProviderProps) {
+export function LayerProvider(props: LayerProviderProps) {
+  const { provide, onFinalizerError, children } = props
   const parent = useContext(ProviderContext)
   const ownedRef = useRef<Owned | null>(null)
   const pendingRef = useRef<{ cancelled: boolean } | null>(null)
@@ -145,8 +193,8 @@ export function LayerProvider({ provide, onFinalizerError, children }: LayerProv
   const warned = useRef(false)
 
   if (ownedRef.current === null) {
-    ownedRef.current = adopt(provide, parent) ?? create(provide, parent, onFinalizerError ?? parent?.onFinalizerError ?? defaultSink)
-    park(ownedRef.current)
+    ownedRef.current = adopt(props, parent) ?? create(provide, parent, onFinalizerError ?? parent?.onFinalizerError ?? defaultSink)
+    park(ownedRef.current, props.owner ?? props)
   }
   if ((globalThis as { process?: { env?: { NODE_ENV?: string } } }).process?.env?.NODE_ENV !== 'production' && !warned.current && !sameEntries(initialProvide.current, provide)) {
     warned.current = true

@@ -14,7 +14,7 @@ const includesOf = (f: string) =>
 
 const scope = [
   'index', 'getting-started-kit', 'getting-started-effect', 'concepts', 'kit-vs-effect',
-  'nextjs', 'react', 'side-effects', 'errors', 'testing', 'showcases',
+  'nextjs', 'react', 'atoms', 'side-effects', 'errors', 'testing', 'showcases',
 ]
 
 describe('guides', () => {

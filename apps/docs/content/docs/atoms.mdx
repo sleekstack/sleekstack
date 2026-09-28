@@ -1,0 +1,27 @@
+---
+title: Atoms
+description: Reactive client state that reads services from the nearest LayerProvider.
+---
+
+An atom is a lazy, reactive value. It is defined once at module level, and its state lives in the `AtomStore` of the nearest `LayerProvider`, so each provider has its own copy and unmounting the provider disposes it. A derived atom reads services from that provider's scope and other atoms through `get`, and recomputes when they change. The design follows [effect-atom](https://github.com/tim-smart/effect-atom), with `AtomStore` in place of its Registry and SleekStack scopes in place of `Atom.runtime`.
+
+## kit
+
+<include>../../snippets/atoms.tsx</include>
+
+- `atom(value)` is writable state; `useAtomSet` takes a value or an updater.
+- `atom(fn, deps)` resolves `deps` like `layer` and calls `fn(...services, get)`, which returns a value or a Promise.
+- `atom.family(fn, deps)` gives one atom per key; equal keys return the same atom.
+- Readers suspend until the first value, and failures reach the error boundary as `SleekStackError` (`MissingDependency`, `PrivateDependency`, `AtomCycle`).
+- An atom with no readers is disposed after an idle delay; pass `{ keepAlive: true }` to keep it until the provider unmounts.
+
+## Effect-native
+
+`@sleekstack/core` has `Atom.make` for values, derived functions, Effects and Streams, and `Result` (`Initial`, `Success`, `Failure`, with a `waiting` flag). The `@sleekstack/react` hooks return the `Result` instead of suspending; `useAtomSuspense` suspends instead.
+
+<include>../../snippets/atoms-effect.tsx</include>
+
+## Limits
+
+- Client only: an atom hook that runs during a server render throws `AtomsClientOnly`. Render components that read atoms on the client only.
+- Two sibling providers with identical `provide` entries and children, rendered in different slices of one time-sliced pass, can share one scope and its atom state. React gives no identity for an uncommitted component, so give such siblings different entries if they must stay separate.

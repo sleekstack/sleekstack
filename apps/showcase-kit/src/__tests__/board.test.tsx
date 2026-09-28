@@ -11,7 +11,7 @@ import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/re
 import { renderToPipeableStream } from 'react-dom/server'
 import { PassThrough } from 'node:stream'
 import { Suspense, useSyncExternalStore, type ReactNode } from 'react'
-import { LayerProvider, useService } from '@sleekstack/kit/react'
+import { LayerProvider, useAtomValue, useService } from '@sleekstack/kit/react'
 import { renderStrict } from './renderStrict'
 import { Board, type BoardProject } from '../client/Board'
 import { Providers } from '../../app/providers'
@@ -177,10 +177,9 @@ describe('Board — R7/R8 nested component scopes', () => {
     expect(all.some((m) => m.includes('Service not found'))).toBe(false)
   })
 
-  it('the draft lives in the DraftEditor service: the panel reads and writes it there', async () => {
+  it('the draft is the DraftEditor service atom: the panel reads and writes it there', async () => {
     function Probe() {
-      const { draft } = useService(DraftEditor)
-      const value = useSyncExternalStore(draft.subscribe, draft.get, draft.get)
+      const value = useAtomValue(useService(DraftEditor).draft)
       return <output aria-label="service draft">{value}</output>
     }
     renderStrict(

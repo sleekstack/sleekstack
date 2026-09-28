@@ -8,6 +8,7 @@
     "kit-vs-effect",
     "nextjs",
     "react",
+    "atoms",
     "side-effects",
     "errors",
     "testing",

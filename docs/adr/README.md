@@ -9,3 +9,4 @@
 | [0005](0005-dependency-arrays-over-inject.md) | Dependency arrays over `inject()` and params | Accepted |
 | [0006](0006-enforce-module-privacy.md) | Module exports are enforced | Accepted |
 | [0007](0007-fumadocs-with-generated-api-reference.md) | Docs site on Fumadocs, with a generated API reference | Accepted |
+| [0008](0008-native-atoms-over-effect-atom.md) | Native atoms, modeled on effect-atom, instead of depending on it | Accepted |

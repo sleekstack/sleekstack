@@ -64,7 +64,7 @@ This enables:
 |---------|------------|
 | [`@sleekstack/core`](packages/core/README.md) | Effect-native engine: Service Definitions, Modules, lifetimes, the Graph |
 | [`@sleekstack/next`](packages/next/README.md) | Next.js request scopes (`action`, `query`) |
-| [`@sleekstack/react`](packages/react/README.md) | Suspense-native `LayerProvider` / `useService` |
+| [`@sleekstack/react`](packages/react/README.md) | Suspense-native `LayerProvider` / `useService`, and atoms (`useAtom`, `useAtomValue`) whose state lives per provider |
 | [`@sleekstack/kit`](packages/kit/README.md) | Effect-free facade over all three (`tag`, `layer`, `effect`, `module`) |
 
 Planned:

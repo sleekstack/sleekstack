@@ -9,3 +9,4 @@ export { layer, withCleanup, type Layer, type Cleanup, type LayerOptions, type L
 export { module, snapshot, type Module, type ModuleConfig, type Imports, type GraphSnapshot } from './module'
 export { effect, type EffectOptions } from './effect'
 export { SleekStackError, type SleekStackErrorCode, type FinalizerError } from './errors'
+export { atom, type Atom, type WritableAtom, type Get, type AtomOptions } from './atom'

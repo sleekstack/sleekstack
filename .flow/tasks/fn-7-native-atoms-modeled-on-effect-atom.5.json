@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-09-28T13:47:16.555942Z",
+  "depends_on": [
+    "fn-7-native-atoms-modeled-on-effect-atom.4"
+  ],
+  "id": "fn-7-native-atoms-modeled-on-effect-atom.5",
+  "priority": null,
+  "spec": "fn-7-native-atoms-modeled-on-effect-atom",
+  "spec_path": ".flow/tasks/fn-7-native-atoms-modeled-on-effect-atom.5.md",
+  "status": "todo",
+  "title": "Showcase-kit atoms demo, Atoms guide, ADR 0008, CONTEXT",
+  "updated_at": "2026-09-28T13:47:25.800224Z"
+}

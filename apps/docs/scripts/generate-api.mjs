@@ -1,6 +1,6 @@
 // TypeDoc -> markdown -> content/docs/api/<pkg>/<entry>.md, one page per entry point.
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Application } from 'typedoc'
 import { headings } from './check-links.mjs'
@@ -57,9 +57,28 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     await app.generateOutputs(project)
     if (app.logger.hasErrors() || app.logger.hasWarnings()) throw new Error(`typedoc output failed for ${ep.name}`)
 
-    const raw = readFileSync(join(tmp, 'index.md'), 'utf8')
-    const body = rewriteAnchors(raw, ep.route)
+    // Namespace exports (`export * as X`) get their own page at `<route>/<x>`; the entry page keeps a
+    // `### X` entry with the namespace summary and a link to it.
     const out = join(outRoot, ep.pkg, `${ep.entry}.md`)
+    const nsDir = ep.entry === 'index' ? join(outRoot, ep.pkg) : join(outRoot, ep.pkg, ep.entry)
+    const nsFiles = readdirSync(tmp, { recursive: true, encoding: 'utf8' }).filter((f) => /(^|\/)namespaces\/[^/]+\.md$/.test(f))
+    const nsRoute = (name) => `${ep.route}/${name.toLowerCase()}`
+    let raw = readFileSync(join(tmp, 'index.md'), 'utf8')
+    for (const f of nsFiles) {
+      const name = basename(f, '.md')
+      const nsRaw = readFileSync(join(tmp, f), 'utf8')
+      const summary = nsRaw.split(/^## /m)[0].trim()
+      raw = raw.replace(`- [${name}](${f})`, `### ${name}\n\n${summary}\n\nSee [${name}](${nsRoute(name)}).\n`).replaceAll(`](${f}`, `](${nsRoute(name)}`)
+      const nsBody = rewriteAnchors(
+        nsRaw
+          .replace(/\]\((?:\.\.\/)+index\.md/g, '](index.md')
+          .replace(/\]\((?!index\.md)([A-Za-z0-9_]+)\.md(#[^)]*)?\)/g, (_, n, frag = '') => `](${nsRoute(n)}${frag})`),
+        ep.route,
+      )
+      mkdirSync(nsDir, { recursive: true })
+      writeFileSync(join(nsDir, `${name.toLowerCase()}.md`), `---\ntitle: "${ep.name}: ${name}"\ndescription: API reference for the ${name} namespace of ${ep.name}\n---\n\n${nsBody}`)
+    }
+    const body = rewriteAnchors(raw, ep.route)
     mkdirSync(dirname(out), { recursive: true })
     writeFileSync(out, `---\ntitle: "${ep.name}"\ndescription: API reference for ${ep.name}\n---\n\n${body}`)
   }

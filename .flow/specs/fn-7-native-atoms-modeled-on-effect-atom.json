@@ -1,0 +1,1131 @@
+{
+  "branch_name": "fn-7-native-atoms-modeled-on-effect-atom",
+  "completion_review_status": "ship",
+  "completion_reviewed_at": "2026-09-28T16:06:35.148851Z",
+  "created_at": "2026-09-28T12:49:54.412040Z",
+  "default_impl": null,
+  "default_review": null,
+  "default_sync": null,
+  "depends_on_epics": [],
+  "id": "fn-7-native-atoms-modeled-on-effect-atom",
+  "impl_review_rounds": {
+    "fn-7-native-atoms-modeled-on-effect-atom.1": 0,
+    "fn-7-native-atoms-modeled-on-effect-atom.2": 0,
+    "fn-7-native-atoms-modeled-on-effect-atom.3": 3,
+    "fn-7-native-atoms-modeled-on-effect-atom.4": 0,
+    "fn-7-native-atoms-modeled-on-effect-atom.5": 0
+  },
+  "next_task": 1,
+  "plan_review_rounds": 0,
+  "plan_review_status": "ship",
+  "plan_reviewed_at": "2026-09-28T13:52:13.393190Z",
+  "review_attempts": [
+    {
+      "artifact_sha256": "b28bb6c83c20bbf9252d65180f5b18fccdfaebb35a71a22768e64349eb1773b6",
+      "backend": "codex",
+      "base_sha": "e19d32a4b162bb828952a31250dbf3f316830b75",
+      "counter_kind": "plan",
+      "effort": "high",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-9f49efb4a80ab46e5f7c547eadfb5f93",
+            "classification": "introduced",
+            "findingId": "finding-9f49efb4a80ab46e5f7c547eadfb5f93",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-92f23e78e47c899e7b38092e6de2186c",
+            "classification": "introduced",
+            "findingId": "finding-92f23e78e47c899e7b38092e6de2186c",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-da1aa1b8ada93bd0fdf2e0f8e32bdf82",
+            "classification": "introduced",
+            "findingId": "finding-da1aa1b8ada93bd0fdf2e0f8e32bdf82",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-e11dcabf8195c256c8bcce006d128cb9",
+            "classification": "introduced",
+            "findingId": "finding-e11dcabf8195c256c8bcce006d128cb9",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "plan"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "259a3964fa9113968b653bfa2cacbb7d3c51f6c4",
+      "head_sha_observed": true,
+      "kind": "plan",
+      "model": "gpt-6-astra",
+      "outcome": "verdict",
+      "output_bytes": 142216,
+      "output_sha256": "61ead2ef73981effb4d0a33ae53d03be249deb65886ca8d16bfd5f004d0bf9aa",
+      "reservation_id": "5a3f8911909b4ce08a721243637956c5",
+      "round_consumed": true,
+      "scope": "plan",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-09-28T13:49:52.745384Z",
+      "tool_calls": 9,
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "5dd50d6924e644a087a735d91fd1eee8e839132094020c15517ec830e85ca832",
+      "backend": "codex",
+      "base_sha": "e19d32a4b162bb828952a31250dbf3f316830b75",
+      "counter_kind": "plan",
+      "effort": "high",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-9f49efb4a80ab46e5f7c547eadfb5f93",
+            "classification": "introduced",
+            "findingId": "finding-9f49efb4a80ab46e5f7c547eadfb5f93",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-92f23e78e47c899e7b38092e6de2186c",
+            "classification": "introduced",
+            "findingId": "finding-92f23e78e47c899e7b38092e6de2186c",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-da1aa1b8ada93bd0fdf2e0f8e32bdf82",
+            "classification": "introduced",
+            "findingId": "finding-da1aa1b8ada93bd0fdf2e0f8e32bdf82",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-e11dcabf8195c256c8bcce006d128cb9",
+            "classification": "introduced",
+            "findingId": "finding-e11dcabf8195c256c8bcce006d128cb9",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "plan"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "672aa79c06432b5262bd23f88a8af11ad2c5ab48",
+      "head_sha_observed": true,
+      "kind": "plan",
+      "model": "gpt-6-astra",
+      "outcome": "verdict",
+      "output_bytes": 840,
+      "output_sha256": "2b2a3f8c328d37c19a5173ce3e6f5518e8da92b82cb416b772921443090c5077",
+      "reservation_id": "3adc3c65470d4141a9bbd3bff5b9aea6",
+      "round_consumed": true,
+      "scope": "plan",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-09-28T13:52:13.390165Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "ca2a190fe1d4535bf6dcd933ef73496c62217f1d601c9f8642b73bb7f87bd782",
+      "backend": "codex",
+      "base_sha": "e19d32a4b162bb828952a31250dbf3f316830b75",
+      "counter_kind": "impl",
+      "effort": "high",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-7daa726a7bcf65d1d283bc171dbe68a9",
+            "classification": "introduced",
+            "findingId": "finding-7daa726a7bcf65d1d283bc171dbe68a9",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-488742b9833523ca70ce7d5c26e15fd0",
+            "classification": "introduced",
+            "findingId": "finding-488742b9833523ca70ce7d5c26e15fd0",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-e5d777b660057cafc29cf721953f2d7f",
+            "classification": "introduced",
+            "findingId": "finding-e5d777b660057cafc29cf721953f2d7f",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-3abfd6bfbf98325075c981b49763deaa",
+            "classification": "introduced",
+            "findingId": "finding-3abfd6bfbf98325075c981b49763deaa",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-d2293444b4b85616b41b33faec4dcf9e",
+            "classification": "introduced",
+            "findingId": "finding-d2293444b4b85616b41b33faec4dcf9e",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-c4d615c7ed6d0c13a67b5970cff841de",
+            "classification": "introduced",
+            "findingId": "finding-c4d615c7ed6d0c13a67b5970cff841de",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-e5d2dd0ef4203d5a184d694e1b22c028",
+            "classification": "introduced",
+            "findingId": "finding-e5d2dd0ef4203d5a184d694e1b22c028",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-42837e2ae6e3435771b9f1111db007ef",
+            "classification": "introduced",
+            "findingId": "finding-42837e2ae6e3435771b9f1111db007ef",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "8dd7821fc7f35adb1459e7deb86e52cdd2d69798",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-6-astra",
+      "outcome": "verdict",
+      "output_bytes": 6245,
+      "output_sha256": "b06d475f488467050e2b11d0517bd5bff715bcddf36fe217093223c103238d5b",
+      "reservation_id": "b49106eea97748acbe624ac351e842ae",
+      "round_consumed": true,
+      "scope": "impl:fn-7-native-atoms-modeled-on-effect-atom.1",
+      "superseded_by": null,
+      "task": "fn-7-native-atoms-modeled-on-effect-atom.1",
+      "timestamp": "2026-09-28T14:17:56.956511Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "1623b18ea4061b201da6e49dfec9b1d29c12ca31d01f7620c0faf0d79ebf7e1c",
+      "backend": "codex",
+      "base_sha": "e19d32a4b162bb828952a31250dbf3f316830b75",
+      "counter_kind": "impl",
+      "effort": "high",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-7daa726a7bcf65d1d283bc171dbe68a9",
+            "classification": "introduced",
+            "findingId": "finding-7daa726a7bcf65d1d283bc171dbe68a9",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-488742b9833523ca70ce7d5c26e15fd0",
+            "classification": "introduced",
+            "findingId": "finding-488742b9833523ca70ce7d5c26e15fd0",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-e5d777b660057cafc29cf721953f2d7f",
+            "classification": "introduced",
+            "findingId": "finding-e5d777b660057cafc29cf721953f2d7f",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-3abfd6bfbf98325075c981b49763deaa",
+            "classification": "introduced",
+            "findingId": "finding-3abfd6bfbf98325075c981b49763deaa",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-d2293444b4b85616b41b33faec4dcf9e",
+            "classification": "introduced",
+            "findingId": "finding-d2293444b4b85616b41b33faec4dcf9e",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-c4d615c7ed6d0c13a67b5970cff841de",
+            "classification": "introduced",
+            "findingId": "finding-c4d615c7ed6d0c13a67b5970cff841de",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-e5d2dd0ef4203d5a184d694e1b22c028",
+            "classification": "introduced",
+            "findingId": "finding-e5d2dd0ef4203d5a184d694e1b22c028",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-42837e2ae6e3435771b9f1111db007ef",
+            "classification": "introduced",
+            "findingId": "finding-42837e2ae6e3435771b9f1111db007ef",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "not_fixed"
+          },
+          {
+            "chainRoot": "finding-02ef54896ea7acd455ccc16f8fa9f068",
+            "classification": "introduced",
+            "findingId": "finding-02ef54896ea7acd455ccc16f8fa9f068",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "89c8e6dd9685e2c335070c2229cc2f507210c332",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-6-astra",
+      "outcome": "verdict",
+      "output_bytes": 1980,
+      "output_sha256": "a158dd8c20d15ec7568c8186efff4579711f54acde0bb7148f9fb548963fe45e",
+      "reservation_id": "9a0a5795a97a4890b976595b5223ff45",
+      "round_consumed": true,
+      "scope": "impl:fn-7-native-atoms-modeled-on-effect-atom.1",
+      "superseded_by": null,
+      "task": "fn-7-native-atoms-modeled-on-effect-atom.1",
+      "timestamp": "2026-09-28T14:21:21.392482Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "ec23d143a8fcf97bdb5a95a9c22195913615f76bd44d2741a93f5b086c80d0b0",
+      "backend": "codex",
+      "base_sha": "e19d32a4b162bb828952a31250dbf3f316830b75",
+      "counter_kind": "impl",
+      "effort": "high",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-7daa726a7bcf65d1d283bc171dbe68a9",
+            "classification": "introduced",
+            "findingId": "finding-7daa726a7bcf65d1d283bc171dbe68a9",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-488742b9833523ca70ce7d5c26e15fd0",
+            "classification": "introduced",
+            "findingId": "finding-488742b9833523ca70ce7d5c26e15fd0",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-e5d777b660057cafc29cf721953f2d7f",
+            "classification": "introduced",
+            "findingId": "finding-e5d777b660057cafc29cf721953f2d7f",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-3abfd6bfbf98325075c981b49763deaa",
+            "classification": "introduced",
+            "findingId": "finding-3abfd6bfbf98325075c981b49763deaa",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-d2293444b4b85616b41b33faec4dcf9e",
+            "classification": "introduced",
+            "findingId": "finding-d2293444b4b85616b41b33faec4dcf9e",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-c4d615c7ed6d0c13a67b5970cff841de",
+            "classification": "introduced",
+            "findingId": "finding-c4d615c7ed6d0c13a67b5970cff841de",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-e5d2dd0ef4203d5a184d694e1b22c028",
+            "classification": "introduced",
+            "findingId": "finding-e5d2dd0ef4203d5a184d694e1b22c028",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-42837e2ae6e3435771b9f1111db007ef",
+            "classification": "introduced",
+            "findingId": "finding-42837e2ae6e3435771b9f1111db007ef",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-02ef54896ea7acd455ccc16f8fa9f068",
+            "classification": "introduced",
+            "findingId": "finding-02ef54896ea7acd455ccc16f8fa9f068",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "3f2e09b19dec1e12be46c2e9052007928122619a",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-6-astra",
+      "outcome": "verdict",
+      "output_bytes": 949,
+      "output_sha256": "5caa93a73818a61bdaa77623862f640f96ee4b98f41861d7608692c791e09f6b",
+      "reservation_id": "ff6c0cabf45f4fd4ba3a21325e34fbd9",
+      "round_consumed": true,
+      "scope": "impl:fn-7-native-atoms-modeled-on-effect-atom.1",
+      "superseded_by": null,
+      "task": "fn-7-native-atoms-modeled-on-effect-atom.1",
+      "timestamp": "2026-09-28T14:23:06.331430Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "be58417e46043fd968f287705a40c8fd887283485f855a4f3a65151e0f92a422",
+      "backend": "codex",
+      "base_sha": "c360d4d423297d8cfcd4f3ec57fb1271e0a3b036",
+      "counter_kind": "impl",
+      "effort": "high",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-e1c997a81936fb9c4d23ca997aeb6a6a",
+            "classification": "introduced",
+            "findingId": "finding-e1c997a81936fb9c4d23ca997aeb6a6a",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-44adffab5c62fb4070a990647676fc6c",
+            "classification": "introduced",
+            "findingId": "finding-44adffab5c62fb4070a990647676fc6c",
+            "firstSeenThisRound": true,
+            "severity": "P3",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "d0ec2e0bf207ed73181e9627bc16950161dacf3a",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-6-astra",
+      "outcome": "verdict",
+      "output_bytes": 1527,
+      "output_sha256": "2881f0185f621cae2d4f76ccab6e43d5df858fbe42a8685a037aa446d1a97f26",
+      "reservation_id": "5fc5c6ef83e4404c9f7122b9c840f887",
+      "round_consumed": true,
+      "scope": "impl:fn-7-native-atoms-modeled-on-effect-atom.2",
+      "superseded_by": null,
+      "task": "fn-7-native-atoms-modeled-on-effect-atom.2",
+      "timestamp": "2026-09-28T14:29:50.562447Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "c32df7cc3fcb60e739ccb158d9d5163d923cf2095941f15b12b77989674b3c95",
+      "backend": "codex",
+      "base_sha": "c360d4d423297d8cfcd4f3ec57fb1271e0a3b036",
+      "counter_kind": "impl",
+      "effort": "high",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-e1c997a81936fb9c4d23ca997aeb6a6a",
+            "classification": "introduced",
+            "findingId": "finding-e1c997a81936fb9c4d23ca997aeb6a6a",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-44adffab5c62fb4070a990647676fc6c",
+            "classification": "introduced",
+            "findingId": "finding-44adffab5c62fb4070a990647676fc6c",
+            "firstSeenThisRound": false,
+            "severity": "P3",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "0fdb9f2d34680f607a2a1f198cab092e747388a0",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-6-astra",
+      "outcome": "verdict",
+      "output_bytes": 911,
+      "output_sha256": "4bd620e415bee905ecddf8030e62b737af5c7afa36a9a95d915b14d2a9441ee8",
+      "reservation_id": "6b6ebd2637204db59019217a6bca2e05",
+      "round_consumed": true,
+      "scope": "impl:fn-7-native-atoms-modeled-on-effect-atom.2",
+      "superseded_by": null,
+      "task": "fn-7-native-atoms-modeled-on-effect-atom.2",
+      "timestamp": "2026-09-28T14:32:05.487478Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "91c0810037f5fef315104ade16c76ca14d30ecd3278c79cce0e5bb0911ee35ee",
+      "backend": "codex",
+      "base_sha": "3ec021cd5df119509d46e2f2e7308b8f781dadab",
+      "counter_kind": "impl",
+      "effort": "high",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-641aed444f2cb3e9deddcd6e3fa24964",
+            "classification": "introduced",
+            "findingId": "finding-641aed444f2cb3e9deddcd6e3fa24964",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-1331cf607ca230d27936b4a49fe9c06f",
+            "classification": "introduced",
+            "findingId": "finding-1331cf607ca230d27936b4a49fe9c06f",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-1147c4dfa249255a2bb65d57f933e98d",
+            "classification": "introduced",
+            "findingId": "finding-1147c4dfa249255a2bb65d57f933e98d",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "36a12fa87f185eafe294007f4b4a42ddb41c0993",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-6-astra",
+      "outcome": "verdict",
+      "output_bytes": 2631,
+      "output_sha256": "1fde02d59dd33c9dee64071ae5f21cfd1b78d5f10fd3d682057f4a911169aa19",
+      "reservation_id": "fc3a1875fdf24deb8d99e66721e83cea",
+      "round_consumed": true,
+      "scope": "impl:fn-7-native-atoms-modeled-on-effect-atom.3",
+      "superseded_by": null,
+      "task": "fn-7-native-atoms-modeled-on-effect-atom.3",
+      "timestamp": "2026-09-28T14:39:56.701023Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "50c04a812c13d11abca2eb2a6b017f6b3890f118ad0334689a446c543415991b",
+      "backend": "codex",
+      "base_sha": "3ec021cd5df119509d46e2f2e7308b8f781dadab",
+      "counter_kind": "impl",
+      "effort": "high",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-641aed444f2cb3e9deddcd6e3fa24964",
+            "classification": "introduced",
+            "findingId": "finding-641aed444f2cb3e9deddcd6e3fa24964",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "not_fixed"
+          },
+          {
+            "chainRoot": "finding-70e3b10d3dc5a2e739731a92ded0b0b0",
+            "classification": "introduced",
+            "findingId": "finding-70e3b10d3dc5a2e739731a92ded0b0b0",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-1331cf607ca230d27936b4a49fe9c06f",
+            "classification": "introduced",
+            "findingId": "finding-1331cf607ca230d27936b4a49fe9c06f",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-1147c4dfa249255a2bb65d57f933e98d",
+            "classification": "introduced",
+            "findingId": "finding-1147c4dfa249255a2bb65d57f933e98d",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "353131ecf2bba3235083afd224804c5f77c45d57",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-6-astra",
+      "outcome": "verdict",
+      "output_bytes": 1778,
+      "output_sha256": "8e9b00660d45b67d9d360456a86a09b8d77c49503c6328d5c4d599a05c060171",
+      "reservation_id": "5940fa77ff314368a7a3e454f62c4a72",
+      "round_consumed": true,
+      "scope": "impl:fn-7-native-atoms-modeled-on-effect-atom.3",
+      "superseded_by": null,
+      "task": "fn-7-native-atoms-modeled-on-effect-atom.3",
+      "timestamp": "2026-09-28T14:45:56.352760Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "ebece734a686ae0f0ccdb946beebd1430e4d8d115b41194f29fc1c40e23f7c1e",
+      "backend": "codex",
+      "base_sha": "3ec021cd5df119509d46e2f2e7308b8f781dadab",
+      "counter_kind": "impl",
+      "effort": "high",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-641aed444f2cb3e9deddcd6e3fa24964",
+            "classification": "introduced",
+            "findingId": "finding-641aed444f2cb3e9deddcd6e3fa24964",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "not_fixed"
+          },
+          {
+            "chainRoot": "finding-70e3b10d3dc5a2e739731a92ded0b0b0",
+            "classification": "introduced",
+            "findingId": "finding-70e3b10d3dc5a2e739731a92ded0b0b0",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-de7afe49292f1a03b131cd53c784339d",
+            "classification": "introduced",
+            "findingId": "finding-de7afe49292f1a03b131cd53c784339d",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-1331cf607ca230d27936b4a49fe9c06f",
+            "classification": "introduced",
+            "findingId": "finding-1331cf607ca230d27936b4a49fe9c06f",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-1147c4dfa249255a2bb65d57f933e98d",
+            "classification": "introduced",
+            "findingId": "finding-1147c4dfa249255a2bb65d57f933e98d",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "2c862c09b93d213b99240f0cf0ba983b9561b9d3",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-6-astra",
+      "outcome": "verdict",
+      "output_bytes": 1761,
+      "output_sha256": "448e9a5a366627b9ebfef7409130c402300beefa81e2aabfd15433f4b10f90a2",
+      "reservation_id": "e2eb5892d50b4385bb5939bd4d3a802c",
+      "round_consumed": true,
+      "scope": "impl:fn-7-native-atoms-modeled-on-effect-atom.3",
+      "superseded_by": null,
+      "task": "fn-7-native-atoms-modeled-on-effect-atom.3",
+      "timestamp": "2026-09-28T14:53:12.971839Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "c10aa258748f452f18486cd6ae906103fc4cc8d9a279d03bda94873a872114bb",
+      "backend": "codex",
+      "base_sha": "b792c5681d41f85ad69aad2510b56b63140988cb",
+      "counter_kind": "impl",
+      "effort": "high",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-700e28ee1fa0ff7d0dcdeb8448219865",
+            "classification": "introduced",
+            "findingId": "finding-700e28ee1fa0ff7d0dcdeb8448219865",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-32889f1e15a6687c422c3e85ff4742bf",
+            "classification": "introduced",
+            "findingId": "finding-32889f1e15a6687c422c3e85ff4742bf",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "2a02baaa4ce495297233c2f2b4ad33721c994ef5",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-6-astra",
+      "outcome": "verdict",
+      "output_bytes": 1781,
+      "output_sha256": "a1262d045837fcda90a1abebcc38b7964ef247656a01a1b84e7d515d2fe54cef",
+      "reservation_id": "5efee3ba006149979cc521ffb7c343db",
+      "round_consumed": true,
+      "scope": "impl:fn-7-native-atoms-modeled-on-effect-atom.4",
+      "superseded_by": null,
+      "task": "fn-7-native-atoms-modeled-on-effect-atom.4",
+      "timestamp": "2026-09-28T15:28:32.199742Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "d90a5f9f8d914f3f562747187bf6b9cf2ee84cf310f906e348703bb6f1757c33",
+      "backend": "codex",
+      "base_sha": "b792c5681d41f85ad69aad2510b56b63140988cb",
+      "counter_kind": "impl",
+      "effort": "high",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-700e28ee1fa0ff7d0dcdeb8448219865",
+            "classification": "introduced",
+            "findingId": "finding-700e28ee1fa0ff7d0dcdeb8448219865",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-32889f1e15a6687c422c3e85ff4742bf",
+            "classification": "introduced",
+            "findingId": "finding-32889f1e15a6687c422c3e85ff4742bf",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "11af4ed3defe1cd9639b8498d4be03bda18c3f35",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-6-astra",
+      "outcome": "verdict",
+      "output_bytes": 979,
+      "output_sha256": "00201a4cb3bf341b5d7da15e13b0aa4a856897ccb50cde9fd309122413f32389",
+      "reservation_id": "9e6807b7c6b04a07b95d213c732a389f",
+      "round_consumed": true,
+      "scope": "impl:fn-7-native-atoms-modeled-on-effect-atom.4",
+      "superseded_by": null,
+      "task": "fn-7-native-atoms-modeled-on-effect-atom.4",
+      "timestamp": "2026-09-28T15:30:58.678506Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "cffd389361669e9c3650b0ff207cf2ac6c826377a2a6a1a42c284bab1a54291e",
+      "backend": "codex",
+      "base_sha": "045add0a73d6e64969b582b46a59dbda1fba4a70",
+      "counter_kind": "impl",
+      "effort": "high",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "f3f9e0aa0b4c1839a23e63f374302234b2ae73d3",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-6-astra",
+      "outcome": "verdict",
+      "output_bytes": 158,
+      "output_sha256": "6ff70da3d83706800ca3cabc6ba62603ba0485fcf5259d27f1be54ce68686975",
+      "reservation_id": "077326069fa4470b87d8db7a77f99f04",
+      "round_consumed": true,
+      "scope": "impl:fn-7-native-atoms-modeled-on-effect-atom.5",
+      "superseded_by": null,
+      "task": "fn-7-native-atoms-modeled-on-effect-atom.5",
+      "timestamp": "2026-09-28T15:47:25.076872Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "c8aca3710fdbaf7a8ef80f1bd3661bb1fd4c2f2b620fb5c382aaa8e607fcb83c",
+      "backend": "codex",
+      "base_sha": "e19d32a4b162bb828952a31250dbf3f316830b75",
+      "counter_kind": "plan",
+      "effort": "high",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-4f66760a4777dba16756bff8224c19e7",
+            "classification": "introduced",
+            "findingId": "finding-4f66760a4777dba16756bff8224c19e7",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-b4e3826bcfb51c6f007dfb8fd88b157e",
+            "classification": "introduced",
+            "findingId": "finding-b4e3826bcfb51c6f007dfb8fd88b157e",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "768002a14e5a295aa6af480ce0c54365f07e74d1",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-6-astra",
+      "outcome": "verdict",
+      "output_bytes": 337177,
+      "output_sha256": "085790994b10ab03f8e8b183421029fc09945c93e800bbfb595770414505d4b2",
+      "reservation_id": "b69aca1d199c49b1a1c041e65820ab93",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-09-28T15:53:53.664754Z",
+      "tool_calls": 23,
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "589377f2a2f697ed1fbbd8ae06110024bb35d114b4d262a406223d3b9a5c7e38",
+      "backend": "codex",
+      "base_sha": "e19d32a4b162bb828952a31250dbf3f316830b75",
+      "counter_kind": "plan",
+      "effort": "high",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-4f66760a4777dba16756bff8224c19e7",
+            "classification": "introduced",
+            "findingId": "finding-4f66760a4777dba16756bff8224c19e7",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "not_fixed"
+          },
+          {
+            "chainRoot": "finding-f1af4fd9d1fe808918eb9797cf303472",
+            "classification": "introduced",
+            "findingId": "finding-f1af4fd9d1fe808918eb9797cf303472",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-b4e3826bcfb51c6f007dfb8fd88b157e",
+            "classification": "introduced",
+            "findingId": "finding-b4e3826bcfb51c6f007dfb8fd88b157e",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "64baf56c8ba3f34153385869762ccd123606caaa",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-6-astra",
+      "outcome": "verdict",
+      "output_bytes": 8206,
+      "output_sha256": "4aaaad87a9cf662476a83afbb874e8867eade50173a02738e4eda0461fcb733c",
+      "reservation_id": "27eb1430d7234b4eb01acd7ef59e60b2",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-09-28T16:01:43.759295Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "040a7536e108c94de4158f04778aca6c4382e5c255b2713be848ae1ebd728959",
+      "backend": "codex",
+      "base_sha": "e19d32a4b162bb828952a31250dbf3f316830b75",
+      "counter_kind": "plan",
+      "effort": "high",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-4f66760a4777dba16756bff8224c19e7",
+            "classification": "introduced",
+            "findingId": "finding-4f66760a4777dba16756bff8224c19e7",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-f1af4fd9d1fe808918eb9797cf303472",
+            "classification": "introduced",
+            "findingId": "finding-f1af4fd9d1fe808918eb9797cf303472",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-b4e3826bcfb51c6f007dfb8fd88b157e",
+            "classification": "introduced",
+            "findingId": "finding-b4e3826bcfb51c6f007dfb8fd88b157e",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "64e4579e9a238289a7d91ac2573a0c8b41f3f10b",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-6-astra",
+      "outcome": "verdict",
+      "output_bytes": 6871,
+      "output_sha256": "d995506c756788ab9eaae2e9cb9908745a1e6a1c182b91dc179e06c86999926f",
+      "reservation_id": "204f5944f86c404d84417aad69f9645e",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-09-28T16:06:35.145104Z",
+      "verdict": "SHIP"
+    }
+  ],
+  "review_hash_epoch": {
+    "impl:fn-7-native-atoms-modeled-on-effect-atom.1": 1,
+    "impl:fn-7-native-atoms-modeled-on-effect-atom.2": 1,
+    "impl:fn-7-native-atoms-modeled-on-effect-atom.4": 1,
+    "impl:fn-7-native-atoms-modeled-on-effect-atom.5": 1,
+    "plan": 1,
+    "plan#completion": 1
+  },
+  "review_pending_rounds": {},
+  "review_reservations": {},
+  "review_transport_failures": {
+    "completion": 0,
+    "impl:fn-7-native-atoms-modeled-on-effect-atom.1": 0,
+    "impl:fn-7-native-atoms-modeled-on-effect-atom.2": 0,
+    "impl:fn-7-native-atoms-modeled-on-effect-atom.3": 0,
+    "impl:fn-7-native-atoms-modeled-on-effect-atom.4": 0,
+    "impl:fn-7-native-atoms-modeled-on-effect-atom.5": 0,
+    "plan": 0
+  },
+  "spec_path": ".flow/specs/fn-7-native-atoms-modeled-on-effect-atom.md",
+  "status": "open",
+  "title": "Native atoms modeled on effect-atom",
+  "tracker": {
+    "baseHashFlow": null,
+    "baseHashTracker": null,
+    "depRelations": [],
+    "id": null,
+    "identifier": null,
+    "lastSyncedAt": null,
+    "mergeBaseFlow": null,
+    "mergeBaseTracker": null,
+    "url": null
+  },
+  "updated_at": "2026-09-28T16:06:35.149211Z"
+}
