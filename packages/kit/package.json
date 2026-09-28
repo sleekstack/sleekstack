@@ -1,0 +1,28 @@
+{
+  "name": "@sleekstack/kit",
+  "version": "0.0.1",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": { "types": "./src/index.ts", "default": "./src/index.ts" },
+    "./next": { "types": "./src/next/index.ts", "default": "./src/next/index.ts" },
+    "./react": { "types": "./src/react/index.ts", "default": "./src/react/index.ts" }
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "build:types": "tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "@sleekstack/core": "workspace:*",
+    "@sleekstack/next": "workspace:*",
+    "@sleekstack/react": "workspace:*",
+    "effect": "^3.15.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "typescript": "^5.8.0",
+    "vitest": "^4.1.9"
+  }
+}
