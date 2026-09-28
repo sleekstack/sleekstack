@@ -1114,7 +1114,7 @@
     "plan": 0
   },
   "spec_path": ".flow/specs/fn-7-native-atoms-modeled-on-effect-atom.md",
-  "status": "open",
+  "status": "done",
   "title": "Native atoms modeled on effect-atom",
   "tracker": {
     "baseHashFlow": null,
@@ -1127,5 +1127,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-09-28T16:06:35.149211Z"
+  "updated_at": "2026-09-28T16:14:56.460631Z"
 }

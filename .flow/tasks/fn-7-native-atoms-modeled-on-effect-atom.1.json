@@ -8,7 +8,7 @@
   "priority": null,
   "spec": "fn-7-native-atoms-modeled-on-effect-atom",
   "spec_path": ".flow/tasks/fn-7-native-atoms-modeled-on-effect-atom.1.md",
-  "status": "todo",
+  "status": "done",
   "title": "Core atom primitives: Atom, Result, AtomStore, family",
   "updated_at": "2026-09-28T13:51:10.719752Z"
 }
