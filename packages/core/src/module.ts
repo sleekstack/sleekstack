@@ -123,7 +123,7 @@ export const isServiceDefinition = (x: unknown): x is AnyServiceDefinition => is
  * })
  * ```
  */
-export function module(config: {
+function makeModule(config: {
   readonly name: string
   readonly entries?: readonly Entry[]
   readonly imports?: Imports
@@ -156,3 +156,6 @@ export function module(config: {
     ...(config.lifetime && { lifetime: config.lifetime }),
   }
 }
+
+// Not declared as `function module`: that would shadow the CommonJS `module` that webpack Fast Refresh reads (`module.hot`).
+export { makeModule as module }

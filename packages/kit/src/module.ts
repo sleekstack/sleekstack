@@ -61,7 +61,7 @@ const coreModuleOf = (m: unknown, owner: string): CoreModule => {
  * export const ClockModule = module({ name: 'clock', provide: [layer(Clock, { now: () => Date.now() })], exports: [Clock] })
  * ```
  */
-export function module(config: ModuleConfig): Module {
+function makeModule(config: ModuleConfig): Module {
   try {
     const name = config?.name
     const provide = config.provide ?? []
@@ -153,3 +153,6 @@ export function snapshot(app: Module): GraphSnapshot {
     throw normalize(e)
   }
 }
+
+// Not declared as `function module`: that would shadow the CommonJS `module` that webpack Fast Refresh reads (`module.hot`).
+export { makeModule as module }
