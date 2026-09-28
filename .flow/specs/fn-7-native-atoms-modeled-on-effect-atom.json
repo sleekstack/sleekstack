@@ -10,9 +10,86 @@
   "id": "fn-7-native-atoms-modeled-on-effect-atom",
   "impl_review_rounds": {},
   "next_task": 1,
-  "plan_review_rounds": 0,
-  "plan_review_status": "unknown",
-  "plan_reviewed_at": null,
+  "plan_review_rounds": 1,
+  "plan_review_status": "needs_work",
+  "plan_reviewed_at": "2026-09-28T13:49:52.748548Z",
+  "review_attempts": [
+    {
+      "artifact_sha256": "b28bb6c83c20bbf9252d65180f5b18fccdfaebb35a71a22768e64349eb1773b6",
+      "backend": "codex",
+      "base_sha": "e19d32a4b162bb828952a31250dbf3f316830b75",
+      "counter_kind": "plan",
+      "effort": "high",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-9f49efb4a80ab46e5f7c547eadfb5f93",
+            "classification": "introduced",
+            "findingId": "finding-9f49efb4a80ab46e5f7c547eadfb5f93",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-92f23e78e47c899e7b38092e6de2186c",
+            "classification": "introduced",
+            "findingId": "finding-92f23e78e47c899e7b38092e6de2186c",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-da1aa1b8ada93bd0fdf2e0f8e32bdf82",
+            "classification": "introduced",
+            "findingId": "finding-da1aa1b8ada93bd0fdf2e0f8e32bdf82",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-e11dcabf8195c256c8bcce006d128cb9",
+            "classification": "introduced",
+            "findingId": "finding-e11dcabf8195c256c8bcce006d128cb9",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "plan"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "259a3964fa9113968b653bfa2cacbb7d3c51f6c4",
+      "head_sha_observed": true,
+      "kind": "plan",
+      "model": "gpt-6-astra",
+      "outcome": "verdict",
+      "output_bytes": 142216,
+      "output_sha256": "61ead2ef73981effb4d0a33ae53d03be249deb65886ca8d16bfd5f004d0bf9aa",
+      "reservation_id": "5a3f8911909b4ce08a721243637956c5",
+      "round_consumed": true,
+      "scope": "plan",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-09-28T13:49:52.745384Z",
+      "tool_calls": 9,
+      "verdict": "NEEDS_WORK"
+    }
+  ],
+  "review_hash_epoch": {},
+  "review_pending_rounds": {},
+  "review_reservations": {},
+  "review_transport_failures": {
+    "plan": 0
+  },
   "spec_path": ".flow/specs/fn-7-native-atoms-modeled-on-effect-atom.md",
   "status": "open",
   "title": "Native atoms modeled on effect-atom",
@@ -27,5 +104,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-09-28T13:46:29.323824Z"
+  "updated_at": "2026-09-28T13:50:50.690110Z"
 }

@@ -32,7 +32,21 @@ pnpm --filter @sleekstack/kit test
   - Invalidation or removal closes that Scope, which interrupts the fiber.
   - Stream atoms take the latest element.
   - No public `ChildScope` change: the store is created from `{ context: scope.inner, privates, onFinalizerError }` and never exposes `inner`.
-- **R resolution:** a missing Tag fails the atom with `MissingDependency`, or `PrivateDependency` via core's `privateDependencyOf`. A single core lookup helper is shared by `useService` and atoms: move `useService`'s `lookup` into core and have react import it, so there is no duplicated logic.
+- **R resolution (privacy):**
+  - Effect atoms run with the scope's **public** `context` (private Tags removed, `Privacy` map attached), never `inner`.
+  - A raw `yield* Tag` miss in Effect 3.21 is a defect: `Die(Error("Service not found: <key>"))` from `Context.unsafeGet`. The store maps that defect to a typed failure: `privateDependencyOf(context, key, atomLabel)` gives `PrivateDependency`; anything else gives `MissingDependency`.
+  - The key is parsed from Effect's message, and a test pins the format against the installed effect.
+  - A single core helper, `resolveTag` (moved from `useService`'s `lookup`), is shared by `useService` and by kit atoms, which resolve their `deps` up front.
+  - Tests cover raw reads for public, private, missing and shadowed services, asserting typed failure Causes.
+- **Scope-bound disposal:**
+  - `atomStoreFor(scope)` registers `store.dispose` as a finalizer on the scope's internal Effect `Scope`, exposed as a new `@internal` field on `ChildScope`; the public interface is unchanged.
+  - The store is registered after the services are built, so LIFO closes it first: fibers are interrupted before service finalizers run, for direct `scope.close` as well as through `LayerProvider`.
+  - Store finalizer failures go to `onFinalizerError`.
+- **Suspense retention:**
+  - A suspending read calls `store.retain(atom)`, which holds the node until its promise settles, and then for `idleTTL` so the retry render can subscribe.
+  - An abandoned render therefore releases once the load settles and idleTTL passes.
+  - Provider or scope disposal releases everything.
+  - Test: inside a committed provider, an acquisition longer than idleTTL completes exactly once, and resources are released after abandonment or unmount.
 - **Cycles:** a read cycle throws `AtomCycle` (a new core tagged error) synchronously from the read. Hooks surface it to the error boundary.
 - **family:** `family(f)` caches by structural key (`Equal`/`Hash`; primitives by value), holding each atom through `WeakRef` + `FinalizationRegistry`, with a plain Map fallback that is documented as never evicting. Nested families are documented as unsupported for GC (effect-atom #426).
 - **Per provider:**
@@ -41,7 +55,7 @@ pnpm --filter @sleekstack/kit test
   - The store lives and dies with the provider's `Owned` record, so StrictMode park/adopt keeps it.
   - `close()` disposes the store (interrupting fibers and awaiting finalizers) before the component scope closes. Finalizer failures go to `onFinalizerError`.
   - Hooks called before the scope resolves suspend on the provider's existing scope promise.
-- **Hooks:**
+- **Hooks:** exactly `useAtomValue`, `useAtomSet`, `useAtom`, `useAtomRefresh` and `useAtomSuspense` (`{ suspendOnWaiting? }`); no `useAtomMount` or `includeFailure` in v1.
   - Built on `useSyncExternalStore`, with subscribe/snapshot memoized per (store, atom) in a WeakMap.
   - `useAtomSuspense` throws a stable promise per node and generation.
   - On `Failure` it rethrows `Cause.squash` (core); kit normalizes the error.
