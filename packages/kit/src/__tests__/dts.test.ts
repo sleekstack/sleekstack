@@ -10,7 +10,8 @@ import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 
 const root = fileURLToPath(new URL('../..', import.meta.url))
-const FORBIDDEN_TEXT = /effect|@sleekstack\/(core|next|react)/
+// Any module reference to effect (or effect/*) or to the wrapped packages. Bare words like the kit `effect()` API are fine.
+const FORBIDDEN_TEXT = /['"]effect(\/[^'"]*)?['"]|@sleekstack\/(core|next|react)/
 const FORBIDDEN_FILE = /\/node_modules\/effect\/|\/packages\/(core|next|react)\//
 
 describe('declaration surface (R7)', () => {
