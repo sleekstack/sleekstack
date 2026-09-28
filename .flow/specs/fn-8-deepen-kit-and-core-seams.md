@@ -18,9 +18,22 @@ pnpm --filter docs build && pnpm --filter docs test
 - **Typed action failures:** `@sleekstack/next`'s `action`/`query` gain an internal Exit hook, so kit gets a typed failure instead of decoding the `FAILED`/`ERRORED` sentinel symbols. kit's lowering maps one Exit. The sentinels are deleted. ADR 0009 records the change.
 - **Flaky test:** harden the showcase board test that timed out on CI ("opening task detail logs 1 acquire…"). `findByRole` gets an explicit longer timeout, or the test waits for the project to load first.
 
+## Decisions (from plan review)
+- **Canonical resolution failure (R1, R4):** every boundary produces the same tagged errors from shared core constructors, used by `useService`, the AtomStore's `wrapBuild` (`packages/core/src/atom/scope.ts`), kit next lowering and kit atoms.
+  - `MissingDependency`: `{ tag: <key>, service: <requiredBy>, missing: <key> }`, message `"<requiredBy>" requires "<key>", which is not provided`.
+  - `PrivateDependency`: `{ tag, module, requiredBy }` (unchanged).
+  - `details.tag` is kept so existing assertions like `{ tag: 'Rq' }` still pass.
+  - AtomStore failures keep their Cause structure (typed Fail, not Die).
+- **Authorized behavior change:** a `useService` miss that used to throw a plain `Error` (which kit normalized to `Unknown`) now throws `MissingDependency` (kit: code `MissingDependency`). Tests asserting the old message or code are updated, and nothing else.
+- **Traversal-only walk (R3):** core adds an `@internal` `walkProvide(provide, visit)`.
+  - It visits each module once by identity, skipping visited modules instead of throwing on a cycle. It follows `imports` (arrays and thunks) and `provide`, and reports each Tag with its owning module.
+  - It does no name checks, no shadowing and no `AmbiguousProvider`. Graph validation stays in `buildGraph` at its current boundary (invocation time), so kit's `DuplicateTag` still runs first, at definition time.
+  - `walkModules` may reuse it internally.
+  - Tests: DuplicateTag precedence over AmbiguousProvider, and a cycle fixture that validates at definition time and fails only at invocation, as today.
+
 ## Boundaries / non-goals
 - No new public features.
-- kit's public runtime behavior stays the same, and every existing test passes unchanged except where a test moves to the new seam.
+- kit's public runtime behavior stays the same (except the authorized R1 change above), and every existing test passes unchanged except where a test moves to the new seam.
 - No ADR is re-litigated except by adding ADR 0009 for the next contract.
 
 ## Acceptance Criteria
