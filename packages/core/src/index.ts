@@ -16,7 +16,13 @@ export {
   InvalidModule,
   CaptiveDependency,
   PrivateDependency,
+  AtomCycle,
   type GraphError,
 } from './errors'
 export { canDependOn } from './lifetime'
 export { makeAppScope, privateDependencyOf, Privacy, type AppScope, type ChildScope, type ScopeOptions } from './scope'
+/** Atom definitions: `make`, `writable`, `family`, `keepAlive`, `setIdleTTL`. */
+export * as Atom from './atom/Atom'
+/** The async state of Effect and Stream atoms. */
+export * as Result from './atom/Result'
+export { makeAtomStore, type AtomStore, type AtomStoreOptions } from './atom/AtomStore'

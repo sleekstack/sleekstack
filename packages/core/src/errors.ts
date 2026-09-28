@@ -72,3 +72,9 @@ export class CaptiveDependency extends Data.TaggedError('CaptiveDependency')<{
   readonly dependencyLifetime: string
   readonly message: string
 }> {}
+
+/** Error code `AtomCycle`: atoms read each other in a cycle (`path` lists their labels). */
+export class AtomCycle extends Data.TaggedError('AtomCycle')<{
+  readonly path: readonly string[]
+  readonly message: string
+}> {}
