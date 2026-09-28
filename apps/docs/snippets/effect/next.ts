@@ -1,3 +1,4 @@
+'use server'
 import { Context, Effect } from 'effect'
 import { module, service } from '@sleekstack/core'
 import { action, configureRuntime, query } from '@sleekstack/next'
@@ -10,10 +11,18 @@ const TodosLive = service(Todos, {}, () =>
 
 configureRuntime({ provide: [module({ name: 'app', entries: [TodosLive] })] })
 
-export const addTodo = action((title: string) =>
+const add = action((title: string) =>
   Effect.gen(function* () {
     const todos = yield* Todos
     return todos.add(title)
   }))
 
-export const listTodos = query(() => Effect.map(Todos, (todos) => todos.list()))
+const list = query(() => Effect.map(Todos, (todos) => todos.list()))
+
+export async function addTodo(title: string) {
+  return add(title)
+}
+
+export async function listTodos() {
+  return list()
+}

@@ -1,3 +1,5 @@
+'use server'
+// A 'use server' file may export only async functions, so each operation is wrapped in one.
 import { layer, module, tag } from '@sleekstack/kit'
 import { action, configureRuntime, fail, query } from '@sleekstack/kit/next'
 
@@ -20,14 +22,13 @@ configureRuntime({
 })
 
 // Resolves { ok: true, data } or, after fail(), { ok: false, error }.
-export const addTodo = action((todos) => async (title: string) => (title.trim() ? todos.add(title) : fail('Title is required')), [Todos])
+const add = action((todos) => async (title: string) => (title.trim() ? todos.add(title) : fail('Title is required')), [Todos])
+export async function addTodo(title: string) {
+  return add(title)
+}
 
 // Resolves the plain value; fail() rejects.
-export const listTodos = query((todos) => () => todos.list(), [Todos])
-
-export async function demo() {
-  const result = await addTodo('Write docs')
-  if (result.ok) console.log(result.data)
-  else console.error(result.error)
-  console.log(await listTodos())
+const list = query((todos) => () => todos.list(), [Todos])
+export async function listTodos() {
+  return list()
 }

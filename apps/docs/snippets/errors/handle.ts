@@ -5,7 +5,7 @@ const hints: Record<SleekStackErrorCode, string> = {
   MissingDependency: 'provide the missing Tag',
   DependencyCycle: 'break the cycle in details.path',
   AmbiguousProvider: 'remove one provider, or move one to a more local position',
-  ModuleCycle: 'use an imports thunk or merge the modules',
+  ModuleCycle: 'remove one import, extract the shared Tags into a third module, or merge them',
   DuplicateModule: 'rename one of the modules',
   InvalidModule: 'check the module config',
   CaptiveDependency: 'shorten the dependent lifetime or lengthen the dependency',
