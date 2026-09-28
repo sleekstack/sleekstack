@@ -43,6 +43,8 @@ describe('normalize envelopes', () => {
     ['tagged graph error', graph, 'MissingDependency', { service: 'S', missing: 'M' }],
     ['LayerFailure', new LayerFailure('L', new Error('boom')), 'LayerFailed', { tag: 'L', cause: 'boom' }],
     ['CleanupFailure', new CleanupFailure('C', new Error('bye')), 'CleanupFailed', { tag: 'C' }],
+    ['LayerFailure wrapping a Cause', new LayerFailure('L', Cause.fail(graph)), 'LayerFailed', { tag: 'L' }],
+    ['CleanupFailure wrapping a Cause', new CleanupFailure('C', Cause.fail(graph)), 'CleanupFailed', { tag: 'C' }],
     ['plain Error with a non-Cause cause', new Error('x', { cause: 1 }), 'Unknown', {}],
   ])('%s', (_, input, code, details) => {
     const e = normalize(input)

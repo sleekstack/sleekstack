@@ -82,8 +82,6 @@ export function normalize(e: unknown, fallback: SleekStackErrorCode = 'Unknown')
   if (e instanceof SleekStackError) return e
   if (Cause.isCause(e)) return normalize(Cause.squash(e), fallback)
   if (Runtime.isFiberFailure(e)) return normalize(e[Runtime.FiberFailureCauseId], fallback)
-  // @sleekstack/next rejects with `new Error(pretty, { cause: <Cause> })`.
-  if (e instanceof Error && Cause.isCause(e.cause)) return normalize(e.cause, fallback)
   if (e instanceof LayerFailure) {
     return new SleekStackError('LayerFailed', e.message, { tag: e.tag, cause: messageOf(e.cause) }, { cause: e.cause })
   }
@@ -95,6 +93,8 @@ export function normalize(e: unknown, fallback: SleekStackErrorCode = 'Unknown')
     const { _tag, message, ...details } = { ...e } as Record<string, unknown>
     return new SleekStackError(tag as SleekStackErrorCode, e.message, details, { cause: e })
   }
+  // @sleekstack/next rejects with a plain `new Error(pretty, { cause: <Cause> })`; subclasses keep their own code.
+  if (e instanceof Error && e.constructor === Error && Cause.isCause(e.cause)) return normalize(e.cause, fallback)
   return new SleekStackError(fallback, messageOf(e), {}, { cause: e })
 }
 
