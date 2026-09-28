@@ -164,12 +164,17 @@ export const settleSuspensions = (store: AtomStore) => void closed.add(store)
 // A settled suspension's hold on its node. `blockers` counts later suspensions started inside its retry window
 // (the same render chain retrying into its next atom, i.e. a waterfall): it stays held until they finish.
 interface Hold { blockers: number; readonly finish: () => void }
-// Settled holds still inside their retry window, per store: the candidate predecessors of a new suspension.
-const open = new WeakMap<AtomStore, Set<Hold>>()
-const openFor = (store: AtomStore) => {
-  let set = open.get(store)
-  if (!set) open.set(store, (set = new Set()))
-  return set
+// Settled holds re-read (still resolved) by the render in progress: a waterfall's retry reads its earlier atoms
+// before suspending on the next one, so these are the only predecessors a new suspension links to. Cleared on a
+// microtask, i.e. per synchronous render pass.
+const touched = new WeakMap<AtomStore, Set<Hold>>()
+const touch = (store: AtomStore, hs: Iterable<Hold>) => {
+  let set = touched.get(store)
+  if (!set) {
+    touched.set(store, (set = new Set()))
+    queueMicrotask(() => touched.delete(store))
+  }
+  for (const h of hs) set.add(h)
 }
 // Settled holds awaiting a committed reader.
 const holds = new WeakMap<AtomStore, WeakMap<Atom.Atom<any>, Set<Hold>>>()
@@ -194,15 +199,14 @@ const suspensionFor = (store: AtomStore, atom: Atom.Atom<Result.Result<any, any>
   const promise = new Promise<void>((resolve) => {
     // Holds the node past settle until a reader commits (its subscription takes over, see useAtomSuspense) or
     // the render is abandoned: RETRY_MS after settling with no later suspension of its chain still held.
-    // ponytail: "chain" = any suspension started in this store while a settled hold is in its window; an unrelated
-    // suspension started in that window also extends it (until it finishes). Per-owner identity if that matters.
+    // ponytail: "chain" = suspensions raised in the same synchronous render pass that re-read the held atom; an
+    // unrelated boundary rendering in that same pass after such a read would also link. Per-owner identity if that matters.
     const retained = store.retain(atom)
-    const preds = [...openFor(store)]
+    const preds = [...(touched.get(store) ?? [])]
     for (const p of preds) p.blockers++
     const hold: Hold = {
       blockers: 0,
       finish: once(() => {
-        openFor(store).delete(hold)
         holdsFor(store, atom).delete(hold)
         retained()
         for (const p of preds) p.blockers--
@@ -219,10 +223,8 @@ const suspensionFor = (store: AtomStore, atom: Atom.Atom<Result.Result<any, any>
       perAtom!.delete(onWaiting)
       unsubscribe?.()
       holdsFor(store, atom).add(hold)
-      openFor(store).add(hold)
       const gc = (): unknown => setTimeout(() => {
         if (closed.has(store)) return
-        openFor(store).delete(hold) // out of its window: no new successors
         if (hold.blockers > 0) return gc()
         hold.finish()
       }, RETRY_MS)
@@ -264,6 +266,7 @@ export function useAtomSuspense<A, E>(
   }, [store, atom])
   const onWaiting = options?.suspendOnWaiting ?? false
   if (pending(result, onWaiting)) throw suspensionFor(store, atom, onWaiting)
+  touch(store, holdsFor(store, atom))
   if (result._tag === 'Failure') throw Cause.squash(result.cause)
   return result as Result.Success<A, E>
 }

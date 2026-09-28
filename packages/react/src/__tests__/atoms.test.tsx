@@ -288,6 +288,30 @@ describe('atom hooks', () => {
     unmount()
   })
 
+  it('an unrelated suspension starting inside the retry window does not keep an abandoned atom', async () => {
+    let starts = 0
+    let released = 0
+    const fast = Atom.make((get) => {
+      get.addFinalizer(() => released++)
+      return Effect.sync(() => starts++).pipe(Effect.zipRight(Effect.sleep(100)), Effect.as('x'))
+    })
+    const stuck = Atom.make(Effect.never)
+    const View = ({ atom }: { atom: Atom.Atom<Result.Result<unknown, unknown>> }) => <span>{String(useAtomSuspense(atom).value)}</span>
+    const Host = ({ fastOn, stuckOn }: { fastOn: boolean; stuckOn: boolean }) => <LayerProvider provide={[]}>
+      <Suspense fallback={null}>{stuckOn ? <View atom={stuck} /> : null}</Suspense>
+      <Suspense fallback={null}>{fastOn ? <View atom={fast} /> : null}</Suspense>
+    </LayerProvider>
+    const { rerender, unmount } = render(<Host fastOn stuckOn={false} />)
+    await sleep(20)
+    rerender(<Host fastOn={false} stuckOn={false} />) // abandoned before it settles
+    await sleep(150) // settled, inside the 400 ms retry window
+    rerender(<Host fastOn={false} stuckOn />) // unrelated suspension starts in the window
+    await sleep(1500)
+    expect(starts).toBe(1)
+    expect(released).toBe(1)
+    unmount()
+  })
+
   it('unmounting mid-waterfall stops the suspension hold timers', async () => {
     const a = Atom.make(Effect.as(Effect.sleep(10), 'a'))
     const b = Atom.make(Effect.as(Effect.sleep(10_000), 'b'))
