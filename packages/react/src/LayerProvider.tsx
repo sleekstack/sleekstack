@@ -42,29 +42,20 @@ interface Owned {
   readonly close: () => Promise<void>
   committed: boolean
   parkToken?: object
-  /** The props object and render pass of the render that last parked this scope. */
-  parkedBy?: { readonly props: object; readonly pass: object }
+  /** Props object of the render that last parked this scope. */
+  parkedBy?: object
 }
 
-// A retry of a discarded render reuses its element's props object; a sibling has its own. So a scope parked
-// in the current pass (renders up to a microtask) is adopted only by the same props; one parked in an earlier
-// pass by any render with the same (parent, provide entries).
-// ponytail: a time-sliced render that yields between identical siblings can still hand them one scope; key them if that matters.
-let pass: object | null = null
-const currentPass = (): object => {
-  if (pass === null) {
-    pass = {}
-    queueMicrotask(() => (pass = null))
-  }
-  return pass
-}
+// A retry of a discarded render (Suspense, time slicing) re-renders the same element, so it reuses the props
+// object; a sibling never does. Parked scopes are therefore adopted by props identity, independent of timing.
+// ponytail: a parent re-render while suspended makes new props, so the retry builds a fresh scope (the parked one closes after ADOPT_MS); the same element rendered twice would share one.
 const ADOPT_MS = 5000
 const parked = new Set<Owned>()
 
 /** Called synchronously by each render that created or adopted `owned`, so a retry (or StrictMode's second render) can adopt it. */
 const park = (owned: Owned, props: object) => {
   parked.add(owned)
-  owned.parkedBy = { props, pass: currentPass() }
+  owned.parkedBy = props
   const token = (owned.parkToken = {})
   const gc = (): unknown =>
     setTimeout(() => {
@@ -76,10 +67,9 @@ const park = (owned: Owned, props: object) => {
   gc()
 }
 
-const adopt = (props: object, provide: ReadonlyArray<Entry | Module>, parent: ProviderState | null): Owned | undefined => {
+const adopt = (props: object, parent: ProviderState | null): Owned | undefined => {
   for (const o of parked) {
-    const by = o.parkedBy!
-    if ((by.props === props || by.pass !== currentPass()) && o.parent === parent && sameEntries(o.provide, provide)) {
+    if (o.parkedBy === props && o.parent === parent) {
       parked.delete(o)
       return o
     }
@@ -166,7 +156,7 @@ export function LayerProvider(props: LayerProviderProps) {
   const warned = useRef(false)
 
   if (ownedRef.current === null) {
-    ownedRef.current = adopt(props, provide, parent) ?? create(provide, parent, onFinalizerError ?? parent?.onFinalizerError ?? defaultSink)
+    ownedRef.current = adopt(props, parent) ?? create(provide, parent, onFinalizerError ?? parent?.onFinalizerError ?? defaultSink)
     park(ownedRef.current, props)
   }
   if ((globalThis as { process?: { env?: { NODE_ENV?: string } } }).process?.env?.NODE_ENV !== 'production' && !warned.current && !sameEntries(initialProvide.current, provide)) {

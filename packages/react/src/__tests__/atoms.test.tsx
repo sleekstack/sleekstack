@@ -6,6 +6,7 @@
 import { describe, it, expect, expectTypeOf, vi, afterEach } from 'vitest'
 import { act, render, screen, waitFor } from '@testing-library/react'
 import { renderToString } from 'react-dom/server'
+import { createRoot } from 'react-dom/client'
 import React, { Component, Suspense, type ReactNode } from 'react'
 import { Context, Effect, Layer } from 'effect'
 import { Atom, MissingDependency, PrivateDependency, Result } from '@sleekstack/core'
@@ -192,6 +193,32 @@ describe('atom hooks', () => {
     </Suspense>)
     await waitFor(() => expect(screen.getByTestId('t2').textContent).toBe('7'))
     expect(screen.getByTestId('t1').textContent).toBe('0')
+  })
+
+  it('sibling providers stay isolated across a time-sliced render', async () => {
+    const count = Atom.make(0)
+    const Slow = () => { const end = Date.now() + 30; while (Date.now() < end); return null }
+    const Show = ({ id, write }: { id: string; write?: number }) => {
+      const [n, set] = useAtom(count)
+      React.useEffect(() => { if (write !== undefined) set(write) }, [])
+      return <span data-testid={id}>{n}</span>
+    }
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const root = createRoot(host)
+    ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = false // let React yield between slices
+    React.startTransition(() => root.render(<Suspense fallback={null}>
+      <LayerProvider key="a" provide={[]}><Show id="c1" /></LayerProvider>
+      <Slow />
+      <LayerProvider key="b" provide={[]}><Show id="c2" write={7} /></LayerProvider>
+    </Suspense>))
+    try {
+      await waitFor(() => expect(screen.getByTestId('c2').textContent).toBe('7'))
+      expect(screen.getByTestId('c1').textContent).toBe('0')
+    } finally {
+      ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
+      root.unmount()
+    }
   })
 
   it('types: Effect and Stream atom Results include scope lookup errors', () => {
