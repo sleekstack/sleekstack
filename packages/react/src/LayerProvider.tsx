@@ -17,7 +17,7 @@
  * closed if no render adopts it within ADOPT_MS once settled.
  */
 
-import React, { useContext, useEffect, useRef, useState } from 'react'
+import React, { useContext, useEffect, useRef } from 'react'
 import { Cause, Effect, Exit } from 'effect'
 import { atomStoreFor, buildGraph, makeAppScope, type ChildScope, type Entry, type Module } from '@sleekstack/core'
 import { ProviderContext, type ProviderState } from './context'
@@ -42,17 +42,29 @@ interface Owned {
   readonly close: () => Promise<void>
   committed: boolean
   parkToken?: object
-  /** The provider instance that committed this scope. */
-  owner?: object
+  /** The props object and render pass of the render that last parked this scope. */
+  parkedBy?: { readonly props: object; readonly pass: object }
 }
 
-// ponytail: parked scopes are matched by (parent, provide entries), so identical uncommitted siblings may adopt one scope; the second to commit replaces it with its own (see LayerProvider's effect).
+// A retry of a discarded render reuses its element's props object; a sibling has its own. So a scope parked
+// in the current pass (renders up to a microtask) is adopted only by the same props; one parked in an earlier
+// pass by any render with the same (parent, provide entries).
+// ponytail: a time-sliced render that yields between identical siblings can still hand them one scope; key them if that matters.
+let pass: object | null = null
+const currentPass = (): object => {
+  if (pass === null) {
+    pass = {}
+    queueMicrotask(() => (pass = null))
+  }
+  return pass
+}
 const ADOPT_MS = 5000
 const parked = new Set<Owned>()
 
 /** Called synchronously by each render that created or adopted `owned`, so a retry (or StrictMode's second render) can adopt it. */
-const park = (owned: Owned) => {
+const park = (owned: Owned, props: object) => {
   parked.add(owned)
+  owned.parkedBy = { props, pass: currentPass() }
   const token = (owned.parkToken = {})
   const gc = (): unknown =>
     setTimeout(() => {
@@ -64,9 +76,10 @@ const park = (owned: Owned) => {
   gc()
 }
 
-const adopt = (provide: ReadonlyArray<Entry | Module>, parent: ProviderState | null): Owned | undefined => {
+const adopt = (props: object, provide: ReadonlyArray<Entry | Module>, parent: ProviderState | null): Owned | undefined => {
   for (const o of parked) {
-    if (o.parent === parent && sameEntries(o.provide, provide)) {
+    const by = o.parkedBy!
+    if ((by.props === props || by.pass !== currentPass()) && o.parent === parent && sameEntries(o.provide, provide)) {
       parked.delete(o)
       return o
     }
@@ -144,18 +157,17 @@ function create(provide: ReadonlyArray<Entry | Module>, parent: ProviderState | 
  * const App = () => <LayerProvider provide={[module({ name: 'app' })]}>...</LayerProvider>
  * ```
  */
-export function LayerProvider({ provide, onFinalizerError, children }: LayerProviderProps) {
+export function LayerProvider(props: LayerProviderProps) {
+  const { provide, onFinalizerError, children } = props
   const parent = useContext(ProviderContext)
   const ownedRef = useRef<Owned | null>(null)
   const pendingRef = useRef<{ cancelled: boolean } | null>(null)
   const initialProvide = useRef(provide)
   const warned = useRef(false)
-  const self = useRef({})
-  const [, rerender] = useState(0)
 
   if (ownedRef.current === null) {
-    ownedRef.current = adopt(provide, parent) ?? create(provide, parent, onFinalizerError ?? parent?.onFinalizerError ?? defaultSink)
-    park(ownedRef.current)
+    ownedRef.current = adopt(props, provide, parent) ?? create(provide, parent, onFinalizerError ?? parent?.onFinalizerError ?? defaultSink)
+    park(ownedRef.current, props)
   }
   if ((globalThis as { process?: { env?: { NODE_ENV?: string } } }).process?.env?.NODE_ENV !== 'production' && !warned.current && !sameEntries(initialProvide.current, provide)) {
     warned.current = true
@@ -163,13 +175,7 @@ export function LayerProvider({ provide, onFinalizerError, children }: LayerProv
   }
 
   useEffect(() => {
-    let owned = ownedRef.current!
-    if (owned.owner !== undefined && owned.owner !== self.current) {
-      // A sibling with identical entries committed this scope first: take a scope of our own.
-      owned = ownedRef.current = create(owned.provide, parent, owned.state.onFinalizerError)
-      rerender((n) => n + 1)
-    }
-    owned.owner = self.current
+    const owned = ownedRef.current!
     owned.committed = true
     parked.delete(owned)
     owned.state.start()

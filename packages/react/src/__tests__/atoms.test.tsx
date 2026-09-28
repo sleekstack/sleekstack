@@ -177,6 +177,23 @@ describe('atom hooks', () => {
     expect(screen.getByTestId('s2').textContent).toBe('0')
   })
 
+  it('sibling providers under one Suspense are isolated before their children mount', async () => {
+    const count = Atom.make(0)
+    let gate: Promise<void> | null = sleep(20).then(() => { gate = null })
+    const Show = ({ id, write }: { id: string; write?: number }) => {
+      if (gate) throw gate
+      const [n, set] = useAtom(count)
+      React.useEffect(() => { if (write !== undefined) set(write) }, [])
+      return <span data-testid={id}>{n}</span>
+    }
+    renderStrict(<Suspense fallback={null}>
+      <LayerProvider provide={[]}><Show id="t1" /></LayerProvider>
+      <LayerProvider provide={[]}><Show id="t2" write={7} /></LayerProvider>
+    </Suspense>)
+    await waitFor(() => expect(screen.getByTestId('t2').textContent).toBe('7'))
+    expect(screen.getByTestId('t1').textContent).toBe('0')
+  })
+
   it('types: Effect and Stream atom Results include scope lookup errors', () => {
     const a = Atom.make(Effect.succeed(1))
     type E = typeof a extends Atom.Atom<Result.Result<number, infer X>> ? X : never
