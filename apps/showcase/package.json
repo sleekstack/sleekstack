@@ -1,0 +1,33 @@
+{
+  "name": "showcase",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:bundle": "vitest run src/__tests__/bundle.test.ts",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@sleekstack/core": "workspace:*",
+    "@sleekstack/next": "workspace:*",
+    "@sleekstack/react": "workspace:*",
+    "effect": "^3.21.2",
+    "next": "^15.3.0",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "server-only": "^0.0.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "jsdom": "^29.1.1",
+    "typescript": "^5.8.0",
+    "vitest": "^4.1.9"
+  }
+}

@@ -30,12 +30,45 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
-
       - name: Require test/typecheck scripts
         run: |
-          for pkg in core react next; do
-            node -e "const s=require('./packages/$pkg/package.json').scripts||{};for(const k of ['test','typecheck'])if(!s[k]){console.error('packages/$pkg missing script: '+k);process.exit(1)}"
+          for pkg in packages/core packages/react packages/next apps/showcase; do
+            node -e "const s=require('./$pkg/package.json').scripts||{};for(const k of ['test','typecheck'])if(!s[k]){console.error('$pkg missing script: '+k);process.exit(1)}"
           done
 
       - name: Test
         run: pnpm test
+
+      - name: Build showcase
+        run: pnpm --filter showcase build
+
+      - name: Showcase bundle split
+        run: pnpm --filter showcase test:bundle
+
+  e2e:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install
+
+      - name: Install Playwright browsers
+        run: pnpm --filter showcase exec playwright install --with-deps chromium
+
+      - name: Build showcase
+        run: pnpm --filter showcase build
+
+      - name: Showcase e2e smoke
+        run: pnpm --filter showcase test:e2e

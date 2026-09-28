@@ -1,0 +1,119 @@
+'use client'
+/**
+ * apps/showcase/src/client/TaskDetail.tsx
+ *
+ * R7: mounts with `key={taskId}` (plus the "break detail" flag, since both
+ * must remount together — `provide` changes alone are ignored,
+ * packages/react/src/LayerProvider.tsx:133) providing the async `DraftEditor`
+ * component service. Move/comment mutations call the .2 Server Actions and
+ * render `{ ok: false, error }` inline (R5) rather than depending on a
+ * thrown message crossing the Server Action boundary.
+ */
+import { Suspense, useState, useSyncExternalStore, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
+import { LayerProvider, useService } from '@sleekstack/react'
+import { addComment, moveTask } from '../server/board.actions'
+import type { CommentRecord, TaskRecord, TaskStatus } from '../domain/tags'
+import { ErrorBoundary } from './ErrorBoundary'
+import { DraftEditor, makeBrokenDraftEditorLayer, makeDraftEditorLayer } from './component-services'
+
+const STATUSES: readonly TaskStatus[] = ['todo', 'in_progress', 'done']
+
+export function DraftEditorPanel({ taskId }: { readonly taskId: string }) {
+  const { draft } = useService(DraftEditor)
+  const router = useRouter()
+  // The draft lives in the DraftEditor service, not local state (same getServerSnapshot note as ProjectView).
+  const body = useSyncExternalStore(draft.subscribe, draft.get, draft.get)
+  const [error, setError] = useState<string | null>(null)
+  const [pending, startTransition] = useTransition()
+
+  const submit = () => {
+    startTransition(async () => {
+      const result = await addComment({ taskId, body, authorId: 'demo-user' })
+      if (!result.ok) {
+        setError(result.error)
+        return
+      }
+      setError(null)
+      draft.set('')
+      router.refresh()
+    })
+  }
+
+  return (
+    <div>
+      <textarea
+        aria-label="new comment"
+        value={body}
+        onChange={(e) => draft.set(e.target.value)}
+        placeholder="Add a comment"
+      />
+      <button type="button" onClick={submit} disabled={pending}>
+        Comment
+      </button>
+      {error && <p role="alert">{error}</p>}
+    </div>
+  )
+}
+
+export interface TaskDetailProps {
+  readonly task: TaskRecord
+  readonly comments: readonly CommentRecord[]
+  readonly onClose: () => void
+}
+
+export function TaskDetail({ task, comments, onClose }: TaskDetailProps) {
+  const [breakDetail, setBreakDetail] = useState(false)
+  const [moveError, setMoveError] = useState<string | null>(null)
+  const [movePending, startMove] = useTransition()
+  const router = useRouter()
+
+  const move = (status: TaskStatus) => {
+    startMove(async () => {
+      const result = await moveTask({ taskId: task.id, status })
+      if (!result.ok) {
+        setMoveError(result.error)
+        return
+      }
+      setMoveError(null)
+      router.refresh()
+    })
+  }
+
+  return (
+    <LayerProvider
+      key={`${task.id}:${breakDetail}`}
+      provide={[breakDetail ? makeBrokenDraftEditorLayer(task.id) : makeDraftEditorLayer(task.id)]}
+    >
+      <ErrorBoundary>
+        <section aria-label={`task detail: ${task.title}`}>
+          <h3>{task.title}</h3>
+          <button type="button" onClick={onClose}>
+            Close
+          </button>
+          <div>
+            Move to:{' '}
+            {STATUSES.map((status) => (
+              <button key={status} type="button" disabled={status === task.status || movePending} onClick={() => move(status)}>
+                {status}
+              </button>
+            ))}
+          </div>
+          {moveError && <p role="alert">{moveError}</p>}
+          <label>
+            <input type="checkbox" checked={breakDetail} onChange={(e) => setBreakDetail(e.target.checked)} />
+            Break detail (simulate failed scope acquisition)
+          </label>
+          <ul>
+            {comments.map((comment) => (
+              <li key={comment.id}>{comment.body}</li>
+            ))}
+          </ul>
+          <Suspense fallback={<p>Loading draft editor…</p>}>
+            <DraftEditorPanel taskId={task.id} />
+          </Suspense>
+        </section>
+      </ErrorBoundary>
+    </LayerProvider>
+  )
+}
