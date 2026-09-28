@@ -74,6 +74,18 @@ _Avoid_: Lifecycle, container, context
 The mechanism by which a Layer or Module in a `provide` array overrides a transitive dependency introduced by a Module's `imports`. No separate override API exists — shadowing is implicit when the same Tag is satisfied by multiple entries. It is per Tag: a local entry can shadow one output of a multi-Tag declared Layer, and `AmbiguousProvider` fires only when two providers have equal precedence.
 _Avoid_: Overriding, mocking, replacing, substituting
 
+**Atom**:
+A lazy, reactive value defined once at module level: plain writable state, a function of other atoms (read through `get`), an Effect, or a Stream. It holds no state itself; its state lives in an AtomStore. Kit atoms (`atom(value)`, `atom(fn, deps)`) resolve `deps` like a Kit Layer. Modeled on effect-atom (ADR 0008).
+_Avoid_: Signal, observable, store
+
+**AtomStore**:
+The container of atom state and subscriptions owned by each LayerProvider and bound to its Scope: it resolves an atom's services through that scope and is disposed with it. It is effect-atom's Registry under a name that avoids "registry".
+_Avoid_: Registry, atom registry, atom context
+
+**Result**:
+The state of an Effect or Stream atom: `Initial`, `Success` or `Failure` (holding a Cause), each with a `waiting` flag while it reloads. Kit hooks never expose it: they suspend on `Initial` and throw a SleekStackError on `Failure`.
+_Avoid_: AsyncData, RemoteData, status
+
 ### Next.js integration concepts
 
 **Request Scope**:

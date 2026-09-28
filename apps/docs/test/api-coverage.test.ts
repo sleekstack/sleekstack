@@ -22,7 +22,9 @@ export function undocumented(file: string): string[] {
   return symbols
     .filter((s) => {
       const target = s.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(s) : s
-      return ts.displayPartsToString(target.getDocumentationComment(checker)).trim() === ''
+      // `export * as X` carries its summary on the export declaration; the aliased module has none.
+      const nsDoc = (s.declarations ?? []).filter(ts.isNamespaceExport).flatMap((d) => ts.getJSDocCommentsAndTags(d.parent))
+      return ts.displayPartsToString(target.getDocumentationComment(checker)).trim() === '' && nsDoc.length === 0
     })
     .map((s) => s.name)
 }

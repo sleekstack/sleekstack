@@ -54,8 +54,7 @@ function useValue<A>(store: AtomStore, atom: Atom.Atom<A>): A {
  * Reads an atom from the nearest {@link LayerProvider} and re-renders when its value changes.
  *
  * @param atom - The atom to read.
- * @param f - Optional mapping; the component re-renders only when the mapped value changes.
- * @returns The atom's value (or `f` of it).
+ * @returns The atom's value.
  * @throws `AtomsClientOnly` during a server render; `Error` outside a `LayerProvider`.
  *
  * @example
@@ -68,6 +67,14 @@ function useValue<A>(store: AtomStore, atom: Atom.Atom<A>): A {
  * ```
  */
 export function useAtomValue<A>(atom: Atom.Atom<A>): A
+/**
+ * Reads `f` of an atom's value; the component re-renders only when the mapped value changes.
+ *
+ * @param atom - The atom to read.
+ * @param f - The mapping.
+ * @returns `f` of the atom's value.
+ * @throws `AtomsClientOnly` during a server render; `Error` outside a `LayerProvider`.
+ */
 export function useAtomValue<A, B>(atom: Atom.Atom<A>, f: (a: A) => B): B
 export function useAtomValue<A, B>(atom: Atom.Atom<A>, f?: (a: A) => B): A | B {
   const store = useStore('useAtomValue')

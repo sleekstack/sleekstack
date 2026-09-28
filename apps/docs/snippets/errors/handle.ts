@@ -10,6 +10,7 @@ const hints: Record<SleekStackErrorCode, string> = {
   InvalidModule: 'check the module config',
   CaptiveDependency: 'shorten the dependent lifetime or lengthen the dependency',
   PrivateDependency: 'export the Tag from its module',
+  AtomCycle: 'stop the atoms reading each other in details.path',
   DuplicateTag: 'reuse one tag() object for the key',
   InvalidTag: 'pass tag() or a named class',
   LayerFailed: 'see details.cause for the factory error',
