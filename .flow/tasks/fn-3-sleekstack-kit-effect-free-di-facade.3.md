@@ -34,9 +34,10 @@ The React adapter: a kit-typed `LayerProvider` wrapping core's, a typed `useServ
 - [ ] duplicate Tag in one provide -> DuplicateTag; parent/child same key shadows
 - [ ] onFinalizerError gets a plain FinalizerError
 ## Done summary
-TBD
+Added @sleekstack/kit/react: kit-typed LayerProvider (validateProvide + memoized unwrap over core's provider, Cause -> plain FinalizerError), useService (rethrows thenables, normalizes errors to SleekStackError), useServices (tuple-typed, dev warning on length change). Tests in packages/kit/src/__tests__/react.test.tsx (jsdom via docblock; vitest.config unchanged). baseline: green.
 
+stage: impl-review - ran [codex SHIP]
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 3740c9596720f9c7e3eca6228cb3f6f7f3c0a4c3
+- Tests: pnpm --filter @sleekstack/kit typecheck, pnpm --filter @sleekstack/kit test, pnpm --filter @sleekstack/kit build:types
 - PRs:
