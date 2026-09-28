@@ -15,9 +15,11 @@ Touches: packages/{core,next,react,kit}/src/**, apps/docs/test/api-coverage.test
 
 
 ## Done summary
-TBD
+TSDoc (summary, @param, @returns, @throws with codes, @example) on every public export of core, next, react, kit, kit/next, kit/react; empty-summary assertion enabled in api-coverage.test.ts; new test/examples.test.ts extracts kit @example blocks and typechecks them (with a broken-example negative control). Comments only, no API changes.
 
+Tier: opus at medium
+stage: impl-review - ran (codex fan-out NEEDS_WORK: 4 inaccurate @throws contracts -> fixed -> SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 3d14f9a06e4023cec24d496644c8476a71e1bafb, 615dc38b54b091d97ee45d075ba1000ae5c23bd4
+- Tests: pnpm typecheck && pnpm test, pnpm --filter docs build
 - PRs:

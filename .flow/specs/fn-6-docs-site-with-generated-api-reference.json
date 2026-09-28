@@ -10,7 +10,7 @@
   "id": "fn-6-docs-site-with-generated-api-reference",
   "impl_review_rounds": {
     "fn-6-docs-site-with-generated-api-reference.1": 0,
-    "fn-6-docs-site-with-generated-api-reference.2": 1
+    "fn-6-docs-site-with-generated-api-reference.2": 0
   },
   "next_task": 1,
   "plan_review_rounds": 0,
@@ -357,10 +357,79 @@
       "task": "fn-6-docs-site-with-generated-api-reference.2",
       "timestamp": "2026-09-28T11:53:58.904448Z",
       "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "e0543d6bc54b989105e66c53ec33454b3a199f4e088ee12b07d94787a59061ff",
+      "backend": "codex",
+      "base_sha": "4411b053f17f319619803ece658446625d4bb4fa",
+      "counter_kind": "impl",
+      "effort": "high",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-dea5aca8e1512e108a54af7806bc5be3",
+            "classification": "introduced",
+            "findingId": "finding-dea5aca8e1512e108a54af7806bc5be3",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-bf76fecdc7a293940c643ee4b5588ec9",
+            "classification": "introduced",
+            "findingId": "finding-bf76fecdc7a293940c643ee4b5588ec9",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-e0e785f37aa696b8c62e415b02f7672d",
+            "classification": "introduced",
+            "findingId": "finding-e0e785f37aa696b8c62e415b02f7672d",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-b180d7346c2ef4ef588710c1f8a24ab7",
+            "classification": "introduced",
+            "findingId": "finding-b180d7346c2ef4ef588710c1f8a24ab7",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "615dc38b54b091d97ee45d075ba1000ae5c23bd4",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-6-astra",
+      "outcome": "verdict",
+      "output_bytes": 1177,
+      "output_sha256": "870de19e6b3c9b3f10db2f6b3248df67f3a9273cd5180ee92643cd3f344263b7",
+      "reservation_id": "30fd3c9fcdbb4c11a4fa4ebde1c1f2ae",
+      "round_consumed": true,
+      "scope": "impl:fn-6-docs-site-with-generated-api-reference.2",
+      "superseded_by": null,
+      "task": "fn-6-docs-site-with-generated-api-reference.2",
+      "timestamp": "2026-09-28T11:55:48.793498Z",
+      "verdict": "SHIP"
     }
   ],
   "review_hash_epoch": {
     "impl:fn-6-docs-site-with-generated-api-reference.1": 1,
+    "impl:fn-6-docs-site-with-generated-api-reference.2": 1,
     "plan": 1,
     "plan#completion": 0
   },
@@ -385,5 +454,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-09-28T11:53:58.906376Z"
+  "updated_at": "2026-09-28T11:55:48.796101Z"
 }
