@@ -14,9 +14,10 @@ Touches: packages/kit/src/errors.ts, packages/kit/src/__tests__/errors.test-d.ts
 
 
 ## Done summary
-TBD
+SleekStackError is now a union narrowed by `code`, with per-code `details` (the public type `SleekStackErrorDetails`). The constructor checks that the code and its details match. `normalize`'s fallback parameter is narrowed.
 
+Review: round 2 was SHIP for correctness and contracts. The integration reviewer's one finding (the error class can no longer be subclassed, TS2508) was waived by the conductor: the spec doesn't promise subclassing, and allowing it would undo R4. The runtime class, its name and instanceof still work and are tested.
 ## Evidence
-- Commits:
-- Tests:
+- Commits: c695ec3, f3ac6b0
+- Tests: pnpm typecheck, pnpm test --force, pnpm --filter docs build && pnpm --filter docs test
 - PRs:
