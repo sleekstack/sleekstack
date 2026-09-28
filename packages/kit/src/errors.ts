@@ -5,7 +5,7 @@
  * are converted by the internal `normalize()` at every public boundary.
  */
 
-import { Cause } from 'effect'
+import { Cause, Runtime } from 'effect'
 
 export type SleekStackErrorCode =
   | 'MissingDependency'
@@ -64,6 +64,7 @@ const messageOf = (e: unknown) => (e instanceof Error ? e.message : String(e))
 export function normalize(e: unknown, fallback: SleekStackErrorCode = 'Unknown'): SleekStackError {
   if (e instanceof SleekStackError) return e
   if (Cause.isCause(e)) return normalize(Cause.squash(e), fallback)
+  if (Runtime.isFiberFailure(e)) return normalize(e[Runtime.FiberFailureCauseId], fallback)
   if (e instanceof LayerFailure) {
     return new SleekStackError('LayerFailed', e.message, { tag: e.tag, cause: messageOf(e.cause) }, { cause: e.cause })
   }

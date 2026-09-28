@@ -44,6 +44,14 @@ export const errorCases: readonly ErrorCase[] = [
   },
   { id: 'invalid-module', expectedCode: 'InvalidModule', run: () => module({ name: 'errors.Bad', imports: [{} as never] }) },
   { id: 'duplicate-tag', expectedCode: 'DuplicateTag', run: () => snapshot(module({ name: 'errors.App', provide: [layer(A, 'a'), layer(tag<string>('errors.A'), 'b')] })) },
+  {
+    id: 'private-dependency',
+    expectedCode: 'PrivateDependency',
+    run: () => {
+      const Lib = module({ name: 'errors.Lib', provide: [layer(A, 'secret'), layer(B, (a) => a, [A])], exports: [B] })
+      return snapshot(module({ name: 'errors.App', imports: [Lib], provide: [layer(tag<string>('errors.C'), (a) => a, [A])] }))
+    },
+  },
   { id: 'invalid-tag', expectedCode: 'InvalidTag', run: () => tag('') },
 ]
 

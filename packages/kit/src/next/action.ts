@@ -78,7 +78,8 @@ function lower<D extends readonly AnyTag[], A extends unknown[]>(
     try {
       value = await run(...args)
     } catch (e) {
-      throw normalize((e as { cause?: unknown })?.cause ?? e)
+      const inner = (e as { cause?: unknown })?.cause
+      throw normalize(inner !== undefined && !(e instanceof SleekStackError) ? inner : e)
     }
     if (isObj(value) && ERRORED in value) throw value[ERRORED]
     if (isObj(value) && FAILED in value) return { ok: false, error: value[FAILED] as string }

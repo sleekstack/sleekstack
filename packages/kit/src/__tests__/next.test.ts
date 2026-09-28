@@ -46,6 +46,17 @@ describe('@sleekstack/kit/next', () => {
     expect(e).toMatchObject({ code: 'MissingDependency', details: { tag: 'Rq' } })
   })
 
+  it('app-lifetime factory throw/reject surfaces LayerFailed with the Tag via action and query', async () => {
+    for (const impl of [() => { throw new Error('init boom') }, async () => { throw new Error('init boom') }]) {
+      configureRuntime({ provide: [layer(Label, impl as unknown as () => Label)] })
+      for (const op of [action, query]) {
+        const e = await caught(op((l) => () => l.label, [Label])())
+        expect(e).toMatchObject({ name: 'SleekStackError', code: 'LayerFailed', details: { tag: 'Label' } })
+        expect(e.message).toMatch(/init boom/)
+      }
+    }
+  })
+
   it('a private action dependency rejects PrivateDependency', async () => {
     configureRuntime({ provide: [module({ name: 'Lib', provide: [layer(Label, () => ({ label: 'x' }))], exports: [] })] })
     const e = await caught(action((l) => () => l.label, [Label])())
