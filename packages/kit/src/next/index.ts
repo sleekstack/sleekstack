@@ -1,2 +1,3 @@
-// @sleekstack/kit/next: filled in by fn-3 task .2.
-export {}
+// @sleekstack/kit/next: dependency-array actions/queries and the runtime config.
+export { action, query, fail, type ActionResult, type OperationOptions } from './action'
+export { configureRuntime, type RuntimeConfig } from './runtime'
