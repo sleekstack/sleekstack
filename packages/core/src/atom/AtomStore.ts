@@ -100,7 +100,9 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
   const markChildren = (node: Node) => {
     for (const child of node.children) {
       pending.add(child)
-      if (child.state === 'valid') { child.state = 'check'; markChildren(child) }
+      if (child.state === 'check') continue
+      if (child.state === 'valid') child.state = 'check'
+      markChildren(child)
     }
   }
 
@@ -110,7 +112,8 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
       const batch = [...pending]
       pending.clear()
       for (const node of batch) {
-        if (node.listeners.size === 0 || nodes.get(node.atom) !== node) continue
+        // nodes holding a build (fibers, finalizers) are pulled too, so invalidation interrupts them
+        if ((node.listeners.size === 0 && node.finalizers.length === 0) || nodes.get(node.atom) !== node) continue
         try { pull(node) } catch { /* listeners re-read and see the error */ }
         if (node.version === node.notified && node.state === 'valid') continue
         node.notified = node.version
@@ -128,10 +131,11 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
   }
 
   const setValue = (node: Node, value: unknown) => {
-    if (node.state !== 'uninit' && Equal.equals(node.value, value)) return
+    const changed = node.state === 'uninit' || !Equal.equals(node.value, value)
+    node.state = 'valid' // an explicit write supersedes a pending recompute
+    if (!changed) return
     node.value = value
     node.version++
-    if (node.state === 'uninit') node.state = 'valid'
     pending.add(node)
     markChildren(node)
     flush()
@@ -144,10 +148,12 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
         const path = [...stack.slice(stack.indexOf(parent)), parent].map((n) => n.atom.label)
         throw new AtomCycle({ path, message: `Atom read cycle: ${path.join(' -> ')}` })
       }
-      pull(parent)
+      // edge first, so a read that throws still re-runs this node when the parent recovers
       node.deps.set(parent, parent.version)
       parent.children.add(node)
       cancelRemoval(parent)
+      pull(parent)
+      node.deps.set(parent, parent.version)
       return parent.value as A
     }
     return Object.assign(get, {
@@ -163,9 +169,17 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
         let active = true
         node.finalizers.push(() => {
           active = false
-          const done: Promise<void> = Effect.runPromiseExit(
-            Fiber.interrupt(fiber).pipe(Effect.zipRight(Scope.close(scope, Exit.void))),
-          ).then((exit) => { if (Exit.isFailure(exit)) onFinalizerError(Cause.squash(exit.cause)) })
+          const running = fiber.unsafePoll() === null
+          const report = (exit: Exit.Exit<unknown, unknown>) => {
+            if (Exit.isFailure(exit) && !Cause.isInterruptedOnly(exit.cause)) onFinalizerError(Cause.squash(exit.cause))
+          }
+          const done: Promise<void> = Effect.runPromise(
+            Fiber.interrupt(fiber).pipe(
+              Effect.tap((exit) => Effect.sync(() => { if (running) report(exit) })),
+              Effect.zipRight(Effect.exit(Scope.close(scope, Exit.void))),
+              Effect.tap((exit) => Effect.sync(() => report(exit))),
+            ),
+          ).then(() => {})
             .finally(() => closing.delete(done))
           closing.add(done)
         })
@@ -263,6 +277,7 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
 
   const set = <R, W>(atom: Writable<R, W>, value: W) => {
     const node = ensure(atom)
+    try { pull(node) } catch { /* the write may replace a failing value */ }
     batch(() => atom.write(writeContext<R>(node), value))
   }
 

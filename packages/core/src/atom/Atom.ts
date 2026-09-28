@@ -107,7 +107,9 @@ const runStream = <A, E>(get: Context, stream: Stream.Stream<A, E, any>): Result
       ? Result.failure(exit.cause, { previousValue: Option.orElse(last, () => (previous ? Result.value(previous) : Option.none())) })
       : Option.isSome(last)
         ? Result.success(last.value)
-        : Result.failure(Cause.fail(new Cause.NoSuchElementException()) as Cause.Cause<never>)
+        : Result.failure(Cause.fail(new Cause.NoSuchElementException()) as Cause.Cause<never>, {
+            previousValue: previous ? Result.value(previous) : Option.none(),
+          })
   const exit = (get as BuildContext).fork(
     Stream.runForEach(stream, (a) =>
       Effect.sync(() => {
@@ -127,12 +129,12 @@ const readResult = (get: Context, u: unknown): unknown =>
 
 /** An Effect atom: runs the Effect per build; its value is a `Result`. */
 export function make<A, E, R>(effect: Effect.Effect<A, E, R>): Atom<Result.Result<A, E>>
-/** A Stream atom: its value is the latest element as a `Result`. */
-export function make<A, E, R>(stream: Stream.Stream<A, E, R>): Atom<Result.Result<A, E>>
+/** A Stream atom: its value is the latest element as a `Result`; an empty Stream fails with `NoSuchElementException`. */
+export function make<A, E, R>(stream: Stream.Stream<A, E, R>): Atom<Result.Result<A, E | Cause.NoSuchElementException>>
 /** A derived Effect atom. */
 export function make<A, E, R>(read: (get: Context) => Effect.Effect<A, E, R>): Atom<Result.Result<A, E>>
 /** A derived Stream atom. */
-export function make<A, E, R>(read: (get: Context) => Stream.Stream<A, E, R>): Atom<Result.Result<A, E>>
+export function make<A, E, R>(read: (get: Context) => Stream.Stream<A, E, R>): Atom<Result.Result<A, E | Cause.NoSuchElementException>>
 /** A derived atom, recomputed when a dependency changes. */
 export function make<A>(read: (get: Context) => A): Atom<A>
 /** Writable state holding `value` initially. */

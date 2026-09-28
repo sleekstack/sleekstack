@@ -182,3 +182,74 @@ describe('lifecycle', () => {
     expect(errors.map(String)).toEqual(expect.arrayContaining(['Error: sync-boom', 'fin-boom']))
   })
 })
+
+describe('review regressions', () => {
+  it('a write before the first read keeps dependency tracking', () => {
+    const store = makeAtomStore()
+    const base = Atom.make(1)
+    const w = Atom.writable((get) => get(base) * 2, (ctx, v: number) => ctx.setSelf(v))
+    store.set(w, 10)
+    store.mount(w)
+    store.set(base, 4)
+    expect(store.get(w)).toBe(8)
+  })
+
+  it('a derived atom that caught a parent error, and subscribers past a throwing node, see recovery', () => {
+    const store = makeAtomStore()
+    const input = Atom.make(0)
+    const risky = Atom.make((get) => { if (get(input) === 0) throw new Error('zero'); return get(input) })
+    const safe = Atom.make((get) => { try { return get(risky) } catch { return -1 } })
+    const after = Atom.make((get) => get(risky) + 1)
+    const seen: number[] = []
+    store.subscribe(safe, () => seen.push(store.get(safe)))
+    store.subscribe(after, () => seen.push(store.get(after)))
+    expect(store.get(safe)).toBe(-1)
+    store.set(input, 42)
+    expect(seen).toEqual([42, 43])
+  })
+
+  it('dependency invalidation interrupts retained and keepAlive Effect builds', () => {
+    const store = makeAtomStore()
+    const dep = Atom.make(0)
+    let interrupted = 0
+    const mk = () => Atom.make((get) => { get(dep); return Effect.never.pipe(Effect.onInterrupt(() => Effect.sync(() => { interrupted++ }))) })
+    const retained = mk()
+    store.retain(retained)
+    store.get(retained)
+    store.get(Atom.keepAlive(mk()))
+    store.set(dep, 1)
+    return new Promise<void>((r) => setTimeout(r, 0)).then(() => expect(interrupted).toBe(2))
+  })
+
+  it('reports failing ensuring cleanup of an interrupted fiber', async () => {
+    const errors: unknown[] = []
+    const store = makeAtomStore({ onFinalizerError: (e) => errors.push(e) })
+    store.mount(Atom.make(Effect.never.pipe(Effect.ensuring(Effect.die('release-failed')))))
+    const ok = Atom.make(Effect.fail('plain'))
+    store.mount(ok) // completed failure: not a finalizer error
+    await store.dispose()
+    expect(errors).toEqual(['release-failed'])
+  })
+
+  it('an empty Stream after refresh keeps the previous value', async () => {
+    const store = makeAtomStore()
+    let empty = false
+    const atom = Atom.make(() => (empty ? Stream.empty : Stream.succeed(42)))
+    store.mount(atom)
+    await tick()
+    empty = true
+    store.refresh(atom)
+    await tick()
+    const r = store.get(atom)
+    expect(Result.isFailure(r) && r.previousValue).toEqual(Result.value(Result.success(42)))
+  })
+
+  it('a write after refresh in a batch wins', () => {
+    const store = makeAtomStore()
+    const atom = Atom.make(1)
+    const seen: number[] = []
+    store.subscribe(atom, () => seen.push(store.get(atom)))
+    store.batch(() => { store.refresh(atom); store.set(atom, 2) })
+    expect(seen).toEqual([2])
+  })
+})
