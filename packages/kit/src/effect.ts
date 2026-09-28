@@ -24,12 +24,12 @@ let seq = 0
  * Runs a side effect when its scope opens; the function it returns runs when the scope closes,
  * like React's `useEffect`. List it in a module's `provide` like any Layer.
  *
- * @param fn - Receives `deps`' services in order; may return (or resolve to) a teardown.
+ * @param fn - Receives `deps`' services in order; may return (or resolve to) a teardown. A teardown that throws or
+ *   rejects is reported to `onFinalizerError` as a plain `FinalizerError` (`{ message, tag }`), not thrown.
  * @param deps - Tags resolved and passed to `fn`.
  * @param opts - `name` (shown as `effect:<name>`) and `lifetime`.
  * @returns A Layer nothing else depends on.
  * @throws {@link SleekStackError} with code `LayerFailed` (when the scope builds) when `fn` throws or rejects.
- * @throws {@link SleekStackError} with code `CleanupFailed` (to `onFinalizerError`) when the teardown throws or rejects.
  *
  * @example
  * ```ts

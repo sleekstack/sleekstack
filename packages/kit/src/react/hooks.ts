@@ -29,7 +29,8 @@ const toKit = (e: unknown) => normalize(Runtime.isFiberFailure(e) ? e[Runtime.Fi
  *
  * @param props - `provide`, optional `onFinalizerError`, and `children`.
  * @returns The provider element.
- * @throws {@link SleekStackError} (to the nearest error boundary) with `DuplicateTag`, `InvalidModule`, or a graph code when `provide` is invalid.
+ * @throws {@link SleekStackError} with `DuplicateTag` or `InvalidModule` during render when `provide` is invalid. Graph and
+ *   build failures surface later, from {@link useService} in the subtree.
  *
  * @example
  * ```tsx
@@ -67,8 +68,9 @@ const isThenable = (x: unknown) => typeof (x as { then?: unknown } | null)?.then
  *
  * @param tag - The service's Tag.
  * @returns The service instance.
- * @throws {@link SleekStackError} with code `MissingDependency` or `PrivateDependency` when the Tag is not visible here.
- * @throws {@link SleekStackError} with code `LayerFailed` when the scope failed to build.
+ * @throws {@link SleekStackError} with code `Unknown` when there is no `LayerProvider` above or the Tag is not provided.
+ * @throws {@link SleekStackError} with code `PrivateDependency` when the Tag is private to a module.
+ * @throws {@link SleekStackError} with `LayerFailed` or a graph code (for example `MissingDependency`) when the provider's scope failed to build.
  *
  * @example
  * ```tsx

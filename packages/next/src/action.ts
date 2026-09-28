@@ -101,8 +101,8 @@ function makeOperation(): Operation {
  * @param fn - The operation body; returns an Effect.
  * @returns An async function resolving to the Effect's value.
  * @throws `RuntimeNotConfigured` (rejection) when called before `configureRuntime`.
- * @throws `StreamingResultNotSupported` (rejection) when `fn` yields a ReadableStream or async iterable.
- * @throws `Error` (rejection) with the Effect `Cause` as `cause` on a typed failure or defect.
+ * @throws `Error` (rejection) with the Effect `Cause` as `cause` on a typed failure or defect, including a
+ *   `StreamingResultNotSupported` failure when `fn` yields a ReadableStream or async iterable.
  *
  * @example
  * ```ts
@@ -120,8 +120,8 @@ export const action: Operation = makeOperation()
  * @param fn - The operation body; returns an Effect.
  * @returns An async function resolving to the Effect's value.
  * @throws `RuntimeNotConfigured` (rejection) when called before `configureRuntime`.
- * @throws `StreamingResultNotSupported` (rejection) when `fn` yields a ReadableStream or async iterable.
- * @throws `Error` (rejection) with the Effect `Cause` as `cause` on a typed failure or defect.
+ * @throws `Error` (rejection) with the Effect `Cause` as `cause` on a typed failure or defect, including a
+ *   `StreamingResultNotSupported` failure when `fn` yields a ReadableStream or async iterable.
  *
  * @example
  * ```ts

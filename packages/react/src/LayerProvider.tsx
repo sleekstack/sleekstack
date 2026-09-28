@@ -123,10 +123,11 @@ function create(provide: ReadonlyArray<Entry | Module>, parent: ProviderState | 
 /**
  * Builds a scope for its subtree from `provide`: an app scope at the root, a component scope when
  * nested under another provider. The scope closes on unmount; StrictMode double mounts reuse it.
+ * The scope builds asynchronously: graph errors (for example `MissingDependency`) and acquisition
+ * failures are thrown by {@link useService} in the subtree, to its nearest error boundary.
  *
  * @param props - `provide` (modules/entries), optional `onFinalizerError`, and `children`.
  * @returns The provider element.
- * @throws Graph errors (for example `MissingDependency`) from `buildGraph` during render, to the nearest error boundary.
  *
  * @example
  * ```tsx

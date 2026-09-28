@@ -50,7 +50,7 @@ type CleanupBox = { readonly [CLEANUP]: true; readonly service: unknown; readonl
  * Pairs a service with a cleanup that runs when its scope closes. Return it from a `layer()` factory.
  *
  * @param service - The service instance.
- * @param cleanup - Runs on scope close; a throw or rejection surfaces as `CleanupFailed` to `onFinalizerError`.
+ * @param cleanup - Runs on scope close; a throw or rejection is reported to `onFinalizerError` as a plain `FinalizerError` (`{ message, tag }`).
  * @returns The service with its cleanup attached.
  *
  * @example
