@@ -32,8 +32,6 @@ export interface ProviderState {
   /** Closers of nested providers; run (LIFO) before this provider's own scopes close. */
   readonly children: Set<() => Promise<void>>
   started: boolean
-  /** Set after the render pass in which an atom hook here suspended; lets an ancestor's retry (new props) adopt this scope. */
-  suspended?: boolean
   /** Starts acquisition (and the parent's). Called on commit or when a consumer suspends on `scope`. */
   readonly start: () => void
 }

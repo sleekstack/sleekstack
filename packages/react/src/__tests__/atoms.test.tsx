@@ -11,7 +11,7 @@ import React, { Component, Suspense, type ReactNode } from 'react'
 import { Context, Effect, Layer } from 'effect'
 import { Atom, MissingDependency, PrivateDependency, Result } from '@sleekstack/core'
 import { renderStrict } from './renderStrict'
-import { AtomsClientOnly, LayerProvider, useAtom, useAtomSet, useAtomSuspense, useAtomValue } from '../index'
+import { AtomsClientOnly, LayerProvider, useAtom, useAtomSet, useAtomSuspense, useAtomValue, useService } from '../index'
 
 const Db = Context.GenericTag<{ name: string }>('AtomDb')
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
@@ -231,6 +231,16 @@ describe('atom hooks', () => {
     render(<Suspense fallback={null}><App /></Suspense>)
     expect((await screen.findByTestId('name', {}, { timeout: 2000 })).textContent).toBe('db')
     expect(acquired).toBeLessThanOrEqual(2) // React may replay the first pass synchronously, before it counts as abandoned
+  })
+
+  it('a useService consumer beneath a provider rendered by an uncommitted ancestor acquires once', async () => {
+    let acquired = 0
+    const DbLive = Layer.effect(Db, Effect.sync(() => { acquired++ }).pipe(Effect.zipRight(Effect.sleep(50)), Effect.as({ name: 'svc' })))
+    const Show = (_: { onClick: () => void }) => <span data-testid="svc">{useService(Db).name}</span>
+    const App = () => <LayerProvider provide={[DbLive]}><Show onClick={() => {}} /></LayerProvider>
+    render(<Suspense fallback={null}><App /></Suspense>)
+    expect((await screen.findByTestId('svc', {}, { timeout: 2000 })).textContent).toBe('svc')
+    expect(acquired).toBeLessThanOrEqual(2)
   })
 
   it('keyed sibling providers with identical children stay isolated when an ancestor retries', async () => {

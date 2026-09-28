@@ -36,6 +36,26 @@ const defaultSink = (cause: Cause.Cause<unknown>) => console.error(Cause.pretty(
 const sameEntries = (a: ReadonlyArray<unknown>, b: ReadonlyArray<unknown>) =>
   a === b || (a.length === b.length && a.every((x, i) => x === b[i]))
 
+/**
+ * Children equal up to re-creation: same element types and keys, equal primitive props. Functions and objects
+ * are skipped, since an ancestor's re-render makes new ones (inline callbacks, style objects).
+ */
+const sameShape = (a: unknown, b: unknown): boolean => {
+  if (Object.is(a, b)) return true
+  if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((x, i) => sameShape(x, b[i]))
+  if (!React.isValidElement(a) || !React.isValidElement(b) || a.type !== b.type || a.key !== b.key) return false
+  const pa = a.props as Record<string, unknown>
+  const pb = b.props as Record<string, unknown>
+  const keys = new Set([...Object.keys(pa), ...Object.keys(pb)])
+  return [...keys].every((k) => {
+    const x = pa[k]
+    const y = pb[k]
+    if (k === 'children') return sameShape(x, y)
+    const opaque = (v: unknown) => typeof v === 'function' || (typeof v === 'object' && v !== null)
+    return opaque(x) && opaque(y) ? true : Object.is(x, y)
+  })
+}
+
 interface Owned {
   readonly state: ProviderState
   readonly provide: ReadonlyArray<Entry | Module>
@@ -45,23 +65,28 @@ interface Owned {
   parkToken?: object
   /** Props object of the render that last parked this scope. */
   parkedBy?: object
+  /** Parked by an earlier render pass (set on the microtask after parking); adoptable by an ancestor's retry. */
+  stale?: boolean
 }
 
 // A retry of a discarded render (Suspense, time slicing) re-renders the same element, so it reuses the props
 // object; a sibling never does. Parked scopes are therefore adopted by props identity first. When an ancestor
 // re-renders (a retry of a component that renders the provider), props are new: the oldest parked scope with the
-// same parent and entries whose atom hooks suspended in an earlier pass is adopted, so the retry awaits it.
-// The flag is set after the pass, so siblings rendered in one pass never share; across passes, park order
-// (render order) pairs each sibling with its own earlier scope.
-// ponytail: siblings reordered between passes swap scopes; keys do not reach props.
+// same parent, entries and children shape (sameShape) parked by an earlier task is adopted, so the retry awaits
+// it. Parked scopes turn adoptable only after their task, so siblings rendered together never share; across
+// passes, park order (render order) pairs each sibling with its own earlier scope.
+// ponytail: React exposes no identity for an uncommitted instance, so siblings with identical entries and
+// children shape rendered in different slices of one time-sliced pass can share; keys do not reach props.
 const ADOPT_MS = 5000
 const parked = new Set<Owned>()
 
 /** Called synchronously by each render that created or adopted `owned`, so a retry (or StrictMode's second render) can adopt it. */
 const park = (owned: Owned, props: object) => {
   parked.add(owned)
-  owned.parkedBy = props
   const token = (owned.parkToken = {})
+  owned.parkedBy = props
+  owned.stale = false
+  queueMicrotask(() => { if (owned.parkToken === token) owned.stale = true })
   const gc = (): unknown =>
     setTimeout(() => {
       if (owned.parkToken !== token || !parked.has(owned)) return
@@ -77,12 +102,9 @@ const adopt = (props: LayerProviderProps, parent: ProviderState | null): Owned |
   for (const o of parked) {
     if (o.parent !== parent) continue
     if (o.parkedBy === props) { found = o; break }
-    if (!found && o.state.suspended && sameEntries(o.provide, props.provide)) found = o
+    if (!found && o.stale && sameEntries(o.provide, props.provide) && sameShape((o.parkedBy as LayerProviderProps).children, props.children)) found = o
   }
-  if (found) {
-    parked.delete(found)
-    found.state.suspended = false
-  }
+  if (found) parked.delete(found)
   return found
 }
 

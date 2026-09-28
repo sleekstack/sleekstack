@@ -8,7 +8,7 @@
 import { useCallback, useContext, useEffect, useMemo, useSyncExternalStore } from 'react'
 import { Cause, Data } from 'effect'
 import { Atom, Result, type AtomStore } from '@sleekstack/core'
-import { ProviderContext, type ProviderState } from './context'
+import { ProviderContext } from './context'
 
 /** Error code `AtomsClientOnly`: an atom hook ran during a server render. Atoms are client only. */
 export class AtomsClientOnly extends Data.TaggedError('AtomsClientOnly')<{ readonly message: string }> {}
@@ -24,13 +24,7 @@ function useStore(hook: string): AtomStore {
   if (state.atoms) return state.atoms
   if (state.scopeState.status === 'rejected') throw state.scopeState.error
   state.start()
-  throw suspend(state, state.scope)
-}
-
-/** Returns `promise`, marking `state` suspended once this render pass ends (see LayerProvider adopt). */
-const suspend = <P>(state: ProviderState, promise: P): P => {
-  queueMicrotask(() => { state.suspended = true })
-  return promise
+  throw state.scope
 }
 
 interface Binding {
@@ -234,7 +228,6 @@ export function useAtomSuspense<A, E>(
   options?: { readonly suspendOnWaiting?: boolean },
 ): Result.Success<A, E> {
   const store = useStore('useAtomSuspense')
-  const state = useContext(ProviderContext)
   const result = useValue(store, atom)
   // Committed: this component's subscription holds the node now, so drop the suspension holds.
   useEffect(() => {
@@ -243,7 +236,7 @@ export function useAtomSuspense<A, E>(
     set.clear()
   }, [store, atom])
   const onWaiting = options?.suspendOnWaiting ?? false
-  if (pending(result, onWaiting)) throw suspend(state!, suspensionFor(store, atom, onWaiting))
+  if (pending(result, onWaiting)) throw suspensionFor(store, atom, onWaiting)
   if (result._tag === 'Failure') throw Cause.squash(result.cause)
   return result as Result.Success<A, E>
 }
