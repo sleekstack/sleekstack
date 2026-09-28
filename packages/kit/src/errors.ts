@@ -82,6 +82,8 @@ export function normalize(e: unknown, fallback: SleekStackErrorCode = 'Unknown')
   if (e instanceof SleekStackError) return e
   if (Cause.isCause(e)) return normalize(Cause.squash(e), fallback)
   if (Runtime.isFiberFailure(e)) return normalize(e[Runtime.FiberFailureCauseId], fallback)
+  // @sleekstack/next rejects with `new Error(pretty, { cause: <Cause> })`.
+  if (e instanceof Error && Cause.isCause(e.cause)) return normalize(e.cause, fallback)
   if (e instanceof LayerFailure) {
     return new SleekStackError('LayerFailed', e.message, { tag: e.tag, cause: messageOf(e.cause) }, { cause: e.cause })
   }

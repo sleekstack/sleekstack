@@ -231,7 +231,7 @@ describe('useService — R9 status cache and errors', () => {
         </Boundary>
       </LayerProvider>,
     )
-    await waitFor(() => expect(screen.getByTestId('caught-Y').textContent).toMatch(/"AbsentService" is not provided.*provide prop.*LayerProvider/))
+    await waitFor(() => expect(screen.getByTestId('caught-Y').textContent).toMatch(/"useService" requires "AbsentService", which is not provided/))
     spy.mockRestore()
   })
 })
