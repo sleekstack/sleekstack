@@ -13,9 +13,12 @@ import {
 } from './tags'
 import { RequestContext, RequestContextLayer, UnitOfWork, UnitOfWorkLayer } from '../server/request.server'
 
+/** Only in server output; bundle.test asserts it never reaches a client chunk. */
+export const SERVER_ONLY_MARKER = 'sleekstack-showcase-kit-server-only-4c1a8e70'
+
 let seq = 0
 export const ClockLayer = layer(Clock, { now: () => Date.now() })
-export const LoggerLayer = layer(Logger, { log: (message: string) => console.log('[showcase-kit]', message) })
+export const LoggerLayer = layer(Logger, { log: (message: string) => console.log('[showcase-kit]', SERVER_ONLY_MARKER, message) })
 export const IdGenLayer = layer(IdGen, { next: (prefix: string) => `${prefix}_${++seq}` })
 
 const seedProjects: readonly ProjectRecord[] = [

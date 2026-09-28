@@ -64,6 +64,7 @@ This enables:
 @sleekstack/core
 @sleekstack/react
 @sleekstack/next
+@sleekstack/kit
 @sleekstack/rpc
 @sleekstack/query
 @sleekstack/devtools
@@ -113,7 +114,9 @@ Current surface:
 * a resolved, serializable dependency Graph (`buildGraph`, `snapshot`)
 * `@sleekstack/next` request scopes (`action`, `query`) and `@sleekstack/react`'s Suspense-native, StrictMode-safe `LayerProvider` / `useService`
 
-See [`apps/showcase`](apps/showcase/README.md) for a Next.js team task board that exercises all of it end to end.
+* `@sleekstack/kit` — an Effect-free facade (`tag`, `layer`, `module`, dependency arrays, one `SleekStackError`); see [`packages/kit`](packages/kit/README.md)
+
+See [`apps/showcase`](apps/showcase/README.md) for a Next.js team task board that exercises all of it end to end, and [`apps/showcase-kit`](apps/showcase-kit/README.md) for the same board built on the kit only.
 
 Still ahead: a devtools UI over the Graph value, session/transient/job lifetimes, and stream-aware request-scope finalization.
 

@@ -38,6 +38,24 @@ _Avoid_: Dependency tree, container, registry
 A lifetime-safety violation where a longer-lived entry would depend on a shorter-lived one (e.g. `app` on `request`), which would otherwise capture a stale or already-finalized instance. Rejected by `buildGraph` per the lifetime matrix, naming both services and their lifetimes.
 _Avoid_: Lifetime leak, scope violation
 
+### Kit facade concepts
+
+**Kit**:
+`@sleekstack/kit`, the Effect-free facade over core, next and react. It lowers every call to the core API; no Effect type is reachable from its public entries.
+_Avoid_: Wrapper, lite, simple API
+
+**Kit Tag**:
+A service token created by `tag<T>(name)`, or an (abstract) class used directly as a Tag. Maps to a core Tag keyed by the name.
+_Avoid_: Token, key
+
+**Kit Layer**:
+The output of `layer(tag, impl, deps?, { lifetime }?)`: `impl` is a value, a class, or a (sync or async) factory whose parameters are the resolved services of the `deps` array, in order. Returning `withCleanup(service, cleanup)` registers a finalizer. Lowers to a Service Definition (ADR 0005).
+_Avoid_: Provider, factory, binding
+
+**SleekStackError**:
+The one public error type of the kit: every core tagged error, kit check (`DuplicateTag`, `InvalidTag`) and thrown value is normalized to it, with a `code` and `details`.
+_Avoid_: KitError, GraphError
+
 ### React integration concepts
 
 **LayerProvider**:

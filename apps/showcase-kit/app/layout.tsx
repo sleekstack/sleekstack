@@ -13,6 +13,8 @@ export default function RootLayout({ children }: { readonly children: ReactNode 
         <nav style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
           <Link href="/">Board</Link>
           <Link href="/log">Log</Link>
+          <Link href="/graph">Graph</Link>
+          <Link href="/errors">Errors</Link>
         </nav>
         {children}
       </body>
