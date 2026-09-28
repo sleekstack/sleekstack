@@ -72,6 +72,41 @@ export interface GraphSnapshot {
   readonly shadowing: readonly Shadowing[]
 }
 
+/**
+ * Traversal only, for adapter-side provide-set checks: visits every Tag a provide set reaches (entry provides and requires,
+ * module exports), with its owning module (`undefined` for direct entries). Follows `imports`
+ * (arrays and thunks) and visits each module once by identity, so cycles are skipped, not thrown.
+ * No validation: names, shadowing and ambiguity stay in {@link buildGraph}.
+ *
+ * @param input - Root modules and/or entries.
+ * @param visit - Called once per reached Tag occurrence.
+ *
+ * @example
+ * ```ts
+ * import { Context } from 'effect'
+ * import { module, walkProvide } from '@sleekstack/core'
+ *
+ * class Clock extends Context.Tag('Clock')<Clock, number>() {}
+ * walkProvide([module({ name: 'app', exports: [Clock] })], (tag, mod) => console.log(tag.key, mod?.name))
+ * ```
+ */
+export function walkProvide(input: readonly (Module | Entry)[], visit: (tag: Context.Tag<any, any>, module: Module | undefined) => void): void {
+  const seen = new Set<Module>()
+  const entry = (e: Entry, m: Module | undefined) => {
+    if (isServiceDefinition(e)) [e.tag, ...e.requires].forEach((t) => visit(t, m))
+    else if (isDeclaredLayer(e)) [...e.provides, ...e.requires].forEach((t) => visit(t, m))
+  }
+  const walk = (x: Module | Entry) => {
+    if (!isModule(x)) return entry(x, undefined)
+    if (seen.has(x)) return
+    seen.add(x)
+    x.entries.forEach((e) => entry(e, x))
+    x.exports?.forEach((t) => visit(t, x))
+    ;(typeof x.imports === 'function' ? x.imports() : x.imports).forEach((i) => isModule(i) && walk(i))
+  }
+  input.forEach(walk)
+}
+
 /** A Tag is private when its module lists `exports` and the Tag is not among them. */
 export const isPrivateTag = (module: Module | undefined, key: string): boolean =>
   module?.exports !== undefined && !module.exports.some((t) => t.key === key)
