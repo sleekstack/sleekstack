@@ -8,7 +8,7 @@
 
 import { createContext } from 'react'
 import type { Cause } from 'effect'
-import type { ChildScope } from '@sleekstack/core'
+import type { AtomStore, ChildScope } from '@sleekstack/core'
 
 /** Discriminated cache entry; `promise` identity is stable for the entry's lifetime (Suspense / `use`). */
 export type CacheEntry =
@@ -26,6 +26,8 @@ export interface ProviderState {
   readonly scope: Promise<ChildScope>
   scopeState: ScopeState
   readonly cache: Map<unknown, CacheEntry>
+  /** This provider's atom store, set once `scope` resolves; disposed when the component scope closes. */
+  atoms: AtomStore | undefined
   readonly onFinalizerError: (cause: Cause.Cause<unknown>) => void
   /** Closers of nested providers; run (LIFO) before this provider's own scopes close. */
   readonly children: Set<() => Promise<void>>

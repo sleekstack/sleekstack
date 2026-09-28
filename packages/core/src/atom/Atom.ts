@@ -7,6 +7,10 @@
 
 import { Cause, Effect, Equal, Exit, Hash, Option, Stream } from 'effect'
 import * as Result from './Result'
+import type { MissingDependency, PrivateDependency } from '../errors'
+
+/** Tag-lookup failures a scope-bound store adds to Effect and Stream atoms (see `atomStoreFor`). */
+export type ScopeError = MissingDependency | PrivateDependency
 
 /** Brand carried by every atom. */
 export const TypeId: unique symbol = Symbol.for('@sleekstack/core/Atom') as never
@@ -128,13 +132,13 @@ const readResult = (get: Context, u: unknown): unknown =>
   Effect.isEffect(u) ? runEffect(get, u) : isStream(u) ? runStream(get, u) : u
 
 /** An Effect atom: runs the Effect per build; its value is a `Result`. */
-export function make<A, E, R>(effect: Effect.Effect<A, E, R>): Atom<Result.Result<A, E>>
+export function make<A, E, R>(effect: Effect.Effect<A, E, R>): Atom<Result.Result<A, E | ScopeError>>
 /** A Stream atom: its value is the latest element as a `Result`; an empty Stream fails with `NoSuchElementException`. */
-export function make<A, E, R>(stream: Stream.Stream<A, E, R>): Atom<Result.Result<A, E | Cause.NoSuchElementException>>
+export function make<A, E, R>(stream: Stream.Stream<A, E, R>): Atom<Result.Result<A, E | Cause.NoSuchElementException | ScopeError>>
 /** A derived Effect atom. */
-export function make<A, E, R>(read: (get: Context) => Effect.Effect<A, E, R>): Atom<Result.Result<A, E>>
+export function make<A, E, R>(read: (get: Context) => Effect.Effect<A, E, R>): Atom<Result.Result<A, E | ScopeError>>
 /** A derived Stream atom. */
-export function make<A, E, R>(read: (get: Context) => Stream.Stream<A, E, R>): Atom<Result.Result<A, E | Cause.NoSuchElementException>>
+export function make<A, E, R>(read: (get: Context) => Stream.Stream<A, E, R>): Atom<Result.Result<A, E | Cause.NoSuchElementException | ScopeError>>
 /** A derived atom, recomputed when a dependency changes. */
 export function make<A>(read: (get: Context) => A): Atom<A>
 /** Writable state holding `value` initially. */

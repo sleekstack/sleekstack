@@ -19,7 +19,7 @@
 
 import React, { useContext, useEffect, useRef } from 'react'
 import { Cause, Effect, Exit } from 'effect'
-import { buildGraph, makeAppScope, type ChildScope, type Entry, type Module } from '@sleekstack/core'
+import { atomStoreFor, buildGraph, makeAppScope, type ChildScope, type Entry, type Module } from '@sleekstack/core'
 import { ProviderContext, type ProviderState } from './context'
 
 /** Props for {@link LayerProvider}. */
@@ -93,6 +93,11 @@ function create(provide: ReadonlyArray<Entry | Module>, parent: ProviderState | 
       })
   const scope = opened.then((s) => {
     owned.push(s)
+    // Registered on the scope after its services, so closing it interrupts atoms before service finalizers.
+    state.atoms = atomStoreFor(s, {
+      defaultIdleTTL: 400,
+      onFinalizerError: (e) => report(Exit.failCause(Cause.isCause(e) ? e : Cause.die(e))),
+    })
     return s
   })
 
@@ -102,7 +107,7 @@ function create(provide: ReadonlyArray<Entry | Module>, parent: ProviderState | 
     parent?.start()
     resolveStart()
   }
-  const state: ProviderState = { scope, scopeState: { status: 'pending' }, cache: new Map(), onFinalizerError: sink, children: new Set(), started: false, start }
+  const state: ProviderState = { scope, scopeState: { status: 'pending' }, cache: new Map(), atoms: undefined, onFinalizerError: sink, children: new Set(), started: false, start }
   scope.then(
     (s) => void (state.scopeState = { status: 'resolved', scope: s }),
     (error) => void (state.scopeState = { status: 'rejected', error }),

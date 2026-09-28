@@ -1,0 +1,152 @@
+/**
+ * packages/react/src/__tests__/atoms.test.tsx
+ *
+ * Atom hooks over the per-LayerProvider AtomStore (fn-7 task .3, R3/R4).
+ */
+import { describe, it, expect, expectTypeOf, vi, afterEach } from 'vitest'
+import { act, render, screen, waitFor } from '@testing-library/react'
+import { renderToString } from 'react-dom/server'
+import React, { Component, Suspense, type ReactNode } from 'react'
+import { Context, Effect, Layer } from 'effect'
+import { Atom, MissingDependency, PrivateDependency, Result } from '@sleekstack/core'
+import { renderStrict } from './renderStrict'
+import { AtomsClientOnly, LayerProvider, useAtom, useAtomSet, useAtomSuspense, useAtomValue } from '../index'
+
+const Db = Context.GenericTag<{ name: string }>('AtomDb')
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+class Boundary extends Component<{ children: ReactNode }, { error?: unknown }> {
+  state: { error?: unknown } = {}
+  static getDerivedStateFromError(error: unknown) { return { error } }
+  render() { return this.state.error ? <div data-testid="error">{String((this.state.error as Error).message ?? this.state.error)}</div> : this.props.children }
+}
+
+afterEach(() => vi.unstubAllGlobals())
+
+describe('atom hooks', () => {
+  it('re-renders only when its atom value changes', async () => {
+    const a = Atom.make(0)
+    const b = Atom.make(0)
+    let renders = 0
+    let setB!: (n: number) => void
+    let setA!: (n: number) => void
+    const Reader = () => { renders++; return <span data-testid="a">{useAtomValue(a)}</span> }
+    const Writer = () => { setA = useAtomSet(a); setB = useAtomSet(b); return null }
+    render(<LayerProvider provide={[]}><Suspense fallback={null}><Reader /><Writer /></Suspense></LayerProvider>)
+    await screen.findByTestId('a')
+    const base = renders
+    act(() => setB(1))
+    act(() => setA(0)) // same value: no change
+    expect(renders).toBe(base)
+    act(() => setA(5))
+    expect(screen.getByTestId('a').textContent).toBe('5')
+    expect(renders).toBe(base + 1)
+  })
+
+  it('StrictMode: acquires once, and unmount interrupts the atom before service finalizers', async () => {
+    const log: string[] = []
+    let acquired = 0
+    const DbLive = Layer.scoped(Db, Effect.acquireRelease(Effect.succeed({ name: 'db' }), () => Effect.sync(() => log.push('service-finalizer'))))
+    const running = Atom.make(Effect.gen(function* () {
+      const db = yield* Db
+      acquired++
+      yield* Effect.addFinalizer(() => Effect.sync(() => log.push('atom-interrupted')))
+      return db.name
+    }).pipe(Effect.zipLeft(Effect.never), Effect.scoped))
+    const value = Atom.make(Effect.gen(function* () { return (yield* Db).name }))
+    const View = () => { useAtomValue(running); return <span data-testid="v">{useAtomSuspense(value).value}</span> }
+    const { unmount } = renderStrict(<LayerProvider provide={[DbLive]}><Suspense fallback={null}><View /></Suspense></LayerProvider>)
+    await screen.findByTestId('v')
+    expect(acquired).toBe(1)
+    unmount()
+    await waitFor(() => expect(log).toEqual(['atom-interrupted', 'service-finalizer']))
+  })
+
+  it('a suspending acquisition longer than idleTTL completes exactly once; an abandoned render releases after settle + idleTTL', async () => {
+    let starts = 0
+    let released = 0
+    // get.addFinalizer runs when the store removes the node
+    const slow = () => Atom.make((get) => {
+      get.addFinalizer(() => released++)
+      return Effect.sync(() => starts++).pipe(Effect.zipRight(Effect.promise(() => sleep(600))), Effect.as('done'))
+    })
+    const committed = slow()
+    const View = ({ atom }: { atom: Atom.Atom<Result.Result<string, unknown>> }) => <span data-testid="s">{useAtomSuspense(atom).value}</span>
+    render(<LayerProvider provide={[]}><Suspense fallback={null}><View atom={committed} /></Suspense></LayerProvider>)
+    await waitFor(() => expect(screen.getByTestId('s').textContent).toBe('done'), { timeout: 2000 })
+    expect(starts).toBe(1)
+
+    // Abandoned: the suspending child is removed before its load settles.
+    starts = 0
+    released = 0
+    const abandoned = slow()
+    const Host = ({ show }: { show: boolean }) => <LayerProvider provide={[]}><Suspense fallback={<i data-testid="fb" />}>{show ? <View atom={abandoned} /> : null}</Suspense></LayerProvider>
+    const { rerender } = render(<Host show />)
+    await waitFor(() => expect(starts).toBe(1))
+    rerender(<Host show={false} />)
+    await sleep(700) // settled, still within idleTTL
+    expect(released).toBe(0)
+    await waitFor(() => expect(released).toBe(1), { timeout: 1000 })
+    expect(starts).toBe(1)
+  })
+
+  it('nested providers keep separate state and resolve R from the nearest provider', async () => {
+    const count = Atom.make(0)
+    const name = Atom.make(Effect.map(Db, (d) => d.name))
+    let setInner!: (n: number) => void
+    const Show = ({ id }: { id: string }) => {
+      const [n, set] = useAtom(count)
+      if (id === 'inner') setInner = set
+      return <span data-testid={id}>{`${n}:${useAtomSuspense(name).value}`}</span>
+    }
+    render(
+      <LayerProvider provide={[Layer.succeed(Db, { name: 'outer' })]}>
+        <Suspense fallback={null}>
+          <Show id="outer" />
+          <LayerProvider provide={[Layer.succeed(Db, { name: 'inner' })]}>
+            <Suspense fallback={null}><Show id="inner" /></Suspense>
+          </LayerProvider>
+        </Suspense>
+      </LayerProvider>,
+    )
+    await screen.findByTestId('inner')
+    await screen.findByTestId('outer')
+    act(() => setInner(3))
+    expect(screen.getByTestId('inner').textContent).toBe('3:inner')
+    expect(screen.getByTestId('outer').textContent).toBe('0:outer')
+  })
+
+  it('useAtomSuspense throws a stable promise and rethrows the squashed failure', async () => {
+    const thrown: unknown[] = []
+    const slow = Atom.make(Effect.promise(() => sleep(50)).pipe(Effect.as(1)))
+    const Catch = () => {
+      try { return <span data-testid="ok">{useAtomSuspense(slow).value}</span> } catch (e) { thrown.push(e); throw e }
+    }
+    renderStrict(<LayerProvider provide={[]}><Suspense fallback={null}><Catch /></Suspense></LayerProvider>)
+    await screen.findByTestId('ok')
+    const promises = thrown.filter((t) => t instanceof Promise)
+    expect(new Set(promises).size).toBe(2) // the provider's scope promise, then one promise for the atom
+
+    const failing = Atom.make(Effect.fail(new Error('boom')))
+    const Fail = () => <span>{String(useAtomSuspense(failing).value)}</span>
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    render(<LayerProvider provide={[]}><Boundary><Suspense fallback={null}><Fail /></Suspense></Boundary></LayerProvider>)
+    expect((await screen.findByTestId('error')).textContent).toBe('boom')
+  })
+
+  it('throws outside a provider and AtomsClientOnly during a server render', () => {
+    const a = Atom.make(1)
+    const View = () => <span>{useAtomValue(a)}</span>
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    expect(() => render(<View />)).toThrow(/needs a <LayerProvider>/)
+    vi.stubGlobal('window', undefined)
+    expect(() => renderToString(<LayerProvider provide={[]}><View /></LayerProvider>)).toThrow(AtomsClientOnly)
+  })
+
+  it('types: Effect and Stream atom Results include scope lookup errors', () => {
+    const a = Atom.make(Effect.succeed(1))
+    type E = typeof a extends Atom.Atom<Result.Result<number, infer X>> ? X : never
+    expectTypeOf<MissingDependency>().toExtend<E>()
+    expectTypeOf<PrivateDependency>().toExtend<E>()
+  })
+})
