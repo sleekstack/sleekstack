@@ -8,7 +8,7 @@
 import { createElement, useMemo, useRef, type ReactNode } from 'react'
 import { Runtime } from 'effect'
 import { LayerProvider as CoreProvider, useService as coreUseService } from '@sleekstack/react'
-import { normalize, type FinalizerError } from '../errors'
+import { normalize, toFinalizerError, type FinalizerError } from '../errors'
 import type { Layer, Services } from '../layer'
 import { unwrap, validateProvide, type Module } from '../module'
 import { coreTag, type AnyTag, type TagLike } from '../tag'
@@ -33,7 +33,7 @@ export function LayerProvider({ provide, onFinalizerError, children }: LayerProv
     }
   }, [provide])
   const sink = useMemo(
-    () => onFinalizerError && ((cause: unknown) => onFinalizerError({ message: toKit(cause).message })),
+    () => onFinalizerError && ((cause: unknown) => onFinalizerError(toFinalizerError(Runtime.isFiberFailure(cause) ? cause[Runtime.FiberFailureCauseId] : cause))),
     [onFinalizerError],
   )
   return createElement(CoreProvider, { provide: lowered, ...(sink && { onFinalizerError: sink }) }, children)

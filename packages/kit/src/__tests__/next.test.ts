@@ -105,7 +105,7 @@ describe('@sleekstack/kit/next', () => {
     configureRuntime(cfg)
     expect(await action((r) => () => r.id, [Rq])()).toMatchObject({ ok: true })
     expect(errs).toHaveLength(1)
-    expect(Object.keys(errs[0]!)).toEqual(['message'])
+    expect(errs[0]).toEqual({ message: expect.stringMatching(/cleanup boom/), tag: 'Rq' })
     expect(errs[0]!.message).toMatch(/cleanup boom/)
   })
 })

@@ -8,7 +8,7 @@
 
 import { configureRuntime as nextConfigure, type RuntimeConfig as NextConfig } from '@sleekstack/next'
 import { Cause } from 'effect'
-import { normalize, type FinalizerError } from '../errors'
+import { normalize, toFinalizerError, type FinalizerError } from '../errors'
 import type { Layer } from '../layer'
 import { unwrap, validateProvide, type Module } from '../module'
 
@@ -17,12 +17,6 @@ export interface RuntimeConfig {
   readonly onFinalizerError?: (e: FinalizerError) => void
 }
 
-/** @internal Cause -> plain FinalizerError. */
-export const toFinalizerError = (cause: Cause.Cause<unknown>): FinalizerError => {
-  const e = normalize(cause)
-  const tag = e.details.tag
-  return typeof tag === 'string' ? { message: e.message, tag } : { message: e.message }
-}
 
 const lowered = new WeakMap<RuntimeConfig, NextConfig>()
 

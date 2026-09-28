@@ -88,6 +88,7 @@ describe('@sleekstack/kit/react', () => {
     await act(async () => r.unmount())
     await waitFor(() => expect(seen).toHaveLength(1))
     expect(seen[0]!.message).toContain('cleanup broke')
+    expect(seen[0]!.tag).toBe('A')
     expect(seen[0]).not.toBeInstanceOf(Error)
   })
 })

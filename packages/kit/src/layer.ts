@@ -8,7 +8,7 @@
 
 import { Effect } from 'effect'
 import { service, type AnyServiceDefinition } from '@sleekstack/core'
-import { LayerFailure } from './errors'
+import { CleanupFailure, LayerFailure } from './errors'
 import { coreTag, keyOf, type AnyTag, type ServiceOf, type TagLike } from './tag'
 
 export type Lifetime = 'app' | 'request' | 'component'
@@ -79,7 +79,14 @@ export function layer<T, const D extends readonly AnyTag[] = []>(
       Effect.tryPromise({ try: () => run(resolved), catch: (e) => new LayerFailure(key, e) }).pipe(
         Effect.flatMap((r) =>
           isCleanup(r)
-            ? Effect.acquireRelease(Effect.succeed(r.service), () => Effect.promise(async () => { await r.cleanup() }))
+            ? Effect.acquireRelease(Effect.succeed(r.service), () =>
+                Effect.promise(async () => {
+                  try {
+                    await r.cleanup()
+                  } catch (e) {
+                    throw new CleanupFailure(key, e)
+                  }
+                }))
             : Effect.succeed(r),
         ),
       ),

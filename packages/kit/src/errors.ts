@@ -9,6 +9,7 @@ import { Cause } from 'effect'
 
 export type SleekStackErrorCode =
   | 'MissingDependency'
+  | 'CleanupFailed'
   | 'DependencyCycle'
   | 'AmbiguousProvider'
   | 'ModuleCycle'
@@ -50,6 +51,13 @@ export class LayerFailure extends Error {
   }
 }
 
+/** @internal A `withCleanup` cleanup threw or rejected; carries the Layer's Tag key. */
+export class CleanupFailure extends Error {
+  constructor(readonly tag: string, cause: unknown) {
+    super(cause instanceof Error ? cause.message : String(cause), { cause })
+  }
+}
+
 const messageOf = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
 /** @internal Converts anything thrown (or an Effect Cause) into a SleekStackError. */
@@ -59,10 +67,20 @@ export function normalize(e: unknown, fallback: SleekStackErrorCode = 'Unknown')
   if (e instanceof LayerFailure) {
     return new SleekStackError('LayerFailed', e.message, { tag: e.tag, cause: messageOf(e.cause) }, { cause: e.cause })
   }
+  if (e instanceof CleanupFailure) {
+    return new SleekStackError('CleanupFailed', e.message, { tag: e.tag }, { cause: e.cause })
+  }
   const tag = (e as { _tag?: unknown } | null)?._tag
   if (e instanceof Error && typeof tag === 'string' && GRAPH_CODES.has(tag)) {
     const { _tag, message, ...details } = { ...e } as Record<string, unknown>
     return new SleekStackError(tag as SleekStackErrorCode, e.message, details, { cause: e })
   }
   return new SleekStackError(fallback, messageOf(e), {}, { cause: e })
+}
+
+/** @internal Anything a finalizer sink receives (a Cause or a thrown value) -> plain FinalizerError. */
+export const toFinalizerError = (e: unknown): FinalizerError => {
+  const k = normalize(e)
+  const tag = k.details.tag
+  return typeof tag === 'string' ? { message: k.message, tag } : { message: k.message }
 }
