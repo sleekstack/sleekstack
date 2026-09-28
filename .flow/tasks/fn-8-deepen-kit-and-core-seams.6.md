@@ -14,9 +14,10 @@ Touches: apps/showcase/src/__tests__/board.test.tsx, apps/showcase-kit/src/__tes
 
 
 ## Done summary
-TBD
+Gave showcase + showcase-kit board tests an explicit 5 s timeout on every findBy* waiting on scope/project load (cold CI first render exceeded the 1 s default; acquisition itself is only Effect.sleep(10)). Loop: 20 runs x 2 files, 0 failures.
 
+stage: impl-review - ran (codex fan-out SHIP x3)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: a29b6ebd170aa334e7033318a0c8cdeebd81ddac
+- Tests: pnpm typecheck && pnpm test --force, 20x loop vitest board.test.tsx (showcase, showcase-kit): 0/40 fail, GATE_SKIPPED:lint:caller-directed
 - PRs:
