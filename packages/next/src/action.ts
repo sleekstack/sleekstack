@@ -21,6 +21,7 @@ export interface OperationOptions {
 
 type OperationFn<A extends readonly unknown[], R, E> = (...args: A) => Effect.Effect<R, E, any>
 
+/** The callable shape of `action` and `query`: `(fn)` or `(options, fn)`, returning an async function. */
 export interface Operation {
   <A extends readonly unknown[], R, E>(fn: OperationFn<A, R, E>): (...args: A) => Promise<R>
   <A extends readonly unknown[], R, E>(

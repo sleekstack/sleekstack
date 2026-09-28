@@ -43,3 +43,10 @@ describe.each(resolveEntryPoints())('$name', ({ pkg, entry, file }) => {
     expect(undocumented(file)).toEqual([])
   })
 })
+
+it('next reference renders both Operation call signatures', () => {
+  const text = readFileSync(join(apiDir, 'next', 'index.md'), 'utf8')
+  const op = text.slice(text.indexOf('### Operation'))
+  expect(op).toMatch(/\*\*Operation\*\*.*\(`fn`\):/)
+  expect(op).toMatch(/\*\*Operation\*\*.*\(`options`, `fn`\):/)
+})

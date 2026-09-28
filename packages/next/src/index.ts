@@ -5,4 +5,4 @@
  */
 
 export { configureRuntime, RuntimeNotConfigured, type RuntimeConfig } from './runtime'
-export { action, query, type OperationOptions } from './action'
+export { action, query, type Operation, type OperationOptions } from './action'
