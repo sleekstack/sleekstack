@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import React from 'react'
 import { Context, Effect } from 'effect'
 import { service } from '@sleekstack/core'
-import { ADOPT_MS, acquire, commit, type ScopeProps } from '../managedScope'
+import { ADOPT_MS, acquire, mount, type ScopeProps } from '../managedScope'
 
 const flush = () => new Promise<void>((r) => queueMicrotask(r))
 const noSink = () => {}
@@ -49,7 +49,7 @@ describe('managedScope', () => {
     vi.useFakeTimers()
     const lost = acquire(props(entries, 't5'), null, noSink)
     const kept = acquire(props(entries, 't5'), null, noSink)
-    commit(kept)
+    mount(kept, null, () => {})
     await vi.runAllTimersAsync()
     vi.advanceTimersByTime(ADOPT_MS)
     await vi.runAllTimersAsync()
@@ -69,11 +69,30 @@ describe('managedScope', () => {
       null,
       noSink,
     )
-    commit(owned)
+    mount(owned, null, () => {})
     await owned.state.scope
     owned.state.children.add(async () => void order.push('nested'))
     await owned.close()
     expect(order).toEqual(['nested', 'component', 'app'])
     expect(owned.state.atoms).toBeDefined()
+  })
+  it('unmount closes on a microtask; a synchronous remount cancels it; parent tracks the child until closed', async () => {
+    const parent = acquire(props(entries, 't7p'), null, noSink)
+    mount(parent, null, () => {})
+    const child = acquire(props(entries, 't7c'), parent.state, noSink)
+    const closed = vi.fn()
+    const cleanup = mount(child, parent.state, closed)
+    expect(parent.state.children.has(child.close)).toBe(true)
+    cleanup()
+    mount(child, parent.state, closed) // StrictMode remount
+    await flush()
+    expect(closed).not.toHaveBeenCalled()
+    mount(child, parent.state, closed)()
+    await flush()
+    expect(closed).toHaveBeenCalledOnce()
+    await child.close()
+    await flush()
+    expect(parent.state.children.has(child.close)).toBe(false)
+    await parent.close()
   })
 })

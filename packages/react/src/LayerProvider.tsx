@@ -21,7 +21,7 @@ import React, { useContext, useEffect, useRef } from 'react'
 import type { Cause } from 'effect'
 import type { Entry, Module } from '@sleekstack/core'
 import { ProviderContext } from './context'
-import { acquire, commit, sameEntries, type Owned } from './managedScope'
+import { acquire, mount, sameEntries, type Owned } from './managedScope'
 
 /** Props for {@link LayerProvider}. */
 export interface LayerProviderProps {
@@ -57,7 +57,6 @@ export function LayerProvider(props: LayerProviderProps) {
   const { provide, onFinalizerError, children } = props
   const parent = useContext(ProviderContext)
   const ownedRef = useRef<Owned | null>(null)
-  const pendingRef = useRef<{ cancelled: boolean } | null>(null)
   const initialProvide = useRef(provide)
   const warned = useRef(false)
 
@@ -71,23 +70,9 @@ export function LayerProvider(props: LayerProviderProps) {
 
   useEffect(() => {
     const owned = ownedRef.current!
-    commit(owned)
-    // StrictMode remount before the deferred close ran: cancel it, keep the scope.
-    if (pendingRef.current !== null) {
-      pendingRef.current.cancelled = true
-      pendingRef.current = null
-    }
-    parent?.children.add(owned.close)
-    return () => {
-      const token = { cancelled: false }
-      pendingRef.current = token
-      queueMicrotask(() => {
-        if (token.cancelled) return
-        // Stay registered until closed, so a closing parent awaits this close first.
-        void owned.close().finally(() => parent?.children.delete(owned.close))
-        if (ownedRef.current === owned) ownedRef.current = null
-      })
-    }
+    return mount(owned, parent, () => {
+      if (ownedRef.current === owned) ownedRef.current = null
+    })
   }, [parent])
 
   return <ProviderContext.Provider value={ownedRef.current.state}>{children}</ProviderContext.Provider>

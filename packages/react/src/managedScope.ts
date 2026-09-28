@@ -50,6 +50,8 @@ export interface Owned {
   readonly parent: ProviderState | null
   readonly close: () => Promise<void>
   committed: boolean
+  /** Deferred close scheduled by the last unmount; a StrictMode remount cancels it. */
+  pendingClose?: { cancelled: boolean }
   parkToken?: object
   /** Props object of the render that last parked this scope. */
   parkedBy?: object
@@ -157,9 +159,27 @@ export const acquire = (props: ScopeProps, parent: ProviderState | null, sink: P
   return owned
 }
 
-/** Commit: the scope is no longer parked and starts acquiring. */
-export const commit = (owned: Owned) => {
+/**
+ * Commit (the provider's effect): unpark, start acquiring, register with the parent. The returned cleanup
+ * closes on a microtask, so StrictMode's synchronous remount cancels it and keeps the scope; `onClosed`
+ * runs when the close is scheduled.
+ */
+export const mount = (owned: Owned, parent: ProviderState | null, onClosed: () => void) => {
   owned.committed = true
   parked.delete(owned)
   owned.state.start()
+  if (owned.pendingClose) {
+    owned.pendingClose.cancelled = true
+    owned.pendingClose = undefined
+  }
+  parent?.children.add(owned.close)
+  return () => {
+    const token = (owned.pendingClose = { cancelled: false })
+    queueMicrotask(() => {
+      if (token.cancelled) return
+      // Stay registered until closed, so a closing parent awaits this close first.
+      void owned.close().finally(() => parent?.children.delete(owned.close))
+      onClosed()
+    })
+  }
 }
