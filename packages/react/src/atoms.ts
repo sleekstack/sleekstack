@@ -8,7 +8,7 @@
 import { useCallback, useContext, useEffect, useMemo, useSyncExternalStore } from 'react'
 import { Cause, Data } from 'effect'
 import { Atom, Result, type AtomStore } from '@sleekstack/core'
-import { ProviderContext } from './context'
+import { ProviderContext, type ProviderState } from './context'
 
 /** Error code `AtomsClientOnly`: an atom hook ran during a server render. Atoms are client only. */
 export class AtomsClientOnly extends Data.TaggedError('AtomsClientOnly')<{ readonly message: string }> {}
@@ -24,7 +24,13 @@ function useStore(hook: string): AtomStore {
   if (state.atoms) return state.atoms
   if (state.scopeState.status === 'rejected') throw state.scopeState.error
   state.start()
-  throw state.scope
+  throw suspend(state, state.scope)
+}
+
+/** Returns `promise`, marking `state` suspended once this render pass ends (see LayerProvider adopt). */
+const suspend = <P>(state: ProviderState, promise: P): P => {
+  queueMicrotask(() => { state.suspended = true })
+  return promise
 }
 
 interface Binding {
@@ -151,6 +157,9 @@ const pending = (r: Result.Result<any, any>, onWaiting: boolean) => r._tag === '
 
 const once = (f: () => void) => { let done = false; return () => { if (!done) { done = true; f() } } }
 const inflight = new WeakMap<AtomStore, number>()
+const closed = new WeakSet<AtomStore>()
+/** The store's scope closed (its nodes are gone): stop the suspension GC timers waiting on it. */
+export const settleSuspensions = (store: AtomStore) => void closed.add(store)
 // Settled suspension holds awaiting a committed reader.
 const holds = new WeakMap<AtomStore, WeakMap<Atom.Atom<any>, Set<() => void>>>()
 const holdsFor = (store: AtomStore, atom: Atom.Atom<any>) => {
@@ -188,7 +197,12 @@ const suspensionFor = (store: AtomStore, atom: Atom.Atom<Result.Result<any, any>
       unsubscribe?.()
       inflight.set(store, inflight.get(store)! - 1)
       holdsFor(store, atom).add(release)
-      const gc = (): unknown => setTimeout(() => (inflight.get(store)! > 0 ? gc() : (holdsFor(store, atom).delete(release), release())), RETRY_MS)
+      const gc = (): unknown => setTimeout(() => {
+        if (closed.has(store)) return
+        if (inflight.get(store)! > 0) return gc()
+        holdsFor(store, atom).delete(release)
+        release()
+      }, RETRY_MS)
       gc()
       resolve()
     }
@@ -220,6 +234,7 @@ export function useAtomSuspense<A, E>(
   options?: { readonly suspendOnWaiting?: boolean },
 ): Result.Success<A, E> {
   const store = useStore('useAtomSuspense')
+  const state = useContext(ProviderContext)
   const result = useValue(store, atom)
   // Committed: this component's subscription holds the node now, so drop the suspension holds.
   useEffect(() => {
@@ -228,7 +243,7 @@ export function useAtomSuspense<A, E>(
     set.clear()
   }, [store, atom])
   const onWaiting = options?.suspendOnWaiting ?? false
-  if (pending(result, onWaiting)) throw suspensionFor(store, atom, onWaiting)
+  if (pending(result, onWaiting)) throw suspend(state!, suspensionFor(store, atom, onWaiting))
   if (result._tag === 'Failure') throw Cause.squash(result.cause)
   return result as Result.Success<A, E>
 }

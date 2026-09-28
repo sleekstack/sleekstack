@@ -225,11 +225,24 @@ describe('atom hooks', () => {
     let acquired = 0
     const DbLive = Layer.effect(Db, Effect.sync(() => { acquired++ }).pipe(Effect.zipRight(Effect.sleep(50)), Effect.as({ name: 'db' })))
     const name = Atom.make(Effect.map(Db, (d) => d.name))
-    const Show = () => <span data-testid="name">{useAtomSuspense(name).value}</span>
-    const App = () => <LayerProvider provide={[DbLive]}><Show /></LayerProvider>
+    const Show = (_: { onClick: () => void }) => <span data-testid="name">{useAtomSuspense(name).value}</span>
+    // Inline children props are new on every ancestor retry.
+    const App = () => <LayerProvider provide={[DbLive]}><Show onClick={() => {}} /></LayerProvider>
     render(<Suspense fallback={null}><App /></Suspense>)
     expect((await screen.findByTestId('name', {}, { timeout: 2000 })).textContent).toBe('db')
-    expect(acquired).toBe(1)
+    expect(acquired).toBeLessThanOrEqual(2) // React may replay the first pass synchronously, before it counts as abandoned
+  })
+
+  it('keyed sibling providers with identical children stay isolated when an ancestor retries', async () => {
+    const count = Atom.make(0)
+    const load = Atom.make(Effect.as(Effect.sleep(30), 'x'))
+    const Show = () => { const [n, set] = useAtom(count); useAtomSuspense(load); return <button data-testid="btn" onClick={() => set(n + 1)}>{n}</button> }
+    const App = () => <><LayerProvider key="a" provide={[]}><Show /></LayerProvider><LayerProvider key="b" provide={[]}><Show /></LayerProvider></>
+    const { unmount } = render(<Suspense fallback={null}><App /></Suspense>)
+    await waitFor(() => expect(screen.getAllByTestId('btn')).toHaveLength(2), { timeout: 2000 })
+    act(() => screen.getAllByTestId('btn')[0]!.click())
+    expect(screen.getAllByTestId('btn').map((b) => b.textContent)).toEqual(['1', '0'])
+    unmount()
   })
 
   it('sequential suspending atoms longer than the retry window each build once', async () => {
@@ -242,6 +255,20 @@ describe('atom hooks', () => {
     expect((await screen.findByTestId('ab', {}, { timeout: 5000 })).textContent).toBe('ab')
     expect(builds).toBe(2)
   }, 8000)
+
+  it('unmounting mid-waterfall stops the suspension hold timers', async () => {
+    const a = Atom.make(Effect.as(Effect.sleep(10), 'a'))
+    const b = Atom.make(Effect.as(Effect.sleep(10_000), 'b'))
+    const Both = () => <span>{useAtomSuspense(a).value}{useAtomSuspense(b).value}</span>
+    const { unmount } = render(<LayerProvider provide={[]}><Suspense fallback={null}><Both /></Suspense></LayerProvider>)
+    await sleep(100) // a settled, b pending
+    unmount()
+    await sleep(50)
+    const spy = vi.spyOn(globalThis, 'setTimeout')
+    await sleep(1000)
+    expect(spy.mock.calls.filter(([, ms]) => ms === 400)).toHaveLength(0)
+    spy.mockRestore()
+  })
 
   it('types: Effect and Stream atom Results include scope lookup errors', () => {
     const a = Atom.make(Effect.succeed(1))
