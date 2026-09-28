@@ -45,7 +45,7 @@ describe('atomStoreFor', () => {
     expect(Result.isFailure(r) && [...Cause.failures(r.cause)]).toMatchObject([{ _tag: 'MissingDependency', missing: 'Nope' }])
     expect(Result.isFailure(r) && [...Cause.defects(r.cause)]).toEqual(['cleanup'])
     const empty = Context.GenericTag<number>('')
-    expect(failureOf(store.get(Atom.make(empty)))).toMatchObject({ _tag: 'MissingDependency', missing: '' })
+    expect(failureOf(store.get(Atom.make(Effect.map(empty, (n) => n))))).toMatchObject({ _tag: 'MissingDependency', missing: '' })
   })
 
   it('closing the scope interrupts keepAlive atoms before service finalizers; store failures go to onFinalizerError', async () => {

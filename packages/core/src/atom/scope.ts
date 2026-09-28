@@ -50,7 +50,7 @@ export const atomStoreFor = (scope: ChildScope, options: Omit<AtomStoreOptions, 
         })
       // Die(Service not found) -> Fail(typed); every other node and the Cause's structure are kept.
       const mapCause = (cause: Cause.Cause<unknown>): Cause.Cause<unknown> =>
-        Cause.match(cause, {
+        Cause.match<Cause.Cause<unknown>, unknown>(cause, {
           onEmpty: Cause.empty,
           onFail: Cause.fail,
           onDie: (defect) => {
