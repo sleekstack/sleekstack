@@ -1,0 +1,25 @@
+---
+title: React
+description: LayerProvider, useService and StrictMode.
+---
+
+`LayerProvider` builds a scope for its subtree from `provide`: the app scope at the root, a component scope when nested. `useService(tag)` reads a service from the nearest provider. The scope closes on unmount and runs the cleanups of what it built.
+
+## LayerProvider and hooks
+
+<include>../../snippets/kit/react.tsx</include>
+
+- The scope builds asynchronously, so `useService` suspends on first use: put a `<Suspense>` boundary under the provider.
+- Keep `provide` referentially stable (define it outside render or memoize it).
+- `useServices([A, B])` reads several services; keep the array length fixed.
+- Graph and build failures of a provider (for example `MissingDependency` or `LayerFailed`) are not thrown by `LayerProvider`; they surface from `useService` in its subtree, to the nearest error boundary. Only an invalid `provide` (`DuplicateTag`, `InvalidModule`) throws during the provider's render.
+
+## Effect-native
+
+The same shape with `@sleekstack/react` and Effect Tags:
+
+<include>../../snippets/effect/react.tsx</include>
+
+## StrictMode
+
+StrictMode mounts, unmounts and mounts again in development. `LayerProvider` defers disposal, so the second mount reuses the scope from the first instead of building (and cleaning up) the services twice.

@@ -1,0 +1,21 @@
+---
+title: Getting started (kit)
+description: Define Tags and Layers, group them in a module, and validate the graph.
+---
+
+Install the kit. It depends on `effect`, but none of its types reach your code.
+
+- `pnpm add @sleekstack/kit`
+
+## Define services
+
+A Tag names a service; a Layer implements it. `layer(tag, impl, deps)` accepts a value, a class or a factory, and passes the services of `deps` to it in order. A module groups Layers, and `snapshot()` validates the whole graph without constructing anything.
+
+<include>../../snippets/kit/getting-started.ts</include>
+
+## Use them
+
+- In Next.js, register the module with `configureRuntime` and read services in `action`/`query`: see [Next.js](/docs/nextjs).
+- In React, wrap the tree in `LayerProvider` and call `useService`: see [React](/docs/react).
+
+A mistake in the graph (a missing provider, a cycle, a private Tag) throws a `SleekStackError` with a `code`; [Errors](/docs/errors) lists them.

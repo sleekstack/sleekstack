@@ -1,0 +1,24 @@
+---
+title: Next.js
+description: Server Actions and queries that run in a request scope.
+---
+
+The Next.js adapter holds one app runtime per process and opens a request scope for every `action` or `query` call. Request-lifetime services are built in that scope and cleaned up when the call ends, so no state leaks between requests.
+
+## Runtime
+
+Call `configureRuntime` once at module load, for example from `instrumentation.ts` or a shared server file. The same config object again is a no-op (safe under HMR); a different one disposes the old runtime and replaces it. The app scope builds lazily on the first call. A call before `configureRuntime` rejects.
+
+`onFinalizerError` receives cleanup failures. In kit it gets a plain `FinalizerError` (`{ message, tag }`); in `@sleekstack/next` it gets the Effect `Cause`.
+
+## Actions and queries (kit)
+
+`action(factory, deps)` resolves `deps` from the request scope and passes them to `factory`, which returns the handler. An action resolves `{ ok: true, data }`, or `{ ok: false, error }` after `fail(message)`. A query resolves the plain value, and `fail` rejects. Pass `{ provide }` as the third argument to build extra Layers in that call's request scope, shadowing the runtime graph.
+
+<include>../../snippets/kit/next.ts</include>
+
+## Actions and queries (Effect)
+
+In `@sleekstack/next`, an operation is a function returning an Effect that reads services with `yield*`. It resolves the Effect's value; a failure or defect rejects with an `Error` whose `cause` is the Effect `Cause`. Returning a `ReadableStream` or async iterable is not supported and rejects the same way, with a `StreamingResultNotSupported` failure inside the cause.
+
+<include>../../snippets/effect/next.ts</include>

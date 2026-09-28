@@ -1,0 +1,19 @@
+---
+title: Getting started (Effect)
+description: Define Service Definitions with Effect Tags and build the graph with core.
+---
+
+Install core and Effect, plus the adapters you need.
+
+- `pnpm add effect @sleekstack/core`
+- `pnpm add @sleekstack/next` and/or `@sleekstack/react`
+
+## Define services
+
+Tags are Effect `Context.Tag` classes. `service(tag, { requires, lifetime }, make)` is a Service Definition: a scoped Layer plus the metadata (provided Tag, required Tags, lifetime) the graph needs. The requirement type is derived from `requires`, so the two cannot drift. `buildGraph` validates the modules and `snapshot` turns the result into JSON.
+
+<include>../../snippets/effect/getting-started.ts</include>
+
+Graph failures are Effect tagged errors (`MissingDependency`, `DependencyCycle` and so on, see [Errors](/docs/errors)). A module's `entries` can also hold declared Layers (`declareLayer`) and bare Layers; see the [core reference](/docs/api/core).
+
+Next: [Next.js](/docs/nextjs) and [React](/docs/react) show the Effect-native adapters next to the kit ones.

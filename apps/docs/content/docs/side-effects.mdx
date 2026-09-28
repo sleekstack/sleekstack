@@ -1,0 +1,12 @@
+---
+title: Side effects
+description: Run work when a scope opens and clean it up when it closes, with effect().
+---
+
+`effect(fn, deps, { name, lifetime })` runs `fn` when its scope opens. If `fn` returns a function (or a promise of one), that function runs when the scope closes, like React's `useEffect`. List the effect in a module's `provide` like any Layer. It is an anonymous Layer (`effect:<name>` in the graph snapshot) that nothing else depends on.
+
+<include>../../snippets/kit/side-effects.ts</include>
+
+- An `app` effect runs once per app scope; a `request` effect runs per action/query call; a `component` effect runs per nested `LayerProvider`.
+- If `fn` throws or rejects, the scope fails to build with `LayerFailed`.
+- If the teardown throws, the failure goes to `onFinalizerError` as a `FinalizerError`; it is not thrown.

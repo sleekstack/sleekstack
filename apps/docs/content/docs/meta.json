@@ -1,0 +1,17 @@
+{
+  "title": "SleekStack",
+  "pages": [
+    "index",
+    "getting-started-kit",
+    "getting-started-effect",
+    "concepts",
+    "kit-vs-effect",
+    "nextjs",
+    "react",
+    "side-effects",
+    "errors",
+    "testing",
+    "showcases",
+    "api"
+  ]
+}
