@@ -12,12 +12,47 @@ pnpm --filter @sleekstack/kit test
 ```
 
 ## Design (mirrors effect-atom's model)
-- **Atom:** a lazy, keyed node with `read(get)`. `get(other)` records a dependency, and reads recompute when a dependency changes. `Writable` adds `write(ctx, value)`. Constructors: a plain value (writable state), a derived function, an `Effect` (async; its value is a `Result`), and a `Stream` (latest value as a `Result`). `family(key => atom)` is memoized per key with structural keys. `keepAlive` opts out of disposal.
+- **Atom:** a lazy, keyed node with `read(get)`. `get(other)` records a dependency, and reads recompute when a dependency changes (see Planning decisions). `Writable` adds `write(ctx, value)`. Constructors: a plain value (writable state), a derived function, an `Effect` (async; its value is a `Result`), and a `Stream` (latest value as a `Result`). `family(key => atom)` is memoized per key with structural keys. `keepAlive` opts out of disposal.
 - **Result:** `Initial | Success<A> | Failure<E>`, with a `waiting` flag for refreshes, as in effect-atom. `refresh(atom)` re-runs it.
 - **Registry:** holds atom state and subscriptions, reference-counted. A node with no subscribers is disposed after an idle tick (effect-atom's `idleTTL` semantics), which interrupts its fiber and runs its finalizers. Effect atoms run on the owning scope's runtime, so their requirements (`R`) are resolved from that scope's context.
 - **Scoping:** each `LayerProvider` owns a registry bound to its component scope. An atom that needs `R` resolves Tags through that scope, so shadowing and privacy work the same as in `useService`. Closing the scope disposes the registry.
 - **React (`@sleekstack/react`):** `useAtomValue(atom)`, `useAtomSet(atom)`, `useAtom(atom)`, `useAtomRefresh(atom)` and `useAtomSuspense(atom)`, built on `useSyncExternalStore` against the nearest provider's registry. They are safe under StrictMode's double mount.
 - **kit:** `atom(value)`, `atom(fn, deps)` and `atom.family(fn, deps)` take plain values or promises, with deps resolved like kit `layer`. `@sleekstack/kit/react` exports `useAtom`, `useAtomValue` and `useAtomSet`. These suspend while loading and throw `SleekStackError` to the error boundary, matching kit `useService`. The kit public `.d.ts` exposes no `Result`.
+
+## Planning decisions (from research)
+- **Reference:** `@effect-atom/atom@0.6.0` + `atom-react@0.6.0` source (the tag whose peer range is `effect ^3.21`, matching the repo). Not the repo head, which has moved to Effect 4.
+- **Naming:** CONTEXT.md avoids "registry", so the per-scope container is an **`AtomStore`** (effect-atom's Registry). CONTEXT.md gets `Atom`, `AtomStore` and `Result`, plus a line tying AtomStore to effect-atom's Registry.
+- **Algorithm (as in effect-atom):**
+  - Nodes keep parents, children and listeners.
+  - Writes push invalidation (mark stale); reads pull the recompute, once per node, so diamonds don't double-compute.
+  - `store.batch(fn)` commits bottom-up and notifies once.
+  - A node with no listeners and no children is removed after a microtask. `idleTTL` (default 400 ms, per-atom override) uses bucketed timers. `keepAlive` opts out.
+- **Effect atoms:**
+  - Each build forks on a fresh `Scope`, with the store's context provided via `Effect.provide(context)`.
+  - Invalidation or removal closes that Scope, which interrupts the fiber.
+  - Stream atoms take the latest element.
+  - No public `ChildScope` change: the store is created from `{ context: scope.inner, privates, onFinalizerError }` and never exposes `inner`.
+- **R resolution:** a missing Tag fails the atom with `MissingDependency`, or `PrivateDependency` via core's `privateDependencyOf`. A single core lookup helper is shared by `useService` and atoms: move `useService`'s `lookup` into core and have react import it, so there is no duplicated logic.
+- **Cycles:** a read cycle throws `AtomCycle` (a new core tagged error) synchronously from the read. Hooks surface it to the error boundary.
+- **family:** `family(f)` caches by structural key (`Equal`/`Hash`; primitives by value), holding each atom through `WeakRef` + `FinalizationRegistry`, with a plain Map fallback that is documented as never evicting. Nested families are documented as unsupported for GC (effect-atom #426).
+- **Per provider:**
+  - Each `LayerProvider` owns one `AtomStore`, created with its `ChildScope` and stored on `ProviderState`.
+  - Nested providers get their own store, so atom state is per provider, like effect-atom's `RegistryProvider`.
+  - The store lives and dies with the provider's `Owned` record, so StrictMode park/adopt keeps it.
+  - `close()` disposes the store (interrupting fibers and awaiting finalizers) before the component scope closes. Finalizer failures go to `onFinalizerError`.
+  - Hooks called before the scope resolves suspend on the provider's existing scope promise.
+- **Hooks:**
+  - Built on `useSyncExternalStore`, with subscribe/snapshot memoized per (store, atom) in a WeakMap.
+  - `useAtomSuspense` throws a stable promise per node and generation.
+  - On `Failure` it rethrows `Cause.squash` (core); kit normalizes the error.
+- **Client only:** a hook called during a server render (`typeof window === 'undefined'`) throws a documented `AtomsClientOnly` error. Defining atoms in shared modules is fine.
+- **kit:**
+  - `atom(value)` gives a writable atom.
+  - `atom(fn, deps)` passes resolved services to `fn(...services, get)` and accepts a value or a Promise.
+  - `atom.family(fn, deps)`.
+  - Hooks suspend while `Initial` (or waiting on first load) and throw a normalized `SleekStackError`.
+  - `useAtomSet` returns `(value | (prev) => value) => void`.
+  - The public `.d.ts` exposes no `Result`, which the kit dts test checks.
 
 ## Scope
 - core: the Atom, Result, Registry and family primitives, plus a registry bound to a `ChildScope`.
@@ -48,9 +83,10 @@ pnpm --filter @sleekstack/kit test
 
 | Req | Description | Task(s) | Gap justification |
 |-----|-------------|---------|-------------------|
-| R1 | core atom primitives | TBD | — |
-| R2 | lifecycle / disposal | TBD | — |
-| R3 | scope-resolved services | TBD | — |
-| R4 | React hooks | TBD | — |
-| R5 | kit facade | TBD | — |
-| R6 | showcase + docs + ADR | TBD | — |
+| R1 | core atom primitives | .1 | — |
+| R2 | lifecycle / disposal | .1, .2 | — |
+| R3 | scope-resolved services | .2, .3 | — |
+| R4 | React hooks | .3 | — |
+| R5 | kit facade | .4 | — |
+| R6 | showcase + docs + ADR | .5 | — |
+
