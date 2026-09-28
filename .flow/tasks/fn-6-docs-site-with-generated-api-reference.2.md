@@ -6,7 +6,7 @@ satisfies: [R2, R3]
 ## Description
 Write TSDoc for every public export of core, next, react, kit, kit/next and kit/react: a summary, `@param`, `@returns`, one `@throws` per error type (naming the error code), and at least one `@example` on functions. Comments only; no API changes. Turn on the empty-summary assertion in the coverage test. Add a check that extracts kit's `@example` blocks into temp `.ts` files and typechecks them (part of `apps/docs` typecheck or test).
 
-Touches: packages/{core,next,react,kit}/src/**, apps/docs/test/**
+Touches: packages/{core,next,react,kit}/src/**, apps/docs/test/api-coverage.test.ts, apps/docs/test/examples.test.ts
 
 ## Acceptance
 - [ ] Coverage test fails on any export with an empty summary; it passes on the repo.
