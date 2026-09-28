@@ -15,9 +15,10 @@ Touches: packages/next/src/action.ts, packages/next/src/__tests__/**, packages/k
 
 
 ## Done summary
-TBD
+`@sleekstack/next` action/query take an @internal `onExit` hook; kit's next lowering maps one Exit to ActionResult / HandlerFailed / query rejection, the FAILED/ERRORED sentinels and normalize's next-envelope unwrap are deleted, and ADR 0009 is added and indexed. The docs API generator now sets `excludeInternal: true` so the hook stays out of the reference. Tests: kit next.test.ts (sentinel-shaped data returned as data; user Error with Cause -> HandlerFailed), next.test.ts (onExit hook), errors.test.ts row updated.
 
+stage: impl-review - ran (codex fan-out 3x SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: e7ca4a4c2ae1ee642a27a05d3a34b655597100f4
+- Tests: pnpm typecheck && pnpm test --force, pnpm --filter docs build && pnpm --filter docs test
 - PRs:
