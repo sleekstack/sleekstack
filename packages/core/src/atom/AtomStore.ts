@@ -97,12 +97,14 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
     }
   }
 
-  const markChildren = (node: Node) => {
+  // visited per traversal: a node left 'check'/'dirty' by a failed pull still forwards to its descendants
+  const markChildren = (node: Node, visited = new Set<Node>()) => {
     for (const child of node.children) {
+      if (visited.has(child)) continue
+      visited.add(child)
       pending.add(child)
-      if (child.state === 'check') continue
       if (child.state === 'valid') child.state = 'check'
-      markChildren(child)
+      markChildren(child, visited)
     }
   }
 

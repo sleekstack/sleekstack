@@ -199,13 +199,18 @@ describe('review regressions', () => {
     const input = Atom.make(0)
     const risky = Atom.make((get) => { if (get(input) === 0) throw new Error('zero'); return get(input) })
     const safe = Atom.make((get) => { try { return get(risky) } catch { return -1 } })
-    const after = Atom.make((get) => get(risky) + 1)
+    const mid = Atom.make((get) => get(risky) + 1)
+    const after = Atom.make((get) => get(mid))
     const seen: number[] = []
-    store.subscribe(safe, () => seen.push(store.get(safe)))
-    store.subscribe(after, () => seen.push(store.get(after)))
+    const read = (atom: Atom.Atom<number>) => () => { try { seen.push(store.get(atom)) } catch { /* error state */ } }
+    store.subscribe(safe, read(safe))
+    store.subscribe(after, read(after))
     expect(store.get(safe)).toBe(-1)
     store.set(input, 42)
-    expect(seen).toEqual([42, 43])
+    store.set(input, 0) // throws again through the chain
+    store.set(input, 2)
+    expect(seen.slice(0, 2)).toEqual([42, 43])
+    expect(seen.slice(-2)).toEqual([2, 3])
   })
 
   it('dependency invalidation interrupts retained and keepAlive Effect builds', () => {
