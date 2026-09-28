@@ -10,9 +10,9 @@
   "id": "fn-8-deepen-kit-and-core-seams",
   "impl_review_rounds": {},
   "next_task": 1,
-  "plan_review_rounds": 1,
-  "plan_review_status": "needs_work",
-  "plan_reviewed_at": "2026-09-28T16:18:02.836904Z",
+  "plan_review_rounds": 0,
+  "plan_review_status": "ship",
+  "plan_reviewed_at": "2026-09-28T16:19:30.692674Z",
   "review_attempts": [
     {
       "artifact_sha256": "893cfead7db2e875450e61bc6581cd6a8f4e1856fc116ca733519f7cd59d0761",
@@ -74,9 +74,80 @@
       "timestamp": "2026-09-28T16:18:02.833272Z",
       "tool_calls": 9,
       "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "e30551c79c115cc265da257ac22ca2db17aba702ad6f45c007d0b236f528b151",
+      "backend": "codex",
+      "base_sha": "a660ff08d835c92d2da4fff496468e1ec17aad13",
+      "counter_kind": "plan",
+      "effort": "high",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-e306709221d50269da3bd9a6c4155984",
+            "classification": "introduced",
+            "findingId": "finding-e306709221d50269da3bd9a6c4155984",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-4c4d25e0acd4f02ec108809c146e4a60",
+            "classification": "introduced",
+            "findingId": "finding-4c4d25e0acd4f02ec108809c146e4a60",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-40f6440186d556e57de0de035b35b146",
+            "classification": "introduced",
+            "findingId": "finding-40f6440186d556e57de0de035b35b146",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-c42e564fc6a60d4e6d68867f48096c4e",
+            "classification": "introduced",
+            "findingId": "finding-c42e564fc6a60d4e6d68867f48096c4e",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "plan"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "ba0aeca90242b554e8fe931fe9ce9fbd84916e53",
+      "head_sha_observed": true,
+      "kind": "plan",
+      "model": "gpt-6-astra",
+      "outcome": "verdict",
+      "output_bytes": 1499,
+      "output_sha256": "8357c87a2c0410b1b5183252e889b1ec467f7653023003555875f8b4ad0f74f8",
+      "reservation_id": "ec2c856896034baab40ca682b54cfe55",
+      "round_consumed": true,
+      "scope": "plan",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-09-28T16:19:30.689943Z",
+      "verdict": "SHIP"
     }
   ],
-  "review_hash_epoch": {},
+  "review_hash_epoch": {
+    "plan": 1,
+    "plan#completion": 0
+  },
   "review_pending_rounds": {},
   "review_reservations": {},
   "review_transport_failures": {
@@ -96,5 +167,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-09-28T16:18:37.425385Z"
+  "updated_at": "2026-09-28T16:19:30.692995Z"
 }
