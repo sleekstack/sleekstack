@@ -18,9 +18,13 @@ Touches: packages/kit/src/atom.ts, packages/kit/src/index.ts, packages/kit/src/e
 
 
 ## Done summary
-TBD
+Added kit `atom(value)`, `atom(fn, deps, opts)` and `atom.family(fn, deps)`, plus `useAtom`/`useAtomValue`/`useAtomSet` in `@sleekstack/kit/react`, with an `AtomCycle` code on SleekStackError. Every kit atom lowers to a core Result atom, so readers suspend on first load and failures (MissingDependency, PrivateDependency, AtomCycle, Unknown) reach the boundary as SleekStackError. The dts test passes. Tests: packages/kit/src/__tests__/atom.test.tsx.
 
+Baseline: red, inherited. `react.test.tsx > StrictMode: 1 acquire / 1 release for a component Layer` fails deterministically at b792c56 (checked in a clean worktree), so the BASELINE_HANDOFF green claim was wrong. The test is outside this task's Touches and was left as is. Follow-up: fix the fn-7.3 LayerProvider regression.
+
+stage: impl-review - ran (codex gpt-6-astra: fan-out NEEDS_WORK with 2 findings, both fixed, re-review SHIP)
+Tier: opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 2a02baaa4ce495297233c2f2b4ad33721c994ef5, 11af4ed3defe1cd9639b8498d4be03bda18c3f35
+- Tests: pnpm typecheck, pnpm --filter @sleekstack/kit test (61/62; 1 inherited red: react.test StrictMode acquire), pnpm test
 - PRs:
