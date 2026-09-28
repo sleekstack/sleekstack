@@ -1,7 +1,7 @@
 {
   "branch_name": "fn-8-deepen-kit-and-core-seams",
-  "completion_review_status": "unknown",
-  "completion_reviewed_at": null,
+  "completion_review_status": "ship",
+  "completion_reviewed_at": "2026-09-28T17:18:20.079280Z",
   "created_at": "2026-09-28T16:15:21.140267Z",
   "default_impl": null,
   "default_review": null,
@@ -561,6 +561,42 @@
       "task": "fn-8-deepen-kit-and-core-seams.6",
       "timestamp": "2026-09-28T17:14:34.791810Z",
       "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "a4e265a041bcaac2291968c8b439aa1599d1f2fa394fde0a6f07ad8ec5ea5886",
+      "backend": "codex",
+      "base_sha": "a660ff08d835c92d2da4fff496468e1ec17aad13",
+      "counter_kind": "plan",
+      "effort": "high",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "672c1d254baec2dd34749d131a264072601a643a",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-6-astra",
+      "outcome": "verdict",
+      "output_bytes": 289265,
+      "output_sha256": "76f283a1ec1ea10f2e25c24de19efa0945d7a4de7e63972ab612fe2a6157a2cc",
+      "reservation_id": "faeba56274f34278a1c0c71a429676df",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-09-28T17:18:20.071894Z",
+      "tool_calls": 13,
+      "verdict": "SHIP"
     }
   ],
   "review_hash_epoch": {
@@ -570,11 +606,12 @@
     "impl:fn-8-deepen-kit-and-core-seams.5": 1,
     "impl:fn-8-deepen-kit-and-core-seams.6": 1,
     "plan": 1,
-    "plan#completion": 0
+    "plan#completion": 1
   },
   "review_pending_rounds": {},
   "review_reservations": {},
   "review_transport_failures": {
+    "completion": 0,
     "impl:fn-8-deepen-kit-and-core-seams.1": 0,
     "impl:fn-8-deepen-kit-and-core-seams.2": 0,
     "impl:fn-8-deepen-kit-and-core-seams.3": 0,
@@ -597,5 +634,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-09-28T17:14:34.793667Z"
+  "updated_at": "2026-09-28T17:18:20.081294Z"
 }
