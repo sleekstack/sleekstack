@@ -16,9 +16,11 @@ Touches: packages/kit/src/next/action.ts, packages/kit/src/errors.ts, packages/k
 
 
 ## Done summary
-TBD
+Core now owns the one Tag-miss shape (`missingDependency` / `resolutionFailure`), used by useService, the AtomStore, kit next and kit atoms; kit `normalize` is the only error seam (FiberFailure + next rejection unwrap), with `toKit` and the inline unwraps deleted. Tests: core resolve.test.ts, kit errors.test.ts normalize table, kit boundaries.test.tsx shared boundary table.
 
+stage: impl-review - ran (codex fan-out NEEDS_WORK -> fix 8e55de5 -> SHIP)
+Tier: implementer opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 6d58dfa4cdbd723f0843ec10e8d9bf9cc2215b65, 8e55de5230645080cd862e54cad003e67caf24e2
+- Tests: pnpm typecheck && pnpm test --force, pnpm --filter docs build && pnpm --filter docs test
 - PRs:
