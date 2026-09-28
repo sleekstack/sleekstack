@@ -13,7 +13,7 @@
     "start": "next start",
     "pretest": "pnpm generate:api",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "fumadocs-mdx && tsc --noEmit"
   },
   "dependencies": {
     "fumadocs-core": "15.8.5",
@@ -33,6 +33,7 @@
     "@types/node": "^22.20.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
+    "github-slugger": "2.0.0",
     "tailwindcss": "^4.1.0",
     "typedoc": "0.28.19",
     "typedoc-plugin-markdown": "4.13.0",

@@ -3,6 +3,7 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Application } from 'typedoc'
+import { headings } from './check-links.mjs'
 import { repoRoot, resolveEntryPoints } from './entry-points.mjs'
 
 const outRoot = join(dirname(fileURLToPath(import.meta.url)), '../content/docs/api')
@@ -32,9 +33,16 @@ for (const ep of entries) {
   await app.generateOutputs(project)
   if (app.logger.hasErrors() || app.logger.hasWarnings()) throw new Error(`typedoc output failed for ${ep.name}`)
 
-  const body = readFileSync(join(tmp, 'index.md'), 'utf8')
-    // In-page anchors only; any stray .md link becomes a site route.
-    .replace(/\]\((?:\.\/)?index\.md(#[^)]*)?\)/g, (_, hash = '') => `](${ep.route}${hash})`)
+  const raw = readFileSync(join(tmp, 'index.md'), 'utf8')
+  // TypeDoc numbers duplicate anchors differently from Fumadocs: point each symbol fragment at the
+  // rendered id of its `### Symbol` heading. Any stray .md link becomes a site route.
+  const hs = headings(raw)
+  const ids = new Set(hs.map((h) => h.id))
+  const symbolId = new Map(hs.filter((h) => h.depth === 3).map((h) => [h.id.replace(/-\d+$/, ''), h.id]))
+  const fix = (frag) => (ids.has(frag) ? frag : symbolId.get(frag.replace(/-\d+$/, '')) ?? frag)
+  const body = raw
+    .replace(/\]\(#([^)]+)\)/g, (_, frag) => `](#${fix(frag)})`)
+    .replace(/\]\((?:\.\/)?index\.md(?:#([^)]*))?\)/g, (_, frag) => `](${ep.route}${frag ? `#${fix(frag)}` : ''})`)
   const out = join(outRoot, ep.pkg, `${ep.entry}.md`)
   mkdirSync(dirname(out), { recursive: true })
   writeFileSync(out, `---\ntitle: "${ep.name}"\ndescription: API reference for ${ep.name}\n---\n\n${body}`)

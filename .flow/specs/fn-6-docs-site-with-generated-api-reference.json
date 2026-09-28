@@ -8,7 +8,9 @@
   "default_sync": null,
   "depends_on_epics": [],
   "id": "fn-6-docs-site-with-generated-api-reference",
-  "impl_review_rounds": {},
+  "impl_review_rounds": {
+    "fn-6-docs-site-with-generated-api-reference.1": 1
+  },
   "next_task": 1,
   "plan_review_rounds": 0,
   "plan_review_status": "ship",
@@ -150,6 +152,74 @@
       "task": null,
       "timestamp": "2026-09-28T10:59:38.109660Z",
       "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "24a6b878f112821b5e405c10b2c9a0d12f98062863209dcf32de601acbda3d79",
+      "backend": "codex",
+      "base_sha": "fefdd4d3902b2c95eb4669d8af5451b7e940af94",
+      "counter_kind": "impl",
+      "effort": "high",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-41f636e7321ff256f61fa13865898697",
+            "classification": "introduced",
+            "findingId": "finding-41f636e7321ff256f61fa13865898697",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-70cff23a785d9fc3c18f339c7bc94898",
+            "classification": "introduced",
+            "findingId": "finding-70cff23a785d9fc3c18f339c7bc94898",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-bb9602c45624a93d16a3216c8b5e60bc",
+            "classification": "introduced",
+            "findingId": "finding-bb9602c45624a93d16a3216c8b5e60bc",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-06d692aa3c7f78201815c3b868ae7195",
+            "classification": "introduced",
+            "findingId": "finding-06d692aa3c7f78201815c3b868ae7195",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "aeb7d4edd2af3a75841e5fb69322fc0278918df4",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-6-astra",
+      "outcome": "verdict",
+      "output_bytes": 3092,
+      "output_sha256": "dd597f629182da7ce9e84ecabab9c724ecdfa804aa9bacb84534c2ee815fc5d1",
+      "reservation_id": "4068c6b3f802437ebc6d6b00e8c670bb",
+      "round_consumed": true,
+      "scope": "impl:fn-6-docs-site-with-generated-api-reference.1",
+      "superseded_by": null,
+      "task": "fn-6-docs-site-with-generated-api-reference.1",
+      "timestamp": "2026-09-28T11:41:59.375942Z",
+      "verdict": "NEEDS_WORK"
     }
   ],
   "review_hash_epoch": {
@@ -159,6 +229,7 @@
   "review_pending_rounds": {},
   "review_reservations": {},
   "review_transport_failures": {
+    "impl:fn-6-docs-site-with-generated-api-reference.1": 0,
     "plan": 0
   },
   "spec_path": ".flow/specs/fn-6-docs-site-with-generated-api-reference.md",
@@ -175,5 +246,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-09-28T10:59:38.114336Z"
+  "updated_at": "2026-09-28T11:41:59.377940Z"
 }
