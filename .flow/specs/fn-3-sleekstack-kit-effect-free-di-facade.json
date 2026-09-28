@@ -1,0 +1,31 @@
+{
+  "branch_name": "fn-3-sleekstack-magic-effect-free-di-facade",
+  "completion_review_status": "unknown",
+  "completion_reviewed_at": null,
+  "created_at": "2026-09-28T04:11:17.999530Z",
+  "default_impl": null,
+  "default_review": null,
+  "default_sync": null,
+  "depends_on_epics": [],
+  "id": "fn-3-sleekstack-kit-effect-free-di-facade",
+  "impl_review_rounds": {},
+  "next_task": 1,
+  "plan_review_rounds": 0,
+  "plan_review_status": "unknown",
+  "plan_reviewed_at": null,
+  "spec_path": ".flow/specs/fn-3-sleekstack-kit-effect-free-di-facade.md",
+  "status": "open",
+  "title": "sleekstack kit: Effect-free DI facade",
+  "tracker": {
+    "baseHashFlow": null,
+    "baseHashTracker": null,
+    "depRelations": [],
+    "id": null,
+    "identifier": null,
+    "lastSyncedAt": null,
+    "mergeBaseFlow": null,
+    "mergeBaseTracker": null,
+    "url": null
+  },
+  "updated_at": "2026-09-28T04:21:10.271228Z"
+}
