@@ -63,7 +63,7 @@ pnpm --filter @sleekstack/kit build:types   # emits .d.ts for the R7 check
 - **R6:** In `@sleekstack/kit/react`: `LayerProvider` (core's, re-exported), `useService(tag)` and `useServices([tags])` suspend and return plain values; component lifetime and StrictMode keep the core guarantees (1 acquire and 1 release per real mount). Errors: a failed acquisition throws to the nearest error boundary; a change of `useServices` array length warns in dev.
 - **R7:** No emitted `.d.ts` of `@sleekstack/kit` (any subpath) references `effect`. A test runs the declaration emit and greps its output. Errors: the test fails if `effect` appears, or if no `.d.ts` was emitted (vacuous pass).
 - **R8:** `snapshot(App)` returns core's snapshot shape unchanged, so the fn-2 `/graph` page renders kit apps. Errors: no error surface beyond R3.
-- **R9:** `apps/showcase-kit` reimplements the task board's services, actions and component scopes with kit only. Zero `effect` imports in its app code, asserted by a test. Its tests mirror fn-2's request isolation (20 concurrent calls), rollback and StrictMode tests. Errors: the simulated failure resolves `{ok:false}` and leaves the store unchanged.
+- **R9:** `apps/showcase-kit` reaches feature parity with the fn-2 showcase (board, nested scopes, demo-mode Shadowing, /graph, /errors, log, bundle split, Playwright smoke) using kit only. Zero `effect` imports in its app code, asserted by a test. Its tests mirror fn-2's request isolation (20 concurrent calls), rollback and StrictMode tests. Errors: the simulated failure resolves `{ok:false}` and leaves the store unchanged.
 - **R10:** Docs: `packages/kit/README.md`; ADR 0005 "dependency arrays over inject/params" with the rejected options; CONTEXT.md gains a kit section, `tag()`/`layer()` in canonical style; the root README lists kit; CI runs kit's and showcase-kit's test, typecheck and declaration check. Errors: n/a.
 
 ## Early proof point
@@ -80,6 +80,6 @@ Task .1 proves the lowering: `tag`, `layer` (factory, class, value, async, `with
 | R5 | configureRuntime | .2 | — |
 | R6 | React hooks | .3 | — |
 | R7 | no Effect in .d.ts | .1, .2, .3 | — |
-| R8 | snapshot passthrough | .1 | — |
-| R9 | showcase-kit port | .4 | — |
-| R10 | docs and CI | .4 | — |
+| R8 | snapshot passthrough | .1, .5 | — |
+| R9 | showcase-kit parity port | .4, .5 | — |
+| R10 | docs and CI | .5 | — |
