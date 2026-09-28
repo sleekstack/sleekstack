@@ -34,7 +34,7 @@ pnpm --filter @sleekstack/kit build:types   # emits .d.ts for the R7 check
 - CI: add kit and showcase-kit to the script-presence loop, plus the declaration-emit check.
 
 ## Boundaries / non-goals
-- No changes to the core, next or react public APIs. A blocking bug may be fixed, with a regression test.
+- No changes to the core, next or react public APIs, except R11 (core enforces module privacy, adding the `PrivateDependency` error). A blocking bug may be fixed, with a regression test.
 - No compiler plugin: parameter-type injection is deferred.
 - No `inject()`, no ambient context, and no Proxy-based wiring. Dependencies are declared only through arrays.
 - Dependencies don't re-run when they change: the array declares what to inject, not a reactive subscription.
@@ -67,6 +67,7 @@ pnpm --filter @sleekstack/kit build:types   # emits .d.ts for the R7 check
 - **R8:** `snapshot(App)` returns core's snapshot shape unchanged, so the fn-2 `/graph` page renders kit apps. Errors: no error surface beyond R3.
 - **R9:** `apps/showcase-kit` reaches feature parity with the fn-2 showcase (board, nested scopes, demo-mode Shadowing, /graph, /errors, log, bundle split, Playwright smoke) using kit only. Zero `effect` imports in its app code, asserted by a test. Its tests mirror fn-2's request isolation (20 concurrent calls), rollback and StrictMode tests. Errors: the simulated failure resolves `{ok:false}` and leaves the store unchanged.
 - **R10:** Docs: `packages/kit/README.md`; ADR 0005 "dependency arrays over inject/params" with the rejected options; CONTEXT.md gains a kit section, `tag()`/`layer()` in canonical style; the root README lists kit; CI runs kit's and showcase-kit's test, typecheck and declaration check. Errors: n/a.
+- **R11:** Core enforces module privacy, superseding ADR 0002. With `exports` given, a Tag the module provides but doesn't export may be required only by that module's own nodes; outside requires fail `buildGraph` with `PrivateDependency`, and outside runtime lookups (React, action deps, child scopes) reject with it. An omitted `exports` means all public. Errors: shadowing a private Tag from outside provides a new public Tag (allowed); kit surfaces the error as `SleekStackError` code `PrivateDependency`.
 
 ## Early proof point
 Task .1 proves the lowering: `tag`, `layer` (factory, class, value, async, `withCleanup`) and `module` build a real core graph, deps typing infers from a trailing array, and the declaration emit contains no `effect`. If tuple inference fails with deps last, switch to an overload or a builder form before .2.
@@ -77,7 +78,7 @@ Task .1 proves the lowering: `tag`, `layer` (factory, class, value, async, `with
 |-----|-------------|---------|-------------------|
 | R1 | tag() and abstract-class Tags | .1 | — |
 | R2 | layer() impl forms and cleanup | .1 | — |
-| R3 | module() and plain errors | .1 | — |
+| R3 | module() and plain errors | .1, .6 | — |
 | R4 | action and query | .2 | — |
 | R5 | configureRuntime | .2 | — |
 | R6 | React hooks | .3 | — |
@@ -85,4 +86,6 @@ Task .1 proves the lowering: `tag`, `layer` (factory, class, value, async, `with
 | R8 | snapshot passthrough | .1, .5 | — |
 | R9 | showcase-kit parity port | .4, .5 | — |
 | R10 | docs and CI | .5 | — |
+| R11 | core privacy enforcement | .6 | — |
+
 
