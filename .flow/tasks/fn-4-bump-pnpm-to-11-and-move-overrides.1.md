@@ -20,9 +20,10 @@ Bump pnpm to 11 and move the pnpm settings into pnpm-workspace.yaml in one chang
 - [ ] TBD
 
 ## Done summary
-TBD
+Pinned pnpm@11.1.3, moved overrides (unchanged ranges) to pnpm-workspace.yaml, removed package.json pnpm field; lockfile unchanged (postcss 8.5.28, sharp 0.35.5, nanoid 3.3.19), frozen install green with no "no longer read" warning. Added minimumReleaseAgeExclude for sharp/@img/* because pnpm 11's default 1-day minimumReleaseAge rejects sharp 0.35.5 (published 2026-09-27) — follow-up: drop it once aged. No build-script warning, so no onlyBuiltDependencies. Install steps in playground/showcase/cli READMEs note pnpm 11; root README has no install step. R2 (CI) verified locally only.
 
+stage: impl-review - ran [codex: NEEDS_WORK -> SHIP]
 ## Evidence
-- Commits:
-- Tests:
+- Commits: c62f1c242e4dd5e86fe985f891bbb1ef7d640cd9, 72d1e57db226f246d10e35baf29865a092c95fa3
+- Tests: CI=true pnpm install --frozen-lockfile, grep -A5 '^overrides:' pnpm-lock.yaml, pnpm typecheck && pnpm test
 - PRs:
