@@ -38,9 +38,11 @@ The Next adapter: dependency-array actions and queries lowered onto `@sleekstack
 - [ ] a request-Layer failure reaches the caller as SleekStackError with .code/.details intact
 - [ ] duplicate Tag in opts.provide or configureRuntime -> DuplicateTag
 ## Done summary
-TBD
+Added @sleekstack/kit/next: dependency-array action/query (fail/error sentinels over next's action/query, MissingDependency check, raw values for next's stream guard), fail(), and kit-typed configureRuntime with per-reference cached lowering and plain FinalizerError. Tests in packages/kit/src/__tests__/next.test.ts and next-types.test-d.ts cover every AC. Note: per-call provide passes core modules via a cast since next types provide as Entry[] (core child accepts modules).
 
+baseline: green
+stage: impl-review - ran (codex, NEEDS_WORK -> SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 7709ecee074708371ce73ea899458ac571c8fc2f, 19080c370a6d3e66d772b0dc394d06a906baa378
+- Tests: pnpm --filter @sleekstack/kit typecheck, pnpm --filter @sleekstack/kit test
 - PRs:
