@@ -17,6 +17,11 @@ import { defaultFinalizerSink, ensureAppScope, getConfiguredSink } from './runti
 export interface OperationOptions {
   /** Built in the request scope, shadowing the global graph for this call only. */
   readonly provide?: readonly Entry[]
+  /**
+   * @internal For adapters (ADR 0009): receives the operation's Exit after the request scope closes.
+   * Its return value resolves the call; a throw rejects it. Replaces the default settle.
+   */
+  readonly onExit?: (exit: Exit.Exit<unknown, unknown>) => unknown
 }
 
 type OperationFn<A extends readonly unknown[], R, E> = (...args: A) => Effect.Effect<R, E, any>
@@ -72,6 +77,7 @@ async function run<A extends readonly unknown[], R, E>(
     )
   })
   const exit = await Effect.runPromiseExit(program as Effect.Effect<R, unknown, never>)
+  if (options.onExit) return options.onExit(exit) as R
   if (Exit.isSuccess(exit)) return exit.value as R
   throw toRejection(exit.cause)
 }

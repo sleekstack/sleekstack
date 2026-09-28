@@ -39,7 +39,7 @@ describe('normalize envelopes', () => {
   it.each([
     ['Cause', Cause.fail(graph), 'MissingDependency', { service: 'S', missing: 'M' }],
     ['FiberFailure', fiberFailure, 'MissingDependency', { service: 'S', missing: 'M' }],
-    ['next-wrapped rejection', new Error('pretty', { cause: Cause.fail(graph) }), 'MissingDependency', { service: 'S', missing: 'M' }],
+    ['plain Error with a Cause cause is not unwrapped', new Error('pretty', { cause: Cause.fail(graph) }), 'Unknown', {}],
     ['tagged graph error', graph, 'MissingDependency', { service: 'S', missing: 'M' }],
     ['LayerFailure', new LayerFailure('L', new Error('boom')), 'LayerFailed', { tag: 'L', cause: 'boom' }],
     ['CleanupFailure', new CleanupFailure('C', new Error('bye')), 'CleanupFailed', { tag: 'C' }],

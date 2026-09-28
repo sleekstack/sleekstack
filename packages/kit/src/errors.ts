@@ -93,8 +93,6 @@ export function normalize(e: unknown, fallback: SleekStackErrorCode = 'Unknown')
     const { _tag, message, ...details } = { ...e } as Record<string, unknown>
     return new SleekStackError(tag as SleekStackErrorCode, e.message, details, { cause: e })
   }
-  // @sleekstack/next rejects with a plain `new Error(pretty, { cause: <Cause> })`; subclasses keep their own code.
-  if (e instanceof Error && e.constructor === Error && Cause.isCause(e.cause)) return normalize(e.cause, fallback)
   return new SleekStackError(fallback, messageOf(e), {}, { cause: e })
 }
 

@@ -242,3 +242,13 @@ describe('@sleekstack/next', () => {
     expect(await readN()).toBe(1)
   })
 })
+
+describe('@internal onExit hook', () => {
+  it('receives the Exit and settles the call with its return or throw', async () => {
+    configureRuntime({ provide: [] })
+    const mapped = action({ onExit: (exit) => (exit._tag === 'Failure' ? `failed:${Cause.squash(exit.cause)}` : exit.value) }, () => Effect.fail('bad'))
+    await expect(mapped()).resolves.toBe('failed:bad')
+    const rejecting = action({ onExit: () => { throw new Error('mapped') } }, () => Effect.succeed(1))
+    await expect(rejecting()).rejects.toThrow('mapped')
+  })
+})

@@ -3,13 +3,13 @@
  *
  * Kit `action`/`query` lower to next's. The delegated Effect checks and resolves
  * the deps from the request context, runs the handler, and returns the raw value
- * (so next's stream guard sees it). `fail()` and other failures come back as
- * branded sentinels, which the outer wrapper maps after next resolves.
+ * (so next's stream guard sees it). next's internal `onExit` hook (ADR 0009)
+ * hands back the Exit, which is mapped once to an ActionResult or a rejection.
  */
 
 import { resolveTagEffect } from '@sleekstack/core'
 import { action as nextAction, query as nextQuery } from '@sleekstack/next'
-import { Effect } from 'effect'
+import { Cause, Effect, Exit } from 'effect'
 import { normalize, SleekStackError } from '../errors'
 import type { Layer } from '../layer'
 import { unwrap, validateProvide, type Module } from '../module'
@@ -46,12 +46,6 @@ export function fail(message: string): never {
   throw new Failure(message)
 }
 
-const FAILED = Symbol('sleekstack.failed')
-const ERRORED = Symbol('sleekstack.errored')
-type Sentinel = { readonly [FAILED]: string } | { readonly [ERRORED]: SleekStackError }
-
-const isObj = (v: unknown): v is Record<PropertyKey, unknown> => typeof v === 'object' && v !== null
-
 function lower<D extends readonly AnyTag[], A extends unknown[]>(
   op: typeof nextAction,
   factory: (...deps: any[]) => (...args: A) => unknown,
@@ -67,27 +61,27 @@ function lower<D extends readonly AnyTag[], A extends unknown[]>(
   } catch (e) {
     throw normalize(e)
   }
-  const run = op({ provide }, (...args: A) =>
+  const onExit = (exit: Exit.Exit<unknown, unknown>): ActionResult<unknown> => {
+    if (Exit.isSuccess(exit)) return { ok: true, data: exit.value }
+    const e = Cause.squash(exit.cause)
+    if (e instanceof Failure) return { ok: false, error: e.message }
+    throw normalize(e)
+  }
+  const run = op({ provide, onExit }, (...args: A) =>
     Effect.gen(function* () {
-      const resolved = yield* Effect.either(Effect.all(deps.map((t) => resolveTagEffect(coreTag(t), 'action'))))
-      if (resolved._tag === 'Left') return { [ERRORED]: normalize(resolved.left) } as Sentinel
-      return yield* Effect.tryPromise({ try: async () => factory(...resolved.right)(...args), catch: (e) => e })
-    }).pipe(
-      Effect.catchAll((e): Effect.Effect<unknown> =>
-        Effect.succeed(e instanceof Failure ? { [FAILED]: e.message } : { [ERRORED]: normalize(e, 'HandlerFailed') }),
-      ),
-    ),
-  )
+      const resolved = yield* Effect.all(deps.map((t) => resolveTagEffect(coreTag(t), 'action'))).pipe(Effect.mapError((e) => normalize(e)))
+      return yield* Effect.tryPromise({
+        try: async () => factory(...resolved)(...args),
+        catch: (e) => (e instanceof Failure ? e : normalize(e, 'HandlerFailed')),
+      })
+    }),
+  ) as unknown as (...args: A) => Promise<ActionResult<unknown>>
   return async (...args: A): Promise<ActionResult<unknown>> => {
-    let value: unknown
     try {
-      value = await run(...args)
+      return await run(...args)
     } catch (e) {
       throw normalize(e)
     }
-    if (isObj(value) && ERRORED in value) throw value[ERRORED]
-    if (isObj(value) && FAILED in value) return { ok: false, error: value[FAILED] as string }
-    return { ok: true, data: value }
   }
 }
 
