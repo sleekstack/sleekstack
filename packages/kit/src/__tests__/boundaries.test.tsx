@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { Component, Suspense, type ReactNode } from 'react'
 import { cleanup, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, assert, describe, expect, it, vi } from 'vitest'
 import { Effect, Cause, Option } from 'effect'
 import { Atom as CoreAtom, atomStoreFor, buildGraph, makeAppScope, Result } from '@sleekstack/core'
 import { atom, layer, module, tag, type Atom, type SleekStackError } from '../index'
@@ -53,11 +53,13 @@ describe('every boundary gives the canonical resolution failure', () => {
     it('missing -> MissingDependency', async () => {
       const e = await run([] as never)
       expect(e).toMatchObject({ name: 'SleekStackError', code: 'MissingDependency', details: { tag: 'Dep', missing: 'Dep' } })
+      assert(e.code === 'MissingDependency')
       expect(e.message).toBe(`"${e.details.service}" requires "Dep", which is not provided`)
     })
     it('private -> PrivateDependency', async () => {
       const e = await run([Lib] as never)
       expect(e).toMatchObject({ name: 'SleekStackError', code: 'PrivateDependency', details: { tag: 'Dep', module: 'Lib' } })
+      assert(e.code === 'PrivateDependency')
       expect(e.message).toBe(`"${e.details.requiredBy}" requires "Dep", which is private to module "Lib" (not in its exports)`)
     })
   })
