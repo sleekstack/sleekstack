@@ -1,7 +1,7 @@
 {
   "branch_name": "fn-3-sleekstack-kit-effect-free-di-facade",
-  "completion_review_status": "unknown",
-  "completion_reviewed_at": null,
+  "completion_review_status": "ship",
+  "completion_reviewed_at": "2026-09-28T07:56:13.990385Z",
   "created_at": "2026-09-28T04:11:17.999530Z",
   "default_impl": null,
   "default_review": null,
@@ -321,6 +321,111 @@
       "timestamp": "2026-09-28T07:22:00.191538Z",
       "tool_calls": 18,
       "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "97a70697f617951aabf1b3130f6b4bc7835f497d48344ad885aefe8836d6a127",
+      "backend": "codex",
+      "base_sha": "abf4f1a6b34366db276905126d10ce9c6ba8a74c",
+      "counter_kind": "plan",
+      "effort": "high",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-5c8d53f53c4f7cc766639309c3185894",
+            "classification": "introduced",
+            "findingId": "finding-5c8d53f53c4f7cc766639309c3185894",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-f89d511cf4fcf721827f4506152c724a",
+            "classification": "introduced",
+            "findingId": "finding-f89d511cf4fcf721827f4506152c724a",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "21ed36fecb4da9bfba7d3f63faf1ff4ce2dbf531",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-6-astra",
+      "outcome": "verdict",
+      "output_bytes": 351601,
+      "output_sha256": "0b6b8c708210f863d6aa7b8081420c2839d07962f1fd703090aa9fe69cc553dc",
+      "reservation_id": "4c0c61565f3242ffb391c07578c6d5e9",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-09-28T07:50:58.670989Z",
+      "tool_calls": 21,
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "1dc4ded9f3ee9aa9cbb4271ef3589bf874868b61a4b98b538fb3aca7487da457",
+      "backend": "codex",
+      "base_sha": "abf4f1a6b34366db276905126d10ce9c6ba8a74c",
+      "counter_kind": "plan",
+      "effort": "high",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-5c8d53f53c4f7cc766639309c3185894",
+            "classification": "introduced",
+            "findingId": "finding-5c8d53f53c4f7cc766639309c3185894",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-f89d511cf4fcf721827f4506152c724a",
+            "classification": "introduced",
+            "findingId": "finding-f89d511cf4fcf721827f4506152c724a",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "86b74daf00a9e81c91984ddb485e27f07ffa9a36",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-6-astra",
+      "outcome": "verdict",
+      "output_bytes": 10669,
+      "output_sha256": "cd3083307d83d63fe8e532271dd94716bdca03936cf791bb389492387467d4d3",
+      "reservation_id": "fd7a266b3b09443f909cb6fc735c4723",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-09-28T07:56:13.986127Z",
+      "verdict": "SHIP"
     }
   ],
   "review_hash_epoch": {
@@ -328,11 +433,12 @@
     "impl:fn-3-sleekstack-kit-effect-free-di-facade.2": 1,
     "impl:fn-3-sleekstack-kit-effect-free-di-facade.3": 1,
     "plan": 1,
-    "plan#completion": 0
+    "plan#completion": 1
   },
   "review_pending_rounds": {},
   "review_reservations": {},
   "review_transport_failures": {
+    "completion": 0,
     "impl:fn-3-sleekstack-kit-effect-free-di-facade.1": 0,
     "impl:fn-3-sleekstack-kit-effect-free-di-facade.2": 0,
     "impl:fn-3-sleekstack-kit-effect-free-di-facade.3": 0,
@@ -352,5 +458,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-09-28T07:22:00.195171Z"
+  "updated_at": "2026-09-28T07:56:13.991053Z"
 }
