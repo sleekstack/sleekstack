@@ -45,9 +45,10 @@ Create the package and the whole Effect-free graph layer. This is the early proo
 - [ ] layer(Transform, n => n + 1) is treated as a factory; `() => fn` yields the function service; a callable plain value is a type error
 - [ ] compiler-API surface check green
 ## Done summary
-TBD
+Scaffolded @sleekstack/kit: tag/abstract-class Tags, layer (factory/async/class/value/withCleanup), module, snapshot, SleekStackError, plus internal normalize/validateProvide/unwrap/coreTag for .2/.3 (stripped from .d.ts via stripInternal). Tests cover all ACs incl. every core graph error, DuplicateTag, LayerFailed, finalizer sink, type inference (types.test-d.ts), and Effect-free .d.ts text + compiler-API checks (dts.test.ts). next/react entries are empty stubs.
 
+stage: impl-review - ran (codex, SHIP first pass)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: cb13bb9708e6e00dc9ad45dfe939a9c5193df4d5
+- Tests: pnpm --filter @sleekstack/kit typecheck, pnpm --filter @sleekstack/kit test, pnpm --filter @sleekstack/kit build:types
 - PRs:
