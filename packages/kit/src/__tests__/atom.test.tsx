@@ -42,6 +42,24 @@ describe('kit atoms', () => {
     await screen.findByText('25')
   })
 
+  it('an async fn reading a loading atom waits for it', async () => {
+    const slow = atom(async () => { await new Promise((r) => setTimeout(r, 20)); return 1 })
+    const next = atom(async (get) => { await null; return get(slow) + 1 })
+    renderStrict(tree(<Show a={next} />))
+    await screen.findByText('2')
+  })
+
+  it('a reader can switch between a writable and a derived atom', async () => {
+    const w = atom(1)
+    const d = atom(() => 2)
+    const r = renderStrict(tree(<Show a={w} />))
+    await screen.findByText('1')
+    r.rerender(tree(<Show a={d} />))
+    await screen.findByText('2')
+    r.rerender(tree(<Show a={w} />))
+    await screen.findByText('1')
+  })
+
   it.each([
     ['missing dep', atom((api) => api.double(1), [Api]), [], 'MissingDependency'],
     ['rejected fn', atom(async () => { throw new Error('boom') }), provide, 'Unknown'],

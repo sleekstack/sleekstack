@@ -5,9 +5,9 @@
  * failures reach boundaries as SleekStackError.
  */
 
-import { useAtomSet as coreUseAtomSet, useAtomSuspense, useAtomValue as coreUseAtomValue } from '@sleekstack/react'
+import { useAtomSet as coreUseAtomSet, useAtomSuspense } from '@sleekstack/react'
 import { normalize } from '../errors'
-import { infoOf, type Atom, type WritableAtom } from '../atom'
+import { coreAtom, type Atom, type WritableAtom } from '../atom'
 
 const isThenable = (x: unknown) => typeof (x as { then?: unknown } | null)?.then === 'function'
 
@@ -43,8 +43,7 @@ export type SetAtom<T> = (value: T | ((prev: T) => T)) => void
  * ```
  */
 export function useAtomValue<T>(atom: Atom<T>): T {
-  const { core, async } = infoOf(atom)
-  return kit(() => (async ? (useAtomSuspense(core).value as T) : (coreUseAtomValue(core) as T)))
+  return kit(() => useAtomSuspense(coreAtom(atom)).value as T)
 }
 
 /**
@@ -64,7 +63,7 @@ export function useAtomValue<T>(atom: Atom<T>): T {
  * ```
  */
 export function useAtomSet<T>(atom: WritableAtom<T>): SetAtom<T> {
-  return kit(() => coreUseAtomSet(infoOf(atom).core as never) as SetAtom<T>)
+  return kit(() => coreUseAtomSet(coreAtom(atom) as never) as SetAtom<T>)
 }
 
 /**

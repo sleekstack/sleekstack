@@ -32,30 +32,23 @@ export interface AtomOptions {
   readonly keepAlive?: boolean
 }
 
-/** @internal How a kit atom lowers. `async` atoms hold a core `Result`. */
-export interface AtomInfo {
-  readonly core: CoreAtom.Atom<any>
-  readonly async: boolean
-}
+// Every kit atom lowers to a core atom holding a `Result`, so hooks and `get` treat both kinds the same way.
+type Core = CoreAtom.Atom<Result.Result<any, unknown>>
+const cores = new WeakMap<object, Core>()
 
-const infos = new WeakMap<object, AtomInfo>()
+/** @internal The core atom behind a kit atom. */
+export const coreAtom = (a: Atom<unknown>): Core => cores.get(a)!
 
-/** @internal */
-export const infoOf = (a: Atom<unknown>): AtomInfo => infos.get(a)!
-
-const wrap = <A extends Atom<any>>(info: AtomInfo): A => {
+const wrap = <A extends Atom<any>>(core: Core): A => {
   const a = {} as A
-  infos.set(a, info)
+  cores.set(a, core)
   return a
 }
 
 const PENDING = Symbol('sleekstack.atom.pending')
 
 const getter = (get: CoreAtom.Context): Get => (a) => {
-  const { core, async } = infoOf(a)
-  const v = get(core)
-  if (!async) return v
-  const r = v as Result.Result<unknown, unknown>
+  const r = get(coreAtom(a))
   if (Result.isInitial(r)) throw PENDING
   if (Result.isFailure(r)) throw Cause.squash(r.cause)
   return r.value as never
@@ -65,7 +58,7 @@ const isThenable = (x: unknown): x is PromiseLike<unknown> => typeof (x as { the
 
 const derived = (fn: (...args: any[]) => unknown, deps: readonly AnyTag[], opts: AtomOptions, prefix: readonly unknown[] = []) => {
   const tags = deps.map(coreTag)
-  let core: CoreAtom.Atom<any> = CoreAtom.make((get: CoreAtom.Context) =>
+  let core: Core = CoreAtom.make((get: CoreAtom.Context) =>
     // Deps resolve synchronously in the forked build, so `fn` (and its `get` calls) runs inside the read.
     Effect.flatMap(Effect.all(tags), (services) => {
       let out: unknown
@@ -75,11 +68,14 @@ const derived = (fn: (...args: any[]) => unknown, deps: readonly AnyTag[], opts:
         // A dependency is still loading: wait; its completion invalidates and re-runs this build.
         return e === PENDING ? Effect.never : Effect.fail(e)
       }
-      return isThenable(out) ? Effect.tryPromise({ try: () => out as PromiseLike<unknown>, catch: (e) => e }) : Effect.succeed(out)
+      if (!isThenable(out)) return Effect.succeed(out)
+      return Effect.tryPromise({ try: () => out as PromiseLike<unknown>, catch: (e) => e }).pipe(
+        Effect.catchAll((e) => (e === PENDING ? Effect.never : Effect.fail(e))),
+      )
     }),
   )
   if (opts.keepAlive) core = CoreAtom.keepAlive(core)
-  return wrap<Atom<unknown>>({ core, async: true })
+  return wrap<Atom<unknown>>(core)
 }
 
 /** Derived: `fn(...services, get)` returns a value or a Promise. */
@@ -114,11 +110,11 @@ export function atom<T>(value: T): WritableAtom<T>
  */
 export function atom(fn: unknown, deps: readonly AnyTag[] = [], opts: AtomOptions = {}): Atom<unknown> {
   if (typeof fn === 'function') return derived(fn as (...a: any[]) => unknown, deps, opts)
-  const core: CoreAtom.Writable<unknown, unknown> = CoreAtom.writable(
-    () => fn,
-    (ctx, v) => ctx.setSelf(typeof v === 'function' ? (v as (p: unknown) => unknown)(ctx.get(core)) : v),
+  const core: CoreAtom.Writable<Result.Result<unknown>, unknown> = CoreAtom.writable(
+    () => Result.success(fn),
+    (ctx, v) => ctx.setSelf(Result.success(typeof v === 'function' ? (v as (p: unknown) => unknown)((ctx.get(core) as Result.Success<unknown>).value) : v)),
   )
-  return wrap({ core, async: false })
+  return wrap(core)
 }
 
 /**
