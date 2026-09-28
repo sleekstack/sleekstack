@@ -31,18 +31,35 @@ type PrivateMap = ReadonlyMap<string, Module>
  */
 export const Privacy = Context.GenericTag<PrivateMap>('@sleekstack/core/Privacy')
 
-/** The PrivateDependency for looking up `key` from outside its module in `context`, or undefined when `key` is not private there. */
+/**
+ * The PrivateDependency for looking up `key` from outside its module in `context`, or undefined when `key` is not private there.
+ *
+ * @param context - A scope's public `context`.
+ * @param key - The Tag key that was looked up.
+ * @param requiredBy - Who looked it up, for the error message.
+ * @returns A `PrivateDependency` error to throw or fail with, or `undefined`.
+ *
+ * @example
+ * ```ts
+ * import { Context } from 'effect'
+ * import { privateDependencyOf } from '@sleekstack/core'
+ *
+ * const error = privateDependencyOf(Context.empty(), 'Db', 'UserService') // undefined: nothing is private
+ * ```
+ */
 export const privateDependencyOf = (context: Context.Context<any>, key: string, requiredBy: string) => {
   const owner = Context.getOption(context, Privacy)
   const module = owner._tag === 'Some' ? owner.value.get(key) : undefined
   return module && privateDependency(key, module, requiredBy)
 }
 
+/** Options for {@link makeAppScope}. */
 export interface ScopeOptions {
   /** Sink for finalizer failures of closes nobody awaits (`dispose`). Default `console.error`. */
   readonly onFinalizerError?: (cause: Cause.Cause<unknown>) => void
 }
 
+/** A built scope (app, request, or component): its public context, child scopes, and finalization. */
 export interface ChildScope {
   readonly lifetime: Lifetime
   readonly context: Context.Context<any>
@@ -62,6 +79,7 @@ export interface ChildScope {
   readonly dispose: () => void
 }
 
+/** The root scope returned by {@link makeAppScope}. */
 export type AppScope = ChildScope
 
 /** Builds `locals` over `parent` in a new scope with a fresh memo map; closes the scope on failure/interrupt. */
@@ -156,7 +174,27 @@ const open = (
   ) as Effect.Effect<ChildScope, unknown>
 }
 
-/** Opens the app scope: builds every app-lifetime node (and app-lifetime bare Layers) once. */
+/**
+ * Opens the app scope: builds every app-lifetime node (and app-lifetime bare Layers) once.
+ *
+ * @param graph - A graph from `buildGraph`.
+ * @param options - Finalizer-error sink for `dispose`.
+ * @returns An Effect yielding the app scope; it fails with whatever a service's acquisition fails with.
+ * @throws {@link MissingDependency} `MissingDependency`, {@link PrivateDependency} `PrivateDependency`, or {@link AmbiguousProvider} `AmbiguousProvider` (as defects) when child-scope entries do not resolve.
+ *
+ * @example
+ * ```ts
+ * import { Effect } from 'effect'
+ * import { buildGraph, makeAppScope } from '@sleekstack/core'
+ *
+ * const program = Effect.gen(function* () {
+ *   const app = yield* makeAppScope(buildGraph([]))
+ *   const request = yield* app.child('request')
+ *   yield* request.close
+ *   yield* app.close
+ * })
+ * ```
+ */
 export const makeAppScope = (graph: Graph, options: ScopeOptions = {}): Effect.Effect<AppScope, unknown> =>
   Effect.suspend(() =>
     open('app', graph, Context.empty() as Context.Context<any>, new Map(), [...graph.opaque, ...graph.nodes].filter((n) => n.lifetime === 'app'), options),

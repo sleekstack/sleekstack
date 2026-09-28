@@ -1,0 +1,46 @@
+---
+title: Errors
+description: Every error code, and what triggers it.
+---
+
+In kit, every failure is a `SleekStackError` with a `code`, a `message` and `details`. Core and the adapters throw Effect tagged errors with the same names (`_tag`), which kit normalizes. Handling by code:
+
+<include>../../snippets/errors/handle.ts</include>
+
+## Graph errors
+
+Thrown by `buildGraph`/`snapshot`, and when a provider or runtime builds its graph. No service is constructed before these checks pass.
+
+| Code | Triggered when |
+| --- | --- |
+| `MissingDependency` | A service requires a Tag that no entry provides. A kit action whose dep is not provided rejects with it too. |
+| `DependencyCycle` | Services require each other in a cycle (`path` lists it). |
+| `AmbiguousProvider` | Two providers of one Tag sit at the same locality, so Shadowing cannot pick one. |
+| `ModuleCycle` | Modules import each other in a cycle (`path` lists it). |
+| `DuplicateModule` | Two distinct modules share one name. |
+| `InvalidModule` | A module config is malformed: an empty name, a `provide`/`entries` item that is not a Layer, or malformed `imports`/`exports`. Thrown by `module()` itself. |
+| `CaptiveDependency` | A service depends on one whose lifetime it may not capture, for example `app` on `request`. |
+| `PrivateDependency` | Something outside a module requires a Tag the module does not export. Also thrown by `useService` and action deps. |
+
+## Kit checks
+
+| Code | Triggered when |
+| --- | --- |
+| `DuplicateTag` | One provide set holds two distinct Tag objects with the same key. |
+| `InvalidTag` | `tag()` gets an empty or non-string name, or a dep is neither a `tag()` nor a named class. |
+
+## Runtime errors
+
+| Code | Triggered when |
+| --- | --- |
+| `LayerFailed` | A Layer factory or constructor (or an `effect()` function) throws or rejects while its scope builds. `details.cause` holds the message. |
+| `HandlerFailed` | A kit action/query handler throws something other than `fail()`. |
+| `CleanupFailed` | A `withCleanup` cleanup or an `effect()` teardown throws. It is not thrown to you: `onFinalizerError` receives a plain `FinalizerError` (`{ message, tag }`) instead. |
+| `Unknown` | Anything else. In kit this includes `useService` with no `LayerProvider` above or a Tag the provider does not provide, and an action/query called before `configureRuntime`. |
+
+`fail(message)` is not an error code: an action resolves `{ ok: false, error }` and a query rejects with a plain `Error` carrying the message.
+
+## Effect-native adapters
+
+- `@sleekstack/next`: an operation called before `configureRuntime` rejects with `RuntimeNotConfigured`. A failure or defect rejects with an `Error` whose `cause` is the Effect `Cause`; a streaming result puts a `StreamingResultNotSupported` failure in that cause.
+- `@sleekstack/react`: `useService` with no provider, or an unprovided Tag, throws a plain `Error`; a private Tag throws `PrivateDependency`; a failed scope build is rethrown from `useService` to the nearest error boundary.

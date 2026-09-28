@@ -52,6 +52,10 @@ _Avoid_: Token, key
 The output of `layer(tag, impl, deps?, { lifetime }?)`: `impl` is a value, a class, or a (sync or async) factory whose parameters are the resolved services of the `deps` array, in order. Returning `withCleanup(service, cleanup)` registers a finalizer. Lowers to a Service Definition (ADR 0005).
 _Avoid_: Provider, factory, binding
 
+**Kit Effect**:
+The output of `effect(fn, deps?, { name, lifetime }?)`: a side effect with no service to expose. `fn(...deps)` runs when its scope opens; the function it returns runs when the scope closes. Graph rules (missing, captive, private) apply to its deps; it appears in the Graph as `effect:<name>`.
+_Avoid_: Hook, job, init
+
 **SleekStackError**:
 The one public error type of the kit: every core tagged error, kit check (`DuplicateTag`, `InvalidTag`) and thrown value is normalized to it, with a `code` and `details`.
 _Avoid_: KitError, GraphError

@@ -1,0 +1,26 @@
+---
+title: Introduction
+description: Effect-native dependency injection, services and modules for full-stack TypeScript.
+---
+
+SleekStack gives you dependency injection, a service layer and module management for full-stack TypeScript apps, with React and Next.js adapters. It is built on [Effect](https://effect.website), and you can use it two ways:
+
+- **Kit** (`@sleekstack/kit`): an Effect-free API. Tags, Layers and modules are plain functions and values, and every failure is one `SleekStackError`.
+- **Effect-native** (`@sleekstack/core`, `@sleekstack/next`, `@sleekstack/react`): Effect Tags, Layers and Effects directly, with typed errors.
+
+Both build the same graph, so you can start with kit and move one module to Effect later. [Kit vs Effect-native](/docs/kit-vs-effect) compares them.
+
+## Packages
+
+| Package | What it does |
+| --- | --- |
+| `@sleekstack/core` | Service Definitions, modules, the graph and scopes |
+| `@sleekstack/next` | Server Actions and queries in a request scope |
+| `@sleekstack/react` | `LayerProvider` and `useService` |
+| `@sleekstack/kit` | The Effect-free facade, with `kit/next` and `kit/react` subpaths |
+
+## Where to go next
+
+- [Getting started (kit)](/docs/getting-started-kit) or [Getting started (Effect)](/docs/getting-started-effect)
+- [Concepts](/docs/concepts): Tags, Layers, modules, lifetimes, scopes, Shadowing and privacy
+- [API reference](/docs/api), generated from the TSDoc in each package

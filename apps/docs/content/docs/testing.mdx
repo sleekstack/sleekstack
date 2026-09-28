@@ -1,0 +1,13 @@
+---
+title: Testing
+description: Validate the graph and swap services in tests.
+---
+
+Two techniques cover most tests:
+
+- **Validate the graph.** `snapshot(AppModule)` runs every graph check (missing providers, cycles, lifetimes, privacy) without constructing a service, so one test catches wiring mistakes.
+- **Swap a service with Shadowing.** A per-call `provide` builds Layers in the request scope and shadows the runtime graph for that call only. In React, a nested `LayerProvider` with a test Layer does the same for a subtree. Neither needs a mocking API.
+
+<include>../../snippets/testing/graph.test-example.ts</include>
+
+The Next.js runtime is one slot per process, so configure it once in a setup file and keep tests that need an unconfigured runtime first in their file.

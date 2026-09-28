@@ -23,10 +23,13 @@ export interface DeclaredLayer {
 /** Bare raw Layers must be self-contained (requirement type `never`). */
 export type BareLayer = Layer.Layer<any, any, never>
 
+/** Anything a module's `entries` may list: a service definition, a declared Layer, or a self-contained bare Layer. */
 export type Entry = AnyServiceDefinition | DeclaredLayer | BareLayer
 
+/** A module's imports: a list, or a thunk returning one (for modules defined later or in a cycle-free forward reference). */
 export type Imports = readonly Module[] | (() => readonly Module[])
 
+/** A named group of entries created by {@link module}, with imports and optional `exports` (privacy). */
 export interface Module {
   readonly _tag: 'Module'
   readonly name: string
@@ -37,6 +40,23 @@ export interface Module {
   readonly lifetime?: Lifetime
 }
 
+/**
+ * Wraps a raw Effect Layer with the Tags it provides and requires, so it becomes a full graph node.
+ *
+ * @param layer - The Effect Layer to declare.
+ * @param options - `provides` (at least one Tag), optional `requires` and `lifetime`.
+ * @returns A declared Layer to list in a module's `entries`.
+ * @throws {@link InvalidModule} `InvalidModule` when `layer` is not a Layer, `provides` is empty or not Tags, or `requires` is not Tags.
+ *
+ * @example
+ * ```ts
+ * import { Context, Layer } from 'effect'
+ * import { declareLayer } from '@sleekstack/core'
+ *
+ * class Config extends Context.Tag('Config')<Config, { url: string }>() {}
+ * const ConfigLayer = declareLayer(Layer.succeed(Config, { url: 'http://localhost' }), { provides: [Config] })
+ * ```
+ */
 export function declareLayer<ROut, E, RIn>(
   layer: Layer.Layer<ROut, E, RIn>,
   options: { readonly provides: readonly AnyTag[]; readonly requires?: readonly AnyTag[]; readonly lifetime?: Lifetime },
@@ -82,6 +102,27 @@ export const isModule = (x: unknown): x is Module => isTagged(x, 'Module')
 export const isDeclaredLayer = (x: unknown): x is DeclaredLayer => isTagged(x, 'DeclaredLayer')
 export const isServiceDefinition = (x: unknown): x is AnyServiceDefinition => isTagged(x, 'ServiceDefinition')
 
+/**
+ * Creates a module. Only the module's own structure is validated here; whole-graph checks
+ * (cycles, duplicate names, dependencies) happen in `buildGraph`.
+ *
+ * @param config - `name` (non-empty), `entries`, `imports`, `exports` (omit: all Tags public), `lifetime` (default for entries without one).
+ * @returns The module.
+ * @throws {@link InvalidModule} `InvalidModule` when `name` is empty, an entry is malformed, or `entries`/`imports`/`exports` have the wrong shape.
+ *
+ * @example
+ * ```ts
+ * import { Context, Effect } from 'effect'
+ * import { module, service } from '@sleekstack/core'
+ *
+ * class Clock extends Context.Tag('Clock')<Clock, { now(): number }>() {}
+ * const ClockModule = module({
+ *   name: 'clock',
+ *   entries: [service(Clock, {}, () => Effect.succeed({ now: () => Date.now() }))],
+ *   exports: [Clock],
+ * })
+ * ```
+ */
 export function module(config: {
   readonly name: string
   readonly entries?: readonly Entry[]

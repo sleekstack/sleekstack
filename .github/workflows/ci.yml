@@ -32,7 +32,7 @@ jobs:
 
       - name: Require test/typecheck scripts
         run: |
-          for pkg in packages/core packages/react packages/next packages/kit apps/showcase apps/showcase-kit; do
+          for pkg in packages/core packages/react packages/next packages/kit apps/showcase apps/showcase-kit apps/docs; do
             node -e "const s=require('./$pkg/package.json').scripts||{};for(const k of ['test','typecheck'])if(!s[k]){console.error('$pkg missing script: '+k);process.exit(1)}"
           done
 
@@ -53,6 +53,12 @@ jobs:
 
       - name: Showcase-kit bundle split
         run: pnpm --filter showcase-kit test:bundle
+
+      - name: Build docs
+        run: pnpm --filter docs build
+
+      - name: Test docs
+        run: pnpm --filter docs test
 
   e2e:
     runs-on: ubuntu-latest

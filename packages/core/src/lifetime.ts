@@ -14,6 +14,22 @@ const allowed: Record<Lifetime, readonly Lifetime[]> = {
   component: ['app', 'component'],
 }
 
+/**
+ * Whether a service of lifetime `from` may depend on one of lifetime `to`
+ * (app on app; request on app/request; component on app/component).
+ *
+ * @param from - The dependent's lifetime.
+ * @param to - The dependency's lifetime.
+ * @returns `true` when the edge is allowed.
+ *
+ * @example
+ * ```ts
+ * import { canDependOn } from '@sleekstack/core'
+ *
+ * canDependOn('request', 'app') // true
+ * canDependOn('app', 'request') // false
+ * ```
+ */
 export const canDependOn = (from: Lifetime, to: Lifetime): boolean => allowed[from].includes(to)
 
 type Node = { readonly id: string; readonly requires: readonly string[]; readonly lifetime: Lifetime }

@@ -22,6 +22,7 @@ import { Cause, Effect, Exit } from 'effect'
 import { buildGraph, makeAppScope, type ChildScope, type Entry, type Module } from '@sleekstack/core'
 import { ProviderContext, type ProviderState } from './context'
 
+/** Props for {@link LayerProvider}. */
 export interface LayerProviderProps {
   readonly provide: ReadonlyArray<Entry | Module>
   /** Sink for finalizer failures on unmount. Inherited by nested providers. Default `console.error`. */
@@ -119,6 +120,23 @@ function create(provide: ReadonlyArray<Entry | Module>, parent: ProviderState | 
   return { state, provide, parent, close, committed: false }
 }
 
+/**
+ * Builds a scope for its subtree from `provide`: an app scope at the root, a component scope when
+ * nested under another provider. The scope closes on unmount; StrictMode double mounts reuse it.
+ * The scope builds asynchronously: graph errors (for example `MissingDependency`) and acquisition
+ * failures are thrown by {@link useService} in the subtree, to its nearest error boundary.
+ *
+ * @param props - `provide` (modules/entries), optional `onFinalizerError`, and `children`.
+ * @returns The provider element.
+ *
+ * @example
+ * ```tsx
+ * import { module } from '@sleekstack/core'
+ * import { LayerProvider } from '@sleekstack/react'
+ *
+ * const App = () => <LayerProvider provide={[module({ name: 'app' })]}>...</LayerProvider>
+ * ```
+ */
 export function LayerProvider({ provide, onFinalizerError, children }: LayerProviderProps) {
   const parent = useContext(ProviderContext)
   const ownedRef = useRef<Owned | null>(null)

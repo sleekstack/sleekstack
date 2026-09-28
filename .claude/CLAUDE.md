@@ -6,7 +6,7 @@ Effect-native dependency injection, service layer, and module management for ful
 
 ## Sources of truth
 
-- `.flow/specs/` — active spec (fn-1)
+- `.flow/specs/` — specs (`flowctl list` shows the active one)
 - `CONTEXT.md` — canonical vocabulary
 - `docs/adr/` — decisions
 

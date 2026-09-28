@@ -1,0 +1,44 @@
+---
+title: Concepts
+description: Tags, Layers, services, modules, lifetimes, scopes, Shadowing, privacy and the graph.
+---
+
+## Tag
+
+A Tag identifies a service. In kit it is `tag<T>(name)` or a named (abstract) class; in core it is an Effect `Context.Tag`. The name is the Tag's key in errors and the graph. Two `tag()` calls with one name are two Tags, and one provide set holding both fails with `DuplicateTag`.
+
+## Layer and Service
+
+A Layer describes how to build a service, including acquisition and cleanup. The Service is the value a Layer builds, which you read with `useService` or receive as an action dependency. Kit's `layer()` lowers to core's `service()` (a Service Definition), which carries the provided Tag, the required Tags and the lifetime.
+
+## Module
+
+A module is a named group of Layers with `imports` (other modules, pulled in transitively) and `exports`. It is the main unit of structure: a feature ships one module and the app imports it. `imports` can be a thunk, so a module can refer to one defined later in the file.
+
+## Lifetimes and Scope
+
+Every service has a lifetime:
+
+- `app`: built once per app scope.
+- `request`: built per `action`/`query` call, in its request scope.
+- `component`: built per nested `LayerProvider` subtree.
+
+A scope owns the services it built and runs their cleanups when it closes. An `app` service may depend only on `app`; `request` on `app` and `request`; `component` on `app` and `component`. Any other edge is a `CaptiveDependency`, because the longer-lived service would hold a stale instance.
+
+<include>../../snippets/concepts/lifetimes.ts</include>
+
+## Privacy
+
+When a module lists `exports`, every other Tag it provides is private: only the module's own entries may require it. Anything outside (an importing module, `useService`, an action dependency, a per-call `provide`) gets `PrivateDependency`. With no `exports`, every Tag is public. See [ADR 0006](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0006-enforce-module-privacy.md).
+
+<include>../../snippets/concepts/privacy.ts</include>
+
+## Shadowing
+
+The same Tag provided in several places resolves to the most local provider: a module's own entry beats one it imports, and a per-call `provide` beats the runtime graph. That is how you override a service; there is no separate override API. Two providers at the same locality are an `AmbiguousProvider`. Shadowing a private Tag from outside is allowed: it creates a new public provider.
+
+<include>../../snippets/concepts/shadowing.ts</include>
+
+## Graph
+
+The graph is the validated structure of every entry and imported module: construction order, lifetimes, privacy and Shadowing. `snapshot()` returns it as JSON (one node per provided Tag, plus edges and the shadowing list) for tools such as a graph view. Every graph check runs before any service is constructed.

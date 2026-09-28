@@ -14,3 +14,6 @@ overrides:
 minimumReleaseAgeExclude:
   - sharp
   - '@img/*'
+# fumadocs-mdx (apps/docs) bundles source.config.ts with esbuild.
+allowBuilds:
+  esbuild: true

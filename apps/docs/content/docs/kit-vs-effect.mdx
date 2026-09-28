@@ -1,0 +1,31 @@
+---
+title: Kit vs Effect-native
+description: When to use the Effect-free kit and when to use core directly.
+---
+
+Kit and core build the same graph: kit lowers every call to core. The choice is about the code you write, not the runtime.
+
+| | Kit | Effect-native |
+| --- | --- | --- |
+| Tags | `tag<T>(name)`, or a class | `Context.Tag` classes |
+| Services | `layer(Tag, impl, [deps])` | `service(Tag, { requires }, make)` returning an Effect |
+| Modules | `module({ provide })` | `module({ entries })` + `buildGraph` |
+| Actions | `action((a, b) => async (...args) => ..., [A, B])` | `action((...args) => Effect.gen(...))` |
+| Errors | one `SleekStackError` with a `code` | tagged errors, typed in the Effect error channel |
+| Cleanup | `withCleanup(service, fn)` | `Effect.addFinalizer` / `acquireRelease` |
+
+## Choose kit when
+
+- The team does not use Effect, or you want a small learning surface.
+- Your services are plain objects, classes and async functions.
+
+## Choose Effect-native when
+
+- You already write Effect and want typed errors, `Effect.gen` handlers and Effect resource management.
+- You need declared or bare Layers (one Layer providing several Tags), which kit does not expose.
+
+The same service in both styles:
+
+<include>../../snippets/kit/getting-started.ts</include>
+
+<include>../../snippets/effect/getting-started.ts</include>

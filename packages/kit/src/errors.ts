@@ -7,6 +7,7 @@
 
 import { Cause, Runtime } from 'effect'
 
+/** Every `code` a {@link SleekStackError} can carry. */
 export type SleekStackErrorCode =
   | 'MissingDependency'
   | 'CleanupFailed'
@@ -23,6 +24,21 @@ export type SleekStackErrorCode =
   | 'HandlerFailed'
   | 'Unknown'
 
+/**
+ * The one error type kit throws. `code` says what went wrong; `details` carries structured context
+ * (for example the Tag key).
+ *
+ * @example
+ * ```ts
+ * import { SleekStackError, module, snapshot } from '@sleekstack/kit'
+ *
+ * try {
+ *   snapshot(module({ name: 'app' }))
+ * } catch (e) {
+ *   if (e instanceof SleekStackError && e.code === 'MissingDependency') console.error(e.details)
+ * }
+ * ```
+ */
 export class SleekStackError extends Error {
   readonly code: SleekStackErrorCode
   readonly details: Readonly<Record<string, unknown>>

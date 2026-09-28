@@ -27,6 +27,21 @@ export type ServiceOf<X> = X extends Tag<infer T> ? T : X extends abstract new (
 
 const cores = new WeakMap<object, Context.Tag<any, any>>()
 
+/**
+ * Creates a service token. Two `tag()` calls make two distinct Tags, even with the same name.
+ *
+ * @param name - The Tag's key, shown in errors and the graph snapshot.
+ * @returns A frozen Tag for `T`.
+ * @throws {@link SleekStackError} with code `InvalidTag` when `name` is empty or not a string.
+ *
+ * @example
+ * ```ts
+ * import { tag } from '@sleekstack/kit'
+ *
+ * interface Clock { now(): number }
+ * export const Clock = tag<Clock>('Clock')
+ * ```
+ */
 export function tag<T>(name: string): Tag<T> {
   if (typeof name !== 'string' || name.trim().length === 0) {
     throw new SleekStackError('InvalidTag', `tag(): name must be a non-empty string, got: ${JSON.stringify(name)}`)

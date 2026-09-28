@@ -11,6 +11,7 @@ import { service, type AnyServiceDefinition } from '@sleekstack/core'
 import { CleanupFailure, LayerFailure } from './errors'
 import { coreTag, keyOf, type AnyTag, type ServiceOf, type TagLike } from './tag'
 
+/** How long a service instance lives: once per app, per request, or per component subtree. */
 export type Lifetime = 'app' | 'request' | 'component'
 
 declare const LayerBrand: unique symbol
@@ -26,6 +27,7 @@ export interface Cleanup<T> {
   readonly [CleanupBrand]: T
 }
 
+/** Options for {@link layer}. */
 export interface LayerOptions {
   readonly lifetime?: Lifetime
 }
@@ -35,6 +37,7 @@ export type Services<D extends readonly AnyTag[]> = { -readonly [K in keyof D]: 
 
 type NonCallable<T> = T extends (...args: any) => any ? never : T extends abstract new (...args: any) => any ? never : T
 
+/** What `layer()` accepts as an implementation: a class, a (sync or async) factory, or a plain value. */
 export type Impl<T, A extends readonly unknown[]> =
   | (new (...args: A) => T)
   | ((...args: A) => T | Cleanup<T> | Promise<T | Cleanup<T>>)
@@ -43,6 +46,25 @@ export type Impl<T, A extends readonly unknown[]> =
 const CLEANUP = Symbol('sleekstack.cleanup')
 type CleanupBox = { readonly [CLEANUP]: true; readonly service: unknown; readonly cleanup: () => unknown }
 
+/**
+ * Pairs a service with a cleanup that runs when its scope closes. Return it from a `layer()` factory.
+ *
+ * @param service - The service instance.
+ * @param cleanup - Runs on scope close; a throw or rejection is reported to `onFinalizerError` as a plain `FinalizerError` (`{ message, tag }`).
+ * @returns The service with its cleanup attached.
+ *
+ * @example
+ * ```ts
+ * import { layer, tag, withCleanup } from '@sleekstack/kit'
+ *
+ * interface Db { query(sql: string): string[]; close(): void }
+ * const Db = tag<Db>('Db')
+ * const DbLive = layer(Db, () => {
+ *   const db: Db = { query: () => [], close: () => {} }
+ *   return withCleanup(db, () => db.close())
+ * })
+ * ```
+ */
 export function withCleanup<T>(service: T, cleanup: () => void | Promise<void>): Cleanup<T> {
   return { [CLEANUP]: true, service, cleanup } as CleanupBox as unknown as Cleanup<T>
 }
@@ -59,6 +81,31 @@ interface LayerInfo {
 
 const infos = new WeakMap<object, LayerInfo>()
 
+/**
+ * Implements a Tag. `impl` is constructed (class), called (factory, sync or async), or returned as-is (value),
+ * with the services of `deps` passed in order.
+ *
+ * @param tag - The Tag to implement.
+ * @param impl - A class, a factory (may return {@link withCleanup}), or a value.
+ * @param deps - Tags resolved and passed to `impl`, in order.
+ * @param opts - `lifetime` (default `'app'`).
+ * @returns A Layer to list in a module's `provide`.
+ * @throws {@link SleekStackError} with code `InvalidTag` when `tag` or a dep is not a `tag()` or named class.
+ * @throws {@link SleekStackError} with code `LayerFailed` (when the scope builds) when the factory or constructor throws or rejects.
+ *
+ * @example
+ * ```ts
+ * import { layer, tag } from '@sleekstack/kit'
+ *
+ * interface Clock { now(): number }
+ * interface Greeter { greet(): string }
+ * const Clock = tag<Clock>('Clock')
+ * const Greeter = tag<Greeter>('Greeter')
+ *
+ * const ClockLive = layer(Clock, { now: () => Date.now() })
+ * const GreeterLive = layer(Greeter, (clock) => ({ greet: () => `hi at ${clock.now()}` }), [Clock], { lifetime: 'request' })
+ * ```
+ */
 export function layer<T, const D extends readonly AnyTag[] = []>(
   tag: TagLike<T>,
   impl: NoInfer<Impl<T, Services<D>>>,

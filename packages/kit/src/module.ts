@@ -12,13 +12,16 @@ import { coreTag, keyOf, type AnyTag } from './tag'
 
 declare const ModuleBrand: unique symbol
 
+/** A named group of Layers created by {@link module}. */
 export interface Module {
   readonly name: string
   readonly [ModuleBrand]: true
 }
 
+/** A module's imports: a list, or a thunk returning one. */
 export type Imports = readonly Module[] | (() => readonly Module[])
 
+/** Config for {@link module}: `name`, `provide` (Layers), `imports`, and `exports` (omit: every Tag is public). */
 export interface ModuleConfig {
   readonly name: string
   readonly provide?: readonly Layer<any>[]
@@ -42,6 +45,22 @@ const coreModuleOf = (m: unknown, owner: string): CoreModule => {
   return info.core
 }
 
+/**
+ * Creates a module. Whole-graph checks run later, when a provider or runtime builds it (or in {@link snapshot}).
+ *
+ * @param config - `name`, `provide`, `imports`, and `exports`.
+ * @returns The module.
+ * @throws {@link SleekStackError} with code `InvalidModule` when `name` is empty, `provide` holds a non-`layer()` value, or `imports`/`exports` are malformed.
+ *
+ * @example
+ * ```ts
+ * import { layer, module, tag } from '@sleekstack/kit'
+ *
+ * interface Clock { now(): number }
+ * const Clock = tag<Clock>('Clock')
+ * export const ClockModule = module({ name: 'clock', provide: [layer(Clock, { now: () => Date.now() })], exports: [Clock] })
+ * ```
+ */
 export function module(config: ModuleConfig): Module {
   try {
     const name = config?.name
@@ -107,6 +126,7 @@ export function validateProvide(items: readonly (Layer<any> | Module)[]): void {
   items.forEach(walk)
 }
 
+/** The JSON-safe graph returned by {@link snapshot}: one node per provided Tag, plus edges and shadowing. */
 export interface GraphSnapshot {
   readonly nodes: readonly {
     readonly id: string
@@ -123,7 +143,22 @@ export interface GraphSnapshot {
   readonly shadowing: readonly { readonly tag: string; readonly winner: string; readonly shadowed: readonly string[] }[]
 }
 
-/** Builds and validates the graph of `app`, returning core's JSON-safe snapshot. */
+/**
+ * Builds and validates the graph of `app`, returning a JSON-safe snapshot. No service is constructed.
+ *
+ * @param app - The root module.
+ * @returns The graph snapshot.
+ * @throws {@link SleekStackError} with code `DuplicateTag` when two distinct Tags share a key.
+ * @throws {@link SleekStackError} with a graph code (`MissingDependency`, `DependencyCycle`, `AmbiguousProvider`, `ModuleCycle`, `DuplicateModule`, `InvalidModule`, `CaptiveDependency`, `PrivateDependency`) when validation fails.
+ *
+ * @example
+ * ```ts
+ * import { module, snapshot } from '@sleekstack/kit'
+ *
+ * const graph = snapshot(module({ name: 'app' }))
+ * console.log(graph.nodes.length)
+ * ```
+ */
 export function snapshot(app: Module): GraphSnapshot {
   try {
     validateProvide([app])

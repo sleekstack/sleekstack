@@ -12,6 +12,7 @@ import { buildGraph, makeAppScope, type AppScope, type Entry, type Module } from
 import { Cause, Effect } from 'effect'
 import { globalValue } from 'effect/GlobalValue'
 
+/** Config for {@link configureRuntime}: the app's root modules/entries and an optional finalizer-error sink. */
 export interface RuntimeConfig {
   readonly provide: readonly (Module | Entry)[]
   readonly onFinalizerError?: (cause: Cause.Cause<unknown>) => void
@@ -44,7 +45,20 @@ export const getConfiguredSink = (): ((cause: Cause.Cause<unknown>) => void) | u
   return config ? sinkFor(config) : undefined
 }
 
-/** Stores the runtime config. Same reference again is a no-op; a different reference replaces it. */
+/**
+ * Stores the runtime config. Same reference again is a no-op; a different reference disposes the
+ * current app scope and replaces it. The app scope is built lazily on the first `action`/`query` call.
+ *
+ * @param config - Root modules/entries and an optional `onFinalizerError` sink.
+ *
+ * @example
+ * ```ts
+ * import { module } from '@sleekstack/core'
+ * import { configureRuntime } from '@sleekstack/next'
+ *
+ * configureRuntime({ provide: [module({ name: 'app' })] })
+ * ```
+ */
 export function configureRuntime(config: RuntimeConfig): void {
   const slot = getSlot()
   if (slot.config === config) return
