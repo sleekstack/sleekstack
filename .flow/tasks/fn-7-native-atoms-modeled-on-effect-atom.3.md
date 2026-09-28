@@ -19,9 +19,10 @@ Touches: packages/react/src/atoms.ts, packages/react/src/context.ts, packages/re
 - [ ] Nested providers have separate atom state, and an atom's R resolves from the nearest provider.
 - [ ] useAtomSuspense suspends with a stable promise and rethrows the squashed failure. Calls outside a provider and server render throw documented errors.
 ## Done summary
-TBD
+Added React atom hooks (useAtomValue/useAtomSet/useAtom/useAtomRefresh/useAtomSuspense, AtomsClientOnly) and one AtomStore per LayerProvider (atomStoreFor, defaultIdleTTL 400). Suspense holds release when a reader commits, or once nothing in the store is pending; timers stop on close. Parked scopes are adopted by props identity, or else by same entries plus the same children shape (fixes the outer-Suspense retry loop for useService and atoms). Effect/Stream atom Results now include MissingDependency | PrivateDependency in their error type.
 
+Review: the flowctl loop escalated at its round cap, and standalone codex reviews fixed every finding except one. Time-sliced, uncommitted siblings with identical entries and children shape can share a store. The conductor accepted this documented ceiling (ponytail comment at LayerProvider.tsx:78): the identity-less matching was already an accepted risk before fn-7, React exposes no identity for an uncommitted instance, and `<LayerProvider id>` / an internal Suspense boundary were rejected (new API surface; the Suspense boundary conflicts with R9). Follow-up in fn-8 candidate 5 (LayerProvider lifecycle).
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 36a12fa, 353131e, 2c862c0, 0e1e314, 61f250d, e24f7bf, 7a4a1ff
+- Tests: pnpm typecheck, pnpm test
 - PRs:
