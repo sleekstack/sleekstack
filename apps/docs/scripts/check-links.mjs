@@ -13,7 +13,7 @@ export function headings(text) {
   const slugger = new GithubSlugger()
   return [...stripCode(text).matchAll(/^(#{1,6})\s+(.+?)\s*#*$/gm)].map(([, hashes, raw]) => {
     const plain = raw.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/[`*_]/g, '')
-    return { depth: hashes.length, id: slugger.slug(plain) }
+    return { depth: hashes.length, text: plain, id: slugger.slug(plain) }
   })
 }
 
@@ -38,7 +38,9 @@ export function findBrokenLinks(dir = contentDir) {
       const raw = m[1] ?? m[2] ?? m[3]
       if (/^([a-z]+:|\/\/)/i.test(raw)) continue
       const [path, hash] = raw.split('#')
-      const base = /(^|[\\/])index\.mdx?$/.test(file) ? self : posix.dirname(self)
+      // Browser semantics: a relative link resolves against the page URL's directory, so on
+      // /docs (the index page) `./concepts` is /concepts, not /docs/concepts.
+      const base = posix.dirname(self)
       const route = !path ? self : path.startsWith('/') ? path.replace(/\/$/, '') : posix.join(base, path).replace(/\/$/, '')
       const ids = pages.get(route)
       if (!ids || (hash && !ids.has(hash))) broken.push({ file: relative(dir, file), link: raw })
