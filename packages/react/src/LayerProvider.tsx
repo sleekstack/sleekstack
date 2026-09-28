@@ -35,6 +35,17 @@ const defaultSink = (cause: Cause.Cause<unknown>) => console.error(Cause.pretty(
 const sameEntries = (a: ReadonlyArray<unknown>, b: ReadonlyArray<unknown>) =>
   a === b || (a.length === b.length && a.every((x, i) => x === b[i]))
 
+/** Structural equality of rendered children: element type, key and shallow props (children compared recursively). */
+const sameNode = (a: unknown, b: unknown): boolean => {
+  if (Object.is(a, b)) return true
+  if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((x, i) => sameNode(x, b[i]))
+  if (!React.isValidElement(a) || !React.isValidElement(b) || a.type !== b.type || a.key !== b.key) return false
+  const pa = a.props as Record<string, unknown>
+  const pb = b.props as Record<string, unknown>
+  const ka = Object.keys(pa)
+  return ka.length === Object.keys(pb).length && ka.every((k) => (k === 'children' ? sameNode(pa[k], pb[k]) : Object.is(pa[k], pb[k])))
+}
+
 interface Owned {
   readonly state: ProviderState
   readonly provide: ReadonlyArray<Entry | Module>
@@ -47,8 +58,10 @@ interface Owned {
 }
 
 // A retry of a discarded render (Suspense, time slicing) re-renders the same element, so it reuses the props
-// object; a sibling never does. Parked scopes are therefore adopted by props identity, independent of timing.
-// ponytail: a parent re-render while suspended makes new props, so the retry builds a fresh scope (the parked one closes after ADOPT_MS); the same element rendered twice would share one.
+// object; a sibling never does. Parked scopes are therefore adopted by props identity first. When an ancestor
+// re-renders (a retry of a component that renders the provider), props are new but structurally equal: same
+// parent, entries and children elements (type, key, shallow props), so the retry awaits the same scope.
+// ponytail: siblings with identical entries and identical children share a parked scope; keys do not reach props.
 const ADOPT_MS = 5000
 const parked = new Set<Owned>()
 
@@ -67,14 +80,15 @@ const park = (owned: Owned, props: object) => {
   gc()
 }
 
-const adopt = (props: object, parent: ProviderState | null): Owned | undefined => {
+const adopt = (props: LayerProviderProps, parent: ProviderState | null): Owned | undefined => {
+  let found: Owned | undefined
   for (const o of parked) {
-    if (o.parkedBy === props && o.parent === parent) {
-      parked.delete(o)
-      return o
-    }
+    if (o.parent !== parent) continue
+    if (o.parkedBy === props) { found = o; break }
+    if (!found && o.parkedBy && sameEntries(o.provide, props.provide) && sameNode((o.parkedBy as LayerProviderProps).children, props.children)) found = o
   }
-  return undefined
+  if (found) parked.delete(found)
+  return found
 }
 
 function create(provide: ReadonlyArray<Entry | Module>, parent: ProviderState | null, sink: ProviderState['onFinalizerError']): Owned {

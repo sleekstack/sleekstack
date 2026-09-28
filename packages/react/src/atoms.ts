@@ -149,6 +149,18 @@ export function useAtomRefresh(atom: Atom.Atom<any>): () => void {
 
 const pending = (r: Result.Result<any, any>, onWaiting: boolean) => r._tag === 'Initial' || (onWaiting && r.waiting)
 
+const once = (f: () => void) => { let done = false; return () => { if (!done) { done = true; f() } } }
+const inflight = new WeakMap<AtomStore, number>()
+// Settled suspension holds awaiting a committed reader.
+const holds = new WeakMap<AtomStore, WeakMap<Atom.Atom<any>, Set<() => void>>>()
+const holdsFor = (store: AtomStore, atom: Atom.Atom<any>) => {
+  let perStore = holds.get(store)
+  if (!perStore) holds.set(store, (perStore = new WeakMap()))
+  let set = perStore.get(atom)
+  if (!set) perStore.set(atom, (set = new Set()))
+  return set
+}
+
 // One promise per (store, atom, suspendOnWaiting) until it settles; the next suspension is a new generation.
 const suspensions = new WeakMap<AtomStore, WeakMap<Atom.Atom<any>, Map<boolean, Promise<void>>>>()
 
@@ -160,10 +172,10 @@ const suspensionFor = (store: AtomStore, atom: Atom.Atom<Result.Result<any, any>
   const found = perAtom.get(onWaiting)
   if (found) return found
   const promise = new Promise<void>((resolve) => {
-    // Holds the node until the load settles, then RETRY_MS plus its idleTTL (via release), so the retry
-    // render can subscribe even when idleTTL is 0.
-    // ponytail: fixed RETRY_MS; a retry render slower than RETRY_MS + idleTTL rebuilds the atom.
-    const release = store.retain(atom)
+    // Holds the node past settle until a reader commits (its subscription takes over, see useAtomSuspense) or
+    // the render is abandoned: RETRY_MS with no suspension pending in this store (a waterfall keeps it held).
+    const release = once(store.retain(atom))
+    inflight.set(store, (inflight.get(store) ?? 0) + 1)
     let unsubscribe: (() => void) | undefined
     let done = false
     const check = () => {
@@ -174,7 +186,10 @@ const suspensionFor = (store: AtomStore, atom: Atom.Atom<Result.Result<any, any>
       done = true
       perAtom!.delete(onWaiting)
       unsubscribe?.()
-      setTimeout(release, RETRY_MS)
+      inflight.set(store, inflight.get(store)! - 1)
+      holdsFor(store, atom).add(release)
+      const gc = (): unknown => setTimeout(() => (inflight.get(store)! > 0 ? gc() : (holdsFor(store, atom).delete(release), release())), RETRY_MS)
+      gc()
       resolve()
     }
     unsubscribe = store.subscribe(atom, check)
@@ -206,6 +221,12 @@ export function useAtomSuspense<A, E>(
 ): Result.Success<A, E> {
   const store = useStore('useAtomSuspense')
   const result = useValue(store, atom)
+  // Committed: this component's subscription holds the node now, so drop the suspension holds.
+  useEffect(() => {
+    const set = holdsFor(store, atom)
+    for (const release of set) release()
+    set.clear()
+  }, [store, atom])
   const onWaiting = options?.suspendOnWaiting ?? false
   if (pending(result, onWaiting)) throw suspensionFor(store, atom, onWaiting)
   if (result._tag === 'Failure') throw Cause.squash(result.cause)

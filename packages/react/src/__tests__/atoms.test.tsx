@@ -221,6 +221,28 @@ describe('atom hooks', () => {
     }
   })
 
+  it('a provider rendered by a component beneath an outer Suspense acquires once and resolves', async () => {
+    let acquired = 0
+    const DbLive = Layer.effect(Db, Effect.sync(() => { acquired++ }).pipe(Effect.zipRight(Effect.sleep(50)), Effect.as({ name: 'db' })))
+    const name = Atom.make(Effect.map(Db, (d) => d.name))
+    const Show = () => <span data-testid="name">{useAtomSuspense(name).value}</span>
+    const App = () => <LayerProvider provide={[DbLive]}><Show /></LayerProvider>
+    render(<Suspense fallback={null}><App /></Suspense>)
+    expect((await screen.findByTestId('name', {}, { timeout: 2000 })).textContent).toBe('db')
+    expect(acquired).toBe(1)
+  })
+
+  it('sequential suspending atoms longer than the retry window each build once', async () => {
+    let builds = 0
+    const slow = (v: string) => Atom.make(Effect.sync(() => { builds++ }).pipe(Effect.zipRight(Effect.sleep(1000)), Effect.as(v)))
+    const a = slow('a')
+    const b = slow('b')
+    const Both = () => <span data-testid="ab">{useAtomSuspense(a).value}{useAtomSuspense(b).value}</span>
+    render(<LayerProvider provide={[]}><Suspense fallback={null}><Both /></Suspense></LayerProvider>)
+    expect((await screen.findByTestId('ab', {}, { timeout: 5000 })).textContent).toBe('ab')
+    expect(builds).toBe(2)
+  }, 8000)
+
   it('types: Effect and Stream atom Results include scope lookup errors', () => {
     const a = Atom.make(Effect.succeed(1))
     type E = typeof a extends Atom.Atom<Result.Result<number, infer X>> ? X : never
