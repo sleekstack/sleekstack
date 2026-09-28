@@ -27,16 +27,34 @@ One of `app`, `request`, or `component` — how long a constructed service lives
 _Avoid_: Scope kind, duration, lifecycle tier
 
 **Module**:
-A named group of entries — Service Definitions, declared Layers, or bare Layers — with imports (other Modules, pulled in transitively) and exports (descriptive graph metadata only; see Graph). The primary architectural unit in SleekStack. Created with `module()`.
+A named group of entries — Service Definitions, declared Layers, or bare Layers — with imports (other Modules, pulled in transitively) and exports. Exports are enforced: when `exports` is given, every other Tag the Module provides is private and may be required only by the Module's own entries — importers, root entries, `useService`, action/query deps, per-call `provide` entries and child scopes get `PrivateDependency`. Omitted `exports` means all public. Shadowing a private Tag from outside provides a new public one (ADR 0006). The primary architectural unit in SleekStack. Created with `module()`.
 _Avoid_: Package, bundle, plugin, feature
 
 **Graph**:
-The validated dependency structure produced by `buildGraph(entries)`: construction order, lifetime checks, and shadowing resolved across every entry and imported Module. `snapshot(graph)` exposes it as a serializable `GraphSnapshot` DTO (one node per provided Tag, keyed by the Tag key, or `Tag@Module` when shadowed; edges; lifetimes; owning module; per-Tag private flag) for tooling such as devtools.
+The validated dependency structure produced by `buildGraph(entries)`: construction order, module privacy, lifetime checks, and shadowing resolved across every entry and imported Module. `snapshot(graph)` exposes it as a serializable `GraphSnapshot` DTO (one node per provided Tag, keyed by the Tag key, or `Tag@Module` when shadowed; edges; lifetimes; owning module; per-Tag private flag) for tooling such as devtools.
 _Avoid_: Dependency tree, container, registry
 
 **Captive Dependency**:
 A lifetime-safety violation where a longer-lived entry would depend on a shorter-lived one (e.g. `app` on `request`), which would otherwise capture a stale or already-finalized instance. Rejected by `buildGraph` per the lifetime matrix, naming both services and their lifetimes.
 _Avoid_: Lifetime leak, scope violation
+
+### Kit facade concepts
+
+**Kit**:
+`@sleekstack/kit`, the Effect-free facade over core, next and react. It lowers every call to the core API; no Effect type is reachable from its public entries.
+_Avoid_: Wrapper, lite, simple API
+
+**Kit Tag**:
+A service token created by `tag<T>(name)`, or an (abstract) class used directly as a Tag. Maps to a core Tag keyed by the name.
+_Avoid_: Token, key
+
+**Kit Layer**:
+The output of `layer(tag, impl, deps?, { lifetime }?)`: `impl` is a value, a class, or a (sync or async) factory whose parameters are the resolved services of the `deps` array, in order. Returning `withCleanup(service, cleanup)` registers a finalizer. Lowers to a Service Definition (ADR 0005).
+_Avoid_: Provider, factory, binding
+
+**SleekStackError**:
+The one public error type of the kit: every core tagged error, kit check (`DuplicateTag`, `InvalidTag`) and thrown value is normalized to it, with a `code` and `details`.
+_Avoid_: KitError, GraphError
 
 ### React integration concepts
 

@@ -15,7 +15,8 @@ export {
   DuplicateModule,
   InvalidModule,
   CaptiveDependency,
+  PrivateDependency,
   type GraphError,
 } from './errors'
 export { canDependOn } from './lifetime'
-export { makeAppScope, type AppScope, type ChildScope, type ScopeOptions } from './scope'
+export { makeAppScope, privateDependencyOf, Privacy, type AppScope, type ChildScope, type ScopeOptions } from './scope'

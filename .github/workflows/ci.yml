@@ -32,18 +32,27 @@ jobs:
 
       - name: Require test/typecheck scripts
         run: |
-          for pkg in packages/core packages/react packages/next apps/showcase; do
+          for pkg in packages/core packages/react packages/next packages/kit apps/showcase apps/showcase-kit; do
             node -e "const s=require('./$pkg/package.json').scripts||{};for(const k of ['test','typecheck'])if(!s[k]){console.error('$pkg missing script: '+k);process.exit(1)}"
           done
 
       - name: Test
         run: pnpm test
 
+      - name: Kit declaration emit
+        run: pnpm --filter @sleekstack/kit build:types
+
       - name: Build showcase
         run: pnpm --filter showcase build
 
       - name: Showcase bundle split
         run: pnpm --filter showcase test:bundle
+
+      - name: Build showcase-kit
+        run: pnpm --filter showcase-kit build
+
+      - name: Showcase-kit bundle split
+        run: pnpm --filter showcase-kit test:bundle
 
   e2e:
     runs-on: ubuntu-latest
@@ -72,3 +81,9 @@ jobs:
 
       - name: Showcase e2e smoke
         run: pnpm --filter showcase test:e2e
+
+      - name: Build showcase-kit
+        run: pnpm --filter showcase-kit build
+
+      - name: Showcase-kit e2e smoke
+        run: pnpm --filter showcase-kit test:e2e

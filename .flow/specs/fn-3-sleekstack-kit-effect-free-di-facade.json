@@ -1,0 +1,462 @@
+{
+  "branch_name": "fn-3-sleekstack-kit-effect-free-di-facade",
+  "completion_review_status": "ship",
+  "completion_reviewed_at": "2026-09-28T07:56:13.990385Z",
+  "created_at": "2026-09-28T04:11:17.999530Z",
+  "default_impl": null,
+  "default_review": null,
+  "default_sync": null,
+  "depends_on_epics": [
+    "fn-1-sleekstack-effect-native-di-modules-and"
+  ],
+  "id": "fn-3-sleekstack-kit-effect-free-di-facade",
+  "impl_review_rounds": {
+    "fn-3-sleekstack-kit-effect-free-di-facade.1": 0,
+    "fn-3-sleekstack-kit-effect-free-di-facade.2": 0,
+    "fn-3-sleekstack-kit-effect-free-di-facade.3": 0
+  },
+  "next_task": 1,
+  "plan_review_rounds": 0,
+  "plan_review_status": "ship",
+  "plan_reviewed_at": "2026-09-28T06:40:04.093165Z",
+  "review_attempts": [
+    {
+      "artifact_sha256": "4b291575e4fe3583bdf448ce01ed23056b7d74de2063bf65595fb520024b0410",
+      "backend": "codex",
+      "base_sha": "af773c3f67fa4a348d90c993d43559ea4f80974b",
+      "counter_kind": "plan",
+      "effort": "high",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-c386e2369c03b16583c5080e7afbd6e6",
+            "classification": "introduced",
+            "findingId": "finding-c386e2369c03b16583c5080e7afbd6e6",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-6308474093d2aac1fac02263974ff682",
+            "classification": "introduced",
+            "findingId": "finding-6308474093d2aac1fac02263974ff682",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-1d4ea1425ca27d470bbd18a76b28e3f9",
+            "classification": "introduced",
+            "findingId": "finding-1d4ea1425ca27d470bbd18a76b28e3f9",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-bd49458f3404d4205cfeccf57a0edc46",
+            "classification": "introduced",
+            "findingId": "finding-bd49458f3404d4205cfeccf57a0edc46",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-29d71712e9416cd7460e3d0570a6fd3d",
+            "classification": "introduced",
+            "findingId": "finding-29d71712e9416cd7460e3d0570a6fd3d",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "plan"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "d39fea3ef018141c8f4caaa3c82bc6fbf9d00e86",
+      "head_sha_observed": true,
+      "kind": "plan",
+      "model": "gpt-6-astra",
+      "outcome": "verdict",
+      "output_bytes": 131653,
+      "output_sha256": "a004525fc068049dee5abac53c70aab77c319ec002c1bfe67ea9749e8a21d71e",
+      "reservation_id": "b08590d175ad4068be7ff23a6ac88d77",
+      "round_consumed": true,
+      "scope": "plan",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-09-28T06:35:11.633613Z",
+      "tool_calls": 9,
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "5f57d75bbfbe0349e08f876a4b73493d9637fb67d06e966ca0832198d173c189",
+      "backend": "codex",
+      "base_sha": "af773c3f67fa4a348d90c993d43559ea4f80974b",
+      "counter_kind": "plan",
+      "effort": "high",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-c386e2369c03b16583c5080e7afbd6e6",
+            "classification": "introduced",
+            "findingId": "finding-c386e2369c03b16583c5080e7afbd6e6",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-6308474093d2aac1fac02263974ff682",
+            "classification": "introduced",
+            "findingId": "finding-6308474093d2aac1fac02263974ff682",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-1d4ea1425ca27d470bbd18a76b28e3f9",
+            "classification": "introduced",
+            "findingId": "finding-1d4ea1425ca27d470bbd18a76b28e3f9",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-bd49458f3404d4205cfeccf57a0edc46",
+            "classification": "introduced",
+            "findingId": "finding-bd49458f3404d4205cfeccf57a0edc46",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-29d71712e9416cd7460e3d0570a6fd3d",
+            "classification": "introduced",
+            "findingId": "finding-29d71712e9416cd7460e3d0570a6fd3d",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "plan"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "c31a6cf489fa5047d986c4a6b3e6ba9f873261b8",
+      "head_sha_observed": true,
+      "kind": "plan",
+      "model": "gpt-6-astra",
+      "outcome": "verdict",
+      "output_bytes": 918,
+      "output_sha256": "dffd0ab40eb4db5921745e87b2fd38c1e633630ed502c4ac8487d651a2ab5694",
+      "reservation_id": "4e9d9c7a63fe4ed183cb0160a8934e38",
+      "round_consumed": true,
+      "scope": "plan",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-09-28T06:40:04.090790Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "fd73790ee685357d590fed7e168292b052b8ecf6be2db926d96519767be79dc5",
+      "backend": "codex",
+      "base_sha": "58540f3847a37c5fd1d5cd947ff8c75c1dc318f5",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "cb13bb9708e6e00dc9ad45dfe939a9c5193df4d5",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 119614,
+      "output_sha256": "fa925630028b7e9a13535efcdedfaaea7e305b8f5f1d980db0a4d12a592435c6",
+      "reservation_id": "13fb07401b324f528a84e1008ed7cc1c",
+      "round_consumed": true,
+      "scope": "impl:fn-3-sleekstack-kit-effect-free-di-facade.1",
+      "superseded_by": null,
+      "task": "fn-3-sleekstack-kit-effect-free-di-facade.1",
+      "timestamp": "2026-09-28T06:53:41.048865Z",
+      "tool_calls": 10,
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "75b2c8e147c39ee9b7381514152922f45221e69ce5501eaf5c49d11f72f493e6",
+      "backend": "codex",
+      "base_sha": "f81db24043a8d6d18e79978dac77d3f916975b00",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-690c54e590275f409de1cf7859675bd2",
+            "classification": "introduced",
+            "findingId": "finding-690c54e590275f409de1cf7859675bd2",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "7709ecee074708371ce73ea899458ac571c8fc2f",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 185777,
+      "output_sha256": "cbb791980f68c825567e9996d3ec3722c91b12afdc0cfdd5aa49c01f49c3a836",
+      "reservation_id": "d9b77f20871e4d1bbec68ccadcc085a3",
+      "round_consumed": true,
+      "scope": "impl:fn-3-sleekstack-kit-effect-free-di-facade.2",
+      "superseded_by": null,
+      "task": "fn-3-sleekstack-kit-effect-free-di-facade.2",
+      "timestamp": "2026-09-28T07:03:57.090913Z",
+      "tool_calls": 24,
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "eabe77f826b6d58ed0f3001841a67a2626ebf4a03d57b4b3dd6db589d904c8a3",
+      "backend": "codex",
+      "base_sha": "f81db24043a8d6d18e79978dac77d3f916975b00",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-690c54e590275f409de1cf7859675bd2",
+            "classification": "introduced",
+            "findingId": "finding-690c54e590275f409de1cf7859675bd2",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "19080c370a6d3e66d772b0dc394d06a906baa378",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 739,
+      "output_sha256": "30fad3fcf965c6dd296d4b2b7beedc210600528beb636a4aff2dae1e2a14f038",
+      "reservation_id": "9f2feb8892844edcb6739e888b9fc9e3",
+      "round_consumed": true,
+      "scope": "impl:fn-3-sleekstack-kit-effect-free-di-facade.2",
+      "superseded_by": null,
+      "task": "fn-3-sleekstack-kit-effect-free-di-facade.2",
+      "timestamp": "2026-09-28T07:07:05.537975Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "c413ca22a74175d1a1e69c2e78368a4d13a44fb867663f89d28e824a9b2b4796",
+      "backend": "codex",
+      "base_sha": "e5f6fa537f626517c81c47915c817c1fc6d74783",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "3740c9596720f9c7e3eca6228cb3f6f7f3c0a4c3",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 179731,
+      "output_sha256": "66a46290ed08e397ad60eea346dba36f45ec123f06aad9514e2754089a29670e",
+      "reservation_id": "0e0969843c1445e2b85d0c761e661699",
+      "round_consumed": true,
+      "scope": "impl:fn-3-sleekstack-kit-effect-free-di-facade.3",
+      "superseded_by": null,
+      "task": "fn-3-sleekstack-kit-effect-free-di-facade.3",
+      "timestamp": "2026-09-28T07:22:00.191538Z",
+      "tool_calls": 18,
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "97a70697f617951aabf1b3130f6b4bc7835f497d48344ad885aefe8836d6a127",
+      "backend": "codex",
+      "base_sha": "abf4f1a6b34366db276905126d10ce9c6ba8a74c",
+      "counter_kind": "plan",
+      "effort": "high",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-5c8d53f53c4f7cc766639309c3185894",
+            "classification": "introduced",
+            "findingId": "finding-5c8d53f53c4f7cc766639309c3185894",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-f89d511cf4fcf721827f4506152c724a",
+            "classification": "introduced",
+            "findingId": "finding-f89d511cf4fcf721827f4506152c724a",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "21ed36fecb4da9bfba7d3f63faf1ff4ce2dbf531",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-6-astra",
+      "outcome": "verdict",
+      "output_bytes": 351601,
+      "output_sha256": "0b6b8c708210f863d6aa7b8081420c2839d07962f1fd703090aa9fe69cc553dc",
+      "reservation_id": "4c0c61565f3242ffb391c07578c6d5e9",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-09-28T07:50:58.670989Z",
+      "tool_calls": 21,
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "1dc4ded9f3ee9aa9cbb4271ef3589bf874868b61a4b98b538fb3aca7487da457",
+      "backend": "codex",
+      "base_sha": "abf4f1a6b34366db276905126d10ce9c6ba8a74c",
+      "counter_kind": "plan",
+      "effort": "high",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-5c8d53f53c4f7cc766639309c3185894",
+            "classification": "introduced",
+            "findingId": "finding-5c8d53f53c4f7cc766639309c3185894",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-f89d511cf4fcf721827f4506152c724a",
+            "classification": "introduced",
+            "findingId": "finding-f89d511cf4fcf721827f4506152c724a",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "86b74daf00a9e81c91984ddb485e27f07ffa9a36",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-6-astra",
+      "outcome": "verdict",
+      "output_bytes": 10669,
+      "output_sha256": "cd3083307d83d63fe8e532271dd94716bdca03936cf791bb389492387467d4d3",
+      "reservation_id": "fd7a266b3b09443f909cb6fc735c4723",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-09-28T07:56:13.986127Z",
+      "verdict": "SHIP"
+    }
+  ],
+  "review_hash_epoch": {
+    "impl:fn-3-sleekstack-kit-effect-free-di-facade.1": 1,
+    "impl:fn-3-sleekstack-kit-effect-free-di-facade.2": 1,
+    "impl:fn-3-sleekstack-kit-effect-free-di-facade.3": 1,
+    "plan": 1,
+    "plan#completion": 1
+  },
+  "review_pending_rounds": {},
+  "review_reservations": {},
+  "review_transport_failures": {
+    "completion": 0,
+    "impl:fn-3-sleekstack-kit-effect-free-di-facade.1": 0,
+    "impl:fn-3-sleekstack-kit-effect-free-di-facade.2": 0,
+    "impl:fn-3-sleekstack-kit-effect-free-di-facade.3": 0,
+    "plan": 0
+  },
+  "spec_path": ".flow/specs/fn-3-sleekstack-kit-effect-free-di-facade.md",
+  "status": "open",
+  "title": "sleekstack kit: Effect-free DI facade",
+  "tracker": {
+    "baseHashFlow": null,
+    "baseHashTracker": null,
+    "depRelations": [],
+    "id": null,
+    "identifier": null,
+    "lastSyncedAt": null,
+    "mergeBaseFlow": null,
+    "mergeBaseTracker": null,
+    "url": null
+  },
+  "updated_at": "2026-09-28T07:56:13.991053Z"
+}

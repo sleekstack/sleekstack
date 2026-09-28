@@ -32,7 +32,8 @@ export interface Module {
   readonly name: string
   readonly entries: readonly Entry[]
   readonly imports: Imports
-  readonly exports: readonly AnyTag[]
+  /** Omitted: every provided Tag is public. Given: every other Tag this module provides is private to it. */
+  readonly exports?: readonly AnyTag[]
   readonly lifetime?: Lifetime
 }
 
@@ -110,7 +111,7 @@ export function module(config: {
     name,
     entries,
     imports,
-    exports: config.exports ?? [],
+    ...(config.exports !== undefined && { exports: config.exports }),
     ...(config.lifetime && { lifetime: config.lifetime }),
   }
 }

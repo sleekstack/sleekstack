@@ -10,12 +10,33 @@
 
 import { Cause, Context, Effect, Exit, Layer, Scope } from 'effect'
 import { AmbiguousProvider, MissingDependency } from './errors'
-import { resolveEntries, toposort, type Graph } from './graph'
+import { isPrivateTag, privateDependency, resolveEntries, toposort, type Graph } from './graph'
 import type { Entry, Module } from './module'
 import type { Lifetime } from './service'
 
 type AnyLayer = Layer.Layer<any, any, any>
-type Local = { readonly id: string; readonly provides: readonly string[]; readonly requires: readonly string[]; readonly layer: AnyLayer }
+type Local = {
+  readonly id: string
+  readonly provides: readonly string[]
+  readonly requires: readonly string[]
+  readonly layer: AnyLayer
+  readonly module?: Module | undefined
+}
+/** Private Tag key -> owning module. */
+type PrivateMap = ReadonlyMap<string, Module>
+
+/**
+ * Carried in every exposed `ChildScope.context`: the private Tags hidden from it, so a consumer
+ * whose lookup misses can report PrivateDependency instead of "not provided".
+ */
+export const Privacy = Context.GenericTag<PrivateMap>('@sleekstack/core/Privacy')
+
+/** The PrivateDependency for looking up `key` from outside its module in `context`, or undefined when `key` is not private there. */
+export const privateDependencyOf = (context: Context.Context<any>, key: string, requiredBy: string) => {
+  const owner = Context.getOption(context, Privacy)
+  const module = owner._tag === 'Some' ? owner.value.get(key) : undefined
+  return module && privateDependency(key, module, requiredBy)
+}
 
 export interface ScopeOptions {
   /** Sink for finalizer failures of closes nobody awaits (`dispose`). Default `console.error`. */
@@ -31,6 +52,10 @@ export interface ChildScope {
    * shadowing parent instances inside that scope only.
    */
   readonly child: (lifetime: 'request' | 'component', entries?: readonly (Entry | Module)[]) => Effect.Effect<ChildScope, unknown>
+  /** @internal Full context (private Tags included), the parent of nested scopes. */
+  readonly inner: Context.Context<any>
+  /** @internal Private Tags hidden from `context`. */
+  readonly privates: PrivateMap
   /** Runs finalizers in reverse acquisition order; the Exit aggregates every failure. */
   readonly close: Effect.Effect<Exit.Exit<void, unknown>>
   /** Un-awaited close: failures go to `onFinalizerError`. */
@@ -44,6 +69,7 @@ const open = (
   lifetime: Lifetime,
   graph: Graph,
   parent: Context.Context<any>,
+  parentPrivates: PrivateMap,
   locals: readonly Local[],
   options: ScopeOptions,
 ): Effect.Effect<ChildScope, unknown> => {
@@ -60,8 +86,13 @@ const open = (
       byKey.set(k, n)
     }
   }
+  // Tags provided here shadow the parent's (a new public provider); this scope's private Tags join the rest.
+  const privates = new Map([...parentPrivates].filter(([k]) => !byKey.has(k)))
+  for (const [k, n] of byKey) if (n.module && isPrivateTag(n.module, k)) privates.set(k, n.module)
   for (const n of locals) {
     for (const r of n.requires) {
+      const owner = privates.get(r)
+      if (owner && owner !== n.module) throw privateDependency(r, owner, n.id)
       if (!byKey.has(r) && !parent.unsafeMap.has(r)) {
         throw new MissingDependency({
           service: n.id, missing: r,
@@ -89,11 +120,17 @@ const open = (
         yield* Scope.close(scope, built)
         return yield* Effect.failCause(built.cause)
       }
-      const context = built.value
+      const inner = built.value
+      const context = Context.add(
+        Context.unsafeMake(new Map([...inner.unsafeMap].filter(([k]) => !privates.has(k)))),
+        Privacy, privates,
+      )
       const close = Effect.exit(Scope.close(scope, Exit.void))
       const self: ChildScope = {
         lifetime,
         context,
+        inner,
+        privates,
         close,
         dispose: () =>
           void Effect.runPromise(close).then((exit) => {
@@ -111,7 +148,7 @@ const open = (
             const fromGraph = [...graph.opaque, ...graph.nodes].filter(
               (n) => n.lifetime === childLifetime && !n.provides.some((k) => shadowed.has(k)),
             )
-            return open(childLifetime, graph, context, [...fromGraph, ...extras], options)
+            return open(childLifetime, graph, inner, privates, [...fromGraph, ...extras], options)
           }),
       }
       return self
@@ -122,5 +159,5 @@ const open = (
 /** Opens the app scope: builds every app-lifetime node (and app-lifetime bare Layers) once. */
 export const makeAppScope = (graph: Graph, options: ScopeOptions = {}): Effect.Effect<AppScope, unknown> =>
   Effect.suspend(() =>
-    open('app', graph, Context.empty() as Context.Context<any>, [...graph.opaque, ...graph.nodes].filter((n) => n.lifetime === 'app'), options),
+    open('app', graph, Context.empty() as Context.Context<any>, new Map(), [...graph.opaque, ...graph.nodes].filter((n) => n.lifetime === 'app'), options),
   )
