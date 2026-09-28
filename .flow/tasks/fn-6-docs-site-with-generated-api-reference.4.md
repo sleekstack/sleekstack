@@ -22,9 +22,11 @@ Touches: README.md, CONTEXT.md, docs/adr/README.md, packages/*/README.md, apps/*
 
 
 ## Done summary
-TBD
+Refreshed README (packages table, kit+effect() example, docs link, enforced-privacy wording), CONTEXT.md (Kit Effect), ADR index 0001-0007, new core/next/react READMEs, .claude/CLAUDE.md sources; added apps/docs/test/stale.test.ts (fails on reintroduced phrase, verified); CI lists apps/docs and runs docs build + test. Review fixes (scope widened by conductor): generate-api rewriteAnchors targets the symbol heading the link names; check-links resolves relative links against the page URL like a browser; regression tests in apps/docs/test/links.test.ts.
 
+Tier: opus at medium
+stage: impl-review - ran (codex fan-out NEEDS_WORK: anchor identity + relative-link resolution -> fixed -> re-review SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: d67e3988fb5c0924ba3f08bc57c7391ed41efeb8, 34da13b230a7c4481e890a021c14883c818c9178
+- Tests: pnpm --filter docs test, pnpm --filter docs build
 - PRs:
