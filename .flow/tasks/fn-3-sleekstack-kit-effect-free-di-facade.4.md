@@ -29,9 +29,11 @@ Port the whole fn-2 task board to kit only: domain, server and client, with the 
 - [ ] requests and board tests pass; no-effect.test passes (non-vacuous)
 - [ ] typecheck and test green
 ## Done summary
-TBD
+Ported the fn-2 task board to apps/showcase-kit using only @sleekstack/kit (tags, layers, modules, kit/next action/query, kit/react); requests/board/no-effect tests pass, next build green.
 
+baseline: green
+stage: impl-review - skipped(config: REVIEW_MODE=none)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 141d569733d3d0f5841ec80113d5ca8ffb424afc
+- Tests: pnpm typecheck, pnpm test, next build (apps/showcase-kit), next start smoke: / and /log
 - PRs:
