@@ -38,6 +38,16 @@ describe('atomStoreFor', () => {
     })
   })
 
+  it('keeps the rest of a compound Cause; an empty key maps too', async () => {
+    const app = await Effect.runPromise(makeAppScope(buildGraph([])))
+    const store = atomStoreFor(app)
+    const r = store.get(Atom.make(Effect.ensuring(Nope, Effect.die('cleanup'))))
+    expect(Result.isFailure(r) && [...Cause.failures(r.cause)]).toMatchObject([{ _tag: 'MissingDependency', missing: 'Nope' }])
+    expect(Result.isFailure(r) && [...Cause.defects(r.cause)]).toEqual(['cleanup'])
+    const empty = Context.GenericTag<number>('')
+    expect(failureOf(store.get(Atom.make(empty)))).toMatchObject({ _tag: 'MissingDependency', missing: '' })
+  })
+
   it('closing the scope interrupts keepAlive atoms before service finalizers; store failures go to onFinalizerError', async () => {
     const order: string[] = []
     class Res extends Context.Tag('Res')<Res, number>() {}
