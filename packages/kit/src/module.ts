@@ -132,25 +132,3 @@ export function snapshot(app: Module): GraphSnapshot {
     throw normalize(e)
   }
 }
-
-/**
- * @internal Flattens a provide set to bare entries (modules contribute their Layers and
- * their imports' Layers, privacy ignored) for next's per-call `provide`, which takes entries only.
- */
-export function flatEntries(items: readonly (Layer<any> | Module)[]): Entry[] {
-  const out: Entry[] = []
-  const visited = new Set<object>()
-  const walk = (x: unknown) => {
-    const l = layerInfo(x)
-    if (l) return void out.push(l.def)
-    const m = moduleInfo(x)
-    if (!m) throw new SleekStackError('InvalidModule', `Expected a layer() or module(), got: ${String(x)}`)
-    if (visited.has(x as object)) return
-    visited.add(x as object)
-    const imports = m.config.imports ?? []
-    ;(typeof imports === 'function' ? imports() : imports).forEach(walk)
-    ;(m.config.provide ?? []).forEach(walk)
-  }
-  items.forEach(walk)
-  return out
-}

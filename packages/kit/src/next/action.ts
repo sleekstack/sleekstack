@@ -11,7 +11,7 @@ import { action as nextAction, query as nextQuery } from '@sleekstack/next'
 import { Effect, Option } from 'effect'
 import { normalize, SleekStackError } from '../errors'
 import type { Layer } from '../layer'
-import { flatEntries, validateProvide, type Module } from '../module'
+import { unwrap, validateProvide, type Module } from '../module'
 import { coreTag, keyOf, type AnyTag } from '../tag'
 import type { Services } from '../layer'
 
@@ -46,7 +46,9 @@ function lower<D extends readonly AnyTag[], A extends unknown[]>(
   let provide
   try {
     validateProvide(opts.provide ?? [])
-    provide = flatEntries(opts.provide ?? [])
+    // next types `provide` as Entry[], but its request scope (core `child`) accepts modules too;
+    // passing core modules keeps their privacy and local-over-import Shadowing.
+    provide = unwrap(opts.provide ?? []) as never
   } catch (e) {
     throw normalize(e)
   }

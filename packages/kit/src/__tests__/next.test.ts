@@ -63,6 +63,9 @@ describe('@sleekstack/kit/next', () => {
     expect(await local()).toEqual({ ok: true, data: 'local' })
     expect(await viaModule()).toEqual({ ok: true, data: 'module' })
     expect(await action(read, [Label])()).toEqual({ ok: true, data: 'global' })
+    const Base = module({ name: 'Base', provide: [layer(Label, { label: 'imported' })] })
+    const Over = module({ name: 'Over', imports: [Base], provide: [layer(Label, { label: 'override' })] })
+    expect(await action(read, [Label], { provide: [Over] })()).toEqual({ ok: true, data: 'override' })
   })
 
   it('a request-Layer failure rejects as SleekStackError with code/details', async () => {
