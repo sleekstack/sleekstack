@@ -12,9 +12,94 @@
   "id": "fn-3-sleekstack-kit-effect-free-di-facade",
   "impl_review_rounds": {},
   "next_task": 1,
-  "plan_review_rounds": 0,
-  "plan_review_status": "unknown",
-  "plan_reviewed_at": null,
+  "plan_review_rounds": 1,
+  "plan_review_status": "needs_work",
+  "plan_reviewed_at": "2026-09-28T06:35:11.637021Z",
+  "review_attempts": [
+    {
+      "artifact_sha256": "4b291575e4fe3583bdf448ce01ed23056b7d74de2063bf65595fb520024b0410",
+      "backend": "codex",
+      "base_sha": "af773c3f67fa4a348d90c993d43559ea4f80974b",
+      "counter_kind": "plan",
+      "effort": "high",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-c386e2369c03b16583c5080e7afbd6e6",
+            "classification": "introduced",
+            "findingId": "finding-c386e2369c03b16583c5080e7afbd6e6",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-6308474093d2aac1fac02263974ff682",
+            "classification": "introduced",
+            "findingId": "finding-6308474093d2aac1fac02263974ff682",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-1d4ea1425ca27d470bbd18a76b28e3f9",
+            "classification": "introduced",
+            "findingId": "finding-1d4ea1425ca27d470bbd18a76b28e3f9",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-bd49458f3404d4205cfeccf57a0edc46",
+            "classification": "introduced",
+            "findingId": "finding-bd49458f3404d4205cfeccf57a0edc46",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-29d71712e9416cd7460e3d0570a6fd3d",
+            "classification": "introduced",
+            "findingId": "finding-29d71712e9416cd7460e3d0570a6fd3d",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "plan"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "d39fea3ef018141c8f4caaa3c82bc6fbf9d00e86",
+      "head_sha_observed": true,
+      "kind": "plan",
+      "model": "gpt-6-astra",
+      "outcome": "verdict",
+      "output_bytes": 131653,
+      "output_sha256": "a004525fc068049dee5abac53c70aab77c319ec002c1bfe67ea9749e8a21d71e",
+      "reservation_id": "b08590d175ad4068be7ff23a6ac88d77",
+      "round_consumed": true,
+      "scope": "plan",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-09-28T06:35:11.633613Z",
+      "tool_calls": 9,
+      "verdict": "NEEDS_WORK"
+    }
+  ],
+  "review_hash_epoch": {},
+  "review_pending_rounds": {},
+  "review_reservations": {},
+  "review_transport_failures": {
+    "plan": 0
+  },
   "spec_path": ".flow/specs/fn-3-sleekstack-kit-effect-free-di-facade.md",
   "status": "open",
   "title": "sleekstack kit: Effect-free DI facade",
@@ -29,5 +114,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-09-28T06:14:57.405852Z"
+  "updated_at": "2026-09-28T06:36:37.580272Z"
 }

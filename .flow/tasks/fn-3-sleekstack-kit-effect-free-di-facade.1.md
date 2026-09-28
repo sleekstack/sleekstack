@@ -15,11 +15,13 @@ Create the package and the whole Effect-free graph layer. This is the early proo
 - `tag<T>(name)`: returns a branded object that wraps a core Tag (`Context.GenericTag`), so an interface and a const merge. Abstract classes: `WeakMap<Function, Tag>` keyed by class reference, key = class name. The public token type is a union of the branded tag and `abstract new (...args: any) => T`.
 - `layer(tag, impl, deps, opts)` lowers to core `service()` (packages/core/src/service.ts:33-57): resolve the tuple, spread it into the factory or constructor, wrap sync/Promise with a tryPromise-style adapter, and lower a `withCleanup` brand to acquireRelease. A plain value becomes `() => value`. Infer the deps tuple first, then type the impl against it (verify with a `.test-d.ts` repro early).
 - `module({name, provide, imports, exports})` lowers to core `module()` (module.ts:84-116).
-- `DuplicateTag` detection happens in kit's graph build wrapper: collect tag keys per build and compare identities. Never a global registry.
-- errors.ts: `SleekStackError extends Error {code, details}`. Translate the core tagged errors (packages/core/src/errors.ts) at the build and snapshot boundary. Never export the core error classes.
+- `DuplicateTag`: export an internal `validateProvide(set)` that walks one provide set (transitive module imports plus each Layer's dep Tags) and throws on two distinct kit Tag objects with the same key. .2 and .3 call it from configureRuntime, action opts.provide and LayerProvider; .1 calls it from snapshot. Same key across boundaries is Shadowing, so never compare across sets.
+- errors.ts: `SleekStackError extends Error {code, details}`, plus an internal `normalize(unknown)` that converts core tagged errors (packages/core/src/errors.ts), kit sentinels and plain throws. .2 and .3 reuse it at their boundaries. Never export the core error classes.
+- Opaque public types: `Tag<T>`, `Layer<T>`, `Module` and `FinalizerError {message, tag?}` as branded interfaces with no Effect members. The core entry sits behind a private symbol, with an internal `unwrap()` for .2/.3.
+- Callables: a function impl is a factory; a class (detected by `class` syntax via Function.prototype.toString) is constructed; the value overload excludes callables at the type level.
 - `snapshot(App)` delegates to core `snapshot(buildGraph(...))`.
 - Keep Effect imports internal. Internal types use `import type` or live in non-exported positions.
-- dts.test: run `build:types`, glob `dist-types/**/*.d.ts`, assert ≥1 file and no `effect` substring. Follow the bundle-test pattern (fn-2 branch apps/showcase/src/__tests__/bundle.test.ts).
+- dts.test: run `build:types`, glob `dist-types/**/*.d.ts`, assert ≥1 file and no `effect` or `@sleekstack/(core|next|react)` substring. Add a second check with the TS compiler API: load `src/index.ts` (and later the subpath entries), resolve each exported symbol's type, and assert no declaration file of it (recursively through properties and signatures, depth-capped) lives under `effect` or the core/next/react packages. Follow the bundle-test pattern (fn-2 branch apps/showcase/src/__tests__/bundle.test.ts).
 
 ### Investigation targets
 **Required:**
@@ -32,7 +34,6 @@ Create the package and the whole Effect-free graph layer. This is the early proo
 - An interface and a const must both be exported, or tsc errors (TS#50880).
 - `new (...)=>T` rejects abstract classes; use `abstract new`.
 - tsc emits types into .d.ts regardless of `@internal`; only the grep test proves R7.
-
 ## Acceptance
 - [ ] tag/abstract-class Tags resolve in a built graph; empty name throws; same-key distinct Tags -> DuplicateTag; same class twice -> same Tag
 - [ ] layer: factory, async factory, class, value and withCleanup all work; cleanup runs on scope close; a throwing cleanup reaches onFinalizerError; an array service is returned as-is; a factory throw surfaces as LayerFailed with the Tag name
@@ -40,7 +41,9 @@ Create the package and the whole Effect-free graph layer. This is the early proo
 - [ ] types.test-d: deps infer factory params; a wrong return type is a compile error
 - [ ] snapshot(App) deep-equals core snapshot for the same graph
 - [ ] dts.test green (non-vacuous); typecheck and test green
-
+- [ ] validateProvide: duplicate key in one set -> DuplicateTag (unit-tested directly and via snapshot); same key across sets is allowed
+- [ ] layer(Transform, n => n + 1) is treated as a factory; `() => fn` yields the function service; a callable plain value is a type error
+- [ ] compiler-API surface check green
 ## Done summary
 TBD
 
