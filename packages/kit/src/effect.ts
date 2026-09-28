@@ -9,6 +9,7 @@
 import { layer, withCleanup, type Layer, type Lifetime, type Services } from './layer'
 import { tag, type AnyTag } from './tag'
 
+/** Options for {@link effect}. */
 export interface EffectOptions {
   /** Shown in the graph snapshot and error messages as `effect:<name>`. */
   readonly name?: string
@@ -19,6 +20,32 @@ type Teardown = void | (() => void | Promise<void>)
 
 let seq = 0
 
+/**
+ * Runs a side effect when its scope opens; the function it returns runs when the scope closes,
+ * like React's `useEffect`. List it in a module's `provide` like any Layer.
+ *
+ * @param fn - Receives `deps`' services in order; may return (or resolve to) a teardown.
+ * @param deps - Tags resolved and passed to `fn`.
+ * @param opts - `name` (shown as `effect:<name>`) and `lifetime`.
+ * @returns A Layer nothing else depends on.
+ * @throws {@link SleekStackError} with code `LayerFailed` (when the scope builds) when `fn` throws or rejects.
+ * @throws {@link SleekStackError} with code `CleanupFailed` (to `onFinalizerError`) when the teardown throws or rejects.
+ *
+ * @example
+ * ```ts
+ * import { effect, module, tag, layer } from '@sleekstack/kit'
+ *
+ * interface Logger { log(msg: string): void }
+ * const Logger = tag<Logger>('Logger')
+ *
+ * const Heartbeat = effect((logger) => {
+ *   const id = setInterval(() => logger.log('tick'), 1000)
+ *   return () => clearInterval(id)
+ * }, [Logger], { name: 'heartbeat' })
+ *
+ * export const App = module({ name: 'app', provide: [layer(Logger, { log: console.log }), Heartbeat] })
+ * ```
+ */
 export function effect<const D extends readonly AnyTag[] = []>(
   fn: (...deps: Services<D>) => Teardown | Promise<Teardown>,
   deps?: D,

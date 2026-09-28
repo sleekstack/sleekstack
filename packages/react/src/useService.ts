@@ -56,6 +56,24 @@ function entryFor(state: ProviderState, tag: Context.Tag<any, any>): CacheEntry 
   return entry
 }
 
+/**
+ * Reads a service from the nearest {@link LayerProvider}, suspending while its scope builds.
+ *
+ * @param tag - The service's Tag.
+ * @returns The service instance.
+ * @throws `Error` when there is no `LayerProvider` above, or the Tag is not provided.
+ * @throws `PrivateDependency` when the Tag is private to a module.
+ * @throws The scope's build failure, to the nearest error boundary.
+ *
+ * @example
+ * ```tsx
+ * import { Context } from 'effect'
+ * import { useService } from '@sleekstack/react'
+ *
+ * class Clock extends Context.Tag('Clock')<Clock, { now(): number }>() {}
+ * const Now = () => <span>{useService(Clock).now()}</span>
+ * ```
+ */
 export function useService<T>(tag: Context.Tag<any, T>): T {
   const state = useContext(ProviderContext)
   if (state === null) {

@@ -13,6 +13,7 @@ import type { Entry } from '@sleekstack/core'
 import { Cause, Effect, Exit } from 'effect'
 import { defaultFinalizerSink, ensureAppScope, getConfiguredSink } from './runtime'
 
+/** Per-operation options for `action`/`query`. */
 export interface OperationOptions {
   /** Built in the request scope, shadowing the global graph for this call only. */
   readonly provide?: readonly Entry[]
@@ -92,5 +93,42 @@ function makeOperation(): Operation {
   }) as Operation
 }
 
+/**
+ * Wraps an Effect-returning function as a Next.js server action. Each call opens a request scope
+ * over the app scope, runs `fn` with it provided, and closes the scope before settling.
+ *
+ * @param options - Optional `provide`: entries built in the request scope, shadowing the graph for this call.
+ * @param fn - The operation body; returns an Effect.
+ * @returns An async function resolving to the Effect's value.
+ * @throws `RuntimeNotConfigured` (rejection) when called before `configureRuntime`.
+ * @throws `StreamingResultNotSupported` (rejection) when `fn` yields a ReadableStream or async iterable.
+ * @throws `Error` (rejection) with the Effect `Cause` as `cause` on a typed failure or defect.
+ *
+ * @example
+ * ```ts
+ * import { Effect } from 'effect'
+ * import { action } from '@sleekstack/next'
+ *
+ * export const save = action((name: string) => Effect.succeed(`saved ${name}`))
+ * ```
+ */
 export const action: Operation = makeOperation()
+/**
+ * Wraps an Effect-returning function as a read operation; same semantics as {@link action}.
+ *
+ * @param options - Optional `provide`: entries built in the request scope for this call.
+ * @param fn - The operation body; returns an Effect.
+ * @returns An async function resolving to the Effect's value.
+ * @throws `RuntimeNotConfigured` (rejection) when called before `configureRuntime`.
+ * @throws `StreamingResultNotSupported` (rejection) when `fn` yields a ReadableStream or async iterable.
+ * @throws `Error` (rejection) with the Effect `Cause` as `cause` on a typed failure or defect.
+ *
+ * @example
+ * ```ts
+ * import { Effect } from 'effect'
+ * import { query } from '@sleekstack/next'
+ *
+ * export const load = query((id: number) => Effect.succeed({ id }))
+ * ```
+ */
 export const query: Operation = makeOperation()

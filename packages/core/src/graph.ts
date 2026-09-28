@@ -16,6 +16,7 @@ import type { Lifetime } from './service'
 
 type AnyLayer = Layer.Layer<any, any, any>
 
+/** One validated node of a {@link Graph}: a service, declared Layer, or bare Layer, with its provenance. */
 export interface GraphNode {
   readonly id: string
   readonly provides: readonly string[]
@@ -32,12 +33,14 @@ export interface GraphNode {
   readonly layer: AnyLayer
 }
 
+/** A Tag provided by several entries, and which one won by locality (the rest are shadowed). */
 export interface Shadowing {
   readonly tag: string
   readonly winner: string
   readonly shadowed: readonly string[]
 }
 
+/** The validated module graph returned by {@link buildGraph}, with its composed Layer. */
 export interface Graph {
   /** Winning, metadata-carrying nodes in construction order. */
   readonly nodes: readonly GraphNode[]
@@ -52,6 +55,7 @@ export interface Graph {
   readonly layer: Layer.Layer<any, any, never>
 }
 
+/** A JSON-safe view of a {@link Graph} (one node per provided Tag), for devtools and visualizers. */
 export interface GraphSnapshot {
   readonly nodes: readonly {
     readonly id: string
@@ -188,6 +192,32 @@ export function resolveEntries(input: readonly (Module | Entry)[]): Resolved {
 
 const shadowedId = (tag: string, n: GraphNode) => `${tag}@${n.module?.name ?? '(root)'}`
 
+/**
+ * Validates a whole module graph and composes its Layer. This is the single whole-graph
+ * validation entry: module walk, shadowing by locality, dependencies, privacy, lifetimes, ordering.
+ * No service is constructed.
+ *
+ * @param input - Root modules and/or entries (depth 0, most local).
+ * @returns The validated graph.
+ * @throws {@link ModuleCycle} `ModuleCycle` when modules import each other in a cycle.
+ * @throws {@link DuplicateModule} `DuplicateModule` when two distinct modules share a name.
+ * @throws {@link InvalidModule} `InvalidModule` when a module imports a non-module value.
+ * @throws {@link AmbiguousProvider} `AmbiguousProvider` when a Tag has several providers at the same locality.
+ * @throws {@link MissingDependency} `MissingDependency` when a required Tag has no provider.
+ * @throws {@link PrivateDependency} `PrivateDependency` when a Tag private to a module is required from outside it.
+ * @throws {@link CaptiveDependency} `CaptiveDependency` when a service depends on one with an incompatible lifetime.
+ * @throws {@link DependencyCycle} `DependencyCycle` when services require each other in a cycle.
+ *
+ * @example
+ * ```ts
+ * import { Context, Effect } from 'effect'
+ * import { buildGraph, module, service } from '@sleekstack/core'
+ *
+ * class Clock extends Context.Tag('Clock')<Clock, { now(): number }>() {}
+ * const App = module({ name: 'app', entries: [service(Clock, {}, () => Effect.succeed({ now: () => Date.now() }))] })
+ * const graph = buildGraph([App])
+ * ```
+ */
 export function buildGraph(input: readonly (Module | Entry)[]): Graph {
   const { live, opaque, shadowed, shadowing, winners } = resolveEntries(input)
 
@@ -253,6 +283,19 @@ export function toposort<N extends { readonly id: string; readonly requires: rea
   throw new DependencyCycle({ path: cycle, message: `Dependency cycle: ${cycle.join(' -> ')}` })
 }
 
+/**
+ * Turns a graph into a JSON-safe snapshot: one node per provided Tag (`Tag@Module` when shadowed).
+ *
+ * @param graph - A graph from {@link buildGraph}.
+ * @returns The snapshot.
+ *
+ * @example
+ * ```ts
+ * import { buildGraph, snapshot } from '@sleekstack/core'
+ *
+ * const json = JSON.stringify(snapshot(buildGraph([])))
+ * ```
+ */
 export function snapshot(graph: Graph): GraphSnapshot {
   // One DTO per provided Tag (canonical key; `Tag@Module` when shadowed), so multi-Tag
   // declared Layers get collision-free ids and per-Tag privacy.

@@ -12,6 +12,7 @@ import { normalize, toFinalizerError, type FinalizerError } from '../errors'
 import type { Layer } from '../layer'
 import { unwrap, validateProvide, type Module } from '../module'
 
+/** Config for {@link configureRuntime}: the app's Layers/modules and an optional cleanup-failure sink. */
 export interface RuntimeConfig {
   readonly provide: ReadonlyArray<Layer<any> | Module>
   readonly onFinalizerError?: (e: FinalizerError) => void
@@ -20,6 +21,23 @@ export interface RuntimeConfig {
 
 const lowered = new WeakMap<RuntimeConfig, NextConfig>()
 
+/**
+ * Configures the app runtime that `action`/`query` run in. Call it once at module load (for example
+ * in `instrumentation.ts` or a shared server file); the same config reference again is a no-op.
+ *
+ * @param config - `provide` (Layers/modules) and optional `onFinalizerError`.
+ * @throws {@link SleekStackError} with code `DuplicateTag` when two distinct Tags share a key, or `InvalidModule` when `provide` holds a non-layer value.
+ *
+ * @example
+ * ```ts
+ * import { layer, module, tag } from '@sleekstack/kit'
+ * import { configureRuntime } from '@sleekstack/kit/next'
+ *
+ * interface Clock { now(): number }
+ * const Clock = tag<Clock>('Clock')
+ * configureRuntime({ provide: [module({ name: 'app', provide: [layer(Clock, { now: () => Date.now() })] })] })
+ * ```
+ */
 export function configureRuntime(config: RuntimeConfig): void {
   let next = lowered.get(config)
   if (!next) {

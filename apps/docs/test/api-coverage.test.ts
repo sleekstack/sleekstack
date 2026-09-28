@@ -7,11 +7,24 @@ import { resolveEntryPoints } from '../scripts/entry-points.mjs'
 
 const apiDir = join(dirname(fileURLToPath(import.meta.url)), '../content/docs/api')
 
-function exportsOf(file: string): string[] {
+function exportSymbols(file: string) {
   const program = ts.createProgram([file], { module: ts.ModuleKind.ESNext, moduleResolution: ts.ModuleResolutionKind.Bundler, jsx: ts.JsxEmit.ReactJSX, strict: true, skipLibCheck: true, noEmit: true })
   const checker = program.getTypeChecker()
   const moduleSymbol = checker.getSymbolAtLocation(program.getSourceFile(file)!)!
-  return checker.getExportsOfModule(moduleSymbol).map((s) => s.name)
+  return { checker, symbols: checker.getExportsOfModule(moduleSymbol) }
+}
+
+const exportsOf = (file: string) => exportSymbols(file).symbols.map((s) => s.name)
+
+/** Exports whose TSDoc summary is empty (aliases resolved to their declaration). */
+export function undocumented(file: string): string[] {
+  const { checker, symbols } = exportSymbols(file)
+  return symbols
+    .filter((s) => {
+      const target = s.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(s) : s
+      return ts.displayPartsToString(target.getDocumentationComment(checker)).trim() === ''
+    })
+    .map((s) => s.name)
 }
 
 describe.each(resolveEntryPoints())('$name', ({ pkg, entry, file }) => {
@@ -26,6 +39,7 @@ describe.each(resolveEntryPoints())('$name', ({ pkg, entry, file }) => {
     expect(missing).toEqual([])
   })
 
-  // Enabled by fn-6.2 once every export carries a TSDoc summary.
-  it.skip('every export has a non-empty summary', () => {})
+  it('every export has a non-empty summary', () => {
+    expect(undocumented(file)).toEqual([])
+  })
 })
