@@ -21,3 +21,10 @@ new SleekStackError('DuplicateTag', 'm', { tag: 'k' })
 new SleekStackError('DuplicateTag', 'm')
 // @ts-expect-error wrong details for the code
 new SleekStackError('DuplicateModule', 'm', { tag: 'k' })
+// @ts-expect-error a no-details code takes no fields (nor a primitive)
+new SleekStackError('Unknown', 'm', 'x')
+// @ts-expect-error a no-details code takes no fields
+new SleekStackError('Unknown', 'm', { tag: 'k' })
+declare const either: 'DuplicateTag' | 'DuplicateModule'
+// @ts-expect-error a union code must not accept one member's details for the other
+new SleekStackError(either, 'm', { tag: 'k' })

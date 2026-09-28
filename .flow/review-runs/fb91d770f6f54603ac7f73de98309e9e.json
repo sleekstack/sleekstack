@@ -1,0 +1,29 @@
+{
+  "backend": "codex",
+  "counter_scope": "impl:fn-8-deepen-kit-and-core-seams.4",
+  "failure_class": "fanout_abandoned",
+  "finalized": {
+    "digest": "not_applicable",
+    "receipt": "not_applicable",
+    "status": "not_applicable"
+  },
+  "metadata": null,
+  "outcome": "transport_failure",
+  "receipt_payload": null,
+  "receipt_target": null,
+  "reservation_id": "fb91d770f6f54603ac7f73de98309e9e",
+  "reset_rounds_on_ship": false,
+  "response": "fan-out dispatched; no finalize landed before this refund-intent journal was replayed",
+  "response_sha256": "6ea4de7239adcef700fcf360528c3918564fc4300515f3a62b9a089c94e74f20",
+  "review_kind": "impl",
+  "review_type": "impl",
+  "reviewed_base_sha": "52a823874d0aebe5c12625908fdea7adf61b5b6f",
+  "reviewed_head_sha": "c695ec33e0119c2e5e078308c0d6caba836a5283",
+  "scope": "impl:fn-8-deepen-kit-and-core-seams.4",
+  "spec_id": "fn-8-deepen-kit-and-core-seams",
+  "status_target": null,
+  "superseded_by": null,
+  "task_id": "fn-8-deepen-kit-and-core-seams.4",
+  "timestamp": "2026-09-28T16:50:46.589639Z",
+  "verdict": null
+}

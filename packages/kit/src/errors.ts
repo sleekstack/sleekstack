@@ -47,20 +47,24 @@ export type SleekStackError<C extends SleekStackErrorCode = SleekStackErrorCode>
   ? Error & { readonly name: 'SleekStackError'; readonly code: C; readonly details: SleekStackErrorDetails[C] }
   : never
 
-class SleekStackErrorImpl extends Error {
-  constructor(readonly code: SleekStackErrorCode, message: string, readonly details: object = {}, options?: { cause?: unknown }) {
+type Options = { cause?: unknown }
+/** Constructor arguments, correlated per code; codes without details accept only an empty object. */
+type SleekStackErrorArgs<C extends SleekStackErrorCode> = C extends SleekStackErrorCode
+  ? keyof SleekStackErrorDetails[C] extends never
+    ? [code: C, message: string, details?: Record<PropertyKey, never>, options?: Options]
+    : {} extends SleekStackErrorDetails[C]
+      ? [code: C, message: string, details?: SleekStackErrorDetails[C], options?: Options]
+      : [code: C, message: string, details: SleekStackErrorDetails[C], options?: Options]
+  : never
+
+/** Constructs a {@link SleekStackError}; also the `instanceof` check. */
+export const SleekStackError = class SleekStackError extends Error {
+  constructor(readonly code: SleekStackErrorCode, message: string, readonly details: object = {}, options?: Options) {
     super(message, options)
     this.name = 'SleekStackError'
   }
-}
-
-/** Constructs a {@link SleekStackError}; also the `instanceof` check. */
-export const SleekStackError = SleekStackErrorImpl as unknown as {
-  new <C extends SleekStackErrorCode>(
-    code: C, message: string, ...rest: {} extends SleekStackErrorDetails[C]
-      ? [details?: SleekStackErrorDetails[C], options?: { cause?: unknown }]
-      : [details: SleekStackErrorDetails[C], options?: { cause?: unknown }]
-  ): SleekStackError<C>
+} as unknown as {
+  new <C extends SleekStackErrorCode>(...args: SleekStackErrorArgs<C>): SleekStackError<C>
   readonly prototype: SleekStackError
 }
 
@@ -91,7 +95,7 @@ export class CleanupFailure extends Error {
 const messageOf = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
 /** @internal Converts anything thrown (or an Effect Cause) into a SleekStackError. */
-export function normalize(e: unknown, fallback: SleekStackErrorCode = 'Unknown'): SleekStackError {
+export function normalize(e: unknown, fallback: 'Unknown' | 'HandlerFailed' | 'InvalidModule' = 'Unknown'): SleekStackError {
   if (e instanceof SleekStackError) return e
   if (Cause.isCause(e)) return normalize(Cause.squash(e), fallback)
   if (Runtime.isFiberFailure(e)) return normalize(e[Runtime.FiberFailureCauseId], fallback)

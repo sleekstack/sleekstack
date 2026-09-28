@@ -52,3 +52,8 @@ describe('normalize envelopes', () => {
     expect(e).toMatchObject({ code, details })
   })
 })
+
+it('the exported constructor keeps its runtime name', () => {
+  expect(SleekStackError.name).toBe('SleekStackError')
+  expect(new SleekStackError('Unknown', 'm').constructor.name).toBe('SleekStackError')
+})

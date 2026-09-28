@@ -11,7 +11,8 @@
   "impl_review_rounds": {
     "fn-8-deepen-kit-and-core-seams.1": 0,
     "fn-8-deepen-kit-and-core-seams.2": 0,
-    "fn-8-deepen-kit-and-core-seams.3": 0
+    "fn-8-deepen-kit-and-core-seams.3": 0,
+    "fn-8-deepen-kit-and-core-seams.4": 1
   },
   "next_task": 1,
   "plan_review_rounds": 0,
@@ -382,8 +383,19 @@
     "plan": 1,
     "plan#completion": 0
   },
-  "review_pending_rounds": {},
-  "review_reservations": {},
+  "review_pending_rounds": {
+    "impl:fn-8-deepen-kit-and-core-seams.4": 1
+  },
+  "review_reservations": {
+    "fb91d770f6f54603ac7f73de98309e9e": {
+      "artifact_sha256": "1c1b8e09eabba48662fb5f02e0c2c41a3886d606c063744991989c6b7a439fa4",
+      "counter_scope": "impl:fn-8-deepen-kit-and-core-seams.4",
+      "epoch": 0,
+      "exclusive": true,
+      "forced": false,
+      "review_type": "impl"
+    }
+  },
   "review_transport_failures": {
     "impl:fn-8-deepen-kit-and-core-seams.1": 0,
     "impl:fn-8-deepen-kit-and-core-seams.2": 0,
@@ -404,5 +416,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-09-28T16:47:16.164425Z"
+  "updated_at": "2026-09-28T16:50:46.589123Z"
 }
