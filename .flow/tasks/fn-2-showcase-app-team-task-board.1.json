@@ -1,0 +1,14 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-09-27T17:36:12.139710Z",
+  "depends_on": [],
+  "id": "fn-2-showcase-app-team-task-board.1",
+  "priority": null,
+  "spec": "fn-2-showcase-app-team-task-board",
+  "spec_path": ".flow/tasks/fn-2-showcase-app-team-task-board.1.md",
+  "status": "todo",
+  "title": "Scaffold apps/showcase + domain modules + /graph and /errors pages",
+  "updated_at": "2026-09-27T17:42:12.913644Z"
+}
