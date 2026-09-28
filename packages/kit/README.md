@@ -6,7 +6,7 @@ from any public entry.
 
 | Subpath | Exports |
 | --- | --- |
-| `@sleekstack/kit` | `tag`, `layer`, `withCleanup`, `module`, `snapshot`, `SleekStackError` (+ types `Tag`, `Layer`, `Module`, `GraphSnapshot`, `FinalizerError`, ...) |
+| `@sleekstack/kit` | `tag`, `layer`, `withCleanup`, `effect`, `module`, `snapshot`, `SleekStackError` (+ types `Tag`, `Layer`, `Module`, `GraphSnapshot`, `FinalizerError`, ...) |
 | `@sleekstack/kit/next` | `configureRuntime`, `action`, `query`, `fail` (+ `ActionResult`, `OperationOptions`, `RuntimeConfig`) |
 | `@sleekstack/kit/react` | `LayerProvider`, `useService`, `useServices` |
 
@@ -31,6 +31,25 @@ const DbLayer = layer(Db, async (clock) => {                                // a
 export const App = module({ name: 'App', provide: [ClockLayer, DbLayer], exports: [Db] })
 snapshot(App) // core's GraphSnapshot: nodes, edges, shadowing
 ```
+
+### Side effects: `effect()`
+
+A job, subscription or warm-up with no service to expose. `fn(...deps)` runs when its scope opens; the function it returns runs when the scope closes, like `useEffect`. Put it in any provide set.
+
+```ts
+import { effect } from '@sleekstack/kit'
+
+const refresh = effect((db, clock) => {
+  const t = setInterval(() => db.query(`-- refresh at ${clock.now()}`), 60_000)
+  return () => clearInterval(t)
+}, [Db, Clock], { name: 'refresh', lifetime: 'app' })
+
+export const App = module({ name: 'App', provide: [ClockLayer, DbLayer, refresh] })
+```
+
+- Setup may be async. A throw is `SleekStackError` `LayerFailed` with `details.tag` `effect:refresh`; a cleanup throw reaches `onFinalizerError` with `tag: 'effect:refresh'`.
+- Graph rules (missing, captive, private) apply to its deps. It shows in `snapshot()` as `effect:<name>` (default `effect:<n>`).
+- It runs once per scope; it doesn't re-run when deps change.
 
 ## `@sleekstack/kit/next`
 
