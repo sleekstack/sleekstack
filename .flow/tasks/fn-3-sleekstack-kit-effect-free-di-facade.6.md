@@ -34,9 +34,10 @@ Enforce module privacy in @sleekstack/core, reversing ADR 0002 ("exports are des
 
 
 ## Done summary
-TBD
+Enforced module privacy: PrivateDependency at buildGraph and in child scopes; scope context hides private Tags, useService and kit action deps report PrivateDependency; omitted exports = all public; ADR 0006 supersedes 0002; CONTEXT.md updated. Tests: core privacy.test.ts, kit module.test.ts + next.test.ts. baseline: green.
 
+stage: impl-review - skipped(config: REVIEW_MODE=none)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 60a978d06948510873639b5f58887745abc0cd05
+- Tests: pnpm typecheck && pnpm test
 - PRs:
