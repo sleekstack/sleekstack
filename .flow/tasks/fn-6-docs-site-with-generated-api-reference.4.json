@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-6-docs-site-with-generated-api-reference",
   "spec_path": ".flow/tasks/fn-6-docs-site-with-generated-api-reference.4.md",
-  "status": "todo",
+  "status": "done",
   "title": "Docs refresh + stale-phrase check + CI",
   "updated_at": "2026-09-28T10:49:05.467434Z"
 }
