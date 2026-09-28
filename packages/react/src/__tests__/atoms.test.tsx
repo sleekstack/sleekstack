@@ -143,6 +143,40 @@ describe('atom hooks', () => {
     expect(() => renderToString(<LayerProvider provide={[]}><View /></LayerProvider>)).toThrow(AtomsClientOnly)
   })
 
+  it('a selector returning an Effect keeps it as a value', async () => {
+    const task = Effect.sync(() => { throw new Error('must not run') })
+    const holder = Atom.make({ task })
+    let selected: unknown
+    const View = () => { selected = useAtomValue(holder, (h) => h.task); return <i data-testid="sel" /> }
+    render(<LayerProvider provide={[]}><Suspense fallback={null}><View /></Suspense></LayerProvider>)
+    await screen.findByTestId('sel')
+    expect(selected).toBe(task)
+  })
+
+  it('a zero-idleTTL atom survives the Suspense retry and loads once', async () => {
+    let starts = 0
+    const zero = Atom.setIdleTTL(Atom.make(Effect.suspend(() => { starts++; return Effect.promise(() => sleep(10)) }).pipe(Effect.as('z'))), 0)
+    const View = () => <span data-testid="z">{useAtomSuspense(zero).value}</span>
+    render(<LayerProvider provide={[]}><Suspense fallback={null}><View /></Suspense></LayerProvider>)
+    await screen.findByTestId('z')
+    expect(starts).toBe(1)
+  })
+
+  it('sibling providers with identical entries keep separate atom state', async () => {
+    const count = Atom.make(0)
+    const setters: Array<(n: number) => void> = []
+    const Show = ({ id }: { id: string }) => { const [n, set] = useAtom(count); setters.push(set); return <span data-testid={id}>{n}</span> }
+    render(<>
+      <LayerProvider provide={[]}><Suspense fallback={null}><Show id="s1" /></Suspense></LayerProvider>
+      <LayerProvider provide={[]}><Suspense fallback={null}><Show id="s2" /></Suspense></LayerProvider>
+    </>)
+    await screen.findByTestId('s1')
+    await screen.findByTestId('s2')
+    act(() => setters[0]!(5))
+    expect(screen.getByTestId('s1').textContent).toBe('5')
+    expect(screen.getByTestId('s2').textContent).toBe('0')
+  })
+
   it('types: Effect and Stream atom Results include scope lookup errors', () => {
     const a = Atom.make(Effect.succeed(1))
     type E = typeof a extends Atom.Atom<Result.Result<number, infer X>> ? X : never

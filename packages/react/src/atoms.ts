@@ -41,6 +41,10 @@ const bindingFor = (store: AtomStore, atom: Atom.Atom<any>): Binding => {
   return b
 }
 
+const NONE = Symbol()
+// React throttles Suspense reveals (~300 ms), so the retry can commit that long after the load settles.
+const RETRY_MS = 400
+
 function useValue<A>(store: AtomStore, atom: Atom.Atom<A>): A {
   const b = bindingFor(store, atom)
   return useSyncExternalStore(b.subscribe, b.getSnapshot) as A
@@ -67,8 +71,19 @@ export function useAtomValue<A>(atom: Atom.Atom<A>): A
 export function useAtomValue<A, B>(atom: Atom.Atom<A>, f: (a: A) => B): B
 export function useAtomValue<A, B>(atom: Atom.Atom<A>, f?: (a: A) => B): A | B {
   const store = useStore('useAtomValue')
-  const mapped = useMemo(() => (f ? Atom.make((get) => f(get(atom))) : atom), [atom, f])
-  return useValue(store, mapped as Atom.Atom<A | B>)
+  const b = bindingFor(store, atom)
+  // Maps outside the atom graph (so a selected Effect/Stream stays a value); re-maps only when the input changes.
+  const getSnapshot = useMemo(() => {
+    if (!f) return b.getSnapshot
+    let input: unknown = NONE
+    let output: B
+    return () => {
+      const value = b.getSnapshot()
+      if (!Object.is(value, input)) { input = value; output = f(value as A) }
+      return output
+    }
+  }, [b, f])
+  return useSyncExternalStore(b.subscribe, getSnapshot) as A | B
 }
 
 function useMounted(store: AtomStore, atom: Atom.Atom<any>) {
@@ -145,7 +160,9 @@ const suspensionFor = (store: AtomStore, atom: Atom.Atom<Result.Result<any, any>
   const found = perAtom.get(onWaiting)
   if (found) return found
   const promise = new Promise<void>((resolve) => {
-    // Holds the node until the load settles, then for idleTTL (via release) so the retry render can subscribe.
+    // Holds the node until the load settles, then RETRY_MS plus its idleTTL (via release), so the retry
+    // render can subscribe even when idleTTL is 0.
+    // ponytail: fixed RETRY_MS; a retry render slower than RETRY_MS + idleTTL rebuilds the atom.
     const release = store.retain(atom)
     let unsubscribe: (() => void) | undefined
     let done = false
@@ -157,7 +174,7 @@ const suspensionFor = (store: AtomStore, atom: Atom.Atom<Result.Result<any, any>
       done = true
       perAtom!.delete(onWaiting)
       unsubscribe?.()
-      release()
+      setTimeout(release, RETRY_MS)
       resolve()
     }
     unsubscribe = store.subscribe(atom, check)

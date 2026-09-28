@@ -17,7 +17,7 @@
  * closed if no render adopts it within ADOPT_MS once settled.
  */
 
-import React, { useContext, useEffect, useRef } from 'react'
+import React, { useContext, useEffect, useRef, useState } from 'react'
 import { Cause, Effect, Exit } from 'effect'
 import { atomStoreFor, buildGraph, makeAppScope, type ChildScope, type Entry, type Module } from '@sleekstack/core'
 import { ProviderContext, type ProviderState } from './context'
@@ -42,9 +42,11 @@ interface Owned {
   readonly close: () => Promise<void>
   committed: boolean
   parkToken?: object
+  /** The provider instance that committed this scope. */
+  owner?: object
 }
 
-// ponytail: parked scopes are matched by (parent, provide entries), so identical uncommitted siblings may swap scopes; harmless since neither committed.
+// ponytail: parked scopes are matched by (parent, provide entries), so identical uncommitted siblings may adopt one scope; the second to commit replaces it with its own (see LayerProvider's effect).
 const ADOPT_MS = 5000
 const parked = new Set<Owned>()
 
@@ -148,6 +150,8 @@ export function LayerProvider({ provide, onFinalizerError, children }: LayerProv
   const pendingRef = useRef<{ cancelled: boolean } | null>(null)
   const initialProvide = useRef(provide)
   const warned = useRef(false)
+  const self = useRef({})
+  const [, rerender] = useState(0)
 
   if (ownedRef.current === null) {
     ownedRef.current = adopt(provide, parent) ?? create(provide, parent, onFinalizerError ?? parent?.onFinalizerError ?? defaultSink)
@@ -159,7 +163,13 @@ export function LayerProvider({ provide, onFinalizerError, children }: LayerProv
   }
 
   useEffect(() => {
-    const owned = ownedRef.current!
+    let owned = ownedRef.current!
+    if (owned.owner !== undefined && owned.owner !== self.current) {
+      // A sibling with identical entries committed this scope first: take a scope of our own.
+      owned = ownedRef.current = create(owned.provide, parent, owned.state.onFinalizerError)
+      rerender((n) => n + 1)
+    }
+    owned.owner = self.current
     owned.committed = true
     parked.delete(owned)
     owned.state.start()
