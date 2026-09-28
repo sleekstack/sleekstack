@@ -55,7 +55,7 @@ A bare `Layer` works as an entry too, but service definitions cannot depend on i
 ## Running
 
 ```bash
-pnpm install
+pnpm install                        # pnpm 11 (pinned in packageManager)
 pnpm --filter sleekstack-playground dev   # http://localhost:5173
 pnpm --filter sleekstack-playground test  # R11 bundle check
 ```

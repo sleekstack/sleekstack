@@ -23,7 +23,7 @@ dependency Graph end to end.
 ## Running
 
 ```bash
-pnpm install
+pnpm install                        # pnpm 11 (pinned in packageManager)
 pnpm --filter showcase dev          # http://localhost:3000
 pnpm --filter showcase typecheck
 pnpm --filter showcase test         # Vitest (bundle test skips without a build)
