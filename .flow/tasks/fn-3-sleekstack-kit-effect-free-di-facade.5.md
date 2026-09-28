@@ -32,9 +32,10 @@ Finish the showcase-kit feature parity with fn-2 (the /graph and /errors pages, 
 
 
 ## Done summary
-TBD
+Added showcase-kit /graph and /errors pages (kit-only, 9 SleekStackError cases), bundle-split test with a server-only marker, Playwright smoke; wrote kit README, ADR 0005, CONTEXT.md kit section, root/showcase-kit READMEs, and CI steps for kit + showcase-kit (scripts, build:types, bundle, e2e). Baseline green; all gates green.
 
+stage: impl-review - skipped(config: REVIEW_MODE=none)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 7e7460a2eee58428efdb7eada0a69014fc510438
+- Tests: pnpm typecheck && pnpm test, pnpm --filter @sleekstack/kit build:types, pnpm --filter showcase-kit build && pnpm --filter showcase-kit test:bundle, pnpm --filter showcase-kit test:e2e
 - PRs:
