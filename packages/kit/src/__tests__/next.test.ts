@@ -46,6 +46,12 @@ describe('@sleekstack/kit/next', () => {
     expect(e).toMatchObject({ code: 'MissingDependency', details: { tag: 'Rq' } })
   })
 
+  it('a private action dependency rejects PrivateDependency', async () => {
+    configureRuntime({ provide: [module({ name: 'Lib', provide: [layer(Label, () => ({ label: 'x' }))], exports: [] })] })
+    const e = await caught(action((l) => () => l.label, [Label])())
+    expect(e).toMatchObject({ code: 'PrivateDependency', details: { tag: 'Label', module: 'Lib' } })
+  })
+
   it('stream returns reject through action and query', async () => {
     configureRuntime({ provide: [] })
     const iter = { async *[Symbol.asyncIterator]() { yield 1 } }

@@ -27,11 +27,11 @@ One of `app`, `request`, or `component` — how long a constructed service lives
 _Avoid_: Scope kind, duration, lifecycle tier
 
 **Module**:
-A named group of entries — Service Definitions, declared Layers, or bare Layers — with imports (other Modules, pulled in transitively) and exports (descriptive graph metadata only; see Graph). The primary architectural unit in SleekStack. Created with `module()`.
+A named group of entries — Service Definitions, declared Layers, or bare Layers — with imports (other Modules, pulled in transitively) and exports. Exports are enforced: when `exports` is given, every other Tag the Module provides is private and may be required only by the Module's own entries — importers, root entries, `useService`, action/query deps, per-call `provide` entries and child scopes get `PrivateDependency`. Omitted `exports` means all public. Shadowing a private Tag from outside provides a new public one (ADR 0006). The primary architectural unit in SleekStack. Created with `module()`.
 _Avoid_: Package, bundle, plugin, feature
 
 **Graph**:
-The validated dependency structure produced by `buildGraph(entries)`: construction order, lifetime checks, and shadowing resolved across every entry and imported Module. `snapshot(graph)` exposes it as a serializable `GraphSnapshot` DTO (one node per provided Tag, keyed by the Tag key, or `Tag@Module` when shadowed; edges; lifetimes; owning module; per-Tag private flag) for tooling such as devtools.
+The validated dependency structure produced by `buildGraph(entries)`: construction order, module privacy, lifetime checks, and shadowing resolved across every entry and imported Module. `snapshot(graph)` exposes it as a serializable `GraphSnapshot` DTO (one node per provided Tag, keyed by the Tag key, or `Tag@Module` when shadowed; edges; lifetimes; owning module; per-Tag private flag) for tooling such as devtools.
 _Avoid_: Dependency tree, container, registry
 
 **Captive Dependency**:

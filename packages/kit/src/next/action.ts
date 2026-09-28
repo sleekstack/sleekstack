@@ -7,8 +7,9 @@
  * branded sentinels, which the outer wrapper maps after next resolves.
  */
 
+import { privateDependencyOf } from '@sleekstack/core'
 import { action as nextAction, query as nextQuery } from '@sleekstack/next'
-import { Effect, Option } from 'effect'
+import { Context, Effect, Option } from 'effect'
 import { normalize, SleekStackError } from '../errors'
 import type { Layer } from '../layer'
 import { unwrap, validateProvide, type Module } from '../module'
@@ -59,6 +60,8 @@ function lower<D extends readonly AnyTag[], A extends unknown[]>(
         const found = yield* Effect.serviceOption(coreTag(t))
         if (Option.isNone(found)) {
           const key = keyOf(t)
+          const hidden = privateDependencyOf((yield* Effect.context<never>()) as Context.Context<any>, key, 'action')
+          if (hidden) return { [ERRORED]: normalize(hidden) } as Sentinel
           return { [ERRORED]: new SleekStackError('MissingDependency', `Action dependency "${key}" is not provided`, { tag: key }) } as Sentinel
         }
         resolved.push(found.value)

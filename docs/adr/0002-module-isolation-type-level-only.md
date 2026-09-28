@@ -1,5 +1,7 @@
 # Module exports are descriptive graph metadata — no enforcement
 
+> **Superseded by [ADR 0006](0006-enforce-module-privacy.md).** Module exports are now enforced at graph build and at runtime lookup.
+
 > **Amended.** The original decision below (type-level-only enforcement) has been superseded: `exports` are now purely descriptive. `buildGraph` uses a Module's `exports` only to mark its non-exported entries as `private` on the resulting `GraphSnapshot` node — informational metadata for tooling (e.g. devtools), not a boundary. There is neither a runtime check nor a TypeScript-level restriction on requesting a private Tag from outside its Module; `useService()` and `buildGraph` accept it exactly as they would an exported one.
 
 A Module's private Layers (those not listed in `exports`) are not isolated from consumers by SleekStack. `useService()` does not throw at runtime if a private Tag is requested from outside the Module, and TypeScript does not restrict it either — `exports` only shapes the `private` flag on the graph snapshot.

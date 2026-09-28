@@ -47,6 +47,15 @@ export type GraphError =
   | DuplicateModule
   | InvalidModule
   | CaptiveDependency
+  | PrivateDependency
+
+/** A private Tag (not in its module's `exports`) was required from outside that module. */
+export class PrivateDependency extends Data.TaggedError('PrivateDependency')<{
+  readonly tag: string
+  readonly module: string
+  readonly requiredBy: string
+  readonly message: string
+}> {}
 
 export class CaptiveDependency extends Data.TaggedError('CaptiveDependency')<{
   readonly service: string

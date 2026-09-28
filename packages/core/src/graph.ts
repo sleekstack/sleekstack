@@ -9,7 +9,7 @@
 
 import { Cause, Context, Layer } from 'effect'
 import { walkModules } from './cycle'
-import { AmbiguousProvider, DependencyCycle, MissingDependency } from './errors'
+import { AmbiguousProvider, DependencyCycle, MissingDependency, PrivateDependency } from './errors'
 import { isDeclaredLayer, isModule, isServiceDefinition, type Entry, type Module } from './module'
 import { checkLifetimes } from './lifetime'
 import type { Lifetime } from './service'
@@ -68,6 +68,17 @@ export interface GraphSnapshot {
   readonly shadowing: readonly Shadowing[]
 }
 
+/** A Tag is private when its module lists `exports` and the Tag is not among them. */
+export const isPrivateTag = (module: Module | undefined, key: string): boolean =>
+  module?.exports !== undefined && !module.exports.some((t) => t.key === key)
+
+/** @internal */
+export const privateDependency = (tag: string, module: Module, requiredBy: string) =>
+  new PrivateDependency({
+    tag, module: module.name, requiredBy,
+    message: `"${requiredBy}" requires "${tag}", which is private to module "${module.name}" (not in its exports)`,
+  })
+
 const where = (n: GraphNode) => (n.module ? `module "${n.module.name}"` : 'root entries')
 
 /** Raw-Layer construction failures carry the owning module's name; the original Cause is kept as `cause`. */
@@ -113,8 +124,7 @@ export function resolveEntries(input: readonly (Module | Entry)[]): Resolved {
   let opaqueN = 0
   const all: GraphNode[] = [...seen.values()].map(({ entry, module, depth, paths }) => {
     const base = { module, depth, paths, lost: [] }
-    const isPrivate = (provides: readonly string[]) =>
-      module !== undefined && !provides.some((k) => module.exports.some((t) => t.key === k))
+    const isPrivate = (provides: readonly string[]) => provides.every((k) => isPrivateTag(module, k))
     if (isServiceDefinition(entry)) {
       const provides = [entry.tag.key]
       return {
@@ -192,6 +202,8 @@ export function buildGraph(input: readonly (Module | Entry)[]): Graph {
             `If a raw Layer provides it, wrap it with declareLayer(layer, { provides: [...] }).`,
         })
       }
+      const owner = winners.get(r)!.module
+      if (owner && owner !== n.module && isPrivateTag(owner, r)) throw privateDependency(r, owner, n.id)
     }
   }
   checkLifetimes(live, (k) => winners.get(k)!)
@@ -251,7 +263,7 @@ export function snapshot(graph: Graph): GraphSnapshot {
     lifetime: n.lifetime,
     module: n.module ? { id: n.module.name, name: n.module.name } : null,
     paths: n.paths.map((p) => [...p]),
-    private: tag === undefined ? n.private : n.module !== undefined && !n.module.exports.some((t) => t.key === tag),
+    private: tag === undefined ? n.private : isPrivateTag(n.module, tag),
     opaque: n.opaque,
     shadowed,
   })

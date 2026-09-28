@@ -24,6 +24,6 @@ describe('module()', () => {
     const decl = declareLayer(raw, { provides: [T] })
     const m = module({ name: 'M', entries: [TDef, decl, raw], imports: [dep], exports: [T], lifetime: 'request' })
     expect(m).toMatchObject({ name: 'M', entries: [TDef, decl, raw], imports: [dep], exports: [T], lifetime: 'request' })
-    expect(module({ name: 'Empty' })).toMatchObject({ entries: [], imports: [], exports: [] })
+    expect(module({ name: 'Empty' })).toMatchObject({ entries: [], imports: [] })
   })
 })
