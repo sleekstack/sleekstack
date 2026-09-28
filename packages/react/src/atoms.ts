@@ -157,12 +157,22 @@ export function useAtomRefresh(atom: Atom.Atom<any>): () => void {
 const pending = (r: Result.Result<any, any>, onWaiting: boolean) => r._tag === 'Initial' || (onWaiting && r.waiting)
 
 const once = (f: () => void) => { let done = false; return () => { if (!done) { done = true; f() } } }
-const inflight = new WeakMap<AtomStore, number>()
 const closed = new WeakSet<AtomStore>()
 /** The store's scope closed (its nodes are gone): stop the suspension GC timers waiting on it. */
 export const settleSuspensions = (store: AtomStore) => void closed.add(store)
-// Settled suspension holds awaiting a committed reader.
-const holds = new WeakMap<AtomStore, WeakMap<Atom.Atom<any>, Set<() => void>>>()
+
+// A settled suspension's hold on its node. `blockers` counts later suspensions started inside its retry window
+// (the same render chain retrying into its next atom, i.e. a waterfall): it stays held until they finish.
+interface Hold { blockers: number; readonly finish: () => void }
+// Settled holds still inside their retry window, per store: the candidate predecessors of a new suspension.
+const open = new WeakMap<AtomStore, Set<Hold>>()
+const openFor = (store: AtomStore) => {
+  let set = open.get(store)
+  if (!set) open.set(store, (set = new Set()))
+  return set
+}
+// Settled holds awaiting a committed reader.
+const holds = new WeakMap<AtomStore, WeakMap<Atom.Atom<any>, Set<Hold>>>()
 const holdsFor = (store: AtomStore, atom: Atom.Atom<any>) => {
   let perStore = holds.get(store)
   if (!perStore) holds.set(store, (perStore = new WeakMap()))
@@ -183,9 +193,21 @@ const suspensionFor = (store: AtomStore, atom: Atom.Atom<Result.Result<any, any>
   if (found) return found
   const promise = new Promise<void>((resolve) => {
     // Holds the node past settle until a reader commits (its subscription takes over, see useAtomSuspense) or
-    // the render is abandoned: RETRY_MS with no suspension pending in this store (a waterfall keeps it held).
-    const release = once(store.retain(atom))
-    inflight.set(store, (inflight.get(store) ?? 0) + 1)
+    // the render is abandoned: RETRY_MS after settling with no later suspension of its chain still held.
+    // ponytail: "chain" = any suspension started in this store while a settled hold is in its window; an unrelated
+    // suspension started in that window also extends it (until it finishes). Per-owner identity if that matters.
+    const retained = store.retain(atom)
+    const preds = [...openFor(store)]
+    for (const p of preds) p.blockers++
+    const hold: Hold = {
+      blockers: 0,
+      finish: once(() => {
+        openFor(store).delete(hold)
+        holdsFor(store, atom).delete(hold)
+        retained()
+        for (const p of preds) p.blockers--
+      }),
+    }
     let unsubscribe: (() => void) | undefined
     let done = false
     const check = () => {
@@ -196,13 +218,13 @@ const suspensionFor = (store: AtomStore, atom: Atom.Atom<Result.Result<any, any>
       done = true
       perAtom!.delete(onWaiting)
       unsubscribe?.()
-      inflight.set(store, inflight.get(store)! - 1)
-      holdsFor(store, atom).add(release)
+      holdsFor(store, atom).add(hold)
+      openFor(store).add(hold)
       const gc = (): unknown => setTimeout(() => {
         if (closed.has(store)) return
-        if (inflight.get(store)! > 0) return gc()
-        holdsFor(store, atom).delete(release)
-        release()
+        openFor(store).delete(hold) // out of its window: no new successors
+        if (hold.blockers > 0) return gc()
+        hold.finish()
       }, RETRY_MS)
       gc()
       resolve()
@@ -238,9 +260,7 @@ export function useAtomSuspense<A, E>(
   const result = useValue(store, atom)
   // Committed: this component's subscription holds the node now, so drop the suspension holds.
   useEffect(() => {
-    const set = holdsFor(store, atom)
-    for (const release of set) release()
-    set.clear()
+    for (const hold of [...holdsFor(store, atom)]) hold.finish()
   }, [store, atom])
   const onWaiting = options?.suspendOnWaiting ?? false
   if (pending(result, onWaiting)) throw suspensionFor(store, atom, onWaiting)

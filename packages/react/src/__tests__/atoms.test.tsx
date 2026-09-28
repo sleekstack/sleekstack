@@ -266,6 +266,28 @@ describe('atom hooks', () => {
     expect(builds).toBe(2)
   }, 8000)
 
+  it('an abandoned settled atom releases while an unrelated boundary stays suspended', async () => {
+    let starts = 0
+    let released = 0
+    const fast = Atom.make((get) => {
+      get.addFinalizer(() => released++)
+      return Effect.sync(() => starts++).pipe(Effect.zipRight(Effect.sleep(100)), Effect.as('x'))
+    })
+    const stuck = Atom.make(Effect.never)
+    const View = ({ atom }: { atom: Atom.Atom<Result.Result<unknown, unknown>> }) => <span>{String(useAtomSuspense(atom).value)}</span>
+    const Host = ({ show }: { show: boolean }) => <LayerProvider provide={[]}>
+      <Suspense fallback={null}><View atom={stuck} /></Suspense>
+      <Suspense fallback={null}>{show ? <View atom={fast} /> : null}</Suspense>
+    </LayerProvider>
+    const { rerender, unmount } = render(<Host show />)
+    await sleep(20)
+    rerender(<Host show={false} />)
+    await sleep(1500)
+    expect(starts).toBe(1)
+    expect(released).toBe(1)
+    unmount()
+  })
+
   it('unmounting mid-waterfall stops the suspension hold timers', async () => {
     const a = Atom.make(Effect.as(Effect.sleep(10), 'a'))
     const b = Atom.make(Effect.as(Effect.sleep(10_000), 'b'))

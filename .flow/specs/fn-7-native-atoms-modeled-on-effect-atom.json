@@ -1,7 +1,7 @@
 {
   "branch_name": "fn-7-native-atoms-modeled-on-effect-atom",
-  "completion_review_status": "unknown",
-  "completion_reviewed_at": null,
+  "completion_review_status": "needs_work",
+  "completion_reviewed_at": "2026-09-28T15:53:53.670811Z",
   "created_at": "2026-09-28T12:49:54.412040Z",
   "default_impl": null,
   "default_review": null,
@@ -16,7 +16,7 @@
     "fn-7-native-atoms-modeled-on-effect-atom.5": 0
   },
   "next_task": 1,
-  "plan_review_rounds": 0,
+  "plan_review_rounds": 1,
   "plan_review_status": "ship",
   "plan_reviewed_at": "2026-09-28T13:52:13.393190Z",
   "review_attempts": [
@@ -919,6 +919,59 @@
       "task": "fn-7-native-atoms-modeled-on-effect-atom.5",
       "timestamp": "2026-09-28T15:47:25.076872Z",
       "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "c8aca3710fdbaf7a8ef80f1bd3661bb1fd4c2f2b620fb5c382aaa8e607fcb83c",
+      "backend": "codex",
+      "base_sha": "e19d32a4b162bb828952a31250dbf3f316830b75",
+      "counter_kind": "plan",
+      "effort": "high",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-4f66760a4777dba16756bff8224c19e7",
+            "classification": "introduced",
+            "findingId": "finding-4f66760a4777dba16756bff8224c19e7",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-b4e3826bcfb51c6f007dfb8fd88b157e",
+            "classification": "introduced",
+            "findingId": "finding-b4e3826bcfb51c6f007dfb8fd88b157e",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "768002a14e5a295aa6af480ce0c54365f07e74d1",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-6-astra",
+      "outcome": "verdict",
+      "output_bytes": 337177,
+      "output_sha256": "085790994b10ab03f8e8b183421029fc09945c93e800bbfb595770414505d4b2",
+      "reservation_id": "b69aca1d199c49b1a1c041e65820ab93",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-09-28T15:53:53.664754Z",
+      "tool_calls": 23,
+      "verdict": "NEEDS_WORK"
     }
   ],
   "review_hash_epoch": {
@@ -932,6 +985,7 @@
   "review_pending_rounds": {},
   "review_reservations": {},
   "review_transport_failures": {
+    "completion": 0,
     "impl:fn-7-native-atoms-modeled-on-effect-atom.1": 0,
     "impl:fn-7-native-atoms-modeled-on-effect-atom.2": 0,
     "impl:fn-7-native-atoms-modeled-on-effect-atom.3": 0,
@@ -953,5 +1007,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-09-28T15:47:25.078796Z"
+  "updated_at": "2026-09-28T15:53:53.673036Z"
 }

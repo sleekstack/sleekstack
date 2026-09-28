@@ -6,7 +6,7 @@
  */
 
 import { Cause, Effect } from 'effect'
-import { Atom as CoreAtom, Result } from '@sleekstack/core'
+import { Atom as CoreAtom, Result, resolveTagEffect } from '@sleekstack/core'
 import type { Services } from './layer'
 import { coreTag, type AnyTag } from './tag'
 
@@ -58,9 +58,9 @@ const isThenable = (x: unknown): x is PromiseLike<unknown> => typeof (x as { the
 
 const derived = (fn: (...args: any[]) => unknown, deps: readonly AnyTag[], opts: AtomOptions, prefix: readonly unknown[] = []) => {
   const tags = deps.map(coreTag)
-  let core: Core = CoreAtom.make((get: CoreAtom.Context) =>
+  const base: Core = CoreAtom.make((get: CoreAtom.Context) =>
     // Deps resolve synchronously in the forked build, so `fn` (and its `get` calls) runs inside the read.
-    Effect.flatMap(Effect.all(tags), (services) => {
+    Effect.flatMap(Effect.all(tags.map((t) => resolveTagEffect(t, base.label))), (services) => {
       let out: unknown
       try {
         out = fn(...prefix, ...services, getter(get))
@@ -74,8 +74,7 @@ const derived = (fn: (...args: any[]) => unknown, deps: readonly AnyTag[], opts:
       )
     }),
   )
-  if (opts.keepAlive) core = CoreAtom.keepAlive(core)
-  return wrap<Atom<unknown>>(core)
+  return wrap<Atom<unknown>>(opts.keepAlive ? CoreAtom.keepAlive(base) : base)
 }
 
 /** Derived: `fn(...services, get)` returns a value or a Promise. */

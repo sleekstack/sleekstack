@@ -9,7 +9,7 @@
  */
 
 import { Cause, Context, Effect, Exit, Layer, Scope } from 'effect'
-import { AmbiguousProvider, MissingDependency } from './errors'
+import { AmbiguousProvider, MissingDependency, type PrivateDependency } from './errors'
 import { isPrivateTag, privateDependency, resolveEntries, toposort, type Graph } from './graph'
 import type { Entry, Module } from './module'
 import type { Lifetime } from './service'
@@ -55,6 +55,13 @@ export const privateDependencyOf = (context: Context.Context<any>, key: string, 
 
 const tagName = (tag: Context.Tag<any, any>): string => (tag as { key?: string }).key ?? String(tag)
 
+// The one Tag lookup: the instance, or the typed miss (PrivateDependency when the Tag is private there).
+const lookupTag = <T>(context: Context.Context<any>, tag: Context.Tag<any, T>, requiredBy: string) => {
+  const found = Context.getOption(context, tag)
+  if (found._tag === 'Some') return { ok: true as const, value: found.value }
+  return { ok: false as const, hidden: privateDependencyOf(context, tagName(tag), requiredBy) }
+}
+
 /**
  * Looks `tag` up in a scope's public `context`.
  *
@@ -74,14 +81,40 @@ const tagName = (tag: Context.Tag<any, any>): string => (tag as { key?: string }
  * ```
  */
 export const resolveTag = <T>(context: Context.Context<any>, tag: Context.Tag<any, T>, requiredBy: string): T => {
-  const found = Context.getOption(context, tag)
-  if (found._tag === 'Some') return found.value
-  const hidden = privateDependencyOf(context, tagName(tag), requiredBy)
-  if (hidden) throw hidden
+  const r = lookupTag(context, tag, requiredBy)
+  if (r.ok) return r.value
+  if (r.hidden) throw r.hidden
   throw new Error(
     `Service "${tagName(tag)}" is not provided. Add it (or a module exporting it) to the provide prop of a <LayerProvider> above this component.`,
   )
 }
+
+/**
+ * {@link resolveTag} as an Effect over the running context: fails with a typed miss instead of throwing.
+ *
+ * @param tag - The Tag to resolve.
+ * @param requiredBy - Who looked it up, for the error.
+ * @returns An Effect of the service instance.
+ * @throws Fails with `PrivateDependency` when the Tag is private to a module; `MissingDependency` when it is not provided.
+ *
+ * @example
+ * ```ts
+ * import { Context, Effect } from 'effect'
+ * import { resolveTagEffect } from '@sleekstack/core'
+ *
+ * class Clock extends Context.Tag('Clock')<Clock, number>() {}
+ * Effect.runSync(Effect.provideService(resolveTagEffect(Clock, 'example'), Clock, 1)) // 1
+ * ```
+ */
+export const resolveTagEffect = <T>(tag: Context.Tag<any, T>, requiredBy: string): Effect.Effect<T, MissingDependency | PrivateDependency> =>
+  Effect.flatMap(Effect.context<never>(), (context) => {
+    const r = lookupTag(context as Context.Context<any>, tag, requiredBy)
+    if (r.ok) return Effect.succeed(r.value)
+    return Effect.fail(r.hidden ?? new MissingDependency({
+      service: requiredBy, missing: tagName(tag),
+      message: `"${requiredBy}" requires "${tagName(tag)}", but no enclosing scope provides it`,
+    }))
+  })
 
 /** Options for {@link makeAppScope}. */
 export interface ScopeOptions {
