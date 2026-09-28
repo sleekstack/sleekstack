@@ -19,9 +19,11 @@ Touches: packages/core/src/atom/**, packages/core/src/index.ts, packages/core/sr
 - [ ] A read cycle throws `AtomCycle` naming the atoms. A family with an equal structural key returns the same atom; a Map-fallback test exists.
 - [ ] An unsubscribed node is removed after a microtask; resubscribing in the same tick keeps it. idleTTL delays removal, keepAlive persists, and `retain(atom)` holds a node until released. `dispose` interrupts all and runs finalizers; a finalizer failure goes to `onFinalizerError`.
 ## Done summary
-TBD
+Native atom primitives in packages/core/src/atom (Atom, Result, AtomStore with push-invalidate/pull-recompute, Effect/Stream builds on per-build Scopes, family, lifecycle) plus AtomCycle; tests in packages/core/src/__tests__/atom.test.ts cover every AC. Store defaultIdleTTL defaults to none (microtask removal); the 400ms default belongs to the React layer (.3). Atom-level `refresh` is `ctx.refresh`/`store.refresh`.
 
+Tier: implementer opus at medium
+stage: impl-review - ran (codex, 3 rounds, SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 8dd7821fc7f35adb1459e7deb86e52cdd2d69798, 89c8e6dd9685e2c335070c2229cc2f507210c332, 3f2e09b19dec1e12be46c2e9052007928122619a
+- Tests: pnpm typecheck && pnpm test
 - PRs:
