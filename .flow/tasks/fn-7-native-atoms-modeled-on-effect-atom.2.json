@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-09-28T13:47:15.631134Z",
+  "depends_on": [
+    "fn-7-native-atoms-modeled-on-effect-atom.1"
+  ],
+  "id": "fn-7-native-atoms-modeled-on-effect-atom.2",
+  "priority": null,
+  "spec": "fn-7-native-atoms-modeled-on-effect-atom",
+  "spec_path": ".flow/tasks/fn-7-native-atoms-modeled-on-effect-atom.2.md",
+  "status": "todo",
+  "title": "AtomStore over ChildScope + shared Tag lookup",
+  "updated_at": "2026-09-28T13:47:24.318936Z"
+}
