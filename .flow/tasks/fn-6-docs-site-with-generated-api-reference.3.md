@@ -15,9 +15,11 @@ Touches: apps/docs/content/docs/** (non-api), apps/docs/snippets/**, apps/docs/t
 
 
 ## Done summary
-TBD
+Wrote the 11 Scope guides plus sidebar meta.json; every code sample is an `<include>` of a typechecked file under apps/docs/snippets (tsc proven to fail on API drift), guarded by test/guides.test.ts (pages in nav, no inline fences, includes resolve to snippets/showcases, no orphan snippets). Added ADR 0007. Out-of-Touches: `effect` added as apps/docs devDependency (+ lockfile) so Effect-native snippets resolve.
 
+Tier: opus at medium
+stage: impl-review - ran (codex fan-out NEEDS_WORK -> fixed 'use server' wrappers + ModuleCycle hint -> SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: f0ff3d3f6181f4d54b524e1288bcfba26385146f, ecef490b006f93d6cf175c276893a1ffca455f84
+- Tests: pnpm --filter docs typecheck, pnpm --filter docs build, pnpm --filter docs test, baseline: green via handoff (verified at 497d7c3 by .2)
 - PRs:
