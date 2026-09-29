@@ -11,6 +11,7 @@ Implement the whole-graph checks in the analyzer (missing, cycle, captive, ambig
 **Touches:** [packages/analyze/**]
 
 ### Approach
+- Carry-over from task 1: extraction currently tracks list construction syntactically (push / splice / helper returns) and reports `.map` / loop-built `provide` lists as `Computed`. Spec R7 says types, not syntax: read the checker's element type of `provide` / `imports` arrays so `.map`, loops and conditionals over precisely typed values are accepted and over-approximated; only imprecise types (`any`, widened `Layer<any>[]`, non-literal keys) error. Add a fixture for a `.map`-built list and one for a loop.
 - Port the logic from core's validation, keeping error codes and messages, not importing core's runtime graph.
 - Shadowing and local-over-import resolution must match `resolveEntries`.
 
@@ -25,6 +26,7 @@ Implement the whole-graph checks in the analyzer (missing, cycle, captive, ambig
 ### Acceptance
 - [ ] Fixture per graph error asserts code and location
 - [ ] Each error also reproduces from core-style declarations
+- [ ] `.map`-built and loop-built `provide` lists with precise types extract every member; an `any`-typed list still errors
 - [ ] Clean project yields no errors
 
 ## Acceptance
@@ -37,4 +39,5 @@ TBD
 - Commits:
 - Tests:
 - PRs:
+
 
