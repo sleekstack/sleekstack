@@ -8,7 +8,7 @@ Kit and core build the same graph: kit lowers every call to core. The choice is 
 | | Kit | Effect-native |
 | --- | --- | --- |
 | Tags | `tag<T>(name)`, or a class | `Context.Tag` classes |
-| Services | `layer(Tag, impl, [deps])` | `service(Tag, { requires }, make)` returning an Effect |
+| Services | `layer(Tag, impl, [deps])` or `layer(Tag, function* () { ... })` | `service(Tag, { requires }, make)` returning an Effect |
 | Modules | `module({ provide })` | `module({ entries })` + `makeAppScope` |
 | Actions | `defineEffect(function* (...args) { const a = yield* A; ... })` | `action((...args) => Effect.gen(...))` |
 | Errors | one `SleekStackError` with a `code` | tagged errors, typed in the Effect error channel |

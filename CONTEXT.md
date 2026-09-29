@@ -31,11 +31,11 @@ A named group of entries — Service Definitions, declared Layers, or bare Layer
 _Avoid_: Package, bundle, plugin, feature
 
 **Graph**:
-The validated dependency structure produced by `buildGraph(entries)`: construction order, module privacy, lifetime checks, and shadowing resolved across every entry and imported Module. `snapshot(graph)` exposes it as a serializable `GraphSnapshot` DTO (one node per provided Tag, keyed by the Tag key, or `Tag@Module` when shadowed; edges; lifetimes; owning module; per-Tag private flag) for tooling such as devtools.
+The dependency structure of every entry and imported Module under a root (`configureRuntime` call): nodes, edges, lifetimes, module privacy and shadowing. Validated only by the Analyzer, at build time (ADR 0010); `sleekstack check --json` reports it (one node per provided Tag, keyed by the Tag key, or `Tag@Module` when shadowed). The runtime keeps no validated Graph, only a Resolution Plan.
 _Avoid_: Dependency tree, container, registry
 
 **Captive Dependency**:
-A lifetime-safety violation where a longer-lived entry would depend on a shorter-lived one (e.g. `app` on `request`), which would otherwise capture a stale or already-finalized instance. Rejected by `buildGraph` per the lifetime matrix, naming both services and their lifetimes.
+A lifetime-safety violation where a longer-lived entry would depend on a shorter-lived one (e.g. `app` on `request`), which would otherwise capture a stale or already-finalized instance. Reported by the Analyzer per the lifetime matrix, naming both services and their lifetimes.
 _Avoid_: Lifetime leak, scope violation
 
 ### Kit facade concepts
@@ -49,12 +49,24 @@ A service token created by `tag<T>(name)`, or an (abstract) class used directly 
 _Avoid_: Token, key
 
 **Kit Layer**:
-The output of `layer(tag, impl, deps?, { lifetime }?)`: `impl` is a value, a class, or a (sync or async) factory whose parameters are the resolved services of the `deps` array, in order. Returning `withCleanup(service, cleanup)` registers a finalizer. Lowers to a Service Definition (ADR 0005).
+The output of `layer(tag, impl, deps?, { lifetime }?)`: `impl` is a value, a class, or a (sync or async) factory whose parameters are the resolved services of the `deps` array, in order. Or `layer(tag, function* () { ... }, { lifetime }?)`: a generator factory whose `yield*`ed Tags are its requirements, resolved lazily and memoized per scope (ADR 0010). Returning `withCleanup(service, cleanup)` registers a finalizer. Lowers to a Service Definition.
 _Avoid_: Provider, factory, binding
 
 **Kit Effect**:
-The output of `effect(fn, deps?, { name, lifetime }?)`: a side effect with no service to expose. `fn(...deps)` runs when its scope opens; the function it returns runs when the scope closes. Graph rules (missing, captive, private) apply to its deps; it appears in the Graph as `effect:<name>`.
+The output of `effect(fn, deps?, { name, lifetime }?)` from `@sleekstack/kit`: a side effect with no service to expose. `fn(...deps)` runs when its scope opens; the function it returns runs when the scope closes. Graph rules (missing, captive, private) apply to its deps; it appears in the Graph as `effect:<name>`. Not the same as `effect(gen, opts?)` from `@sleekstack/kit/next`, which runs a Kit Operation inline.
 _Avoid_: Hook, job, init
+
+**Kit Operation**:
+An action or query from `@sleekstack/kit/next`: `defineEffect(gen, opts?)` / `defineQuery(gen, opts?)`, or `effect(gen, opts?)` / `query(gen, opts?)` run inline. Its deps are the Tags the generator `yield*`s (followed through helper generators), resolved from the Request Scope on demand; there is no deps array. `opts.provide` shadows the Graph for one call; `opts.scope: [Tags]` builds Tags the body never yields (e.g. `RequestContext`) and counts them as edges.
+_Avoid_: Handler, deps array
+
+**Analyzer**:
+`@sleekstack/analyze`, run as `sleekstack check [--project <tsconfig>] [--entry <file>...] [--json]`. Reads the declarations through the TypeScript checker without executing app code, builds each root's Graph and reports every violation with file:line (exit 0 ok, 1 violations, 2 crash or no roots). Fails closed: a declaration it cannot read is an error. `--entry` limits the roots to the given files.
+_Avoid_: Linter, compiler plugin
+
+**Resolution Plan**:
+Core's internal, non-exported construction order and shadowing for a scope (`buildPlan(entries)`). The root plan does not validate; per-call `provide` and child-scope boundaries still check ambiguity and cycles.
+_Avoid_: Graph, snapshot
 
 **SleekStackError**:
 The one public error type of the kit: every core tagged error, kit check (`DuplicateTag`, `InvalidTag`) and thrown value is normalized to it, with a `code` and `details`.

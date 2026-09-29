@@ -1,7 +1,7 @@
 # @sleekstack/kit
 
 An Effect-free facade over `@sleekstack/core`, `@sleekstack/next` and `@sleekstack/react`. Services are plain
-values, classes or (async) factories; dependencies are declared as an array of Tags. No Effect type is reachable
+values, classes or (async) factories; a layer declares its dependencies as an array of Tags or `yield*`s them from a generator; actions and queries `yield*` them. `sleekstack check` validates the graph at build time. No Effect type is reachable
 from any public entry.
 
 | Subpath | Exports |
@@ -28,7 +28,13 @@ const DbLayer = layer(Db, async (clock) => {                                // a
   return withCleanup(conn, () => conn.close())
 }, [Clock])
 
-export const App = module({ name: 'App', provide: [ClockLayer, DbLayer], exports: [Db] })
+const Cache = tag<{ get(k: string): unknown }>('Cache')
+const CacheLayer = layer(Cache, function* () {                              // a generator: yielded Tags are its deps
+  const db = yield* Db
+  return { get: (k: string) => db.query(`select ${k}`) }
+})
+
+export const App = module({ name: 'App', provide: [ClockLayer, DbLayer, CacheLayer], exports: [Db, Cache] })
 // `sleekstack check` validates the graph at build time (nodes, edges, shadowing with `--json`)
 ```
 
@@ -84,6 +90,7 @@ const addRowEffect = defineEffect(function* (title: string) {
 })                                                                          // -> { ok: true, data }
 
 // A 'use server' file exports literal async functions that call the definitions
+// `{ provide: [Layers] }` shadows the graph for one call; `{ scope: [RequestContext] }` builds Tags the body never yields.
 // (or run a generator inline with effect(gen) / query(gen)):
 export async function listRows() { return listRowsQuery() }
 export async function addRow(title: string) { return addRowEffect(title) }
@@ -102,4 +109,4 @@ function Now() {
 ```
 
 See [`apps/showcase-kit`](../../apps/showcase-kit/README.md) for the full task board, and
-[ADR 0005](../../docs/adr/0005-dependency-arrays-over-inject.md) for why dependencies are arrays.
+[ADR 0010](../../docs/adr/0010-static-build-time-dependency-graph.md) for why deps are inferred and checked statically.
