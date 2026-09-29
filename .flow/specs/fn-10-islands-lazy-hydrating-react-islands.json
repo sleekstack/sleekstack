@@ -1,7 +1,7 @@
 {
   "branch_name": "fn-10-islands-lazy-hydrating-react-islands",
-  "completion_review_status": "unknown",
-  "completion_reviewed_at": null,
+  "completion_review_status": "ship",
+  "completion_reviewed_at": "2026-09-29T12:41:05.098425Z",
   "created_at": "2026-09-29T10:42:18.756772Z",
   "default_impl": null,
   "default_review": null,
@@ -682,6 +682,95 @@
       "task": "fn-10-islands-lazy-hydrating-react-islands.6",
       "timestamp": "2026-09-29T12:31:39.417542Z",
       "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "75fa9f5adce28a126a7ab1ac533d787e1304e18992f0cdd53711f1675039de83",
+      "backend": "codex",
+      "base_sha": "2e40bb8e43e3ae5860fa2ea1c6ea0a9f9f3cdd6d",
+      "counter_kind": "plan",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-43ba887357162c228b71aed1c01b2fd8",
+            "classification": "introduced",
+            "findingId": "finding-43ba887357162c228b71aed1c01b2fd8",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "213d7b4b2e0db8fc5bf87033d960e16fd96eead2",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 302719,
+      "output_sha256": "f5a219133a58c6013104e7aa02b4e73d771cb70022c2a4d2c443ec380610c913",
+      "reservation_id": "a6a8c98b7c824408bdd760a01a75ef23",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-09-29T12:37:09.242759Z",
+      "tool_calls": 18,
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "189788de476bb9f2af565142e358638f186d0b9ac24057234c51d529c3fd2549",
+      "backend": "codex",
+      "base_sha": "2e40bb8e43e3ae5860fa2ea1c6ea0a9f9f3cdd6d",
+      "counter_kind": "plan",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-43ba887357162c228b71aed1c01b2fd8",
+            "classification": "introduced",
+            "findingId": "finding-43ba887357162c228b71aed1c01b2fd8",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "c8fa8547ff138a195e413c7d3555b7d7e19e1d6b",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 7998,
+      "output_sha256": "08440f892a19ea33c718c332d93c09eb98fb6ade50bc10fb75336835c94002f9",
+      "reservation_id": "422f5c0404114a1c8482c2ee0418aea7",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-09-29T12:41:05.094186Z",
+      "verdict": "SHIP"
     }
   ],
   "review_hash_epoch": {
@@ -690,11 +779,13 @@
     "impl:fn-10-islands-lazy-hydrating-react-islands.3": 1,
     "impl:fn-10-islands-lazy-hydrating-react-islands.4": 1,
     "impl:fn-10-islands-lazy-hydrating-react-islands.5": 1,
-    "impl:fn-10-islands-lazy-hydrating-react-islands.6": 1
+    "impl:fn-10-islands-lazy-hydrating-react-islands.6": 1,
+    "plan#completion": 1
   },
   "review_pending_rounds": {},
   "review_reservations": {},
   "review_transport_failures": {
+    "completion": 0,
     "impl:fn-10-islands-lazy-hydrating-react-islands.1": 0,
     "impl:fn-10-islands-lazy-hydrating-react-islands.2": 0,
     "impl:fn-10-islands-lazy-hydrating-react-islands.3": 0,
@@ -716,5 +807,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-09-29T12:31:39.420939Z"
+  "updated_at": "2026-09-29T12:41:05.098960Z"
 }
