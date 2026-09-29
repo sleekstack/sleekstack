@@ -409,7 +409,16 @@ export function extract(project: string, entries?: readonly string[]): Report {
     const a = ts.isCallExpression(e) ? e.arguments : ts.factory.createNodeArray<ts.Expression>()
     const base = { opaque: false, loc: loc(e) }
     if (id === 'kit/layer#layer') {
-      p = { ...base, provides: [tagKey(a[0]!)], requires: tagList(a[2]), lifetime: lifetimeOf(prop(objectOf(a[3]), 'lifetime')) }
+      const impl = a[1] && unwrap(a[1])
+      const gen = impl && (ts.isFunctionExpression(impl) ? impl : fnOf(impl))
+      if (gen?.asteriskToken) {
+        // Generator factory: its yielded Tags are its requirements (same inference as action bodies).
+        const yields: ActionDecl['yields'] = []
+        yieldsOf(gen, yields, new Set())
+        p = { ...base, provides: [tagKey(a[0]!)], requires: [...new Set(yields.map((y) => y.tag))], lifetime: lifetimeOf(prop(objectOf(a[2]), 'lifetime')) }
+      } else {
+        p = { ...base, provides: [tagKey(a[0]!)], requires: tagList(a[2]), lifetime: lifetimeOf(prop(objectOf(a[3]), 'lifetime')) }
+      }
     } else if (id === 'kit/effect#effect') {
       const opts = objectOf(a[2])
       const name = prop(opts, 'name')

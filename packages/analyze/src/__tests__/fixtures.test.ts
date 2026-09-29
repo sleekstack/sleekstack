@@ -62,6 +62,12 @@ describe('graph error fixtures', () => {
     expect(r.runtimes[0]!.errors.map((e) => e.code).sort()).toEqual(['MissingDependency', 'MissingDependency', 'MissingDependency', 'MissingDependency', 'MissingDependency', 'MissingDependency', 'MissingDependency', 'MissingDependency', 'PrivateDependency'])
   })
 
+  it('generator layers: yielded Tags are edges feeding missing, captive and cycle checks', () => {
+    expect(sorted(located('generator-layers'))).toEqual(expected('generator-layers'))
+    const ok = analyze({ project: path.join(dir('generator-layers'), 'tsconfig.json') }).graphs.find((g) => g.root === 'Ok')!
+    expect(ok.edges).toEqual([{ from: 'B', to: 'A', tag: 'A' }])
+  })
+
   it('clean projects yield no errors', () => {
     expect(located('kit-app')).toEqual([])
     expect(located('core-app')).toEqual([])

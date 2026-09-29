@@ -65,3 +65,55 @@ describe('layer', () => {
     expect((await run(layer(Transform, () => fn))).get<Transform>(Transform)(1)).toBe(2)
   })
 })
+
+describe('layer (generator factory)', () => {
+  it('resolves yielded Tags lazily; finalizers run in reverse build order', async () => {
+    const log: string[] = []
+    const conn = layer(Conn, function* () {
+      const c = yield* Config
+      log.push('build Conn')
+      return withCleanup({ url: `g:${c.url}` }, () => { log.push('close Conn') })
+    })
+    const config = layer(Config, function* () {
+      log.push('build Config')
+      return withCleanup({ url: 'x' }, () => { log.push('close Config') })
+    })
+    const { get, scope } = await run(conn, config) // Conn listed first: its yield builds Config on demand
+    expect(get<Conn>(Conn).url).toBe('g:x')
+    await Effect.runPromise(scope.close)
+    expect(log).toEqual(['build Config', 'build Conn', 'close Conn', 'close Config'])
+  })
+
+  it('a provider yielded twice builds once and finalizes once', async () => {
+    const end = vi.fn()
+    const config = layer(Config, function* () { return withCleanup({ url: 'x' }, end) })
+    const conn = layer(Conn, function* () { return { url: (yield* Config).url } })
+    const list = layer(List, function* () { return [(yield* Config).url.length] })
+    const { scope } = await run(conn, list, config)
+    await Effect.runPromise(scope.close)
+    expect(end).toHaveBeenCalledOnce()
+  })
+
+  it('an array-form layer can depend on a generator layer', async () => {
+    const config = layer(Config, function* () { return { url: 'y' } })
+    expect((await run(layer(Conn, (c) => ({ url: c.url }), [Config]), config)).get<Conn>(Conn).url).toBe('y')
+  })
+
+  it('unprovided yield -> MissingDependency', async () => {
+    const e = await run(layer(Conn, function* () { return { url: (yield* Config).url } })).catch((x) => x)
+    expect(e.code).toBe('MissingDependency')
+    expect(e.message).toContain('Config')
+  })
+
+  it('re-entrant build -> DependencyCycle', async () => {
+    const a = layer(Config, function* () { return { url: (yield* Conn).url } })
+    const b = layer(Conn, function* () { return { url: (yield* Config).url } })
+    const e = await run(a, b).catch((x) => x)
+    expect(e.code).toBe('DependencyCycle')
+  })
+
+  it('a throwing generator -> LayerFailed', async () => {
+    const e = await run(layer(Conn, function* () { throw new Error('nope') })).catch((x) => x)
+    expect(e.code).toBe('LayerFailed')
+  })
+})

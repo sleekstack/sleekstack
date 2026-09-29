@@ -58,7 +58,7 @@ export function effect<const D extends readonly AnyTag[] = []>(
       const teardown = await fn(...resolved)
       return typeof teardown === 'function' ? withCleanup(undefined, teardown) : undefined
     },
-    deps,
+    deps ?? ([] as unknown as D),
     opts.lifetime ? { lifetime: opts.lifetime } : {},
   )
 }

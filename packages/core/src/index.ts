@@ -19,6 +19,8 @@ export {
   AtomCycle,
   type GraphError,
 } from './errors'
+/** @internal Lazy per-scope resolution for generator layers. */
+export { Resolver, type Resolve } from './lazy'
 export { canDependOn } from './lifetime'
 export { makeAppScope, privateDependencyOf, resolutionFailure, resolveTag, resolveTagEffect, Privacy, type AppScope, type ChildScope, type ScopeOptions } from './scope'
 /** Atom definitions: `make`, `writable`, `family`, `keepAlive`, `setIdleTTL`. */
