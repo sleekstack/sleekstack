@@ -599,9 +599,9 @@ export function extract(project: string, entries?: readonly string[]): Report {
   const inModules = new Set([...owned.values()].flat())
   const extraction = errors.filter((e) => !inModules.has(e))
   for (const r of roots) errors.push(...validate(r))
-  // An action belongs to the runtimes whose file imports it (transitively); one no runtime file reaches (a Next
-  // action, imported by pages rather than instrumentation) is checked against every runtime.
-  // ponytail: no per-route runtime association; add when a project serves actions from several runtimes.
+  // An action belongs to the runtimes whose file imports it (transitively). One no runtime file reaches (a Next
+  // action, imported by pages rather than instrumentation) belongs to the only runtime; with several, its owner
+  // is ambiguous: a located error (select one with `entries`).
   const reachOf = (sf: ts.SourceFile) => {
     const seen = new Set<ts.SourceFile>()
     const go = (f: ts.SourceFile): void => {
@@ -618,15 +618,17 @@ export function extract(project: string, entries?: readonly string[]): Report {
   }
   const reaches = runtimes.map((m) => reachOf(program.getSourceFile(path.resolve(root, m.loc.file))!))
   const claimed = new Set(actions.filter((a) => reaches.some((r) => r.has(a.file))))
+  if (runtimes.length > 1) for (const a of actions) if (!claimed.has(a)) errors.push({ code: 'UnownedAction', message: 'No configureRuntime file imports this action, and several runtimes exist; pass --entry to pick its runtime', ...a.loc })
   const runtimeReports = runtimes.map((m, i) => {
-    const actionErrors = actions.filter((a) => !claimed.has(a) || reaches[i]!.has(a.file)).flatMap((a) => validateAction(m, a))
+    const actionErrors = actions.filter((a) => (runtimes.length === 1 && !claimed.has(a)) || reaches[i]!.has(a.file)).flatMap((a) => validateAction(m, a))
     errors.push(...actionErrors)
     return { ...m.loc, graph: graphOf(m), errors: [...[...resolve(m).visits.keys()].flatMap((v) => owned.get(v) ?? []), ...validate(m), ...actionErrors] }
   })
   return {
     graphs: roots.map(graphOf),
     atoms: { nodes: atomNodes, edges: atomEdges },
-    errors,
+    // One defect reached twice (a provided module is also a root; an action overlay repeats it) is one error.
+    errors: [...new Map(errors.map((e) => [`${e.code}|${e.file}:${e.line}|${e.message}`, e])).values()],
     extraction,
     runtimes: runtimeReports,
   }

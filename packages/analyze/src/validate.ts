@@ -95,8 +95,10 @@ export function validate(root: ModuleDecl): AnalyzeError[] {
 export function validateAction(runtime: ModuleDecl, a: ActionDecl): AnalyzeError[] {
   const root: ModuleDecl = { ...a.provide, imports: [...a.provide.imports, runtime] }
   const { won } = resolve(root)
-  const own = new Set(a.provide.entries.map((p) => `${p.loc.file}:${p.loc.line}`))
-  const overlay = a.provide.entries.length ? validate(root).filter((e) => own.has(`${e.file}:${e.line}`)) : []
+  // The overlay's own errors: whatever validating it adds beyond the runtime's (its layers and provided modules).
+  const key = (e: AnalyzeError) => `${e.code}|${e.file}:${e.line}|${e.message}`
+  const base = new Set(validate(runtime).map(key))
+  const overlay = a.provide.entries.length || a.provide.imports.length ? validate(root).filter((e) => !base.has(key(e))) : []
   return [...overlay, ...a.yields.flatMap(({ tag, loc }): AnalyzeError[] => {
     const owner = won.get(tag)
     if (!owner) return [{ code: 'MissingDependency', message: `The action yields "${tag}", but no entry provides it`, ...loc }]

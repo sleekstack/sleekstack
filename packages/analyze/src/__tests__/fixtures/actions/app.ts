@@ -48,3 +48,7 @@ export const provided = defineQuery(function* () {
 export const providedList = defineQuery(function* () {
   return yield* OnlyHere
 }, [OnlyHere], { provide: [layer(OnlyHere, (b) => b, [Nowhere])] }) // @error MissingDependency
+const WithGap = module({ name: 'WithGap', provide: [layer(OnlyHere, (b) => b, [Nowhere])] }) // @error MissingDependency
+export const providedModule = defineQuery(function* () {
+  return yield* OnlyHere
+}, [OnlyHere], { provide: [WithGap] })
