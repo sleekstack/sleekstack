@@ -127,6 +127,20 @@ describe('Island', () => {
     expect(clicks).toBe(0)
   })
 
+  it('interaction retries on the next event after a chunk failure', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { button } = await mount('interaction')
+    loader.mockRejectedValueOnce(new Error('offline'))
+    await act(async () => button.click())
+    await flush()
+    expect(renders).toBe(0)
+    await act(async () => button.click())
+    await flush()
+    expect(loader).toHaveBeenCalledTimes(2)
+    expect(renders).toBe(1)
+    expect(clicks).toBe(1)
+  })
+
   it('unknown name throws IslandNotFound', async () => {
     // @ts-expect-error unknown name is a type error
     await expect(serverHtml(<Island name="nope" props={{}} />)).rejects.toBeInstanceOf(IslandNotFound)

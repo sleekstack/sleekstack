@@ -80,6 +80,11 @@ export const defineIslands = <M extends Record<string, IslandLoader>>(map: M) =>
           },
           (e) => {
             console.error(`[island ${name}] chunk failed to load`, e)
+            // `interaction` retries on the next event; other triggers keep the dormant HTML.
+            if (hydrate === 'interaction' && activations.get(el) === activation) {
+              activations.delete(el)
+              pendingClicks.delete(el)
+            }
             return undefined
           },
         )
