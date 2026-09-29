@@ -7,13 +7,11 @@ description: Server-rendered React components that download and hydrate only whe
 
 ## Registry
 
-A `'use client'` module calls `defineIslands(map, { provide })`. Each entry is a `() => import(...)`, so each Island is its own chunk. `provide` holds the **app-scope** entries shared by every Island of the registry on the page.
+A `'use client'` module calls `defineIslands(map, { provide })`. Each entry is a `() => import(...)`, so each Island is its own chunk. `provide` holds the **app-scope** entries shared by every Island of that registry on the page (two registries get two app scopes).
 
-<include>../../../showcase-kit/src/islands/islands.client.ts</include>
+<include>../../snippets/islands.tsx</include>
 
-A Server Component renders `<Island name props hydrate provide />`. `name` is a key of the map (an unknown name is a type error, and `IslandNotFound` at runtime), `props` is typed from the component, and `provide` adds **component-scope** entries for that instance only.
-
-<include>../../../showcase-kit/app/islands/page.tsx</include>
+`<Island name props hydrate provide />` renders one Island. `name` is a key of the map (an unknown name is a type error, and `IslandNotFound` at runtime) and `props` is typed from the component. A Server Component can render it with `name`, `props` and `hydrate`. `provide` adds **component-scope** entries for that instance only; kit entries hold functions and cannot cross the RSC boundary, so pass `provide` from a client component. `apps/showcase-kit` has a full example page (`app/islands/page.tsx`).
 
 ## Triggers
 
@@ -42,4 +40,4 @@ Each Island is its own React root, so React context does not cross Islands. The 
 - No Fast Refresh / HMR for Island modules.
 - No `children` or server-rendered JSX props; props must survive React's RSC serialiser.
 - Atoms live in the component scope, so they are per Island and not shared across Islands. Share state through an app-scope service.
-- Component-scope entries opened during a server render are not closed.
+- Component scopes opened during a server render are not closed when the render ends; they are closed by `LayerProvider`'s parked-scope timeout (5 s) instead.

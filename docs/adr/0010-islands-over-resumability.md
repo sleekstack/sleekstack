@@ -10,7 +10,7 @@
 
 ## Consequences
 
-- One React root per Island costs memory, and roots share no React context. The kit app scope therefore lives outside React: `LayerProvider` gained an additive option to adopt an externally owned app scope without closing it. On the client it is shared per page and reference-counted; on the server it is one process-lifetime scope per registry.
+- One React root per Island costs memory, and roots share no React context. The kit app scope therefore lives outside React: `LayerProvider` gained an additive option to adopt an externally owned app scope without closing it. On the client it is shared by a registry's Islands on the page and reference-counted; on the server it is one process-lifetime scope per registry.
 - Kit atoms live in the component scope, so they are per Island in v1.
 - React only replays events for roots it is already hydrating, so Islands replay the first pre-hydration click themselves. Targets whose native default already ran (links, checkbox, radio, labels, submit buttons, `summary`) are not replayed.
 - `useId` can mismatch, Next router context is absent inside Islands, and Island modules have no HMR in v1.

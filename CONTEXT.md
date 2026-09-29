@@ -75,7 +75,7 @@ The mechanism by which a Layer or Module in a `provide` array overrides a transi
 _Avoid_: Overriding, mocking, replacing, substituting
 
 **Island**:
-A server-rendered React component that downloads its chunk and hydrates as its own React root only when its trigger fires (`load`, `idle`, `visible`, `interaction`). Named in a `defineIslands` registry and rendered as `<Island name props />`. Islands on a page share one app scope outside React and each has its own component scope (ADR 0010).
+A server-rendered React component that downloads its chunk and hydrates as its own React root only when its trigger fires (`load`, `idle`, `visible`, `interaction`). Named in a `defineIslands` registry and rendered as `<Island name props />`. Islands of one registry share one app scope outside React (per page on the client, per process on the server) and each has its own component scope (ADR 0010).
 _Avoid_: Widget, partial, lazy component
 
 **Atom**:
