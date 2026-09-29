@@ -33,10 +33,11 @@ New `@sleekstack/analyze` package (raw `typescript` API, peer dependency, no ts-
 - [ ] TBD
 
 ## Done summary
-TBD
+New @sleekstack/analyze package extracts the kit/core static dependency graph from a tsconfig project through the TypeScript checker without executing app code; kit and core fixtures match snapshot()/snapshot(buildGraph), atom and effect deps become edges, and imprecise declarations (any, non-literal keys, escaped/let lists, unnamed effects) report located errors while helper-returned and written-to lists are over-approximated.
 
+stage: impl-review - ran (codex fan-out NEEDS_WORK -> NEEDS_WORK -> SHIP, 3 rounds)
+Follow-up: `.map`/loop-variable-built lists still fail closed (Computed) rather than over-approximating.
 ## Evidence
-- Commits:
-- Tests:
+- Commits: a8c46ac1fce2cc3f7d8351c4ef5b72e1eaae9782, 6bd61917ca3d1b0b86ea1423debbd830a08c2c08, 4cf924c57387500cee93a6518e87283139614e06
+- Tests: pnpm --filter @sleekstack/analyze test, pnpm --filter @sleekstack/analyze typecheck
 - PRs:
-

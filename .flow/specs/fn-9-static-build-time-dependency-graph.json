@@ -8,7 +8,9 @@
   "default_sync": null,
   "depends_on_epics": [],
   "id": "fn-9-static-build-time-dependency-graph",
-  "impl_review_rounds": {},
+  "impl_review_rounds": {
+    "fn-9-static-build-time-dependency-graph.1": 0
+  },
   "next_task": 1,
   "plan_review_rounds": 0,
   "plan_review_status": "ship",
@@ -166,15 +168,213 @@
       "task": null,
       "timestamp": "2026-09-29T09:21:01.208556Z",
       "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "48aa85074ddc9642ae0270c6f23ed5c8eaeec0acc5b466e37396bdc2547f1682",
+      "backend": "codex",
+      "base_sha": "abb15ab609092a6da2698bb4c9b08d583e12ce51",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-20987a65ef663d6f416660782eab79bc",
+            "classification": "introduced",
+            "findingId": "finding-20987a65ef663d6f416660782eab79bc",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-c3205182830808864340cbcb136a0fd1",
+            "classification": "introduced",
+            "findingId": "finding-c3205182830808864340cbcb136a0fd1",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-d348177c8d7385e8189e9e4e70270761",
+            "classification": "introduced",
+            "findingId": "finding-d348177c8d7385e8189e9e4e70270761",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "a8c46ac1fce2cc3f7d8351c4ef5b72e1eaae9782",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 2505,
+      "output_sha256": "64eed9eab951cc99303402a32fb40f52c6ca4997e4128d74306b4d5783bd1fd9",
+      "reservation_id": "4d61353c429c49428eea82f4248f3baa",
+      "round_consumed": true,
+      "scope": "impl:fn-9-static-build-time-dependency-graph.1",
+      "superseded_by": null,
+      "task": "fn-9-static-build-time-dependency-graph.1",
+      "timestamp": "2026-09-29T10:46:13.600101Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "eebc566de703978935306ff0c9726b0e5a63f06dae50c320c29ff439000a546d",
+      "backend": "codex",
+      "base_sha": "abb15ab609092a6da2698bb4c9b08d583e12ce51",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-20987a65ef663d6f416660782eab79bc",
+            "classification": "introduced",
+            "findingId": "finding-20987a65ef663d6f416660782eab79bc",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "not_fixed"
+          },
+          {
+            "chainRoot": "finding-c3205182830808864340cbcb136a0fd1",
+            "classification": "introduced",
+            "findingId": "finding-c3205182830808864340cbcb136a0fd1",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-d218e4cfb70048891d28f0efda455d2b",
+            "classification": "introduced",
+            "findingId": "finding-d218e4cfb70048891d28f0efda455d2b",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-d348177c8d7385e8189e9e4e70270761",
+            "classification": "introduced",
+            "findingId": "finding-d348177c8d7385e8189e9e4e70270761",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "6bd61917ca3d1b0b86ea1423debbd830a08c2c08",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1416,
+      "output_sha256": "b44a62639296b296ababb49211130bc989cb18bf5a88f1b3b15f76356a22a880",
+      "reservation_id": "e69bd33c47cf41eabd2fa005f88e3e01",
+      "round_consumed": true,
+      "scope": "impl:fn-9-static-build-time-dependency-graph.1",
+      "superseded_by": null,
+      "task": "fn-9-static-build-time-dependency-graph.1",
+      "timestamp": "2026-09-29T10:48:26.214991Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "954e8db12ec05727db824e0e48ee6230c232b32eabe1c51075b8df5d2dae39a7",
+      "backend": "codex",
+      "base_sha": "abb15ab609092a6da2698bb4c9b08d583e12ce51",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-20987a65ef663d6f416660782eab79bc",
+            "classification": "introduced",
+            "findingId": "finding-20987a65ef663d6f416660782eab79bc",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-c3205182830808864340cbcb136a0fd1",
+            "classification": "introduced",
+            "findingId": "finding-c3205182830808864340cbcb136a0fd1",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-d218e4cfb70048891d28f0efda455d2b",
+            "classification": "introduced",
+            "findingId": "finding-d218e4cfb70048891d28f0efda455d2b",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-d348177c8d7385e8189e9e4e70270761",
+            "classification": "introduced",
+            "findingId": "finding-d348177c8d7385e8189e9e4e70270761",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "4cf924c57387500cee93a6518e87283139614e06",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 980,
+      "output_sha256": "5ac43df0bfeeb14e6af45cf3a869fcbe4b68ad873e9ef1adcf5b94f9b380d5ea",
+      "reservation_id": "b703f256cf66411ba92de959b0dfd066",
+      "round_consumed": true,
+      "scope": "impl:fn-9-static-build-time-dependency-graph.1",
+      "superseded_by": null,
+      "task": "fn-9-static-build-time-dependency-graph.1",
+      "timestamp": "2026-09-29T10:52:06.908694Z",
+      "verdict": "SHIP"
     }
   ],
   "review_hash_epoch": {
+    "impl:fn-9-static-build-time-dependency-graph.1": 1,
     "plan": 1,
     "plan#completion": 0
   },
   "review_pending_rounds": {},
   "review_reservations": {},
   "review_transport_failures": {
+    "impl:fn-9-static-build-time-dependency-graph.1": 0,
     "plan": 0
   },
   "spec_path": ".flow/specs/fn-9-static-build-time-dependency-graph.md",
@@ -191,5 +391,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-09-29T09:21:01.211924Z"
+  "updated_at": "2026-09-29T10:52:06.912183Z"
 }
