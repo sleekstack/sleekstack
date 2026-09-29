@@ -55,3 +55,11 @@ export const ImportedLifetime = module({
     layer(D, readsR), // @error CaptiveDependency
   ],
 })
+declare const either: typeof yieldsZ | string
+export const Imprecise = module({
+  name: 'Imprecise',
+  provide: [
+    layer(B, yieldsZ as any), // @error Computed
+    layer(C, either), // @error Computed
+  ],
+})

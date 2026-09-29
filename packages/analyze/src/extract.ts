@@ -410,7 +410,13 @@ export function extract(project: string, entries?: readonly string[]): Report {
     const base = { opaque: false, loc: loc(e) }
     if (id === 'kit/layer#layer') {
       // Generator-ness by type (a call signature returning a Generator), never by the syntax it was written in.
-      const isGen = !!a[1] && checker.getTypeAtLocation(a[1]).getCallSignatures().some((sig) => checker.getReturnTypeOfSignature(sig).getSymbol()?.getName() === 'Generator')
+      if (a[1] && isImprecise(a[1])) return fail(a[1], `The layer implementation "${text(a[1])}" is typed imprecisely; whether it is a generator cannot be read`, 'Computed')
+      const genSig = (t: ts.Type) => t.getCallSignatures().some((sig) => checker.getReturnTypeOfSignature(sig).getSymbol()?.getName() === 'Generator')
+      const implType = a[1] && checker.getTypeAtLocation(a[1])
+      if (implType && implType.isUnion() && !implType.getCallSignatures().length && implType.types.some(genSig)) {
+        return fail(a[1]!, `The layer implementation "${text(a[1]!)}" is a union that may be a generator; its requirements cannot be read`, 'Computed')
+      }
+      const isGen = !!implType && genSig(implType)
       if (isGen) {
         // Generator factory: its yielded Tags are its requirements (same inference as action bodies); unreadable bodies fail closed.
         const yields: ActionDecl['yields'] = []
