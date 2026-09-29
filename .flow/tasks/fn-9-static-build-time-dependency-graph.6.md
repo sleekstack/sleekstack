@@ -28,10 +28,15 @@ Add the parity test (for both apps/showcase-kit and the core-declared apps/showc
 - [ ] TBD
 
 ## Done summary
-TBD
+Parity test (apps/showcase-kit/src/__tests__/parity.test.ts) asserts the analyzer report's runtime-root graph equals snapshot(AppModule) and the Demo root equals snapshot(DemoModule) on nodes, edges, private Tags and shadowing (no mismatches found). `sleekstack check --json` now also emits each root's graph plus every root module's `graphs` and `graphErrors`; `pnpm report` (predev/prebuild) writes it to .sleekstack/report.json (gitignored), which the graph and errors pages read. Build-time gallery cases moved to top-level root modules in src/errors/graphs.ts (reported with file:line); InvalidModule/DuplicateTag/InvalidTag stay runtime. Port list at .flow/notes/fn-9-build-time-error-port-list.md; ported cases in packages/analyze fixtures/ported.
 
+Not done: apps/showcase (core) parity and pages. It has no graph/errors pages, and its sleekstack module graph (modules.server.ts) was already deleted at HEAD (swept into c388d61) while uncommitted edits migrate it to plain Effect; core parity rests on the analyze core-app fixture vs buildGraph.
+Spec drift: parity test lives in showcase-kit (it reads the report through the CLI's main), not packages/analyze (rootDir). DuplicateTag gallery case still calls snapshot; task 7 must move it to validateProvide/configureRuntime.
+
+stage: impl-review - skipped(policy: host-deferred - conductor owns the gate)
+
+Review: independent host review SHIP (no P0/P1). apps/showcase (core) parity/pages not done: app has no graph/errors pages at HEAD and is being migrated to plain Effect by the user. Follow-up task 7: DuplicateTag demo still uses snapshot.
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 61c93ee, ce8c9d4
+- Tests: pnpm -r test, pnpm typecheck, pnpm --filter showcase-kit check, pnpm --filter showcase-kit build
 - PRs:
-
