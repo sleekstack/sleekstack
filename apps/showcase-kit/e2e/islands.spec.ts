@@ -97,3 +97,58 @@ test.describe('interaction trigger', () => {
     await expect(btn).toHaveText('clicks 0')
   })
 })
+
+test.describe('shared app scope and triggers', () => {
+  test('idle Islands share the app-scope service and keep separate component scopes', async ({ page }) => {
+    await page.goto('/islands')
+    const a = page.getByRole('region', { name: 'shared a' })
+    const b = page.getByRole('region', { name: 'shared b' })
+    await expect(a.getByRole('button', { name: 'shared 0' })).toBeAttached() // server HTML
+    await expect.poll(() => hydrated(page, 'shared-a')).toBe(true)
+    await expect.poll(() => hydrated(page, 'shared-b')).toBe(true)
+    await a.getByRole('button', { name: /^shared/ }).click()
+    await expect(b.getByRole('button', { name: /^shared/ })).toHaveText('shared 1')
+    await a.getByRole('button', { name: /^local/ }).click()
+    await expect(a.getByRole('button', { name: /^local/ })).toHaveText('local 1')
+    await expect(b.getByRole('button', { name: /^local/ })).toHaveText('local 0')
+  })
+
+  test('an interaction Island calls a kit Server Action; the first click is replayed once', async ({ page }) => {
+    await page.goto('/islands')
+    const host = page.getByRole('region', { name: 'action island' })
+    const btn = host.getByRole('button')
+    await expect(btn).toHaveText('ping 0')
+    await btn.click()
+    await expect(host.locator('output')).toHaveText('ok island')
+    await expect(btn).toHaveText('ping 1')
+  })
+
+  test('server DOM nodes survive hydration for every trigger', async ({ page }) => {
+    const errors: string[] = []
+    page.on('console', (m) => {
+      if (m.type() === 'error' || m.type() === 'warning') errors.push(m.text())
+    })
+    // Capture each Island's first server-rendered node before any hydration can run.
+    await page.addInitScript(() => {
+      document.addEventListener('DOMContentLoaded', () => {
+        ;(window as { __nodes?: Element[] }).__nodes = [...document.querySelectorAll('[data-island] > *')]
+      })
+    })
+    await page.goto('/islands')
+    // load + idle hydrate on their own; interaction on a click; visible on scroll.
+    await page.getByRole('region', { name: 'interaction button' }).getByRole('button').click()
+    await page.getByRole('region', { name: 'action island' }).getByRole('button').click()
+    await page.getByRole('region', { name: 'visible island' }).getByRole('button', { name: /^count/ }).scrollIntoViewIfNeeded()
+    for (const id of ['button', 'shared-a', 'shared-b']) await expect.poll(() => hydrated(page, id)).toBe(true)
+    await expect(page.getByRole('region', { name: 'action island' }).locator('output')).toHaveText('ok island')
+    await expect(page.getByRole('region', { name: 'visible island' }).getByRole('button', { name: /^count/ })).toHaveText('count 3')
+    const kept = await page.evaluate(() => {
+      const before = (window as { __nodes?: Element[] }).__nodes ?? []
+      const now = [...document.querySelectorAll('[data-island] > *')]
+      return { count: before.length, same: before.length === now.length && before.every((n, i) => n === now[i]) }
+    })
+    expect(kept.count).toBeGreaterThanOrEqual(9)
+    expect(kept.same).toBe(true)
+    expect(errors).toEqual([])
+  })
+})

@@ -1,5 +1,6 @@
 import { Island } from '../../src/islands/islands.client'
 import { RerenderHost } from '../../src/islands/RerenderHost'
+import { SharedPair } from '../../src/islands/SharedPair'
 
 export default function IslandsPage() {
   return (
@@ -13,6 +14,10 @@ export default function IslandsPage() {
           <Island name="controls" props={{ id }} hydrate="interaction" />
         </section>
       ))}
+      <SharedPair />
+      <section aria-label="action island">
+        <Island name="ping" props={{}} hydrate="interaction" />
+      </section>
       <div style={{ height: '200vh' }} />
       <RerenderHost />
     </main>
