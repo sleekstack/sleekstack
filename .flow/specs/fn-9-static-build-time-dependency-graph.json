@@ -1,0 +1,197 @@
+{
+  "branch_name": "fn-9-static-build-time-dependency-graph",
+  "completion_review_status": "unknown",
+  "completion_reviewed_at": null,
+  "created_at": "2026-09-29T08:59:53.593152Z",
+  "default_impl": null,
+  "default_review": null,
+  "default_sync": null,
+  "depends_on_epics": [
+    "fn-8-deepen-kit-and-core-seams"
+  ],
+  "id": "fn-9-static-build-time-dependency-graph",
+  "impl_review_rounds": {},
+  "next_task": 1,
+  "plan_review_rounds": 0,
+  "plan_review_status": "ship",
+  "plan_reviewed_at": "2026-09-29T09:21:01.211595Z",
+  "review_attempts": [
+    {
+      "artifact_sha256": "55ab89b0b22a8f715bc235f737dd24fd1000753e29f66b6b1d98c223f572300b",
+      "backend": "codex",
+      "base_sha": "a660ff08d835c92d2da4fff496468e1ec17aad13",
+      "counter_kind": "plan",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-72fb2844701fd19e5062617c90217959",
+            "classification": "introduced",
+            "findingId": "finding-72fb2844701fd19e5062617c90217959",
+            "firstSeenThisRound": true,
+            "severity": "P0",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-9710421a7429e1bc991cf097b4530581",
+            "classification": "introduced",
+            "findingId": "finding-9710421a7429e1bc991cf097b4530581",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-d90798d3e96728478d152b17c53d8133",
+            "classification": "introduced",
+            "findingId": "finding-d90798d3e96728478d152b17c53d8133",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-8ce1768b9a28e41e4a67b301b0a301f3",
+            "classification": "introduced",
+            "findingId": "finding-8ce1768b9a28e41e4a67b301b0a301f3",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-404cbf67d1b3d373e7b8967a44880c76",
+            "classification": "introduced",
+            "findingId": "finding-404cbf67d1b3d373e7b8967a44880c76",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "plan"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "2e40bb8e43e3ae5860fa2ea1c6ea0a9f9f3cdd6d",
+      "head_sha_observed": true,
+      "kind": "plan",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 361306,
+      "output_sha256": "0c0079e133a541e36b152bd7d9ecb3598a7a531ea2afa7c8a681996920b63447",
+      "reservation_id": "ef2c09c37de14324adcadba6db52da94",
+      "round_consumed": true,
+      "scope": "plan",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-09-29T09:19:11.940060Z",
+      "tool_calls": 45,
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "7a660a1f701fc173224b4ed33bf5fb48c423cd53609026c40f9ad38f72ba6ae2",
+      "backend": "codex",
+      "base_sha": "a660ff08d835c92d2da4fff496468e1ec17aad13",
+      "counter_kind": "plan",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-72fb2844701fd19e5062617c90217959",
+            "classification": "introduced",
+            "findingId": "finding-72fb2844701fd19e5062617c90217959",
+            "firstSeenThisRound": false,
+            "severity": "P0",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-9710421a7429e1bc991cf097b4530581",
+            "classification": "introduced",
+            "findingId": "finding-9710421a7429e1bc991cf097b4530581",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-d90798d3e96728478d152b17c53d8133",
+            "classification": "introduced",
+            "findingId": "finding-d90798d3e96728478d152b17c53d8133",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-8ce1768b9a28e41e4a67b301b0a301f3",
+            "classification": "introduced",
+            "findingId": "finding-8ce1768b9a28e41e4a67b301b0a301f3",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-404cbf67d1b3d373e7b8967a44880c76",
+            "classification": "introduced",
+            "findingId": "finding-404cbf67d1b3d373e7b8967a44880c76",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "plan"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "2e40bb8e43e3ae5860fa2ea1c6ea0a9f9f3cdd6d",
+      "head_sha_observed": true,
+      "kind": "plan",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 264,
+      "output_sha256": "d23bdbccf7c3a69cb2355b0f6ab2be57585aabcf8e7002c65aeed1d98ae51418",
+      "reservation_id": "6fd0a996499346d0a55603306ea9bc9e",
+      "round_consumed": true,
+      "scope": "plan",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-09-29T09:21:01.208556Z",
+      "verdict": "SHIP"
+    }
+  ],
+  "review_hash_epoch": {
+    "plan": 1,
+    "plan#completion": 0
+  },
+  "review_pending_rounds": {},
+  "review_reservations": {},
+  "review_transport_failures": {
+    "plan": 0
+  },
+  "spec_path": ".flow/specs/fn-9-static-build-time-dependency-graph.md",
+  "status": "open",
+  "title": "Static build-time dependency graph",
+  "tracker": {
+    "baseHashFlow": null,
+    "baseHashTracker": null,
+    "depRelations": [],
+    "id": null,
+    "identifier": null,
+    "lastSyncedAt": null,
+    "mergeBaseFlow": null,
+    "mergeBaseTracker": null,
+    "url": null
+  },
+  "updated_at": "2026-09-29T09:21:01.211924Z"
+}
