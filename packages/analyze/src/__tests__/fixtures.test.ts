@@ -65,5 +65,6 @@ describe('graph error fixtures', () => {
     expect(located('core-app')).toEqual([])
     // Each runtime checks only the actions its file reaches.
     expect(located('actions-roots')).toEqual(expected('actions-roots'))
+    expect(analyze({ project: path.join(dir('actions-roots'), 'tsconfig.json') }).extraction.map((e) => e.code)).toEqual(['UnownedAction'])
   })
 })

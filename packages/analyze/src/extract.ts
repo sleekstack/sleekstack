@@ -618,7 +618,12 @@ export function extract(project: string, entries?: readonly string[]): Report {
   }
   const reaches = runtimes.map((m) => reachOf(program.getSourceFile(path.resolve(root, m.loc.file))!))
   const claimed = new Set(actions.filter((a) => reaches.some((r) => r.has(a.file))))
-  if (runtimes.length > 1) for (const a of actions) if (!claimed.has(a)) errors.push({ code: 'UnownedAction', message: 'No configureRuntime file imports this action, and several runtimes exist; pass --entry to pick its runtime', ...a.loc })
+  for (const a of actions) {
+    if (runtimes.length < 2 || claimed.has(a)) continue
+    const e = { code: 'UnownedAction', message: 'No configureRuntime file imports this action, and several runtimes exist; pass --entry to pick its runtime', ...a.loc }
+    errors.push(e)
+    extraction.push(e) // owned by no runtime: fails the whole check
+  }
   const runtimeReports = runtimes.map((m, i) => {
     const actionErrors = actions.filter((a) => (runtimes.length === 1 && !claimed.has(a)) || reaches[i]!.has(a.file)).flatMap((a) => validateAction(m, a))
     errors.push(...actionErrors)
