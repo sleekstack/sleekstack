@@ -7,7 +7,7 @@
  */
 
 import { isPrivate, resolve, type Seen } from './extract'
-import type { AnalyzeError, Lifetime, Location, ModuleDecl } from './model'
+import type { ActionDecl, AnalyzeError, Lifetime, Location, ModuleDecl } from './model'
 
 const allowed: Record<Lifetime, readonly Lifetime[]> = { app: ['app'], request: ['app', 'request'], component: ['app', 'component'] }
 
@@ -86,4 +86,15 @@ export function validate(root: ModuleDecl): AnalyzeError[] {
   }
   for (const s of live) if (!state.has(s)) dfs(s, [])
   return errors
+}
+
+/** An action's yielded Tags against one runtime root: each must be provided and visible from the root. */
+export function validateAction(root: ModuleDecl, a: ActionDecl): AnalyzeError[] {
+  const { won } = resolve(root)
+  return a.yields.flatMap(({ tag, loc }): AnalyzeError[] => {
+    const owner = won.get(tag)
+    if (!owner) return [{ code: 'MissingDependency', message: `The action yields "${tag}", but no entry provides it`, ...loc }]
+    if (owner.module !== root && isPrivate(owner.module, tag)) return [{ code: 'PrivateDependency', message: `The action yields "${tag}", which is private to module "${owner.module.name}" (not in its exports)`, ...loc }]
+    return []
+  })
 }

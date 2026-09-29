@@ -54,6 +54,12 @@ describe('graph error fixtures', () => {
     ])
   })
 
+  it('action bodies: yielded Tags (through helper generators) must be declared, provided, visible and nameable', () => {
+    expect(sorted(located('actions'))).toEqual(expected('actions'))
+    const r = analyze({ project: path.join(dir('actions'), 'tsconfig.json') })
+    expect(r.runtimes[0]!.errors.map((e) => e.code).sort()).toEqual(['MissingDependency', 'PrivateDependency'])
+  })
+
   it('clean projects yield no errors', () => {
     expect(located('kit-app')).toEqual([])
     expect(located('core-app')).toEqual([])

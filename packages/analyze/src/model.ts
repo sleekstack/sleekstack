@@ -64,6 +64,13 @@ export interface Shadowing {
   readonly shadowed: readonly string[]
 }
 
+/** A kit `defineEffect` / `defineQuery` / `effect` / `query` call: its declared deps and the Tags its body `yield*`s. */
+export interface ActionDecl {
+  readonly deps: string[]
+  readonly yields: { readonly tag: string; readonly loc: Location }[]
+  readonly loc: Location
+}
+
 /** The graph reachable from one root module. */
 export interface Graph {
   readonly root: string
