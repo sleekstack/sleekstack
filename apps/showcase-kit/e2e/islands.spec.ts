@@ -128,11 +128,14 @@ test.describe('shared app scope and triggers', () => {
     page.on('console', (m) => {
       if (m.type() === 'error' || m.type() === 'warning') errors.push(m.text())
     })
-    // Capture each Island's first server-rendered node before any hydration can run.
+    // Capture each Island's server-rendered child as the parser inserts it, before any client script runs.
     await page.addInitScript(() => {
-      document.addEventListener('DOMContentLoaded', () => {
-        ;(window as { __nodes?: Element[] }).__nodes = [...document.querySelectorAll('[data-island] > *')]
-      })
+      const nodes: Element[] = ((window as { __nodes?: Element[] }).__nodes = [])
+      new MutationObserver((records) => {
+        for (const r of records)
+          for (const n of r.addedNodes)
+            if (n instanceof Element && n.parentElement?.hasAttribute('data-island') && !nodes.includes(n)) nodes.push(n)
+      }).observe(document, { childList: true, subtree: true })
     })
     await page.goto('/islands')
     // load + idle hydrate on their own; interaction on a click; visible on scroll.
