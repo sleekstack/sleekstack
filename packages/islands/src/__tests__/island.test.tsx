@@ -3,12 +3,13 @@ import { prerender } from 'react-dom/static'
 import { hydrateRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineIslands, IslandNotFound } from '../index'
-import { arm } from '../triggers'
+import { arm, type Trigger } from '../triggers'
 
 let renders = 0
+let clicks = 0
 const Counter = ({ start }: { start: number }) => {
   renders++
-  return <button type="button">{`count ${start}`}</button>
+  return <button type="button" onClick={() => clicks++}>{`count ${start}`}</button>
 }
 const loader = vi.fn(async () => ({ default: Counter }))
 const Island = defineIslands({ counter: loader })
@@ -29,7 +30,7 @@ const flush = () => act(async () => { await new Promise((r) => setTimeout(r, 0))
 
 beforeEach(() => {
   renders = 0
-  loader.mockClear()
+  clicks = 0
   loader.mockClear()
 })
 afterEach(() => {
@@ -37,7 +38,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-const mount = async (hydrate: 'load' | 'visible', strict = false) => {
+const mount = async (hydrate: Trigger, strict = false) => {
   const html = await serverHtml(<Island name="counter" props={{ start: 3 }} hydrate={hydrate} />)
   expect(html).toContain('count 3')
   renders = 0
@@ -101,6 +102,31 @@ describe('Island', () => {
     loader.mockImplementation(async () => ({ default: Counter }))
   })
 
+  it('interaction: a pre-hydration click runs its handler exactly once; a second click while loading is dropped', async () => {
+    const { button } = await mount('interaction')
+    await flush()
+    expect(loader).not.toHaveBeenCalled()
+    await act(async () => {
+      button.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }))
+      button.click()
+      button.click() // while loading
+    })
+    await flush()
+    expect(loader).toHaveBeenCalledOnce()
+    expect(clicks).toBe(1)
+    await act(async () => button.click()) // hydrated: normal React handling
+    expect(clicks).toBe(2)
+  })
+
+  it.each(['keydown', 'focusin'])('interaction: %s only starts hydration', async (type) => {
+    const { button } = await mount('interaction')
+    await act(async () => { button.dispatchEvent(new Event(type, { bubbles: true })) })
+    await flush()
+    expect(loader).toHaveBeenCalledOnce()
+    expect(renders).toBe(1)
+    expect(clicks).toBe(0)
+  })
+
   it('unknown name throws IslandNotFound', async () => {
     // @ts-expect-error unknown name is a type error
     await expect(serverHtml(<Island name="nope" props={{}} />)).rejects.toBeInstanceOf(IslandNotFound)
@@ -142,5 +168,46 @@ describe('arm', () => {
     expect(fire).not.toHaveBeenCalled()
     await Promise.resolve()
     expect(fire).toHaveBeenCalledOnce()
+  })
+
+  it('idle fires via requestIdleCallback with a timeout cap', () => {
+    let cb!: () => void
+    const ric = vi.fn((c: () => void, _o?: { timeout: number }) => { cb = c; return 1 })
+    vi.stubGlobal('requestIdleCallback', ric)
+    vi.stubGlobal('cancelIdleCallback', vi.fn())
+    const fire = vi.fn()
+    arm(document.createElement('div'), 'idle', fire)
+    expect(ric.mock.calls[0]![1]).toEqual({ timeout: expect.any(Number) })
+    expect(fire).not.toHaveBeenCalled()
+    cb()
+    expect(fire).toHaveBeenCalledOnce()
+  })
+
+  it('idle falls back to setTimeout without requestIdleCallback', async () => {
+    vi.stubGlobal('requestIdleCallback', undefined)
+    const fire = vi.fn()
+    arm(document.createElement('div'), 'idle', fire)
+    expect(fire).not.toHaveBeenCalled()
+    await new Promise((r) => setTimeout(r, 5))
+    expect(fire).toHaveBeenCalledOnce()
+  })
+
+  it('visible passes rootMargin to IntersectionObserver', () => {
+    const init = vi.fn()
+    vi.stubGlobal('IntersectionObserver', class { constructor(_c: unknown, o: unknown) { init(o) } observe() {} disconnect() {} })
+    arm(document.createElement('div'), 'visible', vi.fn(), { rootMargin: '200px' })
+    expect(init).toHaveBeenCalledWith({ rootMargin: '200px' })
+  })
+
+  it('interaction fires on each listed event, captured on the container, until disarmed', () => {
+    const el = document.createElement('div')
+    const child = el.appendChild(document.createElement('span'))
+    const fire = vi.fn()
+    const disarm = arm(el, 'interaction', fire)
+    for (const t of ['pointerdown', 'touchstart', 'focusin', 'keydown', 'click']) child.dispatchEvent(new Event(t))
+    expect(fire.mock.calls.map(([e]) => (e as Event).type)).toEqual(['pointerdown', 'touchstart', 'focusin', 'keydown', 'click'])
+    disarm()
+    child.dispatchEvent(new Event('click'))
+    expect(fire).toHaveBeenCalledTimes(5)
   })
 })

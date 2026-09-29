@@ -1,5 +1,6 @@
 import { createElement, lazy, Suspense, useEffect, useRef, type ComponentProps, type ComponentType } from 'react'
 import { createRoot, hydrateRoot, type Root } from 'react-dom/client'
+import { replayClick } from './replay'
 import { arm, type Trigger } from './triggers'
 
 export type IslandLoader = () => Promise<{ default: ComponentType<any> }>
@@ -8,6 +9,8 @@ export type IslandProps<M extends Record<string, IslandLoader>, N extends keyof 
   readonly name: N
   readonly props: ComponentProps<Awaited<ReturnType<M[N]>>['default']>
   readonly hydrate?: Trigger
+  /** IntersectionObserver `rootMargin` for the `visible` trigger. */
+  readonly rootMargin?: string
 }
 
 export class IslandNotFound extends Error {
@@ -19,6 +22,16 @@ export class IslandNotFound extends Error {
 // activation was dropped (unmounted, or replaced by a remount) creates no root.
 const activations = new WeakMap<Element, Promise<Root | undefined>>()
 const pendingUnmount = new WeakMap<Element, ReturnType<typeof setTimeout>>()
+// Present while an `interaction` activation loads: the first click to replay, or null.
+const pendingClicks = new WeakMap<Element, Event | null>()
+
+const isClick = (e?: Event): e is Event => e?.type === 'click'
+
+/** Renders nothing; its effect runs once the Island root has committed. */
+const OnCommit = ({ run }: { readonly run: () => void }) => {
+  useEffect(run, [])
+  return null
+}
 
 const EMPTY = { __html: '' }
 
@@ -30,7 +43,7 @@ export const defineIslands = <M extends Record<string, IslandLoader>>(map: M) =>
     return c
   }
 
-  return function Island<N extends keyof M & string>({ name, props, hydrate = 'visible' }: IslandProps<M, N>) {
+  return function Island<N extends keyof M & string>({ name, props, hydrate = 'visible', rootMargin }: IslandProps<M, N>) {
     if (!Object.hasOwn(map, name)) throw new IslandNotFound(`Unknown island "${name}"`)
     const ref = useRef<HTMLDivElement>(null)
 
@@ -41,12 +54,23 @@ export const defineIslands = <M extends Record<string, IslandLoader>>(map: M) =>
         clearTimeout(t)
         pendingUnmount.delete(el)
       }
-      const disarm = arm(el, hydrate, () => {
-        if (activations.has(el)) return
+      const disarm = arm(el, hydrate, (e) => {
+        if (activations.has(el)) {
+          // Only the first click while the chunk loads is kept; later ones are dropped.
+          if (isClick(e) && pendingClicks.get(el) === null) pendingClicks.set(el, e)
+          return
+        }
+        if (hydrate === 'interaction') pendingClicks.set(el, isClick(e) ? e : null)
         const activation: Promise<Root | undefined> = map[name]!().then(
           ({ default: C }) => {
             if (activations.get(el) !== activation) return undefined
-            const tree = createElement(Suspense, null, createElement(C, props))
+            const replay = () => {
+              const click = pendingClicks.get(el)
+              pendingClicks.delete(el)
+              if (click) replayClick(el, click)
+            }
+            // Inside the boundary: Suspense content hydrates in its own pass, after the shell.
+            const tree = createElement(Suspense, null, createElement(C, props), createElement(OnCommit, { run: replay }))
             // Server HTML present: attach to it. Fresh client mount (no server HTML): render.
             if (el.firstChild)
               return hydrateRoot(el, tree, { onRecoverableError: (e) => console.error(`[island ${name}]`, e) })
@@ -60,7 +84,7 @@ export const defineIslands = <M extends Record<string, IslandLoader>>(map: M) =>
           },
         )
         activations.set(el, activation)
-      })
+      }, { rootMargin })
       return () => {
         disarm()
         // Deferred: unmounting another root synchronously during a commit warns;
