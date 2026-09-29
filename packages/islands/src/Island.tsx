@@ -1,8 +1,8 @@
-import { Component, createElement, lazy, Suspense, useEffect, useRef, type ComponentProps, type ComponentType, type ReactNode } from 'react'
+import { Component, createElement, lazy, Suspense, use, useEffect, useRef, type ComponentProps, type ComponentType, type ReactNode } from 'react'
 import { createRoot, hydrateRoot, type Root } from 'react-dom/client'
 import { module, snapshot, type Layer, type Module, type SleekStackError } from '@sleekstack/kit'
 import { LayerProvider } from '@sleekstack/kit/react'
-import { sharedAppScope } from './appScope'
+import { processAppScope, sharedAppScope } from './appScope'
 import { replayClick } from './replay'
 import { arm, type Trigger } from './triggers'
 
@@ -80,6 +80,13 @@ class Boundary extends Component<{ readonly name: string; readonly children: Rea
 export const defineIslands = <M extends Record<string, IslandLoader>>(map: M, opts: DefineIslandsOptions = {}) => {
   const appProvide = opts.provide ?? NONE
   const app = sharedAppScope(appProvide)
+  const serverApp = processAppScope(appProvide)
+  /** Server only: opens this render's component scope on the process-lifetime app scope. */
+  const ServerScope = ({ provide, children }: { readonly provide: Provide; readonly children: ReactNode }) => (
+    <LayerProvider provide={provide} appScope={use(serverApp())}>
+      {children}
+    </LayerProvider>
+  )
   const lazies = new Map<string, ComponentType<unknown>>()
   const serverComponent = (name: string) => {
     let c = lazies.get(name)
@@ -196,11 +203,9 @@ export const defineIslands = <M extends Record<string, IslandLoader>>(map: M, op
       assertNoDuplicateTag(appProvide, provide)
       return (
         <div data-island={name} ref={ref}>
-          <LayerProvider provide={appProvide}>
-            <LayerProvider provide={provide}>
-              <Suspense>{createElement(serverComponent(name), props)}</Suspense>
-            </LayerProvider>
-          </LayerProvider>
+          <Suspense>
+            <ServerScope provide={provide}>{createElement(serverComponent(name), props)}</ServerScope>
+          </Suspense>
         </div>
       )
     }

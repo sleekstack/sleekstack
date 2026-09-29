@@ -28,3 +28,17 @@ export const sharedAppScope = (provide: Provide) => {
     },
   }
 }
+
+/**
+ * Server-side app scope for one registry: built once, lazily, and kept for the life of the process
+ * (never per render, never closed), so finalizer-bearing services are not leaked per request.
+ * A failed build is dropped so the next render retries.
+ */
+export const processAppScope = (provide: Provide) => {
+  let current: Promise<AppScopeHandle> | undefined
+  return () =>
+    (current ??= createAppScope(provide).catch((e: unknown) => {
+      current = undefined
+      throw e
+    }))
+}
