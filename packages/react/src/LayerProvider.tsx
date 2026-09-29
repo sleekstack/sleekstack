@@ -3,7 +3,8 @@
  *
  * LayerProvider owns a component scope from `@sleekstack/core`'s scope runtime.
  * A top-level provider (no parent provider) also creates and owns an app scope
- * for app-lifetime entries. A nested provider opens its component scope on the
+ * for app-lifetime entries, unless given an externally owned `appScope`, which it
+ * opens its component scope on and never closes. A nested provider opens its component scope on the
  * parent's, with its own `provide` entries shadowing the parent's inside it.
  *
  * Lifecycle (task .6 probe): deferred dispose. Effect cleanup schedules the close
@@ -44,11 +45,13 @@ export interface LayerProviderProps {
 
 /**
  * Builds a scope for its subtree from `provide`: an app scope at the root, a component scope when
- * nested under another provider. The scope closes on unmount; StrictMode double mounts reuse it.
+ * nested under another provider. With `appScope`, a root provider opens a component scope on that
+ * external scope instead. Scopes it built close on unmount (an external `appScope` never does);
+ * StrictMode double mounts reuse them.
  * The scope builds asynchronously: graph errors (for example `MissingDependency`) and acquisition
  * failures are thrown by {@link useService} in the subtree, to its nearest error boundary.
  *
- * @param props - `provide` (modules/entries), optional `onFinalizerError`, and `children`.
+ * @param props - `provide` (modules/entries), optional `onFinalizerError`, optional `appScope`, and `children`.
  * @returns The provider element.
  *
  * @example

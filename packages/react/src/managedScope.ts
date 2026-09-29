@@ -90,10 +90,10 @@ const park = (owned: Owned, props: object) => {
   gc()
 }
 
-const adopt = (props: ScopeProps, parent: ProviderState | null): Owned | undefined => {
+const adopt = (props: ScopeProps, parent: ProviderState | null, appScope: ChildScope | undefined): Owned | undefined => {
   let found: Owned | undefined
   for (const o of parked) {
-    if (o.parent !== parent || o.appScope !== props.appScope) continue
+    if (o.parent !== parent || o.appScope !== appScope) continue
     if (o.parkedBy === (props.owner ?? props)) { found = o; break }
     if (!found && o.stale && sameEntries(o.provide, props.provide) && sameShape((o.parkedBy as ScopeProps).children, props.children)) found = o
   }
@@ -159,7 +159,8 @@ function create(provide: ReadonlyArray<Entry | Module>, parent: ProviderState | 
 
 /** Adopts a parked scope for this render or creates one, then parks it under this render's identity. */
 export const acquire = (props: ScopeProps, parent: ProviderState | null, sink: ProviderState['onFinalizerError'] | undefined): Owned => {
-  const owned = adopt(props, parent) ?? create(props.provide, parent, sink ?? parent?.onFinalizerError ?? defaultSink, props.appScope)
+  const appScope = parent ? undefined : props.appScope // ignored when nested
+  const owned = adopt(props, parent, appScope) ?? create(props.provide, parent, sink ?? parent?.onFinalizerError ?? defaultSink, appScope)
   park(owned, props.owner ?? props)
   return owned
 }

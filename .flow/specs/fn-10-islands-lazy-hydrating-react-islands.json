@@ -10,7 +10,8 @@
   "id": "fn-10-islands-lazy-hydrating-react-islands",
   "impl_review_rounds": {
     "fn-10-islands-lazy-hydrating-react-islands.1": 0,
-    "fn-10-islands-lazy-hydrating-react-islands.2": 0
+    "fn-10-islands-lazy-hydrating-react-islands.2": 0,
+    "fn-10-islands-lazy-hydrating-react-islands.3": 1
   },
   "next_task": 1,
   "plan_review_rounds": 0,
@@ -214,8 +215,19 @@
     "impl:fn-10-islands-lazy-hydrating-react-islands.1": 1,
     "impl:fn-10-islands-lazy-hydrating-react-islands.2": 1
   },
-  "review_pending_rounds": {},
-  "review_reservations": {},
+  "review_pending_rounds": {
+    "impl:fn-10-islands-lazy-hydrating-react-islands.3": 1
+  },
+  "review_reservations": {
+    "ed375282d3a741198d321f05f17761d4": {
+      "artifact_sha256": "33cee628efa553fa59c03d0904dd293303c65fe71e7d82e50680c7a62b52f5fd",
+      "counter_scope": "impl:fn-10-islands-lazy-hydrating-react-islands.3",
+      "epoch": 0,
+      "exclusive": true,
+      "forced": false,
+      "review_type": "impl"
+    }
+  },
   "review_transport_failures": {
     "impl:fn-10-islands-lazy-hydrating-react-islands.1": 0,
     "impl:fn-10-islands-lazy-hydrating-react-islands.2": 0
@@ -234,5 +246,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-09-29T11:36:34.574566Z"
+  "updated_at": "2026-09-29T11:39:06.653818Z"
 }

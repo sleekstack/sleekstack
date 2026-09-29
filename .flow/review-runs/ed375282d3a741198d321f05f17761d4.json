@@ -1,0 +1,29 @@
+{
+  "backend": "codex",
+  "counter_scope": "impl:fn-10-islands-lazy-hydrating-react-islands.3",
+  "failure_class": "fanout_abandoned",
+  "finalized": {
+    "digest": "not_applicable",
+    "receipt": "not_applicable",
+    "status": "not_applicable"
+  },
+  "metadata": null,
+  "outcome": "transport_failure",
+  "receipt_payload": null,
+  "receipt_target": null,
+  "reservation_id": "ed375282d3a741198d321f05f17761d4",
+  "reset_rounds_on_ship": false,
+  "response": "fan-out dispatched; no finalize landed before this refund-intent journal was replayed",
+  "response_sha256": "6ea4de7239adcef700fcf360528c3918564fc4300515f3a62b9a089c94e74f20",
+  "review_kind": "impl",
+  "review_type": "impl",
+  "reviewed_base_sha": "9bbf6c442cc2d1e1ed57b00673cfb9172362b74c",
+  "reviewed_head_sha": "bf9e6974adb3e655fa364e408cc52dd077757c74",
+  "scope": "impl:fn-10-islands-lazy-hydrating-react-islands.3",
+  "spec_id": "fn-10-islands-lazy-hydrating-react-islands",
+  "status_target": null,
+  "superseded_by": null,
+  "task_id": "fn-10-islands-lazy-hydrating-react-islands.3",
+  "timestamp": "2026-09-29T11:39:06.654331Z",
+  "verdict": null
+}

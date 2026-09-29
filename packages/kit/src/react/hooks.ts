@@ -6,6 +6,8 @@
  */
 
 import { createElement, useMemo, useRef, type ReactNode } from 'react'
+import { Effect, Exit } from 'effect'
+import { buildGraph, makeAppScope, type ChildScope } from '@sleekstack/core'
 import { LayerProvider as CoreProvider, useService as coreUseService } from '@sleekstack/react'
 import { normalize, toFinalizerError, type FinalizerError } from '../errors'
 import type { Layer, Services } from '../layer'
@@ -18,6 +20,55 @@ export interface LayerProviderProps {
   /** Sink for cleanup failures on unmount. Default `console.error`. */
   readonly onFinalizerError?: (error: FinalizerError) => void
   readonly children?: ReactNode
+  /** Externally owned app scope from {@link createAppScope}: shared across roots, never closed by the provider. */
+  readonly appScope?: AppScopeHandle
+}
+
+declare const appScopeBrand: unique symbol
+/** Opaque app scope from {@link createAppScope}. Close it when no provider uses it. */
+export interface AppScopeHandle {
+  readonly [appScopeBrand]: true
+  /** Closes the scope; cleanup failures go to `onFinalizerError`. */
+  readonly close: () => Promise<void>
+}
+const scopes = new WeakMap<AppScopeHandle, ChildScope>()
+
+/**
+ * Builds an app scope outside React from `provide`, for several `LayerProvider` roots to share via `appScope`.
+ *
+ * @param provide - App-lifetime layers and modules.
+ * @param options - Optional `onFinalizerError` sink (default `console.error`).
+ * @returns A promise of the opaque handle.
+ * @throws {@link SleekStackError} (rejection) with `DuplicateTag`, `InvalidModule`, a graph code, or `LayerFailed`.
+ *
+ * @example
+ * ```ts
+ * const app = await createAppScope([AppModule])
+ * // <LayerProvider provide={[]} appScope={app}>...</LayerProvider> in each root
+ * await app.close()
+ * ```
+ */
+export async function createAppScope(
+  provide: ReadonlyArray<Layer<any> | Module>,
+  options: { readonly onFinalizerError?: (error: FinalizerError) => void } = {},
+): Promise<AppScopeHandle> {
+  const sink = options.onFinalizerError ?? ((e: FinalizerError) => console.error(e.message))
+  try {
+    validateProvide(provide)
+    const scope = await Effect.runPromise(
+      Effect.suspend(() => makeAppScope(buildGraph([...unwrap(provide)]), { onFinalizerError: (c) => sink(toFinalizerError(c)) })),
+    )
+    const handle = {
+      close: async () => {
+        const exit = await Effect.runPromise(scope.close)
+        if (Exit.isFailure(exit)) sink(toFinalizerError(exit.cause))
+      },
+    } as AppScopeHandle
+    scopes.set(handle, scope)
+    return handle
+  } catch (e) {
+    throw normalize(e)
+  }
 }
 
 /**
@@ -42,7 +93,7 @@ export interface LayerProviderProps {
  * ```
  */
 export function LayerProvider(props: LayerProviderProps): ReactNode {
-  const { provide, onFinalizerError, children } = props
+  const { provide, onFinalizerError, children, appScope } = props
   // Memoized on the reference so core's sameEntries / StrictMode adopt see a stable array.
   const lowered = useMemo(() => {
     try {
@@ -56,7 +107,7 @@ export function LayerProvider(props: LayerProviderProps): ReactNode {
     () => onFinalizerError && ((cause: unknown) => onFinalizerError(toFinalizerError(cause))),
     [onFinalizerError],
   )
-  return createElement(CoreProvider, { provide: lowered, owner: props, ...(sink && { onFinalizerError: sink }) }, children)
+  return createElement(CoreProvider, { provide: lowered, owner: props, ...(sink && { onFinalizerError: sink }), ...(appScope && { appScope: scopes.get(appScope) }) }, children)
 }
 
 const isThenable = (x: unknown) => typeof (x as { then?: unknown } | null)?.then === 'function'
