@@ -173,13 +173,18 @@ const buildAll = (
         const found = Context.getOption(parent, tag)
         return found._tag === 'Some' ? Effect.succeed(found.value) : Effect.fail(missingDependency(key, n.id))
       }
-      const own = yield* Scope.make()
-      const out = yield* Effect.exit(Layer.buildWithMemoMap(n.layer, memo, own).pipe(Effect.provide(Context.add(ctx, Resolver, resolve))))
-      if (Exit.isFailure(out)) {
-        yield* Scope.close(own, out)
-        return yield* Effect.failCause(out.cause)
-      }
-      yield* Scope.addFinalizerExit(scope, (exit) => Scope.close(own, exit))
+      // Build -> attach is uninterruptible (only the build itself is), so a built node's scope never leaks.
+      const out = yield* Effect.uninterruptibleMask((restore) =>
+        Effect.gen(function* () {
+          const own = yield* Scope.make()
+          const out = yield* Effect.exit(restore(Layer.buildWithMemoMap(n.layer, memo, own).pipe(Effect.provide(Context.add(ctx, Resolver, resolve)))))
+          if (Exit.isFailure(out)) {
+            yield* Scope.close(own, out)
+            return yield* Effect.failCause(out.cause)
+          }
+          yield* Scope.addFinalizerExit(scope, (exit) => Scope.close(own, exit))
+          return out
+        }))
       ctx = Context.merge(ctx, out.value)
     }))
   // Opaque (provides nothing) first, then nodes in order.

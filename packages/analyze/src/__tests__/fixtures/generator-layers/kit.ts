@@ -1,4 +1,6 @@
 import { layer, module, tag } from '@sleekstack/kit'
+import { opaqueGen } from './ext'
+import { R, readsR } from './gens'
 const A = tag<string>('A')
 const B = tag<string>('B')
 const C = tag<string>('C')
@@ -27,5 +29,29 @@ export const Cycle = module({
   provide: [
     layer(C, function* () { return yield* D }),
     layer(D, function* () { return yield* C }, { lifetime: 'app' }), // @error DependencyCycle
+  ],
+})
+declare const flag: boolean
+function* yieldsA() { return yield* A }
+function* yieldsZ() { return yield* Z }
+const makeGen = () => function* () { return 'x' }
+export const Conditional = module({
+  name: 'Conditional',
+  provide: [layer(A, () => 'a'), layer(B, flag ? yieldsA : yieldsZ)], // @error MissingDependency
+})
+export const Factory = module({
+  name: 'Factory',
+  provide: [layer(B, makeGen())], // @error Unresolvable
+})
+export const Declared = module({
+  name: 'Declared',
+  provide: [layer(B, opaqueGen)], // @error Unresolvable
+})
+export const ImportedLifetime = module({
+  name: 'ImportedLifetime',
+  provide: [
+    layer(R, () => 'r', [], { lifetime: 'request' }),
+    layer(C, readsR, { lifetime: 'request' }),
+    layer(D, readsR), // @error CaptiveDependency
   ],
 })

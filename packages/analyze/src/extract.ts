@@ -409,12 +409,19 @@ export function extract(project: string, entries?: readonly string[]): Report {
     const a = ts.isCallExpression(e) ? e.arguments : ts.factory.createNodeArray<ts.Expression>()
     const base = { opaque: false, loc: loc(e) }
     if (id === 'kit/layer#layer') {
-      const impl = a[1] && unwrap(a[1])
-      const gen = impl && (ts.isFunctionExpression(impl) ? impl : fnOf(impl))
-      if (gen?.asteriskToken) {
-        // Generator factory: its yielded Tags are its requirements (same inference as action bodies).
+      // Generator-ness by type (a call signature returning a Generator), never by the syntax it was written in.
+      const isGen = !!a[1] && checker.getTypeAtLocation(a[1]).getCallSignatures().some((sig) => checker.getReturnTypeOfSignature(sig).getSymbol()?.getName() === 'Generator')
+      if (isGen) {
+        // Generator factory: its yielded Tags are its requirements (same inference as action bodies); unreadable bodies fail closed.
         const yields: ActionDecl['yields'] = []
-        yieldsOf(gen, yields, new Set())
+        const body = (x: ts.Expression): void => {
+          const u = unwrap(x)
+          if (ts.isConditionalExpression(u)) return (body(u.whenTrue), body(u.whenFalse))
+          const f = ts.isFunctionExpression(u) ? u : fnOf(u)
+          if (!f?.asteriskToken) return fail(u, `The layer generator "${text(u)}" has no readable function* declaration; its requirements cannot be read`, 'Unresolvable')
+          yieldsOf(f, yields, new Set())
+        }
+        body(a[1]!)
         p = { ...base, provides: [tagKey(a[0]!)], requires: [...new Set(yields.map((y) => y.tag))], lifetime: lifetimeOf(prop(objectOf(a[2]), 'lifetime')) }
       } else {
         p = { ...base, provides: [tagKey(a[0]!)], requires: tagList(a[2]), lifetime: lifetimeOf(prop(objectOf(a[3]), 'lifetime')) }
