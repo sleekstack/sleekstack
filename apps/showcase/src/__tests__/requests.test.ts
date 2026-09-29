@@ -1,52 +1,25 @@
 /**
  * apps/showcase/src/__tests__/requests.test.ts
  *
- * R4, R5, R6, R9, R11: request scopes are isolated and finalized in order,
- * UnitOfWork commits atomically (a simulated or validation failure leaves
- * the Store untouched), the activity log shows request open/close in order,
- * a throwing finalizer sink never changes an operation's result, and
- * demo-mode shadowing swaps the ActivityLog for the mock.
- *
- * This file's tests share one process-global runtime slot (same pattern as
- * packages/next/src/__tests__/next.test.ts:6-7): order matters, so the
- * unconfigured case runs first, before anything configures the app runtime.
+ * Request scopes are isolated and finalized in order, UnitOfWork commits
+ * atomically (a simulated or validation failure leaves the Store untouched),
+ * the activity log shows request open/close in order, a defect is reported to
+ * the log and still rejects, and demo-mode shadowing swaps the ActivityLog for the mock.
  */
 import { describe, expect, it, vi } from 'vitest'
-import { Context, Effect } from 'effect'
-import { service } from '@sleekstack/core'
-import { action, query } from '@sleekstack/next'
+import { Effect } from 'effect'
 import { ActivityLog, TaskRepo } from '../domain/tags'
 import { __setDemoCookie } from '../test/next-headers-stub'
 import { UnitOfWork } from '../server/request.server'
+import { runApp } from '../server/runtime.server'
 import type { AddCommentInput, CreateTaskInput, MoveTaskInput } from '../server/board.actions'
 
 const countTasks = (projectId: string) =>
-  query(() =>
-    Effect.gen(function* () {
-      const taskRepo = yield* TaskRepo
-      return taskRepo.listByProject(projectId).length
-    }),
-  )()
+  runApp(Effect.map(TaskRepo, (taskRepo) => taskRepo.listByProject(projectId).length))
 
-const logMessages = () =>
-  query(() =>
-    Effect.gen(function* () {
-      const activityLog = yield* ActivityLog
-      return activityLog.list().map((e) => e.message)
-    }),
-  )()
+const logMessages = () => runApp(Effect.map(ActivityLog, (activityLog) => activityLog.list().map((e) => e.message)))
 
 describe('showcase request scopes', () => {
-  it('an action called before instrumentation.ts configures the runtime rejects with a descriptive error', async () => {
-    const op = action(() => Effect.succeed('unconfigured'))
-    await expect(op()).rejects.toThrow(/configureRuntime/)
-  })
-
-  it("importing the runtime module twice (dev HMR re-running register()) is the library's same-reference no-op", async () => {
-    await import('../server/runtime.server')
-    await expect(import('../server/runtime.server')).resolves.toBeDefined()
-  })
-
   it('20 concurrent createTask calls open 20 distinct request ids, all commit, and none cross-talk', async () => {
     const { createTask } = await import('../server/board.actions')
     const before = await countTasks('proj_1')
@@ -123,7 +96,7 @@ describe('showcase request scopes', () => {
 
   it('a commit whose second staged write throws applies nothing (atomic)', async () => {
     const before = await countTasks('proj_1')
-    const op = action(() =>
+    const op = runApp(
       Effect.gen(function* () {
         const taskRepo = yield* TaskRepo
         const uow = yield* UnitOfWork
@@ -134,40 +107,27 @@ describe('showcase request scopes', () => {
         yield* uow.commit
       }),
     )
-    await expect(op()).rejects.toThrow(/second write failed/)
+    await expect(op).rejects.toThrow(/second write failed/)
     expect(await countTasks('proj_1')).toBe(before)
   })
 
   it("the UnitOfWork's scope finalizer discards uncommitted staged writes", async () => {
-    const op = action(() =>
+    const uow = await runApp(
       Effect.gen(function* () {
         const uow = yield* UnitOfWork
         uow.stage(() => {})
         return uow
       }),
     )
-    const uow = await op()
     expect(uow.pending()).toBe(0)
   })
 
-  it("a request-scope finalizer failure goes to the app's sink (logged and recorded); a throwing sink leaves the result unchanged", async () => {
-    const Boom = Context.GenericTag<number>('requests.test.FinalizerBoom')
-    const BoomDef = service(Boom, { lifetime: 'request' }, () =>
-      Effect.acquireRelease(Effect.succeed(1), () => Effect.die('finalizer boom')))
-    const op = action({ provide: [BoomDef] }, () => Effect.map(Boom, () => 'ok'))
-
-    // The app's own sink: logs to the console and records to the ActivityLog.
+  it('a defect rejects the operation and is reported to the console and the activity log', async () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
-      await expect(op()).resolves.toBe('ok')
-      expect(spy.mock.calls.some((c) => String(c[0]).includes('[showcase] finalizer error'))).toBe(true)
-      await vi.waitFor(async () => expect((await logMessages()).some((m) => m.includes('finalizer boom'))).toBe(true))
-
-      // Now make the sink throw (its first statement, console.error, throws): same result.
-      spy.mockImplementationOnce(() => {
-        throw new Error('sink boom')
-      })
-      await expect(op()).resolves.toBe('ok')
+      await expect(runApp(Effect.die('kaboom'))).rejects.toThrow()
+      expect(spy.mock.calls.some((c) => String(c[0]).includes('[showcase] error'))).toBe(true)
+      expect((await logMessages()).some((m) => m.includes('kaboom'))).toBe(true)
     } finally {
       spy.mockRestore()
     }

@@ -9,7 +9,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { SERVER_ONLY_MARKER } from '../domain/infra.server'
+import { SERVER_ONLY_MARKER } from '../domain/live.server'
 
 const nextDir = fileURLToPath(new URL('../../.next', import.meta.url))
 const built = existsSync(path.join(nextDir, 'static', 'chunks'))

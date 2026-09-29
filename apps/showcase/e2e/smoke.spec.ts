@@ -3,8 +3,6 @@ import { expect, test } from '@playwright/test'
 test('pages load', async ({ page }) => {
   for (const [url, heading] of [
     ['/', 'Team Task Board'],
-    ['/graph', /graph/i],
-    ['/errors', /error/i],
     ['/log', /log/i],
   ] as const) {
     const res = await page.goto(url)

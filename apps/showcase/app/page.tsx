@@ -2,21 +2,20 @@
  * apps/showcase/app/page.tsx
  *
  * The interactive board (R5, R7): reads projects/tasks/comments through
- * `query()`, with demo-mode shadowing (R9) applied via per-call `provide`,
+ * plain Effect (`runApp`), with demo-mode shadowing (R9) applied via per-call `provide`,
  * then hands the data to the client `Board` (nested `LayerProvider`s,
  * forms wired to the Server Actions in board.actions.ts).
  */
 import Link from 'next/link'
-import { query } from '@sleekstack/next'
 import { Effect } from 'effect'
 import { CommentRepo, ProjectRepo, TaskRepo } from '../src/domain/tags'
 import { Board } from '../src/client/Board'
-import { demoEntries, isDemoMode } from '../src/server/demo.server'
+import { isDemoMode } from '../src/server/demo.server'
+import { runApp } from '../src/server/runtime.server'
 import { Providers } from './providers'
 
-async function loadBoard() {
-  const provide = await demoEntries()
-  const boardQuery = query({ provide }, () =>
+const loadBoard = () =>
+  runApp(
     Effect.gen(function* () {
       const projectRepo = yield* ProjectRepo
       const taskRepo = yield* TaskRepo
@@ -30,8 +29,6 @@ async function loadBoard() {
       }))
     }),
   )
-  return boardQuery()
-}
 
 export default async function HomePage() {
   const [board, demoMode] = await Promise.all([loadBoard(), isDemoMode()])
@@ -42,8 +39,7 @@ export default async function HomePage() {
         <h1>Team Task Board</h1>
         <Board board={board} demoMode={demoMode} />
         <p>
-          See <Link href="/log">/log</Link> for the activity log, <Link href="/graph">/graph</Link> for the service graph, and{' '}
-          <Link href="/errors">/errors</Link> for the broken-graph gallery.
+          See <Link href="/log">/log</Link> for the activity log.
         </p>
       </main>
     </Providers>
