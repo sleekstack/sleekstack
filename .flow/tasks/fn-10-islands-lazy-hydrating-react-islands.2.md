@@ -30,9 +30,15 @@ Add the `idle` and `interaction` triggers and the click replay described in the 
 - [ ] Playwright covers first-click-once and checkbox no-double-toggle
 
 ## Done summary
-TBD
+Added the `idle` trigger (requestIdleCallback with a 2s timeout cap, setTimeout fallback), the `interaction` trigger (capture-phase pointerdown/touchstart/focusin/keydown/click; the first click is kept and replayed once the Island's Suspense boundary commits), `replay.ts` (skips links, checkbox/radio, labels, summary, form submit buttons, detached targets), the `rootMargin` option for `visible`, and interaction retry after a chunk load failure (review finding). Tests: island.test.tsx (interaction click-once, keydown/focusin, retry, idle rIC + fallback, rootMargin, interaction arm) and replay.test.tsx (decision table, detached drop); Playwright e2e/islands.spec.ts covers first-click-once, checkbox no-double-toggle, link not replayed, focus/keydown only hydrate.
 
+Outside the Touches list, needed by the Playwright tests: apps/showcase-kit/src/islands/Controls.tsx (new island), islands.client.ts (registers it), app/islands/page.tsx (four interaction sections). Replay note: the commit hook sits inside the Suspense boundary, because Suspense content hydrates in its own pass after the shell.
+Inherited, not caused: e2e/smoke.spec.ts "create task" fails with "A 'use server' file can only export async functions"; reproduced on base 4b5caa6 in a temp worktree.
+Baseline: green (islands test + typecheck).
+
+Tier: opus at medium (conductor IMPLEMENTER)
+stage: impl-review - ran (codex fan-out NEEDS_WORK -> re-review SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: aae6ce832f2cbbebe4d1846a370fe76c99b35ea7, 8e630c2f5ea38a4ab2e8c4e18c56b22344f1523a
+- Tests: pnpm --filter @sleekstack/islands test, pnpm --filter @sleekstack/islands typecheck, pnpm --filter showcase-kit build && playwright test (islands 5/5 pass; smoke create-task fails, inherited)
 - PRs:
