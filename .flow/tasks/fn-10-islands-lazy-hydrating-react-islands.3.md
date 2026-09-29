@@ -32,9 +32,13 @@ The one additive seam Islands need: a top-level `LayerProvider` can be given an 
 - [ ] No Effect or core types leak through `@sleekstack/kit/react`
 
 ## Done summary
-TBD
+`@sleekstack/react` LayerProvider takes an optional `appScope` (externally owned; top-level only, ignored when nested; never closed by the provider), plus `closeProvidersOn(appScope)` so the owner closes component scopes before the app scope. Kit exposes it opaquely: `createAppScope(provide, { onFinalizerError })` returns an `AppScopeHandle` (`close()`), and kit `LayerProvider` accepts `appScope` - no Effect/core types in `@sleekstack/kit/react`.
 
+Tests: packages/react/src/__tests__/layerProvider.external.test.tsx, packages/kit/src/react/__tests__/appScope.test.tsx (shared instance, unmount never closes, close ordering component-before-app).
+
+Tier: opus at medium
+stage: impl-review - ran (codex fan-out NEEDS_WORK x2 -> re-review SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: bf9e6974adb3e655fa364e408cc52dd077757c74, ea63e88487b2a0b8c47db6ea7e40577e5ac44abe, efd42e1cca0d3c97f469b53a711d062ee55b74d5, 778cdb778136bfe64b71036cc9a1eb9356396f63, c57a55d344f553f7d22949d2b2822818f39a3219
+- Tests: pnpm --filter @sleekstack/react test, pnpm --filter @sleekstack/react typecheck, pnpm --filter @sleekstack/kit test, pnpm --filter @sleekstack/kit typecheck
 - PRs:
