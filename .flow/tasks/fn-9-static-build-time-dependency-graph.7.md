@@ -31,10 +31,14 @@ Add the internal `ResolutionPlan` (`buildPlan(entries)`, no validation) and migr
 - [ ] TBD
 
 ## Done summary
-TBD
+Core's internal `buildPlan(entries)` (graph.ts, not exported) resolves the root with no validation: ties go to the first provider, and cycles are ordered leniently so the lazy build fails with DependencyCycle. `makeAppScope` now takes entries and builds the plan itself, so next, react and the kit tests pass `provide` straight in. Child boundaries still throw AmbiguousProvider and DependencyCycle through strict `resolveEntries`/`toposort`, and kit `validateProvide` still throws DuplicateTag. `snapshot`, Graph/GraphNode/GraphSnapshot/Shadowing and `checkLifetimes` are gone, along with the build-time checks. Equivalence tests are in packages/core/src/__tests__/plan.test.ts, and ported tests were removed per the port list.
 
+Drift: kit module.ts no longer needs any plan now that snapshot is gone, and the plan is reached through makeAppScope rather than imported by adapters. The showcase-kit DuplicateTag case calls configureRuntime, which throws before configuring. To keep that call from becoming a second analyzer root, showcase-kit `check`/`report` (and the cli/showcase-kit tests) now pass `--entry src/server/runtime.server.ts`. Root makeAppScope still has the scope's resolve-time MissingDependency/PrivateDependency backstop, so an app->request captive now surfaces as MissingDependency.
+
+stage: impl-review - skipped(policy: host-deferred - conductor owns the gate)
+
+Review: independent host review SHIP (no P0/P1). Follow-ups (not blocking): --entry is a silent allowlist for extra configureRuntime roots; no test that DuplicateTag demo leaves existing runtime intact.
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 4eca13c02ab1aad1efb783aa655e0cecf0d5eb11
+- Tests: pnpm -r test, pnpm typecheck, pnpm --filter showcase-kit check, pnpm --filter showcase-kit build
 - PRs:
-
