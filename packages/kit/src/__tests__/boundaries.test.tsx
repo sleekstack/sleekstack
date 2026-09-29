@@ -3,7 +3,7 @@ import { Component, Suspense, type ReactNode } from 'react'
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, assert, describe, expect, it, vi } from 'vitest'
 import { Effect, Cause, Option } from 'effect'
-import { Atom as CoreAtom, atomStoreFor, buildGraph, makeAppScope, Result } from '@sleekstack/core'
+import { Atom as CoreAtom, atomStoreFor, makeAppScope, Result } from '@sleekstack/core'
 import { atom, layer, module, tag, type Atom, type SleekStackError } from '../index'
 import { LayerProvider, useAtomValue, useService } from '../react'
 import { configureRuntime, effect } from '../next'
@@ -42,7 +42,7 @@ const boundaries: Record<string, (provide: never) => Promise<SleekStackError>> =
     return effect(function* () { return yield* Dep }).then(() => { throw new Error('resolved') }, (e) => e)
   },
   AtomStore: async (p) => {
-    const app = await Effect.runPromise(makeAppScope(buildGraph(unwrap(p))))
+    const app = await Effect.runPromise(makeAppScope(unwrap(p)))
     const r = atomStoreFor(app).get(CoreAtom.make(Effect.gen(function* () { return yield* coreTag(Dep) })))
     return normalize(Result.isFailure(r) ? Option.getOrThrow(Cause.failureOption(r.cause)) : 'no failure')
   },

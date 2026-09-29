@@ -9,7 +9,7 @@ Install the kit. It depends on `effect`, but none of its types reach your code.
 
 ## Define services
 
-A Tag names a service; a Layer implements it. `layer(tag, impl, deps)` accepts a value, a class or a factory, and passes the services of `deps` to it in order. A module groups Layers, and `snapshot()` validates the whole graph without constructing anything.
+A Tag names a service; a Layer implements it. `layer(tag, impl, deps)` accepts a value, a class or a factory, and passes the services of `deps` to it in order. A module groups Layers, and `sleekstack check` validates the whole graph at build time without running anything.
 
 <include>../../snippets/kit/getting-started.ts</include>
 

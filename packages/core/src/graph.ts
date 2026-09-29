@@ -1,82 +1,38 @@
 /**
  * packages/core/src/graph.ts
  *
- * buildGraph: the single whole-graph validation entry. Walks modules (identity
- * cycles, duplicate names, diamond dedupe), flattens entries with provenance,
- * resolves shadowing by locality, checks dependencies and ordering, and only
- * then composes Layers. snapshot() turns the result into a JSON-safe DTO.
+ * Internal resolution: module walk (identity cycles, duplicate names, diamond dedupe), entries
+ * flattened with provenance, per-Tag shadowing by locality, dependency ordering. `buildPlan` is the
+ * root path (vetted statically by the analyzer, so it validates nothing); child boundaries use the
+ * throwing `resolveEntries` / `toposort` (per-call entries cannot be seen statically).
  */
 
 import { Cause, Context, Layer } from 'effect'
 import { walkModules } from './cycle'
-import { AmbiguousProvider, DependencyCycle, MissingDependency, PrivateDependency } from './errors'
+import { AmbiguousProvider, DependencyCycle, PrivateDependency } from './errors'
 import { isDeclaredLayer, isModule, isServiceDefinition, type Entry, type Module } from './module'
-import { checkLifetimes } from './lifetime'
 import type { Lifetime } from './service'
 
 type AnyLayer = Layer.Layer<any, any, any>
 
-/** One validated node of a {@link Graph}: a service, declared Layer, or bare Layer, with its provenance. */
-export interface GraphNode {
+/** One resolved node: a service, declared Layer, or bare Layer, with its provenance. */
+export interface PlanNode {
   readonly id: string
   readonly provides: readonly string[]
   readonly requires: readonly string[]
   readonly lifetime: Lifetime
   readonly module: Module | undefined
-  readonly paths: readonly (readonly string[])[]
   readonly opaque: boolean
-  readonly private: boolean
-  /** Import depth: 0 = passed directly to buildGraph; lower wins. */
+  /** Import depth: 0 = passed directly as input; lower wins. */
   readonly depth: number
-  /** Tags this node declares but lost to a more local provider (built, not exposed). */
-  readonly lost: readonly string[]
   readonly layer: AnyLayer
-}
-
-/** A Tag provided by several entries, and which one won by locality (the rest are shadowed). */
-export interface Shadowing {
-  readonly tag: string
-  readonly winner: string
-  readonly shadowed: readonly string[]
-}
-
-/** The validated module graph returned by {@link buildGraph}, with its composed Layer. */
-export interface Graph {
-  /** Winning, metadata-carrying nodes in construction order. */
-  readonly nodes: readonly GraphNode[]
-  /** Bare raw Layers: opaque, merged into a base built first. */
-  readonly opaque: readonly GraphNode[]
-  /** Nodes that lost every Tag they provide to a more local entry. */
-  readonly shadowed: readonly GraphNode[]
-  readonly shadowing: readonly Shadowing[]
-  /** Resolved dependency edges between live nodes (to = the winning provider). */
-  readonly edges: readonly { readonly from: string; readonly to: string; readonly tag: string }[]
-  /** Everything composed: base first, then nodes in order. */
-  readonly layer: Layer.Layer<any, any, never>
-}
-
-/** A JSON-safe view of a {@link Graph} (one node per provided Tag), for devtools and visualizers. */
-export interface GraphSnapshot {
-  readonly nodes: readonly {
-    readonly id: string
-    readonly name: string
-    readonly provides: readonly string[]
-    readonly lifetime: Lifetime
-    readonly module: { readonly id: string; readonly name: string } | null
-    readonly paths: readonly (readonly string[])[]
-    readonly private: boolean
-    readonly opaque: boolean
-    readonly shadowed: boolean
-  }[]
-  readonly edges: readonly { readonly from: string; readonly to: string; readonly tag: string }[]
-  readonly shadowing: readonly Shadowing[]
 }
 
 /**
  * Traversal only, for adapter-side provide-set checks: visits every Tag a provide set reaches (entry provides and requires,
  * module exports), with its owning module (`undefined` for direct entries). Follows `imports`
  * (arrays and thunks) and visits each module once by identity, so cycles are skipped, not thrown.
- * No validation: names, shadowing and ambiguity stay in {@link buildGraph}.
+ * No validation.
  *
  * @param input - Root modules and/or entries.
  * @param visit - Called once per reached Tag occurrence.
@@ -108,7 +64,7 @@ export function walkProvide(input: readonly (Module | Entry)[], visit: (tag: Con
     try {
       imports = typeof x.imports === 'function' ? x.imports() : x.imports
     } catch {
-      return // a thunk not yet resolvable is buildGraph's to report, at invocation
+      return // a thunk not yet resolvable is reported when the scope resolves it
     }
     imports.forEach((i) => isModule(i) && walk(i))
   }
@@ -126,7 +82,7 @@ export const privateDependency = (tag: string, module: Module, requiredBy: strin
     message: `"${requiredBy}" requires "${tag}", which is private to module "${module.name}" (not in its exports)`,
   })
 
-const where = (n: GraphNode) => (n.module ? `module "${n.module.name}"` : 'root entries')
+const where = (n: PlanNode) => (n.module ? `module "${n.module.name}"` : 'root entries')
 
 /** Raw-Layer construction failures carry the owning module's name; the original Cause is kept as `cause`. */
 const attributed = (layer: AnyLayer, module: Module | undefined): AnyLayer =>
@@ -142,42 +98,39 @@ const only = (layer: AnyLayer, keys: readonly string[]): AnyLayer =>
 
 export interface Resolved {
   /** Metadata-carrying nodes winning at least one Tag; `provides` lists only the Tags they won. */
-  readonly live: readonly GraphNode[]
-  readonly opaque: readonly GraphNode[]
-  readonly shadowed: readonly GraphNode[]
-  readonly shadowing: readonly Shadowing[]
-  readonly winners: ReadonlyMap<string, GraphNode>
+  readonly live: readonly PlanNode[]
+  readonly opaque: readonly PlanNode[]
+  readonly winners: ReadonlyMap<string, PlanNode>
 }
 
 /**
- * Module walk, node creation, and per-Tag shadowing by locality (steps 1-3 of buildGraph).
- * Also resolves child-boundary entries (nested React providers, Next per-operation provide).
+ * Module walk, node creation, and per-Tag shadowing by locality. `strict` (child-boundary entries:
+ * nested React providers, Next per-operation provide) throws AmbiguousProvider for a Tag with several
+ * providers at the best locality; otherwise the first listed wins (the analyzer reports it).
  */
-export function resolveEntries(input: readonly (Module | Entry)[]): Resolved {
+export function resolveEntries(input: readonly (Module | Entry)[], strict = true): Resolved {
   // 1. Modules: identity walk; direct (non-module) inputs are depth 0.
   const visits = walkModules(input.filter(isModule))
-  type Seen = { entry: Entry; module: Module | undefined; depth: number; paths: string[][] }
+  type Seen = { entry: Entry; module: Module | undefined; depth: number }
   const seen = new Map<Entry, Seen>()
-  const add = (entry: Entry, module: Module | undefined, depth: number, paths: string[][]) => {
-    const prev = seen.get(entry)
-    if (!prev) return void seen.set(entry, { entry, module, depth, paths: [...paths] })
-    prev.paths.push(...paths) // diamond: same entry object counts once
-    if (depth < prev.depth) Object.assign(prev, { module, depth })
+  const add = (entry: Entry, module: Module | undefined, depth: number) => {
+    const prev = seen.get(entry) // diamond: same entry object counts once
+    if (!prev) seen.set(entry, { entry, module, depth })
+    else if (depth < prev.depth) Object.assign(prev, { module, depth })
   }
-  for (const e of input) if (!isModule(e)) add(e, undefined, 0, [[]])
-  for (const v of visits.values()) for (const e of v.module.entries) add(e, v.module, v.depth, v.paths)
+  for (const e of input) if (!isModule(e)) add(e, undefined, 0)
+  for (const v of visits.values()) for (const e of v.module.entries) add(e, v.module, v.depth)
 
   // 2. Nodes.
   let opaqueN = 0
-  const all: GraphNode[] = [...seen.values()].map(({ entry, module, depth, paths }) => {
-    const base = { module, depth, paths, lost: [] }
-    const isPrivate = (provides: readonly string[]) => provides.every((k) => isPrivateTag(module, k))
+  const all: PlanNode[] = [...seen.values()].map(({ entry, module, depth }) => {
+    const base = { module, depth }
     if (isServiceDefinition(entry)) {
       const provides = [entry.tag.key]
       return {
         ...base, id: entry.tag.key, provides, requires: entry.requires.map((t) => t.key),
         lifetime: entry.explicitLifetime ? entry.lifetime : (module?.lifetime ?? 'app'),
-        opaque: false, private: isPrivate(provides), layer: entry.layer,
+        opaque: false, layer: entry.layer,
       }
     }
     if (isDeclaredLayer(entry)) {
@@ -185,24 +138,23 @@ export function resolveEntries(input: readonly (Module | Entry)[]): Resolved {
       return {
         ...base, id: provides.join('+'), provides, requires: entry.requires.map((t) => t.key),
         lifetime: entry.lifetime ?? module?.lifetime ?? 'app',
-        opaque: false, private: isPrivate(provides), layer: attributed(entry.layer, module),
+        opaque: false, layer: attributed(entry.layer, module),
       }
     }
     return {
       ...base, id: `opaque:${module?.name ?? 'root'}#${opaqueN++}`, provides: [], requires: [],
-      lifetime: module?.lifetime ?? 'app', opaque: true, private: module !== undefined, layer: attributed(entry as AnyLayer, module),
+      lifetime: module?.lifetime ?? 'app', opaque: true, layer: attributed(entry as AnyLayer, module),
     }
   })
 
   // 3. Per-Tag shadowing by locality; same Tag at the same (best) depth -> ambiguous.
-  const byTag = new Map<string, GraphNode[]>()
+  const byTag = new Map<string, PlanNode[]>()
   for (const n of all) for (const k of n.provides) byTag.set(k, [...(byTag.get(k) ?? []), n])
-  const won = new Map<string, GraphNode>()
-  const shadowing: Shadowing[] = []
+  const won = new Map<string, PlanNode>()
   for (const [tag, ns] of byTag) {
     const best = Math.min(...ns.map((n) => n.depth))
     const top = ns.filter((n) => n.depth === best)
-    if (top.length > 1) {
+    if (strict && top.length > 1) {
       const modules = top.map((n) => n.module?.name ?? '(root)')
       throw new AmbiguousProvider({
         tag, modules,
@@ -210,95 +162,52 @@ export function resolveEntries(input: readonly (Module | Entry)[]): Resolved {
       })
     }
     won.set(tag, top[0]!)
-    const losers = ns.filter((n) => n !== top[0])
-    if (losers.length) shadowing.push({ tag, winner: tag, shadowed: losers.map((n) => shadowedId(tag, n)) })
   }
   // A declared Layer that won only some of its Tags is still built once, exposing only the Tags it won.
-  const live: GraphNode[] = []
-  const shadowed: GraphNode[] = []
-  const winners = new Map<string, GraphNode>()
+  const live: PlanNode[] = []
+  const winners = new Map<string, PlanNode>()
   for (const n of all) {
     if (n.opaque) continue
     const mine = n.provides.filter((k) => won.get(k) === n)
-    if (mine.length === 0) {
-      shadowed.push(n)
-      continue
-    }
+    if (mine.length === 0) continue
     const node = mine.length === n.provides.length
       ? n
-      : { ...n, provides: mine, lost: n.provides.filter((k) => !mine.includes(k)), layer: only(n.layer, mine) }
+      : { ...n, provides: mine, layer: only(n.layer, mine) }
     live.push(node)
     for (const k of mine) winners.set(k, node)
   }
-  return { live, opaque: all.filter((n) => n.opaque), shadowed, shadowing, winners }
+  return { live, opaque: all.filter((n) => n.opaque), winners }
 }
 
-const shadowedId = (tag: string, n: GraphNode) => `${tag}@${n.module?.name ?? '(root)'}`
+/** The root resolution: winning nodes in construction order, plus opaque bare Layers. */
+export interface ResolutionPlan {
+  readonly nodes: readonly PlanNode[]
+  readonly opaque: readonly PlanNode[]
+}
 
 /**
- * Validates a whole module graph and composes its Layer. This is the single whole-graph
- * validation entry: module walk, shadowing by locality, dependencies, privacy, lifetimes, ordering.
- * No service is constructed.
- *
- * @param input - Root modules and/or entries (depth 0, most local).
- * @returns The validated graph.
- * @throws {@link ModuleCycle} `ModuleCycle` when modules import each other in a cycle.
- * @throws {@link DuplicateModule} `DuplicateModule` when two distinct modules share a name.
- * @throws {@link InvalidModule} `InvalidModule` when a module imports a non-module value.
- * @throws {@link AmbiguousProvider} `AmbiguousProvider` when a Tag has several providers at the same locality.
- * @throws {@link MissingDependency} `MissingDependency` when a required Tag has no provider.
- * @throws {@link PrivateDependency} `PrivateDependency` when a Tag private to a module is required from outside it.
- * @throws {@link CaptiveDependency} `CaptiveDependency` when a service depends on one with an incompatible lifetime.
- * @throws {@link DependencyCycle} `DependencyCycle` when services require each other in a cycle.
- *
- * @example
- * ```ts
- * import { Context, Effect } from 'effect'
- * import { buildGraph, module, service } from '@sleekstack/core'
- *
- * class Clock extends Context.Tag('Clock')<Clock, { now(): number }>() {}
- * const App = module({ name: 'app', entries: [service(Clock, {}, () => Effect.succeed({ now: () => Date.now() }))] })
- * const graph = buildGraph([App])
- * ```
+ * Resolves root entries without validating them: missing, private, captive, cycle and ambiguity
+ * checks belong to the analyzer (`sleekstack check`); the scope runtime keeps its resolve-time backstops.
  */
-export function buildGraph(input: readonly (Module | Entry)[]): Graph {
-  const { live, opaque, shadowed, shadowing, winners } = resolveEntries(input)
-
-  // 4. Dependencies (bare Layers cannot satisfy them: their outputs are invisible).
-  for (const n of live) {
-    for (const r of n.requires) {
-      if (!winners.has(r)) {
-        throw new MissingDependency({
-          service: n.id, missing: r, ...(n.module && { module: n.module.name }),
-          message:
-            `Service "${n.id}" (${where(n)}) requires "${r}", but no entry provides it. ` +
-            `If a raw Layer provides it, wrap it with declareLayer(layer, { provides: [...] }).`,
-        })
-      }
-      const owner = winners.get(r)!.module
-      if (owner && owner !== n.module && isPrivateTag(owner, r)) throw privateDependency(r, owner, n.id)
-    }
-  }
-  checkLifetimes(live, (k) => winners.get(k)!)
-  const ordered = toposort(live, (k) => winners.get(k)!)
-
-  // 5. Compose: bare Layers first as a base, then nodes in order. No construction happens here.
-  let acc: AnyLayer = opaque.length ? Layer.mergeAll(...(opaque.map((n) => n.layer) as [AnyLayer])) : (Layer.empty as unknown as AnyLayer)
-  for (const n of ordered) acc = n.layer.pipe(Layer.provideMerge(acc))
-  // Edge endpoints are Tag keys: the snapshot keys every provided Tag as its own node.
-  const edges = ordered.flatMap((n) => n.provides.flatMap((from) => n.requires.map((tag) => ({ from, to: tag, tag }))))
-  return { nodes: ordered, opaque, shadowed, shadowing, edges, layer: acc as Layer.Layer<any, any, never> }
+export function buildPlan(input: readonly (Module | Entry)[]): ResolutionPlan {
+  const { live, opaque, winners } = resolveEntries(input, false)
+  return { nodes: toposort(live, (k) => winners.get(k), false), opaque }
 }
 
-/** Kahn ordering, dependencies first. `provider` maps a required Tag key to its node. Throws DependencyCycle. */
+/**
+ * Kahn ordering, dependencies first. `provider` maps a required Tag key to its node (unknown keys are
+ * ignored). `strict` throws DependencyCycle; otherwise cyclic nodes follow in input order (the lazy
+ * build then fails with DependencyCycle when it re-enters one).
+ */
 export function toposort<N extends { readonly id: string; readonly requires: readonly string[] }>(
   nodes: readonly N[],
-  provider: (key: string) => N,
+  provider: (key: string) => N | undefined,
+  strict = true,
 ): N[] {
   const indegree = new Map<N, number>()
   const dependents = new Map<N, N[]>()
   for (const n of nodes) {
-    const deps = new Set(n.requires.map(provider))
+    const deps = new Set(n.requires.map(provider).filter((d): d is N => d !== undefined))
     indegree.set(n, deps.size)
     for (const d of deps) dependents.set(d, [...(dependents.get(d) ?? []), n])
   }
@@ -313,6 +222,7 @@ export function toposort<N extends { readonly id: string; readonly requires: rea
     }
   }
   if (out.length === nodes.length) return out
+  if (!strict) return [...out, ...nodes.filter((n) => !out.includes(n))]
 
   // Leftover nodes sit on or behind a cycle: follow requires edges among them until a repeat.
   const left = new Set(nodes.filter((n) => indegree.get(n)! > 0))
@@ -320,47 +230,8 @@ export function toposort<N extends { readonly id: string; readonly requires: rea
   let cur = [...left][0]!
   while (!path.includes(cur)) {
     path.push(cur)
-    cur = cur.requires.map(provider).find((d) => left.has(d))!
+    cur = cur.requires.map(provider).find((d): d is N => d !== undefined && left.has(d))!
   }
   const cycle = [...path.slice(path.indexOf(cur)), cur].map((n) => n.id)
   throw new DependencyCycle({ path: cycle, message: `Dependency cycle: ${cycle.join(' -> ')}` })
-}
-
-/**
- * Turns a graph into a JSON-safe snapshot: one node per provided Tag (`Tag@Module` when shadowed).
- *
- * @param graph - A graph from {@link buildGraph}.
- * @returns The snapshot.
- *
- * @example
- * ```ts
- * import { buildGraph, snapshot } from '@sleekstack/core'
- *
- * const json = JSON.stringify(snapshot(buildGraph([])))
- * ```
- */
-export function snapshot(graph: Graph): GraphSnapshot {
-  // One DTO per provided Tag (canonical key; `Tag@Module` when shadowed), so multi-Tag
-  // declared Layers get collision-free ids and per-Tag privacy.
-  const dto = (n: GraphNode, tag: string | undefined, shadowed: boolean) => ({
-    id: tag === undefined ? n.id : shadowed ? shadowedId(tag, n) : tag,
-    name: tag ?? n.id,
-    provides: tag === undefined ? [] : [tag],
-    lifetime: n.lifetime,
-    module: n.module ? { id: n.module.name, name: n.module.name } : null,
-    paths: n.paths.map((p) => [...p]),
-    private: tag === undefined ? n.private : isPrivateTag(n.module, tag),
-    opaque: n.opaque,
-    shadowed,
-  })
-  return {
-    nodes: [
-      ...graph.opaque.map((n) => dto(n, undefined, false)),
-      ...graph.nodes.flatMap((n) => n.provides.map((k) => dto(n, k, false))),
-      ...graph.nodes.flatMap((n) => n.lost.map((k) => dto(n, k, true))),
-      ...graph.shadowed.flatMap((n) => n.provides.map((k) => dto(n, k, true))),
-    ],
-    edges: graph.edges.map((e) => ({ ...e })),
-    shadowing: graph.shadowing.map((s) => ({ ...s, shadowed: [...s.shadowed] })),
-  }
 }

@@ -5,7 +5,7 @@ description: Validate the graph and swap services in tests.
 
 Two techniques cover most tests:
 
-- **Validate the graph.** `snapshot(AppModule)` runs every graph check (missing providers, cycles, lifetimes, privacy) without constructing a service, so one test catches wiring mistakes.
+- **Validate the graph.** `sleekstack check` runs every graph check (missing providers, cycles, lifetimes, privacy) without running the app; run it in CI before the tests.
 - **Swap a service with Shadowing.** A per-call `provide` builds Layers in the request scope and shadows the runtime graph for that call only. In React, a nested `LayerProvider` with a test Layer does the same for a subtree. Neither needs a mocking API.
 
 <include>../../snippets/testing/graph.test-example.ts</include>

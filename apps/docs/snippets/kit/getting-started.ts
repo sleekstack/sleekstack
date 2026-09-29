@@ -1,4 +1,4 @@
-import { layer, module, snapshot, tag } from '@sleekstack/kit'
+import { layer, module, tag } from '@sleekstack/kit'
 
 interface Clock { now(): number }
 interface Greeter { greet(name: string): string }
@@ -12,5 +12,4 @@ const GreeterLive = layer(Greeter, (clock) => ({ greet: (name) => `Hello ${name}
 
 export const AppModule = module({ name: 'app', provide: [ClockLive, GreeterLive] })
 
-// Validates the whole graph without constructing anything.
-console.log(snapshot(AppModule).nodes.map((n) => n.id))
+// `sleekstack check` validates the whole graph at build time, without running anything.

@@ -2,12 +2,12 @@
  * packages/kit/src/module.ts
  *
  * `module()` lowers to core `module()`. `validateProvide()` is the per-provide-set
- * DuplicateTag check; `snapshot()` delegates to core `snapshot(buildGraph(...))`.
+ * DuplicateTag check. Whole-graph checks are the analyzer's (`sleekstack check`).
  */
 
-import { buildGraph, walkProvide, module as coreModule, snapshot as coreSnapshot, type Entry, type Module as CoreModule } from '@sleekstack/core'
+import { walkProvide, module as coreModule, type Entry, type Module as CoreModule } from '@sleekstack/core'
 import { normalize, SleekStackError } from './errors'
-import { layerInfo, type Layer, type Lifetime } from './layer'
+import { layerInfo, type Layer } from './layer'
 import { coreTag, type AnyTag } from './tag'
 
 declare const ModuleBrand: unique symbol
@@ -46,7 +46,7 @@ const coreModuleOf = (m: unknown, owner: string): CoreModule => {
 }
 
 /**
- * Creates a module. Whole-graph checks run later, when a provider or runtime builds it (or in {@link snapshot}).
+ * Creates a module. Whole-graph checks run in `sleekstack check`; a provider or runtime resolves it without them.
  *
  * @param config - `name`, `provide`, `imports`, and `exports`.
  * @returns The module.
@@ -110,48 +110,6 @@ export function validateProvide(items: readonly (Layer<any> | Module)[]): void {
       throw new SleekStackError('DuplicateTag', `Two distinct Tags share the key "${t.key}" in one provide set`, { tag: t.key })
     }
   })
-}
-
-/** The JSON-safe graph returned by {@link snapshot}: one node per provided Tag, plus edges and shadowing. */
-export interface GraphSnapshot {
-  readonly nodes: readonly {
-    readonly id: string
-    readonly name: string
-    readonly provides: readonly string[]
-    readonly lifetime: Lifetime
-    readonly module: { readonly id: string; readonly name: string } | null
-    readonly paths: readonly (readonly string[])[]
-    readonly private: boolean
-    readonly opaque: boolean
-    readonly shadowed: boolean
-  }[]
-  readonly edges: readonly { readonly from: string; readonly to: string; readonly tag: string }[]
-  readonly shadowing: readonly { readonly tag: string; readonly winner: string; readonly shadowed: readonly string[] }[]
-}
-
-/**
- * Builds and validates the graph of `app`, returning a JSON-safe snapshot. No service is constructed.
- *
- * @param app - The root module.
- * @returns The graph snapshot.
- * @throws {@link SleekStackError} with code `DuplicateTag` when two distinct Tags share a key.
- * @throws {@link SleekStackError} with a graph code (`MissingDependency`, `DependencyCycle`, `AmbiguousProvider`, `ModuleCycle`, `DuplicateModule`, `InvalidModule`, `CaptiveDependency`, `PrivateDependency`) when validation fails.
- *
- * @example
- * ```ts
- * import { module, snapshot } from '@sleekstack/kit'
- *
- * const graph = snapshot(module({ name: 'app' }))
- * console.log(graph.nodes.length)
- * ```
- */
-export function snapshot(app: Module): GraphSnapshot {
-  try {
-    validateProvide([app])
-    return coreSnapshot(buildGraph(unwrap([app])))
-  } catch (e) {
-    throw normalize(e)
-  }
 }
 
 // Not declared as `function module`: that would shadow the CommonJS `module` that webpack Fast Refresh reads (`module.hot`).

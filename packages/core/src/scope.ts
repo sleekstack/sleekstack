@@ -10,7 +10,7 @@
 
 import { Cause, Context, Effect, Exit, Layer, Scope } from 'effect'
 import { AmbiguousProvider, MissingDependency, missingDependency, type PrivateDependency } from './errors'
-import { isPrivateTag, privateDependency, resolveEntries, toposort, type Graph } from './graph'
+import { buildPlan, isPrivateTag, privateDependency, resolveEntries, toposort, type ResolutionPlan } from './graph'
 import type { Entry, Module } from './module'
 import { lazy, Resolver, type Resolve } from './lazy'
 import type { Lifetime } from './service'
@@ -125,8 +125,8 @@ export interface ChildScope {
   readonly lifetime: Lifetime
   readonly context: Context.Context<any>
   /**
-   * Opens a nested scope. `entries` are child-boundary entries (modules resolved like buildGraph's:
-   * imports, thunks, per-Tag locality): built in the new scope with their lifetime coerced to it,
+   * Opens a nested scope. `entries` are child-boundary entries (modules resolved like the root's:
+   * imports, thunks, per-Tag locality; validated here, unlike the root): built in the new scope with their lifetime coerced to it,
    * shadowing parent instances inside that scope only.
    */
   readonly child: (lifetime: 'request' | 'component', entries?: readonly (Entry | Module)[]) => Effect.Effect<ChildScope, unknown>
@@ -195,7 +195,7 @@ const buildAll = (
 /** Builds `locals` over `parent` in a new scope with a fresh memo map; closes the scope on failure/interrupt. */
 const open = (
   lifetime: Lifetime,
-  graph: Graph,
+  graph: ResolutionPlan,
   parent: Context.Context<any>,
   parentPrivates: PrivateMap,
   locals: readonly Local[],
@@ -231,7 +231,7 @@ const open = (
   }
   const nodes = locals.map((n) => ({ ...n, requires: n.requires.filter((r) => byKey.has(r)) }))
   const node = new Map(nodes.flatMap((n) => n.provides.map((k) => [k, n] as const)))
-  const ordered = toposort(nodes, (k) => node.get(k)!)
+  const ordered = toposort(nodes, (k) => node.get(k), lifetime !== 'app') // the root is vetted by the analyzer
   const sink = options.onFinalizerError ?? ((cause) => console.error(Cause.pretty(cause)))
 
   return Effect.uninterruptibleMask((restore) =>
@@ -283,7 +283,8 @@ const open = (
 /**
  * Opens the app scope: builds every app-lifetime node (and app-lifetime bare Layers) once.
  *
- * @param graph - A graph from `buildGraph`.
+ * @param input - Root modules and/or entries. Not validated (that is `sleekstack check`'s job); a missing or
+ *   private requirement still fails here, and a service cycle fails the build with `DependencyCycle`.
  * @param options - Finalizer-error sink for `dispose`.
  * @returns An Effect yielding the app scope; it fails with whatever a service's acquisition fails with.
  * @throws {@link MissingDependency} `MissingDependency`, {@link PrivateDependency} `PrivateDependency`, or {@link AmbiguousProvider} `AmbiguousProvider` (as defects) when child-scope entries do not resolve.
@@ -291,17 +292,18 @@ const open = (
  * @example
  * ```ts
  * import { Effect } from 'effect'
- * import { buildGraph, makeAppScope } from '@sleekstack/core'
+ * import { makeAppScope } from '@sleekstack/core'
  *
  * const program = Effect.gen(function* () {
- *   const app = yield* makeAppScope(buildGraph([]))
+ *   const app = yield* makeAppScope([])
  *   const request = yield* app.child('request')
  *   yield* request.close
  *   yield* app.close
  * })
  * ```
  */
-export const makeAppScope = (graph: Graph, options: ScopeOptions = {}): Effect.Effect<AppScope, unknown> =>
-  Effect.suspend(() =>
-    open('app', graph, Context.empty() as Context.Context<any>, new Map(), [...graph.opaque, ...graph.nodes].filter((n) => n.lifetime === 'app'), options),
-  )
+export const makeAppScope = (input: readonly (Module | Entry)[], options: ScopeOptions = {}): Effect.Effect<AppScope, unknown> =>
+  Effect.suspend(() => {
+    const graph = buildPlan(input)
+    return open('app', graph, Context.empty() as Context.Context<any>, new Map(), [...graph.opaque, ...graph.nodes].filter((n) => n.lifetime === 'app'), options)
+  })

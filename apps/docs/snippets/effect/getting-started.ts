@@ -1,5 +1,5 @@
 import { Context, Effect } from 'effect'
-import { buildGraph, module, service, snapshot } from '@sleekstack/core'
+import { makeAppScope, module, service } from '@sleekstack/core'
 
 export class Clock extends Context.Tag('Clock')<Clock, { now(): number }>() {}
 export class Greeter extends Context.Tag('Greeter')<Greeter, { greet(name: string): string }>() {}
@@ -11,4 +11,5 @@ const GreeterLive = service(Greeter, { requires: [Clock] }, ([clock]) =>
 
 export const AppModule = module({ name: 'app', entries: [ClockLive, GreeterLive] })
 
-console.log(snapshot(buildGraph([AppModule])).nodes.map((n) => n.id))
+// `sleekstack check` validates the graph at build time; the runtime just resolves it.
+Effect.runPromise(makeAppScope([AppModule])).then((app) => console.log(Context.get(app.context, Greeter).greet('Ada')))

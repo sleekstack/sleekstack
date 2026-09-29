@@ -40,7 +40,7 @@ describe('sleekstack check', () => {
   })
 
   it('showcase-kit: valid JSON only on stdout, exit 0', () => {
-    const r = run(path.join(__dirname, '../../../../apps/showcase-kit'), '--json')
+    const r = run(path.join(__dirname, '../../../../apps/showcase-kit'), '--json', '--entry', 'src/server/runtime.server.ts')
     expect(r.code).toBe(0)
     expect(JSON.parse(r.out).ok).toBe(true)
   }, 30_000)

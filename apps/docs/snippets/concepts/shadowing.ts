@@ -1,4 +1,4 @@
-import { layer, module, snapshot, tag } from '@sleekstack/kit'
+import { layer, module, tag } from '@sleekstack/kit'
 
 interface Mailer { send(to: string): void }
 const Mailer = tag<Mailer>('Mailer')
@@ -13,4 +13,4 @@ export const AppModule = module({
   provide: [layer(Mailer, { send: (to) => void sent.push(to) })],
 })
 
-console.log(snapshot(AppModule).shadowing)
+// `sleekstack check --json` lists it in the graph's shadowing: Mailer, shadowed Mailer@mail.

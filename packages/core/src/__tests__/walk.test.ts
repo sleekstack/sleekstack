@@ -1,6 +1,6 @@
 import { Context, Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
-import { buildGraph, module, service, walkProvide, ModuleCycle, type Module } from '../index'
+import { module, service, walkProvide, type Module } from '../index'
 
 class A extends Context.Tag('A')<A, string>() {}
 class B extends Context.Tag('B')<B, string>() {}
@@ -22,11 +22,10 @@ describe('walkProvide', () => {
     expect(reached([App])).toEqual(['C@App', 'B@App', 'B@L', 'A@L', 'A@D', 'A@D'])
   })
 
-  it('cycles are skipped, not thrown (buildGraph still throws ModuleCycle)', () => {
+  it('cycles are skipped, not thrown', () => {
     const box: { b?: Module } = {}
     const X = module({ name: 'X', entries: [svc(A)], imports: () => [box.b!] })
     box.b = module({ name: 'Y', imports: [X] })
     expect(reached([X])).toEqual(['A@X'])
-    expect(() => buildGraph([X])).toThrow(ModuleCycle)
   })
 })

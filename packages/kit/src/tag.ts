@@ -46,7 +46,7 @@ const cores = new WeakMap<object, Context.Tag<any, any>>()
  * so `yield* SomeTag` inside a generator resolves it directly against whatever Context is
  * provided — no Effect import needed at the call site, since the value was already Effect-shaped.
  *
- * @param name - The Tag's key, shown in errors and the graph snapshot.
+ * @param name - The Tag's key, shown in errors and the analyzer graph.
  * @returns A frozen Tag for `T`.
  * @throws {@link SleekStackError} with code `InvalidTag` when `name` is empty or not a string.
  *

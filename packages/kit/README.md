@@ -6,7 +6,7 @@ from any public entry.
 
 | Subpath | Exports |
 | --- | --- |
-| `@sleekstack/kit` | `tag`, `layer`, `withCleanup`, `effect`, `atom`, `module`, `snapshot`, `SleekStackError` (+ types `Tag`, `Layer`, `Module`, `GraphSnapshot`, `FinalizerError`, ...) |
+| `@sleekstack/kit` | `tag`, `layer`, `withCleanup`, `effect`, `atom`, `module`, `SleekStackError` (+ types `Tag`, `Layer`, `Module`, `FinalizerError`, ...) |
 | `@sleekstack/kit/next` | `configureRuntime`, `defineEffect`, `defineQuery`, `effect`, `query`, `fail` (+ `ActionResult`, `OperationOptions`, `RuntimeConfig`) |
 | `@sleekstack/kit/react` | `LayerProvider`, `useService`, `useServices`, `useAtom`, `useAtomValue`, `useAtomSet` |
 
@@ -17,7 +17,7 @@ Every failure is a `SleekStackError` with a `code` (`MissingDependency`, `Depend
 ## `@sleekstack/kit`
 
 ```ts
-import { layer, module, snapshot, tag, withCleanup } from '@sleekstack/kit'
+import { layer, module, tag, withCleanup } from '@sleekstack/kit'
 
 const Clock = tag<{ now(): number }>('Clock')
 const Db = tag<{ query(sql: string): unknown[] }>('Db')
@@ -29,7 +29,7 @@ const DbLayer = layer(Db, async (clock) => {                                // a
 }, [Clock])
 
 export const App = module({ name: 'App', provide: [ClockLayer, DbLayer], exports: [Db] })
-snapshot(App) // core's GraphSnapshot: nodes, edges, shadowing
+// `sleekstack check` validates the graph at build time (nodes, edges, shadowing with `--json`)
 ```
 
 ### Side effects: `effect()`
@@ -48,7 +48,7 @@ export const App = module({ name: 'App', provide: [ClockLayer, DbLayer, refresh]
 ```
 
 - Setup may be async. A throw is `SleekStackError` `LayerFailed` with `details.tag` `effect:refresh`; a cleanup throw reaches `onFinalizerError` with `tag: 'effect:refresh'`.
-- Graph rules (missing, captive, private) apply to its deps. It shows in `snapshot()` as `effect:<name>` (default `effect:<n>`).
+- Graph rules (missing, captive, private) apply to its deps. It shows in the analyzer graph as `effect:<name>` (default `effect:<n>`).
 - It runs once per scope; it doesn't re-run when deps change.
 
 ### Atoms: `atom()`

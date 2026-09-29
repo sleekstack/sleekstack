@@ -1,7 +1,5 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import { buildGraph } from '@sleekstack/core'
-import { snapshot } from '@sleekstack/kit'
 import { describe, expect, it } from 'vitest'
 import { analyze } from '../index'
 
@@ -20,15 +18,10 @@ const sorted = <T extends { file: string; line: number }>(xs: T[]) => xs.sort((a
 const graphErrors = ['missing-dependency', 'dependency-cycle', 'captive-dependency', 'ambiguous-provider', 'module-cycle', 'duplicate-module', 'private-dependency']
 
 describe('graph error fixtures', () => {
-  it.each(graphErrors)('%s: code and file:line, kit and core declarations', async (name) => {
+  it.each(graphErrors)('%s: code and file:line, kit and core declarations', (name) => {
     const want = expected(name)
     expect(want.map((e) => e.file)).toEqual(expect.arrayContaining(['core.ts', 'kit.ts']))
     expect(sorted(located(name))).toEqual(want)
-    // The runtime throws the same code for the same declarations.
-    const kit = await import(/* @vite-ignore */ path.join(dir(name), 'kit.ts'))
-    const core = await import(/* @vite-ignore */ path.join(dir(name), 'core.ts'))
-    expect(() => snapshot(kit.App)).toThrow(expect.objectContaining({ code: want[0]!.code }))
-    expect(() => buildGraph([core.App])).toThrow(expect.objectContaining({ _tag: want[0]!.code }))
   })
 
   it('.map- and loop-built lists over precise types extract every member; any and Layer<any>[] fail', () => {
@@ -68,16 +61,9 @@ describe('graph error fixtures', () => {
     expect(ok.edges).toEqual([{ from: 'B', to: 'A', tag: 'A' }])
   })
 
-  it('ported buildGraph/snapshot tests (.flow/notes/fn-9-build-time-error-port-list.md): code, file:line, runtime agrees', async () => {
+  it('ported buildGraph/snapshot tests (.flow/notes/fn-9-build-time-error-port-list.md): code, file:line', () => {
     expect(sorted(located('ported'))).toEqual(expected('ported'))
     expect(analyze({ project: path.join(dir('ported'), 'tsconfig.json') }).errors.find((e) => e.file === 'core.ts' && e.code === 'MissingDependency')?.message).toContain('declareLayer')
-    const kit = await import(/* @vite-ignore */ path.join(dir('ported'), 'kit.ts'))
-    const core = await import(/* @vite-ignore */ path.join(dir('ported'), 'core.ts'))
-    for (const App of [kit.OpenApp, kit.ShadowApp]) expect(() => snapshot(App)).not.toThrow()
-    expect(() => snapshot(kit.EffectApp)).toThrow(expect.objectContaining({ code: 'MissingDependency' }))
-    expect(() => buildGraph([core.ShortToApp])).not.toThrow()
-    for (const [App, code] of [[core.ReqToComp, 'CaptiveDependency'], [core.CompToReq, 'CaptiveDependency'], [core.DeclaredCaptive, 'CaptiveDependency'], [core.NewA, 'DuplicateModule'], [core.Data, 'MissingDependency']] as const)
-      expect(() => buildGraph([App])).toThrow(expect.objectContaining({ _tag: code }))
   })
 
   it('clean projects yield no errors', () => {

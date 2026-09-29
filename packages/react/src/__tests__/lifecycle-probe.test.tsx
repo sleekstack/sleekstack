@@ -28,7 +28,7 @@
 import { describe, it, expect } from 'vitest'
 import { useEffect, useRef, useState } from 'react'
 import { Context, Effect } from 'effect'
-import { buildGraph, makeAppScope, service, type AppScope, type ChildScope } from '@sleekstack/core'
+import { makeAppScope, service, type AppScope, type ChildScope } from '@sleekstack/core'
 import { renderStrict } from './renderStrict'
 
 // --- Ordered trace: every acquire/render/release records its position ---
@@ -78,7 +78,7 @@ const makeTrackedEntry = (trace: Event[]) => {
   )
 }
 
-const makeApp = (): AppScope => Effect.runSync(makeAppScope(buildGraph([])))
+const makeApp = (): AppScope => Effect.runSync(makeAppScope([]))
 
 // --- Strategy (a): deferred dispose, cancelled on remount ---
 

@@ -8,7 +8,7 @@
  * existing app scope and replaces it.
  */
 
-import { buildGraph, makeAppScope, type AppScope, type Entry, type Module } from '@sleekstack/core'
+import { makeAppScope, type AppScope, type Entry, type Module } from '@sleekstack/core'
 import { Cause, Effect } from 'effect'
 import { globalValue } from 'effect/GlobalValue'
 
@@ -93,7 +93,7 @@ export function ensureAppScope(): Promise<AppScope> {
   if (!slot.building) {
     const generation = slot.generation
     const building: Promise<AppScope> = Effect.runPromise(
-      makeAppScope(buildGraph(config.provide), { onFinalizerError: config.onFinalizerError }),
+      makeAppScope(config.provide, { onFinalizerError: config.onFinalizerError }),
     )
       .then((scope) => {
         if (slot.generation === generation) {

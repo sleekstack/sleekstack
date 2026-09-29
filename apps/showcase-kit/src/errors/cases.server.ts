@@ -7,7 +7,8 @@
  * is classified UNEXPECTED by `runCase`.
  */
 import 'server-only'
-import { layer, module, snapshot, tag, SleekStackError } from '@sleekstack/kit'
+import { layer, module, tag, SleekStackError } from '@sleekstack/kit'
+import { configureRuntime } from '@sleekstack/kit/next'
 
 export interface CaseResult {
   readonly code: string
@@ -25,7 +26,9 @@ const A = tag<string>('errors.A')
 /** Runtime-only cases: thrown while defining or combining modules, never seen by the analyzer. */
 export const errorCases: readonly ErrorCase[] = [
   { id: 'invalid-module', expectedCode: 'InvalidModule', run: () => module({ name: 'errors.Bad', imports: [{} as never] }) },
-  { id: 'duplicate-tag', expectedCode: 'DuplicateTag', run: () => snapshot(module({ name: 'errors.App', provide: [layer(A, 'a'), layer(tag<string>('errors.A'), 'b')] })) },
+  // configureRuntime validates the provide set before configuring, so this never replaces the app's runtime.
+  // Not an analyzer root: `sleekstack check` runs with `--entry src/server/runtime.server.ts`.
+  { id: 'duplicate-tag', expectedCode: 'DuplicateTag', run: () => configureRuntime({ provide: [module({ name: 'errors.App', provide: [layer(A, 'a'), layer(tag<string>('errors.A'), 'b')] })] }) },
   { id: 'invalid-tag', expectedCode: 'InvalidTag', run: () => tag('') },
 ]
 

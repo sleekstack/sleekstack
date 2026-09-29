@@ -1,7 +1,7 @@
 /**
  * packages/core/src/errors.ts
  *
- * Tagged graph errors. buildGraph throws these (GraphError); module() throws InvalidModule.
+ * Tagged graph errors: the scope runtime and child boundaries throw these (GraphError); module() throws InvalidModule.
  */
 
 import { Data } from 'effect'
@@ -51,7 +51,7 @@ export class InvalidModule extends Data.TaggedError('InvalidModule')<{
   readonly message: string
 }> {}
 
-/** Every error `buildGraph` can throw. */
+/** Every graph error code (reported statically by `sleekstack check`; the runtime keeps resolve-time backstops). */
 export type GraphError =
   | MissingDependency
   | DependencyCycle

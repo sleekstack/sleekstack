@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { Context, Effect, Either } from 'effect'
-import { buildGraph, makeAppScope, module, resolveTag, resolveTagEffect, service } from '../index'
+import { makeAppScope, module, resolveTag, resolveTagEffect, service } from '../index'
 
 class Db extends Context.Tag('Db')<Db, number>() {}
 class Pub extends Context.Tag('Pub')<Pub, number>() {}
@@ -9,7 +9,7 @@ class Nope extends Context.Tag('Nope')<Nope, number>() {}
 const Data = module({ name: 'Data', entries: [service(Db, {}, () => Effect.succeed(1)), service(Pub, {}, () => Effect.succeed(2))], exports: [Pub] })
 
 describe('Tag resolution (resolveTag / resolveTagEffect)', async () => {
-  const app = await Effect.runPromise(makeAppScope(buildGraph([Data])))
+  const app = await Effect.runPromise(makeAppScope([Data]))
   const child = await Effect.runPromise(app.child('component', [service(Pub, { lifetime: 'component' }, () => Effect.succeed(20))]))
 
   it.each([

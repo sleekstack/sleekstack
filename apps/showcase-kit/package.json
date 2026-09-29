@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "check": "sleekstack check",
-    "report": "mkdir -p .sleekstack && sleekstack check --json > .sleekstack/report.json",
+    "check": "sleekstack check --entry src/server/runtime.server.ts",
+    "report": "mkdir -p .sleekstack && sleekstack check --json --entry src/server/runtime.server.ts > .sleekstack/report.json",
     "predev": "pnpm report",
     "prebuild": "pnpm report",
     "build": "next build",

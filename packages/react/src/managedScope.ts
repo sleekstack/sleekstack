@@ -8,7 +8,7 @@
 
 import React from 'react'
 import { Cause, Effect, Exit } from 'effect'
-import { atomStoreFor, buildGraph, makeAppScope, type ChildScope, type Entry, type Module } from '@sleekstack/core'
+import { atomStoreFor, makeAppScope, type ChildScope, type Entry, type Module } from '@sleekstack/core'
 import type { ProviderState } from './context'
 import { settleSuspensions } from './atoms'
 
@@ -113,7 +113,7 @@ function create(provide: ReadonlyArray<Entry | Module>, parent: ProviderState | 
   const started = new Promise<void>((r) => (resolveStart = r))
   const opened: Promise<ChildScope> = parent
     ? started.then(() => parent.scope).then((p) => Effect.runPromise(p.child('component', [...provide])))
-    : started.then(() => Effect.runPromise(Effect.suspend(() => makeAppScope(buildGraph([...provide]), { onFinalizerError: sink })))).then((app) => {
+    : started.then(() => Effect.runPromise(Effect.suspend(() => makeAppScope([...provide], { onFinalizerError: sink })))).then((app) => {
         owned.push(app)
         return Effect.runPromise(app.child('component'))
       })

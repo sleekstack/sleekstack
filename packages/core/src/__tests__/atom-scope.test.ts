@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { Cause, Context, Effect, Option } from 'effect'
-import { Atom, atomStoreFor, buildGraph, makeAppScope, module, Result, service } from '../index'
+import { Atom, atomStoreFor, makeAppScope, module, Result, service } from '../index'
 
 class Db extends Context.Tag('Db')<Db, number>() {}
 class Pub extends Context.Tag('Pub')<Pub, number>() {}
@@ -21,7 +21,7 @@ describe('atomStoreFor', () => {
   })
 
   it('resolves public and shadowed Tags; missing/private give typed failures', async () => {
-    const app = await Effect.runPromise(makeAppScope(buildGraph([Data])))
+    const app = await Effect.runPromise(makeAppScope([Data]))
     const child = await Effect.runPromise(app.child('component', [service(Pub, { lifetime: 'component' }, () => Effect.succeed(20))]))
     const read = (tag: Context.Tag<any, number>) => Atom.make(Effect.gen(function* () { return yield* tag }))
     const store = atomStoreFor(app)
@@ -39,7 +39,7 @@ describe('atomStoreFor', () => {
   })
 
   it('keeps the rest of a compound Cause; an empty key maps too', async () => {
-    const app = await Effect.runPromise(makeAppScope(buildGraph([])))
+    const app = await Effect.runPromise(makeAppScope([]))
     const store = atomStoreFor(app)
     const r = store.get(Atom.make(Effect.ensuring(Nope, Effect.die('cleanup'))))
     expect(Result.isFailure(r) && [...Cause.failures(r.cause)]).toMatchObject([{ _tag: 'MissingDependency', missing: 'Nope' }])
@@ -52,7 +52,7 @@ describe('atomStoreFor', () => {
     const order: string[] = []
     class Res extends Context.Tag('Res')<Res, number>() {}
     const res = service(Res, {}, () => Effect.acquireRelease(Effect.succeed(1), () => Effect.sync(() => order.push('service'))))
-    const app = await Effect.runPromise(makeAppScope(buildGraph([res])))
+    const app = await Effect.runPromise(makeAppScope([res]))
     const errors: unknown[] = []
     const store = atomStoreFor(app, { onFinalizerError: (e) => errors.push(e) })
     const running = Atom.keepAlive(Atom.make(Effect.onInterrupt(Effect.never, () => Effect.sync(() => order.push('atom')))))
