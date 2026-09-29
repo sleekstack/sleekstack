@@ -81,8 +81,8 @@ export function extract(project: string): Report {
     if (d && ts.isVariableDeclaration(d) && d.initializer) {
       // The initializer is only the value if the binding never changes: `let`/`var` or an in-place mutation is a silent gap.
       if (!(ts.getCombinedNodeFlags(d) & ts.NodeFlags.Const)) return fail(e, `"${text(e)}" is not a const binding; its value cannot be read statically`, 'Computed')
-      const m = mutationOf(d)
-      if (m) return fail(m, `"${text(m)}" mutates "${text(e)}"; the declaration cannot be read statically`, 'Computed')
+      const w = writesOf(d)
+      if (w.escape) return fail(w.escape, `"${text(e)}" escapes at "${text(w.escape)}"; writes through it cannot be tracked`, 'Computed')
       return follow(d.initializer)
     }
     if (d && ts.isPropertyAssignment(d)) return follow(d.initializer)
@@ -90,31 +90,58 @@ export function extract(project: string): Report {
     return fail(e, `Cannot resolve "${text(e)}" to a declaration`)
   }
 
-  const MUTATORS = new Set(['push', 'pop', 'shift', 'unshift', 'splice', 'fill', 'copyWithin', 'sort', 'reverse'])
-  const mutations = new Map<ts.Symbol, ts.Node | undefined>()
-  /** The first write through a const binding (`x.push(..)`, `x[i] = ..`, `x.k = ..`), or undefined. */
-  const mutationOf = (d: ts.VariableDeclaration): ts.Node | undefined => {
+  type Writes = { added: ts.Expression[]; escape: ts.Node | undefined }
+  const writes = new Map<ts.Symbol, Writes>()
+  /**
+   * Every value written into a const array binding after its initializer (`push`/`unshift`/`splice`/`fill` args,
+   * `x[i] = v`), over-approximating; removals and reorders only shrink the set. Any other use that could let the
+   * array be written elsewhere (passed to a call, aliased, returned) is an escape: fail closed.
+   */
+  const writesOf = (d: ts.VariableDeclaration): Writes => {
     const sym = checker.getSymbolAtLocation(d.name)
-    if (!sym) return undefined
-    if (mutations.has(sym)) return mutations.get(sym)
-    let hit: ts.Node | undefined
+    const w: Writes = { added: [], escape: undefined }
+    const t = sym && checker.getTypeOfSymbolAtLocation(sym, d.name)
+    if (!t || !(checker.isArrayType(t) || checker.isTupleType(t))) return w // only lists hold members that writes can add
+    const hit = writes.get(sym)
+    if (hit) return hit
+    writes.set(sym, w)
     const scan = (n: ts.Node): void => {
-      if (hit) return
-      if (ts.isIdentifier(n) && n !== d.name && checker.getSymbolAtLocation(n) === sym) {
-        const acc = n.parent
-        if ((ts.isPropertyAccessExpression(acc) || ts.isElementAccessExpression(acc)) && acc.expression === n) {
-          const up = acc.parent
-          if (ts.isPropertyAccessExpression(acc) && MUTATORS.has(acc.name.text) && ts.isCallExpression(up) && up.expression === acc) hit = up
-          else if (ts.isBinaryExpression(up) && up.left === acc && up.operatorToken.kind >= ts.SyntaxKind.FirstAssignment && up.operatorToken.kind <= ts.SyntaxKind.LastAssignment) hit = up
-          else if (ts.isDeleteExpression(up)) hit = up
-        }
-      }
+      if (w.escape) return
+      if (ts.isIdentifier(n) && n !== d.name && checker.getSymbolAtLocation(n) === sym) use(n)
       ts.forEachChild(n, scan)
     }
+    const use = (n: ts.Identifier) => {
+      let at: ts.Node = n
+      while (ts.isParenthesizedExpression(at.parent) || ts.isAsExpression(at.parent) || ts.isSatisfiesExpression(at.parent) || ts.isNonNullExpression(at.parent)) at = at.parent
+      const up = at.parent
+      if (ts.isPropertyAccessExpression(up) && up.expression === at) {
+        const call = up.parent
+        const m = up.name.text
+        if (ts.isCallExpression(call) && call.expression === up) {
+          if (m === 'push' || m === 'unshift') w.added.push(...call.arguments)
+          else if (m === 'splice') w.added.push(...call.arguments.slice(2))
+          else if (m === 'fill') w.added.push(...call.arguments.slice(0, 1))
+          else if (!['pop', 'shift', 'sort', 'reverse', 'copyWithin', 'map', 'flatMap', 'filter', 'forEach', 'slice', 'concat', 'includes', 'indexOf', 'find', 'some', 'every', 'at', 'join'].includes(m)) w.escape = call
+          return
+        }
+        if (ts.isBinaryExpression(call) && call.left === up && isAssign(call)) { if (m !== 'length') w.escape = call }
+        return
+      }
+      if (ts.isElementAccessExpression(up) && up.expression === at) {
+        const a = up.parent
+        if (ts.isBinaryExpression(a) && a.left === up && isAssign(a)) w.added.push(a.right)
+        return
+      }
+      if (ts.isSpreadElement(up) || ts.isSpreadAssignment(up) || ts.isForOfStatement(up) || ts.isTypeQueryNode(up)) return
+      // A module-config field (`provide: xs`) is a read; the analyzer follows it back here.
+      if ((ts.isPropertyAssignment(up) && up.initializer === at) || ts.isShorthandPropertyAssignment(up)) return
+      if (ts.isExportSpecifier(up) || ts.isImportSpecifier(up)) return
+      w.escape = up
+    }
     sources.forEach(scan)
-    mutations.set(sym, hit)
-    return hit
+    return w
   }
+  const isAssign = (b: ts.BinaryExpression) => b.operatorToken.kind >= ts.SyntaxKind.FirstAssignment && b.operatorToken.kind <= ts.SyntaxKind.LastAssignment
 
   const literal = (e: ts.Expression, what: string): string => {
     const t = checker.getTypeAtLocation(e)
@@ -149,11 +176,47 @@ export function extract(project: string): Report {
   }
 
   /** Array literals (with spreads and conditionals over-approximated), through const bindings. */
+  const isImprecise = (e: ts.Expression) => {
+    const t = checker.getTypeAtLocation(e)
+    if (t.flags & ts.TypeFlags.Any) return true
+    const el = checker.isArrayType(t) ? checker.getTypeArguments(t as ts.TypeReference)[0] : undefined
+    return !!el && !!(el.flags & ts.TypeFlags.Any)
+  }
+
+  /** The expressions a local helper can return (nested functions excluded), for over-approximation. */
+  const returnsOf = (call: ts.CallExpression): ts.Expression[] | undefined => {
+    if (calleeOf(call)) return undefined
+    let d: ts.Node | undefined = declOf(call.expression)
+    if (d && ts.isVariableDeclaration(d) && d.initializer) d = unwrap(d.initializer)
+    if (!d || !(ts.isFunctionDeclaration(d) || ts.isArrowFunction(d) || ts.isFunctionExpression(d)) || !d.body) return undefined
+    if (!ts.isBlock(d.body)) return [d.body]
+    const out: ts.Expression[] = []
+    const walk = (n: ts.Node): void => {
+      if (ts.isFunctionLike(n)) return
+      if (ts.isReturnStatement(n) && n.expression) out.push(n.expression)
+      ts.forEachChild(n, walk)
+    }
+    d.body.statements.forEach(walk)
+    return out
+  }
+
+  /**
+   * Every member a list can hold: array literals (spreads, conditionals, local helper returns, and later writes
+   * through a const binding over-approximated), through const bindings. `any` / `any[]` fails closed.
+   */
   const listOf = (expr: ts.Expression | undefined, item: (e: ts.Expression) => void): void => {
     if (!expr) return
+    if (isImprecise(expr)) return fail(expr, `"${text(expr)}" is typed any; its members cannot be named`, 'Computed')
     const e = follow(expr)
+    const u = unwrap(expr)
+    const d = (ts.isIdentifier(u) || ts.isPropertyAccessExpression(u)) && declOf(u)
+    if (d && ts.isVariableDeclaration(d)) for (const a of writesOf(d).added) ts.isSpreadElement(a) ? listOf(a.expression, item) : item(a)
     if (ts.isClassDeclaration(e)) return fail(expr, `Expected an array, got class "${text(expr)}"`, 'Computed')
     if (ts.isConditionalExpression(e)) return (listOf(e.whenTrue, item), listOf(e.whenFalse, item))
+    if (ts.isCallExpression(e)) {
+      const rs = returnsOf(e)
+      if (rs) return rs.forEach((r) => listOf(r, item))
+    }
     if (!ts.isArrayLiteralExpression(e)) return fail(expr, `Computed list "${text(expr)}" cannot be read statically`, 'Computed')
     for (const el of e.elements) {
       if (ts.isSpreadElement(el)) listOf(el.expression, item)

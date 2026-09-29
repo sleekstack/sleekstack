@@ -3,7 +3,7 @@ import { effect, layer, module, tag } from '@sleekstack/kit'
 declare const name: string
 const Dynamic = tag<object>(name)
 const Clock = tag<object>('Clock')
-const makeLayers = () => [layer(Clock, {})]
+const makeLayers = (): any[] => [layer(Clock, {})]
 
 export const App = module({
   name: 'App',
@@ -11,11 +11,12 @@ export const App = module({
   exports: [Dynamic],
 })
 
-const grown = [layer(Clock, {})]
-grown.push(layer(Dynamic, {}))
+declare function register(xs: unknown[]): void
+const escaped = [layer(Clock, {})]
+register(escaped)
 let swapped = [layer(Clock, {})]
 swapped = []
 
-export const Mutated = module({ name: 'Mutated', provide: grown })
+export const Escaped = module({ name: 'Escaped', provide: escaped })
 export const Rebound = module({ name: 'Rebound', provide: swapped })
 export const Unnamed = module({ name: 'Unnamed', provide: [effect(() => {})] })

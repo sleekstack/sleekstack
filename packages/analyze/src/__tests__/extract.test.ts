@@ -39,9 +39,9 @@ describe('analyze', () => {
     expect(r.errors.map(({ code, file, line }) => ({ code, file, line }))).toEqual([
       { code: 'Computed', file: 'app.ts', line: 10 },
       { code: 'Unresolvable', file: 'app.ts', line: 11 },
-      { code: 'Computed', file: 'app.ts', line: 15 },
-      { code: 'Computed', file: 'app.ts', line: 20 },
-      { code: 'UnnamedEffect', file: 'app.ts', line: 21 },
+      { code: 'Computed', file: 'app.ts', line: 16 },
+      { code: 'Computed', file: 'app.ts', line: 21 },
+      { code: 'UnnamedEffect', file: 'app.ts', line: 22 },
     ])
   })
 })

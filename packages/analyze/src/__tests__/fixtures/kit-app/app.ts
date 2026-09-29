@@ -7,10 +7,16 @@ const infraProvide = [layer(T.Clock, { now: () => 0 }), layer(T.Logger, (clock) 
 
 export const Infra = module({ name: 'Infra', provide: [...infraProvide, layer(T.Store, {}, [], { lifetime: 'app' })], exports: [T.Clock, T.Logger] })
 
+function makeData() {
+  return [layer(T.Repos.Task, (l) => ({ l }), [T.Logger], { lifetime: 'request' })]
+}
+const dataProvide = makeData()
+dataProvide.push(layer(Mailer, { send: () => {} }))
+
 export const Data = module({
   name: 'Data',
   imports: [Infra],
-  provide: [layer(T.Repos.Task, (l) => ({ l }), [T.Logger], { lifetime: 'request' }), layer(Mailer, { send: () => {} })],
+  provide: dataProvide,
 })
 
 export const App = module({
