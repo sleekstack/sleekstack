@@ -68,6 +68,18 @@ describe('graph error fixtures', () => {
     expect(ok.edges).toEqual([{ from: 'B', to: 'A', tag: 'A' }])
   })
 
+  it('ported buildGraph/snapshot tests (.flow/notes/fn-9-build-time-error-port-list.md): code, file:line, runtime agrees', async () => {
+    expect(sorted(located('ported'))).toEqual(expected('ported'))
+    expect(analyze({ project: path.join(dir('ported'), 'tsconfig.json') }).errors.find((e) => e.file === 'core.ts' && e.code === 'MissingDependency')?.message).toContain('declareLayer')
+    const kit = await import(/* @vite-ignore */ path.join(dir('ported'), 'kit.ts'))
+    const core = await import(/* @vite-ignore */ path.join(dir('ported'), 'core.ts'))
+    for (const App of [kit.OpenApp, kit.ShadowApp]) expect(() => snapshot(App)).not.toThrow()
+    expect(() => snapshot(kit.EffectApp)).toThrow(expect.objectContaining({ code: 'MissingDependency' }))
+    expect(() => buildGraph([core.ShortToApp])).not.toThrow()
+    for (const [App, code] of [[core.ReqToComp, 'CaptiveDependency'], [core.CompToReq, 'CaptiveDependency'], [core.DeclaredCaptive, 'CaptiveDependency'], [core.NewA, 'DuplicateModule'], [core.Data, 'MissingDependency']] as const)
+      expect(() => buildGraph([App])).toThrow(expect.objectContaining({ _tag: code }))
+  })
+
   it('clean projects yield no errors', () => {
     expect(located('kit-app')).toEqual([])
     expect(located('core-app')).toEqual([])
