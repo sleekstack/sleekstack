@@ -36,9 +36,13 @@ This is the spec's early proof point. If the DOM is not preserved across a wrapp
 - [ ] Package in CI list; `pnpm --filter @sleekstack/islands test` and `typecheck` pass
 
 ## Done summary
-TBD
+Added `@sleekstack/islands` (`defineIslands`, `<Island>` with the `load` and `visible` triggers, the dormant-DOM wrapper, and a per-container activation token), a showcase-kit `/islands` page, jsdom tests and a Playwright proof. The early proof point holds against `next build` + `next start`: the server DOM node survives a wrapper re-render before and after hydration, `hydrateRoot` attaches (node identity is kept and the island is interactive), and the console shows no warnings.
 
+Baseline: none (new package). Inherited, not caused by this task: e2e/smoke.spec.ts "create task" fails on `/` with "A 'use server' file can only export async functions, found object" (it predates fn-10). The task also touched files outside its Touches list, because it cannot build without them: apps/showcase-kit/{package.json,next.config.ts} (the dep and transpilePackages) and pnpm-lock.yaml. It added apps/showcase-kit/src/islands/RerenderHost.tsx as the re-render harness. Follow-up: the `rootMargin` option for `visible` is not built yet.
+
+Tier: opus at medium (conductor IMPLEMENTER)
+stage: impl-review - ran (codex fan-out NEEDS_WORK -> re-review SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 0ed5d1966e5b91bf447fd010ba8654702049eda6, 42f4617d5d13c250efc1d56d009550a78157e72c
+- Tests: pnpm --filter @sleekstack/islands test, pnpm --filter @sleekstack/islands typecheck, pnpm --filter showcase-kit build && npx playwright test e2e/islands.spec.ts
 - PRs:
