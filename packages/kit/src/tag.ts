@@ -1,9 +1,11 @@
 /**
  * packages/kit/src/tag.ts
  *
- * Kit Tags: `tag<T>(name)` objects and abstract classes. Both map to a core
- * (Effect) Tag keyed by name, held in a module-level WeakMap so no Effect type
- * reaches the public surface.
+ * Kit Tags: `tag<T>(name)` objects and abstract classes. `tag()`'s value is the real Effect
+ * `Context.Tag` itself (R9 prototype: `effect`, `packages/kit/src/next/action.ts`), so
+ * `yield* SomeTag` resolves it directly inside a generator — no Effect import needed at the call
+ * site. Held in a module-level WeakMap regardless, so `coreTag()` stays one lookup for both this
+ * and the abstract-class branch.
  */
 
 import { Context } from 'effect'
@@ -11,10 +13,20 @@ import { SleekStackError } from './errors'
 
 declare const TagBrand: unique symbol
 
-/** A service token created by `tag<T>(name)`. */
+/**
+ * A service token created by `tag<T>(name)`. Directly yieldable: `yield* SomeTag` resolves `T`.
+ *
+ * This interface is deliberately self-referential instead of `extends Effect.Effect<T, never, T>`:
+ * TypeScript's `yield*` only needs a matching `[Symbol.iterator]` shape, not the real Effect type —
+ * and the real one carries a property keyed by Effect's own `EffectTypeId` (a `unique symbol`
+ * declared in `effect`), which R7 (`__tests__/dts.test.ts`) forbids from reaching kit's public
+ * types. The runtime value is still the real `Context.Tag` (see `tag()` below); only its declared
+ * type here is narrower.
+ */
 export interface Tag<T> {
   readonly key: string
   readonly [TagBrand]: T
+  [Symbol.iterator](): Generator<Tag<T>, T, unknown>
 }
 
 /** Anything accepted as a Tag: a `tag()` token or an (abstract) class. */
@@ -29,6 +41,10 @@ const cores = new WeakMap<object, Context.Tag<any, any>>()
 
 /**
  * Creates a service token. Two `tag()` calls make two distinct Tags, even with the same name.
+ *
+ * The returned value is the real Effect `Context.Tag` itself (prototype: R9's `effect`),
+ * so `yield* SomeTag` inside a generator resolves it directly against whatever Context is
+ * provided — no Effect import needed at the call site, since the value was already Effect-shaped.
  *
  * @param name - The Tag's key, shown in errors and the graph snapshot.
  * @returns A frozen Tag for `T`.
@@ -46,8 +62,8 @@ export function tag<T>(name: string): Tag<T> {
   if (typeof name !== 'string' || name.trim().length === 0) {
     throw new SleekStackError('InvalidTag', `tag(): name must be a non-empty string, got: ${JSON.stringify(name)}`)
   }
-  const t = Object.freeze({ key: name }) as Tag<T>
-  cores.set(t, Context.GenericTag<T>(name))
+  const t = Object.freeze(Context.GenericTag<T>(name)) as unknown as Tag<T>
+  cores.set(t, t as unknown as Context.Tag<any, any>)
   return t
 }
 

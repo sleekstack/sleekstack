@@ -1,6 +1,6 @@
 # Dependency arrays over inject() and params
 
-`@sleekstack/kit` declares a Layer's dependencies as a trailing array of Tags — `layer(TaskRepo, (store, clock) => ..., [Store, Clock])` — and the same shape for `action()`/`query()`. The array is runtime metadata (it lowers to core `service()`'s `requires`, so ADR 0004's no-drift property holds), and TypeScript infers the factory's parameter types from it positionally.
+`@sleekstack/kit` declares a Layer's dependencies as a trailing array of Tags — `layer(TaskRepo, (store, clock) => ..., [Store, Clock])` — and the same array for `defineEffect()`/`defineQuery()`, whose generator `yield*`s those Tags. The array is runtime metadata (it lowers to core `service()`'s `requires`, so ADR 0004's no-drift property holds), and TypeScript infers the factory's parameter types from it positionally.
 
 ## Considered options
 

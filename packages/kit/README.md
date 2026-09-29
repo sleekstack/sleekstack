@@ -7,7 +7,7 @@ from any public entry.
 | Subpath | Exports |
 | --- | --- |
 | `@sleekstack/kit` | `tag`, `layer`, `withCleanup`, `effect`, `atom`, `module`, `snapshot`, `SleekStackError` (+ types `Tag`, `Layer`, `Module`, `GraphSnapshot`, `FinalizerError`, ...) |
-| `@sleekstack/kit/next` | `configureRuntime`, `action`, `query`, `fail` (+ `ActionResult`, `OperationOptions`, `RuntimeConfig`) |
+| `@sleekstack/kit/next` | `configureRuntime`, `defineEffect`, `defineQuery`, `effect`, `query`, `fail` (+ `ActionResult`, `OperationOptions`, `RuntimeConfig`) |
 | `@sleekstack/kit/react` | `LayerProvider`, `useService`, `useServices`, `useAtom`, `useAtomValue`, `useAtomSet` |
 
 Every failure is a `SleekStackError` with a `code` (`MissingDependency`, `DependencyCycle`, `CaptiveDependency`,
@@ -73,15 +73,20 @@ const Next = () => { const [id, set] = useAtom(userId); return <button onClick={
 ## `@sleekstack/kit/next`
 
 ```ts
-import { action, configureRuntime, fail, query } from '@sleekstack/kit/next'
+import { configureRuntime, defineEffect, defineQuery, fail } from '@sleekstack/kit/next'
 
 configureRuntime({ provide: [App] })                                        // once, from instrumentation.ts
 
-export const listRows = query((db) => () => db.query('select 1'), [Db])
-export const addRow = action((db) => async (title: string) => {
+const listRowsQuery = defineQuery(function* () { return (yield* Db).query('select 1') }, [Db])
+const addRowEffect = defineEffect(function* (title: string) {
   if (!title) fail('title required')                                        // -> { ok: false, error }
-  return db.query(`insert ${title}`)
+  return (yield* Db).query(`insert ${title}`)
 }, [Db])                                                                    // -> { ok: true, data }
+
+// A 'use server' file exports literal async functions that call the definitions
+// (or run a generator inline with effect(gen, deps) / query(gen, deps)):
+export async function listRows() { return listRowsQuery() }
+export async function addRow(title: string) { return addRowEffect(title) }
 ```
 
 ## `@sleekstack/kit/react`

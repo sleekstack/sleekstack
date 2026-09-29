@@ -13,9 +13,9 @@ Call `configureRuntime` once at module load, for example from `instrumentation.t
 
 ## Actions and queries (kit)
 
-The operations `action` and `query` return are plain async functions. To call one from a Client Component, export an async wrapper from a `'use server'` file, as below.
+The functions `defineEffect` and `defineQuery` return are plain async functions. To call one from a Client Component, export an async wrapper from a `'use server'` file, as below.
 
-`action(factory, deps)` resolves `deps` from the request scope and passes them to `factory`, which returns the handler. An action resolves `{ ok: true, data }`, or `{ ok: false, error }` after `fail(message)`. A query resolves the plain value, and `fail` rejects. Pass `{ provide }` as the third argument to build extra Layers in that call's request scope, shadowing the runtime graph.
+`defineEffect(function* (...args) { ... }, [Tags], opts?)` declares a generator that `yield*`s the Tags it needs and returns a function; each call resolves those `deps` from the request scope and runs it. `effect(gen, deps, opts?)` is the same run, immediately, for a generator written inline. An effect resolves `{ ok: true, data }`, or `{ ok: false, error }` after `fail(message)`. `defineQuery`/`query` are the same for reads: they resolve the plain value, and `fail` rejects. Pass `{ provide }` as the last argument to build extra Layers in that call's request scope, shadowing the runtime graph.
 
 <include>../../snippets/kit/next.ts</include>
 

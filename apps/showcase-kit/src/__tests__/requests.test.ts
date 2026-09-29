@@ -13,20 +13,19 @@
  */
 import { describe, expect, it, vi } from 'vitest'
 import { layer, tag, withCleanup } from '@sleekstack/kit'
-import { action, query } from '@sleekstack/kit/next'
+import { effect, query } from '@sleekstack/kit/next'
 import { ActivityLog, TaskRepo } from '../domain/tags'
 import { __setDemoCookie } from '../test/next-headers-stub'
 import { UnitOfWork } from '../server/request.server'
 import type { AddCommentInput, CreateTaskInput, MoveTaskInput } from '../server/board.actions'
 
-const countTasks = (projectId: string) => query((tasks) => () => tasks.listByProject(projectId).length, [TaskRepo])()
+const countTasks = (projectId: string) => query(function* () { return (yield* TaskRepo).listByProject(projectId).length }, [TaskRepo])
 
-const logMessages = () => query((log) => () => log.list().map((e) => e.message), [ActivityLog])()
+const logMessages = () => query(function* () { return (yield* ActivityLog).list().map((e) => e.message) }, [ActivityLog])
 
 describe('showcase request scopes', () => {
   it('an action called before instrumentation.ts configures the runtime rejects with a descriptive error', async () => {
-    const op = action(() => () => 'unconfigured', [])
-    await expect(op()).rejects.toThrow(/configureRuntime/)
+    await expect(effect(function* () { return 'unconfigured' }, [])).rejects.toThrow(/configureRuntime/)
   })
 
   it("importing the runtime module twice (dev HMR re-running register()) is the library's same-reference no-op", async () => {
@@ -110,23 +109,25 @@ describe('showcase request scopes', () => {
 
   it('a commit whose second staged write throws applies nothing (atomic)', async () => {
     const before = await countTasks('proj_1')
-    const op = action((taskRepo, uow) => () => {
+    const halfApplied = () => effect(function* () {
+      const taskRepo = yield* TaskRepo
+      const uow = yield* UnitOfWork
       uow.stage(() => void taskRepo.create({ projectId: 'proj_1', title: 'Half-applied' }))
       uow.stage(() => {
         throw new Error('second write failed')
       })
       uow.commit()
     }, [TaskRepo, UnitOfWork])
-    await expect(op()).rejects.toThrow(/second write failed/)
+    await expect(halfApplied()).rejects.toThrow(/second write failed/)
     expect(await countTasks('proj_1')).toBe(before)
   })
 
   it("the UnitOfWork's scope finalizer discards uncommitted staged writes", async () => {
-    const op = action((uow) => () => {
+    const result = await effect(function* () {
+      const uow = yield* UnitOfWork
       uow.stage(() => {})
       return uow
     }, [UnitOfWork])
-    const result = await op()
     expect(result.ok && result.data.pending()).toBe(0)
   })
 
@@ -135,20 +136,20 @@ describe('showcase request scopes', () => {
     const BoomLayer = layer(Boom, () => withCleanup(1, () => {
       throw new Error('finalizer boom')
     }), [], { lifetime: 'request' })
-    const op = action(() => () => 'ok', [Boom], { provide: [BoomLayer] })
+    const runOp = () => effect(function* () { return 'ok' }, [Boom], { provide: [BoomLayer] })
 
     // The app's own sink: logs to the console and records to the ActivityLog.
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
-      await expect(op()).resolves.toEqual({ ok: true, data: 'ok' })
+      await expect(runOp()).resolves.toEqual({ ok: true, data: 'ok' })
       expect(spy.mock.calls.some((c) => String(c[0]).includes('[showcase-kit] finalizer error'))).toBe(true)
-      await vi.waitFor(async () => expect((await logMessages()).some((m) => m.includes('finalizer boom'))).toBe(true))
+      await vi.waitFor(async () => expect((await logMessages()).some((m: string) => m.includes('finalizer boom'))).toBe(true))
 
       // Now make the sink throw (its first statement, console.error, throws): same result.
       spy.mockImplementationOnce(() => {
         throw new Error('sink boom')
       })
-      await expect(op()).resolves.toEqual({ ok: true, data: 'ok' })
+      await expect(runOp()).resolves.toEqual({ ok: true, data: 'ok' })
     } finally {
       spy.mockRestore()
     }

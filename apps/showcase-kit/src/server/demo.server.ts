@@ -2,7 +2,9 @@
  * apps/showcase-kit/src/server/demo.server.ts
  *
  * Demo mode: a cookie read on the server. `demoLayers()` returns a mock
- * ActivityLog and Clock passed as per-call `provide`, Shadowing the runtime graph.
+ * ActivityLog and Clock; pass it as `{ provide: demoLayers }` to `action`/
+ * `query` (from `@sleekstack/kit/next`) to Shadow the runtime graph for a
+ * demo-aware call.
  */
 import 'server-only'
 import { cookies } from 'next/headers'

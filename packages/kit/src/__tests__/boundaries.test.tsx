@@ -6,7 +6,7 @@ import { Effect, Cause, Option } from 'effect'
 import { Atom as CoreAtom, atomStoreFor, buildGraph, makeAppScope, Result } from '@sleekstack/core'
 import { atom, layer, module, tag, type Atom, type SleekStackError } from '../index'
 import { LayerProvider, useAtomValue, useService } from '../react'
-import { action, configureRuntime } from '../next'
+import { configureRuntime, effect } from '../next'
 import { normalize } from '../errors'
 import { coreTag } from '../tag'
 import { unwrap } from '../module'
@@ -39,7 +39,7 @@ const boundaries: Record<string, (provide: never) => Promise<SleekStackError>> =
   'kit atoms': (p) => inReact(<ReadAtom a={atom((d) => d, [Dep])} />, p),
   'kit next': async (p) => {
     configureRuntime({ provide: p })
-    return action((d) => () => d, [Dep])().then(() => { throw new Error('resolved') }, (e) => e)
+    return effect(function* () { return yield* Dep }, [Dep]).then(() => { throw new Error('resolved') }, (e) => e)
   },
   AtomStore: async (p) => {
     const app = await Effect.runPromise(makeAppScope(buildGraph(unwrap(p))))
