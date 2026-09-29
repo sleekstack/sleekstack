@@ -88,13 +88,19 @@ export function validate(root: ModuleDecl): AnalyzeError[] {
   return errors
 }
 
-/** An action's yielded Tags against one runtime root: each must be provided and visible from the root. */
-export function validateAction(root: ModuleDecl, a: ActionDecl): AnalyzeError[] {
+/**
+ * An action's yielded Tags against one runtime root overlaid with its `opts.provide` (which Shadows the root):
+ * each must be provided and visible, and the overlay's own layers must have their dependencies met.
+ */
+export function validateAction(runtime: ModuleDecl, a: ActionDecl): AnalyzeError[] {
+  const root: ModuleDecl = { ...a.provide, imports: [...a.provide.imports, runtime] }
   const { won } = resolve(root)
-  return a.yields.flatMap(({ tag, loc }): AnalyzeError[] => {
+  const own = new Set(a.provide.entries.map((p) => `${p.loc.file}:${p.loc.line}`))
+  const overlay = a.provide.entries.length ? validate(root).filter((e) => own.has(`${e.file}:${e.line}`)) : []
+  return [...overlay, ...a.yields.flatMap(({ tag, loc }): AnalyzeError[] => {
     const owner = won.get(tag)
     if (!owner) return [{ code: 'MissingDependency', message: `The action yields "${tag}", but no entry provides it`, ...loc }]
-    if (owner.module !== root && isPrivate(owner.module, tag)) return [{ code: 'PrivateDependency', message: `The action yields "${tag}", which is private to module "${owner.module.name}" (not in its exports)`, ...loc }]
+    if (owner.module !== root && owner.module !== runtime && isPrivate(owner.module, tag)) return [{ code: 'PrivateDependency', message: `The action yields "${tag}", which is private to module "${owner.module.name}" (not in its exports)`, ...loc }]
     return []
-  })
+  })]
 }

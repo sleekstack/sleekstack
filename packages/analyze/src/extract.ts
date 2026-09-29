@@ -500,17 +500,32 @@ export function extract(project: string, entries?: readonly string[]): Report {
     const s = t.getSymbol()
     return !!s && (s.getName() === 'Tag' || !!(s.flags & ts.SymbolFlags.Class))
   }
-  /** Every Tag a generator body `yield*`s, following local helper generators; unreadable yields are located errors. */
-  const yieldsOf = (fn: ts.FunctionLikeDeclaration, out: ActionDecl['yields'], seen: Set<ts.Node>) => {
-    if (seen.has(fn) || !fn.body) return
-    seen.add(fn)
+  /**
+   * Every Tag a generator body `yield*`s, following local helper generators with their parameters bound to
+   * each call's arguments; conditionals (inline or behind a const) over-approximate; unreadable yields are
+   * located errors.
+   */
+  const yieldsOf = (fn: ts.FunctionLikeDeclaration, out: ActionDecl['yields'], stack: Set<ts.Node>) => {
+    if (stack.has(fn) || !fn.body) return // recursion: this invocation's yields are already being read
+    stack.add(fn)
     const operand = (x: ts.Expression): void => {
       const u = unwrap(x)
-      if (ts.isConditionalExpression(u)) return (operand(u.whenTrue), operand(u.whenFalse)) // over-approximated
+      if (ts.isConditionalExpression(u)) return (operand(u.whenTrue), operand(u.whenFalse))
       const helper = ts.isCallExpression(u) ? fnOf(u.expression) : undefined
-      if (helper?.asteriskToken) return yieldsOf(helper, out, seen)
-      const t = checker.getTypeAtLocation(u)
+      if (helper?.asteriskToken) {
+        const call = u as ts.CallExpression
+        const bound = helper.parameters.map((p, i) => [p, call.arguments[i]] as const).filter((b): b is readonly [ts.ParameterDeclaration, ts.Expression] => !!b[1])
+        const prev = bound.map(([p]) => env.get(p))
+        bound.forEach(([p, a]) => env.set(p, a))
+        try { within(helper, `@${cacheKey(call)}`, () => yieldsOf(helper, out, stack)) } finally {
+          bound.forEach(([p], i) => (prev[i] ? env.set(p, prev[i]!) : env.delete(p)))
+        }
+        return
+      }
       try {
+        const f = ts.isIdentifier(u) || ts.isPropertyAccessExpression(u) ? follow(u) : u
+        if (!ts.isClassDeclaration(f) && ts.isConditionalExpression(f)) return (operand(f.whenTrue), operand(f.whenFalse))
+        const t = checker.getTypeAtLocation(u)
         if (t.flags & ts.TypeFlags.Any) fail(u, `yield* "${text(u)}" is typed any; the Tag it resolves cannot be named`)
         if (isTagType(t)) out.push({ tag: tagKey(u), loc: loc(u) })
       } catch (err) { report(err) }
@@ -521,15 +536,32 @@ export function extract(project: string, entries?: readonly string[]): Report {
       ts.forEachChild(n, walk)
     }
     ts.forEachChild(fn.body, walk)
+    stack.delete(fn)
   }
   const actionOf = (n: ts.CallExpression) => {
-    const [gen, deps] = n.arguments
-    const fn = gen && unwrap(gen)
-    if (!fn || !(ts.isFunctionExpression(fn) || ts.isArrowFunction(fn) || fnOf(fn))) return fail(n, `The action body "${gen ? text(gen) : ''}" is not a readable generator function`)
-    const a: ActionDecl = { deps: [], yields: [], loc: loc(n) }
+    const [gen, deps, opts] = n.arguments
+    const g = gen && unwrap(gen)
+    const fn = g && (ts.isFunctionExpression(g) || ts.isArrowFunction(g) ? g : fnOf(g))
+    if (!fn) return fail(n, `The action body "${gen ? text(gen) : ''}" is not a readable generator function`)
+    const l = loc(n)
+    const a: ActionDecl = { deps: [], yields: [], provide: { name: `${l.file}:${l.line}`, entries: [], imports: [], exports: undefined, lifetime: undefined, loc: l }, file: n.getSourceFile(), loc: l }
     let declared = true
     try { a.deps.push(...tagList(deps)) } catch (err) { declared = false; report(err) }
-    yieldsOf(ts.isFunctionExpression(fn) || ts.isArrowFunction(fn) ? fn : fnOf(fn)!, a.yields, new Set())
+    // opts.provide: a list, or a thunk returning one, of layers / modules Shadowing the runtime for this call.
+    try {
+      const pv = prop(objectOf(opts), 'provide')
+      const th = pv && unwrap(pv)
+      const thunk = th && (ts.isArrowFunction(th) || ts.isFunctionExpression(th) ? th : fnOf(th))
+      const lists = thunk ? bodyReturns(thunk).map((r) => { const w = unwrap(r); return ts.isAwaitExpression(w) ? w.expression : w }) : pv ? [pv] : []
+      for (const list of lists) listOf(list, (x) => {
+        try {
+          const f = follow(x)
+          if (ts.isCallExpression(f) && MODULE_CALLS.has(calleeOf(f)!)) a.provide.imports.push(moduleOf(x))
+          else a.provide.entries.push(provider(x, false))
+        } catch (err) { if (err instanceof Unbound) throw err; report(err) }
+      })
+    } catch (err) { report(err) }
+    yieldsOf(fn, a.yields, new Set())
     if (declared) for (const y of a.yields) if (!a.deps.includes(y.tag)) errors.push({ code: 'UndeclaredDependency', message: `The action body yields "${y.tag}", which is not in its deps array`, ...y.loc })
     actions.push(a)
   }
@@ -567,8 +599,27 @@ export function extract(project: string, entries?: readonly string[]): Report {
   const inModules = new Set([...owned.values()].flat())
   const extraction = errors.filter((e) => !inModules.has(e))
   for (const r of roots) errors.push(...validate(r))
-  const runtimeReports = runtimes.map((m) => {
-    const actionErrors = actions.flatMap((a) => validateAction(m, a))
+  // An action belongs to the runtimes whose file imports it (transitively); one no runtime file reaches (a Next
+  // action, imported by pages rather than instrumentation) is checked against every runtime.
+  // ponytail: no per-route runtime association; add when a project serves actions from several runtimes.
+  const reachOf = (sf: ts.SourceFile) => {
+    const seen = new Set<ts.SourceFile>()
+    const go = (f: ts.SourceFile): void => {
+      if (seen.has(f)) return
+      seen.add(f)
+      for (const st of f.statements) {
+        const spec = (ts.isImportDeclaration(st) || ts.isExportDeclaration(st)) && st.moduleSpecifier
+        const d = spec && checker.getSymbolAtLocation(spec)?.valueDeclaration
+        if (d && ts.isSourceFile(d) && !d.isDeclarationFile) go(d)
+      }
+    }
+    go(sf)
+    return seen
+  }
+  const reaches = runtimes.map((m) => reachOf(program.getSourceFile(path.resolve(root, m.loc.file))!))
+  const claimed = new Set(actions.filter((a) => reaches.some((r) => r.has(a.file))))
+  const runtimeReports = runtimes.map((m, i) => {
+    const actionErrors = actions.filter((a) => !claimed.has(a) || reaches[i]!.has(a.file)).flatMap((a) => validateAction(m, a))
     errors.push(...actionErrors)
     return { ...m.loc, graph: graphOf(m), errors: [...[...resolve(m).visits.keys()].flatMap((v) => owned.get(v) ?? []), ...validate(m), ...actionErrors] }
   })

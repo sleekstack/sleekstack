@@ -68,6 +68,9 @@ export interface Shadowing {
 export interface ActionDecl {
   readonly deps: string[]
   readonly yields: { readonly tag: string; readonly loc: Location }[]
+  /** `opts.provide` as a synthetic module (its layers as entries, its modules as imports). */
+  readonly provide: ModuleDecl
+  readonly file: import('typescript').SourceFile
   readonly loc: Location
 }
 

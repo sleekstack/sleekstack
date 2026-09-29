@@ -33,3 +33,18 @@ export async function inline(k: string) {
   await query(function* () { return yield* Loose }, []) // @error Unresolvable
   return query(function* () { return yield* Tags[k]! }, []) // @error Unresolvable
 }
+
+const OnlyHere = tag<string>('OnlyHere')
+function* read(t: typeof A) {
+  return yield* t
+}
+const either = Math.random() > 0.5 ? A : B
+export const bound = defineEffect(function* () {
+  return (yield* read(A)) + (yield* read(B)) + (yield* either)
+}, [A, B])
+export const provided = defineQuery(function* () {
+  return yield* OnlyHere
+}, [OnlyHere], { provide: async () => [layer(OnlyHere, 'o')] })
+export const providedList = defineQuery(function* () {
+  return yield* OnlyHere
+}, [OnlyHere], { provide: [layer(OnlyHere, (b) => b, [Nowhere])] }) // @error MissingDependency
