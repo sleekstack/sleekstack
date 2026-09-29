@@ -50,6 +50,22 @@ describe('Island Effect handoff', () => {
     expect(c.host.textContent).toBe('2/3')
   })
 
+  it('an interaction Island retries a failed app-scope build on its next event', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    let attempt = 0
+    const Island = defineIslands({ show: async () => ({ default: () => <i>{useService(App).id}</i> }) }, {
+      provide: [layer(App, () => { if (++attempt === 1) throw new Error('boom'); return { id: attempt } })],
+    })
+    const { host } = await mount(<Island name="show" props={{}} hydrate="interaction" />)
+    const box = host.querySelector('[data-island]')!
+    await act(async () => void box.dispatchEvent(new Event('pointerdown', { bubbles: true })))
+    await flush()
+    expect(box.textContent).toBe('')
+    await act(async () => void box.dispatchEvent(new Event('pointerdown', { bubbles: true })))
+    await flush()
+    expect(box.textContent).toBe('2')
+  })
+
   it('a failed app-scope build fails the Island and retries on the next activation', async () => {
     const err = vi.spyOn(console, 'error').mockImplementation(() => {})
     let attempt = 0
@@ -63,14 +79,12 @@ describe('Island Effect handoff', () => {
     expect(b.host.textContent).toBe('2')
   })
 
-  // Existing kit behavior, unchanged by Islands: distinct Tags sharing a key in one provide set are
-  // DuplicateTag; a component entry for an app Tag shadows it, as a nested LayerProvider does.
-  it('duplicate Tags keep the existing DuplicateTag / shadowing behavior, failing that Island only', async () => {
+  it('a distinct Tag sharing a key across app and component entries is DuplicateTag for that Island only; the same Tag shadows', async () => {
     const err = vi.spyOn(console, 'error').mockImplementation(() => {})
     const Island = defineIslands({ show: async () => ({ default: () => <i>{useService(App).id}</i> }) }, {
       provide: [layer(App, { id: 1 })],
     })
-    const bad = await mount(<Island name="show" props={{}} hydrate="load" provide={[layer(Comp, { id: 2 }), layer(tag('IslandsComp'), { id: 3 })]} />)
+    const bad = await mount(<Island name="show" props={{}} hydrate="load" provide={[layer(tag<{ id: number }>('IslandsApp'), { id: 3 })]} />)
     const shadow = await mount(<Island name="show" props={{}} hydrate="load" provide={[layer(App, { id: 2 })]} />)
     const good = await mount(<Island name="show" props={{}} hydrate="load" />)
     expect(bad.host.querySelector('[data-island]')!.innerHTML).toBe('')

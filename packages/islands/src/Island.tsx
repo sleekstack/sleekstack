@@ -1,5 +1,6 @@
 import { Component, createElement, lazy, Suspense, useEffect, useRef, type ComponentProps, type ComponentType, type ReactNode } from 'react'
 import { createRoot, hydrateRoot, type Root } from 'react-dom/client'
+import { module, snapshot, type Layer, type Module, type SleekStackError } from '@sleekstack/kit'
 import { LayerProvider } from '@sleekstack/kit/react'
 import { sharedAppScope } from './appScope'
 import { replayClick } from './replay'
@@ -48,6 +49,22 @@ const OnCommit = ({ run }: { readonly run: () => void }) => {
 const EMPTY = { __html: '' }
 const NONE: Provide = []
 
+/**
+ * Distinct Tags sharing a key across the app and component entries are `DuplicateTag`, as in one provide set;
+ * the same Tag in both shadows, as a nested LayerProvider does.
+ */
+// ponytail: builds a throwaway graph per activation; add a kit key-check export if it ever shows in a profile.
+const assertNoDuplicateTag = (app: Provide, component: Provide) => {
+  if (component.length === 0 || app.length === 0) return
+  const all = [...app, ...component]
+  const isModule = (x: (typeof all)[number]): x is Module => typeof (x as Module).name === 'string'
+  try {
+    snapshot(module({ name: 'island', provide: all.filter((x): x is Layer<any> => !isModule(x)), imports: all.filter(isModule) }))
+  } catch (e) {
+    if ((e as SleekStackError).code === 'DuplicateTag') throw e
+  }
+}
+
 /** Logs a thrown error and renders nothing, for this Island only. */
 class Boundary extends Component<{ readonly name: string; readonly children: ReactNode }, { failed: boolean }> {
   override state = { failed: false }
@@ -61,7 +78,8 @@ class Boundary extends Component<{ readonly name: string; readonly children: Rea
 }
 
 export const defineIslands = <M extends Record<string, IslandLoader>>(map: M, opts: DefineIslandsOptions = {}) => {
-  const app = sharedAppScope(opts.provide ?? NONE)
+  const appProvide = opts.provide ?? NONE
+  const app = sharedAppScope(appProvide)
   const lazies = new Map<string, ComponentType<unknown>>()
   const serverComponent = (name: string) => {
     let c = lazies.get(name)
@@ -90,25 +108,35 @@ export const defineIslands = <M extends Record<string, IslandLoader>>(map: M, op
         // Assigned before the first await below, so every check sees it.
         let activation!: Activation
         activation = (async () => {
+          // `interaction` retries on the next event; other triggers keep the dormant HTML.
+          const dropForRetry = () => {
+            if (hydrate === 'interaction' && activations.get(el) === activation) {
+              activations.delete(el)
+              pendingClicks.delete(el)
+            }
+          }
           let C: ComponentType<any>
           try {
             C = (await map[name]!()).default
           } catch (e) {
             console.error(`[island ${name}] chunk failed to load`, e)
-            // `interaction` retries on the next event; other triggers keep the dormant HTML.
-            if (hydrate === 'interaction' && activations.get(el) === activation) {
-              activations.delete(el)
-              pendingClicks.delete(el)
-            }
+            dropForRetry()
             return undefined
           }
           if (activations.get(el) !== activation) return undefined
+          try {
+            assertNoDuplicateTag(appProvide, provide)
+          } catch (e) {
+            console.error(`[island ${name}]`, e)
+            return undefined
+          }
           let appScope
           try {
             appScope = await app.acquire()
           } catch (e) {
             // Fails this Island; a later activation retries the build.
             console.error(`[island ${name}] app scope failed to build`, e)
+            dropForRetry()
             return undefined
           }
           if (activations.get(el) !== activation) {
@@ -165,9 +193,14 @@ export const defineIslands = <M extends Record<string, IslandLoader>>(map: M, op
     }, [])
 
     if (typeof window === 'undefined') {
+      assertNoDuplicateTag(appProvide, provide)
       return (
         <div data-island={name} ref={ref}>
-          <Suspense>{createElement(serverComponent(name), props)}</Suspense>
+          <LayerProvider provide={appProvide}>
+            <LayerProvider provide={provide}>
+              <Suspense>{createElement(serverComponent(name), props)}</Suspense>
+            </LayerProvider>
+          </LayerProvider>
         </div>
       )
     }
