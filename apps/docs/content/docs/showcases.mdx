@@ -9,3 +9,5 @@ The repository has the same team task board built twice, as Next.js apps you can
 - [`apps/showcase-kit`](https://github.com/sleekstack/sleekstack/tree/master/apps/showcase-kit): the kit port. No file imports `effect` or the core packages.
 
 Both show nested `LayerProvider`s, request-scoped units of work, Shadowing in a demo mode, a `/graph` page built from the `sleekstack check --json` report and an `/errors` page that triggers every graph error. Run one with `pnpm --filter showcase-kit dev` (or `showcase`) and open http://localhost:3000.
+
+`apps/showcase-kit` also has an `/islands` page that exercises every [Islands](/docs/islands) trigger.

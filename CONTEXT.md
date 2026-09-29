@@ -31,7 +31,7 @@ A named group of entries — Service Definitions, declared Layers, or bare Layer
 _Avoid_: Package, bundle, plugin, feature
 
 **Graph**:
-The dependency structure of every entry and imported Module under a root (`configureRuntime` call): nodes, edges, lifetimes, module privacy and shadowing. Validated only by the Analyzer, at build time (ADR 0010); `sleekstack check --json` reports it (one node per provided Tag, keyed by the Tag key, or `Tag@Module` when shadowed). The runtime keeps no validated Graph, only a Resolution Plan.
+The dependency structure of every entry and imported Module under a root (`configureRuntime` call): nodes, edges, lifetimes, module privacy and shadowing. Validated only by the Analyzer, at build time (ADR 0011); `sleekstack check --json` reports it (one node per provided Tag, keyed by the Tag key, or `Tag@Module` when shadowed). The runtime keeps no validated Graph, only a Resolution Plan.
 _Avoid_: Dependency tree, container, registry
 
 **Captive Dependency**:
@@ -49,7 +49,7 @@ A service token created by `tag<T>(name)`, or an (abstract) class used directly 
 _Avoid_: Token, key
 
 **Kit Layer**:
-The output of `layer(tag, impl, deps?, { lifetime }?)`: `impl` is a value, a class, or a (sync or async) factory whose parameters are the resolved services of the `deps` array, in order. Or `layer(tag, function* () { ... }, { lifetime }?)`: a generator factory whose `yield*`ed Tags are its requirements, resolved lazily and memoized per scope (ADR 0010). Returning `withCleanup(service, cleanup)` registers a finalizer. Lowers to a Service Definition.
+The output of `layer(tag, impl, deps?, { lifetime }?)`: `impl` is a value, a class, or a (sync or async) factory whose parameters are the resolved services of the `deps` array, in order. Or `layer(tag, function* () { ... }, { lifetime }?)`: a generator factory whose `yield*`ed Tags are its requirements, resolved lazily and memoized per scope (ADR 0011). Returning `withCleanup(service, cleanup)` registers a finalizer. Lowers to a Service Definition.
 _Avoid_: Provider, factory, binding
 
 **Kit Effect**:
@@ -85,6 +85,10 @@ _Avoid_: Lifecycle, container, context
 **Shadowing**:
 The mechanism by which a Layer or Module in a `provide` array overrides a transitive dependency introduced by a Module's `imports`. No separate override API exists — shadowing is implicit when the same Tag is satisfied by multiple entries. It is per Tag: a local entry can shadow one output of a multi-Tag declared Layer, and `AmbiguousProvider` fires only when two providers have equal precedence.
 _Avoid_: Overriding, mocking, replacing, substituting
+
+**Island**:
+A server-rendered React component that downloads its chunk and hydrates as its own React root only when its trigger fires (`load`, `idle`, `visible`, `interaction`). Named in a `defineIslands` registry and rendered as `<Island name props />`. Islands of one registry share one app scope outside React (per page on the client, per process on the server) and each has its own component scope (ADR 0010).
+_Avoid_: Widget, partial, lazy component
 
 **Atom**:
 A lazy, reactive value defined once at module level: plain writable state, a function of other atoms (read through `get`), an Effect, or a Stream. It holds no state itself; its state lives in an AtomStore. Kit atoms (`atom(value)`, `atom(fn, deps)`) resolve `deps` like a Kit Layer. Modeled on effect-atom (ADR 0008).

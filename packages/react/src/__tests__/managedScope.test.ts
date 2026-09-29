@@ -3,6 +3,7 @@ import React from 'react'
 import { Context, Effect } from 'effect'
 import { service } from '@sleekstack/core'
 import { ADOPT_MS, acquire, mount, type ScopeProps } from '../managedScope'
+import type { ChildScope } from '@sleekstack/core'
 
 const flush = () => new Promise<void>((r) => queueMicrotask(r))
 const noSink = () => {}
@@ -17,6 +18,16 @@ describe('managedScope', () => {
     const p = props(entries, 't1')
     const first = acquire(p, null, noSink)
     expect(acquire(p, null, noSink)).toBe(first)
+    await first.close()
+  })
+
+  it('never adopts a scope parked for a different appScope, even with the same props', async () => {
+    const [a, b] = [{} as ChildScope, {} as ChildScope]
+    const p = props(entries, 't-app')
+    const first = acquire({ ...p, appScope: a }, null, noSink)
+    await flush() // stale, so shape adoption would otherwise apply
+    expect(acquire({ ...p, appScope: b }, null, noSink)).not.toBe(first)
+    expect(acquire(p, null, noSink)).not.toBe(first)
     await first.close()
   })
 

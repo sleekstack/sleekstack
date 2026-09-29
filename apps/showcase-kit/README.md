@@ -12,6 +12,7 @@ The [showcase](../showcase/README.md) team task board, ported to `@sleekstack/ki
 | R9 | `/errors`: every graph-error case via the kit API, showing `SleekStackError.code` | `src/errors/cases.server.ts`, `app/errors/page.tsx`, `src/__tests__/errors.test.ts` |
 | R9 | 20 concurrent requests isolated, rollback leaves the store unchanged, StrictMode | `src/__tests__/requests.test.ts`, `src/__tests__/board.test.tsx` |
 | R9 | Bundle split: marker absent from client chunks, present on the server | `src/domain/modules.server.ts`, `src/__tests__/bundle.test.ts` |
+| fn-10 | `/islands`: every Islands trigger, click replay, shared app scope, a kit action from an Island | `app/islands/`, `src/islands/`, `e2e/islands.spec.ts`, `src/__tests__/bundle.test.ts` |
 | R9 | Playwright smoke against `next start` | `e2e/smoke.spec.ts`, `playwright.config.ts` |
 
 ## Side by side with the Effect version

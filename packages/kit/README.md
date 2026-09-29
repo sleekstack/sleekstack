@@ -109,4 +109,4 @@ function Now() {
 ```
 
 See [`apps/showcase-kit`](../../apps/showcase-kit/README.md) for the full task board, and
-[ADR 0010](../../docs/adr/0010-static-build-time-dependency-graph.md) for why deps are inferred and checked statically.
+[ADR 0011](../../docs/adr/0011-static-build-time-dependency-graph.md) for why deps are inferred and checked statically.

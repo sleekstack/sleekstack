@@ -1,6 +1,6 @@
 # Hybrid service definitions: runtime metadata alongside raw Effect Layers
 
-Superseded in part by [ADR 0010](0010-static-build-time-dependency-graph.md): `service()` metadata remains, but the graph is validated statically by the analyzer, not at run time.
+Superseded in part by [ADR 0011](0011-static-build-time-dependency-graph.md): `service()` metadata remains, but the graph is validated statically by the analyzer, not at run time.
 
 `@sleekstack/core` exports `service()`, a helper that produces an Effect `Layer` plus runtime metadata (the provided Tag, the required Tags, and a lifetime). Raw Effect `Layer`s are still accepted directly — bare (self-contained, opaque to the graph) or declared via `declareLayer()` (wrapped with the Tags it provides/requires, becoming a full graph node). This supersedes [ADR 0001](0001-middle-path-effect-coupling.md)'s "core exports only `module()`".
 

@@ -1,6 +1,6 @@
 # Module exports are enforced — private Tags are visible only inside their Module
 
-Superseded in part by [ADR 0010](0010-static-build-time-dependency-graph.md): `PrivateDependency` is reported by the analyzer at build time instead of `buildGraph`; the filtered public Context and resolve-time `PrivateDependency` remain.
+Superseded in part by [ADR 0011](0011-static-build-time-dependency-graph.md): `PrivateDependency` is reported by the analyzer at build time instead of `buildGraph`; the filtered public Context and resolve-time `PrivateDependency` remain.
 
 Supersedes [ADR 0002](0002-module-isolation-type-level-only.md).
 

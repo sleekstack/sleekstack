@@ -140,7 +140,7 @@ Current surface:
 * Service Definitions (`service()`) — auto-wired, with readable missing-dependency and cycle errors
 * Modules (`module()`) — imports, enforced exports (private Tags are visible only inside their Module, ADR 0006), shadowing
 * lifetime-scoped services (`app` / `request` / `component`) with captive-dependency checks
-* a dependency Graph validated at build time by `sleekstack check` (ADR 0010), reported as JSON with `--json`
+* a dependency Graph validated at build time by `sleekstack check` (ADR 0011), reported as JSON with `--json`
 * `@sleekstack/next` request scopes (`action`, `query`) and `@sleekstack/react`'s Suspense-native, StrictMode-safe `LayerProvider` / `useService`
 
 * `@sleekstack/kit` — an Effect-free facade (`tag`, `layer`, `effect`, `module`, deps inferred from `yield*`, one `SleekStackError`); see [`packages/kit`](packages/kit/README.md)
