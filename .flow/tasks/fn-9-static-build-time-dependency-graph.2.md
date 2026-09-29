@@ -33,11 +33,14 @@ Implement the whole-graph checks in the analyzer (missing, cycle, captive, ambig
 - [ ] TBD
 
 ## Done summary
-TBD
+Added packages/analyze/src/validate.ts porting core's whole-graph checks (ModuleCycle, DuplicateModule, AmbiguousProvider, MissingDependency, PrivateDependency, CaptiveDependency, DependencyCycle) with core's codes/messages, reporting every violation at its declaration; ambiguous Tags poison no downstream check, cyclic top modules still get a root. Extraction now evaluates .map/flatMap/filter/slice/concat, for-of loops, conditional elements and local helpers (parameters bound per call) over precisely typed sources, with object identity keyed per evaluation instance; any and Layer<any>[] fail closed. One kit + core fixture per graph error asserts code and file:line and that the runtime throws the same code; computed-lists and ambiguity-follow-on fixtures cover the list rules.
 
+Tests: packages/analyze/src/__tests__/fixtures.test.ts (13 tests total in package).
+Not done: deriving Tags from checker element types alone (kit Layer<T> carries no Tag key, so an ambient/imported list with no readable initializer still fails closed as Computed) - reviewers raised this; left as fail-closed per R7.
+Tier: implementer (opus, medium) per project CLAUDE.md
+
+stage: impl-review - ran (codex fan-out NEEDS_WORK x3 rounds on successive heads -> single re-review SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 177494a299bb5ec78ccb9bd4d570e004b7666c2d, 693a73a7d8b5a79318ddaa581f0a16a8c764b0de, 10bda7ceaf01dd690984ca50f1e290c1960911c5, 9be8a58ed686345b16aed98464dad74ee1037956
+- Tests: cd packages/analyze && pnpm vitest run, cd packages/analyze && pnpm tsc --noEmit
 - PRs:
-
-
