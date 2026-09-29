@@ -1,16 +1,15 @@
 /**
  * apps/showcase-kit/app/graph/page.tsx
  *
- * Renders kit `snapshot(AppModule)` (core's snapshot shape, R8). In demo mode
- * the mock ActivityLog/Clock are provided at the root, shadowing the imported ones.
+ * Renders the analyzer's prebuilt report: the runtime root's graph, or in demo mode the `Demo`
+ * root (demo.server.ts), where the mock ActivityLog/Clock shadow the imported ones.
  */
-import { module, snapshot } from '@sleekstack/kit'
-import { AppModule } from '../../src/domain/modules.server'
-import { isDemoMode, MockActivityLogLayer, MockClockLayer } from '../../src/server/demo.server'
+import { isDemoMode } from '../../src/server/demo.server'
+import { readReport } from '../../src/server/report.server'
 
 export default async function GraphPage() {
-  const app = (await isDemoMode()) ? module({ name: 'Demo', imports: [AppModule], provide: [MockActivityLogLayer, MockClockLayer] }) : AppModule
-  const snap = snapshot(app)
+  const report = readReport()
+  const snap = (await isDemoMode()) ? report.graphs.find((g) => g.root === 'Demo')! : report.roots[0]!.graph
   return (
     <main>
       <h1>Service graph</h1>
