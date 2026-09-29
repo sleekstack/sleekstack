@@ -23,6 +23,7 @@ function libId(sym: ts.Symbol | undefined, checker: ts.TypeChecker): string | un
   const own = /\/(?:packages|@sleekstack)\/(kit|core|next)\/src\/(.+)\.ts$/.exec(file)
   if (own) return `${own[1]}/${own[2]}#${sym.name}`
   if (/\/effect\/dist\/dts\/Context\.d\.ts$/.test(file)) return `effect/Context#${sym.name}`
+  if (/\/effect\/dist\/dts\/Effect\.d\.ts$/.test(file)) return `effect/Effect#${sym.name}`
   return undefined
 }
 
@@ -495,10 +496,16 @@ export function extract(project: string, entries?: readonly string[]): Report {
     } catch (err) { report(err, m) }
   }
   const actions: ActionDecl[] = []
-  /** A Tag-typed value: a kit `Tag<T>`, an Effect `Tag`, or a class constructor. */
+  const TAG_TYPES = new Set(['kit/tag#Tag', 'effect/Context#Tag', 'effect/Context#TagClass'])
+  /** A `class X extends Context.Tag('X')<X, S>() {}` declaration. */
+  const isTagClass = (d: ts.Declaration | undefined): d is ts.ClassDeclaration => {
+    const ext = d && ts.isClassDeclaration(d) ? d.heritageClauses?.find((h) => h.token === ts.SyntaxKind.ExtendsKeyword)?.types[0]?.expression : undefined
+    return !!ext && ts.isCallExpression(ext) && ts.isCallExpression(ext.expression) && calleeOf(ext.expression) === 'effect/Context#Tag'
+  }
+  /** A kit `Tag<T>`, an Effect `Tag`, or a Context.Tag class: never an arbitrary class or instance. */
   const isTagType = (t: ts.Type) => {
     const s = t.getSymbol()
-    return !!s && (s.getName() === 'Tag' || !!(s.flags & ts.SymbolFlags.Class))
+    return !!s && (TAG_TYPES.has(libId(s, checker) ?? '') || (!!(s.flags & ts.SymbolFlags.Class) && !(t.flags & ts.TypeFlags.Object && (t as ts.ObjectType).objectFlags & ts.ObjectFlags.Reference) && isTagClass(s.valueDeclaration)))
   }
   /**
    * Every Tag a generator body `yield*`s, following local helper generators with their parameters bound to
@@ -527,7 +534,21 @@ export function extract(project: string, entries?: readonly string[]): Report {
         if (!ts.isClassDeclaration(f) && ts.isConditionalExpression(f)) return (operand(f.whenTrue), operand(f.whenFalse))
         const t = checker.getTypeAtLocation(u)
         if (t.flags & ts.TypeFlags.Any) fail(u, `yield* "${text(u)}" is typed any; the Tag it resolves cannot be named`)
-        if (isTagType(t)) out.push({ tag: tagKey(u), loc: loc(u) })
+        if (isTagType(t)) return void out.push({ tag: tagKey(u), loc: loc(u) })
+        // Effect.gen(function* () { ... }): its body's yields are this body's.
+        if (ts.isCallExpression(u) && calleeOf(u) === 'effect/Effect#gen') {
+          const body = u.arguments.map(unwrap).find((a): a is ts.FunctionExpression => ts.isFunctionExpression(a) && !!a.asteriskToken)
+          if (body) return yieldsOf(body, out, stack)
+        }
+        // Any other Effect: its requirements R (Effect<A, E, R>) name the Tags it reads.
+        if (libId(t.getSymbol(), checker) !== 'effect/Effect#Effect') return fail(u, `yield* "${text(u)}" is neither a Tag nor an Effect; what it requires cannot be read`)
+        const r = checker.getTypeArguments(t as ts.TypeReference)[2]
+        if (!r || r.flags & ts.TypeFlags.Never) return
+        for (const m of r.isUnion() ? r.types : [r]) {
+          const d = m.getSymbol()?.valueDeclaration
+          if (m.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown) || !isTagClass(d)) fail(u, `yield* "${text(u)}" requires "${checker.typeToString(m)}", which does not resolve to a Tag declaration`)
+          out.push({ tag: classKey(d as ts.ClassDeclaration), loc: loc(u) })
+        }
       } catch (err) { report(err) }
     }
     const walk = (n: ts.Node): void => {
