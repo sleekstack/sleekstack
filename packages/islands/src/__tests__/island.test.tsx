@@ -82,6 +82,25 @@ describe('Island', () => {
     expect(renders).toBeLessThanOrEqual(2) // StrictMode double render inside the one root
   })
 
+  it('a load resolving after unmount creates no root; a remount hydrates once', async () => {
+    const resolvers: (() => void)[] = []
+    loader.mockImplementation(() => new Promise((r) => resolvers.push(() => r({ default: Counter }))))
+    const { host, root } = await mount('load')
+    await flush()
+    await act(async () => root.render(null)) // unmount wrapper, deferred cleanup runs
+    await flush()
+    host.innerHTML = await serverHtml(<Island name="counter" props={{ start: 3 }} hydrate="load" />)
+    loader.mockClear()
+    const again = hydrateRoot(host, <Island name="counter" props={{ start: 3 }} hydrate="load" />)
+    await flush()
+    renders = 0
+    await act(async () => resolvers.forEach((r) => r()))
+    await flush()
+    expect(renders).toBe(1) // stale first load dropped, only the remount's activation hydrated
+    again.unmount()
+    loader.mockImplementation(async () => ({ default: Counter }))
+  })
+
   it('unknown name throws IslandNotFound', async () => {
     // @ts-expect-error unknown name is a type error
     await expect(serverHtml(<Island name="nope" props={{}} />)).rejects.toBeInstanceOf(IslandNotFound)

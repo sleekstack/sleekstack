@@ -15,8 +15,9 @@ export class IslandNotFound extends Error {
 }
 
 // One activation per container: guards StrictMode double effects and same-node remounts.
-const started = new WeakSet<Element>()
-const roots = new WeakMap<Element, Root>()
+// The stored promise is the activation token: a load that resolves after its
+// activation was dropped (unmounted, or replaced by a remount) creates no root.
+const activations = new WeakMap<Element, Promise<Root | undefined>>()
 const pendingUnmount = new WeakMap<Element, ReturnType<typeof setTimeout>>()
 
 const EMPTY = { __html: '' }
@@ -41,38 +42,36 @@ export const defineIslands = <M extends Record<string, IslandLoader>>(map: M) =>
         pendingUnmount.delete(el)
       }
       const disarm = arm(el, hydrate, () => {
-        if (started.has(el)) return
-        started.add(el)
-        map[name]!().then(
+        if (activations.has(el)) return
+        const activation: Promise<Root | undefined> = map[name]!().then(
           ({ default: C }) => {
+            if (activations.get(el) !== activation) return undefined
             const tree = createElement(Suspense, null, createElement(C, props))
             // Server HTML present: attach to it. Fresh client mount (no server HTML): render.
-            roots.set(
-              el,
-              el.firstChild
-                ? hydrateRoot(el, tree, {
-                    onRecoverableError: (e) => console.error(`[island ${name}]`, e),
-                  })
-                : (() => {
-                    const r = createRoot(el)
-                    r.render(tree)
-                    return r
-                  })(),
-            )
+            if (el.firstChild)
+              return hydrateRoot(el, tree, { onRecoverableError: (e) => console.error(`[island ${name}]`, e) })
+            const root = createRoot(el)
+            root.render(tree)
+            return root
           },
-          (e) => console.error(`[island ${name}] chunk failed to load`, e),
+          (e) => {
+            console.error(`[island ${name}] chunk failed to load`, e)
+            return undefined
+          },
         )
+        activations.set(el, activation)
       })
       return () => {
         disarm()
-        // Deferred: unmounting another root synchronously during a commit warns.
+        // Deferred: unmounting another root synchronously during a commit warns;
+        // a same-node remount before the tick cancels it and keeps the activation.
         pendingUnmount.set(
           el,
           setTimeout(() => {
             pendingUnmount.delete(el)
-            roots.get(el)?.unmount()
-            roots.delete(el)
-            started.delete(el)
+            const activation = activations.get(el)
+            activations.delete(el)
+            void activation?.then((root) => root?.unmount())
           }),
         )
       }
