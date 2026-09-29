@@ -39,7 +39,7 @@ Each Island is its own React root, so React context does not cross Islands. The 
 
 ## v1 limits
 
-- Components that call `useId` may mismatch on hydrate, because a new root restarts the id tree.
+- `useId` inside an Island returns a different value on the client than on the server, because a new root restarts the id tree. React logs no error, and the server-rendered `id` attributes stay in the DOM, so `htmlFor`/`id` pairs keep working. Client code that looks an element up by the `useId` value (for example `getElementById(id)`) will not find it.
 - Islands do not inherit Next router context: `next/navigation` hooks are unsupported inside an Island. Kit `action()` calls work.
 - No Fast Refresh / HMR for Island modules.
 - No `children` or server-rendered JSX props; props must survive React's RSC serialiser.

@@ -18,6 +18,9 @@ export default function IslandsPage() {
       <section aria-label="action island">
         <Island name="ping" props={{}} hydrate="interaction" />
       </section>
+      <section aria-label="useId island">
+        <Island name="ided" props={{}} hydrate="load" />
+      </section>
       <div style={{ height: '200vh' }} />
       <RerenderHost />
     </main>

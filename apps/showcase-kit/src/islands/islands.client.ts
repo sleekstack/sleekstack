@@ -8,6 +8,7 @@ export const Island = defineIslands(
     controls: () => import('./Controls'),
     shared: () => import('./Shared'),
     ping: () => import('./Ping'),
+    ided: () => import('./Ided'),
   },
   { provide: [SharedTallyLayer] },
 )

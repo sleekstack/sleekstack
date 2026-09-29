@@ -155,3 +155,28 @@ test.describe('shared app scope and triggers', () => {
     expect(errors).toEqual([])
   })
 })
+
+test('useId in an Island is benign: no hydration error, server ids kept in the DOM, client id differs', async ({ page }) => {
+  const errors: string[] = []
+  page.on('console', (m) => {
+    if (m.type() === 'error' || m.type() === 'warning') errors.push(m.text())
+  })
+  page.on('pageerror', (e) => errors.push(e.message))
+  await page.goto('/islands')
+  const host = page.getByRole('region', { name: 'useId island' })
+  const serverId = await host.locator('input').getAttribute('id')
+  await expect.poll(() => hydrated(page, 'ided')).toBe(true)
+  // A fresh root restarts the id tree: the client value differs, but hydration keeps the server attribute.
+  const clientId = await page.evaluate(() => (window as { __clientUseId?: string }).__clientUseId)
+  expect(clientId).toBeTruthy()
+  expect(clientId).not.toBe(serverId)
+  await expect(host.locator('input')).toHaveAttribute('id', serverId!)
+  await expect(host.getByLabel('named field')).toBeAttached() // label/for pairing intact
+  // The Island and the rest of the page keep working.
+  await host.getByRole('button').click()
+  await expect(host.getByRole('button')).toHaveText('ided 1')
+  const loadBtn = page.getByRole('region', { name: 'load island' }).getByRole('button')
+  await loadBtn.click()
+  await expect(loadBtn).toHaveText('count 11')
+  expect(errors).toEqual([])
+})
