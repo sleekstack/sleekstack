@@ -43,6 +43,10 @@ const scopes = new WeakMap<AppScopeHandle, ChildScope>()
  *
  * @example
  * ```ts
+ * import { module } from '@sleekstack/kit'
+ * import { createAppScope } from '@sleekstack/kit/react'
+ *
+ * const AppModule = module({ name: 'app', provide: [] })
  * const app = await createAppScope([AppModule])
  * // <LayerProvider provide={[]} appScope={app}>...</LayerProvider> in each root
  * await app.close()
