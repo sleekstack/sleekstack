@@ -34,3 +34,13 @@ export const Helpers = module({ name: 'Helpers', imports: [H1, H2] })
 // A mapper returning one shared layer yields one provider; mapped modules stay distinct.
 const sharedC = layer(C, 'c')
 export const Reused = module({ name: 'Reused', provide: tags.map(() => sharedC), imports: ['M1', 'M2'].map((n) => module({ name: n, provide: [] })) })
+
+// Fresh objects per iteration, even when the callback ignores its item: runtime sees two providers / two modules.
+export const Fresh = module({ name: 'Fresh', provide: tags.map(() => layer(C, 'c')) }) // @error AmbiguousProvider
+const twice: Layer<string>[] = []
+for (const _ of tags) twice.push(layer(D, 'd')) // @error AmbiguousProvider
+export const FreshLoop = module({ name: 'FreshLoop', provide: twice })
+export const FreshModules = module({ name: 'FreshModules', imports: tags.map(() => module({ name: 'Same', provide: [] })) }) // @error DuplicateModule
+// A callback delegating to a layer-producing helper.
+const mk = (t: typeof A) => layer(t, 'm')
+export const Delegated = module({ name: 'Delegated', provide: tags.map((t) => mk(t)) })

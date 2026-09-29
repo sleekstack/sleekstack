@@ -43,6 +43,7 @@ describe('graph error fixtures', () => {
     expect(tags('Helpers')).toEqual(['A', 'A@H2', 'B'])
     // A mapper returning one shared layer is one provider; mapped modules keep their own names.
     expect(tags('Reused')).toEqual(['C'])
+    expect(tags('Delegated')).toEqual(['A', 'B'])
     expect(r.graphs.find((g) => g.root === 'Reused')!.modules.map((m) => m.name).sort()).toEqual(['M1', 'M2', 'Reused'])
   })
 

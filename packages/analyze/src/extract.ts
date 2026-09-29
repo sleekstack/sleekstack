@@ -83,8 +83,47 @@ export function extract(project: string): Report {
   const errors: AnalyzeError[] = []
   /** Loop / callback variables bound to one member of their source list (see `each`). */
   const env = new Map<ts.Declaration, ts.Expression>()
-  /** The call currently expanding each local helper (see `listOf`). */
-  const invocations = new Map<ts.FunctionLikeDeclaration, ts.CallExpression>()
+  /**
+   * The evaluation instance of each active scope: a helper invocation, a mapper callback iteration, a for-of
+   * iteration. A declaration inside the scope is a fresh object per instance (see `cacheKey`).
+   */
+  const scopes = new Map<ts.Node, string>()
+  const within = <T>(scope: ts.Node, inst: string, run: () => T): T => {
+    const prev = scopes.get(scope)
+    scopes.set(scope, inst)
+    try { return run() } finally { prev === undefined ? scopes.delete(scope) : scopes.set(scope, prev) }
+  }
+  /** Expands one local helper call: parameters bound to its arguments, inside its own invocation scope. */
+  const invoke = (call: ts.CallExpression, fn: ts.FunctionLikeDeclaration, run: (r: ts.Expression) => void) => {
+    const bound = fn.parameters.map((p, i) => [p, call.arguments[i]] as const).filter((b): b is readonly [ts.ParameterDeclaration, ts.Expression] => !!b[1])
+    const prev = bound.map(([p]) => env.get(p))
+    bound.forEach(([p, a]) => env.set(p, a))
+    try { within(fn, `@${cacheKey(call)}`, () => bodyReturns(fn).forEach(run)) } finally {
+      bound.forEach(([p], i) => (prev[i] ? env.set(p, prev[i]!) : env.delete(p)))
+    }
+  }
+  /** Runs `run` once per iteration of every for-of loop enclosing a write (outermost first): each writes a fresh value. */
+  const inLoops = (n: ts.Node, run: () => void): void => {
+    const loops: ts.ForOfStatement[] = []
+    for (let x: ts.Node = n; !ts.isSourceFile(x) && !ts.isFunctionLike(x); x = x.parent) if (ts.isForOfStatement(x) && x.statement.pos <= n.pos) loops.unshift(x)
+    const go = (i: number): void => {
+      const loop = loops[i]
+      if (!loop) return run()
+      const v = ts.isVariableDeclarationList(loop.initializer) ? loop.initializer.declarations[0] : undefined
+      const key = cacheKey(loop)
+      let k = 0
+      listOf(loop.expression, (x) => {
+        if (v) env.set(v, x)
+        try { within(loop, `${key}#${k++}`, () => go(i + 1)) } finally { if (v) env.delete(v) }
+      })
+    }
+    go(0)
+  }
+  const localCall = (e: ts.Expression) => {
+    const u = unwrap(e)
+    const fn = ts.isCallExpression(u) && !calleeOf(u) ? fnOf(u.expression) : undefined
+    return fn && ([u as ts.CallExpression, fn] as const)
+  }
 
   const loc = (n: ts.Node): Location => {
     const sf = n.getSourceFile()
@@ -238,13 +277,18 @@ export function extract(project: string): Report {
   const each = (e: ts.Expression, f: (e: ts.Expression) => void): void => {
     const u = unwrap(e)
     if (ts.isConditionalExpression(u)) return (each(u.whenTrue, f), each(u.whenFalse, f))
+    const lc = localCall(u)
+    if (lc && !checker.isArrayLikeType(checker.getTypeAtLocation(u))) return invoke(lc[0], lc[1], (r) => each(r, f))
     try {
       f(e)
     } catch (err) {
       if (!(err instanceof Unbound)) throw err
+      const loop = err.decl.parent.parent // ForOfStatement, or the callback of an iterator method
+      const key = cacheKey(loop)
+      let i = 0
       listOf(err.source, (v) => {
         env.set(err.decl, v)
-        try { each(e, f) } finally { env.delete(err.decl) }
+        try { within(loop, `${key}#${i++}`, () => each(e, f)) } finally { env.delete(err.decl) }
       })
     }
   }
@@ -267,7 +311,7 @@ export function extract(project: string): Report {
     const e = follow(expr)
     const u = unwrap(expr)
     const d = (ts.isIdentifier(u) || ts.isPropertyAccessExpression(u)) && declOf(u)
-    if (d && ts.isVariableDeclaration(d)) for (const a of writesOf(d).added) ts.isSpreadElement(a) ? each(a.expression, (x) => listOf(x, item)) : each(a, item)
+    if (d && ts.isVariableDeclaration(d)) for (const a of writesOf(d).added) inLoops(a, () => (ts.isSpreadElement(a) ? each(a.expression, (x) => listOf(x, item)) : each(a, item)))
     if (ts.isClassDeclaration(e)) return fail(expr, `Expected an array, got class "${text(expr)}"`, 'Computed')
     if (ts.isConditionalExpression(e)) return (listOf(e.whenTrue, item), listOf(e.whenFalse, item))
     if (ts.isCallExpression(e) && ts.isPropertyAccessExpression(e.expression) && !calleeOf(e)) {
@@ -278,10 +322,11 @@ export function extract(project: string): Report {
       if ((m === 'map' || m === 'flatMap') && fn) {
         const p = fn.parameters[0]
         const body = () => { for (const r of bodyReturns(fn)) m === 'map' ? each(r, item) : each(r, (x) => listOf(x, item)) }
-        if (!p) return body()
+        const key = cacheKey(e)
+        let i = 0
         return listOf(e.expression.expression, (v) => {
-          env.set(p, v)
-          try { body() } finally { env.delete(p) }
+          if (p) env.set(p, v)
+          try { within(fn, `${key}#${i++}`, body) } finally { if (p) env.delete(p) }
         })
       }
     }
@@ -290,18 +335,8 @@ export function extract(project: string): Report {
       for (const a of e.arguments) checker.isArrayLikeType(checker.getTypeAtLocation(a)) ? listOf(a, item) : each(a, item)
       return
     }
-    const fn = ts.isCallExpression(e) && !calleeOf(e) ? fnOf(e.expression) : undefined
-    if (fn && ts.isCallExpression(e)) {
-      // One helper invocation: parameters bound to this call's arguments, and the call site part of every identity made inside.
-      const bound = fn.parameters.map((p, i) => [p, e.arguments[i]] as const).filter((b): b is readonly [ts.ParameterDeclaration, ts.Expression] => !!b[1])
-      const prev = invocations.get(fn)
-      invocations.set(fn, e)
-      bound.forEach(([p, a]) => env.set(p, a))
-      try { return bodyReturns(fn).forEach((r) => listOf(r, item)) } finally {
-        bound.forEach(([p]) => env.delete(p))
-        prev ? invocations.set(fn, prev) : invocations.delete(fn)
-      }
-    }
+    const lc = localCall(e)
+    if (lc) return invoke(lc[0], lc[1], (r) => listOf(r, item))
     if (!ts.isArrayLiteralExpression(e)) return fail(expr, `Computed list "${text(expr)}" cannot be read statically`, 'Computed')
     for (const el of e.elements) {
       if (ts.isSpreadElement(el)) each(el.expression, (x) => listOf(x, item))
@@ -353,7 +388,7 @@ export function extract(project: string): Report {
     }
     scan(n)
     const parts = [...refs].map((d) => `${nid(d)}=${nid(follow(env.get(d)!))}`)
-    for (const [fn, call] of invocations) if (fn.pos <= n.pos && n.end <= fn.end && fn.getSourceFile() === n.getSourceFile()) parts.push(`${nid(fn)}@${nid(call)}`)
+    for (const [scope, inst] of scopes) if (scope !== n && scope.pos <= n.pos && n.end <= scope.end && scope.getSourceFile() === n.getSourceFile()) parts.push(`${nid(scope)}:${inst}`)
     return [nid(n), ...parts.sort()].join(',')
   }
   const provider = (expr: ts.Expression, core: boolean): ProviderDecl => {
