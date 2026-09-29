@@ -78,9 +78,42 @@ export function extract(project: string): Report {
     const e = unwrap(expr)
     if (!ts.isIdentifier(e) && !ts.isPropertyAccessExpression(e)) return e
     const d = declOf(e)
-    if (d && (ts.isVariableDeclaration(d) || ts.isPropertyAssignment(d)) && d.initializer) return follow(d.initializer)
+    if (d && ts.isVariableDeclaration(d) && d.initializer) {
+      // The initializer is only the value if the binding never changes: `let`/`var` or an in-place mutation is a silent gap.
+      if (!(ts.getCombinedNodeFlags(d) & ts.NodeFlags.Const)) return fail(e, `"${text(e)}" is not a const binding; its value cannot be read statically`, 'Computed')
+      const m = mutationOf(d)
+      if (m) return fail(m, `"${text(m)}" mutates "${text(e)}"; the declaration cannot be read statically`, 'Computed')
+      return follow(d.initializer)
+    }
+    if (d && ts.isPropertyAssignment(d)) return follow(d.initializer)
     if (d && ts.isClassDeclaration(d)) return d
     return fail(e, `Cannot resolve "${text(e)}" to a declaration`)
+  }
+
+  const MUTATORS = new Set(['push', 'pop', 'shift', 'unshift', 'splice', 'fill', 'copyWithin', 'sort', 'reverse'])
+  const mutations = new Map<ts.Symbol, ts.Node | undefined>()
+  /** The first write through a const binding (`x.push(..)`, `x[i] = ..`, `x.k = ..`), or undefined. */
+  const mutationOf = (d: ts.VariableDeclaration): ts.Node | undefined => {
+    const sym = checker.getSymbolAtLocation(d.name)
+    if (!sym) return undefined
+    if (mutations.has(sym)) return mutations.get(sym)
+    let hit: ts.Node | undefined
+    const scan = (n: ts.Node): void => {
+      if (hit) return
+      if (ts.isIdentifier(n) && n !== d.name && checker.getSymbolAtLocation(n) === sym) {
+        const acc = n.parent
+        if ((ts.isPropertyAccessExpression(acc) || ts.isElementAccessExpression(acc)) && acc.expression === n) {
+          const up = acc.parent
+          if (ts.isPropertyAccessExpression(acc) && MUTATORS.has(acc.name.text) && ts.isCallExpression(up) && up.expression === acc) hit = up
+          else if (ts.isBinaryExpression(up) && up.left === acc && up.operatorToken.kind >= ts.SyntaxKind.FirstAssignment && up.operatorToken.kind <= ts.SyntaxKind.LastAssignment) hit = up
+          else if (ts.isDeleteExpression(up)) hit = up
+        }
+      }
+      ts.forEachChild(n, scan)
+    }
+    sources.forEach(scan)
+    mutations.set(sym, hit)
+    return hit
   }
 
   const literal = (e: ts.Expression, what: string): string => {
@@ -169,7 +202,9 @@ export function extract(project: string): Report {
     } else if (id === 'kit/effect#effect') {
       const opts = objectOf(a[2])
       const name = prop(opts, 'name')
-      p = { ...base, provides: [`effect:${name ? literal(name, 'effect name') : `${base.loc.file}:${base.loc.line}`}`], requires: tagList(a[1]), lifetime: lifetimeOf(prop(opts, 'lifetime')) }
+      // Runtime numbers unnamed effects in evaluation order, which the analyzer cannot reproduce.
+      if (!name) return fail(e, 'effect() in a module needs a literal `name` so its graph identity is static', 'UnnamedEffect')
+      p = { ...base, provides: [`effect:${literal(name, 'effect name')}`], requires: tagList(a[1]), lifetime: lifetimeOf(prop(opts, 'lifetime')) }
     } else if (id === 'core/service#service') {
       const opts = objectOf(a[1])
       p = { ...base, provides: [tagKey(a[0]!)], requires: tagList(prop(opts, 'requires')), lifetime: lifetimeOf(prop(opts, 'lifetime')) }
@@ -234,7 +269,7 @@ export function extract(project: string): Report {
       const id = calleeOf(n)
       if (id && MODULE_CALLS.has(id)) {
         try { found.push(moduleOf(n)) } catch (err) { report(err) }
-      } else if (id && ATOM_CALLS.has(id) && n.arguments[0] && (id === 'kit/atom#family' || ts.isFunctionLike(unwrap(n.arguments[0])))) {
+      } else if (id && ATOM_CALLS.has(id) && n.arguments[0] && (id === 'kit/atom#family' || n.arguments.length > 1 || checker.getTypeAtLocation(n.arguments[0]).getCallSignatures().length > 0)) {
         try {
           const requires = tagList(n.arguments[1])
           const v = ts.isVariableDeclaration(n.parent) && ts.isIdentifier(n.parent.name) ? n.parent.name.text : undefined

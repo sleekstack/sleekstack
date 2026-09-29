@@ -20,3 +20,6 @@ export const App = module({
 })
 
 export const count = atom((clock, get) => clock.now(), [T.Clock])
+
+const derive = (clock: { now(): number }) => clock.now() * 2
+export const doubled = atom(derive, [T.Clock])
