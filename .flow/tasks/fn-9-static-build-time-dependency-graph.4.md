@@ -31,10 +31,12 @@ satisfies: [R2, R5, R6]
 - [ ] TBD
 
 ## Done summary
-TBD
+Removed deps arrays from defineEffect/defineQuery/effect/query (now `(gen, opts?)`, `.deps` gone); `yield* Tag` reads the request scope's public Context on demand, a miss maps to MissingDependency/PrivateDependency; `opts.scope` builds side-effect-only Tags (RequestContext) up front. Analyzer reads `opts.scope` as edges and drops UndeclaredDependency; boardActionDeps + graph.test cross-check deleted; tests/docs ported.
 
+stage: impl-review - skipped(policy: host-deferred - conductor owns the gate)
+
+Review: independent host review SHIP (no P0/P1). Known: nested ops copying Context surface HandlerFailed instead of MissingDependency.
 ## Evidence
-- Commits:
-- Tests:
+- Commits: c360c69e45463a4e4ec67b4ed751cf105d387517
+- Tests: pnpm test (kit 89/89, core 73, next 13, analyze 14/14, showcase-kit green; apps/showcase requests.test flaky/red from concurrent uncommitted edits in apps/showcase, not this task), pnpm --filter showcase-kit check (ok, 10 nodes), pnpm typecheck (9/9), pnpm lint (only sleek-codes configures lint; fails, unrelated)
 - PRs:
-
