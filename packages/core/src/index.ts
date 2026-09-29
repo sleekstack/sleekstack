@@ -6,7 +6,7 @@
 
 export { service, type Lifetime, type ServiceDefinition, type AnyServiceDefinition, type CaptiveViolations } from './service'
 export { module, declareLayer, type Module, type DeclaredLayer, type Entry, type BareLayer, type Imports } from './module'
-export { buildGraph, snapshot, type Graph, type GraphNode, type GraphSnapshot, type Shadowing } from './graph'
+export { buildGraph, snapshot, walkProvide, type Graph, type GraphNode, type GraphSnapshot, type Shadowing } from './graph'
 export {
   MissingDependency,
   DependencyCycle,

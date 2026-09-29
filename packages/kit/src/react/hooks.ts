@@ -6,7 +6,6 @@
  */
 
 import { createElement, useMemo, useRef, type ReactNode } from 'react'
-import { Runtime } from 'effect'
 import { LayerProvider as CoreProvider, useService as coreUseService } from '@sleekstack/react'
 import { normalize, toFinalizerError, type FinalizerError } from '../errors'
 import type { Layer, Services } from '../layer'
@@ -20,8 +19,6 @@ export interface LayerProviderProps {
   readonly onFinalizerError?: (error: FinalizerError) => void
   readonly children?: ReactNode
 }
-
-const toKit = (e: unknown) => normalize(Runtime.isFiberFailure(e) ? e[Runtime.FiberFailureCauseId] : e)
 
 /**
  * Builds a scope for its subtree from `provide`: the app scope at the root, a component scope when nested.
@@ -52,11 +49,11 @@ export function LayerProvider(props: LayerProviderProps): ReactNode {
       validateProvide(provide)
       return unwrap(provide)
     } catch (e) {
-      throw toKit(e)
+      throw normalize(e)
     }
   }, [provide])
   const sink = useMemo(
-    () => onFinalizerError && ((cause: unknown) => onFinalizerError(toFinalizerError(Runtime.isFiberFailure(cause) ? cause[Runtime.FiberFailureCauseId] : cause))),
+    () => onFinalizerError && ((cause: unknown) => onFinalizerError(toFinalizerError(cause))),
     [onFinalizerError],
   )
   return createElement(CoreProvider, { provide: lowered, owner: props, ...(sink && { onFinalizerError: sink }) }, children)
@@ -69,7 +66,8 @@ const isThenable = (x: unknown) => typeof (x as { then?: unknown } | null)?.then
  *
  * @param tag - The service's Tag.
  * @returns The service instance.
- * @throws {@link SleekStackError} with code `Unknown` when there is no `LayerProvider` above or the Tag is not provided.
+ * @throws {@link SleekStackError} with code `Unknown` when there is no `LayerProvider` above.
+ * @throws {@link SleekStackError} with code `MissingDependency` when the Tag is not provided.
  * @throws {@link SleekStackError} with code `PrivateDependency` when the Tag is private to a module.
  * @throws {@link SleekStackError} with `LayerFailed` or a graph code (for example `MissingDependency`) when the provider's scope failed to build.
  *
@@ -89,7 +87,7 @@ export function useService<T>(tag: TagLike<T>): T {
     return coreUseService(coreTag(tag)) as T
   } catch (e) {
     if (isThenable(e)) throw e
-    throw toKit(e)
+    throw normalize(e)
   }
 }
 

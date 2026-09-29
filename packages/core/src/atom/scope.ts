@@ -6,8 +6,7 @@
  */
 
 import { Cause, Effect, Scope } from 'effect'
-import { MissingDependency } from '../errors'
-import { privateDependencyOf, type ChildScope } from '../scope'
+import { resolutionFailure, type ChildScope } from '../scope'
 import { makeAtomStore, type AtomStore, type AtomStoreOptions } from './AtomStore'
 
 // Effect 3.21 `Context.unsafeGet`: `Error("Service not found: <key>")` (no `: <key>` for an empty key), plus
@@ -42,12 +41,7 @@ export const atomStoreFor = (scope: ChildScope, options: Omit<AtomStoreOptions, 
     ...options,
     context: scope.context,
     wrapBuild: (effect, atom) => {
-      const typed = (key: string) =>
-        privateDependencyOf(scope.context, key, atom.label) ??
-        new MissingDependency({
-          service: atom.label, missing: key,
-          message: `Atom "${atom.label}" requires "${key}", but no enclosing scope provides it`,
-        })
+      const typed = (key: string) => resolutionFailure(scope.context, key, atom.label)
       // Die(Service not found) -> Fail(typed); every other node and the Cause's structure are kept.
       const mapCause = (cause: Cause.Cause<unknown>): Cause.Cause<unknown> =>
         Cause.match<Cause.Cause<unknown>, unknown>(cause, {

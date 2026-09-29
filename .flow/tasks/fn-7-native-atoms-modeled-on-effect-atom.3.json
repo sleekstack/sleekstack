@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-7-native-atoms-modeled-on-effect-atom",
   "spec_path": ".flow/tasks/fn-7-native-atoms-modeled-on-effect-atom.3.md",
-  "status": "todo",
+  "status": "done",
   "title": "React atom hooks + per-LayerProvider store",
   "updated_at": "2026-09-28T13:51:11.447874Z"
 }

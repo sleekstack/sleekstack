@@ -1,0 +1,638 @@
+{
+  "branch_name": "fn-8-deepen-kit-and-core-seams",
+  "completion_review_status": "ship",
+  "completion_reviewed_at": "2026-09-28T17:18:20.079280Z",
+  "created_at": "2026-09-28T16:15:21.140267Z",
+  "default_impl": null,
+  "default_review": null,
+  "default_sync": null,
+  "depends_on_epics": [],
+  "id": "fn-8-deepen-kit-and-core-seams",
+  "impl_review_rounds": {
+    "fn-8-deepen-kit-and-core-seams.1": 0,
+    "fn-8-deepen-kit-and-core-seams.2": 0,
+    "fn-8-deepen-kit-and-core-seams.3": 0,
+    "fn-8-deepen-kit-and-core-seams.4": 1,
+    "fn-8-deepen-kit-and-core-seams.5": 0,
+    "fn-8-deepen-kit-and-core-seams.6": 0
+  },
+  "next_task": 1,
+  "plan_review_rounds": 0,
+  "plan_review_status": "ship",
+  "plan_reviewed_at": "2026-09-28T16:19:30.692674Z",
+  "review_attempts": [
+    {
+      "artifact_sha256": "893cfead7db2e875450e61bc6581cd6a8f4e1856fc116ca733519f7cd59d0761",
+      "backend": "codex",
+      "base_sha": "a660ff08d835c92d2da4fff496468e1ec17aad13",
+      "counter_kind": "plan",
+      "effort": "high",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-e306709221d50269da3bd9a6c4155984",
+            "classification": "introduced",
+            "findingId": "finding-e306709221d50269da3bd9a6c4155984",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-4c4d25e0acd4f02ec108809c146e4a60",
+            "classification": "introduced",
+            "findingId": "finding-4c4d25e0acd4f02ec108809c146e4a60",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-40f6440186d556e57de0de035b35b146",
+            "classification": "introduced",
+            "findingId": "finding-40f6440186d556e57de0de035b35b146",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "plan"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "25dcb97ca77c61af5f9aab046823fa0b07581351",
+      "head_sha_observed": true,
+      "kind": "plan",
+      "model": "gpt-6-astra",
+      "outcome": "verdict",
+      "output_bytes": 187054,
+      "output_sha256": "e2230a386afefa154f19e63e0050d36aca0aff24c82a482f3c80977fa2798c23",
+      "reservation_id": "1b9567a1e94646f09963d72fe1a940e7",
+      "round_consumed": true,
+      "scope": "plan",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-09-28T16:18:02.833272Z",
+      "tool_calls": 9,
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "e30551c79c115cc265da257ac22ca2db17aba702ad6f45c007d0b236f528b151",
+      "backend": "codex",
+      "base_sha": "a660ff08d835c92d2da4fff496468e1ec17aad13",
+      "counter_kind": "plan",
+      "effort": "high",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-e306709221d50269da3bd9a6c4155984",
+            "classification": "introduced",
+            "findingId": "finding-e306709221d50269da3bd9a6c4155984",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-4c4d25e0acd4f02ec108809c146e4a60",
+            "classification": "introduced",
+            "findingId": "finding-4c4d25e0acd4f02ec108809c146e4a60",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-40f6440186d556e57de0de035b35b146",
+            "classification": "introduced",
+            "findingId": "finding-40f6440186d556e57de0de035b35b146",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-c42e564fc6a60d4e6d68867f48096c4e",
+            "classification": "introduced",
+            "findingId": "finding-c42e564fc6a60d4e6d68867f48096c4e",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "plan"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "ba0aeca90242b554e8fe931fe9ce9fbd84916e53",
+      "head_sha_observed": true,
+      "kind": "plan",
+      "model": "gpt-6-astra",
+      "outcome": "verdict",
+      "output_bytes": 1499,
+      "output_sha256": "8357c87a2c0410b1b5183252e889b1ec467f7653023003555875f8b4ad0f74f8",
+      "reservation_id": "ec2c856896034baab40ca682b54cfe55",
+      "round_consumed": true,
+      "scope": "plan",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-09-28T16:19:30.689943Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "4fea543685ff086da42b146299ca7ca7667de55128b6be3028f0308c35bdeddf",
+      "backend": "codex",
+      "base_sha": "b7e2b9cb2a1b0f3fe3b88623a79ebb145e6f2f61",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-1c9b73bc1dd54614cfab02010ad561d5",
+            "classification": "introduced",
+            "findingId": "finding-1c9b73bc1dd54614cfab02010ad561d5",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "6d58dfa4cdbd723f0843ec10e8d9bf9cc2215b65",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 846,
+      "output_sha256": "24df8866ad4209880fa06ee983a5662f92ed3f4848c5c8adbfbf78fb671945ed",
+      "reservation_id": "70537368cf3b4b119760e6ad669cb3a5",
+      "round_consumed": true,
+      "scope": "impl:fn-8-deepen-kit-and-core-seams.1",
+      "superseded_by": null,
+      "task": "fn-8-deepen-kit-and-core-seams.1",
+      "timestamp": "2026-09-28T16:27:21.015457Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "7fbaa993b9ac38bc2094b05e8ace455a75c3894521eaaf75724718941096bbd7",
+      "backend": "codex",
+      "base_sha": "b7e2b9cb2a1b0f3fe3b88623a79ebb145e6f2f61",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-1c9b73bc1dd54614cfab02010ad561d5",
+            "classification": "introduced",
+            "findingId": "finding-1c9b73bc1dd54614cfab02010ad561d5",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "8e55de5230645080cd862e54cad003e67caf24e2",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 570,
+      "output_sha256": "3fee81c7d93061f6505c56add9791325248ef1291c06b8fa1dc84c2fcd4f579b",
+      "reservation_id": "824c11a9ebe24103a1953b4fb40f733c",
+      "round_consumed": true,
+      "scope": "impl:fn-8-deepen-kit-and-core-seams.1",
+      "superseded_by": null,
+      "task": "fn-8-deepen-kit-and-core-seams.1",
+      "timestamp": "2026-09-28T16:28:49.500605Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "96b9bf4e9b4ab95a761baeda62f92da7e44eb3a131aa3f109641502d07526f6a",
+      "backend": "codex",
+      "base_sha": "c9fbeb5df0ce8853572d0d849d1d97e8d46a2be6",
+      "counter_kind": "impl",
+      "effort": "high",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "e7ca4a4c2ae1ee642a27a05d3a34b655597100f4",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-6-astra",
+      "outcome": "verdict",
+      "output_bytes": 158,
+      "output_sha256": "6ff70da3d83706800ca3cabc6ba62603ba0485fcf5259d27f1be54ce68686975",
+      "reservation_id": "f16b33c2569242a4b9a639bb2ae52f77",
+      "round_consumed": true,
+      "scope": "impl:fn-8-deepen-kit-and-core-seams.2",
+      "superseded_by": null,
+      "task": "fn-8-deepen-kit-and-core-seams.2",
+      "timestamp": "2026-09-28T16:35:05.108076Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "12c1fb3ab3830047f81bcf92f53455d44169c4f90b9f6e1e8efba601ebc8ddfa",
+      "backend": "codex",
+      "base_sha": "997d1ff63ee9c99cac0224616b3b13b62f0d4f30",
+      "counter_kind": "impl",
+      "effort": "high",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-2b92a2090e48cd7e8fc739a4ae4c4e06",
+            "classification": "introduced",
+            "findingId": "finding-2b92a2090e48cd7e8fc739a4ae4c4e06",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-9c97f1fc54b2653bb8671f18fcfd2d3b",
+            "classification": "introduced",
+            "findingId": "finding-9c97f1fc54b2653bb8671f18fcfd2d3b",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "1a47c890ef73c23d4932838eb966abb8ef8e0be3",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-6-astra",
+      "outcome": "verdict",
+      "output_bytes": 1880,
+      "output_sha256": "c62c52221a791b69918441a273f7c97101b66909e9843b5265d12bae8c1e2ae4",
+      "reservation_id": "b02881bd2446490ab3012f7568b7aeb0",
+      "round_consumed": true,
+      "scope": "impl:fn-8-deepen-kit-and-core-seams.3",
+      "superseded_by": null,
+      "task": "fn-8-deepen-kit-and-core-seams.3",
+      "timestamp": "2026-09-28T16:45:48.716740Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "4566407fda380c4dea81da528a1835409a4babf60ae83b51b3b9f993b9cfde19",
+      "backend": "codex",
+      "base_sha": "997d1ff63ee9c99cac0224616b3b13b62f0d4f30",
+      "counter_kind": "impl",
+      "effort": "high",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-2b92a2090e48cd7e8fc739a4ae4c4e06",
+            "classification": "introduced",
+            "findingId": "finding-2b92a2090e48cd7e8fc739a4ae4c4e06",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-9c97f1fc54b2653bb8671f18fcfd2d3b",
+            "classification": "introduced",
+            "findingId": "finding-9c97f1fc54b2653bb8671f18fcfd2d3b",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "0da642db8d788a5780353d28587da7f9dba8286a",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-6-astra",
+      "outcome": "verdict",
+      "output_bytes": 814,
+      "output_sha256": "583091fb888be39008ee4369c06966f81352248093214c9d628e15afdabe9992",
+      "reservation_id": "6be93b2c397246459b2bbc0711c3ff21",
+      "round_consumed": true,
+      "scope": "impl:fn-8-deepen-kit-and-core-seams.3",
+      "superseded_by": null,
+      "task": "fn-8-deepen-kit-and-core-seams.3",
+      "timestamp": "2026-09-28T16:47:16.162301Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "1c1b8e09eabba48662fb5f02e0c2c41a3886d606c063744991989c6b7a439fa4",
+      "backend": "codex",
+      "base_sha": "52a823874d0aebe5c12625908fdea7adf61b5b6f",
+      "counter_kind": "impl",
+      "failure_class": "head_moved",
+      "finalized": {
+        "digest": "not_applicable",
+        "receipt": "not_applicable",
+        "status": "not_applicable"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "c695ec33e0119c2e5e078308c0d6caba836a5283",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "outcome": "transport_failure",
+      "output_bytes": 65,
+      "output_sha256": "2d5e9d9fe698752421e1e6e56905cd992be8e7ad61c19ccb4e0bf2cd1c4dc1c3",
+      "reservation_id": "fb91d770f6f54603ac7f73de98309e9e",
+      "round_consumed": false,
+      "scope": "impl:fn-8-deepen-kit-and-core-seams.4",
+      "superseded_by": null,
+      "task": "fn-8-deepen-kit-and-core-seams.4",
+      "timestamp": "2026-09-28T16:55:35.308725Z",
+      "verdict": null
+    },
+    {
+      "artifact_sha256": "4fdbaeaf510a50516e5f1c4b30d501375a3aaa062756ac290ad4df458c433204",
+      "backend": "codex",
+      "base_sha": "52a823874d0aebe5c12625908fdea7adf61b5b6f",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "f3ac6b00036fcdb7498d4d684fc28f7b98de4122",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 541,
+      "output_sha256": "9b20a9c3c86cc185697e759dfaf9ed93e0bbadfa3fb883afd76964359577cba2",
+      "reservation_id": "726130d6c865403b8d4054556fb90e1c",
+      "round_consumed": true,
+      "scope": "impl:fn-8-deepen-kit-and-core-seams.4",
+      "superseded_by": null,
+      "task": "fn-8-deepen-kit-and-core-seams.4",
+      "timestamp": "2026-09-28T16:59:52.406810Z",
+      "verdict": "NEEDS_HUMAN"
+    },
+    {
+      "artifact_sha256": "d124db4b4c95b0acd7e8346529100a2c6ded23aca1f80753059dfe2e6b4a00d5",
+      "backend": "codex",
+      "base_sha": "01aa514f7c7267af486d03c6e11bdb388b4861bb",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-066aaee80d3bff3dcefe5083b1f58ef9",
+            "classification": "introduced",
+            "findingId": "finding-066aaee80d3bff3dcefe5083b1f58ef9",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "3a69257574e34030e471d5c000f2a43c67fa20e1",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 982,
+      "output_sha256": "5d96295316416dfc4c44e39c8c48fc80110102e88815550831f6182f26469cbf",
+      "reservation_id": "ba0a949e07ff4f428d502499193eb707",
+      "round_consumed": true,
+      "scope": "impl:fn-8-deepen-kit-and-core-seams.5",
+      "superseded_by": null,
+      "task": "fn-8-deepen-kit-and-core-seams.5",
+      "timestamp": "2026-09-28T17:05:54.783410Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "02673f15aa4c39c8add45df270562f91812064c70d854f8da787281459c67f8a",
+      "backend": "codex",
+      "base_sha": "01aa514f7c7267af486d03c6e11bdb388b4861bb",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-066aaee80d3bff3dcefe5083b1f58ef9",
+            "classification": "introduced",
+            "findingId": "finding-066aaee80d3bff3dcefe5083b1f58ef9",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "c9b09945436bf9a8a54d70b0f4568cc62214e77d",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 617,
+      "output_sha256": "72cc3cc3acecbfa9eed1a58871b0a866a5eaa83b0407dcf8f209e2ee01ec24a0",
+      "reservation_id": "7cfb74c0ab2e416fa29780ecb5b277d8",
+      "round_consumed": true,
+      "scope": "impl:fn-8-deepen-kit-and-core-seams.5",
+      "superseded_by": null,
+      "task": "fn-8-deepen-kit-and-core-seams.5",
+      "timestamp": "2026-09-28T17:08:14.600226Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "421d538308c39526cdc9acd367d6a72f7cdd61ac692b0b71111b72966b9ee9c5",
+      "backend": "codex",
+      "base_sha": "53d201cab116534b1e0723edd4df497b17d348c1",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "a29b6ebd170aa334e7033318a0c8cdeebd81ddac",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 158,
+      "output_sha256": "6ff70da3d83706800ca3cabc6ba62603ba0485fcf5259d27f1be54ce68686975",
+      "reservation_id": "1eb252079f1744a7a8edcbd2064d9146",
+      "round_consumed": true,
+      "scope": "impl:fn-8-deepen-kit-and-core-seams.6",
+      "superseded_by": null,
+      "task": "fn-8-deepen-kit-and-core-seams.6",
+      "timestamp": "2026-09-28T17:14:34.791810Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "a4e265a041bcaac2291968c8b439aa1599d1f2fa394fde0a6f07ad8ec5ea5886",
+      "backend": "codex",
+      "base_sha": "a660ff08d835c92d2da4fff496468e1ec17aad13",
+      "counter_kind": "plan",
+      "effort": "high",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "672c1d254baec2dd34749d131a264072601a643a",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-6-astra",
+      "outcome": "verdict",
+      "output_bytes": 289265,
+      "output_sha256": "76f283a1ec1ea10f2e25c24de19efa0945d7a4de7e63972ab612fe2a6157a2cc",
+      "reservation_id": "faeba56274f34278a1c0c71a429676df",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-09-28T17:18:20.071894Z",
+      "tool_calls": 13,
+      "verdict": "SHIP"
+    }
+  ],
+  "review_hash_epoch": {
+    "impl:fn-8-deepen-kit-and-core-seams.1": 1,
+    "impl:fn-8-deepen-kit-and-core-seams.2": 1,
+    "impl:fn-8-deepen-kit-and-core-seams.3": 1,
+    "impl:fn-8-deepen-kit-and-core-seams.5": 1,
+    "impl:fn-8-deepen-kit-and-core-seams.6": 1,
+    "plan": 1,
+    "plan#completion": 1
+  },
+  "review_pending_rounds": {},
+  "review_reservations": {},
+  "review_transport_failures": {
+    "completion": 0,
+    "impl:fn-8-deepen-kit-and-core-seams.1": 0,
+    "impl:fn-8-deepen-kit-and-core-seams.2": 0,
+    "impl:fn-8-deepen-kit-and-core-seams.3": 0,
+    "impl:fn-8-deepen-kit-and-core-seams.4": 0,
+    "impl:fn-8-deepen-kit-and-core-seams.5": 0,
+    "impl:fn-8-deepen-kit-and-core-seams.6": 0,
+    "plan": 0
+  },
+  "spec_path": ".flow/specs/fn-8-deepen-kit-and-core-seams.md",
+  "status": "open",
+  "title": "Deepen kit and core seams",
+  "tracker": {
+    "baseHashFlow": null,
+    "baseHashTracker": null,
+    "depRelations": [],
+    "id": null,
+    "identifier": null,
+    "lastSyncedAt": null,
+    "mergeBaseFlow": null,
+    "mergeBaseTracker": null,
+    "url": null
+  },
+  "updated_at": "2026-09-28T17:18:20.081294Z"
+}

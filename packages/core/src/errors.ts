@@ -8,11 +8,17 @@ import { Data } from 'effect'
 
 /** Error code `MissingDependency`: a service requires a Tag that no entry provides. */
 export class MissingDependency extends Data.TaggedError('MissingDependency')<{
+  /** The missing Tag key, on a scope lookup miss (see {@link missingDependency}). */
+  readonly tag?: string
   readonly service: string
   readonly missing: string
   readonly module?: string
   readonly message: string
 }> {}
+
+/** @internal The canonical scope-lookup miss: `requiredBy` looked up `key`, and nothing provides it. */
+export const missingDependency = (key: string, requiredBy: string): MissingDependency =>
+  new MissingDependency({ tag: key, service: requiredBy, missing: key, message: `"${requiredBy}" requires "${key}", which is not provided` })
 
 /** Error code `DependencyCycle`: services require each other in a cycle (`path` lists it). */
 export class DependencyCycle extends Data.TaggedError('DependencyCycle')<{

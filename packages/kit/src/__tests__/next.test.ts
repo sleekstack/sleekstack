@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { Cause } from 'effect'
 import { layer, module, tag, withCleanup, type FinalizerError } from '../index'
 import { action, configureRuntime, fail, query } from '../next'
 
@@ -38,6 +39,14 @@ describe('@sleekstack/kit/next', () => {
     expect(e).toMatchObject({ name: 'SleekStackError', code: 'HandlerFailed', message: 'boom' })
     await expect(query(() => () => fail('nope'), [])()).rejects.toThrow('nope')
     await expect(query(() => () => 7, [])()).resolves.toBe(7)
+  })
+
+  it('handler data shaped like an old sentinel is returned as data; a thrown Error with a Cause is HandlerFailed', async () => {
+    configureRuntime({ provide: [] })
+    const shaped = { [Symbol('sleekstack.failed')]: 'x', ok: false, error: 'y' }
+    await expect(action(() => () => shaped, [])()).resolves.toEqual({ ok: true, data: shaped })
+    const e = await caught(action(() => () => { throw new Error('user', { cause: Cause.fail('inner') }) }, [])())
+    expect(e).toMatchObject({ code: 'HandlerFailed', message: 'user' })
   })
 
   it('a missing dependency rejects MissingDependency', async () => {

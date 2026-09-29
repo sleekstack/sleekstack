@@ -50,6 +50,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       treatWarningsAsErrors: true,
       disableSources: true,
       excludeExternals: true,
+      excludeInternal: true,
       logLevel: 'Warn',
     })
     const project = await app.convert()

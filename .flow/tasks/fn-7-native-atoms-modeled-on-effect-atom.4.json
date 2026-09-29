@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-7-native-atoms-modeled-on-effect-atom",
   "spec_path": ".flow/tasks/fn-7-native-atoms-modeled-on-effect-atom.4.md",
-  "status": "todo",
+  "status": "done",
   "title": "kit atom facade + hooks",
   "updated_at": "2026-09-28T13:47:25.406477Z"
 }

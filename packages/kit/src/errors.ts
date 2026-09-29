@@ -7,27 +7,30 @@
 
 import { Cause, Runtime } from 'effect'
 
+/** The structured `details` each {@link SleekStackError} `code` carries (mirrors core's tagged error fields). */
+export interface SleekStackErrorDetails {
+  MissingDependency: { readonly tag?: string; readonly service: string; readonly missing: string; readonly module?: string }
+  CleanupFailed: { readonly tag: string }
+  DependencyCycle: { readonly path: readonly string[] }
+  AmbiguousProvider: { readonly tag: string; readonly modules: readonly string[] }
+  ModuleCycle: { readonly path: readonly string[] }
+  DuplicateModule: { readonly name: string }
+  InvalidModule: { readonly name?: string }
+  CaptiveDependency: { readonly service: string; readonly lifetime: string; readonly dependency: string; readonly dependencyLifetime: string }
+  PrivateDependency: { readonly tag: string; readonly module: string; readonly requiredBy: string }
+  DuplicateTag: { readonly tag: string }
+  InvalidTag: {}
+  LayerFailed: { readonly tag: string; readonly cause: string }
+  HandlerFailed: {}
+  AtomCycle: { readonly path: readonly string[] }
+  Unknown: {}
+}
+
 /** Every `code` a {@link SleekStackError} can carry. */
-export type SleekStackErrorCode =
-  | 'MissingDependency'
-  | 'CleanupFailed'
-  | 'DependencyCycle'
-  | 'AmbiguousProvider'
-  | 'ModuleCycle'
-  | 'DuplicateModule'
-  | 'InvalidModule'
-  | 'CaptiveDependency'
-  | 'PrivateDependency'
-  | 'DuplicateTag'
-  | 'InvalidTag'
-  | 'LayerFailed'
-  | 'HandlerFailed'
-  | 'AtomCycle'
-  | 'Unknown'
+export type SleekStackErrorCode = keyof SleekStackErrorDetails
 
 /**
- * The one error type kit throws. `code` says what went wrong; `details` carries structured context
- * (for example the Tag key).
+ * The one error type kit throws, discriminated by `code`: checking `e.code` narrows `e.details`.
  *
  * @example
  * ```ts
@@ -36,19 +39,33 @@ export type SleekStackErrorCode =
  * try {
  *   snapshot(module({ name: 'app' }))
  * } catch (e) {
- *   if (e instanceof SleekStackError && e.code === 'MissingDependency') console.error(e.details)
+ *   if (e instanceof SleekStackError && e.code === 'MissingDependency') console.error(e.details.missing)
  * }
  * ```
  */
-export class SleekStackError extends Error {
-  readonly code: SleekStackErrorCode
-  readonly details: Readonly<Record<string, unknown>>
-  constructor(code: SleekStackErrorCode, message: string, details: Readonly<Record<string, unknown>> = {}, options?: { cause?: unknown }) {
+export type SleekStackError<C extends SleekStackErrorCode = SleekStackErrorCode> = C extends SleekStackErrorCode
+  ? Error & { readonly name: 'SleekStackError'; readonly code: C; readonly details: SleekStackErrorDetails[C] }
+  : never
+
+type Options = { cause?: unknown }
+/** Constructor arguments, correlated per code; codes without details accept only an empty object. */
+type SleekStackErrorArgs<C extends SleekStackErrorCode> = C extends SleekStackErrorCode
+  ? keyof SleekStackErrorDetails[C] extends never
+    ? [code: C, message: string, details?: Record<PropertyKey, never>, options?: Options]
+    : {} extends SleekStackErrorDetails[C]
+      ? [code: C, message: string, details?: SleekStackErrorDetails[C], options?: Options]
+      : [code: C, message: string, details: SleekStackErrorDetails[C], options?: Options]
+  : never
+
+/** Constructs a {@link SleekStackError}; also the `instanceof` check. */
+export const SleekStackError = class SleekStackError extends Error {
+  constructor(readonly code: SleekStackErrorCode, message: string, readonly details: object = {}, options?: Options) {
     super(message, options)
     this.name = 'SleekStackError'
-    this.code = code
-    this.details = details
   }
+} as unknown as {
+  new <C extends SleekStackErrorCode>(...args: SleekStackErrorArgs<C>): SleekStackError<C>
+  readonly prototype: SleekStackError
 }
 
 /** A finalizer (cleanup) failure, as handed to `onFinalizerError`. */
@@ -78,7 +95,7 @@ export class CleanupFailure extends Error {
 const messageOf = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
 /** @internal Converts anything thrown (or an Effect Cause) into a SleekStackError. */
-export function normalize(e: unknown, fallback: SleekStackErrorCode = 'Unknown'): SleekStackError {
+export function normalize(e: unknown, fallback: 'Unknown' | 'HandlerFailed' | 'InvalidModule' = 'Unknown'): SleekStackError {
   if (e instanceof SleekStackError) return e
   if (Cause.isCause(e)) return normalize(Cause.squash(e), fallback)
   if (Runtime.isFiberFailure(e)) return normalize(e[Runtime.FiberFailureCauseId], fallback)
@@ -91,7 +108,7 @@ export function normalize(e: unknown, fallback: SleekStackErrorCode = 'Unknown')
   const tag = (e as { _tag?: unknown } | null)?._tag
   if (e instanceof Error && typeof tag === 'string' && GRAPH_CODES.has(tag)) {
     const { _tag, message, ...details } = { ...e } as Record<string, unknown>
-    return new SleekStackError(tag as SleekStackErrorCode, e.message, details, { cause: e })
+    return new SleekStackError(tag as SleekStackErrorCode, e.message, details as never, { cause: e })
   }
   return new SleekStackError(fallback, messageOf(e), {}, { cause: e })
 }
@@ -99,6 +116,6 @@ export function normalize(e: unknown, fallback: SleekStackErrorCode = 'Unknown')
 /** @internal Anything a finalizer sink receives (a Cause or a thrown value) -> plain FinalizerError. */
 export const toFinalizerError = (e: unknown): FinalizerError => {
   const k = normalize(e)
-  const tag = k.details.tag
+  const tag = 'tag' in k.details ? k.details.tag : undefined
   return typeof tag === 'string' ? { message: k.message, tag } : { message: k.message }
 }

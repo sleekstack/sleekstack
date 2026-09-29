@@ -5,10 +5,10 @@
  * DuplicateTag check; `snapshot()` delegates to core `snapshot(buildGraph(...))`.
  */
 
-import { buildGraph, module as coreModule, snapshot as coreSnapshot, type Entry, type Module as CoreModule } from '@sleekstack/core'
+import { buildGraph, walkProvide, module as coreModule, snapshot as coreSnapshot, type Entry, type Module as CoreModule } from '@sleekstack/core'
 import { normalize, SleekStackError } from './errors'
 import { layerInfo, type Layer, type Lifetime } from './layer'
-import { coreTag, keyOf, type AnyTag } from './tag'
+import { coreTag, type AnyTag } from './tag'
 
 declare const ModuleBrand: unique symbol
 
@@ -61,7 +61,7 @@ const coreModuleOf = (m: unknown, owner: string): CoreModule => {
  * export const ClockModule = module({ name: 'clock', provide: [layer(Clock, { now: () => Date.now() })], exports: [Clock] })
  * ```
  */
-export function module(config: ModuleConfig): Module {
+function makeModule(config: ModuleConfig): Module {
   try {
     const name = config?.name
     const provide = config.provide ?? []
@@ -102,28 +102,14 @@ export function unwrap(items: readonly (Layer<any> | Module)[]): (Entry | CoreMo
  * Layer's deps) holds two distinct Tag objects with the same key. Never compares across sets.
  */
 export function validateProvide(items: readonly (Layer<any> | Module)[]): void {
-  const byKey = new Map<string, AnyTag>()
-  const see = (t: AnyTag) => {
-    const key = keyOf(t)
-    const prev = byKey.get(key)
-    if (prev === undefined) byKey.set(key, t)
+  const byKey = new Map<string, object>()
+  walkProvide(unwrap(items), (t) => {
+    const prev = byKey.get(t.key)
+    if (prev === undefined) byKey.set(t.key, t)
     else if (prev !== t) {
-      throw new SleekStackError('DuplicateTag', `Two distinct Tags share the key "${key}" in one provide set`, { tag: key })
+      throw new SleekStackError('DuplicateTag', `Two distinct Tags share the key "${t.key}" in one provide set`, { tag: t.key })
     }
-  }
-  const visited = new Set<object>()
-  const walk = (x: unknown) => {
-    const l = layerInfo(x)
-    if (l) return void [l.tag, ...l.deps].forEach(see)
-    const m = moduleInfo(x)
-    if (!m || visited.has(x as object)) return
-    visited.add(x as object)
-    ;(m.config.provide ?? []).forEach(walk)
-    ;(m.config.exports ?? []).forEach(see)
-    const imports = m.config.imports ?? []
-    ;(typeof imports === 'function' ? imports() : imports).forEach(walk)
-  }
-  items.forEach(walk)
+  })
 }
 
 /** The JSON-safe graph returned by {@link snapshot}: one node per provided Tag, plus edges and shadowing. */
@@ -167,3 +153,6 @@ export function snapshot(app: Module): GraphSnapshot {
     throw normalize(e)
   }
 }
+
+// Not declared as `function module`: that would shadow the CommonJS `module` that webpack Fast Refresh reads (`module.hot`).
+export { makeModule as module }
