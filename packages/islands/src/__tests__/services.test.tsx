@@ -3,7 +3,7 @@ import { act, useState } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { layer, tag, withCleanup } from '@sleekstack/kit'
-import { configureRuntime, effect } from '@sleekstack/kit/next'
+import { action, configureRuntime } from '@sleekstack/kit/next'
 import { useService } from '@sleekstack/kit/react'
 import { defineIslands } from '../index'
 
@@ -107,7 +107,7 @@ describe('Island Effect handoff', () => {
 
   it('a kit action() call from an Island works', async () => {
     configureRuntime({ provide: [layer(Greeting, 'hi')] })
-    const greet = async (who: string) => effect(function* () { return `${yield* Greeting} ${who}` }, [Greeting])
+    const greet = async (who: string) => action((hello) => (name: string) => `${hello} ${name}`, [Greeting])(who)
     const Btn = () => {
       const [text, setText] = useState('idle')
       return <button type="button" onClick={() => void greet('island').then((r) => setText(r.ok ? r.data : r.error))}>{text}</button>
