@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process'
 import * as path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { main } from '../check'
@@ -43,4 +44,14 @@ describe('sleekstack check', () => {
     expect(r.code).toBe(0)
     expect(JSON.parse(r.out).ok).toBe(true)
   }, 30_000)
+
+  it.each([
+    [['--version'], 0, /^0\.0\.1/],
+    [['help'], 0, /Usage: sleekstack <command>/],
+    [['bogus'], 2, /Usage: sleekstack <command>/],
+  ])('bin %j keeps the informational commands', (args, status, out) => {
+    const r = spawnSync(process.execPath, [path.join(__dirname, '../../bin/cli.js'), ...args], { encoding: 'utf8' })
+    expect(r.status).toBe(status)
+    expect(r.stdout).toMatch(out)
+  })
 })

@@ -210,6 +210,9 @@ importers:
       jsdom:
         specifier: ^29.1.1
         version: 29.1.1
+      sleekstack:
+        specifier: workspace:*
+        version: link:../../packages/cli
       typescript:
         specifier: ^5.8.0
         version: 5.9.3

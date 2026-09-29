@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "check": "node ../../packages/cli/bin/cli.js check",
+    "check": "sleekstack check",
     "prebuild": "pnpm check",
     "build": "next build",
     "start": "next start",
@@ -26,6 +26,7 @@
     "@types/node": "^22.20.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
+    "sleekstack": "workspace:*",
     "jsdom": "^29.1.1",
     "typescript": "^5.8.0",
     "vitest": "^4.1.9"
