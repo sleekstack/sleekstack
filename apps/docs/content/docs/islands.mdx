@@ -9,7 +9,11 @@ description: Server-rendered React components that download and hydrate only whe
 
 A `'use client'` module calls `defineIslands(map, { provide })`. Each entry is a `() => import(...)`, so each Island is its own chunk. `provide` holds the **app-scope** entries shared by every Island of that registry on the page (two registries get two app scopes).
 
-<include>../../snippets/islands.tsx</include>
+<include>../../snippets/islands/services.ts</include>
+
+<include>../../snippets/islands/Counter.tsx</include>
+
+<include>../../snippets/islands/islands.client.tsx</include>
 
 `<Island name props hydrate provide />` renders one Island. `name` is a key of the map (an unknown name is a type error, and `IslandNotFound` at runtime) and `props` is typed from the component. A Server Component can render it with `name`, `props` and `hydrate`. `provide` adds **component-scope** entries for that instance only; kit entries hold functions and cannot cross the RSC boundary, so pass `provide` from a client component. `apps/showcase-kit` has a full example page (`app/islands/page.tsx`).
 
