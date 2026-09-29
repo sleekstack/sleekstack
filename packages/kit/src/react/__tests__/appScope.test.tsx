@@ -7,6 +7,7 @@ import { tag } from '../../index'
 import { LayerProvider, createAppScope, useService } from '../index'
 
 const Id = tag<number>('KitExternalId')
+const Comp = tag<string>('KitExternalComp')
 
 describe('kit createAppScope + LayerProvider appScope', () => {
   it('roots share one instance; unmount never closes it; close() does', async () => {
@@ -22,5 +23,17 @@ describe('kit createAppScope + LayerProvider appScope', () => {
     expect(release).not.toHaveBeenCalled()
     await app.close()
     expect(release).toHaveBeenCalledTimes(1)
+  })
+
+  it('close() right after the last unmount closes component scopes before the app scope', async () => {
+    const order: string[] = []
+    const app = await createAppScope([layer(Id, () => withCleanup(1, () => void order.push('app')))])
+    const provide = [layer(Comp, () => withCleanup('c', () => void order.push('component')), [], { lifetime: 'component' })]
+    const Show = () => <i data-testid="c">{useService(Comp)}</i>
+    const r = render(<LayerProvider provide={provide} appScope={app}><Suspense fallback={null}><Show /></Suspense></LayerProvider>)
+    await screen.findByText('c')
+    r.unmount()
+    await app.close()
+    expect(order).toEqual(['component', 'app'])
   })
 })

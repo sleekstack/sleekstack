@@ -157,6 +157,18 @@ function create(provide: ReadonlyArray<Entry | Module>, parent: ProviderState | 
   return { state, provide, parent, appScope, close, committed: false }
 }
 
+/** Closers of committed providers opened on each external app scope. */
+const external = new WeakMap<ChildScope, Set<() => Promise<void>>>()
+
+/**
+ * Closes every provider opened on `appScope` (LIFO, including closes already scheduled by unmounts) so an external
+ * owner can close `appScope` after its component scopes.
+ */
+export const closeProvidersOn = async (appScope: ChildScope): Promise<void> => {
+  await Promise.resolve() // let unmount-scheduled closes (queued microtasks) start first
+  for (const close of [...(external.get(appScope) ?? [])].reverse()) await close()
+}
+
 /** Adopts a parked scope for this render or creates one, then parks it under this render's identity. */
 export const acquire = (props: ScopeProps, parent: ProviderState | null, sink: ProviderState['onFinalizerError'] | undefined): Owned => {
   const appScope = parent ? undefined : props.appScope // ignored when nested
@@ -179,12 +191,17 @@ export const mount = (owned: Owned, parent: ProviderState | null, onClosed: () =
     owned.pendingClose = undefined
   }
   parent?.children.add(owned.close)
+  const siblings = owned.appScope && (external.get(owned.appScope) ?? external.set(owned.appScope, new Set()).get(owned.appScope)!)
+  siblings?.add(owned.close)
   return () => {
     const token = (owned.pendingClose = { cancelled: false })
     queueMicrotask(() => {
       if (token.cancelled) return
       // Stay registered until closed, so a closing parent awaits this close first.
-      void owned.close().finally(() => parent?.children.delete(owned.close))
+      void owned.close().finally(() => {
+        parent?.children.delete(owned.close)
+        siblings?.delete(owned.close)
+      })
       onClosed()
     })
   }

@@ -8,7 +8,7 @@
 import { createElement, useMemo, useRef, type ReactNode } from 'react'
 import { Effect, Exit } from 'effect'
 import { buildGraph, makeAppScope, type ChildScope } from '@sleekstack/core'
-import { LayerProvider as CoreProvider, useService as coreUseService } from '@sleekstack/react'
+import { closeProvidersOn, LayerProvider as CoreProvider, useService as coreUseService } from '@sleekstack/react'
 import { normalize, toFinalizerError, type FinalizerError } from '../errors'
 import type { Layer, Services } from '../layer'
 import { unwrap, validateProvide, type Module } from '../module'
@@ -28,7 +28,7 @@ declare const appScopeBrand: unique symbol
 /** Opaque app scope from {@link createAppScope}. Close it when no provider uses it. */
 export interface AppScopeHandle {
   readonly [appScopeBrand]: true
-  /** Closes the scope; cleanup failures go to `onFinalizerError`. */
+  /** Closes every provider still using the scope, then the scope; cleanup failures go to `onFinalizerError`. */
   readonly close: () => Promise<void>
 }
 const scopes = new WeakMap<AppScopeHandle, ChildScope>()
@@ -52,7 +52,14 @@ export async function createAppScope(
   provide: ReadonlyArray<Layer<any> | Module>,
   options: { readonly onFinalizerError?: (error: FinalizerError) => void } = {},
 ): Promise<AppScopeHandle> {
-  const sink = options.onFinalizerError ?? ((e: FinalizerError) => console.error(e.message))
+  const onError = options.onFinalizerError ?? ((e: FinalizerError) => console.error(e.message))
+  const sink = (e: FinalizerError) => {
+    try {
+      onError(e)
+    } catch (err) {
+      console.error('[@sleekstack/kit] onFinalizerError threw:', err)
+    }
+  }
   try {
     validateProvide(provide)
     const scope = await Effect.runPromise(
@@ -60,6 +67,7 @@ export async function createAppScope(
     )
     const handle = {
       close: async () => {
+        await closeProvidersOn(scope)
         const exit = await Effect.runPromise(scope.close)
         if (Exit.isFailure(exit)) sink(toFinalizerError(exit.cause))
       },

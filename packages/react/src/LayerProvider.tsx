@@ -24,6 +24,8 @@ import type { ChildScope, Entry, Module } from '@sleekstack/core'
 import { ProviderContext } from './context'
 import { acquire, mount, sameEntries, type Owned } from './managedScope'
 
+export { closeProvidersOn } from './managedScope'
+
 /** Props for {@link LayerProvider}. */
 export interface LayerProviderProps {
   readonly provide: ReadonlyArray<Entry | Module>
