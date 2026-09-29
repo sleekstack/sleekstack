@@ -16,7 +16,8 @@
     "next": "^15.3.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
-    "server-only": "^0.0.1"
+    "server-only": "^0.0.1",
+    "@sleekstack/islands": "workspace:*"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",

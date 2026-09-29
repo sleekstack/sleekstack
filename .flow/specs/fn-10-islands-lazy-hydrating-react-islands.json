@@ -1,0 +1,811 @@
+{
+  "branch_name": "fn-10-islands-lazy-hydrating-react-islands",
+  "completion_review_status": "ship",
+  "completion_reviewed_at": "2026-09-29T12:41:05.098425Z",
+  "created_at": "2026-09-29T10:42:18.756772Z",
+  "default_impl": null,
+  "default_review": null,
+  "default_sync": null,
+  "depends_on_epics": [],
+  "id": "fn-10-islands-lazy-hydrating-react-islands",
+  "impl_review_rounds": {
+    "fn-10-islands-lazy-hydrating-react-islands.1": 0,
+    "fn-10-islands-lazy-hydrating-react-islands.2": 0,
+    "fn-10-islands-lazy-hydrating-react-islands.3": 0,
+    "fn-10-islands-lazy-hydrating-react-islands.4": 0,
+    "fn-10-islands-lazy-hydrating-react-islands.5": 0,
+    "fn-10-islands-lazy-hydrating-react-islands.6": 0
+  },
+  "next_task": 1,
+  "plan_review_rounds": 0,
+  "plan_review_status": "unknown",
+  "plan_reviewed_at": null,
+  "review_attempts": [
+    {
+      "artifact_sha256": "e07a6f7ffa8f420cdc03b80f7c257a4bb4f3daebf237a49d8724ea61fee0f8e7",
+      "backend": "codex",
+      "base_sha": "45b203b9e3e5a57e68333945ce86e3ae6da0fa96",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-05294b3373af11c700725a6e5915e09c",
+            "classification": "introduced",
+            "findingId": "finding-05294b3373af11c700725a6e5915e09c",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-dc03bcd2eacc192a8d695a7df9ac6f6c",
+            "classification": "introduced",
+            "findingId": "finding-dc03bcd2eacc192a8d695a7df9ac6f6c",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "0ed5d1966e5b91bf447fd010ba8654702049eda6",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1719,
+      "output_sha256": "b69216d4aa752536f0e7fd88c08846932099a68eff975f05981fc68838610083",
+      "reservation_id": "87e391c7839d4581a9e8be6371852a56",
+      "round_consumed": true,
+      "scope": "impl:fn-10-islands-lazy-hydrating-react-islands.1",
+      "superseded_by": null,
+      "task": "fn-10-islands-lazy-hydrating-react-islands.1",
+      "timestamp": "2026-09-29T11:26:33.597566Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "9a0e6f9d886abc979a02a47a69386eaf5640228eaaef1930ddf85883e4dfbaa5",
+      "backend": "codex",
+      "base_sha": "45b203b9e3e5a57e68333945ce86e3ae6da0fa96",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-05294b3373af11c700725a6e5915e09c",
+            "classification": "introduced",
+            "findingId": "finding-05294b3373af11c700725a6e5915e09c",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-dc03bcd2eacc192a8d695a7df9ac6f6c",
+            "classification": "introduced",
+            "findingId": "finding-dc03bcd2eacc192a8d695a7df9ac6f6c",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "42f4617d5d13c250efc1d56d009550a78157e72c",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 746,
+      "output_sha256": "f5380c9939fdc0bf47ff10d77f718d9c1e7885579642d54a95ac9863a6c9b115",
+      "reservation_id": "f1525262f5534f1a91d96a1a0a07d61f",
+      "round_consumed": true,
+      "scope": "impl:fn-10-islands-lazy-hydrating-react-islands.1",
+      "superseded_by": null,
+      "task": "fn-10-islands-lazy-hydrating-react-islands.1",
+      "timestamp": "2026-09-29T11:28:15.679090Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "a19a45bea077c0d12f52ecbdd714e7f903a0bb6d66a5255c0d0f32573b6290cd",
+      "backend": "codex",
+      "base_sha": "4b5caa6040126499661bc9b17868a795186ffd05",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-94775f89d84fb14aeb550525611f9203",
+            "classification": "introduced",
+            "findingId": "finding-94775f89d84fb14aeb550525611f9203",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "aae6ce832f2cbbebe4d1846a370fe76c99b35ea7",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 925,
+      "output_sha256": "b1f2a64c9c1c769d7eaf9af41d59add8d7f2d8b4ee4f41b3d4fe4efad5c4c82e",
+      "reservation_id": "42b8b3971bcd4f0694185a135a64e656",
+      "round_consumed": true,
+      "scope": "impl:fn-10-islands-lazy-hydrating-react-islands.2",
+      "superseded_by": null,
+      "task": "fn-10-islands-lazy-hydrating-react-islands.2",
+      "timestamp": "2026-09-29T11:35:36.721895Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "c53e92688d7ceedd35b22217d1890995213b8b6269e3bba5bdc04beb681474ef",
+      "backend": "codex",
+      "base_sha": "4b5caa6040126499661bc9b17868a795186ffd05",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-94775f89d84fb14aeb550525611f9203",
+            "classification": "introduced",
+            "findingId": "finding-94775f89d84fb14aeb550525611f9203",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "8e630c2f5ea38a4ab2e8c4e18c56b22344f1523a",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 782,
+      "output_sha256": "bbe686e1553e8a182c3860efa0abc47df38263648e210934312395a0889bdc69",
+      "reservation_id": "32d5aed9805f46988185bb90e12b28ee",
+      "round_consumed": true,
+      "scope": "impl:fn-10-islands-lazy-hydrating-react-islands.2",
+      "superseded_by": null,
+      "task": "fn-10-islands-lazy-hydrating-react-islands.2",
+      "timestamp": "2026-09-29T11:36:34.572434Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "33cee628efa553fa59c03d0904dd293303c65fe71e7d82e50680c7a62b52f5fd",
+      "backend": "codex",
+      "base_sha": "9bbf6c442cc2d1e1ed57b00673cfb9172362b74c",
+      "counter_kind": "impl",
+      "failure_class": "head_moved",
+      "finalized": {
+        "digest": "not_applicable",
+        "receipt": "not_applicable",
+        "status": "not_applicable"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "bf9e6974adb3e655fa364e408cc52dd077757c74",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "outcome": "transport_failure",
+      "output_bytes": 65,
+      "output_sha256": "15b7334d26c5520ea21cba99b46a49b8c97fcb21c508dd937d798621e29ea7a9",
+      "reservation_id": "ed375282d3a741198d321f05f17761d4",
+      "round_consumed": false,
+      "scope": "impl:fn-10-islands-lazy-hydrating-react-islands.3",
+      "superseded_by": null,
+      "task": "fn-10-islands-lazy-hydrating-react-islands.3",
+      "timestamp": "2026-09-29T11:43:51.738838Z",
+      "verdict": null
+    },
+    {
+      "artifact_sha256": "9bb9ebbca16511db4915dd1286f0c788acf9a23ed788974addb12e258421bc46",
+      "backend": "codex",
+      "base_sha": "9bbf6c442cc2d1e1ed57b00673cfb9172362b74c",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-8ac9065be14d02fa66085fd5044065b8",
+            "classification": "introduced",
+            "findingId": "finding-8ac9065be14d02fa66085fd5044065b8",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-2d5983342bfbd9f72a8aef518ff4ad2a",
+            "classification": "introduced",
+            "findingId": "finding-2d5983342bfbd9f72a8aef518ff4ad2a",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "efd42e1cca0d3c97f469b53a711d062ee55b74d5",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1943,
+      "output_sha256": "49e2b9c6a28c2f766d4d9876dda03146520854e21bfffd976a51f7f163d74c54",
+      "reservation_id": "91baf2c550664e6f9f3c4f83f69ac0c4",
+      "round_consumed": true,
+      "scope": "impl:fn-10-islands-lazy-hydrating-react-islands.3",
+      "superseded_by": null,
+      "task": "fn-10-islands-lazy-hydrating-react-islands.3",
+      "timestamp": "2026-09-29T11:49:20.513661Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "5ce383751d150076fec437ec41bc4e496ae419002c233c5de8f22236549e04ad",
+      "backend": "codex",
+      "base_sha": "9bbf6c442cc2d1e1ed57b00673cfb9172362b74c",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-8ac9065be14d02fa66085fd5044065b8",
+            "classification": "introduced",
+            "findingId": "finding-8ac9065be14d02fa66085fd5044065b8",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-2d5983342bfbd9f72a8aef518ff4ad2a",
+            "classification": "introduced",
+            "findingId": "finding-2d5983342bfbd9f72a8aef518ff4ad2a",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "778cdb778136bfe64b71036cc9a1eb9356396f63",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 636,
+      "output_sha256": "0161c5644582d728f15abef4cdd7e8975648dd2477700f58795ca2a7dba5391f",
+      "reservation_id": "5596b4f1161c4c88b4af2fc13eb8f2f6",
+      "round_consumed": true,
+      "scope": "impl:fn-10-islands-lazy-hydrating-react-islands.3",
+      "superseded_by": null,
+      "task": "fn-10-islands-lazy-hydrating-react-islands.3",
+      "timestamp": "2026-09-29T11:50:30.208022Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "b6be7c9c01a5e67412f3c5b3ac5d8990ec9e9974088a29694dd2b73f8f659fa9",
+      "backend": "codex",
+      "base_sha": "aaac80fe50982788a14b3e5d0526e2f67fdabb8c",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-efbba5337bf49b96bb3a3ebb0dcf51fd",
+            "classification": "introduced",
+            "findingId": "finding-efbba5337bf49b96bb3a3ebb0dcf51fd",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-61f5c8b0e3f900a810d22f90a26c7923",
+            "classification": "introduced",
+            "findingId": "finding-61f5c8b0e3f900a810d22f90a26c7923",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-b15efb797a169253a950c5bf4c7d1bc8",
+            "classification": "introduced",
+            "findingId": "finding-b15efb797a169253a950c5bf4c7d1bc8",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "98313b337dd70e54131b84f1ecb7addd9c4f318b",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 2589,
+      "output_sha256": "ef43fd950eca82390f809b10df574628f66baa977eb54c572da2bfacd96238d8",
+      "reservation_id": "266803dceec64cd79585b24381b30e5c",
+      "round_consumed": true,
+      "scope": "impl:fn-10-islands-lazy-hydrating-react-islands.4",
+      "superseded_by": null,
+      "task": "fn-10-islands-lazy-hydrating-react-islands.4",
+      "timestamp": "2026-09-29T11:58:45.217148Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "7f5635458828567de0c4c944fd3baa1c3c5ffa5ac0bdd414ad2d7776a0de277e",
+      "backend": "codex",
+      "base_sha": "aaac80fe50982788a14b3e5d0526e2f67fdabb8c",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-efbba5337bf49b96bb3a3ebb0dcf51fd",
+            "classification": "introduced",
+            "findingId": "finding-efbba5337bf49b96bb3a3ebb0dcf51fd",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-61f5c8b0e3f900a810d22f90a26c7923",
+            "classification": "introduced",
+            "findingId": "finding-61f5c8b0e3f900a810d22f90a26c7923",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-b15efb797a169253a950c5bf4c7d1bc8",
+            "classification": "introduced",
+            "findingId": "finding-b15efb797a169253a950c5bf4c7d1bc8",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "b07b967696ed64d34c4ccf650216247f1c8db2e6",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1013,
+      "output_sha256": "203ed0318d1b37375cd1659cdea9aff617c5967b58dce47f108786dca7e207f3",
+      "reservation_id": "e5dad297e9b54b45b4ce95078afa7de7",
+      "round_consumed": true,
+      "scope": "impl:fn-10-islands-lazy-hydrating-react-islands.4",
+      "superseded_by": null,
+      "task": "fn-10-islands-lazy-hydrating-react-islands.4",
+      "timestamp": "2026-09-29T12:02:57.777330Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "5e666887a8aa0d05205eb62df8893e3c81f5b00a38c458b0a16dd111e705aff6",
+      "backend": "codex",
+      "base_sha": "1ac3de5820446943f45ff6de05860b6348808d07",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-451c37328d9098f61d656899a3ba64b6",
+            "classification": "introduced",
+            "findingId": "finding-451c37328d9098f61d656899a3ba64b6",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-41016438686a1665cb2c92347b48fb22",
+            "classification": "introduced",
+            "findingId": "finding-41016438686a1665cb2c92347b48fb22",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "6e8826b71a38e50889d5f4b1363c4a4c042a3c2c",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1803,
+      "output_sha256": "26aac1f8a32f66590081f5236a78f36d5229d5c46bfaae85dbccd36d25a6ea23",
+      "reservation_id": "346ebcf11477483193941bb3872e66e6",
+      "round_consumed": true,
+      "scope": "impl:fn-10-islands-lazy-hydrating-react-islands.5",
+      "superseded_by": null,
+      "task": "fn-10-islands-lazy-hydrating-react-islands.5",
+      "timestamp": "2026-09-29T12:13:20.153055Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "f4cfb95da3ff71adca77447b6f975d44102bd32ea27a3c0e7d697f6241009178",
+      "backend": "codex",
+      "base_sha": "1ac3de5820446943f45ff6de05860b6348808d07",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-451c37328d9098f61d656899a3ba64b6",
+            "classification": "introduced",
+            "findingId": "finding-451c37328d9098f61d656899a3ba64b6",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "withdrawn"
+          },
+          {
+            "chainRoot": "finding-41016438686a1665cb2c92347b48fb22",
+            "classification": "introduced",
+            "findingId": "finding-41016438686a1665cb2c92347b48fb22",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "0703853a66efeefc400eed4da9a2a2656124cfe5",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1276,
+      "output_sha256": "46f603e9387ae53f720985e78ed4b0068fd4b0b61c268d9b8c8621951fec5631",
+      "reservation_id": "b7b3572b80fd477faefb34b1802de99f",
+      "round_consumed": true,
+      "scope": "impl:fn-10-islands-lazy-hydrating-react-islands.5",
+      "superseded_by": null,
+      "task": "fn-10-islands-lazy-hydrating-react-islands.5",
+      "timestamp": "2026-09-29T12:17:01.643405Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "a991b82bd821428a81783275165e0496f556197057fa2b77c781d779551ddf54",
+      "backend": "codex",
+      "base_sha": "fdd1f1624aa2bfb388f46aeea6021bda2ba4b81c",
+      "counter_kind": "impl",
+      "failure_class": "head_moved",
+      "finalized": {
+        "digest": "not_applicable",
+        "receipt": "not_applicable",
+        "status": "not_applicable"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "871752ee4941b7aead5edfd73d566a4097345afb",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "outcome": "transport_failure",
+      "output_bytes": 65,
+      "output_sha256": "dca5ada6b5d0a7df6b307bd6aefb8a6e116788514d91c7f1bbd87c324f8f63f0",
+      "reservation_id": "ece05eea512d4db48389d1116ef517de",
+      "round_consumed": false,
+      "scope": "impl:fn-10-islands-lazy-hydrating-react-islands.6",
+      "superseded_by": null,
+      "task": "fn-10-islands-lazy-hydrating-react-islands.6",
+      "timestamp": "2026-09-29T12:24:41.969083Z",
+      "verdict": null
+    },
+    {
+      "artifact_sha256": "d4d64d4dea479645ad974d45b2659006048e77059f19b09aa4941c40bdaf47cd",
+      "backend": "codex",
+      "base_sha": "fdd1f1624aa2bfb388f46aeea6021bda2ba4b81c",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-6d5a11e9f821ab041a8d5880e83ab6ed",
+            "classification": "introduced",
+            "findingId": "finding-6d5a11e9f821ab041a8d5880e83ab6ed",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "8a5ab8539b18cce2ee6106607c02930facee83ab",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 992,
+      "output_sha256": "3b5e2497d6d3c630f03bc75f5df77243a43eaf5d6519cfb675f936e25b9bf436",
+      "reservation_id": "b7a02b83a60641bda6c6228534390770",
+      "round_consumed": true,
+      "scope": "impl:fn-10-islands-lazy-hydrating-react-islands.6",
+      "superseded_by": null,
+      "task": "fn-10-islands-lazy-hydrating-react-islands.6",
+      "timestamp": "2026-09-29T12:30:13.684147Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "fa36a289f9abfcdcba84559df4e1429bd14b5d2facac187f853472faa1afa639",
+      "backend": "codex",
+      "base_sha": "fdd1f1624aa2bfb388f46aeea6021bda2ba4b81c",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-6d5a11e9f821ab041a8d5880e83ab6ed",
+            "classification": "introduced",
+            "findingId": "finding-6d5a11e9f821ab041a8d5880e83ab6ed",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "d72ba7ab27416fb39d332b2842522bada763c462",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 730,
+      "output_sha256": "7ccf98e9a8b5cbbaf233ad7129987cc80a4ff2af579c6ed1787ed03e58b2b35f",
+      "reservation_id": "478d956085bc478e988dea5fed3e3b97",
+      "round_consumed": true,
+      "scope": "impl:fn-10-islands-lazy-hydrating-react-islands.6",
+      "superseded_by": null,
+      "task": "fn-10-islands-lazy-hydrating-react-islands.6",
+      "timestamp": "2026-09-29T12:31:39.417542Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "75fa9f5adce28a126a7ab1ac533d787e1304e18992f0cdd53711f1675039de83",
+      "backend": "codex",
+      "base_sha": "2e40bb8e43e3ae5860fa2ea1c6ea0a9f9f3cdd6d",
+      "counter_kind": "plan",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-43ba887357162c228b71aed1c01b2fd8",
+            "classification": "introduced",
+            "findingId": "finding-43ba887357162c228b71aed1c01b2fd8",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "213d7b4b2e0db8fc5bf87033d960e16fd96eead2",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 302719,
+      "output_sha256": "f5a219133a58c6013104e7aa02b4e73d771cb70022c2a4d2c443ec380610c913",
+      "reservation_id": "a6a8c98b7c824408bdd760a01a75ef23",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-09-29T12:37:09.242759Z",
+      "tool_calls": 18,
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "189788de476bb9f2af565142e358638f186d0b9ac24057234c51d529c3fd2549",
+      "backend": "codex",
+      "base_sha": "2e40bb8e43e3ae5860fa2ea1c6ea0a9f9f3cdd6d",
+      "counter_kind": "plan",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-43ba887357162c228b71aed1c01b2fd8",
+            "classification": "introduced",
+            "findingId": "finding-43ba887357162c228b71aed1c01b2fd8",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "c8fa8547ff138a195e413c7d3555b7d7e19e1d6b",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 7998,
+      "output_sha256": "08440f892a19ea33c718c332d93c09eb98fb6ade50bc10fb75336835c94002f9",
+      "reservation_id": "422f5c0404114a1c8482c2ee0418aea7",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-09-29T12:41:05.094186Z",
+      "verdict": "SHIP"
+    }
+  ],
+  "review_hash_epoch": {
+    "impl:fn-10-islands-lazy-hydrating-react-islands.1": 1,
+    "impl:fn-10-islands-lazy-hydrating-react-islands.2": 1,
+    "impl:fn-10-islands-lazy-hydrating-react-islands.3": 1,
+    "impl:fn-10-islands-lazy-hydrating-react-islands.4": 1,
+    "impl:fn-10-islands-lazy-hydrating-react-islands.5": 1,
+    "impl:fn-10-islands-lazy-hydrating-react-islands.6": 1,
+    "plan#completion": 1
+  },
+  "review_pending_rounds": {},
+  "review_reservations": {},
+  "review_transport_failures": {
+    "completion": 0,
+    "impl:fn-10-islands-lazy-hydrating-react-islands.1": 0,
+    "impl:fn-10-islands-lazy-hydrating-react-islands.2": 0,
+    "impl:fn-10-islands-lazy-hydrating-react-islands.3": 0,
+    "impl:fn-10-islands-lazy-hydrating-react-islands.4": 0,
+    "impl:fn-10-islands-lazy-hydrating-react-islands.5": 0,
+    "impl:fn-10-islands-lazy-hydrating-react-islands.6": 0
+  },
+  "spec_path": ".flow/specs/fn-10-islands-lazy-hydrating-react-islands.md",
+  "status": "open",
+  "title": "Islands: lazy-hydrating React islands with Effect state handoff",
+  "tracker": {
+    "baseHashFlow": null,
+    "baseHashTracker": null,
+    "depRelations": [],
+    "id": null,
+    "identifier": null,
+    "lastSyncedAt": null,
+    "mergeBaseFlow": null,
+    "mergeBaseTracker": null,
+    "url": null
+  },
+  "updated_at": "2026-09-29T12:41:05.098960Z"
+}

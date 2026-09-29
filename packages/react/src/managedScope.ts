@@ -17,6 +17,8 @@ export interface ScopeProps {
   readonly provide: ReadonlyArray<Entry | Module>
   readonly children?: React.ReactNode
   readonly owner?: { readonly children?: React.ReactNode }
+  /** Externally owned app scope a top-level provider opens its component scope on; never closed by the provider. */
+  readonly appScope?: ChildScope
 }
 
 const defaultSink = (cause: Cause.Cause<unknown>) => console.error(Cause.pretty(cause))
@@ -48,6 +50,7 @@ export interface Owned {
   readonly state: ProviderState
   readonly provide: ReadonlyArray<Entry | Module>
   readonly parent: ProviderState | null
+  readonly appScope?: ChildScope
   readonly close: () => Promise<void>
   committed: boolean
   /** Deferred close scheduled by the last unmount; a StrictMode remount cancels it. */
@@ -87,10 +90,10 @@ const park = (owned: Owned, props: object) => {
   gc()
 }
 
-const adopt = (props: ScopeProps, parent: ProviderState | null): Owned | undefined => {
+const adopt = (props: ScopeProps, parent: ProviderState | null, appScope: ChildScope | undefined): Owned | undefined => {
   let found: Owned | undefined
   for (const o of parked) {
-    if (o.parent !== parent) continue
+    if (o.parent !== parent || o.appScope !== appScope) continue
     if (o.parkedBy === (props.owner ?? props)) { found = o; break }
     if (!found && o.stale && sameEntries(o.provide, props.provide) && sameShape((o.parkedBy as ScopeProps).children, props.children)) found = o
   }
@@ -98,7 +101,7 @@ const adopt = (props: ScopeProps, parent: ProviderState | null): Owned | undefin
   return found
 }
 
-function create(provide: ReadonlyArray<Entry | Module>, parent: ProviderState | null, sink: ProviderState['onFinalizerError']): Owned {
+function create(provide: ReadonlyArray<Entry | Module>, parent: ProviderState | null, sink: ProviderState['onFinalizerError'], appScope?: ChildScope): Owned {
   const report = (exit: Exit.Exit<void, unknown>) => {
     if (Exit.isSuccess(exit)) return
     try {
@@ -113,6 +116,8 @@ function create(provide: ReadonlyArray<Entry | Module>, parent: ProviderState | 
   const started = new Promise<void>((r) => (resolveStart = r))
   const opened: Promise<ChildScope> = parent
     ? started.then(() => parent.scope).then((p) => Effect.runPromise(p.child('component', [...provide])))
+    : appScope
+    ? started.then(() => Effect.runPromise(appScope.child('component', [...provide])))
     : started.then(() => Effect.runPromise(Effect.suspend(() => makeAppScope(buildGraph([...provide]), { onFinalizerError: sink })))).then((app) => {
         owned.push(app)
         return Effect.runPromise(app.child('component'))
@@ -149,12 +154,25 @@ function create(provide: ReadonlyArray<Entry | Module>, parent: ProviderState | 
       for (const s of owned.reverse()) report(await Effect.runPromise(s.close))
       if (state.atoms) settleSuspensions(state.atoms)
     })())
-  return { state, provide, parent, close, committed: false }
+  return { state, provide, parent, appScope, close, committed: false }
+}
+
+/** Closers of committed providers opened on each external app scope. */
+const external = new WeakMap<ChildScope, Set<() => Promise<void>>>()
+
+/**
+ * Closes every provider opened on `appScope` (LIFO, including closes already scheduled by unmounts) so an external
+ * owner can close `appScope` after its component scopes.
+ */
+export const closeProvidersOn = async (appScope: ChildScope): Promise<void> => {
+  await Promise.resolve() // let unmount-scheduled closes (queued microtasks) start first
+  for (const close of [...(external.get(appScope) ?? [])].reverse()) await close()
 }
 
 /** Adopts a parked scope for this render or creates one, then parks it under this render's identity. */
 export const acquire = (props: ScopeProps, parent: ProviderState | null, sink: ProviderState['onFinalizerError'] | undefined): Owned => {
-  const owned = adopt(props, parent) ?? create(props.provide, parent, sink ?? parent?.onFinalizerError ?? defaultSink)
+  const appScope = parent ? undefined : props.appScope // ignored when nested
+  const owned = adopt(props, parent, appScope) ?? create(props.provide, parent, sink ?? parent?.onFinalizerError ?? defaultSink, appScope)
   park(owned, props.owner ?? props)
   return owned
 }
@@ -173,12 +191,17 @@ export const mount = (owned: Owned, parent: ProviderState | null, onClosed: () =
     owned.pendingClose = undefined
   }
   parent?.children.add(owned.close)
+  const siblings = owned.appScope && (external.get(owned.appScope) ?? external.set(owned.appScope, new Set()).get(owned.appScope)!)
+  siblings?.add(owned.close)
   return () => {
     const token = (owned.pendingClose = { cancelled: false })
     queueMicrotask(() => {
       if (token.cancelled) return
       // Stay registered until closed, so a closing parent awaits this close first.
-      void owned.close().finally(() => parent?.children.delete(owned.close))
+      void owned.close().finally(() => {
+        parent?.children.delete(owned.close)
+        siblings?.delete(owned.close)
+      })
       onClosed()
     })
   }
