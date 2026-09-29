@@ -6,9 +6,7 @@
   "default_impl": null,
   "default_review": null,
   "default_sync": null,
-  "depends_on_epics": [
-    "fn-8-deepen-kit-and-core-seams"
-  ],
+  "depends_on_epics": [],
   "id": "fn-9-static-build-time-dependency-graph",
   "impl_review_rounds": {},
   "next_task": 1,
