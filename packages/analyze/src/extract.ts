@@ -20,7 +20,7 @@ function libId(sym: ts.Symbol | undefined, checker: ts.TypeChecker): string | un
   if (sym.flags & ts.SymbolFlags.Alias) sym = checker.getAliasedSymbol(sym)
   const file = sym.declarations?.[0]?.getSourceFile().fileName.replace(/\\/g, '/')
   if (!file) return undefined
-  const own = /\/(?:packages|@sleekstack)\/(kit|core)\/src\/(.+)\.ts$/.exec(file)
+  const own = /\/(?:packages|@sleekstack)\/(kit|core|next)\/src\/(.+)\.ts$/.exec(file)
   if (own) return `${own[1]}/${own[2]}#${sym.name}`
   if (/\/effect\/dist\/dts\/Context\.d\.ts$/.test(file)) return `effect/Context#${sym.name}`
   return undefined
@@ -29,6 +29,8 @@ function libId(sym: ts.Symbol | undefined, checker: ts.TypeChecker): string | un
 const TAG_CALLS = new Set(['kit/tag#tag', 'effect/Context#GenericTag'])
 const MODULE_CALLS = new Set(['kit/module#makeModule', 'core/module#makeModule'])
 const ATOM_CALLS = new Set(['kit/atom#atom', 'kit/atom#family'])
+const RUNTIME_CALLS = new Set(['kit/next/runtime#configureRuntime', 'next/runtime#configureRuntime'])
+const TEST_FILE = /(^|[\\/])__tests__[\\/]|\.(test|spec)\.[cm]?[jt]sx?$/
 
 const unwrap = (e: ts.Expression): ts.Expression => {
   while (ts.isParenthesizedExpression(e) || ts.isAsExpression(e) || ts.isSatisfiesExpression(e) || ts.isNonNullExpression(e) || ts.isTypeAssertionExpression(e)) e = e.expression
@@ -72,7 +74,7 @@ const bodyReturns = (fn: ts.FunctionLikeDeclaration): ts.Expression[] => {
   return out
 }
 
-export function extract(project: string): Report {
+export function extract(project: string, entries?: readonly string[]): Report {
   const configPath = path.resolve(project)
   const root = path.dirname(configPath)
   const read = ts.readConfigFile(configPath, ts.sys.readFile)
@@ -132,10 +134,14 @@ export function extract(project: string): Report {
   const fail = (n: ts.Node, message: string, code?: string): never => {
     throw new Unreadable(n, message, code)
   }
-  const report = (e: unknown) => {
+  /** Unreadable-declaration errors by the module (or runtime root) whose declaration holds them. */
+  const owned = new Map<ModuleDecl, AnalyzeError[]>()
+  const report = (e: unknown, owner?: ModuleDecl) => {
     if (e instanceof Unbound) e = new Unreadable(e.source, `A loop variable over "${text(e.source)}" is used outside a list`, 'Computed')
     if (!(e instanceof Unreadable)) throw e
-    errors.push({ code: e.code, message: e.message, ...loc(e.node) })
+    const err = { code: e.code, message: e.message, ...loc(e.node) }
+    errors.push(err)
+    if (owner) owned.set(owner, [...(owned.get(owner) ?? []), err])
   }
   const text = (n: ts.Node) => n.getText().replace(/\s+/g, ' ').slice(0, 80)
   const calleeOf = (c: ts.CallExpression) => libId(checker.getSymbolAtLocation(c.expression), checker)
@@ -437,8 +443,8 @@ export function extract(project: string): Report {
     const m: ModuleDecl = { name: nameExpr ? literal(nameExpr, 'module name') : fail(e, 'module() needs a name'), entries: [], imports: [], exports: undefined, lifetime: undefined, loc: loc(e) }
     modules.set(key, m) // before imports: thunk cycles terminate
     // Each field reports independently, so one unreadable list does not hide the others.
-    const field = (f: () => void) => { try { f() } catch (err) { report(err) } }
-    field(() => listOf(prop(cfg, core ? 'entries' : 'provide'), (x) => { try { m.entries.push(provider(x, core)) } catch (err) { if (err instanceof Unbound) throw err; report(err) } }))
+    const field = (f: () => void) => { try { f() } catch (err) { report(err, m) } }
+    field(() => listOf(prop(cfg, core ? 'entries' : 'provide'), (x) => { try { m.entries.push(provider(x, core)) } catch (err) { if (err instanceof Unbound) throw err; report(err, m) } }))
     field(() => {
       let imp = prop(cfg, 'imports')
       const th = imp && unwrap(imp)
@@ -446,7 +452,7 @@ export function extract(project: string): Report {
         const ret = ts.isBlock(th.body) ? th.body.statements.find(ts.isReturnStatement)?.expression : th.body
         imp = ret ?? fail(th, 'imports thunk must return an array')
       }
-      listOf(imp, (x) => { try { m.imports.push(moduleOf(x)) } catch (err) { if (err instanceof Unbound) throw err; report(err) } })
+      listOf(imp, (x) => { try { m.imports.push(moduleOf(x)) } catch (err) { if (err instanceof Unbound) throw err; report(err, m) } })
     })
     field(() => { const x = prop(cfg, 'exports'); if (x) m.exports = tagList(x) })
     if (core) field(() => { m.lifetime = lifetimeOf(prop(cfg, 'lifetime')) })
@@ -468,12 +474,31 @@ export function extract(project: string): Report {
   const found: ModuleDecl[] = []
   const atomNodes: Atoms['nodes'][number][] = []
   const atomEdges: Edge[] = []
+  const runtimes: ModuleDecl[] = []
+  const entryFiles = entries && new Set(entries.map((f) => path.resolve(f)))
+  /** A `configureRuntime({ provide })` call as a root: a synthetic module importing its modules and holding its layers. */
+  const runtimeOf = (n: ts.CallExpression, core: boolean) => {
+    const l = loc(n)
+    const m: ModuleDecl = { name: `${l.file}:${l.line}`, entries: [], imports: [], exports: undefined, lifetime: undefined, loc: l }
+    runtimes.push(m)
+    try {
+      listOf(prop(objectOf(n.arguments[0]), 'provide'), (x) => {
+        try {
+          const f = follow(x)
+          if (ts.isCallExpression(f) && MODULE_CALLS.has(calleeOf(f)!)) m.imports.push(moduleOf(x))
+          else m.entries.push(provider(x, core))
+        } catch (err) { if (err instanceof Unbound) throw err; report(err, m) }
+      })
+    } catch (err) { report(err, m) }
+  }
   const visit = (n: ts.Node): void => {
     if (ts.isCallExpression(n)) {
       const id = calleeOf(n)
       // A module() inside a function is evaluated where it is called (with its bindings), never bare.
       if (id && MODULE_CALLS.has(id) && !ts.findAncestor(n, ts.isFunctionLike)) {
         try { found.push(moduleOf(n)) } catch (err) { report(err) }
+      } else if (id && RUNTIME_CALLS.has(id) && (entryFiles ? entryFiles.has(path.resolve(n.getSourceFile().fileName)) : !TEST_FILE.test(path.relative(root, n.getSourceFile().fileName)))) {
+        try { runtimeOf(n, id === 'next/runtime#configureRuntime') } catch (err) { report(err) }
       } else if (id && ATOM_CALLS.has(id) && n.arguments[0] && (id === 'kit/atom#family' || n.arguments.length > 1 || checker.getTypeAtLocation(n.arguments[0]).getCallSignatures().length > 0)) {
         try {
           const requires = tagList(n.arguments[1])
@@ -494,8 +519,16 @@ export function extract(project: string): Report {
   // A cycle through the top module leaves no unimported root: each unreached component still gets one.
   const reached = new Set(roots.flatMap((r) => [...resolve(r).visits.keys()]))
   for (const m of new Set(found)) if (!reached.has(m)) { roots.push(m); resolve(m).visits.forEach((_, k) => reached.add(k)) }
+  const inModules = new Set([...owned.values()].flat())
+  const extraction = errors.filter((e) => !inModules.has(e))
   for (const r of roots) errors.push(...validate(r))
-  return { graphs: roots.map(graphOf), atoms: { nodes: atomNodes, edges: atomEdges }, errors }
+  return {
+    graphs: roots.map(graphOf),
+    atoms: { nodes: atomNodes, edges: atomEdges },
+    errors,
+    extraction,
+    runtimes: runtimes.map((m) => ({ ...m.loc, graph: graphOf(m), errors: [...[...resolve(m).visits.keys()].flatMap((v) => owned.get(v) ?? []), ...validate(m)] })),
+  }
 }
 
 export type Seen = { p: ProviderDecl; module: ModuleDecl; depth: number; paths: string[][] }

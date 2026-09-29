@@ -36,6 +36,9 @@ jobs:
             node -e "const s=require('./$pkg/package.json').scripts||{};for(const k of ['test','typecheck'])if(!s[k]){console.error('$pkg missing script: '+k);process.exit(1)}"
           done
 
+      - name: Dependency graph check
+        run: pnpm --filter showcase-kit check
+
       - name: Test
         run: pnpm test
 

@@ -11,5 +11,8 @@ import type { Report } from './model'
 
 export type * from './model'
 
-/** Extracts the static graph of the tsconfig project at `project` (a tsconfig.json path). */
-export const analyze = (opts: { readonly project: string }): Report => extract(opts.project)
+/**
+ * Extracts the static graph of the tsconfig project at `project` (a tsconfig.json path). `entries` limits
+ * `runtimes` to the `configureRuntime` calls in those files (test files are then not skipped).
+ */
+export const analyze = (opts: { readonly project: string; readonly entries?: readonly string[] }): Report => extract(opts.project, opts.entries)

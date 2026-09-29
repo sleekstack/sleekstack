@@ -263,7 +263,27 @@ importers:
         specifier: ^4.1.9
         version: 4.1.9(@types/node@22.20.1)(jsdom@29.1.1)(vite@8.0.16(@types/node@22.20.1)(jiti@2.7.0)(yaml@2.9.1))
 
-  packages/cli: {}
+  packages/cli:
+    dependencies:
+      '@sleekstack/analyze':
+        specifier: workspace:*
+        version: link:../analyze
+      jiti:
+        specifier: ^2.7.0
+        version: 2.7.0
+      typescript:
+        specifier: ^5.8.0
+        version: 5.9.3
+    devDependencies:
+      '@sleekstack/kit':
+        specifier: workspace:*
+        version: link:../kit
+      '@types/node':
+        specifier: ^22.20.1
+        version: 22.20.1
+      vitest:
+        specifier: ^4.1.9
+        version: 4.1.9(@types/node@22.20.1)(jsdom@29.1.1)(vite@8.0.16(@types/node@22.20.1)(jiti@2.7.0)(yaml@2.9.1))
 
   packages/core:
     dependencies:

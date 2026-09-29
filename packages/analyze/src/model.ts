@@ -86,4 +86,8 @@ export interface Report {
   readonly graphs: readonly Graph[]
   readonly atoms: Atoms
   readonly errors: readonly AnalyzeError[]
+  /** Unreadable-declaration errors outside every module (emitted siblings, atoms, a bare module() call). */
+  readonly extraction: readonly AnalyzeError[]
+  /** One root per `configureRuntime` call (outside test files, or only in `entries` when given), validated independently: its errors are the unreadable declarations in the modules it reaches plus graph validation. */
+  readonly runtimes: readonly (Location & { readonly graph: Graph; readonly errors: readonly AnalyzeError[] })[]
 }
