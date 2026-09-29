@@ -64,9 +64,8 @@ export interface Shadowing {
   readonly shadowed: readonly string[]
 }
 
-/** A kit `defineEffect` / `defineQuery` / `effect` / `query` call: its declared deps and the Tags its body `yield*`s. */
+/** A kit `defineEffect` / `defineQuery` / `effect` / `query` call: the Tags its body `yield*`s, plus `opts.scope`. */
 export interface ActionDecl {
-  readonly deps: string[]
   readonly yields: { readonly tag: string; readonly loc: Location }[]
   /** `opts.provide` as a synthetic module (its layers as entries, its modules as imports). */
   readonly provide: ModuleDecl

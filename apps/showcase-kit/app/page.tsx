@@ -21,7 +21,7 @@ export default async function HomePage() {
         project,
         tasks: tasks.listByProject(project.id).map((task) => ({ task, comments: comments.listByTask(task.id) })),
       }))
-    }, [ProjectRepo, TaskRepo, CommentRepo], { provide: demoLayers }),
+    }, { provide: demoLayers }),
     isDemoMode(),
   ])
   return (

@@ -12,8 +12,8 @@ const body = <const D extends readonly AnyTag[], R>(f: (...deps: Services<D>) =>
     for (const t of deps) resolved.push(yield* (t as unknown as { [Symbol.iterator](): Generator<never, unknown, unknown> }))
     return yield* Effect.promise(async () => f(...(resolved as never)))
   }
-const action = <const D extends readonly AnyTag[], R>(f: (...deps: Services<D>) => R, deps: D, opts?: OperationOptions) => effect(body(f, deps), deps, opts)
-const query = <const D extends readonly AnyTag[], R>(f: (...deps: Services<D>) => R, deps: D, opts?: OperationOptions) => runQuery(body(f, deps), deps, opts)
+const action = <const D extends readonly AnyTag[], R>(f: (...deps: Services<D>) => R, deps: D, opts?: OperationOptions) => effect(body(f, deps), opts)
+const query = <const D extends readonly AnyTag[], R>(f: (...deps: Services<D>) => R, deps: D, opts?: OperationOptions) => runQuery(body(f, deps), opts)
 
 // One process-global runtime slot (next, by design): the unconfigured case must run first.
 
@@ -140,15 +140,23 @@ describe('@sleekstack/kit/next', () => {
   })
 
   describe('effect', () => {
-    it('yield*-ing a Tag NOT in deps fails, even though the app graph provides it', async () => {
-      configureRuntime({ provide: [layer(Rq, () => ({ id: 1 })), layer(Label, () => ({ label: 'x' }))] })
+    it('yield*-ing an unprovided Tag rejects MissingDependency', async () => {
+      configureRuntime({ provide: [layer(Rq, () => ({ id: 1 }))] })
       const reaches = defineEffect(function* () {
         const rq = yield* Rq
         const label = yield* Label
         return `${rq.id}:${label.label}`
-      }, [Rq])
+      })
       const e = await reaches().catch((err: unknown) => err)
-      expect(e).toMatchObject({ name: 'SleekStackError', code: 'HandlerFailed', message: expect.stringMatching(/Service not found: Label/) })
+      expect(e).toMatchObject({ name: 'SleekStackError', code: 'MissingDependency', details: { tag: 'Label' } })
+    })
+
+    it('opts.scope builds a never-yielded request Tag, so its open / close still run', async () => {
+      const log: string[] = []
+      configureRuntime({ provide: [layer(Rq, () => { log.push('open'); return withCleanup({ id: 1 }, () => void log.push('close')) }, [], { lifetime: 'request' })] })
+      const run = defineEffect(function* () { log.push('body'); return 1 }, { scope: [Rq] })
+      await expect(run()).resolves.toEqual({ ok: true, data: 1 })
+      expect(log).toEqual(['open', 'body', 'close'])
     })
 
     it('composes with ordinary Effect operations inside the generator', async () => {
@@ -156,18 +164,17 @@ describe('@sleekstack/kit/next', () => {
       const doubled = defineEffect(function* () {
         const rq = yield* Rq
         return yield* Effect.succeed(rq.id * 2)
-      }, [Rq])
+      })
       await expect(doubled()).resolves.toEqual({ ok: true, data: 10 })
     })
 
-    it('defineEffect + effect: input flows in, deps are exposed, fail() settles {ok:false}', async () => {
+    it('defineEffect + effect: input flows in, fail() settles {ok:false}', async () => {
       configureRuntime({ provide: [layer(Rq, () => ({ id: 3 }))] })
       const readPlus = defineEffect(function* (n: number) {
         const rq = yield* Rq
         if (n < 0) fail('neg')
         return rq.id + n
-      }, [Rq])
-      expect(readPlus.deps).toEqual([Rq])
+      })
       await expect(readPlus(4)).resolves.toEqual({ ok: true, data: 7 })
       await expect(readPlus(-1)).resolves.toEqual({ ok: false, error: 'neg' })
     })

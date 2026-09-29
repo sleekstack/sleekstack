@@ -10,7 +10,7 @@ import { demoLayers } from '../../src/server/demo.server'
 import { ScopeLog } from '../../src/client/ScopeLog'
 
 export default async function LogPage() {
-  const events = await query(function* () { return (yield* ActivityLog).list() }, [ActivityLog], { provide: demoLayers })
+  const events = await query(function* () { return (yield* ActivityLog).list() }, { provide: demoLayers })
   return (
     <main>
       <h1>Activity log</h1>

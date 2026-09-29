@@ -15,13 +15,13 @@ const getUserEffect = defineEffect(function* (id: string) {
   const clock = yield* Clock
   clock.now()
   return yield* Effect.promise(() => users.find(id))
-}, [Users, Clock])
+})
 const getUser = getUserEffect(id)
 expectTypeOf(getUser).toEqualTypeOf<Promise<ActionResult<User | undefined>>>()
 
-const nowQuery = defineQuery(function* () { return (yield* Clock).now() }, [Clock])
+const nowQuery = defineQuery(function* () { return (yield* Clock).now() })
 const now = nowQuery()
 expectTypeOf(now).toEqualTypeOf<Promise<number>>()
 
 // @ts-expect-error yield* of a Tag returns its typed service: Clock has no `find`
-defineEffect(function* () { return (yield* Clock).find() }, [Clock])
+defineEffect(function* () { return (yield* Clock).find() })

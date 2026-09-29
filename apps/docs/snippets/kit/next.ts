@@ -26,12 +26,12 @@ configureRuntime({
 const addTodoEffect = defineEffect(function* (title: string) {
   const todos = yield* Todos
   return title.trim() ? yield* Effect.promise(() => todos.add(title)) : fail('Title is required')
-}, [Todos])
+})
 
 const listTodosQuery = defineQuery(function* () {
   const todos = yield* Todos
   return yield* Effect.promise(() => todos.list())
-}, [Todos])
+})
 
 // Resolves { ok: true, data } or, after fail(), { ok: false, error }.
 export async function addTodo(title: string) {

@@ -21,7 +21,7 @@ The [showcase](../showcase/README.md) team task board, ported to `@sleekstack/ki
 | `Context.Tag` classes | `tag<T>(name)` |
 | `service(Tag, { requires }, ([a, b]) => Effect...)` | `layer(Tag, (a, b) => value, [A, B])` |
 | `module({ entries })` + `buildGraph(entries)` | `module({ provide })`, `snapshot(module)` |
-| `action(Effect.gen(...))` | `defineEffect(function* (...args) { const a = yield* A; ... }, [A, B])` |
+| `action(Effect.gen(...))` | `defineEffect(function* (...args) { const a = yield* A; ... })` |
 | `_tag` errors (`Data.TaggedError`) | one `SleekStackError` with `code` |
 
 The Effect version's `declareLayer` and bare-Layer nodes have no kit counterpart, so those rows are absent from /graph here.

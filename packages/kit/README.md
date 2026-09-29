@@ -77,14 +77,14 @@ import { configureRuntime, defineEffect, defineQuery, fail } from '@sleekstack/k
 
 configureRuntime({ provide: [App] })                                        // once, from instrumentation.ts
 
-const listRowsQuery = defineQuery(function* () { return (yield* Db).query('select 1') }, [Db])
+const listRowsQuery = defineQuery(function* () { return (yield* Db).query('select 1') })
 const addRowEffect = defineEffect(function* (title: string) {
   if (!title) fail('title required')                                        // -> { ok: false, error }
   return (yield* Db).query(`insert ${title}`)
-}, [Db])                                                                    // -> { ok: true, data }
+})                                                                          // -> { ok: true, data }
 
 // A 'use server' file exports literal async functions that call the definitions
-// (or run a generator inline with effect(gen, deps) / query(gen, deps)):
+// (or run a generator inline with effect(gen) / query(gen)):
 export async function listRows() { return listRowsQuery() }
 export async function addRow(title: string) { return addRowEffect(title) }
 ```

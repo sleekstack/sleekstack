@@ -4,7 +4,7 @@
  *
  * The board's Server Actions. Each is one literal `async function` export (Next's `'use server'`
  * transform only recognizes that literal shape, not a const bound to another function's return
- * value) whose body calls a `defineEffect` generator: `yield*` each Tag it needs,
+ * value) whose body calls a `defineEffect` generator: `yield*` each Tag it needs (resolved on demand),
  * validate, stage a write through UnitOfWork, commit last. Expected failures use kit `fail()` and
  * come back as `{ ok: false, error }`; anything else throws to error.tsx.
  */
@@ -13,9 +13,8 @@ import { ActivityLog, CommentRepo, TaskRepo, type CommentRecord, type TaskRecord
 import { RequestContext, UnitOfWork } from './request.server'
 import { demoLayers } from './demo.server'
 
-const boardWriteDeps = [RequestContext, TaskRepo, ActivityLog, UnitOfWork] as const
-const addCommentDeps = [RequestContext, TaskRepo, CommentRepo, ActivityLog, UnitOfWork] as const
-const demoProvide = { provide: demoLayers }
+// RequestContext is never yielded; `scope` still builds it so its request open / close is logged.
+const boardOpts = { provide: demoLayers, scope: [RequestContext] }
 
 export interface CreateTaskInput {
   readonly projectId: string
@@ -37,7 +36,7 @@ const createTaskEffect = defineEffect(function* (input: CreateTaskInput) {
   if (input.simulateFailure) fail('Simulated failure: create rejected before commit')
   uow.commit()
   return created
-}, boardWriteDeps, demoProvide)
+}, boardOpts)
 
 export async function createTask(input: CreateTaskInput) {
   return createTaskEffect(input)
@@ -60,7 +59,7 @@ const moveTaskEffect = defineEffect(function* (input: MoveTaskInput) {
   })
   uow.commit()
   return moved
-}, boardWriteDeps, demoProvide)
+}, boardOpts)
 
 export async function moveTask(input: MoveTaskInput) {
   return moveTaskEffect(input)
@@ -87,11 +86,8 @@ const addCommentEffect = defineEffect(function* (input: AddCommentInput) {
   })
   uow.commit()
   return created
-}, addCommentDeps, demoProvide)
+}, boardOpts)
 
 export async function addComment(input: AddCommentInput) {
   return addCommentEffect(input)
 }
-
-/** Every deps list a Server Action in this file resolves; graph.test.ts checks each against AppModule. */
-export const boardActionDeps = [createTaskEffect.deps, moveTaskEffect.deps, addCommentEffect.deps] as const

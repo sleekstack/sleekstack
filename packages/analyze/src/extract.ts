@@ -224,8 +224,6 @@ export function extract(project: string, entries?: readonly string[]): Report {
       // A module-config field (`provide: xs`) is a read; the analyzer follows it back here.
       if ((ts.isPropertyAssignment(up) && up.initializer === at) || ts.isShorthandPropertyAssignment(up)) return
       if (ts.isExportSpecifier(up) || ts.isImportSpecifier(up)) return
-      // kit actions only read their deps array.
-      if (ts.isCallExpression(up) && up.arguments[1] === at && ACTION_CALLS.has(calleeOf(up) ?? '')) return
       w.escape = up
     }
     sources.forEach(scan)
@@ -560,14 +558,14 @@ export function extract(project: string, entries?: readonly string[]): Report {
     stack.delete(fn)
   }
   const actionOf = (n: ts.CallExpression) => {
-    const [gen, deps, opts] = n.arguments
+    const [gen, opts] = n.arguments
     const g = gen && unwrap(gen)
     const fn = g && (ts.isFunctionExpression(g) || ts.isArrowFunction(g) ? g : fnOf(g))
     if (!fn) return fail(n, `The action body "${gen ? text(gen) : ''}" is not a readable generator function`)
     const l = loc(n)
-    const a: ActionDecl = { deps: [], yields: [], provide: { name: `${l.file}:${l.line}`, entries: [], imports: [], exports: undefined, lifetime: undefined, loc: l }, file: n.getSourceFile(), loc: l }
-    let declared = true
-    try { a.deps.push(...tagList(deps)) } catch (err) { declared = false; report(err) }
+    const a: ActionDecl = { yields: [], provide: { name: `${l.file}:${l.line}`, entries: [], imports: [], exports: undefined, lifetime: undefined, loc: l }, file: n.getSourceFile(), loc: l }
+    // opts.scope: Tags built for their side effects though never yielded; checked (and edged) like yields.
+    try { for (const tag of tagList(prop(objectOf(opts), 'scope'))) a.yields.push({ tag, loc: l }) } catch (err) { report(err) }
     // opts.provide: a list, or a thunk returning one, of layers / modules Shadowing the runtime for this call.
     try {
       const pv = prop(objectOf(opts), 'provide')
@@ -583,7 +581,6 @@ export function extract(project: string, entries?: readonly string[]): Report {
       })
     } catch (err) { report(err) }
     yieldsOf(fn, a.yields, new Set())
-    if (declared) for (const y of a.yields) if (!a.deps.includes(y.tag)) errors.push({ code: 'UndeclaredDependency', message: `The action body yields "${y.tag}", which is not in its deps array`, ...y.loc })
     actions.push(a)
   }
   const visit = (n: ts.Node): void => {

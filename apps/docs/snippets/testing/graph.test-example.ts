@@ -7,9 +7,9 @@ const Clock = tag<Clock>('Clock')
 const AppModule = module({ name: 'app', provide: [layer(Clock, { now: () => Date.now() })] })
 
 // Assumes configureRuntime({ provide: [AppModule] }) ran in a setup file.
-const readNow = defineQuery(function* () { return (yield* Clock).now() }, [Clock])
+const readNow = defineQuery(function* () { return (yield* Clock).now() })
 // A provide passed to defineQuery shadows the runtime graph for this operation only.
-const readFixedNow = defineQuery(function* () { return (yield* Clock).now() }, [Clock], { provide: [layer(Clock, { now: () => 0 })] })
+const readFixedNow = defineQuery(function* () { return (yield* Clock).now() }, { provide: [layer(Clock, { now: () => 0 })] })
 
 describe('app graph', () => {
   it('validates without constructing services', () => {

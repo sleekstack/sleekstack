@@ -15,6 +15,6 @@ export const viaR = defineEffect(function* () {
   yield* Effect.gen(function* () { return yield* Far }) // @error MissingDependency
   yield* new Plain() // @error Unresolvable
   return yield* loose // @error Unresolvable
-}, [Far])
+})
 
-export const bodiless = () => query(importedBody, []) // @error Unresolvable
+export const bodiless = () => query(importedBody) // @error Unresolvable

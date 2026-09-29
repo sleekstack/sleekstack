@@ -54,12 +54,12 @@ describe('graph error fixtures', () => {
     ])
   })
 
-  it('action bodies: yielded Tags (through helper generators) must be declared, provided, visible and nameable', () => {
+  it('action bodies: yielded Tags (through helper generators) (and opts.scope) must be provided, visible and nameable', () => {
     expect(sorted(located('actions'))).toEqual(expected('actions'))
     const r = analyze({ project: path.join(dir('actions'), 'tsconfig.json') })
     // An action body with no readable declaration fails the whole check.
     expect(r.extraction.map((e) => [e.code, e.file])).toContainEqual(['Unresolvable', 'effects.ts'])
-    expect(r.runtimes[0]!.errors.map((e) => e.code).sort()).toEqual(['MissingDependency', 'MissingDependency', 'MissingDependency', 'MissingDependency', 'MissingDependency', 'MissingDependency', 'MissingDependency', 'PrivateDependency'])
+    expect(r.runtimes[0]!.errors.map((e) => e.code).sort()).toEqual(['MissingDependency', 'MissingDependency', 'MissingDependency', 'MissingDependency', 'MissingDependency', 'MissingDependency', 'MissingDependency', 'MissingDependency', 'PrivateDependency'])
   })
 
   it('clean projects yield no errors', () => {

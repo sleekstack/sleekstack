@@ -1,13 +1,13 @@
 /**
  * packages/kit/src/next/action.ts
  *
- * `effect`/`query` run once, immediately (`defineEffect`/`defineQuery` are the reusable, directly callable forms): resolve the `deps`, open a request scope Shadowed by
- * `opts.provide`, run the generator, close the scope, settle. Next's `'use server'` transform only
+ * `effect`/`query` run once, immediately (`defineEffect`/`defineQuery` are the reusable, directly callable forms): open a request scope Shadowed by
+ * `opts.provide`, run the generator (resolving each `yield*` Tag on demand, plus `opts.scope` up front), close the scope, settle. Next's `'use server'` transform only
  * recognizes a literal `async function` export, so call them from inside one. next's internal
  * `onExit` hook (ADR 0009) hands back the Exit, mapped once to an ActionResult or a rejection.
  */
 
-import { resolveTagEffect } from '@sleekstack/core'
+import { resolutionFailure, resolveTagEffect } from '@sleekstack/core'
 import { action as nextAction, query as nextQuery } from '@sleekstack/next'
 import { Cause, Context, Effect, Exit } from 'effect'
 import { normalize, SleekStackError } from '../errors'
@@ -25,6 +25,11 @@ export interface OperationOptions {
    * reads per-request state (e.g. a cookie) fresh on every call.
    */
   readonly provide?: ReadonlyArray<Layer<any> | Module> | (() => Promise<ReadonlyArray<Layer<any> | Module>>)
+  /**
+   * Tags resolved before the body runs though it never `yield*`s them, for their side effects
+   * (e.g. `RequestContext`, whose request-scoped layer logs open / close).
+   */
+  readonly scope?: readonly AnyTag[]
 }
 
 class Failure {
@@ -44,7 +49,7 @@ class Failure {
  * export async function rename(name: string) {
  *   return effect(function* () {
  *     return name ? name.trim() : fail('Name is required')
- *   }, [])
+ *   })
  * }
  * ```
  */
@@ -52,10 +57,9 @@ export function fail(message: string): never {
   throw new Failure(message)
 }
 
-async function run<D extends readonly AnyTag[]>(
+async function run(
   op: typeof nextAction,
-  factory: (...deps: any[]) => unknown,
-  deps: D,
+  factory: (context: Context.Context<any>) => unknown,
   opts: OperationOptions,
 ): Promise<ActionResult<unknown>> {
   const onExit = (exit: Exit.Exit<unknown, unknown>): ActionResult<unknown> => {
@@ -66,9 +70,10 @@ async function run<D extends readonly AnyTag[]>(
   }
   const fn = () =>
     Effect.gen(function* () {
-      const resolved = yield* Effect.all(deps.map((t) => resolveTagEffect(coreTag(t), 'action'))).pipe(Effect.mapError((e) => normalize(e)))
+      yield* Effect.all((opts.scope ?? []).map((t) => resolveTagEffect(coreTag(t), 'action'))).pipe(Effect.mapError((e) => normalize(e)))
+      const context = (yield* Effect.context<never>()) as Context.Context<any>
       return yield* Effect.tryPromise({
-        try: async () => factory(...resolved),
+        try: async () => factory(context),
         catch: (e) => (e instanceof Failure ? e : normalize(e, 'HandlerFailed')),
       })
     })
@@ -93,22 +98,28 @@ async function run<D extends readonly AnyTag[]>(
 
 type Gen<R> = Generator<unknown, R, any>
 
-async function runGen<R>(
-  op: typeof nextAction,
-  impl: () => Gen<R>,
-  deps: readonly AnyTag[],
-  opts: OperationOptions,
-): Promise<ActionResult<Awaited<R>>> {
-  // The generator runs against a Context built from *only* its declared deps, so `yield*`-ing
-  // anything else fails like a missing dependency instead of reaching the ambient graph.
-  const factory = async (...resolved: unknown[]) => {
-    const context = Context.unsafeMake(new Map(deps.map((t, i) => [coreTag(t).key, resolved[i]] as const))) as Context.Context<never>
+async function runGen<R>(op: typeof nextAction, impl: () => Gen<R>, opts: OperationOptions): Promise<ActionResult<Awaited<R>>> {
+  // `yield* Tag` reads the request scope's public Context on demand. Effect's own miss is an
+  // untyped "Service not found" defect, so the last missed key is remembered and mapped to
+  // MissingDependency / PrivateDependency. Build-time isolation is the analyzer's job (fn-9).
+  const factory = async (scope: Context.Context<any>) => {
+    let missed: string | undefined
+    const map = new (class extends Map<string, unknown> {
+      override has(key: string) {
+        const hit = super.has(key)
+        if (!hit) missed = key
+        return hit
+      }
+    })(scope.unsafeMap)
+    const context = Context.unsafeMake(map) as Context.Context<never>
     const inner = Effect.gen(() => impl() as never) as Effect.Effect<R, unknown, never>
     const exit = await Effect.runPromiseExit(Effect.mapInputContext(inner, () => context))
     if (Exit.isSuccess(exit)) return exit.value
-    throw Cause.squash(exit.cause)
+    const e = Cause.squash(exit.cause)
+    if (missed !== undefined && e instanceof Error && e.message.startsWith('Service not found')) throw resolutionFailure(scope, missed, 'action')
+    throw e
   }
-  return (await run(op, factory, deps, opts)) as ActionResult<Awaited<R>>
+  return (await run(op, factory, opts)) as ActionResult<Awaited<R>>
 }
 
 const unwrapQuery = async <R>(r: Promise<ActionResult<R>>): Promise<R> => {
@@ -118,10 +129,9 @@ const unwrapQuery = async <R>(r: Promise<ActionResult<R>>): Promise<R> => {
 }
 
 /**
- * Defines a reusable Server Action body: a generator plus the Tags it may `yield*`. The result is
+ * Defines a reusable Server Action body: a generator whose `yield*`ed Tags resolve from the request scope. The result is
  * directly callable with the body's own arguments; each call runs in a fresh request scope and
- * settles as an {@link ActionResult}. Expected failures use {@link fail}. `.deps` exposes the
- * declared Tags. A `const` isn't something Next's `'use server'` transform recognizes, so export a
+ * settles as an {@link ActionResult}. Expected failures use {@link fail}. A `const` isn't something Next's `'use server'` transform recognizes, so export a
  * literal `async function` that calls it (or use {@link effect} inline).
  *
  * @example
@@ -135,28 +145,23 @@ const unwrapQuery = async <R>(r: Promise<ActionResult<R>>): Promise<R> => {
  * const addTodoEffect = defineEffect(function* (title: string) {
  *   const todos = yield* Todos
  *   return todos.add(title)
- * }, [Todos])
+ * })
  *
  * export async function addTodo(title: string) {
  *   return addTodoEffect(title)
  * }
  * ```
  */
-export function defineEffect<const D extends readonly AnyTag[], A extends readonly unknown[], R>(
+export function defineEffect<A extends readonly unknown[], R>(
   impl: (...args: A) => Gen<R>,
-  deps: D,
   opts: OperationOptions = {},
-): ((...args: A) => Promise<ActionResult<Awaited<R>>>) & { readonly deps: D } {
-  return Object.assign((...args: A) => runGen(nextAction, () => impl(...args), deps, opts), { deps })
+): (...args: A) => Promise<ActionResult<Awaited<R>>> {
+  return (...args: A) => runGen(nextAction, () => impl(...args), opts)
 }
 
 /** Like {@link defineEffect}, for a read: the call resolves the plain value and a {@link fail} rejects with its message. */
-export function defineQuery<const D extends readonly AnyTag[], A extends readonly unknown[], R>(
-  impl: (...args: A) => Gen<R>,
-  deps: D,
-  opts: OperationOptions = {},
-): ((...args: A) => Promise<Awaited<R>>) & { readonly deps: D } {
-  return Object.assign((...args: A) => unwrapQuery(runGen(nextQuery, () => impl(...args), deps, opts)), { deps })
+export function defineQuery<A extends readonly unknown[], R>(impl: (...args: A) => Gen<R>, opts: OperationOptions = {}): (...args: A) => Promise<Awaited<R>> {
+  return (...args: A) => unwrapQuery(runGen(nextQuery, () => impl(...args), opts))
 }
 
 /**
@@ -168,11 +173,11 @@ export function defineQuery<const D extends readonly AnyTag[], A extends readonl
  * @throws {@link SleekStackError} with code `HandlerFailed` when the body throws (other than {@link fail}).
  * @throws {@link SleekStackError} with code `LayerFailed` when a request-scope Layer fails to build, or `Unknown` when the runtime is not configured.
  */
-export function effect<const D extends readonly AnyTag[], R>(impl: () => Gen<R>, deps: D, opts: OperationOptions = {}): Promise<ActionResult<Awaited<R>>> {
-  return runGen(nextAction, impl, deps, opts)
+export function effect<R>(impl: () => Gen<R>, opts: OperationOptions = {}): Promise<ActionResult<Awaited<R>>> {
+  return runGen(nextAction, impl, opts)
 }
 
 /** Runs a generator now like {@link effect}, but resolves the plain value; a {@link fail} rejects with its message. */
-export function query<const D extends readonly AnyTag[], R>(impl: () => Gen<R>, deps: D, opts: OperationOptions = {}): Promise<Awaited<R>> {
-  return unwrapQuery(runGen(nextQuery, impl, deps, opts))
+export function query<R>(impl: () => Gen<R>, opts: OperationOptions = {}): Promise<Awaited<R>> {
+  return unwrapQuery(runGen(nextQuery, impl, opts))
 }

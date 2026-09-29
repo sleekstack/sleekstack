@@ -39,7 +39,7 @@ const boundaries: Record<string, (provide: never) => Promise<SleekStackError>> =
   'kit atoms': (p) => inReact(<ReadAtom a={atom((d) => d, [Dep])} />, p),
   'kit next': async (p) => {
     configureRuntime({ provide: p })
-    return effect(function* () { return yield* Dep }, [Dep]).then(() => { throw new Error('resolved') }, (e) => e)
+    return effect(function* () { return yield* Dep }).then(() => { throw new Error('resolved') }, (e) => e)
   },
   AtomStore: async (p) => {
     const app = await Effect.runPromise(makeAppScope(buildGraph(unwrap(p))))

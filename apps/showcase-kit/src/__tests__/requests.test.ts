@@ -19,13 +19,13 @@ import { __setDemoCookie } from '../test/next-headers-stub'
 import { UnitOfWork } from '../server/request.server'
 import type { AddCommentInput, CreateTaskInput, MoveTaskInput } from '../server/board.actions'
 
-const countTasks = (projectId: string) => query(function* () { return (yield* TaskRepo).listByProject(projectId).length }, [TaskRepo])
+const countTasks = (projectId: string) => query(function* () { return (yield* TaskRepo).listByProject(projectId).length })
 
-const logMessages = () => query(function* () { return (yield* ActivityLog).list().map((e) => e.message) }, [ActivityLog])
+const logMessages = () => query(function* () { return (yield* ActivityLog).list().map((e) => e.message) })
 
 describe('showcase request scopes', () => {
   it('an action called before instrumentation.ts configures the runtime rejects with a descriptive error', async () => {
-    await expect(effect(function* () { return 'unconfigured' }, [])).rejects.toThrow(/configureRuntime/)
+    await expect(effect(function* () { return 'unconfigured' })).rejects.toThrow(/configureRuntime/)
   })
 
   it("importing the runtime module twice (dev HMR re-running register()) is the library's same-reference no-op", async () => {
@@ -117,7 +117,7 @@ describe('showcase request scopes', () => {
         throw new Error('second write failed')
       })
       uow.commit()
-    }, [TaskRepo, UnitOfWork])
+    })
     await expect(halfApplied()).rejects.toThrow(/second write failed/)
     expect(await countTasks('proj_1')).toBe(before)
   })
@@ -127,7 +127,7 @@ describe('showcase request scopes', () => {
       const uow = yield* UnitOfWork
       uow.stage(() => {})
       return uow
-    }, [UnitOfWork])
+    })
     expect(result.ok && result.data.pending()).toBe(0)
   })
 
@@ -136,7 +136,7 @@ describe('showcase request scopes', () => {
     const BoomLayer = layer(Boom, () => withCleanup(1, () => {
       throw new Error('finalizer boom')
     }), [], { lifetime: 'request' })
-    const runOp = () => effect(function* () { return 'ok' }, [Boom], { provide: [BoomLayer] })
+    const runOp = () => effect(function* () { return 'ok' }, { scope: [Boom], provide: [BoomLayer] })
 
     // The app's own sink: logs to the console and records to the ActivityLog.
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
