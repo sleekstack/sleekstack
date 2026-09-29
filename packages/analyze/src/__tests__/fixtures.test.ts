@@ -1,0 +1,46 @@
+import * as fs from 'node:fs'
+import * as path from 'node:path'
+import { buildGraph } from '@sleekstack/core'
+import { snapshot } from '@sleekstack/kit'
+import { describe, expect, it } from 'vitest'
+import { analyze } from '../index'
+
+const dir = (name: string) => path.join(__dirname, 'fixtures', name)
+const located = (name: string) =>
+  analyze({ project: path.join(dir(name), 'tsconfig.json') }).errors.map(({ code, file, line }) => ({ code, file, line }))
+/** Every `// @error Code` marker in a fixture, as the error the analyzer must report on that line. */
+const expected = (name: string) =>
+  fs.readdirSync(dir(name)).filter((f) => f.endsWith('.ts')).sort().flatMap((file) =>
+    fs.readFileSync(path.join(dir(name), file), 'utf8').split('\n').flatMap((l, i) => {
+      const m = /\/\/ @error (\w+)/.exec(l)
+      return m ? [{ code: m[1]!, file, line: i + 1 }] : []
+    }))
+const sorted = <T extends { file: string; line: number }>(xs: T[]) => xs.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line)
+
+const graphErrors = ['missing-dependency', 'dependency-cycle', 'captive-dependency', 'ambiguous-provider', 'module-cycle', 'duplicate-module', 'private-dependency']
+
+describe('graph error fixtures', () => {
+  it.each(graphErrors)('%s: code and file:line, kit and core declarations', async (name) => {
+    const want = expected(name)
+    expect(want.map((e) => e.file)).toEqual(['core.ts', 'kit.ts'])
+    expect(sorted(located(name))).toEqual(want)
+    // The runtime throws the same code for the same declarations.
+    const kit = await import(/* @vite-ignore */ path.join(dir(name), 'kit.ts'))
+    const core = await import(/* @vite-ignore */ path.join(dir(name), 'core.ts'))
+    expect(() => snapshot(kit.App)).toThrow(expect.objectContaining({ code: want[0]!.code }))
+    expect(() => buildGraph([core.App])).toThrow(expect.objectContaining({ _tag: want[0]!.code }))
+  })
+
+  it('.map- and loop-built lists over precise types extract every member; any and Layer<any>[] fail', () => {
+    const r = analyze({ project: path.join(dir('computed-lists'), 'tsconfig.json') })
+    expect(sorted(located('computed-lists'))).toEqual(expected('computed-lists'))
+    const tags = (root: string) => r.graphs.find((g) => g.root === root)!.nodes.map((n) => n.id).sort()
+    expect(tags('Mapped')).toEqual(['A', 'B'])
+    expect(tags('Looped')).toEqual(['A', 'B', 'C'])
+  })
+
+  it('clean projects yield no errors', () => {
+    expect(located('kit-app')).toEqual([])
+    expect(located('core-app')).toEqual([])
+  })
+})

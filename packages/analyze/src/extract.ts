@@ -11,6 +11,7 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import ts from 'typescript'
+import { validate } from './validate'
 import type { AnalyzeError, Atoms, Edge, Graph, GraphNode, Lifetime, Location, ModuleDecl, ProviderDecl, Report, Shadowing } from './model'
 
 /** Which library function a call resolves to, e.g. `kit/layer#layer`, `effect/Context#GenericTag`. */
@@ -40,6 +41,37 @@ class Unreadable extends Error {
   }
 }
 
+/** A loop / callback variable met without a binding: `each` retries with it bound to every member of `source`. */
+class Unbound {
+  constructor(readonly decl: ts.Declaration, readonly source: ts.Expression) {}
+}
+
+const ITERATORS = new Set(['map', 'flatMap', 'filter', 'forEach', 'some', 'every', 'find', 'findIndex'])
+
+/** The list a `for (const x of list)` variable or an `list.map((x) => ...)` parameter ranges over. */
+const iterSource = (d: ts.Declaration): ts.Expression | undefined => {
+  if (ts.isVariableDeclaration(d) && ts.isVariableDeclarationList(d.parent) && ts.isForOfStatement(d.parent.parent)) return d.parent.parent.expression
+  if (!ts.isParameter(d) || d.parent.parameters[0] !== d) return undefined
+  const fn = d.parent
+  const call = fn.parent
+  if (!(ts.isArrowFunction(fn) || ts.isFunctionExpression(fn)) || !ts.isCallExpression(call) || call.arguments[0] !== fn) return undefined
+  return ts.isPropertyAccessExpression(call.expression) && ITERATORS.has(call.expression.name.text) ? call.expression.expression : undefined
+}
+
+/** The expressions a function body can return (nested functions excluded). */
+const bodyReturns = (fn: ts.FunctionLikeDeclaration): ts.Expression[] => {
+  if (!fn.body) return []
+  if (!ts.isBlock(fn.body)) return [fn.body]
+  const out: ts.Expression[] = []
+  const walk = (n: ts.Node): void => {
+    if (ts.isFunctionLike(n)) return
+    if (ts.isReturnStatement(n) && n.expression) out.push(n.expression)
+    ts.forEachChild(n, walk)
+  }
+  fn.body.statements.forEach(walk)
+  return out
+}
+
 export function extract(project: string): Report {
   const configPath = path.resolve(project)
   const root = path.dirname(configPath)
@@ -49,6 +81,8 @@ export function extract(project: string): Report {
   const program = ts.createProgram({ rootNames: parsed.fileNames, options: parsed.options, projectReferences: parsed.projectReferences })
   const checker = program.getTypeChecker()
   const errors: AnalyzeError[] = []
+  /** Loop / callback variables bound to one member of their source list (see `each`). */
+  const env = new Map<ts.Declaration, ts.Expression>()
 
   const loc = (n: ts.Node): Location => {
     const sf = n.getSourceFile()
@@ -58,6 +92,7 @@ export function extract(project: string): Report {
     throw new Unreadable(n, message, code)
   }
   const report = (e: unknown) => {
+    if (e instanceof Unbound) e = new Unreadable(e.source, `A loop variable over "${text(e.source)}" is used outside a list`, 'Computed')
     if (!(e instanceof Unreadable)) throw e
     errors.push({ code: e.code, message: e.message, ...loc(e.node) })
   }
@@ -78,6 +113,12 @@ export function extract(project: string): Report {
     const e = unwrap(expr)
     if (!ts.isIdentifier(e) && !ts.isPropertyAccessExpression(e)) return e
     const d = declOf(e)
+    const src = d && iterSource(d)
+    if (src) {
+      const v = env.get(d!)
+      if (v) return follow(v)
+      throw new Unbound(d!, src)
+    }
     if (d && ts.isVariableDeclaration(d) && d.initializer) {
       // The initializer is only the value if the binding never changes: `let`/`var` or an in-place mutation is a silent gap.
       if (!(ts.getCombinedNodeFlags(d) & ts.NodeFlags.Const)) return fail(e, `"${text(e)}" is not a const binding; its value cannot be read statically`, 'Computed')
@@ -180,7 +221,27 @@ export function extract(project: string): Report {
     const t = checker.getTypeAtLocation(e)
     if (t.flags & ts.TypeFlags.Any) return true
     const el = checker.isArrayType(t) ? checker.getTypeArguments(t as ts.TypeReference)[0] : undefined
-    return !!el && !!(el.flags & ts.TypeFlags.Any)
+    if (!el) return false
+    if (el.flags & ts.TypeFlags.Any) return true
+    // A widened `Layer<any>[]`: the element names no Tag.
+    const args = el.aliasTypeArguments ?? (el.flags & ts.TypeFlags.Object && (el as ts.ObjectType).objectFlags & ts.ObjectFlags.Reference ? checker.getTypeArguments(el as ts.TypeReference) : [])
+    return el.getSymbol()?.getName() === 'Layer' && args.some((a) => !!(a.flags & ts.TypeFlags.Any))
+  }
+
+  /**
+   * Calls `f(e)`; when `e` reads an unbound loop / callback variable, retries once per member of the list it
+   * ranges over (over-approximating: every iteration is assumed to run).
+   */
+  const each = (e: ts.Expression, f: (e: ts.Expression) => void): void => {
+    try {
+      f(e)
+    } catch (err) {
+      if (!(err instanceof Unbound)) throw err
+      listOf(err.source, (v) => {
+        env.set(err.decl, v)
+        try { each(e, f) } finally { env.delete(err.decl) }
+      })
+    }
   }
 
   /** The expressions a local helper can return (nested functions excluded), for over-approximation. */
@@ -189,15 +250,7 @@ export function extract(project: string): Report {
     let d: ts.Node | undefined = declOf(call.expression)
     if (d && ts.isVariableDeclaration(d) && d.initializer) d = unwrap(d.initializer)
     if (!d || !(ts.isFunctionDeclaration(d) || ts.isArrowFunction(d) || ts.isFunctionExpression(d)) || !d.body) return undefined
-    if (!ts.isBlock(d.body)) return [d.body]
-    const out: ts.Expression[] = []
-    const walk = (n: ts.Node): void => {
-      if (ts.isFunctionLike(n)) return
-      if (ts.isReturnStatement(n) && n.expression) out.push(n.expression)
-      ts.forEachChild(n, walk)
-    }
-    d.body.statements.forEach(walk)
-    return out
+    return bodyReturns(d)
   }
 
   /**
@@ -206,21 +259,30 @@ export function extract(project: string): Report {
    */
   const listOf = (expr: ts.Expression | undefined, item: (e: ts.Expression) => void): void => {
     if (!expr) return
-    if (isImprecise(expr)) return fail(expr, `"${text(expr)}" is typed any; its members cannot be named`, 'Computed')
+    if (isImprecise(expr)) return fail(expr, `"${text(expr)}" is typed imprecisely (any or Layer<any>); its members cannot be named`, 'Computed')
     const e = follow(expr)
     const u = unwrap(expr)
     const d = (ts.isIdentifier(u) || ts.isPropertyAccessExpression(u)) && declOf(u)
-    if (d && ts.isVariableDeclaration(d)) for (const a of writesOf(d).added) ts.isSpreadElement(a) ? listOf(a.expression, item) : item(a)
+    if (d && ts.isVariableDeclaration(d)) for (const a of writesOf(d).added) ts.isSpreadElement(a) ? each(a.expression, (x) => listOf(x, item)) : each(a, item)
     if (ts.isClassDeclaration(e)) return fail(expr, `Expected an array, got class "${text(expr)}"`, 'Computed')
     if (ts.isConditionalExpression(e)) return (listOf(e.whenTrue, item), listOf(e.whenFalse, item))
+    if (ts.isCallExpression(e) && ts.isPropertyAccessExpression(e.expression) && !calleeOf(e)) {
+      const m = e.expression.name.text
+      const cb = e.arguments[0] && unwrap(e.arguments[0])
+      if (m === 'filter') return listOf(e.expression.expression, item)
+      if ((m === 'map' || m === 'flatMap') && cb && (ts.isArrowFunction(cb) || ts.isFunctionExpression(cb))) {
+        for (const r of bodyReturns(cb)) m === 'map' ? each(r, item) : each(r, (x) => listOf(x, item))
+        return
+      }
+    }
     if (ts.isCallExpression(e)) {
       const rs = returnsOf(e)
       if (rs) return rs.forEach((r) => listOf(r, item))
     }
     if (!ts.isArrayLiteralExpression(e)) return fail(expr, `Computed list "${text(expr)}" cannot be read statically`, 'Computed')
     for (const el of e.elements) {
-      if (ts.isSpreadElement(el)) listOf(el.expression, item)
-      else item(el)
+      if (ts.isSpreadElement(el)) each(el.expression, (x) => listOf(x, item))
+      else each(el, item)
     }
   }
 
@@ -254,7 +316,8 @@ export function extract(project: string): Report {
   const providers = new Map<ts.Node, ProviderDecl>()
   const provider = (expr: ts.Expression, core: boolean): ProviderDecl => {
     const e = follow(expr)
-    const hit = providers.get(e)
+    // Under a loop binding the same node declares one provider per bound value: no caching.
+    const hit = env.size ? undefined : providers.get(e)
     if (hit) return hit
     let p: ProviderDecl
     const id = ts.isCallExpression(e) ? calleeOf(e) : undefined
@@ -279,7 +342,7 @@ export function extract(project: string): Report {
     } else {
       return fail(expr, `"${text(expr)}" is not a recognized layer() / service() / declareLayer() declaration`)
     }
-    providers.set(e, p)
+    if (!env.size) providers.set(e, p)
     return p
   }
 
@@ -297,7 +360,7 @@ export function extract(project: string): Report {
     modules.set(e, m) // before imports: thunk cycles terminate
     // Each field reports independently, so one unreadable list does not hide the others.
     const field = (f: () => void) => { try { f() } catch (err) { report(err) } }
-    field(() => listOf(prop(cfg, core ? 'entries' : 'provide'), (x) => { try { m.entries.push(provider(x, core)) } catch (err) { report(err) } }))
+    field(() => listOf(prop(cfg, core ? 'entries' : 'provide'), (x) => { try { m.entries.push(provider(x, core)) } catch (err) { if (err instanceof Unbound) throw err; report(err) } }))
     field(() => {
       let imp = prop(cfg, 'imports')
       const th = imp && unwrap(imp)
@@ -305,7 +368,7 @@ export function extract(project: string): Report {
         const ret = ts.isBlock(th.body) ? th.body.statements.find(ts.isReturnStatement)?.expression : th.body
         imp = ret ?? fail(th, 'imports thunk must return an array')
       }
-      listOf(imp, (x) => { try { m.imports.push(moduleOf(x)) } catch (err) { report(err) } })
+      listOf(imp, (x) => { try { m.imports.push(moduleOf(x)) } catch (err) { if (err instanceof Unbound) throw err; report(err) } })
     })
     field(() => { const x = prop(cfg, 'exports'); if (x) m.exports = tagList(x) })
     if (core) field(() => { m.lifetime = lifetimeOf(prop(cfg, 'lifetime')) })
@@ -349,11 +412,22 @@ export function extract(project: string): Report {
 
   const imported = new Set(found.flatMap((m) => m.imports))
   const roots = [...new Set(found)].filter((m) => !imported.has(m))
+  for (const r of roots) errors.push(...validate(r))
   return { graphs: roots.map(graphOf), atoms: { nodes: atomNodes, edges: atomEdges }, errors }
 }
 
-/** Mirrors core `resolveEntries` + `snapshot`: module walk, per-Tag shadowing by locality, one node per provided Tag. */
-export function graphOf(rootModule: ModuleDecl): Graph {
+export type Seen = { p: ProviderDecl; module: ModuleDecl; depth: number; paths: string[][] }
+export interface Resolved {
+  readonly visits: ReadonlyMap<ModuleDecl, { paths: string[][]; depth: number }>
+  readonly all: readonly Seen[]
+  /** Every provider of each Tag. */
+  readonly byTag: ReadonlyMap<string, readonly Seen[]>
+  /** The winning provider per Tag (first at the best depth; ties are validation's AmbiguousProvider). */
+  readonly won: ReadonlyMap<string, Seen>
+}
+
+/** Mirrors core `resolveEntries`: module walk, per-Tag shadowing by locality. */
+export function resolve(rootModule: ModuleDecl): Resolved {
   type Visit = { paths: string[][]; depth: number }
   const visits = new Map<ModuleDecl, Visit>()
   const onStack = new Set<ModuleDecl>()
@@ -370,7 +444,6 @@ export function graphOf(rootModule: ModuleDecl): Graph {
   }
   dfs(rootModule, [])
 
-  type Seen = { p: ProviderDecl; module: ModuleDecl; depth: number; paths: string[][] }
   const seen = new Map<ProviderDecl, Seen>()
   for (const [module, v] of visits) {
     for (const p of module.entries) {
@@ -382,19 +455,26 @@ export function graphOf(rootModule: ModuleDecl): Graph {
       }
     }
   }
-
-  const isPrivate = (m: ModuleDecl, key: string) => m.exports !== undefined && !m.exports.includes(key)
   const all = [...seen.values()]
   const byTag = new Map<string, Seen[]>()
   for (const s of all) for (const k of s.p.provides) byTag.set(k, [...(byTag.get(k) ?? []), s])
   const won = new Map<string, Seen>()
+  for (const [tag, ss] of byTag) {
+    const best = Math.min(...ss.map((s) => s.depth))
+    won.set(tag, ss.find((s) => s.depth === best)!)
+  }
+  return { visits, all, byTag, won }
+}
+
+export const isPrivate = (m: ModuleDecl, key: string) => m.exports !== undefined && !m.exports.includes(key)
+
+/** Mirrors core `snapshot`: one node per provided Tag, `Tag@Module` ids for shadowed providers. */
+export function graphOf(rootModule: ModuleDecl): Graph {
+  const { visits, all, byTag, won } = resolve(rootModule)
   const shadowing: Shadowing[] = []
   const shadowedId = (tag: string, s: Seen) => `${tag}@${s.module.name}`
   for (const [tag, ss] of byTag) {
-    const best = Math.min(...ss.map((s) => s.depth))
-    const winner = ss.find((s) => s.depth === best)! // AmbiguousProvider at equal depth: validation's to report
-    won.set(tag, winner)
-    const losers = ss.filter((s) => s !== winner)
+    const losers = ss.filter((s) => s !== won.get(tag))
     if (losers.length) shadowing.push({ tag, winner: tag, shadowed: losers.map((s) => shadowedId(tag, s)) })
   }
 
