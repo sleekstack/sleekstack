@@ -32,10 +32,14 @@ satisfies: [R12]
 - [ ] TBD
 
 ## Done summary
-TBD
+Added `layer(Tag, function* () {...})` (separate overload keyed on the 3rd arg; runtime detection via effect/Utils isGeneratorFunction, a GeneratorFunction-constructor check). Core `lazy.ts` holds the per-scope state machine (building = shared Deferred, built, failure clears marker; key on resolving chain -> DependencyCycle); `scope.ts` open() now calls `buildAll`, which builds each node into its own Scope attached to the parent only on success (finalizers once, reverse build order) and provides an internal `Resolver` so generator yields build local providers on demand, else read the parent, else MissingDependency/PrivateDependency. Analyzer reads a generator layer's yields (same `yieldsOf` as actions: helpers, Effect R, fail closed) as its requires, feeding missing/captive/cycle with file:line (fixture `generator-layers`).
 
+Review fix: the analyzer detects generator impls by type (call-signature return type Generator). It reads both branches of a conditional, fails closed with Unresolvable on unreadable bodies (factory-returned, .d.ts), and reads opts from arg 3, so imported generators keep their lifetime. Node scope build -> attach now runs under uninterruptibleMask.
+
+stage: impl-review - skipped(policy: host-deferred - conductor owns the gate)
+
+Review: independent host review, 3 passes -> SHIP at a708164. Union-return impl is rejected by kit's overloads (TS2769), so no analyzer gap.
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 66fa0e25989e237c07be541689199ac30d4d458d, 871411328bdb9c6922ac1ada02834cbf6c9d5916, a708164a7192252aa996c8a64b54aaa208796db2
+- Tests: pnpm --filter @sleekstack/kit test, pnpm --filter @sleekstack/core test, pnpm --filter @sleekstack/analyze test, pnpm --filter @sleekstack/next test, pnpm --filter showcase-kit test, pnpm --filter showcase-kit check, pnpm typecheck
 - PRs:
-
