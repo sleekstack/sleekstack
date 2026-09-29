@@ -113,12 +113,10 @@ export function extract(project: string): Report {
     const e = unwrap(expr)
     if (!ts.isIdentifier(e) && !ts.isPropertyAccessExpression(e)) return e
     const d = declOf(e)
+    const bound = d && env.get(d)
+    if (bound) return follow(bound)
     const src = d && iterSource(d)
-    if (src) {
-      const v = env.get(d!)
-      if (v) return follow(v)
-      throw new Unbound(d!, src)
-    }
+    if (src) throw new Unbound(d!, src)
     if (d && ts.isVariableDeclaration(d) && d.initializer) {
       // The initializer is only the value if the binding never changes: `let`/`var` or an in-place mutation is a silent gap.
       if (!(ts.getCombinedNodeFlags(d) & ts.NodeFlags.Const)) return fail(e, `"${text(e)}" is not a const binding; its value cannot be read statically`, 'Computed')
@@ -233,6 +231,8 @@ export function extract(project: string): Report {
    * ranges over (over-approximating: every iteration is assumed to run).
    */
   const each = (e: ts.Expression, f: (e: ts.Expression) => void): void => {
+    const u = unwrap(e)
+    if (ts.isConditionalExpression(u)) return (each(u.whenTrue, f), each(u.whenFalse, f))
     try {
       f(e)
     } catch (err) {
@@ -244,13 +244,18 @@ export function extract(project: string): Report {
     }
   }
 
+  /** The function a callee / callback identifier names, if it is a local function. */
+  const fnOf = (e: ts.Expression): ts.FunctionLikeDeclaration | undefined => {
+    let d: ts.Node | undefined = declOf(e)
+    if (d && ts.isVariableDeclaration(d) && d.initializer) d = unwrap(d.initializer)
+    return d && (ts.isFunctionDeclaration(d) || ts.isArrowFunction(d) || ts.isFunctionExpression(d)) && d.body ? d : undefined
+  }
+
   /** The expressions a local helper can return (nested functions excluded), for over-approximation. */
   const returnsOf = (call: ts.CallExpression): ts.Expression[] | undefined => {
     if (calleeOf(call)) return undefined
-    let d: ts.Node | undefined = declOf(call.expression)
-    if (d && ts.isVariableDeclaration(d) && d.initializer) d = unwrap(d.initializer)
-    if (!d || !(ts.isFunctionDeclaration(d) || ts.isArrowFunction(d) || ts.isFunctionExpression(d)) || !d.body) return undefined
-    return bodyReturns(d)
+    const d = fnOf(call.expression)
+    return d && bodyReturns(d)
   }
 
   /**
@@ -270,9 +275,15 @@ export function extract(project: string): Report {
       const m = e.expression.name.text
       const cb = e.arguments[0] && unwrap(e.arguments[0])
       if (m === 'filter') return listOf(e.expression.expression, item)
-      if ((m === 'map' || m === 'flatMap') && cb && (ts.isArrowFunction(cb) || ts.isFunctionExpression(cb))) {
-        for (const r of bodyReturns(cb)) m === 'map' ? each(r, item) : each(r, (x) => listOf(x, item))
-        return
+      const fn = cb && (ts.isArrowFunction(cb) || ts.isFunctionExpression(cb) ? cb : fnOf(cb))
+      if ((m === 'map' || m === 'flatMap') && fn) {
+        const p = fn.parameters[0]
+        const body = () => { for (const r of bodyReturns(fn)) m === 'map' ? each(r, item) : each(r, (x) => listOf(x, item)) }
+        if (!p) return body()
+        return listOf(e.expression.expression, (v) => {
+          env.set(p, v)
+          try { body() } finally { env.delete(p) }
+        })
       }
     }
     if (ts.isCallExpression(e)) {
@@ -313,11 +324,15 @@ export function extract(project: string): Report {
     return out
   }
 
-  const providers = new Map<ts.Node, ProviderDecl>()
+  const providers = new Map<string, ProviderDecl>()
+  const ids = new Map<ts.Node, number>()
+  const nid = (n: ts.Node) => ids.get(n) ?? (ids.set(n, ids.size), ids.size - 1)
+  /** One declaration per node and loop binding: a list evaluated once and reused keeps its entries' identity. */
+  const cacheKey = (n: ts.Node) => [nid(n), ...[...env].map(([d, v]) => `${nid(d)}=${nid(follow(v))}`).sort()].join(',')
   const provider = (expr: ts.Expression, core: boolean): ProviderDecl => {
     const e = follow(expr)
-    // Under a loop binding the same node declares one provider per bound value: no caching.
-    const hit = env.size ? undefined : providers.get(e)
+    const key = cacheKey(e)
+    const hit = providers.get(key)
     if (hit) return hit
     let p: ProviderDecl
     const id = ts.isCallExpression(e) ? calleeOf(e) : undefined
@@ -342,7 +357,7 @@ export function extract(project: string): Report {
     } else {
       return fail(expr, `"${text(expr)}" is not a recognized layer() / service() / declareLayer() declaration`)
     }
-    if (!env.size) providers.set(e, p)
+    providers.set(key, p)
     return p
   }
 

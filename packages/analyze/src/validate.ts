@@ -40,17 +40,21 @@ export function validate(root: ModuleDecl): AnalyzeError[] {
   const where = (s: Seen) => `module "${s.module.name}"`
   const lifetime = (s: Seen) => s.p.lifetime ?? s.module.lifetime ?? 'app'
 
+  // Core stops at AmbiguousProvider; here its Tags have no owner, so nothing downstream judges through them.
+  const ambiguous = new Set<string>()
   for (const [tag, ss] of byTag) {
     const best = Math.min(...ss.map((s) => s.depth))
     const top = ss.filter((s) => s.depth === best)
+    if (top.length > 1) ambiguous.add(tag)
     if (top.length > 1) err('AmbiguousProvider', `Tag "${tag}" is provided by several entries at the same precedence: ${top.map(where).join(', ')}`, top[1]!.p.loc)
   }
 
   // Live providers: non-opaque, winning at least one Tag. Their id is core's (`A+B` for a declared Layer).
   const live = all.filter((s) => !s.p.opaque && s.p.provides.some((k) => won.get(k) === s))
-  const id = (s: Seen) => s.p.provides.filter((k) => won.get(k) === s).join('+')
+  const id = (s: Seen) => s.p.provides.join('+') // core keeps a partially shadowed layer's full id
   for (const s of live) {
     for (const r of s.p.requires) {
+      if (ambiguous.has(r)) continue
       const owner = won.get(r)
       if (!owner) {
         err('MissingDependency',
@@ -71,7 +75,7 @@ export function validate(root: ModuleDecl): AnalyzeError[] {
     stack.push(s)
     for (const r of s.p.requires) {
       const d = won.get(r)
-      if (!d || d.p.opaque) continue
+      if (!d || d.p.opaque || ambiguous.has(r)) continue
       if (state.get(d) === 'active') {
         const cycle = [...stack.slice(stack.indexOf(d)), d].map(id)
         err('DependencyCycle', `Dependency cycle: ${cycle.join(' -> ')}`, s.p.loc)

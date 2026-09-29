@@ -37,6 +37,15 @@ describe('graph error fixtures', () => {
     const tags = (root: string) => r.graphs.find((g) => g.root === root)!.nodes.map((n) => n.id).sort()
     expect(tags('Mapped')).toEqual(['A', 'B'])
     expect(tags('Looped')).toEqual(['A', 'B', 'C'])
+    // A named mapper list reused by two modules keeps identity (no AmbiguousProvider); a conditional element yields both branches.
+    expect(tags('Named')).toEqual(['A', 'B', 'C', 'D'])
+  })
+
+  it('ambiguity poisons no downstream check; a partially shadowed layer keeps its full id', () => {
+    expect(analyze({ project: path.join(dir('ambiguity-follow-on'), 'tsconfig.json') }).errors.map((e) => [e.code, e.message])).toEqual([
+      ['AmbiguousProvider', 'Tag "A" is provided by several entries at the same precedence: module "L1", module "L2"'],
+      ['MissingDependency', 'Service "B+M" (module "Lib") requires "Z", but no entry provides it. If a raw Layer provides it, wrap it with declareLayer(layer, { provides: [...] }).'],
+    ])
   })
 
   it('clean projects yield no errors', () => {
