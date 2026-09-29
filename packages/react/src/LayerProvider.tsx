@@ -19,7 +19,7 @@
 
 import React, { useContext, useEffect, useRef } from 'react'
 import type { Cause } from 'effect'
-import type { Entry, Module } from '@sleekstack/core'
+import type { ChildScope, Entry, Module } from '@sleekstack/core'
 import { ProviderContext } from './context'
 import { acquire, mount, sameEntries, type Owned } from './managedScope'
 
@@ -29,6 +29,12 @@ export interface LayerProviderProps {
   /** Sink for finalizer failures on unmount. Inherited by nested providers. Default `console.error`. */
   readonly onFinalizerError?: (cause: Cause.Cause<unknown>) => void
   readonly children?: React.ReactNode
+  /**
+   * Externally owned app scope. A top-level provider opens its component scope (with `provide`) on it instead of
+   * building its own app scope, and never closes it, so several React roots can share one app scope. The caller
+   * closes it. Ignored by a nested provider.
+   */
+  readonly appScope?: ChildScope
   /**
    * @internal Identity used to re-adopt this provider's scope across discarded renders. A wrapper component passes
    * its own props object, which is stable across its retries; the default is these props.

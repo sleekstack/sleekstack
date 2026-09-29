@@ -17,6 +17,8 @@ export interface ScopeProps {
   readonly provide: ReadonlyArray<Entry | Module>
   readonly children?: React.ReactNode
   readonly owner?: { readonly children?: React.ReactNode }
+  /** Externally owned app scope a top-level provider opens its component scope on; never closed by the provider. */
+  readonly appScope?: ChildScope
 }
 
 const defaultSink = (cause: Cause.Cause<unknown>) => console.error(Cause.pretty(cause))
@@ -48,6 +50,7 @@ export interface Owned {
   readonly state: ProviderState
   readonly provide: ReadonlyArray<Entry | Module>
   readonly parent: ProviderState | null
+  readonly appScope?: ChildScope
   readonly close: () => Promise<void>
   committed: boolean
   /** Deferred close scheduled by the last unmount; a StrictMode remount cancels it. */
@@ -90,7 +93,7 @@ const park = (owned: Owned, props: object) => {
 const adopt = (props: ScopeProps, parent: ProviderState | null): Owned | undefined => {
   let found: Owned | undefined
   for (const o of parked) {
-    if (o.parent !== parent) continue
+    if (o.parent !== parent || o.appScope !== props.appScope) continue
     if (o.parkedBy === (props.owner ?? props)) { found = o; break }
     if (!found && o.stale && sameEntries(o.provide, props.provide) && sameShape((o.parkedBy as ScopeProps).children, props.children)) found = o
   }
@@ -98,7 +101,7 @@ const adopt = (props: ScopeProps, parent: ProviderState | null): Owned | undefin
   return found
 }
 
-function create(provide: ReadonlyArray<Entry | Module>, parent: ProviderState | null, sink: ProviderState['onFinalizerError']): Owned {
+function create(provide: ReadonlyArray<Entry | Module>, parent: ProviderState | null, sink: ProviderState['onFinalizerError'], appScope?: ChildScope): Owned {
   const report = (exit: Exit.Exit<void, unknown>) => {
     if (Exit.isSuccess(exit)) return
     try {
@@ -113,6 +116,8 @@ function create(provide: ReadonlyArray<Entry | Module>, parent: ProviderState | 
   const started = new Promise<void>((r) => (resolveStart = r))
   const opened: Promise<ChildScope> = parent
     ? started.then(() => parent.scope).then((p) => Effect.runPromise(p.child('component', [...provide])))
+    : appScope
+    ? started.then(() => Effect.runPromise(appScope.child('component', [...provide])))
     : started.then(() => Effect.runPromise(Effect.suspend(() => makeAppScope(buildGraph([...provide]), { onFinalizerError: sink })))).then((app) => {
         owned.push(app)
         return Effect.runPromise(app.child('component'))
@@ -149,12 +154,12 @@ function create(provide: ReadonlyArray<Entry | Module>, parent: ProviderState | 
       for (const s of owned.reverse()) report(await Effect.runPromise(s.close))
       if (state.atoms) settleSuspensions(state.atoms)
     })())
-  return { state, provide, parent, close, committed: false }
+  return { state, provide, parent, appScope, close, committed: false }
 }
 
 /** Adopts a parked scope for this render or creates one, then parks it under this render's identity. */
 export const acquire = (props: ScopeProps, parent: ProviderState | null, sink: ProviderState['onFinalizerError'] | undefined): Owned => {
-  const owned = adopt(props, parent) ?? create(props.provide, parent, sink ?? parent?.onFinalizerError ?? defaultSink)
+  const owned = adopt(props, parent) ?? create(props.provide, parent, sink ?? parent?.onFinalizerError ?? defaultSink, props.appScope)
   park(owned, props.owner ?? props)
   return owned
 }
