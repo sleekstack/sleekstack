@@ -32,9 +32,15 @@ Wire kit services into Islands per the spec's Effect handoff and Lifecycle bulle
 - [ ] Error thrown in an Island logs and renders nothing for that Island only
 
 ## Done summary
-TBD
+`defineIslands(map, { provide })` now builds one ref-counted app scope per registry (packages/islands/src/appScope.ts). It is built lazily, closed when the last Island root unmounts, rebuilt on the next activation, and a failed build is retried. `<Island provide>` adds component-scope entries. Each root is `Boundary > kit LayerProvider(appScope) > Suspense`, and the server branch nests app and component LayerProviders so `useService` also works during SSR. Distinct Tags that share a key across the app and component entries are logged as `DuplicateTag` for that Island only, while the same Tag shadows. A thrown error logs `[island <name>]` and renders nothing for that Island.
 
+Tests: packages/islands/src/__tests__/services.test.tsx covers the shared app scope and per-Island component scopes, reverse-order close and rebuild, build retry for load and for interaction on the same container, DuplicateTag and shadowing, error isolation, and a kit `effect()` action called from an Island (jsdom). packages/islands/src/__tests__/ssr.test.tsx covers SSR `useService`.
+
+Follow-up: in @sleekstack/react, managedScope adoption does not compare `appScope`. A same-process server render parks a scope, and a client provider with the same `provide` reference can adopt it, which is why the SSR test has its own file. SSR app scopes built by the server LayerProvider are never closed explicitly.
+
+Tier: opus at medium (conductor IMPLEMENTER)
+stage: impl-review - ran (codex fan-out NEEDS_WORK -> re-review SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 98313b337dd70e54131b84f1ecb7addd9c4f318b, b07b967696ed64d34c4ccf650216247f1c8db2e6
+- Tests: pnpm --filter @sleekstack/islands test, pnpm --filter @sleekstack/islands typecheck
 - PRs:
