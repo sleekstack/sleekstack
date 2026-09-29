@@ -1,17 +1,17 @@
-# sleekstack (CLI shim)
+# sleekstack (CLI)
 
-This package is a minimal top-level CLI package named `sleekstack` intended to provide the `sleekstack` executable name on npm. It is a small shim that can forward to the real CLI implementation (for example `@sleekstack/cli`) once you publish or implement it.
-
-Publishing steps (once you own the name):
+The `sleekstack` executable. `sleekstack check` validates the dependency graph at build time through
+[`@sleekstack/analyze`](../analyze), without importing or running app code (ADR 0010).
 
 ```bash
-# from repo root
-pnpm install                        # pnpm 11 (pinned in packageManager)
-# from package dir
-cd packages/cli
-npm login
-npm publish --access public
+sleekstack check [--project <tsconfig>] [--entry <file>...] [--json]
 ```
 
-If the name is already taken, see the notes in the repo README about requesting transfers from npm support or publishing under `@sleekstack/cli` instead.
+- Roots: each `--entry` file, else `sleekstack.entry` in the nearest package.json, else every `configureRuntime` call
+  outside test files. Each root is validated as its own graph. `--entry` is an allowlist: other `configureRuntime`
+  calls are not checked.
+- Exit 0 clean, 1 violations (reported with file:line), 2 crash, usage error or no roots.
+- `--json` writes only JSON to stdout (each root's graph and errors).
+- Declarations the analyzer cannot read (`any`, widened arrays, non-literal keys) fail the check; there is no opt-out.
 
+Run it as a `prebuild` script and in CI before the tests. `typescript` is a peer dependency.

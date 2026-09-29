@@ -10,7 +10,7 @@ Install core and Effect, plus the adapters you need.
 
 ## Define services
 
-Tags are Effect `Context.Tag` classes. `service(tag, { requires, lifetime }, make)` is a Service Definition: a scoped Layer plus the metadata (provided Tag, required Tags, lifetime) the graph needs. The requirement type is derived from `requires`, so the two cannot drift. `buildGraph` validates the modules and `snapshot` turns the result into JSON.
+Tags are Effect `Context.Tag` classes. `service(tag, { requires, lifetime }, make)` is a Service Definition: a scoped Layer plus the metadata (provided Tag, required Tags, lifetime) the graph needs. The requirement type is derived from `requires`, so the two cannot drift. `sleekstack check` validates the modules at build time and `makeAppScope` builds them.
 
 <include>../../snippets/effect/getting-started.ts</include>
 

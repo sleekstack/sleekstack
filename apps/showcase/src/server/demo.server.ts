@@ -1,15 +1,13 @@
 /**
  * apps/showcase/src/server/demo.server.ts
  *
- * Demo-mode toggle (R9): a cookie read on the server. `demoEntries()` returns
- * a mock ActivityLog and Clock passed as per-call `provide` on both server
- * operations (this file) and the client `LayerProvider` remount (task .3) —
- * the only override path, no separate demo API.
+ * Demo-mode toggle: a cookie read on the server. `DemoLive` holds a mock
+ * ActivityLog and Clock; `runApp` provides it over the app's Layers when the
+ * cookie is set, so the mocks shadow the real services for that operation.
  */
 import 'server-only'
 import { cookies } from 'next/headers'
-import { service, type Entry } from '@sleekstack/core'
-import { Effect } from 'effect'
+import { Layer } from 'effect'
 import { ActivityLog, Clock, type ActivityEvent } from '../domain/tags'
 import { DEMO_COOKIE } from '../domain/demo-cookie'
 
@@ -23,23 +21,17 @@ export async function isDemoMode(): Promise<boolean> {
 let mockSeq = 0
 const mockEvents: ActivityEvent[] = []
 
-export const MockActivityLogDef = service(ActivityLog, {}, () =>
-  Effect.succeed({
+export const DemoLive = Layer.mergeAll(
+  Layer.succeed(ActivityLog, {
     record: (message: string) => {
       mockEvents.push({ id: `mock_${++mockSeq}`, message: `[demo] ${message}`, at: 0 })
     },
     list: () => [...mockEvents],
   }),
+  Layer.succeed(Clock, { now: () => 0 }),
 )
 
-export const MockClockDef = service(Clock, {}, () => Effect.succeed({ now: () => 0 }))
-
-/** Per-call `provide` override for server operations; empty (no shadowing) when demo mode is off. */
-export async function demoEntries(): Promise<readonly Entry[]> {
-  return (await isDemoMode()) ? [MockActivityLogDef, MockClockDef] : []
-}
-
-/** Test-only peek at the mock's recorded events (requests.test.ts, R9). */
+/** Test-only peek at the mock's recorded events (requests.test.ts). */
 export function __peekMockActivityEvents(): readonly ActivityEvent[] {
   return mockEvents
 }

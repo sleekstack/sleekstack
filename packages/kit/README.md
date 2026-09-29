@@ -1,13 +1,13 @@
 # @sleekstack/kit
 
 An Effect-free facade over `@sleekstack/core`, `@sleekstack/next` and `@sleekstack/react`. Services are plain
-values, classes or (async) factories; dependencies are declared as an array of Tags. No Effect type is reachable
+values, classes or (async) factories; a layer declares its dependencies as an array of Tags or `yield*`s them from a generator; actions and queries `yield*` them. `sleekstack check` validates the graph at build time. No Effect type is reachable
 from any public entry.
 
 | Subpath | Exports |
 | --- | --- |
-| `@sleekstack/kit` | `tag`, `layer`, `withCleanup`, `effect`, `atom`, `module`, `snapshot`, `SleekStackError` (+ types `Tag`, `Layer`, `Module`, `GraphSnapshot`, `FinalizerError`, ...) |
-| `@sleekstack/kit/next` | `configureRuntime`, `action`, `query`, `fail` (+ `ActionResult`, `OperationOptions`, `RuntimeConfig`) |
+| `@sleekstack/kit` | `tag`, `layer`, `withCleanup`, `effect`, `atom`, `module`, `SleekStackError` (+ types `Tag`, `Layer`, `Module`, `FinalizerError`, ...) |
+| `@sleekstack/kit/next` | `configureRuntime`, `defineEffect`, `defineQuery`, `effect`, `query`, `fail` (+ `ActionResult`, `OperationOptions`, `RuntimeConfig`) |
 | `@sleekstack/kit/react` | `LayerProvider`, `useService`, `useServices`, `useAtom`, `useAtomValue`, `useAtomSet` |
 
 Every failure is a `SleekStackError` with a `code` (`MissingDependency`, `DependencyCycle`, `CaptiveDependency`,
@@ -17,7 +17,7 @@ Every failure is a `SleekStackError` with a `code` (`MissingDependency`, `Depend
 ## `@sleekstack/kit`
 
 ```ts
-import { layer, module, snapshot, tag, withCleanup } from '@sleekstack/kit'
+import { layer, module, tag, withCleanup } from '@sleekstack/kit'
 
 const Clock = tag<{ now(): number }>('Clock')
 const Db = tag<{ query(sql: string): unknown[] }>('Db')
@@ -28,8 +28,14 @@ const DbLayer = layer(Db, async (clock) => {                                // a
   return withCleanup(conn, () => conn.close())
 }, [Clock])
 
-export const App = module({ name: 'App', provide: [ClockLayer, DbLayer], exports: [Db] })
-snapshot(App) // core's GraphSnapshot: nodes, edges, shadowing
+const Cache = tag<{ get(k: string): unknown }>('Cache')
+const CacheLayer = layer(Cache, function* () {                              // a generator: yielded Tags are its deps
+  const db = yield* Db
+  return { get: (k: string) => db.query(`select ${k}`) }
+})
+
+export const App = module({ name: 'App', provide: [ClockLayer, DbLayer, CacheLayer], exports: [Db, Cache] })
+// `sleekstack check` validates the graph at build time (nodes, edges, shadowing with `--json`)
 ```
 
 ### Side effects: `effect()`
@@ -48,7 +54,7 @@ export const App = module({ name: 'App', provide: [ClockLayer, DbLayer, refresh]
 ```
 
 - Setup may be async. A throw is `SleekStackError` `LayerFailed` with `details.tag` `effect:refresh`; a cleanup throw reaches `onFinalizerError` with `tag: 'effect:refresh'`.
-- Graph rules (missing, captive, private) apply to its deps. It shows in `snapshot()` as `effect:<name>` (default `effect:<n>`).
+- Graph rules (missing, captive, private) apply to its deps. It shows in the analyzer graph as `effect:<name>` (default `effect:<n>`).
 - It runs once per scope; it doesn't re-run when deps change.
 
 ### Atoms: `atom()`
@@ -73,15 +79,21 @@ const Next = () => { const [id, set] = useAtom(userId); return <button onClick={
 ## `@sleekstack/kit/next`
 
 ```ts
-import { action, configureRuntime, fail, query } from '@sleekstack/kit/next'
+import { configureRuntime, defineEffect, defineQuery, fail } from '@sleekstack/kit/next'
 
 configureRuntime({ provide: [App] })                                        // once, from instrumentation.ts
 
-export const listRows = query((db) => () => db.query('select 1'), [Db])
-export const addRow = action((db) => async (title: string) => {
+const listRowsQuery = defineQuery(function* () { return (yield* Db).query('select 1') })
+const addRowEffect = defineEffect(function* (title: string) {
   if (!title) fail('title required')                                        // -> { ok: false, error }
-  return db.query(`insert ${title}`)
-}, [Db])                                                                    // -> { ok: true, data }
+  return (yield* Db).query(`insert ${title}`)
+})                                                                          // -> { ok: true, data }
+
+// A 'use server' file exports literal async functions that call the definitions
+// `{ provide: [Layers] }` shadows the graph for one call; `{ scope: [RequestContext] }` builds Tags the body never yields.
+// (or run a generator inline with effect(gen) / query(gen)):
+export async function listRows() { return listRowsQuery() }
+export async function addRow(title: string) { return addRowEffect(title) }
 ```
 
 ## `@sleekstack/kit/react`
@@ -97,4 +109,4 @@ function Now() {
 ```
 
 See [`apps/showcase-kit`](../../apps/showcase-kit/README.md) for the full task board, and
-[ADR 0005](../../docs/adr/0005-dependency-arrays-over-inject.md) for why dependencies are arrays.
+[ADR 0011](../../docs/adr/0011-static-build-time-dependency-graph.md) for why deps are inferred and checked statically.

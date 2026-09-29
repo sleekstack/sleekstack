@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { Cause, Context, Deferred, Effect, Exit, Fiber } from 'effect'
-import { buildGraph, makeAppScope, module, service } from '../index'
+import { makeAppScope, module, service } from '../index'
 
 class A extends Context.Tag('A')<A, { n: number }>() {}
 class B extends Context.Tag('B')<B, { n: number }>() {}
@@ -16,7 +16,7 @@ describe('scope runtime', () => {
     const a = service(A, {}, () => Effect.sync(() => ({ n: ++made })))
     const b = service(B, { requires: [A] }, ([x]) => Effect.succeed(x))
     const r = service(Rq, { requires: [A, B], lifetime: 'request' }, ([x]) => Effect.succeed({ n: 0, a: x }))
-    const app = await run(makeAppScope(buildGraph([a, b, r])))
+    const app = await run(makeAppScope([a, b, r]))
     await run(app.child('request'))
     expect(made).toBe(1)
   })
@@ -25,7 +25,7 @@ describe('scope runtime', () => {
     let n = 0
     const a = service(A, {}, () => Effect.succeed({ n: -1 }))
     const r = service(Rq, { requires: [A], lifetime: 'request' }, ([x]) => Effect.sync(() => ({ n: ++n, a: x })))
-    const app = await run(makeAppScope(buildGraph([a, r])))
+    const app = await run(makeAppScope([a, r]))
     const [c1, c2] = await run(Effect.all([app.child('request'), app.child('request')]))
     const r1 = Context.get(c1!.context, Rq), r2 = Context.get(c2!.context, Rq)
     expect(r1).not.toBe(r2)
@@ -41,7 +41,7 @@ describe('scope runtime', () => {
   it('finalizes in reverse order; a failing finalizer does not stop the rest', async () => {
     const log: string[] = []
     const t = tracked(log, 'B')
-    const app = await run(makeAppScope(buildGraph([t(A, 'A'), t(B, 'B', [A]), t(X, 'X', [B])])))
+    const app = await run(makeAppScope([t(A, 'A'), t(B, 'B', [A]), t(X, 'X', [B])]))
     const exit = await run(app.close)
     expect(log).toEqual(['+A', '+B', '+X', '-X', '-A'])
     expect(Exit.isFailure(exit) && Cause.pretty(exit.cause)).toContain('B failed')
@@ -50,7 +50,7 @@ describe('scope runtime', () => {
   it('dispose reports finalizer failures to onFinalizerError', async () => {
     const t = tracked([], 'A')
     const seen = await new Promise<Cause.Cause<unknown>>((resolve) =>
-      run(makeAppScope(buildGraph([t(A, 'A')]), { onFinalizerError: resolve })).then((s) => s.dispose()))
+      run(makeAppScope([t(A, 'A')], { onFinalizerError: resolve })).then((s) => s.dispose()))
     expect(Cause.pretty(seen)).toContain('A failed')
   })
 
@@ -59,7 +59,7 @@ describe('scope runtime', () => {
     const t = tracked(log)
     const bad = service(X, { requires: [B] }, () => Effect.fail('boom'))
     const y = service(Y, { requires: [X] }, () => Effect.succeed({ n: 0 }))
-    const exit = await Effect.runPromiseExit(makeAppScope(buildGraph([t(A, 'A'), t(B, 'B', [A]), bad, y])))
+    const exit = await Effect.runPromiseExit(makeAppScope([t(A, 'A'), t(B, 'B', [A]), bad, y]))
     expect(Exit.isFailure(exit)).toBe(true)
     expect(log).toEqual(['+A', '+B', '-B', '-A'])
   })
@@ -67,7 +67,7 @@ describe('scope runtime', () => {
   it('child-boundary entry shadows the parent instance only inside that child', async () => {
     const a = service(A, {}, () => Effect.succeed({ n: 1 }))
     const r = service(Rq, { requires: [A], lifetime: 'request' }, ([x]) => Effect.succeed({ n: 0, a: x }))
-    const app = await run(makeAppScope(buildGraph([a, r])))
+    const app = await run(makeAppScope([a, r]))
     const local = await run(app.child('request', [service(A, {}, () => Effect.succeed({ n: 2 }))]))
     const plain = await run(app.child('request'))
     expect(Context.get(local.context, A).n).toBe(2)
@@ -77,7 +77,7 @@ describe('scope runtime', () => {
   })
 
   it('child-boundary modules are resolved through imports and thunks', async () => {
-    const app = await run(makeAppScope(buildGraph([])))
+    const app = await run(makeAppScope([]))
     const Leaf = module({ name: 'Leaf', entries: [service(B, {}, () => Effect.succeed({ n: 7 }))] })
     const Mid = module({ name: 'Mid', imports: () => [Leaf] })
     const child = await run(app.child('request', [module({ name: 'Top', imports: [Mid] })]))
@@ -92,7 +92,7 @@ describe('scope runtime', () => {
       Effect.acquireRelease(Effect.sync(() => (log.push('+B'), { n: 0 })), () => Effect.sync(() => void log.push('-B'))))
     const x = service(X, { requires: [B], lifetime: 'request' }, () =>
       ++calls === 1 ? Deferred.succeed(gate, undefined).pipe(Effect.zipRight(Effect.never)) : Effect.succeed({ n: 1 }))
-    const app = await run(makeAppScope(buildGraph([b, x])))
+    const app = await run(makeAppScope([b, x]))
     const fiber = Effect.runFork(app.child('request'))
     await run(Deferred.await(gate))
     await run(Fiber.interrupt(fiber))
@@ -107,7 +107,7 @@ describe('scope runtime', () => {
     const a = service(A, {}, () => Effect.succeed({ n: -1 }))
     const c = service(Rq, { requires: [A], lifetime: 'component' }, ([x]) =>
       Effect.acquireRelease(Effect.sync(() => ({ n: ++n, a: x })), (v) => Effect.sync(() => void log.push(`-${v.n}`))))
-    const app = await run(makeAppScope(buildGraph([a, c])))
+    const app = await run(makeAppScope([a, c]))
     const outer = await run(app.child('component'))
     const inner = await run(outer.child('component'))
     const o = Context.get(outer.context, Rq), i = Context.get(inner.context, Rq)
@@ -118,14 +118,14 @@ describe('scope runtime', () => {
   })
 
   it('rejects duplicate providers among boundary entries', async () => {
-    const app = await run(makeAppScope(buildGraph([])))
+    const app = await run(makeAppScope([]))
     const dup = () => service(A, {}, () => Effect.succeed({ n: 0 }))
     const exit = await Effect.runPromiseExit(app.child('request', [dup(), dup()]))
     expect(Exit.isFailure(exit) && Cause.pretty(exit.cause)).toContain('AmbiguousProvider')
   })
 
   it('rejects opening a request scope inside a component scope', async () => {
-    const app = await run(makeAppScope(buildGraph([])))
+    const app = await run(makeAppScope([]))
     const comp = await run(app.child('component'))
     const exit = await Effect.runPromiseExit(comp.child('request'))
     expect(Exit.isFailure(exit)).toBe(true)

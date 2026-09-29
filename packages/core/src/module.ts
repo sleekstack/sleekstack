@@ -2,7 +2,7 @@
  * packages/core/src/module.ts
  *
  * module() and declareLayer(). module() validates only its own structure;
- * everything needing the whole graph (cycles, duplicate names, deps) lives in buildGraph.
+ * everything needing the whole graph (cycles, duplicate names, deps) lives in the scope runtime and the analyzer.
  */
 
 import { Context, Layer } from 'effect'
@@ -83,7 +83,7 @@ const isTagged = (x: unknown, tag: string): boolean =>
 const isTagArray = (x: unknown): boolean =>
   Array.isArray(x) && x.every((t) => Context.isTag(t))
 
-/** Structural check for a tagged entry, so malformed values fail in module(), not buildGraph. */
+/** Structural check for a tagged entry, so malformed values fail in module(), not at scope build. */
 function entryProblem(e: unknown): string | undefined {
   if (isServiceDefinition(e)) {
     return Context.isTag(e.tag) && isTagArray(e.requires) && Layer.isLayer(e.layer)
@@ -104,7 +104,7 @@ export const isServiceDefinition = (x: unknown): x is AnyServiceDefinition => is
 
 /**
  * Creates a module. Only the module's own structure is validated here; whole-graph checks
- * (cycles, duplicate names, dependencies) happen in `buildGraph`.
+ * (cycles, duplicate names, dependencies) happen when a scope resolves the module (and in `sleekstack check`).
  *
  * @param config - `name` (non-empty), `entries`, `imports`, `exports` (omit: all Tags public), `lifetime` (default for entries without one).
  * @returns The module.

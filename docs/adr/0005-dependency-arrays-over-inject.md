@@ -1,6 +1,8 @@
 # Dependency arrays over inject() and params
 
-`@sleekstack/kit` declares a Layer's dependencies as a trailing array of Tags — `layer(TaskRepo, (store, clock) => ..., [Store, Clock])` — and the same shape for `action()`/`query()`. The array is runtime metadata (it lowers to core `service()`'s `requires`, so ADR 0004's no-drift property holds), and TypeScript infers the factory's parameter types from it positionally.
+Superseded by [ADR 0011](0011-static-build-time-dependency-graph.md) for `defineEffect` / `defineQuery` / `effect` / `query` (deps inferred from `yield*`) and optionally for `layer` (generator factories). The array form of `layer` and `atom` remains.
+
+`@sleekstack/kit` declares a Layer's dependencies as a trailing array of Tags — `layer(TaskRepo, (store, clock) => ..., [Store, Clock])` — and the same array for `defineEffect()`/`defineQuery()`, whose generator `yield*`s those Tags. The array is runtime metadata (it lowers to core `service()`'s `requires`, so ADR 0004's no-drift property holds), and TypeScript infers the factory's parameter types from it positionally.
 
 ## Considered options
 

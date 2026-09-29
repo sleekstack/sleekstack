@@ -41,4 +41,4 @@ The same Tag provided in several places resolves to the most local provider: a m
 
 ## Graph
 
-The graph is the validated structure of every entry and imported module: construction order, lifetimes, privacy and Shadowing. `snapshot()` returns it as JSON (one node per provided Tag, plus edges and the shadowing list) for tools such as a graph view. Every graph check runs before any service is constructed.
+The graph is the validated structure of every entry and imported module: construction order, lifetimes, privacy and Shadowing. `sleekstack check --json` reports it as JSON (one node per provided Tag, plus edges and the shadowing list) for tools such as a graph view. Every graph check runs at build time, before the app starts.

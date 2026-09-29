@@ -9,22 +9,18 @@
  * trip from the board, so events recorded while a task detail was open are
  * still visible after navigating to /log.
  */
-import { query } from '@sleekstack/next'
 import { Effect } from 'effect'
 import { ActivityLog } from '../../src/domain/tags'
-import { demoEntries } from '../../src/server/demo.server'
+import { runApp } from '../../src/server/runtime.server'
 import { ScopeLog } from '../../src/client/ScopeLog'
 
-async function loadLog() {
-  const provide = await demoEntries()
-  const logQuery = query({ provide }, () =>
+const loadLog = () =>
+  runApp(
     Effect.gen(function* () {
       const activityLog = yield* ActivityLog
       return activityLog.list()
     }),
   )
-  return logQuery()
-}
 
 export default async function LogPage() {
   const events = await loadLog()

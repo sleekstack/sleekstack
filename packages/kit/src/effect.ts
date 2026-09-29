@@ -11,7 +11,7 @@ import { tag, type AnyTag } from './tag'
 
 /** Options for {@link effect}. */
 export interface EffectOptions {
-  /** Shown in the graph snapshot and error messages as `effect:<name>`. */
+  /** Shown in the analyzer graph and error messages as `effect:<name>`. */
   readonly name?: string
   readonly lifetime?: Lifetime
 }
@@ -58,7 +58,7 @@ export function effect<const D extends readonly AnyTag[] = []>(
       const teardown = await fn(...resolved)
       return typeof teardown === 'function' ? withCleanup(undefined, teardown) : undefined
     },
-    deps,
+    deps ?? ([] as unknown as D),
     opts.lifetime ? { lifetime: opts.lifetime } : {},
   )
 }

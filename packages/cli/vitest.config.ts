@@ -1,0 +1,3 @@
+import { configDefaults, defineConfig } from 'vitest/config'
+
+export default defineConfig({ test: { environment: 'node', testTimeout: 60_000, hookTimeout: 60_000, exclude: [...configDefaults.exclude, 'src/__tests__/fixtures/**'] } })

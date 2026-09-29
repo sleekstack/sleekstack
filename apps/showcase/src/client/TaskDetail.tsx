@@ -9,9 +9,9 @@
  * render `{ ok: false, error }` inline (R5) rather than depending on a
  * thrown message crossing the Server Action boundary.
  */
-import { Suspense, useState, useSyncExternalStore, useTransition } from 'react'
+import { Suspense, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { LayerProvider, useService } from '@sleekstack/react'
+import { LayerProvider, useAtom, useService } from '@sleekstack/react'
 import { addComment, moveTask } from '../server/board.actions'
 import type { CommentRecord, TaskRecord, TaskStatus } from '../domain/tags'
 import { ErrorBoundary } from './ErrorBoundary'
@@ -22,8 +22,8 @@ const STATUSES: readonly TaskStatus[] = ['todo', 'in_progress', 'done']
 export function DraftEditorPanel({ taskId }: { readonly taskId: string }) {
   const { draft } = useService(DraftEditor)
   const router = useRouter()
-  // The draft lives in the DraftEditor service, not local state (same getServerSnapshot note as ProjectView).
-  const body = useSyncExternalStore(draft.subscribe, draft.get, draft.get)
+  // The draft is an atom owned by the DraftEditor service, not local state. TaskDetail only renders on the client.
+  const [body, setBody] = useAtom(draft)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
@@ -35,7 +35,7 @@ export function DraftEditorPanel({ taskId }: { readonly taskId: string }) {
         return
       }
       setError(null)
-      draft.set('')
+      setBody('')
       router.refresh()
     })
   }
@@ -45,7 +45,7 @@ export function DraftEditorPanel({ taskId }: { readonly taskId: string }) {
       <textarea
         aria-label="new comment"
         value={body}
-        onChange={(e) => draft.set(e.target.value)}
+        onChange={(e) => setBody(e.target.value)}
         placeholder="Add a comment"
       />
       <button type="button" onClick={submit} disabled={pending}>

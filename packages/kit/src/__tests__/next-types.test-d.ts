@@ -1,17 +1,27 @@
 import { expectTypeOf } from 'vitest'
+import { Effect } from 'effect'
 import { tag } from '../index'
-import { action, query, type ActionResult } from '../next'
+import { defineEffect, defineQuery, type ActionResult } from '../next'
 
 interface User { id: string }
-abstract class Users { abstract find(id: string): Promise<User | undefined> }
+interface Users { find(id: string): Promise<User | undefined> }
+const Users = tag<Users>('Users')
 interface Clock { now(): number }
 const Clock = tag<Clock>('Clock')
 
-export const getUser = action((users, clock) => async (id: string) => { clock.now(); return users.find(id) }, [Users, Clock])
-expectTypeOf(getUser).toEqualTypeOf<(id: string) => Promise<ActionResult<User | undefined>>>()
+const id = '1'
+const getUserEffect = defineEffect(function* (id: string) {
+  const users = yield* Users
+  const clock = yield* Clock
+  clock.now()
+  return yield* Effect.promise(() => users.find(id))
+})
+const getUser = getUserEffect(id)
+expectTypeOf(getUser).toEqualTypeOf<Promise<ActionResult<User | undefined>>>()
 
-const now = query((clock) => () => clock.now(), [Clock])
-expectTypeOf(now).toEqualTypeOf<() => Promise<number>>()
+const nowQuery = defineQuery(function* () { return (yield* Clock).now() })
+const now = nowQuery()
+expectTypeOf(now).toEqualTypeOf<Promise<number>>()
 
-// @ts-expect-error deps are typed: Clock has no `find`
-action((clock) => () => clock.find(), [Clock])
+// @ts-expect-error yield* of a Tag returns its typed service: Clock has no `find`
+defineEffect(function* () { return (yield* Clock).find() })

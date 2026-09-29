@@ -14,7 +14,7 @@ export interface Visit {
   readonly module: Module
   /** Import paths (module names, root first, ending with this module). */
   readonly paths: string[][]
-  /** Shortest import depth (1 = passed directly to buildGraph). */
+  /** Shortest import depth (1 = passed directly as input). */
   depth: number
 }
 

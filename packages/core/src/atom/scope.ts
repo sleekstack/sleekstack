@@ -30,9 +30,9 @@ const notFoundKey = (defect: unknown): string | undefined => {
  * @example
  * ```ts
  * import { Effect } from 'effect'
- * import { atomStoreFor, buildGraph, makeAppScope } from '@sleekstack/core'
+ * import { atomStoreFor, makeAppScope } from '@sleekstack/core'
  *
- * const app = Effect.runSync(makeAppScope(buildGraph([])))
+ * const app = Effect.runSync(makeAppScope([]))
  * const store = atomStoreFor(app)
  * ```
  */

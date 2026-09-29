@@ -2,7 +2,7 @@
  * packages/core/src/order.ts
  *
  * Spike (fn-1 task .2): topological ordering over bare service definitions.
- * buildGraph is the production entry; this stays as the definitions-only helper.
+ * The scope runtime is the production path; this stays as the definitions-only helper.
  */
 
 import { Layer } from 'effect'

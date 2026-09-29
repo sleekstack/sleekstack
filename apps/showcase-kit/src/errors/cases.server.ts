@@ -1,12 +1,14 @@
 /**
  * apps/showcase-kit/src/errors/cases.server.ts
  *
- * The error gallery, kit-only: each case builds its own throwaway Tags/modules
- * (never the real domain graph) and must throw a SleekStackError with its
- * expected `code`. Anything else is classified UNEXPECTED by `runCase`.
+ * The error gallery, kit-only. Graph errors are build-time: the broken graphs live in `graphs.ts`
+ * and their errors come from the analyzer's prebuilt report. The runtime-only cases below build
+ * throwaway Tags/modules and must throw a SleekStackError with their expected `code`; anything else
+ * is classified UNEXPECTED by `runCase`.
  */
 import 'server-only'
-import { layer, module, snapshot, tag, SleekStackError, type Module } from '@sleekstack/kit'
+import { layer, module, tag, SleekStackError } from '@sleekstack/kit'
+import { configureRuntime } from '@sleekstack/kit/next'
 
 export interface CaseResult {
   readonly code: string
@@ -20,40 +22,36 @@ export interface ErrorCase {
 }
 
 const A = tag<string>('errors.A')
-const B = tag<string>('errors.B')
-const lib = (name: string) => module({ name, provide: [layer(A, () => name)] })
 
-const cycle: { b?: Module } = {}
-const CycleA = module({ name: 'errors.CycleA', imports: () => [cycle.b!] })
-cycle.b = module({ name: 'errors.CycleB', imports: [CycleA] })
-
+/** Runtime-only cases: thrown while defining or combining modules, never seen by the analyzer. */
 export const errorCases: readonly ErrorCase[] = [
-  { id: 'missing-dependency', expectedCode: 'MissingDependency', run: () => snapshot(module({ name: 'errors.App', provide: [layer(B, (a) => a, [A])] })) },
-  { id: 'dependency-cycle', expectedCode: 'DependencyCycle', run: () => snapshot(module({ name: 'errors.App', provide: [layer(A, (b) => b, [B]), layer(B, (a) => a, [A])] })) },
-  {
-    id: 'captive-dependency',
-    expectedCode: 'CaptiveDependency',
-    run: () => snapshot(module({ name: 'errors.App', provide: [layer(A, () => 'r', [], { lifetime: 'request' }), layer(B, (a) => a, [A])] })),
-  },
-  { id: 'ambiguous-provider', expectedCode: 'AmbiguousProvider', run: () => snapshot(module({ name: 'errors.App', imports: [lib('errors.L1'), lib('errors.L2')] })) },
-  { id: 'module-cycle', expectedCode: 'ModuleCycle', run: () => snapshot(CycleA) },
-  {
-    id: 'duplicate-module',
-    expectedCode: 'DuplicateModule',
-    run: () => snapshot(module({ name: 'errors.App', imports: [lib('errors.X'), module({ name: 'errors.Y', imports: [lib('errors.X')] })] })),
-  },
   { id: 'invalid-module', expectedCode: 'InvalidModule', run: () => module({ name: 'errors.Bad', imports: [{} as never] }) },
-  { id: 'duplicate-tag', expectedCode: 'DuplicateTag', run: () => snapshot(module({ name: 'errors.App', provide: [layer(A, 'a'), layer(tag<string>('errors.A'), 'b')] })) },
-  {
-    id: 'private-dependency',
-    expectedCode: 'PrivateDependency',
-    run: () => {
-      const Lib = module({ name: 'errors.Lib', provide: [layer(A, 'secret'), layer(B, (a) => a, [A])], exports: [B] })
-      return snapshot(module({ name: 'errors.App', imports: [Lib], provide: [layer(tag<string>('errors.C'), (a) => a, [A])] }))
-    },
-  },
+  // configureRuntime validates the provide set before configuring, so this never replaces the app's runtime.
+  // Not an analyzer root: `sleekstack check` runs with `--entry src/server/runtime.server.ts`.
+  { id: 'duplicate-tag', expectedCode: 'DuplicateTag', run: () => configureRuntime({ provide: [module({ name: 'errors.App', provide: [layer(A, 'a'), layer(tag<string>('errors.A'), 'b')] })] }) },
   { id: 'invalid-tag', expectedCode: 'InvalidTag', run: () => tag('') },
 ]
+
+/** Build-time cases: each broken root module in `graphs.ts`, rendered from the analyzer's report. */
+export const buildTimeCases = [
+  { id: 'missing-dependency', expectedCode: 'MissingDependency' },
+  { id: 'dependency-cycle', expectedCode: 'DependencyCycle' },
+  { id: 'captive-dependency', expectedCode: 'CaptiveDependency' },
+  { id: 'ambiguous-provider', expectedCode: 'AmbiguousProvider' },
+  { id: 'module-cycle', expectedCode: 'ModuleCycle' },
+  { id: 'duplicate-module', expectedCode: 'DuplicateModule' },
+  { id: 'private-dependency', expectedCode: 'PrivateDependency' },
+] as const
+
+export const GRAPHS_FILE = 'src/errors/graphs.ts'
+
+/** The report's error for each build-time case (UNEXPECTED when the analyzer did not report its code in graphs.ts). */
+export function buildTimeResults(graphErrors: readonly { code: string; message: string; file: string; line: number }[]): (CaseResult & { id: string; at: string })[] {
+  return buildTimeCases.map(({ id, expectedCode }) => {
+    const e = graphErrors.find((x) => x.file === GRAPHS_FILE && x.code === expectedCode)
+    return e ? { id, code: e.code, message: e.message, at: `${e.file}:${e.line}` } : { id, code: 'UNEXPECTED', message: `the analyzer reported no ${expectedCode} in ${GRAPHS_FILE}`, at: '' }
+  })
+}
 
 /** Runs one case in isolation; a non-throw, a non-SleekStackError or a wrong code is UNEXPECTED. */
 export async function runCase(errorCase: ErrorCase): Promise<CaseResult> {

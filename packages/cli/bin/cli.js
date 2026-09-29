@@ -1,39 +1,17 @@
 #!/usr/bin/env node
+// `sleekstack check [--project <tsconfig>] [--entry <file>...] [--json]` runs src/check.ts (TypeScript, via jiti).
+const pkg = require('../package.json')
+const args = process.argv.slice(2)
 
-// Minimal CLI entry for the `sleekstack` package.
-// Keep this file small so publishing the package is straightforward.
-
-const pkg = { name: 'sleekstack', version: '0.0.1' };
-
-function help() {
-  console.log(`${pkg.name} v${pkg.version}`);
-  console.log('');
-  console.log('Usage: sleekstack <command>');
-  console.log('');
-  console.log('Commands:');
-  console.log('  --version   Show version');
-  console.log('  help        Show this help');
+if (args[0] === 'check') {
+  require('jiti')
+    .createJiti(__filename)
+    .import('../src/check.ts')
+    .then(({ main }) => { process.exitCode = main(args) })
+    .catch((err) => { console.error(err); process.exitCode = 2 })
+} else if (args[0] === '--version' || args[0] === '-v') {
+  console.log(pkg.version)
+} else {
+  console.log(`${pkg.name} v${pkg.version}\n\nUsage: sleekstack <command>\n\nCommands:\n  check       Validate the static dependency graph (--project <tsconfig>, --entry <file>..., --json)\n  --version   Show version\n  help        Show this help`)
+  if (args.length && args[0] !== 'help' && args[0] !== '--help') process.exitCode = 2
 }
-
-async function main(argv) {
-  const args = argv.slice(2);
-  if (args.length === 0 || args.includes('help') || args.includes('--help')) {
-    help();
-    return;
-  }
-  if (args.includes('--version') || args.includes('-v')) {
-    console.log(pkg.version);
-    return;
-  }
-
-  // Placeholder: dispatch to actual workspace CLI or show message
-  const cmd = args[0];
-  console.log(`Command '${cmd}' is not implemented in this placeholder CLI.`);
-  console.log('Consider installing @sleekstack/cli from the org for the full experience.');
-}
-
-main(process.argv).catch((err) => {
-  console.error('Error:', err);
-  process.exit(1);
-});
-

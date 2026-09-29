@@ -34,12 +34,12 @@ export type SleekStackErrorCode = keyof SleekStackErrorDetails
  *
  * @example
  * ```ts
- * import { SleekStackError, module, snapshot } from '@sleekstack/kit'
+ * import { SleekStackError, module } from '@sleekstack/kit'
  *
  * try {
- *   snapshot(module({ name: 'app' }))
+ *   module({ name: 'app', imports: [{} as never] })
  * } catch (e) {
- *   if (e instanceof SleekStackError && e.code === 'MissingDependency') console.error(e.details.missing)
+ *   if (e instanceof SleekStackError && e.code === 'InvalidModule') console.error(e.details.name)
  * }
  * ```
  */

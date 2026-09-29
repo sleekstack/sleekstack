@@ -6,7 +6,7 @@
 
 export { service, type Lifetime, type ServiceDefinition, type AnyServiceDefinition, type CaptiveViolations } from './service'
 export { module, declareLayer, type Module, type DeclaredLayer, type Entry, type BareLayer, type Imports } from './module'
-export { buildGraph, snapshot, walkProvide, type Graph, type GraphNode, type GraphSnapshot, type Shadowing } from './graph'
+export { walkProvide } from './graph'
 export {
   MissingDependency,
   DependencyCycle,
@@ -19,8 +19,10 @@ export {
   AtomCycle,
   type GraphError,
 } from './errors'
+/** @internal Lazy per-scope resolution for generator layers. */
+export { Resolver, type Resolve } from './lazy'
 export { canDependOn } from './lifetime'
-export { makeAppScope, privateDependencyOf, resolveTag, resolveTagEffect, Privacy, type AppScope, type ChildScope, type ScopeOptions } from './scope'
+export { makeAppScope, privateDependencyOf, resolutionFailure, resolveTag, resolveTagEffect, Privacy, type AppScope, type ChildScope, type ScopeOptions } from './scope'
 /** Atom definitions: `make`, `writable`, `family`, `keepAlive`, `setIdleTTL`. */
 export * as Atom from './atom/Atom'
 /** The async state of Effect and Stream atoms. */

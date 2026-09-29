@@ -3,7 +3,7 @@ import { act, useState } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { layer, tag, withCleanup } from '@sleekstack/kit'
-import { action, configureRuntime } from '@sleekstack/kit/next'
+import { configureRuntime, effect } from '@sleekstack/kit/next'
 import { useService } from '@sleekstack/kit/react'
 import { defineIslands } from '../index'
 
@@ -105,9 +105,13 @@ describe('Island Effect handoff', () => {
     expect(err.mock.calls.some((c) => c[0] === '[island bad]' && (c[1] as Error)?.message === 'kaboom')).toBe(true)
   })
 
-  it('a kit action() call from an Island works', async () => {
+  it('a kit effect() call from an Island works', async () => {
     configureRuntime({ provide: [layer(Greeting, 'hi')] })
-    const greet = async (who: string) => action((hello) => (name: string) => `${hello} ${name}`, [Greeting])(who)
+    const greet = async (who: string) =>
+      effect(function* () {
+        const hello = yield* Greeting
+        return `${hello} ${who}`
+      })
     const Btn = () => {
       const [text, setText] = useState('idle')
       return <button type="button" onClick={() => void greet('island').then((r) => setText(r.ok ? r.data : r.error))}>{text}</button>

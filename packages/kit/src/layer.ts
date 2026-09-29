@@ -6,8 +6,9 @@
  * result lowers to acquireRelease.
  */
 
-import { Effect } from 'effect'
-import { service, type AnyServiceDefinition } from '@sleekstack/core'
+import { Context, Effect, Option } from 'effect'
+import { isGeneratorFunction, YieldWrap, yieldWrapGet } from 'effect/Utils'
+import { Resolver, service, type AnyServiceDefinition, type Resolve } from '@sleekstack/core'
 import { CleanupFailure, LayerFailure } from './errors'
 import { coreTag, keyOf, type AnyTag, type ServiceOf, type TagLike } from './tag'
 
@@ -81,17 +82,44 @@ interface LayerInfo {
 
 const infos = new WeakMap<object, LayerInfo>()
 
+/** A generator factory for {@link layer}: its `yield*`ed Tags are its requirements, resolved lazily. */
+export type LayerGenerator<T> = () => Generator<unknown, T | Cleanup<T>, any>
+
+// Runs a generator factory: each `yield* Tag` resolves through the building scope's Resolver
+// (lazily building its local provider), or the running context when built outside a scope.
+const runGenerator = (key: string, factory: () => Iterator<unknown, unknown, unknown>) =>
+  Effect.flatMap(Effect.serviceOption(Resolver), (r) => {
+    const resolve: Resolve = Option.getOrElse(r, () => ((t: Context.Tag<any, any>) => t) as unknown as Resolve)
+    const it = factory()
+    const step = (input: unknown): Effect.Effect<unknown, unknown> => {
+      let res: IteratorResult<unknown, unknown>
+      try {
+        res = it.next(input)
+      } catch (e) {
+        return Effect.fail(new LayerFailure(key, e))
+      }
+      if (res.done) return Effect.succeed(res.value)
+      if (!(res.value instanceof YieldWrap)) return Effect.fail(new LayerFailure(key, new Error('a layer generator must `yield*` Tags, not `yield` values')))
+      const y = yieldWrapGet(res.value) as Effect.Effect<unknown, unknown>
+      return Effect.flatMap(Context.isTag(y) ? resolve(y) : y, step)
+    }
+    return Effect.suspend(() => step(undefined))
+  })
+
 /**
  * Implements a Tag. `impl` is constructed (class), called (factory, sync or async), or returned as-is (value),
- * with the services of `deps` passed in order.
+ * with the services of `deps` passed in order. A generator factory (`function* () {...}`) takes no deps array:
+ * the Tags it `yield*`s are its requirements, resolved lazily when it builds.
  *
  * @param tag - The Tag to implement.
- * @param impl - A class, a factory (may return {@link withCleanup}), or a value.
- * @param deps - Tags resolved and passed to `impl`, in order.
+ * @param impl - A class, a factory (may return {@link withCleanup}), a generator factory, or a value.
+ * @param deps - Tags resolved and passed to `impl`, in order (not with a generator factory).
  * @param opts - `lifetime` (default `'app'`).
  * @returns A Layer to list in a module's `provide`.
  * @throws {@link SleekStackError} with code `InvalidTag` when `tag` or a dep is not a `tag()` or named class.
  * @throws {@link SleekStackError} with code `LayerFailed` (when the scope builds) when the factory or constructor throws or rejects.
+ * @throws {@link SleekStackError} with code `MissingDependency` (when the scope builds) when a generator yields an unprovided Tag,
+ *   or `DependencyCycle` when generator layers yield each other.
  *
  * @example
  * ```ts
@@ -104,26 +132,34 @@ const infos = new WeakMap<object, LayerInfo>()
  *
  * const ClockLive = layer(Clock, { now: () => Date.now() })
  * const GreeterLive = layer(Greeter, (clock) => ({ greet: () => `hi at ${clock.now()}` }), [Clock], { lifetime: 'request' })
+ * const GreeterGen = layer(Greeter, function* () {
+ *   const clock = yield* Clock
+ *   return { greet: () => `hi at ${clock.now()}` }
+ * })
  * ```
  */
-export function layer<T, const D extends readonly AnyTag[] = []>(
-  tag: TagLike<T>,
-  impl: NoInfer<Impl<T, Services<D>>>,
-  deps?: D,
-  opts: LayerOptions = {},
-): Layer<T> {
-  const depTags = deps ?? []
+export function layer<T, const D extends readonly AnyTag[]>(tag: TagLike<T>, impl: NoInfer<Impl<T, Services<D>>>, deps: D, opts?: LayerOptions): Layer<T>
+export function layer<T>(tag: TagLike<T>, impl: NoInfer<LayerGenerator<T>>, opts?: LayerOptions): Layer<T>
+export function layer<T>(tag: TagLike<T>, impl: NoInfer<Impl<T, []>>, deps?: undefined, opts?: LayerOptions): Layer<T>
+export function layer(tag: AnyTag, impl: unknown, depsOrOpts?: readonly AnyTag[] | LayerOptions, maybeOpts: LayerOptions = {}): Layer<unknown> {
+  const gen = isGeneratorFunction(impl)
+  const depTags = gen || !depsOrOpts ? [] : (depsOrOpts as readonly AnyTag[])
+  const opts = (gen ? depsOrOpts : maybeOpts) as LayerOptions | undefined ?? {}
   const key = keyOf(tag)
   const run = async (resolved: readonly unknown[]): Promise<unknown> => {
     if (typeof impl !== 'function') return impl
     if (isClass(impl)) return new (impl as new (...a: unknown[]) => unknown)(...resolved)
     return (impl as (...a: unknown[]) => unknown)(...resolved)
   }
+  const make = (resolved: readonly unknown[]): Effect.Effect<unknown, unknown> =>
+    gen
+      ? runGenerator(key, impl as () => Iterator<unknown, unknown, unknown>)
+      : Effect.tryPromise({ try: () => run(resolved), catch: (e) => new LayerFailure(key, e) })
   const def = service(
     coreTag(tag),
     { requires: depTags.map(coreTag), ...(opts.lifetime && { lifetime: opts.lifetime }) },
     (resolved) =>
-      Effect.tryPromise({ try: () => run(resolved), catch: (e) => new LayerFailure(key, e) }).pipe(
+      make(resolved).pipe(
         Effect.flatMap((r) =>
           isCleanup(r)
             ? Effect.acquireRelease(Effect.succeed(r.service), () =>
@@ -136,9 +172,9 @@ export function layer<T, const D extends readonly AnyTag[] = []>(
                 }))
             : Effect.succeed(r),
         ),
-      ),
+      ) as Effect.Effect<unknown, unknown, never>,
   )
-  const l = Object.freeze({}) as Layer<T>
+  const l = Object.freeze({}) as Layer<unknown>
   infos.set(l, { tag, deps: depTags, def })
   return l
 }

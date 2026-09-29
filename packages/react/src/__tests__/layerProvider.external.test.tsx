@@ -7,7 +7,7 @@ import { describe, it, expect } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import React, { Suspense } from 'react'
 import { Context, Effect, Layer } from 'effect'
-import { buildGraph, makeAppScope } from '@sleekstack/core'
+import { makeAppScope } from '@sleekstack/core'
 import { LayerProvider, useService } from '../index'
 
 const Counter = Context.GenericTag<{ readonly id: number }>('ExternalCounter')
@@ -20,7 +20,7 @@ describe('LayerProvider appScope (external)', () => {
       Counter,
       Effect.acquireRelease(Effect.sync(() => ({ id: ++built })), () => Effect.sync(() => void finalized++)),
     )
-    const app = await Effect.runPromise(makeAppScope(buildGraph([CounterLayer])))
+    const app = await Effect.runPromise(makeAppScope([CounterLayer]))
 
     const Show = ({ testId }: { testId: string }) => <div data-testid={testId}>{useService(Counter).id}</div>
     const tree = (testId: string) => (

@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import { Effect } from 'effect'
-import { effect, layer, module, snapshot, tag } from '../index'
+import { effect, layer, module, tag } from '../index'
 import { toFinalizerError } from '../errors'
-import { boot, err } from './helpers'
+import { boot } from './helpers'
 
 interface Log { lines: string[] }
 const Log = tag<Log>('Log')
@@ -38,11 +38,5 @@ describe('effect', () => {
     scope.dispose()
     await vi.waitFor(() => expect(sink).toHaveBeenCalledOnce())
     expect(toFinalizerError(sink.mock.calls[0]![0])).toEqual({ message: 'bye', tag: 'effect:sub' })
-  })
-
-  it('graph rules apply to its deps; it shows in the snapshot', () => {
-    expect(err(() => snapshot(module({ name: 'App', provide: [effect(() => {}, [Log])] })))).toMatchObject({ code: 'MissingDependency' })
-    const snap = snapshot(module({ name: 'App', provide: [log(), effect(() => {}, [Log], { name: 'job' })] }))
-    expect(JSON.stringify(snap)).toContain('effect:job')
   })
 })

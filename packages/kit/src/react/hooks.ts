@@ -7,7 +7,7 @@
 
 import { createElement, useMemo, useRef, type ReactNode } from 'react'
 import { Effect, Exit } from 'effect'
-import { buildGraph, makeAppScope, type ChildScope } from '@sleekstack/core'
+import { makeAppScope, type ChildScope } from '@sleekstack/core'
 import { closeProvidersOn, LayerProvider as CoreProvider, useService as coreUseService } from '@sleekstack/react'
 import { normalize, toFinalizerError, type FinalizerError } from '../errors'
 import type { Layer, Services } from '../layer'
@@ -67,7 +67,7 @@ export async function createAppScope(
   try {
     validateProvide(provide)
     const scope = await Effect.runPromise(
-      Effect.suspend(() => makeAppScope(buildGraph([...unwrap(provide)]), { onFinalizerError: (c) => sink(toFinalizerError(c)) })),
+      Effect.suspend(() => makeAppScope([...unwrap(provide)], { onFinalizerError: (c) => sink(toFinalizerError(c)) })),
     )
     const handle = {
       close: async () => {

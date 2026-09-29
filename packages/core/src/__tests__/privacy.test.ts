@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { Cause, Context, Effect, Exit } from 'effect'
-import { buildGraph, makeAppScope, module, privateDependencyOf, service } from '../index'
+import { makeAppScope, module, privateDependencyOf, service } from '../index'
 
 class Db extends Context.Tag('Db')<Db, { n: number }>() {}
 class Repo extends Context.Tag('Repo')<Repo, { n: number }>() {}
@@ -18,26 +18,21 @@ const fails = async (e: Effect.Effect<unknown, unknown>) => {
 }
 
 describe('module privacy', () => {
-  it('a node outside the module requiring a private Tag -> PrivateDependency', () => {
-    expect(() => buildGraph([Data, out])).toThrow(expect.objectContaining({ _tag: 'PrivateDependency', tag: 'Db', module: 'Data', requiredBy: 'Out' }))
-    expect(() => buildGraph([module({ name: 'App', entries: [out], imports: [Data] })])).toThrow(expect.objectContaining({ _tag: 'PrivateDependency' }))
-  })
-
   it('same-module requires work; omitted exports = all public; outside shadowing allowed', async () => {
-    const app = await run(makeAppScope(buildGraph([Data])))
+    const app = await run(makeAppScope([Data]))
     expect(Context.get(app.context, Repo).n).toBe(2)
     expect(Context.getOption(app.context, Db)._tag).toBe('None')
     expect(privateDependencyOf(app.context, 'Db', 'x')?._tag).toBe('PrivateDependency')
     const open = module({ name: 'Open', entries: [db] })
-    expect(Context.get((await run(makeAppScope(buildGraph([open, out])))).context, Out).n).toBe(1)
+    expect(Context.get((await run(makeAppScope([open, out]))).context, Out).n).toBe(1)
     const shadow = service(Db, {}, () => Effect.succeed({ n: 9 }))
-    const s = await run(makeAppScope(buildGraph([Data, shadow, out])))
+    const s = await run(makeAppScope([Data, shadow, out]))
     expect(Context.get(s.context, Out).n).toBe(9)
   })
 
   it('child scopes: outside entries cannot require a private Tag; same-module request nodes can; shadowing allowed', async () => {
     const rq = service(Rq, { requires: [Db], lifetime: 'request' }, ([d]) => Effect.succeed(d))
-    const app = await run(makeAppScope(buildGraph([module({ name: 'Data', entries: [db, repo, rq], exports: [Repo, Rq] })])))
+    const app = await run(makeAppScope([module({ name: 'Data', entries: [db, repo, rq], exports: [Repo, Rq] })]))
     expect(Context.get((await run(app.child('request'))).context, Rq).n).toBe(1)
     expect(await fails(app.child('request', [out]))).toMatchObject({ _tag: 'PrivateDependency', module: 'Data' })
     const shadow = service(Db, {}, () => Effect.succeed({ n: 5 }))

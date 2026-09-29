@@ -1,7 +1,9 @@
 'use server'
-// A 'use server' file may export only async functions, so each operation is wrapped in one.
+// A 'use server' file may export only literal async functions; defineEffect()/defineQuery() are
+// directly callable, so export a literal async function that calls them (or use effect()/query() inline).
+import { Effect } from 'effect'
 import { layer, module, tag } from '@sleekstack/kit'
-import { action, configureRuntime, fail, query } from '@sleekstack/kit/next'
+import { configureRuntime, defineEffect, defineQuery, fail } from '@sleekstack/kit/next'
 
 interface Todos {
   list(): Promise<string[]>
@@ -21,14 +23,22 @@ configureRuntime({
   onFinalizerError: (e) => console.error(`cleanup of ${e.tag ?? '?'} failed: ${e.message}`),
 })
 
+const addTodoEffect = defineEffect(function* (title: string) {
+  const todos = yield* Todos
+  return title.trim() ? yield* Effect.promise(() => todos.add(title)) : fail('Title is required')
+})
+
+const listTodosQuery = defineQuery(function* () {
+  const todos = yield* Todos
+  return yield* Effect.promise(() => todos.list())
+})
+
 // Resolves { ok: true, data } or, after fail(), { ok: false, error }.
-const add = action((todos) => async (title: string) => (title.trim() ? todos.add(title) : fail('Title is required')), [Todos])
 export async function addTodo(title: string) {
-  return add(title)
+  return addTodoEffect(title)
 }
 
 // Resolves the plain value; fail() rejects.
-const list = query((todos) => () => todos.list(), [Todos])
 export async function listTodos() {
-  return list()
+  return listTodosQuery()
 }

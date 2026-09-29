@@ -140,10 +140,10 @@ Current surface:
 * Service Definitions (`service()`) — auto-wired, with readable missing-dependency and cycle errors
 * Modules (`module()`) — imports, enforced exports (private Tags are visible only inside their Module, ADR 0006), shadowing
 * lifetime-scoped services (`app` / `request` / `component`) with captive-dependency checks
-* a resolved, serializable dependency Graph (`buildGraph`, `snapshot`)
+* a dependency Graph validated at build time by `sleekstack check` (ADR 0011), reported as JSON with `--json`
 * `@sleekstack/next` request scopes (`action`, `query`) and `@sleekstack/react`'s Suspense-native, StrictMode-safe `LayerProvider` / `useService`
 
-* `@sleekstack/kit` — an Effect-free facade (`tag`, `layer`, `effect`, `module`, dependency arrays, one `SleekStackError`); see [`packages/kit`](packages/kit/README.md)
+* `@sleekstack/kit` — an Effect-free facade (`tag`, `layer`, `effect`, `module`, deps inferred from `yield*`, one `SleekStackError`); see [`packages/kit`](packages/kit/README.md)
 
 See [`apps/showcase`](apps/showcase/README.md) for a Next.js team task board that exercises all of it end to end, and [`apps/showcase-kit`](apps/showcase-kit/README.md) for the same board built on the kit only.
 

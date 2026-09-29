@@ -7,7 +7,7 @@ The [showcase](../showcase/README.md) team task board, ported to `@sleekstack/ki
 
 | Req | What | Files |
 | --- | --- | --- |
-| R8 | `/graph`: kit `snapshot(AppModule)` in core's shape; demo mode shows the Shadowing | `app/graph/page.tsx`, `src/__tests__/graph.test.ts` |
+| R8 | `/graph`: the analyzer report (`pnpm report`) of `AppModule`; demo mode shows the Shadowing | `app/graph/page.tsx`, `src/__tests__/parity.test.ts` |
 | R9 | Board, nested `LayerProvider`s, demo-mode Shadowing via per-call `provide`, `/log` | `app/`, `src/client/`, `src/server/`, `src/domain/` |
 | R9 | `/errors`: every graph-error case via the kit API, showing `SleekStackError.code` | `src/errors/cases.server.ts`, `app/errors/page.tsx`, `src/__tests__/errors.test.ts` |
 | R9 | 20 concurrent requests isolated, rollback leaves the store unchanged, StrictMode | `src/__tests__/requests.test.ts`, `src/__tests__/board.test.tsx` |
@@ -21,8 +21,8 @@ The [showcase](../showcase/README.md) team task board, ported to `@sleekstack/ki
 | --- | --- |
 | `Context.Tag` classes | `tag<T>(name)` |
 | `service(Tag, { requires }, ([a, b]) => Effect...)` | `layer(Tag, (a, b) => value, [A, B])` |
-| `module({ entries })` + `buildGraph(entries)` | `module({ provide })`, `snapshot(module)` |
-| `action(Effect.gen(...))` | `action((a, b) => async (...args) => ..., [A, B])` |
+| `module({ entries })` + `makeAppScope(entries)` | `module({ provide })` + `configureRuntime({ provide })` |
+| `action(Effect.gen(...))` | `defineEffect(function* (...args) { const a = yield* A; ... })` |
 | `_tag` errors (`Data.TaggedError`) | one `SleekStackError` with `code` |
 
 The Effect version's `declareLayer` and bare-Layer nodes have no kit counterpart, so those rows are absent from /graph here.

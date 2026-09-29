@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { layer, module, snapshot, tag, SleekStackError } from '../index'
+import { layer, module, tag, SleekStackError } from '../index'
+import { configureRuntime } from '../next/runtime'
 import { validateProvide } from '../module'
 import { coreTag } from '../tag'
 import { boot, err } from './helpers'
@@ -25,12 +26,12 @@ describe('tag', () => {
     expect(coreTag(Users)).toBe(coreTag(Users))
   })
 
-  it('distinct same-key Tags in one set -> DuplicateTag (direct and via snapshot); across sets allowed', () => {
+  it('distinct same-key Tags in one set -> DuplicateTag (direct and via configureRuntime); across sets allowed', () => {
     const Db2 = tag<Db>('Db')
     const a = layer(Db, { q: () => '' })
     const b = layer(Users, () => ({ find: () => '' }), [Db2])
     expect(err(() => validateProvide([a, b])).code).toBe('DuplicateTag')
-    expect(err(() => snapshot(module({ name: 'App', provide: [a], imports: [module({ name: 'Lib', provide: [b] })] }))).code).toBe('DuplicateTag')
+    expect(err(() => configureRuntime({ provide: [module({ name: 'App', provide: [a], imports: [module({ name: 'Lib', provide: [b] })] })] })).code).toBe('DuplicateTag')
     expect(() => { validateProvide([a]); validateProvide([layer(Db2, { q: () => '' })]) }).not.toThrow()
   })
 })

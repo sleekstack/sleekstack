@@ -4,6 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "check": "sleekstack check --entry src/server/runtime.server.ts",
+    "report": "mkdir -p .sleekstack && sleekstack check --json --entry src/server/runtime.server.ts > .sleekstack/report.json",
+    "predev": "pnpm report",
+    "prebuild": "pnpm report",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
@@ -25,6 +29,7 @@
     "@types/node": "^22.20.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
+    "sleekstack": "workspace:*",
     "jsdom": "^29.1.1",
     "typescript": "^5.8.0",
     "vitest": "^4.1.9"

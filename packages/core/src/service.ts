@@ -21,7 +21,7 @@ export type Deps<Req extends readonly AnyTag[]> = {
 
 /**
  * A service created by {@link service}: the Effect Layer plus the graph metadata
- * (provided Tag, required Tags, lifetime) that `buildGraph` validates.
+ * (provided Tag, required Tags, lifetime) that the scope runtime resolves.
  */
 export interface ServiceDefinition<I, S, E, R, L extends Lifetime> {
   readonly _tag: 'ServiceDefinition'

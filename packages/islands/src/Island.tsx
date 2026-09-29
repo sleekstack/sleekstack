@@ -1,6 +1,6 @@
 import { Component, createElement, lazy, Suspense, use, useEffect, useRef, type ComponentProps, type ComponentType, type ReactNode } from 'react'
 import { createRoot, hydrateRoot, type Root } from 'react-dom/client'
-import { module, snapshot, type Layer, type Module, type SleekStackError } from '@sleekstack/kit'
+import { validateProvide } from '@sleekstack/kit'
 import { LayerProvider } from '@sleekstack/kit/react'
 import { processAppScope, sharedAppScope } from './appScope'
 import { replayClick } from './replay'
@@ -53,16 +53,9 @@ const NONE: Provide = []
  * Distinct Tags sharing a key across the app and component entries are `DuplicateTag`, as in one provide set;
  * the same Tag in both shadows, as a nested LayerProvider does.
  */
-// ponytail: builds a throwaway graph per activation; add a kit key-check export if it ever shows in a profile.
 const assertNoDuplicateTag = (app: Provide, component: Provide) => {
   if (component.length === 0 || app.length === 0) return
-  const all = [...app, ...component]
-  const isModule = (x: (typeof all)[number]): x is Module => typeof (x as Module).name === 'string'
-  try {
-    snapshot(module({ name: 'island', provide: all.filter((x): x is Layer<any> => !isModule(x)), imports: all.filter(isModule) }))
-  } catch (e) {
-    if ((e as SleekStackError).code === 'DuplicateTag') throw e
-  }
+  validateProvide([...app, ...component])
 }
 
 /** Logs a thrown error and renders nothing, for this Island only. */

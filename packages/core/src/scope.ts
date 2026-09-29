@@ -10,8 +10,9 @@
 
 import { Cause, Context, Effect, Exit, Layer, Scope } from 'effect'
 import { AmbiguousProvider, MissingDependency, missingDependency, type PrivateDependency } from './errors'
-import { isPrivateTag, privateDependency, resolveEntries, toposort, type Graph } from './graph'
+import { buildPlan, isPrivateTag, privateDependency, resolveEntries, toposort, type ResolutionPlan } from './graph'
 import type { Entry, Module } from './module'
+import { lazy, Resolver, type Resolve } from './lazy'
 import type { Lifetime } from './service'
 
 type AnyLayer = Layer.Layer<any, any, any>
@@ -124,8 +125,8 @@ export interface ChildScope {
   readonly lifetime: Lifetime
   readonly context: Context.Context<any>
   /**
-   * Opens a nested scope. `entries` are child-boundary entries (modules resolved like buildGraph's:
-   * imports, thunks, per-Tag locality): built in the new scope with their lifetime coerced to it,
+   * Opens a nested scope. `entries` are child-boundary entries (modules resolved like the root's:
+   * imports, thunks, per-Tag locality; validated here, unlike the root): built in the new scope with their lifetime coerced to it,
    * shadowing parent instances inside that scope only.
    */
   readonly child: (lifetime: 'request' | 'component', entries?: readonly (Entry | Module)[]) => Effect.Effect<ChildScope, unknown>
@@ -144,10 +145,57 @@ export interface ChildScope {
 /** The root scope returned by {@link makeAppScope}. */
 export type AppScope = ChildScope
 
+type Node = Local & { readonly requires: readonly string[] }
+
+/**
+ * Builds every node over `parent` through the lazy state machine: declared requires first, generator
+ * layers' `yield*`s on demand (via {@link Resolver}). Each node builds in its own scope, attached to
+ * `scope` only once it succeeds, so finalizers run once, in reverse build order.
+ */
+const buildAll = (
+  scope: Scope.Scope,
+  memo: Layer.MemoMap,
+  parent: Context.Context<any>,
+  privates: PrivateMap,
+  node: ReadonlyMap<string, Node>,
+  ordered: readonly Node[],
+) => {
+  let ctx = parent
+  const get: (n: Node, chain?: readonly Node[]) => Effect.Effect<void, unknown> = lazy<Node, void>((n) => n.id, (n, chain) =>
+    Effect.gen(function* () {
+      for (const r of n.requires) yield* get(node.get(r)!, chain)
+      const resolve: Resolve = (tag) => {
+        const key = tagName(tag)
+        const owner = privates.get(key)
+        if (owner && owner !== n.module) return Effect.fail(privateDependency(key, owner, n.id))
+        const local = node.get(key)
+        if (local) return Effect.map(get(local, chain), () => Context.unsafeGet(ctx, tag))
+        const found = Context.getOption(parent, tag)
+        return found._tag === 'Some' ? Effect.succeed(found.value) : Effect.fail(missingDependency(key, n.id))
+      }
+      // Build -> attach is uninterruptible (only the build itself is), so a built node's scope never leaks.
+      const out = yield* Effect.uninterruptibleMask((restore) =>
+        Effect.gen(function* () {
+          const own = yield* Scope.make()
+          const out = yield* Effect.exit(restore(Layer.buildWithMemoMap(n.layer, memo, own).pipe(Effect.provide(Context.add(ctx, Resolver, resolve)))))
+          if (Exit.isFailure(out)) {
+            yield* Scope.close(own, out)
+            return yield* Effect.failCause(out.cause)
+          }
+          yield* Scope.addFinalizerExit(scope, (exit) => Scope.close(own, exit))
+          return out
+        }))
+      ctx = Context.merge(ctx, out.value)
+    }))
+  // Opaque (provides nothing) first, then nodes in order.
+  const all = [...ordered.filter((n) => n.provides.length === 0), ...ordered.filter((n) => n.provides.length > 0)]
+  return Effect.forEach(all, (n) => get(n), { discard: true }).pipe(Effect.map(() => ctx))
+}
+
 /** Builds `locals` over `parent` in a new scope with a fresh memo map; closes the scope on failure/interrupt. */
 const open = (
   lifetime: Lifetime,
-  graph: Graph,
+  graph: ResolutionPlan,
   parent: Context.Context<any>,
   parentPrivates: PrivateMap,
   locals: readonly Local[],
@@ -183,19 +231,14 @@ const open = (
   }
   const nodes = locals.map((n) => ({ ...n, requires: n.requires.filter((r) => byKey.has(r)) }))
   const node = new Map(nodes.flatMap((n) => n.provides.map((k) => [k, n] as const)))
-  const ordered = toposort(nodes, (k) => node.get(k)!)
-  // Opaque (provides nothing) first, then nodes in order, over the parent context.
-  let layer: AnyLayer = Layer.succeedContext(parent)
-  for (const n of [...ordered.filter((n) => n.provides.length === 0), ...ordered.filter((n) => n.provides.length > 0)]) {
-    layer = n.layer.pipe(Layer.provideMerge(layer))
-  }
+  const ordered = toposort(nodes, (k) => node.get(k), lifetime !== 'app') // the root is vetted by the analyzer
   const sink = options.onFinalizerError ?? ((cause) => console.error(Cause.pretty(cause)))
 
   return Effect.uninterruptibleMask((restore) =>
     Effect.gen(function* () {
       const scope = yield* Scope.make()
       const memo = yield* Layer.makeMemoMap
-      const built = yield* Effect.exit(restore(Layer.buildWithMemoMap(layer, memo, scope)))
+      const built = yield* Effect.exit(restore(buildAll(scope, memo, parent, privates, node, ordered)))
       if (Exit.isFailure(built)) {
         yield* Scope.close(scope, built)
         return yield* Effect.failCause(built.cause)
@@ -240,7 +283,8 @@ const open = (
 /**
  * Opens the app scope: builds every app-lifetime node (and app-lifetime bare Layers) once.
  *
- * @param graph - A graph from `buildGraph`.
+ * @param input - Root modules and/or entries. Not validated (that is `sleekstack check`'s job); a missing or
+ *   private requirement still fails here, and a service cycle fails the build with `DependencyCycle`.
  * @param options - Finalizer-error sink for `dispose`.
  * @returns An Effect yielding the app scope; it fails with whatever a service's acquisition fails with.
  * @throws {@link MissingDependency} `MissingDependency`, {@link PrivateDependency} `PrivateDependency`, or {@link AmbiguousProvider} `AmbiguousProvider` (as defects) when child-scope entries do not resolve.
@@ -248,17 +292,18 @@ const open = (
  * @example
  * ```ts
  * import { Effect } from 'effect'
- * import { buildGraph, makeAppScope } from '@sleekstack/core'
+ * import { makeAppScope } from '@sleekstack/core'
  *
  * const program = Effect.gen(function* () {
- *   const app = yield* makeAppScope(buildGraph([]))
+ *   const app = yield* makeAppScope([])
  *   const request = yield* app.child('request')
  *   yield* request.close
  *   yield* app.close
  * })
  * ```
  */
-export const makeAppScope = (graph: Graph, options: ScopeOptions = {}): Effect.Effect<AppScope, unknown> =>
-  Effect.suspend(() =>
-    open('app', graph, Context.empty() as Context.Context<any>, new Map(), [...graph.opaque, ...graph.nodes].filter((n) => n.lifetime === 'app'), options),
-  )
+export const makeAppScope = (input: readonly (Module | Entry)[], options: ScopeOptions = {}): Effect.Effect<AppScope, unknown> =>
+  Effect.suspend(() => {
+    const graph = buildPlan(input)
+    return open('app', graph, Context.empty() as Context.Context<any>, new Map(), [...graph.opaque, ...graph.nodes].filter((n) => n.lifetime === 'app'), options)
+  })

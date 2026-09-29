@@ -5,9 +5,15 @@ description: Validate the graph and swap services in tests.
 
 Two techniques cover most tests:
 
-- **Validate the graph.** `snapshot(AppModule)` runs every graph check (missing providers, cycles, lifetimes, privacy) without constructing a service, so one test catches wiring mistakes.
+- **Validate the graph.** `sleekstack check` runs every graph check (missing providers, cycles, lifetimes, privacy) without running the app; run it in CI before the tests.
 - **Swap a service with Shadowing.** A per-call `provide` builds Layers in the request scope and shadows the runtime graph for that call only. In React, a nested `LayerProvider` with a test Layer does the same for a subtree. Neither needs a mocking API.
 
 <include>../../snippets/testing/graph.test-example.ts</include>
+
+## `sleekstack check`
+
+`sleekstack check [--project <tsconfig>] [--entry <file>...] [--json]` reads the project through the TypeScript checker; it never imports or runs your code. Every `configureRuntime` call outside test files is a root, validated as its own graph. `--entry` (repeatable, or `"sleekstack": { "entry": [...] }` in package.json) limits the roots to those files; a `configureRuntime` call in another file is then not checked. It exits 0 when clean, 1 on violations (each with file:line) and 2 on a crash or when no root is found. `--json` writes only JSON to stdout: each root's graph and errors.
+
+A declaration the analyzer cannot read (`any`, a widened `Layer<any>[]`, a non-literal Tag key) is an error, not a skip. Loops, conditionals and computed lists are fine when their types are precise; they are over-approximated. Run it as a `prebuild` script and as a CI step before the tests (ADR 0010).
 
 The Next.js runtime is one slot per process, so configure it once in a setup file and keep tests that need an unconfigured runtime first in their file.
