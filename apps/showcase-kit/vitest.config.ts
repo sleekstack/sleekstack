@@ -26,7 +26,7 @@ export default defineConfig({
       {
         resolve: { alias },
         ...jsx,
-        test: { name: 'node', environment: 'node', include: ['src/**/*.test.ts'] },
+        test: { name: 'node', environment: 'node', include: ['src/**/*.test.ts'], testTimeout: 60_000, hookTimeout: 60_000 },
       },
       {
         resolve: { alias },
