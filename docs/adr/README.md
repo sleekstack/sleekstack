@@ -11,3 +11,4 @@
 | [0007](0007-fumadocs-with-generated-api-reference.md) | Docs site on Fumadocs, with a generated API reference | Accepted |
 | [0008](0008-native-atoms-over-effect-atom.md) | Native atoms, modeled on effect-atom, instead of depending on it | Accepted |
 | [0009](0009-next-internal-exit-hook.md) | `@sleekstack/next` exposes an internal Exit hook for adapters | Accepted |
+| [0010](0010-islands-over-resumability.md) | Islands defer hydration per React root instead of resumability | Accepted |

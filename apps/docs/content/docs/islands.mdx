@@ -1,0 +1,45 @@
+---
+title: Islands
+description: Server-rendered React components that download and hydrate only when needed.
+---
+
+`@sleekstack/islands` lets a server-rendered page hydrate each interactive **Island** on its own trigger. Until then the Island costs no download and no JavaScript beyond a small wrapper, and the server HTML stays on screen. Islands are ordinary React components, so `useService` and React libraries work inside them. This is not resumability: a hydrated Island renders once on the client (ADR 0010).
+
+## Registry
+
+A `'use client'` module calls `defineIslands(map, { provide })`. Each entry is a `() => import(...)`, so each Island is its own chunk. `provide` holds the **app-scope** entries shared by every Island of the registry on the page.
+
+<include>../../../showcase-kit/src/islands/islands.client.ts</include>
+
+A Server Component renders `<Island name props hydrate provide />`. `name` is a key of the map (an unknown name is a type error, and `IslandNotFound` at runtime), `props` is typed from the component, and `provide` adds **component-scope** entries for that instance only.
+
+<include>../../../showcase-kit/app/islands/page.tsx</include>
+
+## Triggers
+
+- `visible` (default): IntersectionObserver, with an optional `rootMargin`. A container that starts hidden hydrates once shown. Without IntersectionObserver it falls back to `load`.
+- `idle`: `requestIdleCallback`, `setTimeout` without it.
+- `load`: right after the page mounts.
+- `interaction`: the first `pointerdown`, `touchstart`, `focusin`, `keydown` or `click` on the container.
+
+For `interaction`, the first click that arrives before hydration is replayed once on its target after hydration. Links, checkbox and radio inputs, labels, submit buttons and `summary` are never replayed, because their native default already ran. Other events only start hydration.
+
+If a chunk fails to load, the server HTML stays and the error is logged; `interaction` retries on the next event, the other triggers do not. A thrown error inside an Island is logged and renders nothing for that Island.
+
+## Services
+
+Each Island is its own React root, so React context does not cross Islands. The app scope lives outside React instead:
+
+- On the client, the app scope is created on the first Island activation, shared by all Islands on the page, reference-counted, and closed when the last Island unmounts. The next activation rebuilds it.
+- On the server, the app scope is one process-lifetime scope per registry, built once and never closed, like kit's `app` lifetime.
+- Each Island gets its own component scope. Two Islands with the same name get separate roots and component scopes.
+- A Tag in both the app and component entries shadows; two distinct Tags with the same key raise `DuplicateTag`.
+
+## v1 limits
+
+- Components that call `useId` may mismatch on hydrate, because a new root restarts the id tree.
+- Islands do not inherit Next router context: `next/navigation` hooks are unsupported inside an Island. Kit `action()` calls work.
+- No Fast Refresh / HMR for Island modules.
+- No `children` or server-rendered JSX props; props must survive React's RSC serialiser.
+- Atoms live in the component scope, so they are per Island and not shared across Islands. Share state through an app-scope service.
+- Component-scope entries opened during a server render are not closed.
