@@ -83,6 +83,8 @@ export function extract(project: string): Report {
   const errors: AnalyzeError[] = []
   /** Loop / callback variables bound to one member of their source list (see `each`). */
   const env = new Map<ts.Declaration, ts.Expression>()
+  /** The call currently expanding each local helper (see `listOf`). */
+  const invocations = new Map<ts.FunctionLikeDeclaration, ts.CallExpression>()
 
   const loc = (n: ts.Node): Location => {
     const sf = n.getSourceFile()
@@ -183,6 +185,9 @@ export function extract(project: string): Report {
   const isAssign = (b: ts.BinaryExpression) => b.operatorToken.kind >= ts.SyntaxKind.FirstAssignment && b.operatorToken.kind <= ts.SyntaxKind.LastAssignment
 
   const literal = (e: ts.Expression, what: string): string => {
+    const u = unwrap(e)
+    const b = ts.isIdentifier(u) ? env.get(declOf(u)!) : undefined
+    if (b) return literal(b, what) // a loop / parameter binding's own value, not its widened type
     const t = checker.getTypeAtLocation(e)
     if (t.isStringLiteral()) return t.value
     return fail(e, `${what} must be a string literal, got "${text(e)}"`)
@@ -251,12 +256,6 @@ export function extract(project: string): Report {
     return d && (ts.isFunctionDeclaration(d) || ts.isArrowFunction(d) || ts.isFunctionExpression(d)) && d.body ? d : undefined
   }
 
-  /** The expressions a local helper can return (nested functions excluded), for over-approximation. */
-  const returnsOf = (call: ts.CallExpression): ts.Expression[] | undefined => {
-    if (calleeOf(call)) return undefined
-    const d = fnOf(call.expression)
-    return d && bodyReturns(d)
-  }
 
   /**
    * Every member a list can hold: array literals (spreads, conditionals, local helper returns, and later writes
@@ -286,9 +285,22 @@ export function extract(project: string): Report {
         })
       }
     }
-    if (ts.isCallExpression(e)) {
-      const rs = returnsOf(e)
-      if (rs) return rs.forEach((r) => listOf(r, item))
+    if (ts.isCallExpression(e) && ts.isPropertyAccessExpression(e.expression) && !calleeOf(e) && ['slice', 'concat'].includes(e.expression.name.text)) {
+      listOf(e.expression.expression, item)
+      for (const a of e.arguments) checker.isArrayLikeType(checker.getTypeAtLocation(a)) ? listOf(a, item) : each(a, item)
+      return
+    }
+    const fn = ts.isCallExpression(e) && !calleeOf(e) ? fnOf(e.expression) : undefined
+    if (fn && ts.isCallExpression(e)) {
+      // One helper invocation: parameters bound to this call's arguments, and the call site part of every identity made inside.
+      const bound = fn.parameters.map((p, i) => [p, e.arguments[i]] as const).filter((b): b is readonly [ts.ParameterDeclaration, ts.Expression] => !!b[1])
+      const prev = invocations.get(fn)
+      invocations.set(fn, e)
+      bound.forEach(([p, a]) => env.set(p, a))
+      try { return bodyReturns(fn).forEach((r) => listOf(r, item)) } finally {
+        bound.forEach(([p]) => env.delete(p))
+        prev ? invocations.set(fn, prev) : invocations.delete(fn)
+      }
     }
     if (!ts.isArrayLiteralExpression(e)) return fail(expr, `Computed list "${text(expr)}" cannot be read statically`, 'Computed')
     for (const el of e.elements) {
@@ -328,7 +340,22 @@ export function extract(project: string): Report {
   const ids = new Map<ts.Node, number>()
   const nid = (n: ts.Node) => ids.get(n) ?? (ids.set(n, ids.size), ids.size - 1)
   /** One declaration per node and loop binding: a list evaluated once and reused keeps its entries' identity. */
-  const cacheKey = (n: ts.Node) => [nid(n), ...[...env].map(([d, v]) => `${nid(d)}=${nid(follow(v))}`).sort()].join(',')
+  const cacheKey = (n: ts.Node) => {
+    // Only bindings the declaration reads, and invocations of helpers that enclose it, distinguish it.
+    const refs = new Set<ts.Declaration>()
+    const scan = (x: ts.Node): void => {
+      if (ts.isIdentifier(x)) {
+        const sym = ts.isShorthandPropertyAssignment(x.parent) ? checker.getShorthandAssignmentValueSymbol(x.parent) : checker.getSymbolAtLocation(x)
+        const d = sym?.valueDeclaration
+        if (d && env.has(d)) refs.add(d)
+      }
+      ts.forEachChild(x, scan)
+    }
+    scan(n)
+    const parts = [...refs].map((d) => `${nid(d)}=${nid(follow(env.get(d)!))}`)
+    for (const [fn, call] of invocations) if (fn.pos <= n.pos && n.end <= fn.end && fn.getSourceFile() === n.getSourceFile()) parts.push(`${nid(fn)}@${nid(call)}`)
+    return [nid(n), ...parts.sort()].join(',')
+  }
   const provider = (expr: ts.Expression, core: boolean): ProviderDecl => {
     const e = follow(expr)
     const key = cacheKey(e)
@@ -361,10 +388,11 @@ export function extract(project: string): Report {
     return p
   }
 
-  const modules = new Map<ts.Node, ModuleDecl>()
+  const modules = new Map<string, ModuleDecl>()
   const moduleOf = (expr: ts.Expression): ModuleDecl => {
     const e = follow(expr)
-    const hit = modules.get(e)
+    const key = cacheKey(e)
+    const hit = modules.get(key)
     if (hit) return hit
     const id = ts.isCallExpression(e) ? calleeOf(e) : undefined
     if (!ts.isCallExpression(e) || !MODULE_CALLS.has(id!)) return fail(expr, `"${text(expr)}" does not resolve to a module() declaration`)
@@ -372,7 +400,7 @@ export function extract(project: string): Report {
     const cfg = objectOf(e.arguments[0])
     const nameExpr = prop(cfg, 'name')
     const m: ModuleDecl = { name: nameExpr ? literal(nameExpr, 'module name') : fail(e, 'module() needs a name'), entries: [], imports: [], exports: undefined, lifetime: undefined, loc: loc(e) }
-    modules.set(e, m) // before imports: thunk cycles terminate
+    modules.set(key, m) // before imports: thunk cycles terminate
     // Each field reports independently, so one unreadable list does not hide the others.
     const field = (f: () => void) => { try { f() } catch (err) { report(err) } }
     field(() => listOf(prop(cfg, core ? 'entries' : 'provide'), (x) => { try { m.entries.push(provider(x, core)) } catch (err) { if (err instanceof Unbound) throw err; report(err) } }))
@@ -408,7 +436,8 @@ export function extract(project: string): Report {
   const visit = (n: ts.Node): void => {
     if (ts.isCallExpression(n)) {
       const id = calleeOf(n)
-      if (id && MODULE_CALLS.has(id)) {
+      // A module() inside a function is evaluated where it is called (with its bindings), never bare.
+      if (id && MODULE_CALLS.has(id) && !ts.findAncestor(n, ts.isFunctionLike)) {
         try { found.push(moduleOf(n)) } catch (err) { report(err) }
       } else if (id && ATOM_CALLS.has(id) && n.arguments[0] && (id === 'kit/atom#family' || n.arguments.length > 1 || checker.getTypeAtLocation(n.arguments[0]).getCallSignatures().length > 0)) {
         try {
@@ -427,6 +456,9 @@ export function extract(project: string): Report {
 
   const imported = new Set(found.flatMap((m) => m.imports))
   const roots = [...new Set(found)].filter((m) => !imported.has(m))
+  // A cycle through the top module leaves no unimported root: each unreached component still gets one.
+  const reached = new Set(roots.flatMap((r) => [...resolve(r).visits.keys()]))
+  for (const m of new Set(found)) if (!reached.has(m)) { roots.push(m); resolve(m).visits.forEach((_, k) => reached.add(k)) }
   for (const r of roots) errors.push(...validate(r))
   return { graphs: roots.map(graphOf), atoms: { nodes: atomNodes, edges: atomEdges }, errors }
 }

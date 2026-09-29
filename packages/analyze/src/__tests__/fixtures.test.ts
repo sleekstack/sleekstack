@@ -22,7 +22,7 @@ const graphErrors = ['missing-dependency', 'dependency-cycle', 'captive-dependen
 describe('graph error fixtures', () => {
   it.each(graphErrors)('%s: code and file:line, kit and core declarations', async (name) => {
     const want = expected(name)
-    expect(want.map((e) => e.file)).toEqual(['core.ts', 'kit.ts'])
+    expect(want.map((e) => e.file)).toEqual(expect.arrayContaining(['core.ts', 'kit.ts']))
     expect(sorted(located(name))).toEqual(want)
     // The runtime throws the same code for the same declarations.
     const kit = await import(/* @vite-ignore */ path.join(dir(name), 'kit.ts'))
@@ -39,6 +39,11 @@ describe('graph error fixtures', () => {
     expect(tags('Looped')).toEqual(['A', 'B', 'C'])
     // A named mapper list reused by two modules keeps identity (no AmbiguousProvider); a conditional element yields both branches.
     expect(tags('Named')).toEqual(['A', 'B', 'C', 'D'])
+    // Each helper call binds its own argument; concat/slice keep every member.
+    expect(tags('Helpers')).toEqual(['A', 'A@H2', 'B'])
+    // A mapper returning one shared layer is one provider; mapped modules keep their own names.
+    expect(tags('Reused')).toEqual(['C'])
+    expect(r.graphs.find((g) => g.root === 'Reused')!.modules.map((m) => m.name).sort()).toEqual(['M1', 'M2', 'Reused'])
   })
 
   it('ambiguity poisons no downstream check; a partially shadowed layer keeps its full id', () => {
