@@ -1,0 +1,17 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-09-29T11:18:09.698345Z",
+  "depends_on": [
+    "fn-10-islands-lazy-hydrating-react-islands.2",
+    "fn-10-islands-lazy-hydrating-react-islands.4"
+  ],
+  "id": "fn-10-islands-lazy-hydrating-react-islands.5",
+  "priority": null,
+  "spec": "fn-10-islands-lazy-hydrating-react-islands",
+  "spec_path": ".flow/tasks/fn-10-islands-lazy-hydrating-react-islands.5.md",
+  "status": "todo",
+  "title": "showcase-kit: full Islands page, bundle test, Playwright coverage",
+  "updated_at": "2026-09-29T11:18:09.698345Z"
+}
