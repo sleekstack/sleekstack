@@ -4,10 +4,18 @@ test('pages load', async ({ page }) => {
   for (const [url, heading] of [
     ['/', 'Team Task Board'],
     ['/log', /log/i],
+    ['/graph', 'Service graph'],
+    ['/errors', 'Error gallery'],
   ] as const) {
     const res = await page.goto(url)
     expect(res?.ok(), url).toBe(true)
     await expect(page.getByRole('heading', { level: 1 })).toContainText(heading)
+  }
+  await page.goto('/graph')
+  await expect(page.getByRole('cell', { name: 'TaskRepo', exact: true }).first()).toBeVisible()
+  await page.goto('/errors')
+  for (const code of ['MissingDependency', 'DependencyCycle', 'Computed']) {
+    await expect(page.getByRole('cell', { name: code, exact: true }).first()).toBeVisible()
   }
 })
 

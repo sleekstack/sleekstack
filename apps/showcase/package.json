@@ -4,6 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "check": "sleekstack check --entry src/server/runtime.server.ts",
+    "report": "mkdir -p .sleekstack && sleekstack check --json --entry src/server/runtime.server.ts > .sleekstack/report.json && (sleekstack check --json --entry src/errors/graphs.ts > .sleekstack/errors.json || [ $? = 1 ])",
+    "predev": "pnpm report",
+    "prebuild": "pnpm report",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
@@ -14,6 +18,7 @@
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
     "@sleekstack/core": "workspace:*",
+    "@sleekstack/next": "workspace:*",
     "@sleekstack/react": "workspace:*",
     "effect": "^3.21.2",
     "next": "^15.3.0",
@@ -26,9 +31,11 @@
   "devDependencies": {
     "@playwright/test": "^1.63.0",
     "@testing-library/react": "^16.3.2",
+    "@types/node": "^22.20.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "jsdom": "^29.1.1",
+    "sleekstack": "workspace:*",
     "typescript": "^5.8.0",
     "vitest": "^4.1.9"
   }

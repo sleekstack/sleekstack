@@ -4,7 +4,7 @@ import type { NextConfig } from 'next'
 // step of their own); transpilePackages tells Next's bundler to compile them
 // as part of this app's build instead of expecting pre-built JS.
 const nextConfig: NextConfig = {
-  transpilePackages: ['@sleekstack/core', '@sleekstack/react'],
+  transpilePackages: ['@sleekstack/core', '@sleekstack/next', '@sleekstack/react'],
 }
 
 export default nextConfig

@@ -136,6 +136,9 @@ importers:
       '@sleekstack/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@sleekstack/next':
+        specifier: workspace:*
+        version: link:../../packages/next
       '@sleekstack/react':
         specifier: workspace:*
         version: link:../../packages/react
@@ -167,6 +170,9 @@ importers:
       '@testing-library/react':
         specifier: ^16.3.2
         version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@types/node':
+        specifier: ^22.20.1
+        version: 22.20.1
       '@types/react':
         specifier: ^19.2.17
         version: 19.2.17
@@ -176,6 +182,9 @@ importers:
       jsdom:
         specifier: ^29.1.1
         version: 29.1.1
+      sleekstack:
+        specifier: workspace:*
+        version: link:../../packages/cli
       typescript:
         specifier: ^5.8.0
         version: 5.9.3
