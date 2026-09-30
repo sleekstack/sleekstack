@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import { Atom } from '@sleekstack/core'
 import { LayerProvider } from '@sleekstack/react'
-import { SleekStackDevtools, DEVTOOLS_MARKER } from '../index'
+import { SleekStackDevtools, DEVTOOLS_MARKER, graphsOf } from '../index'
 
 afterEach(() => {
   cleanup()
@@ -79,5 +79,19 @@ describe('SleekStackDevtools', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('reads the canonical analyzer Report (runtimes / graphs) as well as the CLI envelope', () => {
+    const g = { root: 'r', nodes: [{ id: 'a', name: 'A', lifetime: 'app' }], edges: [] }
+    expect(graphsOf({ runtimes: [{ graph: g }], graphs: [], errors: [], extraction: [] })).toHaveLength(1)
+    expect(graphsOf({ graphs: [g] })).toHaveLength(1)
+    expect(graphsOf({ roots: [{ graph: g }, { graph: {} }] })).toHaveLength(1)
+    expect(graphsOf(null)).toEqual([])
+  })
+
+  it('a body with a null error entry is off, not a crash', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ scopes: [], errors: [null], live: { app: true, scopes: [] } })))
+    render(<SleekStackDevtools />)
+    expect(await screen.findByText(/Devtools are off/)).not.toBeNull()
   })
 })

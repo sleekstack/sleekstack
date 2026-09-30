@@ -5,7 +5,7 @@
  * `<SleekStackDevtools />`: polls the `@sleekstack/next/devtools` handler and renders graph, live
  * scopes, read-only atom values and recent errors. Dev only: the caller mounts it outside production.
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { Atom } from '@sleekstack/core'
 import { useAtomValue } from '@sleekstack/react'
 
@@ -17,12 +17,13 @@ interface ReportGraph {
   readonly nodes: readonly { readonly id: string; readonly name: string; readonly lifetime: string }[]
   readonly edges: readonly { readonly from: string; readonly to: string; readonly tag: string }[]
 }
+interface RootGraph extends ReportGraph { readonly root: string }
 /** The handler's JSON body (`devtoolsSnapshot`); `graph` is an analyzer Report when the app supplied one. */
 export interface DevtoolsData {
   readonly scopes: readonly DevEvent[]
   readonly errors: readonly DevEvent[]
   readonly live: { readonly app: boolean; readonly scopes: readonly string[] }
-  readonly graph?: { readonly roots?: readonly { readonly root: string; readonly graph: ReportGraph }[] }
+  readonly graph?: unknown
 }
 
 export interface SleekStackDevtoolsProps {
@@ -48,19 +49,35 @@ function AtomRow({ label, atom }: { readonly label: string; readonly atom: Atom.
 
 const REQUEST_TIMEOUT_MS = 5000
 
-const validRoot = (r: unknown): boolean => {
-  const g = (r as { graph?: Partial<ReportGraph> } | null)?.graph
-  return typeof g === 'object' && g !== null && Array.isArray(g.nodes) && Array.isArray(g.edges)
-}
+const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null
+const strs = (v: unknown, keys: readonly string[]): boolean => isObj(v) && keys.every((k) => typeof v[k] === 'string')
+const isEvent = (v: unknown): v is DevEvent => strs(v, ['kind', 'label']) && typeof (v as DevEvent).at === 'number'
 
-const isDevtoolsData = (v: unknown): v is DevtoolsData => {
-  const d = v as Partial<DevtoolsData> | null
-  return (
-    typeof d === 'object' && d !== null &&
-    Array.isArray(d.scopes) && Array.isArray(d.errors) &&
-    typeof d.live === 'object' && d.live !== null && Array.isArray(d.live.scopes) &&
-    (d.graph === undefined || (typeof d.graph === 'object' && d.graph !== null && d.graph.roots?.every(validRoot) !== false))
-  )
+const isDevtoolsData = (v: unknown): v is DevtoolsData =>
+  isObj(v) &&
+  Array.isArray(v.scopes) && v.scopes.every(isEvent) &&
+  Array.isArray(v.errors) && v.errors.every(isEvent) &&
+  isObj(v.live) && Array.isArray(v.live.scopes) && v.live.scopes.every((s) => typeof s === 'string')
+
+const isGraph = (g: unknown): g is ReportGraph =>
+  isObj(g) &&
+  Array.isArray(g.nodes) && g.nodes.every((n) => strs(n, ['id', 'name', 'lifetime'])) &&
+  Array.isArray(g.edges) && g.edges.every((e) => strs(e, ['from', 'to', 'tag']))
+
+/**
+ * The graphs in whatever the app supplied: an analyzer `Report` (`runtimes[].graph`, else `graphs[]`) or the
+ * `sleekstack check --json` envelope (`roots[].graph`). Anything malformed is skipped, never thrown on.
+ */
+export function graphsOf(report: unknown): readonly RootGraph[] {
+  if (!isObj(report)) return []
+  const candidates: unknown[] = Array.isArray(report.runtimes)
+    ? report.runtimes.map((r) => (isObj(r) ? r.graph : undefined))
+    : Array.isArray(report.graphs)
+      ? report.graphs
+      : Array.isArray(report.roots)
+        ? report.roots.map((r) => (isObj(r) ? r.graph : undefined))
+        : []
+  return candidates.filter(isGraph).map((g, i) => ({ ...g, root: typeof (g as Partial<RootGraph>).root === 'string' ? (g as RootGraph).root : `graph ${i + 1}` }))
 }
 
 /** Polls `endpoint` (next poll only after the previous settles); `null` while off (404, network error or non-JSON). */
@@ -73,7 +90,8 @@ function useDevtoolsData(endpoint: string, intervalMs: number): DevtoolsData | n
       // Each attempt has its own timeout, so a hung connection cannot stop polling for good.
       const attempt = new AbortController()
       const timeout = setTimeout(() => attempt.abort(), REQUEST_TIMEOUT_MS)
-      controller.signal.addEventListener('abort', () => attempt.abort(), { once: true })
+      const onAbort = () => attempt.abort()
+      controller.signal.addEventListener('abort', onAbort, { once: true })
       try {
         const res = await fetch(endpoint, { signal: attempt.signal })
         const body: unknown = res.ok ? await res.json() : null
@@ -83,6 +101,7 @@ function useDevtoolsData(endpoint: string, intervalMs: number): DevtoolsData | n
         if (!controller.signal.aborted) setData(null)
       } finally {
         clearTimeout(timeout)
+        controller.signal.removeEventListener('abort', onAbort)
         if (!controller.signal.aborted) timer = setTimeout(poll, intervalMs)
       }
     }
@@ -98,6 +117,7 @@ function useDevtoolsData(endpoint: string, intervalMs: number): DevtoolsData | n
 export function SleekStackDevtools({ endpoint = '/api/devtools', intervalMs = 2000, atoms }: SleekStackDevtoolsProps) {
   const data = useDevtoolsData(endpoint, intervalMs)
   const entries = Object.entries(atoms ?? {})
+  const graphs = useMemo(() => graphsOf(data?.graph), [data])
   return (
     <aside aria-label="SleekStack devtools" data-devtools={DEVTOOLS_MARKER} style={{ borderTop: '1px solid #ccc', marginTop: '2rem', fontSize: 13 }}>
       <h2>SleekStack devtools</h2>
@@ -107,12 +127,12 @@ export function SleekStackDevtools({ endpoint = '/api/devtools', intervalMs = 20
         <>
           <section aria-label="graph">
             <h3>Graph</h3>
-            {data.graph?.roots?.length ? (
-              data.graph.roots.map((r) => (
-                <div key={r.root}>
-                  <strong>{r.root}</strong>: {r.graph.nodes.length} nodes, {r.graph.edges.length} edges
-                  <ul>{r.graph.nodes.map((n) => <li key={n.id}>{n.name} ({n.lifetime})</li>)}</ul>
-                  <ul aria-label="edges">{r.graph.edges.map((e) => <li key={`${e.from}>${e.to}>${e.tag}`}>{e.from} → {e.to} ({e.tag})</li>)}</ul>
+            {graphs.length ? (
+              graphs.map((g) => (
+                <div key={g.root}>
+                  <strong>{g.root}</strong>: {g.nodes.length} nodes, {g.edges.length} edges
+                  <ul>{g.nodes.map((n) => <li key={n.id}>{n.name} ({n.lifetime})</li>)}</ul>
+                  <ul aria-label="edges">{g.edges.map((e) => <li key={`${e.from}>${e.to}>${e.tag}`}>{e.from} → {e.to} ({e.tag})</li>)}</ul>
                 </div>
               ))
             ) : (
