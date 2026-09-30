@@ -28,9 +28,10 @@ Move kit's Next entry points off `@sleekstack/next`'s `action()`/`query()` onto 
 - [ ] Exit-hook test still fires for typed failures
 
 ## Done summary
-TBD
-
+Kit action/query/defineEffect/defineQuery/effect now run on @sleekstack/next runEffect (modules passed unflattened through an internal provide option); next action/query/Operation/OperationOptions and the onExit hook removed. Codex: round 1 NEEDS_WORK (registration race with synchronous reconfigure), fixed with a regression test; round 2 SHIP.
+Left for task 7: apps/docs/snippets/effect/next.ts still imports next's action/query; ADR 0009 (exit hook) is superseded by this change.
+stage: plan-sync - skipped(config: no drift found)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: d69f514, d69f514
+- Tests: pnpm --filter @sleekstack/next test (17 passed), pnpm --filter @sleekstack/kit test (89 passed), typecheck next, kit, showcase, showcase-kit
 - PRs:
