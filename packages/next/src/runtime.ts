@@ -42,6 +42,8 @@ interface RuntimeSlot {
   fibers: Set<Fiber.RuntimeFiber<any, any>>
   /** Dev-only devtools buffer (newest last, at most {@link DEV_EVENT_LIMIT}); cleared on reconfigure. */
   events: DevEvent[]
+  /** Dev-only live state, kept apart from the bounded history so eviction never hides it. */
+  live: { app: boolean; scopes: Set<string> }
   nextScopeId: number
 }
 
@@ -72,12 +74,24 @@ const record = (config: RuntimeConfig, kind: DevEvent['kind'], label: string, de
 /** @internal The devtools buffer, read by `@sleekstack/next/devtools`. */
 export const devEvents = (): readonly DevEvent[] => getSlot().events
 
+/** @internal Currently open request scopes and whether the app runtime is built. */
+export const devLive = (): { readonly app: boolean; readonly scopes: readonly string[] } => {
+  const { app, scopes } = getSlot().live
+  return { app, scopes: [...scopes] }
+}
+
+const setLive = (config: RuntimeConfig, update: (live: RuntimeSlot['live']) => void): void => {
+  const slot = getSlot()
+  if (slot.config === config) update(slot.live)
+}
+
 const getSlot = (): RuntimeSlot =>
   globalValue('@sleekstack/next/runtime-slot/v3', (): RuntimeSlot => ({
     config: undefined,
     runtime: undefined,
     fibers: new Set(),
     events: [],
+    live: { app: false, scopes: new Set() },
     nextScopeId: 0,
   }))
 
@@ -113,6 +127,7 @@ export function configureRuntime(config: RuntimeConfig): void {
     void Effect.runPromise(Fiber.interruptAll(fibers)).then(() => runtime && disposeReported(previous, runtime))
   }
   slot.events = []
+  slot.live = { app: false, scopes: new Set() }
   slot.config = config
   slot.runtime = undefined
   slot.fibers = new Set()
@@ -166,13 +181,9 @@ const report = (config: RuntimeConfig, cause: Cause.Cause<unknown>): void =>
 /** Finalizer and disposal failures: `onFinalizerError`, else `onError`, else the default logger. */
 const reportFinalizer = (config: RuntimeConfig, cause: Cause.Cause<unknown>): void => callSink(config, sinkFor(config), cause)
 
-/** Runtimes whose layer built successfully; `acquire`/`release` are recorded only for these. */
-const acquired = new WeakSet<object>()
-
 /** Disposes `runtime`, routing a finalizer failure to the finalizer sink instead of an unhandled rejection. */
 const disposeReported = async (config: RuntimeConfig, runtime: ManagedRuntime.ManagedRuntime<any, any>): Promise<void> => {
   const exit = await Effect.runPromiseExit(runtime.disposeEffect)
-  if (devEnabled() && acquired.delete(runtime)) record(config, 'release', 'app')
   if (Exit.isFailure(exit)) reportFinalizer(config, exit.cause)
 }
 
@@ -186,7 +197,27 @@ const runtimeFor = (slot: RuntimeSlot, config: RuntimeConfig): ManagedRuntime.Ma
         Effect.flatMap(app.close, (exit) => Effect.sync(() => void (Exit.isFailure(exit) && reportFinalizer(config, exit.cause)))),
       ),
     )
-  return (slot.runtime = ManagedRuntime.make(layer) as ManagedRuntime.ManagedRuntime<any, any>)
+  // Recorded by the layer itself, after everything it provides is built and before it is released,
+  // so `getRuntime()` users and every disposal path are covered.
+  const tracked = devEnabled()
+    ? Layer.provideMerge(
+        Layer.scopedDiscard(
+          Effect.acquireRelease(
+            Effect.sync(() => {
+              setLive(config, (l) => void (l.app = true))
+              record(config, 'acquire', 'app')
+            }),
+            () =>
+              Effect.sync(() => {
+                setLive(config, (l) => void (l.app = false))
+                record(config, 'release', 'app')
+              }),
+          ),
+        ),
+        layer,
+      )
+    : layer
+  return (slot.runtime = ManagedRuntime.make(tracked as Layer.Layer<never, unknown, never>) as ManagedRuntime.ManagedRuntime<any, any>)
 }
 
 /**
@@ -218,7 +249,10 @@ export async function runEffect<A, E, R>(effect: Effect.Effect<A, E, R>, options
   const scopeLabel = devEnabled() ? `request#${++slot.nextScopeId}` : ''
   const program = Effect.gen(function* () {
     const scope = yield* Scope.make()
-    if (scopeLabel) record(config, 'scope-open', scopeLabel)
+    if (scopeLabel) {
+      setLive(config, (l) => void l.scopes.add(scopeLabel))
+      record(config, 'scope-open', scopeLabel)
+    }
     const exit = yield* Effect.exit(
       Effect.gen(function* () {
         let base= Context.empty() as Context.Context<any>
@@ -245,6 +279,7 @@ export async function runEffect<A, E, R>(effect: Effect.Effect<A, E, R>, options
       }),
     )
     const closeExit = yield* Effect.exit(Scope.close(scope, exit))
+    if (scopeLabel) setLive(config, (l) => void l.scopes.delete(scopeLabel))
     if (scopeLabel) record(config, 'scope-close', scopeLabel, Exit.isSuccess(exit) ? 'success' : 'failure')
     if (Exit.isFailure(closeExit)) reportFinalizer(config, closeExit.cause)
     return exit
@@ -256,10 +291,6 @@ export async function runEffect<A, E, R>(effect: Effect.Effect<A, E, R>, options
     Effect.gen(function* () {
       const built = yield* Effect.exit(runtime.runtimeEffect)
       if (Exit.isFailure(built)) return { buildFailure: built.cause } as const
-      if (devEnabled() && !acquired.has(runtime)) {
-        acquired.add(runtime)
-        record(config, 'acquire', 'app')
-      }
       return { exit: yield* Effect.provide(program, built.value) } as const
     }),
   )

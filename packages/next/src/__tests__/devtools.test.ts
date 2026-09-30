@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { Effect, Layer } from 'effect'
-import { configureRuntime, runEffect } from '../index'
+import { configureRuntime, getRuntime, runEffect } from '../index'
 import { devtoolsHandler, devtoolsSnapshot } from '../devtools'
 
 describe('devtools', () => {
@@ -13,9 +13,11 @@ describe('devtools', () => {
     expect(snap.errors).toHaveLength(1)
     expect(snap.graph).toBeUndefined()
 
+    expect(snap.live).toEqual({ app: true, scopes: [] })
     for (let i = 0; i < 150; i++) await runEffect(Effect.void)
     snap = devtoolsSnapshot()
     expect(snap.scopes.length + snap.errors.length).toBe(200)
+    expect(snap.live.app).toBe(true) // acquire was evicted from history, live state is not
 
     configureRuntime({ layer: Layer.empty })
     snap = devtoolsSnapshot()
@@ -25,7 +27,7 @@ describe('devtools', () => {
   it('handler returns JSON with graph in dev; 404 and no recording in production', async () => {
     configureRuntime({ layer: Layer.empty })
     const body = await devtoolsHandler({ graph: () => ({ nodes: [] }) })().json()
-    expect(body).toEqual({ scopes: [], errors: [], graph: { nodes: [] } })
+    expect(body).toEqual({ scopes: [], errors: [], live: { app: false, scopes: [] }, graph: { nodes: [] } })
 
     vi.stubEnv('NODE_ENV', 'production')
     try {
@@ -58,5 +60,22 @@ describe('devtools', () => {
     const snap = devtoolsSnapshot()
     expect(snap.scopes).toEqual([])
     expect(snap.errors).toEqual([])
+  })
+
+  it('an open scope stays in live state after history eviction; getRuntime() builds are recorded', async () => {
+    configureRuntime({ layer: Layer.empty })
+    await getRuntime().runtimeEffect.pipe(Effect.runPromise)
+    expect(devtoolsSnapshot().live.app).toBe(true)
+    let resolveStarted!: () => void
+    const started = new Promise<void>((r) => (resolveStarted = r))
+    const long = runEffect(Effect.zipRight(Effect.sync(() => resolveStarted()), Effect.never))
+    long.catch(() => {})
+    await started
+    for (let i = 0; i < 250; i++) await runEffect(Effect.void)
+    const snap = devtoolsSnapshot()
+    expect(snap.scopes.some((e) => e.kind === 'scope-open' && e.label === snap.live.scopes[0])).toBe(false)
+    expect(snap.live.scopes).toHaveLength(1)
+    configureRuntime({ layer: Layer.empty })
+    await long.catch(() => {})
   })
 })

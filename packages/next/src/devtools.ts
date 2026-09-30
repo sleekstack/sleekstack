@@ -5,7 +5,7 @@
  * when given one, the analyzer graph Report. Its own entry, so production server bundles never import it.
  */
 
-import { devEnabled, devEvents, type DevEvent } from './runtime'
+import { devEnabled, devEvents, devLive, type DevEvent } from './runtime'
 
 export type { DevEvent } from './runtime'
 
@@ -13,6 +13,8 @@ export type { DevEvent } from './runtime'
 export interface DevtoolsSnapshot {
   readonly scopes: readonly DevEvent[]
   readonly errors: readonly DevEvent[]
+  /** Open request scopes and app-runtime state; unaffected by history eviction. */
+  readonly live: { readonly app: boolean; readonly scopes: readonly string[] }
   readonly graph?: unknown
 }
 
@@ -24,7 +26,7 @@ export interface DevtoolsOptions {
 /** The current buffer split into scopes (scope/acquire/release) and errors, plus the graph when available. */
 export function devtoolsSnapshot(options: DevtoolsOptions = {}): DevtoolsSnapshot {
   const events = devEvents()
-  const snapshot = { scopes: events.filter((e) => e.kind !== 'error'), errors: events.filter((e) => e.kind === 'error') }
+  const snapshot = { scopes: events.filter((e) => e.kind !== 'error'), errors: events.filter((e) => e.kind === 'error'), live: devLive() }
   return options.graph ? { ...snapshot, graph: options.graph() } : snapshot
 }
 
