@@ -44,13 +44,14 @@ describe('devtools', () => {
     expect(devtoolsSnapshot().scopes.map((e) => e.kind)).not.toContain('acquire')
 
     // reconfigure while a call is in flight (with a failing finalizer): old events must not land in the new buffer
-    const started = Promise.withResolvers<void>()
+    let resolveStarted!: () => void
+    const started = new Promise<void>((r) => (resolveStarted = r))
     configureRuntime({ layer: Layer.empty, onError: () => {} })
-    const inflight = runEffect(Effect.zipRight(Effect.sync(() => started.resolve()), Effect.never), {
-      request: Layer.scopedDiscard(Effect.addFinalizer(() => Effect.die('finalizer'))) as Layer.Layer<any, any, any>,
+    const inflight = runEffect(Effect.zipRight(Effect.sync(() => resolveStarted()), Effect.never), {
+      request: Layer.scopedDiscard(Effect.addFinalizer(() => Effect.die('finalizer'))) as unknown as Layer.Layer<any, any, any>,
     })
     inflight.catch(() => {})
-    await started.promise
+    await started
     configureRuntime({ layer: Layer.empty })
     await inflight.catch(() => {})
     await new Promise((r) => setTimeout(r, 20))
