@@ -43,12 +43,12 @@ pnpm --filter showcase build && pnpm --filter showcase test:e2e      # R11 smoke
 Read and write shapes are not inverses, so there is no `toDto(model)`. They meet at the Model, through form state (the Draft):
 
 ```text
-DTO(read) -fromDto(dto, ctx)-> Model -create-> Draft -toDto-> DTO(write)
+DTO(read) -fromDto(dto) [Effect, needs services]-> Model -create-> Draft -toDto-> DTO(write)
 ```
 
 - `src/models/contracts.ts`: `ModelSpec` and `DraftSpec`.
-- `src/models/task.ts`: `TaskModel` (pure `fromDto`, labels in the Model, narrow data-only `Ctx`), plus `NewTaskDraft` and `TaskCommentDraft`, one Draft per save boundary. Zod-first, no `z.coerce`, only `toDto` may read ambients.
+- `src/models/task.ts`: `TaskModel` (`fromDto` is an Effect that resolves its own context from services such as `ProjectNames`; labels live in the Model), plus `NewTaskDraft` and `TaskCommentDraft`, one Draft per save boundary. Zod-first, no `z.coerce`, only `toDto` may read ambients.
 - `src/client/useDraftForm.ts`: binds a Draft to react-hook-form; re-seeds on `src` change only while pristine. Pass a stable `src`.
-- `src/models/task.server.ts`: `loadBoardModels`, an Effect that reads the repos, builds the Model `Ctx` (project names) once and runs each DTO through `fromDto`. `app/page.tsx` runs it with `runApp`, so the client only ever receives Models.
-- `resolveDraft` / `submitDraft` (`contracts.ts`): resolve a Draft through Effect (validate, then `toDto`, failing with `DraftInvalid`), then hand the wire body to the Server Action. `ProjectView` (new task) and `TaskDetail` (comment) submit this way, so a component never builds the wire body.
+- `src/models/task.server.ts`: `loadBoardModels`, an Effect that reads the repos and runs each DTO through `fromDto`; `ProjectNamesLive` builds the name lookup once per load, so N tasks share one read. `app/page.tsx` runs it with `runApp`, so the client only ever receives Models.
+- `resolveDraft` / `submitDraft` (`contracts.ts`): resolve a Draft through Effect (validate, then run the Effect `toDto`, failing with `DraftInvalid`), then hand the wire body to the Server Action. `ProjectView` (new task) and `TaskDetail` (comment) submit this way, so a component never builds the wire body.
 - Tests: `src/models/task.test.ts` (`fromDto`, `toDto`, defaults invariant) and `resolve.test.ts` (`resolveDraft`, `submitDraft`, `loadBoardModels`).

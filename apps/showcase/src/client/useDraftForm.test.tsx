@@ -1,4 +1,5 @@
 import { act, renderHook } from '@testing-library/react'
+import { Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import type { DraftSpec } from '../models/contracts'
@@ -8,7 +9,7 @@ const schema = z.object({ name: z.string() })
 const spec = {
   schema: () => schema,
   create: (src: string) => ({ name: src }),
-  toDto: (d) => d,
+  toDto: (d) => Effect.succeed(d),
 } satisfies DraftSpec<{ name: string }, { name: string }, string>
 
 describe('useDraftForm re-seed', () => {

@@ -48,4 +48,18 @@ describe('loadBoardModels', () => {
     expect(board[0]!.tasks[0]!.task).toMatchObject({ statusLabel: 'Done', projectName: 'Launch' })
     expect(board[0]!.tasks[0]!.comments[0]).toMatchObject({ id: 'c1', createdAtIso: '1970-01-01T00:00:00.000Z' })
   })
+
+  it('builds the project-name lookup once per load, however many tasks', async () => {
+    const list = vi.fn(() => [{ id: 'p1', name: 'Launch' }])
+    const tasks = Array.from({ length: 5 }, (_, i) => ({ id: `t${i}`, projectId: 'p1', title: 'x', status: 'todo' as const, createdAt: 0 }))
+    await Effect.runPromise(
+      loadBoardModels.pipe(
+        Effect.provideService(ProjectRepo, { list, get: () => undefined }),
+        Effect.provideService(TaskRepo, { listByProject: () => tasks, get: () => undefined, create: () => { throw new Error('unused') }, move: () => { throw new Error('unused') } }),
+        Effect.provideService(CommentRepo, { listByTask: () => [], create: () => { throw new Error('unused') } }),
+      ),
+    )
+    // once by the loader itself, once by the ProjectNames layer; not once per task
+    expect(list).toHaveBeenCalledTimes(2)
+  })
 })

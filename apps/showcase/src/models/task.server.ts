@@ -1,25 +1,33 @@
 /**
  * apps/showcase/src/models/task.server.ts
  *
- * Resolves the board's Models through Effect: the repos are read from the environment, the Model `Ctx`
- * (project names) is built once from that data, and each DTO goes through its pure `fromDto`.
+ * Resolves the board's Models through Effect. Each Model's `fromDto` asks for `ProjectNames` from the
+ * environment; `ProjectNamesLive` builds that lookup once from `ProjectRepo` and is provided once per load,
+ * so N tasks share one read.
  */
 import 'server-only'
-import { Effect } from 'effect'
+import { Effect, Layer } from 'effect'
 import { CommentRepo, ProjectRepo, TaskRepo } from '../domain/tags'
-import { CommentModel, TaskModel, type BoardProject } from './task'
+import { CommentModel, ProjectNames, TaskModel, type BoardProject } from './task'
+
+export const ProjectNamesLive = Layer.effect(
+  ProjectNames,
+  Effect.map(ProjectRepo, (repo) => {
+    const names = new Map(repo.list().map((p) => [p.id, p.name]))
+    return { get: (id: string) => names.get(id) }
+  }),
+)
 
 export const loadBoardModels = Effect.gen(function* () {
   const projectRepo = yield* ProjectRepo
   const taskRepo = yield* TaskRepo
   const commentRepo = yield* CommentRepo
-  const projects = projectRepo.list()
-  const ctx = { projectNames: new Map(projects.map((p) => [p.id, p.name])) }
-  return projects.map((project): BoardProject => ({
-    project,
-    tasks: taskRepo.listByProject(project.id).map((dto) => ({
-      task: TaskModel.fromDto(dto, ctx),
-      comments: commentRepo.listByTask(dto.id).map(CommentModel.fromDto),
-    })),
-  }))
-})
+  return yield* Effect.forEach(projectRepo.list(), (project) =>
+    Effect.forEach(taskRepo.listByProject(project.id), (dto) =>
+      Effect.all({
+        task: TaskModel.fromDto(dto),
+        comments: Effect.forEach(commentRepo.listByTask(dto.id), CommentModel.fromDto),
+      }),
+    ).pipe(Effect.map((tasks): BoardProject => ({ project, tasks }))),
+  )
+}).pipe(Effect.provide(ProjectNamesLive))
