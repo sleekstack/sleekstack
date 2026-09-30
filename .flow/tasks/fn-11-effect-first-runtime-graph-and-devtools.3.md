@@ -29,9 +29,9 @@ Teach the analyzer plain `Layer.*` graphs so the plain-Effect showcase produces 
 - [ ] Existing analyzer fixtures unchanged
 
 ## Done summary
-TBD
-
+Analyzer reads plain Effect Layers from configureRuntime({ layer }) roots: leaf Layers typed into provides/requires (Tag classes and Context.GenericTag via service type; ambiguous shared types fail closed), mergeAll/provide/provideMerge walked. Reviewed within the task 1 range (Codex round 1 caught the GenericTag gap, fixed; round 2 SHIP).
+stage: plan-sync - skipped(config: deferred to wave end)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 751058b, cb7b79f
+- Tests: pnpm --filter @sleekstack/analyze test (18 passed), pnpm --filter @sleekstack/analyze typecheck
 - PRs:

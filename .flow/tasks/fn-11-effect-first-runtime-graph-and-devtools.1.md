@@ -34,9 +34,9 @@ Memory pitfalls: classify wrappers before generic cause unwrap in defect reporti
 - [ ] Existing next tests still pass
 
 ## Done summary
-TBD
-
+Layer-based runtime in @sleekstack/next: configureRuntime({ layer, onError }), runEffect(effect, { request, overrides }), getRuntime; error contract (defects to onError once, finalizer/disposal failures to onFinalizerError ?? onError, control flow and interruption unreported, failed build retried, reconfigure interrupts then disposes). Codex review: round 1 NEEDS_WORK (3 draws), fixed; round 2 SHIP.
+stage: plan-sync - skipped(config: deferred to wave end)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 13d2af3, cb7b79f
+- Tests: pnpm --filter @sleekstack/next test (23 passed), pnpm --filter @sleekstack/next typecheck, pnpm --filter @sleekstack/kit test (89 passed)
 - PRs:

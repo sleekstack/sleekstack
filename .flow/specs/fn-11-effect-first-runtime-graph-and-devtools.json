@@ -1,13 +1,168 @@
 {
   "branch_name": "fn-11-effect-first-runtime-graph-and-devtools",
+  "completion_review_status": "unknown",
+  "completion_reviewed_at": null,
   "created_at": "2026-09-29T13:05:08.630334Z",
+  "default_impl": null,
+  "default_review": null,
+  "default_sync": null,
   "depends_on_epics": [
     "fn-9-static-build-time-dependency-graph"
   ],
   "id": "fn-11-effect-first-runtime-graph-and-devtools",
+  "impl_review_rounds": {
+    "fn-11-effect-first-runtime-graph-and-devtools.1": 0
+  },
   "next_task": 1,
+  "plan_review_rounds": 0,
   "plan_review_status": "unknown",
   "plan_reviewed_at": null,
+  "review_attempts": [
+    {
+      "artifact_sha256": "de9c28c41db42c9a6a277d6ac05e58ca33ea63f11b7c3ff4db12e0f38dd7c1c6",
+      "backend": "codex",
+      "base_sha": "33d8749e676d98583e75c0a6da8c01528e9c3e48",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-342013f67f960e3e4332255ddcfb683a",
+            "classification": "introduced",
+            "findingId": "finding-342013f67f960e3e4332255ddcfb683a",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-850080bba6b80ccbd28c08a9184634c6",
+            "classification": "introduced",
+            "findingId": "finding-850080bba6b80ccbd28c08a9184634c6",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-01ae9c9688b469188150149dffb260db",
+            "classification": "introduced",
+            "findingId": "finding-01ae9c9688b469188150149dffb260db",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-eab16d164105bcee0a9f5fb51cb0eb8a",
+            "classification": "introduced",
+            "findingId": "finding-eab16d164105bcee0a9f5fb51cb0eb8a",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "751058b7c8e1e677359fbb0e6dd40a93ec641230",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 3375,
+      "output_sha256": "b0d571819890fe5592650ba8936090f1add07e36e35e464683f7481e04c65ae0",
+      "reservation_id": "ad506985aee0482094a53fa7d8bd7ba4",
+      "round_consumed": true,
+      "scope": "impl:fn-11-effect-first-runtime-graph-and-devtools.1",
+      "superseded_by": null,
+      "task": "fn-11-effect-first-runtime-graph-and-devtools.1",
+      "timestamp": "2026-09-30T13:34:13.673317Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "50f5762831058e47466803e2e160a1b19e3e837f8f686c792f96ec6693eafdc6",
+      "backend": "codex",
+      "base_sha": "33d8749e676d98583e75c0a6da8c01528e9c3e48",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-342013f67f960e3e4332255ddcfb683a",
+            "classification": "introduced",
+            "findingId": "finding-342013f67f960e3e4332255ddcfb683a",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-850080bba6b80ccbd28c08a9184634c6",
+            "classification": "introduced",
+            "findingId": "finding-850080bba6b80ccbd28c08a9184634c6",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-01ae9c9688b469188150149dffb260db",
+            "classification": "introduced",
+            "findingId": "finding-01ae9c9688b469188150149dffb260db",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-eab16d164105bcee0a9f5fb51cb0eb8a",
+            "classification": "introduced",
+            "findingId": "finding-eab16d164105bcee0a9f5fb51cb0eb8a",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "cb7b79f8e7e50d95277091c032948c78d6792653",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 794,
+      "output_sha256": "c7b5576d84a23539f99e1044d1c987e3feab39545771a5e840c262d43c4d8ec0",
+      "reservation_id": "dcc581e2362c4fc383ac61723d1a28c1",
+      "round_consumed": true,
+      "scope": "impl:fn-11-effect-first-runtime-graph-and-devtools.1",
+      "superseded_by": null,
+      "task": "fn-11-effect-first-runtime-graph-and-devtools.1",
+      "timestamp": "2026-09-30T13:39:07.844566Z",
+      "verdict": "SHIP"
+    }
+  ],
+  "review_hash_epoch": {
+    "impl:fn-11-effect-first-runtime-graph-and-devtools.1": 1
+  },
+  "review_pending_rounds": {},
+  "review_reservations": {},
+  "review_transport_failures": {
+    "impl:fn-11-effect-first-runtime-graph-and-devtools.1": 0
+  },
   "spec_path": ".flow/specs/fn-11-effect-first-runtime-graph-and-devtools.md",
   "status": "open",
   "title": "Effect-first runtime, graph and devtools; sugar moves to kit",
@@ -22,5 +177,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-09-29T13:11:14.302356Z"
+  "updated_at": "2026-09-30T13:39:07.848428Z"
 }
