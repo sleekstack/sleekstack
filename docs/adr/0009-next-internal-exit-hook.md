@@ -1,5 +1,7 @@
 # `@sleekstack/next` exposes an internal Exit hook for adapters
 
+> Superseded by [ADR 0012](0012-next-runtime-management-sugar-in-kit.md): next no longer has `action`/`query`, so the hook is gone.
+
 `action`/`query` in `@sleekstack/next` take an `@internal` `onExit` option. After the request scope closes, the hook receives the operation's `Exit`; its return value resolves the call and a throw rejects it. kit's `next` lowering uses it to map one Exit to an `ActionResult`, a `HandlerFailed` rejection, or a query rejection, instead of encoding failures as `FAILED`/`ERRORED` sentinel symbols in the success value.
 
 ## Considered options

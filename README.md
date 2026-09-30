@@ -63,7 +63,8 @@ This enables:
 | Package | What it is |
 |---------|------------|
 | [`@sleekstack/core`](packages/core/README.md) | Effect-native engine: Service Definitions, Modules, lifetimes, the Graph |
-| [`@sleekstack/next`](packages/next/README.md) | Next.js request scopes (`action`, `query`) |
+| [`@sleekstack/next`](packages/next/README.md) | Effect runtime management for Next.js (`configureRuntime`, `runEffect`, dev introspection) |
+| [`@sleekstack/devtools`](packages/devtools/README.md) | Dev-only panel: graph, scopes, atoms, errors |
 | [`@sleekstack/react`](packages/react/README.md) | Suspense-native `LayerProvider` / `useService`, and atoms (`useAtom`, `useAtomValue`) whose state lives per provider |
 | [`@sleekstack/kit`](packages/kit/README.md) | Effect-free facade over all three (`tag`, `layer`, `effect`, `module`) |
 
@@ -141,7 +142,7 @@ Current surface:
 * Modules (`module()`) — imports, enforced exports (private Tags are visible only inside their Module, ADR 0006), shadowing
 * lifetime-scoped services (`app` / `request` / `component`) with captive-dependency checks
 * a dependency Graph validated at build time by `sleekstack check` (ADR 0011), reported as JSON with `--json`
-* `@sleekstack/next` request scopes (`action`, `query`) and `@sleekstack/react`'s Suspense-native, StrictMode-safe `LayerProvider` / `useService`
+* `@sleekstack/next` runtime management (`configureRuntime`, `runEffect`) with kit's `action`/`query` on top, and `@sleekstack/react`'s Suspense-native, StrictMode-safe `LayerProvider` / `useService`
 
 * `@sleekstack/kit` — an Effect-free facade (`tag`, `layer`, `effect`, `module`, deps inferred from `yield*`, one `SleekStackError`); see [`packages/kit`](packages/kit/README.md)
 

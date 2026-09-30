@@ -10,6 +10,7 @@
 | [0006](0006-enforce-module-privacy.md) | Module exports are enforced | Accepted, superseded in part by 0010 |
 | [0007](0007-fumadocs-with-generated-api-reference.md) | Docs site on Fumadocs, with a generated API reference | Accepted |
 | [0008](0008-native-atoms-over-effect-atom.md) | Native atoms, modeled on effect-atom, instead of depending on it | Accepted |
-| [0009](0009-next-internal-exit-hook.md) | `@sleekstack/next` exposes an internal Exit hook for adapters | Accepted |
+| [0009](0009-next-internal-exit-hook.md) | `@sleekstack/next` exposes an internal Exit hook for adapters | Superseded by 0012 |
 | [0010](0010-islands-over-resumability.md) | Islands defer hydration per React root instead of resumability | Accepted |
 | [0011](0011-static-build-time-dependency-graph.md) | The dependency graph is validated statically, at build time | Accepted |
+| [0012](0012-next-runtime-management-sugar-in-kit.md) | `@sleekstack/next` manages the Effect runtime; action/query sugar lives in kit | Accepted |

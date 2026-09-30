@@ -105,13 +105,17 @@ _Avoid_: AsyncData, RemoteData, status
 ### Next.js integration concepts
 
 **Request Scope**:
-A server-side Scope created per incoming Next.js request by `@sleekstack/next`. Isolates services (auth, tracing, transactions) so no state leaks between requests.
+A server-side Scope created per `runEffect` call (`@sleekstack/next`) or per kit `action`/`query`. Isolates services (auth, tracing, transactions) so no state leaks between requests.
 _Avoid_: Request context, request environment, request runtime
 
 **Action**:
-A server-side operation (Next.js Server Action) wrapped by `action()` from `@sleekstack/next`. Runs an Effect generator in a Request Scope with access to the global runtime layer.
+A server-side operation (Next.js Server Action) wrapped by `action()` from `@sleekstack/kit`. Runs a generator in a Request Scope on the `@sleekstack/next` runtime.
 _Avoid_: Mutation, procedure, RPC
 
 **Query** *(server-side)*:
-A server-side read operation wrapped by `query()` from `@sleekstack/next`. Runs an Effect generator in a Request Scope. Distinct from any future client-side query/cache primitives.
+A server-side read operation wrapped by `query()` from `@sleekstack/kit`. Runs a generator in a Request Scope. Distinct from any future client-side query/cache primitives.
 _Avoid_: Fetch, loader, resolver
+
+**Devtools**:
+The dev-only introspection of a running app: a bounded event buffer and route handler in `@sleekstack/next/devtools`, rendered by the `@sleekstack/devtools` panel (graph, live scopes, atoms, errors). Absent from production builds.
+_Avoid_: Inspector, debug panel
