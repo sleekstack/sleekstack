@@ -66,6 +66,16 @@ describe('graph error fixtures', () => {
     expect(analyze({ project: path.join(dir('ported'), 'tsconfig.json') }).errors.find((e) => e.file === 'core.ts' && e.code === 'MissingDependency')?.message).toContain('declareLayer')
   })
 
+  it('plain Layers from configureRuntime({ layer }): leaves typed into provides/requires edges; any fails closed', () => {
+    expect(sorted(located('plain-layers'))).toEqual(expected('plain-layers'))
+    const r = analyze({ project: path.join(dir('plain-layers'), 'tsconfig.json') })
+    const ok = r.runtimes.find((x) => x.file === 'runtime.ts')!
+    expect(ok.errors).toEqual([])
+    expect(ok.graph.nodes.map((n) => [n.id, n.lifetime]).sort()).toEqual([['ActivityLog', 'app'], ['Clock', 'app'], ['IdGen', 'app'], ['Store', 'app'], ['TaskRepo', 'app']])
+    expect(ok.graph.edges.map((e) => `${e.from}->${e.to}`).sort()).toEqual(['ActivityLog->Clock', 'TaskRepo->Clock', 'TaskRepo->IdGen', 'TaskRepo->Store'])
+    expect(r.runtimes.find((x) => x.file === 'bad.ts')!.errors.map((e) => [e.code, e.line])).toEqual([['Computed', 6]])
+  })
+
   it('clean projects yield no errors', () => {
     expect(located('kit-app')).toEqual([])
     expect(located('core-app')).toEqual([])

@@ -24,6 +24,7 @@ function libId(sym: ts.Symbol | undefined, checker: ts.TypeChecker): string | un
   if (own) return `${own[1]}/${own[2]}#${sym.name}`
   if (/\/effect\/dist\/dts\/Context\.d\.ts$/.test(file)) return `effect/Context#${sym.name}`
   if (/\/effect\/dist\/dts\/Effect\.d\.ts$/.test(file)) return `effect/Effect#${sym.name}`
+  if (/\/effect\/dist\/dts\/Layer\.d\.ts$/.test(file)) return `effect/Layer#${sym.name}`
   return undefined
 }
 
@@ -32,6 +33,8 @@ const MODULE_CALLS = new Set(['kit/module#makeModule', 'core/module#makeModule']
 const ATOM_CALLS = new Set(['kit/atom#atom', 'kit/atom#family'])
 const RUNTIME_CALLS = new Set(['kit/next/runtime#configureRuntime', 'next/runtime#configureRuntime'])
 const ACTION_CALLS = new Set(['kit/next/action#defineEffect', 'kit/next/action#defineQuery', 'kit/next/action#effect', 'kit/next/action#query'])
+/** Plain Layer combinators walked structurally (data-first or as `.pipe` steps). */
+const LAYER_COMBINATORS = new Set(['effect/Layer#mergeAll', 'effect/Layer#merge', 'effect/Layer#provide', 'effect/Layer#provideMerge'])
 const TEST_FILE = /(^|[\\/])__tests__[\\/]|\.(test|spec)\.[cm]?[jt]sx?$/
 
 const unwrap = (e: ts.Expression): ts.Expression => {
@@ -500,11 +503,52 @@ export function extract(project: string, entries?: readonly string[]): Report {
   const atomEdges: Edge[] = []
   const runtimes: ModuleDecl[] = []
   const entryFiles = entries && new Set(entries.map((f) => path.resolve(f)))
-  /** A `configureRuntime({ provide })` call as a root: a synthetic module importing its modules and holding its layers. */
+  const plain = new Map<string, ProviderDecl>()
+  /** A plain Layer leaf, read from its type: ROut Tags are what it provides, RIn Tags what it requires. */
+  const layerLeaf = (e: ts.Expression): ProviderDecl => {
+    const key = cacheKey(e)
+    const hit = plain.get(key)
+    if (hit) return hit
+    const t = checker.getTypeAtLocation(e)
+    if (t.flags & ts.TypeFlags.Any) return fail(e, `Layer "${text(e)}" is typed any; what it provides cannot be named`, 'Computed')
+    if (libId(t.getSymbol(), checker) !== 'effect/Layer#Layer') return fail(e, `"${text(e)}" is not a Layer`)
+    const [rOut, , rIn] = checker.getTypeArguments(t as ts.TypeReference)
+    const tags = (x: ts.Type | undefined) => !x || x.flags & ts.TypeFlags.Never ? [] : (x.isUnion() ? x.types : [x]).map((m) => {
+      const d = m.getSymbol()?.valueDeclaration
+      if (m.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown) || !isTagClass(d)) return fail(e, `Layer "${text(e)}" names "${checker.typeToString(m)}", which does not resolve to a Tag declaration`, 'Computed')
+      return classKey(d)
+    })
+    const p: ProviderDecl = { provides: tags(rOut), requires: tags(rIn), lifetime: 'app', opaque: false, loc: loc(e) }
+    plain.set(key, p)
+    return p
+  }
+  /** Every leaf of a plain Layer: `mergeAll/merge/provide/provideMerge` (and `.pipe` of them) are walked, anything else is a leaf. */
+  const plainLayer = (expr: ts.Expression, out: (p: ProviderDecl) => void): void => {
+    if (checker.getTypeAtLocation(expr).flags & ts.TypeFlags.Any) return fail(expr, `Layer "${text(expr)}" is typed any; what it provides cannot be named`, 'Computed')
+    const e = follow(expr)
+    if (ts.isClassDeclaration(e)) return fail(expr, `"${text(expr)}" is a class, not a Layer`)
+    const args = (c: ts.CallExpression) => c.arguments.forEach((a) => (checker.isArrayLikeType(checker.getTypeAtLocation(a)) ? listOf(a, (x) => plainLayer(x, out)) : plainLayer(a, out)))
+    if (ts.isCallExpression(e) && LAYER_COMBINATORS.has(calleeOf(e) ?? '')) return args(e)
+    if (ts.isCallExpression(e) && ts.isPropertyAccessExpression(e.expression) && e.expression.name.text === 'pipe') {
+      plainLayer(e.expression.expression, out)
+      for (const step of e.arguments) {
+        const s = unwrap(step)
+        if (!ts.isCallExpression(s) || !LAYER_COMBINATORS.has(calleeOf(s) ?? '')) return fail(step, `Layer pipe step "${text(step)}" is not Layer.merge/provide/provideMerge; its graph cannot be read`, 'Computed')
+        args(s)
+      }
+      return
+    }
+    out(layerLeaf(e))
+  }
+  /** A `configureRuntime({ provide, layer })` call as a root: a synthetic module importing its modules and holding its layers (a plain `layer`'s leaves included). */
   const runtimeOf = (n: ts.CallExpression, core: boolean) => {
     const l = loc(n)
     const m: ModuleDecl = { name: `${l.file}:${l.line}`, entries: [], imports: [], exports: undefined, lifetime: undefined, loc: l }
     runtimes.push(m)
+    try {
+      const layer = prop(objectOf(n.arguments[0]), 'layer')
+      if (layer) plainLayer(layer, (p) => m.entries.push(p))
+    } catch (err) { report(err, m) }
     try {
       listOf(prop(objectOf(n.arguments[0]), 'provide'), (x) => {
         try {
