@@ -1,11 +1,127 @@
 {
   "branch_name": "fn-12-effect-native-query-layer",
+  "completion_review_status": "unknown",
+  "completion_reviewed_at": null,
   "created_at": "2026-09-30T15:31:44.093749Z",
+  "default_impl": null,
+  "default_review": null,
+  "default_sync": null,
   "depends_on_epics": [],
   "id": "fn-12-effect-native-query-layer",
+  "impl_review_rounds": {},
   "next_task": 1,
-  "plan_review_status": "unknown",
-  "plan_reviewed_at": null,
+  "plan_review_rounds": 1,
+  "plan_review_status": "needs_work",
+  "plan_reviewed_at": "2026-09-30T15:43:35.736548Z",
+  "review_attempts": [
+    {
+      "artifact_sha256": "2e78fb1bea0e7919ac3cde6460916901375553ede79af2846eb3cfacd669e6f6",
+      "backend": "codex",
+      "base_sha": "a660ff08d835c92d2da4fff496468e1ec17aad13",
+      "counter_kind": "plan",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-0fcd564e66943dd15fa950f34e4ce10d",
+            "classification": "introduced",
+            "findingId": "finding-0fcd564e66943dd15fa950f34e4ce10d",
+            "firstSeenThisRound": true,
+            "severity": "P0",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-bf88ef901e2d84f47111b358da72a6a7",
+            "classification": "introduced",
+            "findingId": "finding-bf88ef901e2d84f47111b358da72a6a7",
+            "firstSeenThisRound": true,
+            "severity": "P0",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-07152dfd12d635598e3db486568f8e43",
+            "classification": "introduced",
+            "findingId": "finding-07152dfd12d635598e3db486568f8e43",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-7b135ca678916ed48e621adb6be79528",
+            "classification": "introduced",
+            "findingId": "finding-7b135ca678916ed48e621adb6be79528",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-95af18a2e992fb4603d408bbb145f5f5",
+            "classification": "introduced",
+            "findingId": "finding-95af18a2e992fb4603d408bbb145f5f5",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-ea121cce5d421be3557d3124c940f9ac",
+            "classification": "introduced",
+            "findingId": "finding-ea121cce5d421be3557d3124c940f9ac",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-283e9c8f354eae44871d6b7db5f68ef5",
+            "classification": "introduced",
+            "findingId": "finding-283e9c8f354eae44871d6b7db5f68ef5",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-c235895d570c2de9cb64d7372f2fdc8d",
+            "classification": "introduced",
+            "findingId": "finding-c235895d570c2de9cb64d7372f2fdc8d",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "plan"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "8c050ba790f6f9167f7ea1b66e3a4fb27e56a81d",
+      "head_sha_observed": true,
+      "kind": "plan",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 355868,
+      "output_sha256": "7b232cb580d8196dedc7728ee007ad72c9739bcc387670cd97ee77955c21a451",
+      "reservation_id": "9dde3da3ef6f4239b6002b0fde1bb6b9",
+      "round_consumed": true,
+      "scope": "plan",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-09-30T15:43:35.730153Z",
+      "tool_calls": 8,
+      "verdict": "MAJOR_RETHINK"
+    }
+  ],
+  "review_hash_epoch": {},
+  "review_pending_rounds": {},
+  "review_reservations": {},
+  "review_transport_failures": {
+    "plan": 0
+  },
   "spec_path": ".flow/specs/fn-12-effect-native-query-layer.md",
   "status": "open",
   "title": "Effect-native query layer (@sleekstack/query)",
@@ -20,5 +136,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-09-30T15:35:06.049787Z"
+  "updated_at": "2026-09-30T15:43:35.739062Z"
 }
