@@ -3,11 +3,12 @@
  * apps/showcase/src/client/DevtoolsMount.tsx
  *
  * The devtools panel with the app's atoms. Only ever imported through a dev-guarded dynamic
- * import (app/page.tsx), so production client chunks never contain it. Atoms are client only, so
- * the counter and the panel's atom list mount after hydration.
+ * import (app/layout.tsx), so production client chunks never contain it. Atoms are client only, so
+ * the counter and the panel's atom list mount after hydration. Its own LayerProvider sits above
+ * the demo-mode-keyed one in providers.tsx, so the counter survives the toggle's remount.
  */
 import { useEffect, useState } from 'react'
-import { useAtom } from '@sleekstack/react'
+import { LayerProvider, useAtom } from '@sleekstack/react'
 import { SleekStackDevtools } from '@sleekstack/devtools'
 import { DEMO_TOGGLED, demoToggles } from './app-atoms'
 
@@ -25,9 +26,9 @@ export function DevtoolsMount() {
   const [hydrated, setHydrated] = useState(false)
   useEffect(() => setHydrated(true), [])
   return (
-    <>
+    <LayerProvider provide={[]}>
       {hydrated && <DemoToggleCounter />}
       <SleekStackDevtools atoms={hydrated ? { demoToggles } : undefined} />
-    </>
+    </LayerProvider>
   )
 }

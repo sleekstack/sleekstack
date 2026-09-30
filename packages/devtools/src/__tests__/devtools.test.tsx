@@ -23,7 +23,7 @@ describe('SleekStackDevtools', () => {
       scopes: [],
       errors: [{ at: 1, kind: 'error', label: 'defect', detail: 'boom' }],
       live: { app: true, scopes: ['request#3'] },
-      graph: { roots: [{ root: 'app', graph: { nodes: [{ id: 'a', name: 'Store', lifetime: 'app' }], edges: [] } }] },
+      graph: { roots: [{ root: 'app', graph: { nodes: [{ id: 'a', name: 'Store', lifetime: 'app' }], edges: [{ from: 'a', to: 'b', tag: 'Db' }] } }] },
     })))
     const count = Atom.make(7)
     render(
@@ -31,9 +31,25 @@ describe('SleekStackDevtools', () => {
         <SleekStackDevtools atoms={{ count }} />
       </LayerProvider>,
     )
-    expect(await screen.findByText(/1 nodes, 0 edges/)).not.toBeNull()
+    expect(await screen.findByText(/1 nodes, 1 edges/)).not.toBeNull()
+    expect(screen.getByText('a → b (Db)')).not.toBeNull()
     expect(screen.getByText('request#3')).not.toBeNull()
     expect(screen.getByText('boom')).not.toBeNull()
     expect(await screen.findByText('7')).not.toBeNull()
+  })
+
+  it('keeps at most one request in flight while the endpoint is slow, and aborts on unmount', async () => {
+    let calls = 0
+    let signal: AbortSignal | undefined
+    vi.stubGlobal('fetch', vi.fn((_url: string, init?: RequestInit) => {
+      calls++
+      signal = init?.signal ?? undefined
+      return new Promise<Response>(() => {})
+    }))
+    const { unmount } = render(<SleekStackDevtools intervalMs={5} />)
+    await new Promise((r) => setTimeout(r, 60))
+    expect(calls).toBe(1)
+    unmount()
+    expect(signal?.aborted).toBe(true)
   })
 })

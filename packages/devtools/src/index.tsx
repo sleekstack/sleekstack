@@ -46,25 +46,26 @@ function AtomRow({ label, atom }: { readonly label: string; readonly atom: Atom.
   return <li>{label}: <code>{show(useAtomValue(atom))}</code></li>
 }
 
-/** Polls `endpoint`; `null` while off (404, network error or non-JSON). */
+/** Polls `endpoint` (next poll only after the previous settles); `null` while off (404, network error or non-JSON). */
 function useDevtoolsData(endpoint: string, intervalMs: number): DevtoolsData | null {
   const [data, setData] = useState<DevtoolsData | null>(null)
   useEffect(() => {
-    let live = true
+    const controller = new AbortController()
+    let timer: ReturnType<typeof setTimeout> | undefined
     const poll = async () => {
       try {
-        const res = await fetch(endpoint)
+        const res = await fetch(endpoint, { signal: controller.signal })
         const next = res.ok ? ((await res.json()) as DevtoolsData) : null
-        if (live) setData(next)
+        if (!controller.signal.aborted) setData(next)
       } catch {
-        if (live) setData(null)
+        if (!controller.signal.aborted) setData(null)
       }
+      if (!controller.signal.aborted) timer = setTimeout(poll, intervalMs)
     }
     void poll()
-    const id = setInterval(poll, intervalMs)
     return () => {
-      live = false
-      clearInterval(id)
+      controller.abort()
+      clearTimeout(timer)
     }
   }, [endpoint, intervalMs])
   return data
@@ -87,6 +88,7 @@ export function SleekStackDevtools({ endpoint = '/api/devtools', intervalMs = 20
                 <div key={r.root}>
                   <strong>{r.root}</strong>: {r.graph.nodes.length} nodes, {r.graph.edges.length} edges
                   <ul>{r.graph.nodes.map((n) => <li key={n.id}>{n.name} ({n.lifetime})</li>)}</ul>
+                  <ul aria-label="edges">{r.graph.edges.map((e) => <li key={`${e.from}>${e.to}>${e.tag}`}>{e.from} → {e.to} ({e.tag})</li>)}</ul>
                 </div>
               ))
             ) : (

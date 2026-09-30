@@ -16,8 +16,6 @@ import { Providers } from './providers'
 const loadBoard = () => runApp(loadBoardModels)
 
 export default async function HomePage() {
-  // Dev only: a dead branch in production, so the panel's chunk is never emitted.
-  const Devtools = process.env.NODE_ENV !== 'production' ? (await import('../src/client/DevtoolsMount')).DevtoolsMount : null
   const [board, demoMode] = await Promise.all([loadBoard(), isDemoMode()])
 
   return (
@@ -29,7 +27,6 @@ export default async function HomePage() {
           See <Link href="/log">/log</Link> for the activity log.
         </p>
       </main>
-      {Devtools && <Devtools />}
     </Providers>
   )
 }
