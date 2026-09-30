@@ -51,13 +51,14 @@ const REQUEST_TIMEOUT_MS = 5000
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null
 const strs = (v: unknown, keys: readonly string[]): boolean => isObj(v) && keys.every((k) => typeof v[k] === 'string')
-const isEvent = (v: unknown): v is DevEvent => strs(v, ['kind', 'label']) && typeof (v as DevEvent).at === 'number'
+const isEvent = (v: unknown): v is DevEvent =>
+  strs(v, ['kind', 'label']) && typeof (v as DevEvent).at === 'number' && [undefined, 'string'].includes(typeof (v as DevEvent).detail)
 
 const isDevtoolsData = (v: unknown): v is DevtoolsData =>
   isObj(v) &&
   Array.isArray(v.scopes) && v.scopes.every(isEvent) &&
   Array.isArray(v.errors) && v.errors.every(isEvent) &&
-  isObj(v.live) && Array.isArray(v.live.scopes) && v.live.scopes.every((s) => typeof s === 'string')
+  isObj(v.live) && typeof v.live.app === 'boolean' && Array.isArray(v.live.scopes) && v.live.scopes.every((s) => typeof s === 'string')
 
 const isGraph = (g: unknown): g is ReportGraph =>
   isObj(g) &&
@@ -70,19 +71,17 @@ const isGraph = (g: unknown): g is ReportGraph =>
  */
 export function graphsOf(report: unknown): readonly RootGraph[] {
   if (!isObj(report)) return []
-  const candidates: unknown[] = Array.isArray(report.runtimes)
-    ? report.runtimes.map((r) => (isObj(r) ? r.graph : undefined))
-    : Array.isArray(report.graphs)
-      ? report.graphs
-      : Array.isArray(report.roots)
-        ? report.roots.map((r) => (isObj(r) ? r.graph : undefined))
-        : []
+  const from = (list: unknown, pick: (r: unknown) => unknown): unknown[] => (Array.isArray(list) ? list.map(pick) : [])
+  const graphOf = (r: unknown) => (isObj(r) ? r.graph : undefined)
+  // The canonical Report (`runtimes`, else `graphs`) or the CLI envelope (`roots`): first source with a graph wins.
+  const sources = [from(report.runtimes, graphOf), from(report.graphs, (g) => g), from(report.roots, graphOf)]
+  const candidates = sources.find((c) => c.some(isGraph)) ?? []
   return candidates.filter(isGraph).map((g, i) => ({ ...g, root: typeof (g as Partial<RootGraph>).root === 'string' ? (g as RootGraph).root : `graph ${i + 1}` }))
 }
 
-/** Polls `endpoint` (next poll only after the previous settles); `null` while off (404, network error or non-JSON). */
-function useDevtoolsData(endpoint: string, intervalMs: number): DevtoolsData | null {
-  const [data, setData] = useState<DevtoolsData | null>(null)
+/** Polls `endpoint` (next poll only after the previous settles); `undefined` until the first response, `null` while off (404, network error or non-JSON). */
+function useDevtoolsData(endpoint: string, intervalMs: number): DevtoolsData | null | undefined {
+  const [data, setData] = useState<DevtoolsData | null | undefined>(undefined)
   useEffect(() => {
     const controller = new AbortController()
     let timer: ReturnType<typeof setTimeout> | undefined
@@ -121,7 +120,9 @@ export function SleekStackDevtools({ endpoint = '/api/devtools', intervalMs = 20
   return (
     <aside aria-label="SleekStack devtools" data-devtools={DEVTOOLS_MARKER} style={{ borderTop: '1px solid #ccc', marginTop: '2rem', fontSize: 13 }}>
       <h2>SleekStack devtools</h2>
-      {data === null ? (
+      {data === undefined ? (
+        <p>Connecting to {endpoint}…</p>
+      ) : data === null ? (
         <p>Devtools are off: the handler at {endpoint} is not reachable in this build.</p>
       ) : (
         <>

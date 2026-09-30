@@ -59,10 +59,10 @@ describe('SleekStackDevtools', () => {
     expect(await screen.findByText(/Devtools are off/)).not.toBeNull()
   })
 
-  it('treats a body whose graph roots are malformed as off', async () => {
+  it('a body whose graph roots are malformed shows the no-graph state, not a crash', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({ scopes: [], errors: [], live: { app: true, scopes: [] }, graph: { roots: [{}] } })))
     render(<SleekStackDevtools />)
-    expect(await screen.findByText(/Devtools are off/)).not.toBeNull()
+    expect(await screen.findByText(/No graph report supplied/)).not.toBeNull()
   })
 
   it('a hung request times out and polling continues', async () => {
@@ -85,12 +85,23 @@ describe('SleekStackDevtools', () => {
     const g = { root: 'r', nodes: [{ id: 'a', name: 'A', lifetime: 'app' }], edges: [] }
     expect(graphsOf({ runtimes: [{ graph: g }], graphs: [], errors: [], extraction: [] })).toHaveLength(1)
     expect(graphsOf({ graphs: [g] })).toHaveLength(1)
+    expect(graphsOf({ graphs: [], roots: [{ graph: g }] })).toHaveLength(1)
     expect(graphsOf({ roots: [{ graph: g }, { graph: {} }] })).toHaveLength(1)
     expect(graphsOf(null)).toEqual([])
   })
 
   it('a body with a null error entry is off, not a crash', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({ scopes: [], errors: [null], live: { app: true, scopes: [] } })))
+    render(<SleekStackDevtools />)
+    expect(await screen.findByText(/Devtools are off/)).not.toBeNull()
+  })
+
+  it('a body with an object-valued error detail or non-boolean live.app is off', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ scopes: [], errors: [{ at: 1, kind: 'error', label: 'x', detail: {} }], live: { app: true, scopes: [] } })))
+    const first = render(<SleekStackDevtools />)
+    expect(await screen.findByText(/Devtools are off/)).not.toBeNull()
+    first.unmount()
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ scopes: [], errors: [], live: { scopes: [] } })))
     render(<SleekStackDevtools />)
     expect(await screen.findByText(/Devtools are off/)).not.toBeNull()
   })
