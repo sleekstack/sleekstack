@@ -24,11 +24,13 @@ export function useDraftForm<D extends FieldValues, Dto, Src, P>(
     defaultValues: spec.create(src) as DefaultValues<D>,
     resolver: zodResolver(schema as never) as unknown as Resolver<D>,
   })
+  // `seeded` only advances on a reset, so a source that changed while dirty is applied once the form is pristine again.
   const seeded = useRef(src)
+  const { isDirty } = form.formState
   useEffect(() => {
-    if (Object.is(seeded.current, src)) return
+    if (Object.is(seeded.current, src) || isDirty) return
     seeded.current = src
-    if (!form.formState.isDirty) form.reset(spec.create(src) as DefaultValues<D>)
-  }, [spec, src, form])
+    form.reset(spec.create(src) as DefaultValues<D>)
+  }, [spec, src, isDirty, form])
   return form
 }

@@ -30,7 +30,7 @@ test('create task: success, simulated failure, validation error', async ({ page 
 
   await input.fill('')
   await create.click()
-  await expect(project.getByRole('alert')).toHaveText('Task title cannot be empty')
+  await expect(project.getByRole('alert')).toHaveText('Please enter a title')
 })
 
 test('client navigation to /log keeps the component scope history', async ({ page }) => {

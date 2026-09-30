@@ -53,7 +53,7 @@ function ProjectBody({ project, tasks }: { readonly project: ProjectRecord; read
       form.reset()
       router.refresh()
     })
-  })
+  }, () => setCreateError(null))
 
   return (
     <section aria-label={`project: ${project.name}`}>
