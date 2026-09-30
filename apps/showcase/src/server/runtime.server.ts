@@ -15,13 +15,17 @@ import { DemoLive, isDemoMode } from './demo.server'
 import { RequestLive } from './request.server'
 
 // Next loads this module once per server layer (RSC, actions), each with its own config object;
-// configures once per process, so a later load never replaces the runtime (restart `next dev` after
-// changing AppLive; the adapter's own HMR reconfigure would otherwise fight the second copy).
+// configures once per process so a later load never replaces the runtime. A dev hot reload of this
+// module clears the flag as the old version is disposed, so the re-evaluation reconfigures (the
+// adapter interrupts in-flight calls, then disposes the old runtime).
 const g = globalThis as { __showcaseRuntimeConfigured?: boolean }
 if (!g.__showcaseRuntimeConfigured) {
   g.__showcaseRuntimeConfigured = true
   configureRuntime({ layer: AppLive })
 }
+type Hot = { dispose(cb: () => void): void }
+const hot = (import.meta as { webpackHot?: Hot; turbopackHot?: Hot })
+;(hot.webpackHot ?? hot.turbopackHot)?.dispose(() => void (g.__showcaseRuntimeConfigured = false))
 
 /** Records defect causes in the app's ActivityLog (the runtime's default sink logs to the console); never throws. */
 const report = (cause: Cause.Cause<unknown>) =>
