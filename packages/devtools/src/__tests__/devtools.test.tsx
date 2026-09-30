@@ -20,7 +20,7 @@ describe('SleekStackDevtools', () => {
 
   it('shows graph, live scopes, errors and read-only atoms', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({
-      scopes: [],
+      scopes: [{ at: 0, kind: 'acquire', label: 'app' }],
       errors: [{ at: 1, kind: 'error', label: 'defect', detail: 'boom' }],
       live: { app: true, scopes: ['request#3'] },
       graph: { roots: [{ root: 'app', graph: { nodes: [{ id: 'a', name: 'Store', lifetime: 'app' }], edges: [{ from: 'a', to: 'b', tag: 'Db' }] } }] },

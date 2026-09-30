@@ -52,7 +52,7 @@ const REQUEST_TIMEOUT_MS = 5000
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null
 const strs = (v: unknown, keys: readonly string[]): boolean => isObj(v) && keys.every((k) => typeof v[k] === 'string')
 const isEvent = (v: unknown): v is DevEvent =>
-  strs(v, ['kind', 'label']) && typeof (v as DevEvent).at === 'number' && [undefined, 'string'].includes(typeof (v as DevEvent).detail)
+  strs(v, ['kind', 'label']) && typeof (v as DevEvent).at === 'number' && ((v as DevEvent).detail === undefined || typeof (v as DevEvent).detail === 'string')
 
 const isDevtoolsData = (v: unknown): v is DevtoolsData =>
   isObj(v) &&
