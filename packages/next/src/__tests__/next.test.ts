@@ -1,254 +1,70 @@
 import { describe, expect, it } from 'vitest'
-import { Cause, Context, Effect } from 'effect'
+import { Context, Effect } from 'effect'
 import { service } from '@sleekstack/core'
-import { action, configureRuntime, query } from '../index'
+import { configureRuntime, runEffect } from '../index'
 
-// This file's tests share one process-global runtime slot (by design, R8), so
-// order matters: the "unconfigured" case runs first, before any configureRuntime call.
+// `configureRuntime({ provide })` (the kit path): runEffect opens a core request scope per call,
+// with the internal `provide` option built into it. One process-global runtime slot, so tests share it.
 
-describe('@sleekstack/next', () => {
-  it('unconfigured call throws a descriptive error', async () => {
-    const op = action(() => Effect.succeed('ok'))
-    await expect(op()).rejects.toThrow(/configureRuntime/)
-  })
-
-  it('finalizes the request scope after success, after typed failure, and after defect', async () => {
+describe('@sleekstack/next provide config', () => {
+  it('closes the request scope after success, typed failure and defect', async () => {
     const log: string[] = []
     class Tracked extends Context.Tag('next-test/Tracked')<Tracked, { n: number }>() {}
     let n = 0
     const tracked = service(Tracked, { lifetime: 'request' }, () =>
       Effect.acquireRelease(Effect.sync(() => ({ n: ++n })), (v) => Effect.sync(() => void log.push(`close:${v.n}`))))
-    configureRuntime({ provide: [tracked] })
+    configureRuntime({ provide: [tracked], onError: () => {} })
 
-    const succeed = action(() => Effect.gen(function* () {
-      yield* Tracked
-      return 'ok'
-    }))
-    const fail = action(() => Effect.gen(function* () {
-      yield* Tracked
-      return yield* Effect.fail(new Error('typed failure'))
-    }))
-    const defect = action(() => Effect.gen(function* () {
-      yield* Tracked
-      return yield* Effect.die(new Error('defect'))
-    }))
-
-    await expect(succeed()).resolves.toBe('ok')
-    await expect(fail()).rejects.toThrow()
-    await expect(defect()).rejects.toThrow()
+    const use = <A, E>(tail: Effect.Effect<A, E>) => runEffect(Effect.flatMap(Tracked, () => tail))
+    await expect(use(Effect.succeed('ok'))).resolves.toBe('ok')
+    await expect(use(Effect.fail(new Error('typed failure')))).rejects.toThrow()
+    await expect(use(Effect.die(new Error('defect')))).rejects.toThrow()
     expect(log).toEqual(['close:1', 'close:2', 'close:3'])
   })
 
-  it('forwards arguments to fn; typed failure rejects with an Error whose cause holds the Effect Cause', async () => {
-    configureRuntime({ provide: [] })
-    const add = action((a: number, b: number) => Effect.succeed(a + b))
-    await expect(add(2, 3)).resolves.toBe(5)
-
-    const boom = action((msg: string) => Effect.fail(new Error(msg)))
-    await expect(boom('kaboom')).rejects.toMatchObject({
-      cause: expect.any(Object),
-    })
-    try {
-      await boom('kaboom')
-      expect.fail('expected rejection')
-    } catch (err) {
-      expect(err).toBeInstanceOf(Error)
-      expect(Cause.isCause((err as Error).cause)).toBe(true)
-    }
-  })
-
-  it('calling the same action twice opens two distinct request scopes', async () => {
-    class Rq extends Context.Tag('next-test/Rq')<Rq, { id: number }>() {}
-    let n = 0
-    const rq = service(Rq, { lifetime: 'request' }, () => Effect.sync(() => ({ id: ++n })))
-    configureRuntime({ provide: [rq] })
-
-    const readId = query(() => Effect.gen(function* () {
-      const r = yield* Rq
-      return r.id
-    }))
-    const [first, second] = [await readId(), await readId()]
-    expect(first).not.toBe(second)
-  })
-
-  it('20 concurrent actions never share a request-scoped instance', async () => {
+  it('20 concurrent calls never share a request-scoped instance', async () => {
     class Rq extends Context.Tag('next-test/Rq20')<Rq, { id: number }>() {}
     let n = 0
-    const rq = service(Rq, { lifetime: 'request' }, () => Effect.sync(() => ({ id: ++n })))
-    configureRuntime({ provide: [rq] })
-
-    const readId = action(() => Effect.gen(function* () {
-      const r = yield* Rq
-      return r.id
-    }))
-    const ids = await Promise.all(Array.from({ length: 20 }, () => readId()))
+    configureRuntime({ provide: [service(Rq, { lifetime: 'request' }, () => Effect.sync(() => ({ id: ++n })))] })
+    const ids = await Promise.all(Array.from({ length: 20 }, () => runEffect(Effect.map(Rq, (r) => r.id))))
     expect(new Set(ids).size).toBe(20)
   })
 
-  it('per-op provide affects only that op', async () => {
-    class Svc extends Context.Tag('next-test/Svc')<Svc, { label: string }>() {}
-    const global = service(Svc, {}, () => Effect.succeed({ label: 'global' }))
-    configureRuntime({ provide: [global] })
-
-    const readLabel = action(() => Effect.gen(function* () {
-      const s = yield* Svc
-      return s.label
-    }))
-    const overridden = action(
-      { provide: [service(Svc, {}, () => Effect.succeed({ label: 'local' }))] },
-      () => Effect.gen(function* () {
-        const s = yield* Svc
-        return s.label
-      }),
-    )
-
-    expect(await overridden()).toBe('local')
-    expect(await readLabel()).toBe('global')
+  it.each(['request', 'app'] as const)('per-call provide shadows a %s-lifetime service for that call only', async (lifetime) => {
+    class Svc extends Context.Tag(`next-test/Svc-${lifetime}`)<Svc, { label: string }>() {}
+    configureRuntime({ provide: [service(Svc, { lifetime }, () => Effect.succeed({ label: 'global' }))] })
+    const read = Effect.map(Svc, (s) => s.label)
+    const local = service(Svc, { lifetime: 'request' }, () => Effect.succeed({ label: 'local' }))
+    expect(await runEffect(read, { provide: [local] })).toBe('local')
+    expect(await runEffect(read)).toBe('global')
   })
 
-  it('returning a ReadableStream or async iterable raises the descriptive error', async () => {
-    configureRuntime({ provide: [] })
-    const stream = action(() => Effect.succeed(new ReadableStream()))
-    await expect(stream()).rejects.toThrow(/streaming results are not supported/)
-
-    const asyncIterable = action(() =>
-      Effect.succeed({
-        async *[Symbol.asyncIterator]() {
-          yield 1
-        },
-      }),
-    )
-    await expect(asyncIterable()).rejects.toThrow(/streaming results are not supported/)
-  })
-
-  it('re-configure with the same config is a no-op; a different config disposes the old app scope and uses new services', async () => {
+  it('a different config disposes the old app scope and uses the new services', async () => {
     class Svc extends Context.Tag('next-test/ReconfigSvc')<Svc, { label: string }>() {}
-    let built = 0
     const closeLog: string[] = []
     const makeConfig = (label: string) => ({
       provide: [
         service(Svc, {}, () =>
-          Effect.acquireRelease(
-            Effect.sync(() => (built++, { label })),
-            () => Effect.sync(() => void closeLog.push(`close:${label}`)),
-          )),
+          Effect.acquireRelease(Effect.succeed({ label }), () => Effect.sync(() => void closeLog.push(`close:${label}`)))),
       ],
     })
-
-    const config1 = makeConfig('one')
-    configureRuntime(config1)
-    configureRuntime(config1) // same reference: no-op
-
-    const readLabel = action(() => Effect.gen(function* () {
-      const s = yield* Svc
-      return s.label
-    }))
-    expect(await readLabel()).toBe('one')
-    expect(built).toBe(1)
-
-    const config2 = makeConfig('two')
-    configureRuntime(config2) // different reference: disposes config1's app scope, replaces it
-    expect(await readLabel()).toBe('two')
-
-    // Wait a tick for the disposed scope's finalizer (dispose() is fire-and-forget).
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    const read = Effect.map(Svc, (s) => s.label)
+    configureRuntime(makeConfig('one'))
+    expect(await runEffect(read)).toBe('one')
+    configureRuntime(makeConfig('two'))
+    expect(await runEffect(read)).toBe('two')
+    await new Promise((resolve) => setTimeout(resolve, 10))
     expect(closeLog).toContain('close:one')
   })
 
-  it('a build in flight under a superseded config disposes itself instead of publishing a stale scope', async () => {
-    class Svc extends Context.Tag('next-test/RaceSvc')<Svc, { label: string }>() {}
-    const closeLog: string[] = []
-    const gate = new Promise<void>((resolve) => setTimeout(resolve, 10))
-    const configA = {
-      provide: [
-        service(Svc, {}, () =>
-          Effect.acquireRelease(
-            Effect.gen(function* () {
-              yield* Effect.promise(() => gate) // slow: still building when configureRuntime(B) runs
-              return { label: 'A' }
-            }),
-            () => Effect.sync(() => void closeLog.push('close:A')),
-          )),
-      ],
-    }
-    const configB = {
-      provide: [service(Svc, {}, () => Effect.succeed({ label: 'B' }))],
-    }
-    const readLabel = action(() => Effect.gen(function* () {
-      const s = yield* Svc
-      return s.label
-    }))
-
-    configureRuntime(configA)
-    const firstCall = readLabel() // starts building A's app scope
-    configureRuntime(configB) // supersedes A before its build resolves
-    expect(await firstCall).toBe('A') // in-flight call started under A still completes with A
-    expect(await readLabel()).toBe('B') // new calls use B
-
-    await new Promise((resolve) => setTimeout(resolve, 20))
-    expect(closeLog).toContain('close:A') // A's app scope was disposed, not left dangling
-  })
-
-  it('a synchronous throw from fn still closes the request scope', async () => {
-    class Rq extends Context.Tag('next-test/SyncThrowRq')<Rq, { id: number }>() {}
-    const closeLog: string[] = []
-    const rq = service(Rq, { lifetime: 'request' }, () =>
-      Effect.acquireRelease(Effect.succeed({ id: 1 }), () => Effect.sync(() => void closeLog.push('closed'))))
-    configureRuntime({ provide: [rq] })
-
-    const throwing = action(() => {
-      throw new Error('sync boom')
-    })
-    await expect(throwing()).rejects.toThrow()
-    expect(closeLog).toEqual(['closed'])
-  })
-
-  it('a throwing onFinalizerError sink does not change a successful operation result', async () => {
+  it('a throwing onFinalizerError sink does not change a successful result', async () => {
     class Tracked extends Context.Tag('next-test/ThrowingSinkTracked')<Tracked, { n: number }>() {}
-    const tracked = service(Tracked, { lifetime: 'request' }, () =>
-      Effect.acquireRelease(Effect.succeed({ n: 1 }), () => Effect.die('finalizer boom')))
     configureRuntime({
-      provide: [tracked],
+      provide: [service(Tracked, { lifetime: 'request' }, () => Effect.acquireRelease(Effect.succeed({ n: 1 }), () => Effect.die('finalizer boom')))],
       onFinalizerError: () => {
         throw new Error('sink boom')
       },
     })
-
-    const succeed = action(() => Effect.gen(function* () {
-      yield* Tracked
-      return 'ok'
-    }))
-    await expect(succeed()).resolves.toBe('ok')
-  })
-
-  it('per-op provide of an app-lifetime service overrides the global instance for that op only', async () => {
-    class AppSvc extends Context.Tag('next-test/AppSvc')<AppSvc, { n: number }>() {}
-    const global = service(AppSvc, {}, () => Effect.succeed({ n: 1 }))
-    configureRuntime({ provide: [global] })
-
-    const readN = action(() => Effect.gen(function* () {
-      const s = yield* AppSvc
-      return s.n
-    }))
-    const overridden = action(
-      { provide: [service(AppSvc, {}, () => Effect.succeed({ n: 99 }))] },
-      () => Effect.gen(function* () {
-        const s = yield* AppSvc
-        return s.n
-      }),
-    )
-
-    expect(await overridden()).toBe(99)
-    expect(await readN()).toBe(1)
-  })
-})
-
-describe('@internal onExit hook', () => {
-  it('receives the Exit and settles the call with its return or throw', async () => {
-    configureRuntime({ provide: [] })
-    const mapped = action({ onExit: (exit) => (exit._tag === 'Failure' ? `failed:${Cause.squash(exit.cause)}` : exit.value) }, () => Effect.fail('bad'))
-    await expect(mapped()).resolves.toBe('failed:bad')
-    const rejecting = action({ onExit: () => { throw new Error('mapped') } }, () => Effect.succeed(1))
-    await expect(rejecting()).rejects.toThrow('mapped')
+    await expect(runEffect(Effect.as(Tracked, 'ok'))).resolves.toBe('ok')
   })
 })
