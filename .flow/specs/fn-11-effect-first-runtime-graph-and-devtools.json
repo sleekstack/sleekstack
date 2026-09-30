@@ -12,7 +12,9 @@
   "id": "fn-11-effect-first-runtime-graph-and-devtools",
   "impl_review_rounds": {
     "fn-11-effect-first-runtime-graph-and-devtools.1": 0,
-    "fn-11-effect-first-runtime-graph-and-devtools.2": 0
+    "fn-11-effect-first-runtime-graph-and-devtools.2": 0,
+    "fn-11-effect-first-runtime-graph-and-devtools.4": 0,
+    "fn-11-effect-first-runtime-graph-and-devtools.5": 1
   },
   "next_task": 1,
   "plan_review_rounds": 0,
@@ -217,17 +219,162 @@
       "timestamp": "2026-09-30T14:09:22.802237Z",
       "tool_calls": 20,
       "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "05705581337e0335d9db88794c365834d26c097f5ae382fbf898c34230daf6a5",
+      "backend": "codex",
+      "base_sha": "c1fa6b86e8a1b84c0ddd77ddfa54342b7fc04918",
+      "counter_kind": "impl",
+      "failure_class": "head_moved",
+      "finalized": {
+        "digest": "not_applicable",
+        "receipt": "not_applicable",
+        "status": "not_applicable"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "48bd9150ed42255c27f30b1529fc54b385537272",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "outcome": "transport_failure",
+      "output_bytes": 65,
+      "output_sha256": "eec79b4fd7381a8ae81228af8025e87a5e63c17b6d47eb2140d1c9e4bdfca4da",
+      "reservation_id": "eaa4c2e607924a8582fea48ebf90aad4",
+      "round_consumed": false,
+      "scope": "impl:fn-11-effect-first-runtime-graph-and-devtools.4",
+      "superseded_by": null,
+      "task": "fn-11-effect-first-runtime-graph-and-devtools.4",
+      "timestamp": "2026-09-30T14:21:18.634396Z",
+      "verdict": null
+    },
+    {
+      "artifact_sha256": "bed5205591243378d6e9353c3b260138a21f451a625c3019d46d803a1c9bffec",
+      "backend": "codex",
+      "base_sha": "c1fa6b86e8a1b84c0ddd77ddfa54342b7fc04918",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-94f166241ed0e551c0f36fdeb94ca59f",
+            "classification": "introduced",
+            "findingId": "finding-94f166241ed0e551c0f36fdeb94ca59f",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-fdf88aafc9216ef25156f9a79d8dd629",
+            "classification": "introduced",
+            "findingId": "finding-fdf88aafc9216ef25156f9a79d8dd629",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "25bf7762d74561e224b26cbecabe5390bee27fb5",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 189296,
+      "output_sha256": "c7b093a06eaa9b87cbc83500a474f47831c52938b0b5d86fe228db230bf1680b",
+      "reservation_id": "042191a0d1564cdebd6f6828fc5a911a",
+      "round_consumed": true,
+      "scope": "impl:fn-11-effect-first-runtime-graph-and-devtools.4",
+      "superseded_by": null,
+      "task": "fn-11-effect-first-runtime-graph-and-devtools.4",
+      "timestamp": "2026-09-30T14:30:25.757763Z",
+      "tool_calls": 17,
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "ea8459f7918a01c91ad26ea6ae49e7e57c127843f9c6d3a1c86861e4f2d62aa6",
+      "backend": "codex",
+      "base_sha": "c1fa6b86e8a1b84c0ddd77ddfa54342b7fc04918",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-94f166241ed0e551c0f36fdeb94ca59f",
+            "classification": "introduced",
+            "findingId": "finding-94f166241ed0e551c0f36fdeb94ca59f",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-fdf88aafc9216ef25156f9a79d8dd629",
+            "classification": "introduced",
+            "findingId": "finding-fdf88aafc9216ef25156f9a79d8dd629",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "47fcfaf2c5793a1415cf68be722258274233ab1f",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 695,
+      "output_sha256": "48f40472d78f65a8a4d4f11d80406481041d7ba4275c485625ca7e485f5eabbe",
+      "reservation_id": "e6e20693e1f046759adb28ceb375f591",
+      "round_consumed": true,
+      "scope": "impl:fn-11-effect-first-runtime-graph-and-devtools.4",
+      "superseded_by": null,
+      "task": "fn-11-effect-first-runtime-graph-and-devtools.4",
+      "timestamp": "2026-09-30T14:34:05.930796Z",
+      "verdict": "SHIP"
     }
   ],
   "review_hash_epoch": {
     "impl:fn-11-effect-first-runtime-graph-and-devtools.1": 1,
-    "impl:fn-11-effect-first-runtime-graph-and-devtools.2": 1
+    "impl:fn-11-effect-first-runtime-graph-and-devtools.2": 1,
+    "impl:fn-11-effect-first-runtime-graph-and-devtools.4": 1
   },
-  "review_pending_rounds": {},
-  "review_reservations": {},
+  "review_pending_rounds": {
+    "impl:fn-11-effect-first-runtime-graph-and-devtools.5": 1
+  },
+  "review_reservations": {
+    "03dfc813293740e087e9e638b4162e48": {
+      "artifact_sha256": "1e98860231122f793a583bddb082ea02258279119bbdebd11673eee558fc4671",
+      "counter_scope": "impl:fn-11-effect-first-runtime-graph-and-devtools.5",
+      "epoch": 0,
+      "exclusive": true,
+      "forced": false,
+      "review_type": "impl"
+    }
+  },
   "review_transport_failures": {
     "impl:fn-11-effect-first-runtime-graph-and-devtools.1": 0,
-    "impl:fn-11-effect-first-runtime-graph-and-devtools.2": 0
+    "impl:fn-11-effect-first-runtime-graph-and-devtools.2": 0,
+    "impl:fn-11-effect-first-runtime-graph-and-devtools.4": 0
   },
   "spec_path": ".flow/specs/fn-11-effect-first-runtime-graph-and-devtools.md",
   "status": "open",
@@ -243,5 +390,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-09-30T14:09:22.810362Z"
+  "updated_at": "2026-09-30T14:34:05.934980Z"
 }

@@ -21,9 +21,8 @@ Record scope open/close, acquire/release and errors in a bounded per-process buf
 - [ ] Recording adds no work when disabled
 
 ## Done summary
-TBD
-
+Dev-only bounded (200) event buffer plus live scope/app state in @sleekstack/next, exposed via @sleekstack/next/devtools handler with optional graph Report; events bound to config generation, acquire/release recorded by the runtime layer.
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 48bd915, 47fcfaf
+- Tests: pnpm --filter @sleekstack/next test, pnpm --filter @sleekstack/kit test
 - PRs:
