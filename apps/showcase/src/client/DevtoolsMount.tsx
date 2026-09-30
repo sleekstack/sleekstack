@@ -4,8 +4,9 @@
  *
  * The devtools panel with the app's atoms. Only ever imported through a dev-guarded dynamic
  * import (app/layout.tsx), so production client chunks never contain it. Atoms are client only, so
- * the counter and the panel's atom list mount after hydration. Its own LayerProvider sits above
- * the demo-mode-keyed one in providers.tsx, so the counter survives the toggle's remount.
+ * the counter and the panel's atom list mount after hydration. Its own LayerProvider sits beside
+ * (not inside) the demo-mode-keyed one in providers.tsx, so the counter survives the toggle's remount;
+ * the panel shows the atoms it is given, not other providers' stores.
  */
 import { useEffect, useState } from 'react'
 import { LayerProvider, useAtom } from '@sleekstack/react'

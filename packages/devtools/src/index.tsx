@@ -46,6 +46,15 @@ function AtomRow({ label, atom }: { readonly label: string; readonly atom: Atom.
   return <li>{label}: <code>{show(useAtomValue(atom))}</code></li>
 }
 
+const isDevtoolsData = (v: unknown): v is DevtoolsData => {
+  const d = v as Partial<DevtoolsData> | null
+  return (
+    typeof d === 'object' && d !== null &&
+    Array.isArray(d.scopes) && Array.isArray(d.errors) &&
+    typeof d.live === 'object' && d.live !== null && Array.isArray(d.live.scopes)
+  )
+}
+
 /** Polls `endpoint` (next poll only after the previous settles); `null` while off (404, network error or non-JSON). */
 function useDevtoolsData(endpoint: string, intervalMs: number): DevtoolsData | null {
   const [data, setData] = useState<DevtoolsData | null>(null)
@@ -55,7 +64,8 @@ function useDevtoolsData(endpoint: string, intervalMs: number): DevtoolsData | n
     const poll = async () => {
       try {
         const res = await fetch(endpoint, { signal: controller.signal })
-        const next = res.ok ? ((await res.json()) as DevtoolsData) : null
+        const body: unknown = res.ok ? await res.json() : null
+        const next = isDevtoolsData(body) ? body : null
         if (!controller.signal.aborted) setData(next)
       } catch {
         if (!controller.signal.aborted) setData(null)

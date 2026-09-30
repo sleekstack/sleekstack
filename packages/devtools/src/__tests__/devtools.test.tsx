@@ -52,4 +52,10 @@ describe('SleekStackDevtools', () => {
     unmount()
     expect(signal?.aborted).toBe(true)
   })
+
+  it('treats a successful but malformed body as off', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({})))
+    render(<SleekStackDevtools />)
+    expect(await screen.findByText(/Devtools are off/)).not.toBeNull()
+  })
 })
