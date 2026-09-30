@@ -46,12 +46,20 @@ function AtomRow({ label, atom }: { readonly label: string; readonly atom: Atom.
   return <li>{label}: <code>{show(useAtomValue(atom))}</code></li>
 }
 
+const REQUEST_TIMEOUT_MS = 5000
+
+const validRoot = (r: unknown): boolean => {
+  const g = (r as { graph?: Partial<ReportGraph> } | null)?.graph
+  return typeof g === 'object' && g !== null && Array.isArray(g.nodes) && Array.isArray(g.edges)
+}
+
 const isDevtoolsData = (v: unknown): v is DevtoolsData => {
   const d = v as Partial<DevtoolsData> | null
   return (
     typeof d === 'object' && d !== null &&
     Array.isArray(d.scopes) && Array.isArray(d.errors) &&
-    typeof d.live === 'object' && d.live !== null && Array.isArray(d.live.scopes)
+    typeof d.live === 'object' && d.live !== null && Array.isArray(d.live.scopes) &&
+    (d.graph === undefined || (typeof d.graph === 'object' && d.graph !== null && d.graph.roots?.every(validRoot) !== false))
   )
 }
 
@@ -62,15 +70,21 @@ function useDevtoolsData(endpoint: string, intervalMs: number): DevtoolsData | n
     const controller = new AbortController()
     let timer: ReturnType<typeof setTimeout> | undefined
     const poll = async () => {
+      // Each attempt has its own timeout, so a hung connection cannot stop polling for good.
+      const attempt = new AbortController()
+      const timeout = setTimeout(() => attempt.abort(), REQUEST_TIMEOUT_MS)
+      controller.signal.addEventListener('abort', () => attempt.abort(), { once: true })
       try {
-        const res = await fetch(endpoint, { signal: controller.signal })
+        const res = await fetch(endpoint, { signal: attempt.signal })
         const body: unknown = res.ok ? await res.json() : null
         const next = isDevtoolsData(body) ? body : null
         if (!controller.signal.aborted) setData(next)
       } catch {
         if (!controller.signal.aborted) setData(null)
+      } finally {
+        clearTimeout(timeout)
+        if (!controller.signal.aborted) timer = setTimeout(poll, intervalMs)
       }
-      if (!controller.signal.aborted) timer = setTimeout(poll, intervalMs)
     }
     void poll()
     return () => {

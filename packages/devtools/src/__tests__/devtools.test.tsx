@@ -58,4 +58,26 @@ describe('SleekStackDevtools', () => {
     render(<SleekStackDevtools />)
     expect(await screen.findByText(/Devtools are off/)).not.toBeNull()
   })
+
+  it('treats a body whose graph roots are malformed as off', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ scopes: [], errors: [], live: { app: true, scopes: [] }, graph: { roots: [{}] } })))
+    render(<SleekStackDevtools />)
+    expect(await screen.findByText(/Devtools are off/)).not.toBeNull()
+  })
+
+  it('a hung request times out and polling continues', async () => {
+    vi.useFakeTimers()
+    try {
+      let calls = 0
+      vi.stubGlobal('fetch', vi.fn((_u: string, init?: RequestInit) => {
+        calls++
+        return new Promise<Response>((_, reject) => init?.signal?.addEventListener('abort', () => reject(new Error('aborted'))))
+      }))
+      render(<SleekStackDevtools intervalMs={10} />)
+      await vi.advanceTimersByTimeAsync(5000 + 20)
+      expect(calls).toBeGreaterThanOrEqual(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })
