@@ -119,4 +119,11 @@ describe('runEffect', () => {
     await expect(runEffect(Effect.die(new Error('d')))).rejects.toThrow()
     expect(defects.causes).toHaveLength(1)
   })
+
+  it('a call started right before a synchronous reconfigure is still interrupted', async () => {
+    configureRuntime({ layer: Layer.empty })
+    const inFlight = runEffect(Effect.never)
+    configureRuntime({ layer: Layer.empty })
+    await expect(inFlight).rejects.toThrow()
+  })
 })

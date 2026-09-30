@@ -177,17 +177,6 @@ export async function runEffect<A, E, R>(effect: Effect.Effect<A, E, R>, options
   const config = slot.config
   if (config === undefined) throw new RuntimeNotConfigured()
   const runtime = runtimeFor(slot, config)
-  const built = await Effect.runPromiseExit(runtime.runtimeEffect)
-  if (Exit.isFailure(built)) {
-    // A failed build is not cached: the next call builds again.
-    if (slot.runtime === runtime) slot.runtime = undefined
-    const controlFlow = [...Cause.defects(built.cause)].find(isNextControlFlow)
-    if (controlFlow === undefined && !Cause.isInterruptedOnly(built.cause) && Cause.isDie(built.cause)) report(config, built.cause)
-    await disposeReported(config, runtime)
-    // Reject exactly as `Effect.runPromise` would.
-    await Effect.runPromise(Effect.failCause(built.cause))
-  }
-
   const program = Effect.gen(function* () {
     const scope = yield* Scope.make()
     const exit = yield* Effect.exit(
@@ -220,12 +209,32 @@ export async function runEffect<A, E, R>(effect: Effect.Effect<A, E, R>, options
     return exit
   })
 
-  const fiber = runtime.runFork(program as Effect.Effect<Exit.Exit<A, unknown>, never, any>)
+  // The call is registered synchronously, before the runtime finishes building, so a `configureRuntime()`
+  // issued right after this call starts can still interrupt it.
+  const fiber = Effect.runFork(
+    Effect.gen(function* () {
+      const built = yield* Effect.exit(runtime.runtimeEffect)
+      if (Exit.isFailure(built)) return { buildFailure: built.cause } as const
+      return { exit: yield* Effect.provide(program, built.value) } as const
+    }),
+  )
   slot.fibers.add(fiber)
-  const outcome = await new Promise<Exit.Exit<Exit.Exit<A, unknown>, unknown>>((resolve) => fiber.addObserver(resolve))
+  const outcome = await new Promise<Exit.Exit<{ buildFailure: Cause.Cause<unknown> } | { exit: Exit.Exit<A, unknown> }, never>>((resolve) =>
+    fiber.addObserver(resolve as never),
+  )
   slot.fibers.delete(fiber)
-  // An interrupted fiber never reaches `return exit`; its own Exit is the outcome.
-  const exit: Exit.Exit<A, unknown> = Exit.isSuccess(outcome) ? outcome.value : (outcome as Exit.Exit<never, unknown>)
+  if (Exit.isSuccess(outcome) && 'buildFailure' in outcome.value) {
+    const failure = outcome.value.buildFailure
+    // A failed build is not cached: the next call builds again.
+    if (slot.runtime === runtime) slot.runtime = undefined
+    const controlFlow = [...Cause.defects(failure)].find(isNextControlFlow)
+    if (controlFlow === undefined && !Cause.isInterruptedOnly(failure) && Cause.isDie(failure)) report(config, failure)
+    await disposeReported(config, runtime)
+    // Reject exactly as `Effect.runPromise` would.
+    await Effect.runPromise(Effect.failCause(failure))
+  }
+  // An interrupted fiber never reaches `return`; its own Exit is the outcome.
+  const exit: Exit.Exit<A, unknown> = Exit.isSuccess(outcome) ? (outcome.value as { exit: Exit.Exit<A, unknown> }).exit : (outcome as unknown as Exit.Exit<never, unknown>)
   if (Exit.isSuccess(exit)) return exit.value
   const cause = exit.cause
   const controlFlow = [...Cause.defects(cause)].find(isNextControlFlow)
