@@ -18,6 +18,7 @@
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
     "@sleekstack/core": "workspace:*",
+    "@sleekstack/devtools": "workspace:*",
     "@sleekstack/next": "workspace:*",
     "@sleekstack/react": "workspace:*",
     "effect": "^3.21.2",

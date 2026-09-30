@@ -11,12 +11,14 @@
  */
 import { useRouter } from 'next/navigation'
 import { DEMO_COOKIE } from '../domain/demo-cookie'
+import { DEMO_TOGGLED } from './app-atoms'
 
 export function DemoToggle({ demoMode }: { readonly demoMode: boolean }) {
   const router = useRouter()
 
   const toggle = () => {
     document.cookie = demoMode ? `${DEMO_COOKIE}=; path=/; max-age=0` : `${DEMO_COOKIE}=1; path=/`
+    window.dispatchEvent(new Event(DEMO_TOGGLED))
     router.refresh()
   }
 

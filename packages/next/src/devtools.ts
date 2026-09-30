@@ -40,7 +40,7 @@ export function devtoolsSnapshot(options: DevtoolsOptions = {}): DevtoolsSnapsho
  * export const GET = devtoolsHandler()
  * ```
  */
-export function devtoolsHandler(options: DevtoolsOptions = {}): (request?: Request) => Response {
+export function devtoolsHandler(options: DevtoolsOptions = {}): () => Response {
   return () =>
     devEnabled() ? Response.json(devtoolsSnapshot(options)) : new Response('Not Found', { status: 404 })
 }
