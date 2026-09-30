@@ -91,9 +91,10 @@ export function configureRuntime(config: RuntimeConfig): void {
     // A build already in flight under the old config disposes itself once it resolves
     // (the generation check in `ensureAppScope`), so only an already-built scope is disposed here.
     if (slot.appScope) slot.appScope.dispose()
+    const previous = slot.config
     const runtime = slot.runtime
     const fibers = [...slot.fibers]
-    void Effect.runPromise(Fiber.interruptAll(fibers)).then(() => runtime?.dispose())
+    void Effect.runPromise(Fiber.interruptAll(fibers)).then(() => runtime && disposeReported(previous, runtime))
   }
   slot.generation++
   slot.config = config
@@ -161,12 +162,25 @@ const isNextControlFlow = (value: unknown): boolean => {
   )
 }
 
-const report = (config: RuntimeConfig, cause: Cause.Cause<unknown>): void => {
+const callSink = (sink: ErrorSink, cause: Cause.Cause<unknown>): void => {
   try {
-    ;(config.onError ?? defaultFinalizerSink)(cause)
+    sink(cause)
   } catch (sinkError) {
-    console.error('[@sleekstack/next] onError threw; swallowing so the call result is unaffected:', sinkError)
+    console.error('[@sleekstack/next] error sink threw; swallowing so the call result is unaffected:', sinkError)
   }
+}
+
+/** Defects: `onError`, else the default logger. */
+const report = (config: RuntimeConfig, cause: Cause.Cause<unknown>): void =>
+  callSink(config.onError ?? defaultFinalizerSink, cause)
+
+/** Finalizer and disposal failures: `onFinalizerError`, else `onError`, else the default logger. */
+const reportFinalizer = (config: RuntimeConfig, cause: Cause.Cause<unknown>): void => callSink(sinkFor(config), cause)
+
+/** Disposes `runtime`, routing a finalizer failure to the finalizer sink instead of an unhandled rejection. */
+const disposeReported = async (config: RuntimeConfig, runtime: ManagedRuntime.ManagedRuntime<any, any>): Promise<void> => {
+  const exit = await Effect.runPromiseExit(runtime.disposeEffect)
+  if (Exit.isFailure(exit)) reportFinalizer(config, exit.cause)
 }
 
 const runtimeFor = (slot: RuntimeSlot, config: RuntimeConfig): ManagedRuntime.ManagedRuntime<any, any> => {
@@ -176,7 +190,7 @@ const runtimeFor = (slot: RuntimeSlot, config: RuntimeConfig): ManagedRuntime.Ma
     Layer.scoped(
       AppScopeTag,
       Effect.acquireRelease(makeAppScope(config.provide, { onFinalizerError: sinkFor(config) }), (app) =>
-        Effect.flatMap(app.close, (exit) => Effect.sync(() => void (Exit.isFailure(exit) && report(config, exit.cause)))),
+        Effect.flatMap(app.close, (exit) => Effect.sync(() => void (Exit.isFailure(exit) && reportFinalizer(config, exit.cause)))),
       ),
     )
   return (slot.runtime = ManagedRuntime.make(layer) as ManagedRuntime.ManagedRuntime<any, any>)
@@ -208,13 +222,15 @@ export async function runEffect<A, E, R>(effect: Effect.Effect<A, E, R>, options
   const config = slot.config
   if (config === undefined) throw new RuntimeNotConfigured()
   const runtime = runtimeFor(slot, config)
-  try {
-    await runtime.runtime()
-  } catch (error) {
+  const built = await Effect.runPromiseExit(runtime.runtimeEffect)
+  if (Exit.isFailure(built)) {
     // A failed build is not cached: the next call builds again.
     if (slot.runtime === runtime) slot.runtime = undefined
-    void runtime.dispose()
-    throw error
+    const controlFlow = [...Cause.defects(built.cause)].find(isNextControlFlow)
+    if (controlFlow === undefined && !Cause.isInterruptedOnly(built.cause) && Cause.isDie(built.cause)) report(config, built.cause)
+    await disposeReported(config, runtime)
+    // Reject exactly as `Effect.runPromise` would.
+    await Effect.runPromise(Effect.failCause(built.cause))
   }
 
   const program = Effect.gen(function* () {
@@ -227,7 +243,7 @@ export async function runEffect<A, E, R>(effect: Effect.Effect<A, E, R>, options
           const requestScope = yield* app.child('request')
           yield* Scope.addFinalizer(
             scope,
-            Effect.flatMap(requestScope.close, (e) => Effect.sync(() => void (Exit.isFailure(e) && report(config, e.cause)))),
+            Effect.flatMap(requestScope.close, (e) => Effect.sync(() => void (Exit.isFailure(e) && reportFinalizer(config, e.cause)))),
           )
           base = requestScope.context
         }
@@ -243,7 +259,7 @@ export async function runEffect<A, E, R>(effect: Effect.Effect<A, E, R>, options
       }),
     )
     const closeExit = yield* Effect.exit(Scope.close(scope, exit))
-    if (Exit.isFailure(closeExit)) report(config, closeExit.cause)
+    if (Exit.isFailure(closeExit)) reportFinalizer(config, closeExit.cause)
     return exit
   })
 

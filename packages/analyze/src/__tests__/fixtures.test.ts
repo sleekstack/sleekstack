@@ -76,6 +76,15 @@ describe('graph error fixtures', () => {
     expect(r.runtimes.find((x) => x.file === 'bad.ts')!.errors.map((e) => [e.code, e.line])).toEqual([['Computed', 6]])
   })
 
+  it('plain Layers keyed by Context.GenericTag resolve through the service type; a shared type is ambiguous', () => {
+    expect(sorted(located('plain-layers-generic'))).toEqual(expected('plain-layers-generic'))
+    const r = analyze({ project: path.join(dir('plain-layers-generic'), 'tsconfig.json') })
+    const ok = r.runtimes.find((x) => x.file === 'runtime.ts')!
+    expect(ok.errors).toEqual([])
+    expect(ok.graph.edges.map((e) => `${e.from}->${e.to}`).sort()).toEqual(['ActivityLog->Clock', 'TaskRepo->Clock', 'TaskRepo->IdGen', 'TaskRepo->Store'])
+    expect(r.runtimes.find((x) => x.file === 'bad.ts')!.errors.map((e) => e.code)).toEqual(['Computed'])
+  })
+
   it('clean projects yield no errors', () => {
     expect(located('kit-app')).toEqual([])
     expect(located('core-app')).toEqual([])

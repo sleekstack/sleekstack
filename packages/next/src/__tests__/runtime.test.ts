@@ -82,4 +82,41 @@ describe('runEffect', () => {
     await new Promise((r) => setTimeout(r, 10))
     expect(log).toEqual(['interrupted', 'dispose'])
   })
+
+  it('reports an app-layer build defect once, then retries', async () => {
+    const sink = collect()
+    configureRuntime({ layer: Layer.effect(Greeting, Effect.die(new Error('acquire boom'))), onError: sink.onError })
+    await expect(runEffect(Effect.succeed(1))).rejects.toThrow()
+    expect(sink.causes).toHaveLength(1)
+    expect(Cause.pretty(sink.causes[0]!)).toMatch(/acquire boom/)
+  })
+
+  it('routes an app-layer finalizer failure during reconfigure to the old config sink, not an unhandled rejection', async () => {
+    const sink = collect()
+    configureRuntime({
+      layer: Layer.scopedDiscard(Effect.addFinalizer(() => Effect.die('root release'))),
+      onError: sink.onError,
+    })
+    await runEffect(Effect.succeed(1))
+    configureRuntime({ layer: Layer.empty })
+    await new Promise((r) => setTimeout(r, 20))
+    expect(sink.causes).toHaveLength(1)
+    expect(Cause.pretty(sink.causes[0]!)).toMatch(/root release/)
+  })
+
+  it('finalizer failures go to onFinalizerError on the provide config, defects to onError', async () => {
+    const finalizers: Cause.Cause<unknown>[] = []
+    const defects = collect()
+    configureRuntime({
+      provide: [],
+      onFinalizerError: (c: Cause.Cause<unknown>) => void finalizers.push(c),
+      onError: defects.onError,
+    } as never)
+    const failingRelease = Layer.scoped(Req, Effect.acquireRelease(Effect.succeed('r'), () => Effect.die('fin')))
+    await expect(runEffect(Req, { request: failingRelease })).resolves.toBe('r')
+    expect(finalizers).toHaveLength(1)
+    expect(defects.causes).toHaveLength(0)
+    await expect(runEffect(Effect.die(new Error('d')))).rejects.toThrow()
+    expect(defects.causes).toHaveLength(1)
+  })
 })

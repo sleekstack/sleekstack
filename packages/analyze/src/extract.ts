@@ -504,6 +504,21 @@ export function extract(project: string, entries?: readonly string[]): Report {
   const runtimes: ModuleDecl[] = []
   const entryFiles = entries && new Set(entries.map((f) => path.resolve(f)))
   const plain = new Map<string, ProviderDecl>()
+  /** Every `Context.GenericTag<S>('K')` declaration in the program, by its identifier type `S`. */
+  let genericIndex: Map<ts.Type, string[]> | undefined
+  const genericTags = (): Map<ts.Type, string[]> => {
+    if (genericIndex) return genericIndex
+    const idx = new Map<ts.Type, string[]>()
+    const visit = (n: ts.Node): void => {
+      if (ts.isCallExpression(n) && calleeOf(n) === 'effect/Context#GenericTag' && n.arguments[0] && checker.getTypeAtLocation(n.arguments[0]).isStringLiteral()) {
+        const id = checker.getTypeArguments(checker.getTypeAtLocation(n) as ts.TypeReference)[0]
+        if (id) idx.set(id, [...(idx.get(id) ?? []), literal(n.arguments[0], 'Tag key')])
+      }
+      ts.forEachChild(n, visit)
+    }
+    for (const sf of program.getSourceFiles()) if (!sf.isDeclarationFile && !sf.fileName.includes('node_modules')) visit(sf)
+    return (genericIndex = idx)
+  }
   /** A plain Layer leaf, read from its type: ROut Tags are what it provides, RIn Tags what it requires. */
   const layerLeaf = (e: ts.Expression): ProviderDecl => {
     const key = cacheKey(e)
@@ -515,8 +530,12 @@ export function extract(project: string, entries?: readonly string[]): Report {
     const [rOut, , rIn] = checker.getTypeArguments(t as ts.TypeReference)
     const tags = (x: ts.Type | undefined) => !x || x.flags & ts.TypeFlags.Never ? [] : (x.isUnion() ? x.types : [x]).map((m) => {
       const d = m.getSymbol()?.valueDeclaration
-      if (m.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown) || !isTagClass(d)) return fail(e, `Layer "${text(e)}" names "${checker.typeToString(m)}", which does not resolve to a Tag declaration`, 'Computed')
-      return classKey(d)
+      if (m.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown)) return fail(e, `Layer "${text(e)}" names "${checker.typeToString(m)}", which does not resolve to a Tag declaration`, 'Computed')
+      if (isTagClass(d)) return classKey(d)
+      // `Context.GenericTag<S>('K')` has S as its identifier type, so a Layer's ROut/RIn carry S itself.
+      const generic = genericTags().get(m)
+      if (generic?.length === 1) return generic[0]!
+      return fail(e, generic ? `Layer "${text(e)}" names "${checker.typeToString(m)}", which ${generic.length} GenericTags share; use a Tag class to tell them apart` : `Layer "${text(e)}" names "${checker.typeToString(m)}", which does not resolve to a Tag declaration`, 'Computed')
     })
     const p: ProviderDecl = { provides: tags(rOut), requires: tags(rIn), lifetime: 'app', opaque: false, loc: loc(e) }
     plain.set(key, p)
