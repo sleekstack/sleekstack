@@ -60,8 +60,11 @@ export const DEV_EVENT_LIMIT = 200
 export const devEnabled = (): boolean =>
   (globalThis as { process?: { env?: { NODE_ENV?: string } } }).process?.env?.NODE_ENV !== 'production'
 
-const record = (kind: DevEvent['kind'], label: string, detail?: string): void => {
-  const events = getSlot().events
+/** Records into the buffer only while `config` is still the current one: late events from a replaced runtime are dropped. */
+const record = (config: RuntimeConfig, kind: DevEvent['kind'], label: string, detail?: string): void => {
+  const slot = getSlot()
+  if (slot.config !== config) return
+  const events = slot.events
   events.push({ at: Date.now(), kind, label, detail })
   if (events.length > DEV_EVENT_LIMIT) events.splice(0, events.length - DEV_EVENT_LIMIT)
 }
@@ -147,8 +150,8 @@ const isNextControlFlow = (value: unknown): boolean => {
   )
 }
 
-const callSink = (sink: ErrorSink, cause: Cause.Cause<unknown>): void => {
-  if (devEnabled()) record('error', Cause.isDie(cause) ? 'defect' : 'failure', Cause.pretty(cause))
+const callSink = (config: RuntimeConfig, sink: ErrorSink, cause: Cause.Cause<unknown>): void => {
+  if (devEnabled()) record(config, 'error', Cause.isDie(cause) ? 'defect' : 'failure', Cause.pretty(cause))
   try {
     sink(cause)
   } catch (sinkError) {
@@ -158,16 +161,18 @@ const callSink = (sink: ErrorSink, cause: Cause.Cause<unknown>): void => {
 
 /** Defects: `onError`, else the default logger. */
 const report = (config: RuntimeConfig, cause: Cause.Cause<unknown>): void =>
-  callSink(config.onError ?? defaultFinalizerSink, cause)
+  callSink(config, config.onError ?? defaultFinalizerSink, cause)
 
 /** Finalizer and disposal failures: `onFinalizerError`, else `onError`, else the default logger. */
-const reportFinalizer = (config: RuntimeConfig, cause: Cause.Cause<unknown>): void => callSink(sinkFor(config), cause)
+const reportFinalizer = (config: RuntimeConfig, cause: Cause.Cause<unknown>): void => callSink(config, sinkFor(config), cause)
+
+/** Runtimes whose layer built successfully; `acquire`/`release` are recorded only for these. */
+const acquired = new WeakSet<object>()
 
 /** Disposes `runtime`, routing a finalizer failure to the finalizer sink instead of an unhandled rejection. */
 const disposeReported = async (config: RuntimeConfig, runtime: ManagedRuntime.ManagedRuntime<any, any>): Promise<void> => {
   const exit = await Effect.runPromiseExit(runtime.disposeEffect)
-  // A reconfigure-disposed runtime's release would land in the new config's (cleared) buffer.
-  if (devEnabled() && getSlot().config === config) record('release', 'app')
+  if (devEnabled() && acquired.delete(runtime)) record(config, 'release', 'app')
   if (Exit.isFailure(exit)) reportFinalizer(config, exit.cause)
 }
 
@@ -181,7 +186,6 @@ const runtimeFor = (slot: RuntimeSlot, config: RuntimeConfig): ManagedRuntime.Ma
         Effect.flatMap(app.close, (exit) => Effect.sync(() => void (Exit.isFailure(exit) && reportFinalizer(config, exit.cause)))),
       ),
     )
-  if (devEnabled()) record('acquire', 'app')
   return (slot.runtime = ManagedRuntime.make(layer) as ManagedRuntime.ManagedRuntime<any, any>)
 }
 
@@ -214,7 +218,7 @@ export async function runEffect<A, E, R>(effect: Effect.Effect<A, E, R>, options
   const scopeLabel = devEnabled() ? `request#${++slot.nextScopeId}` : ''
   const program = Effect.gen(function* () {
     const scope = yield* Scope.make()
-    if (scopeLabel) record('scope-open', scopeLabel)
+    if (scopeLabel) record(config, 'scope-open', scopeLabel)
     const exit = yield* Effect.exit(
       Effect.gen(function* () {
         let base= Context.empty() as Context.Context<any>
@@ -241,7 +245,7 @@ export async function runEffect<A, E, R>(effect: Effect.Effect<A, E, R>, options
       }),
     )
     const closeExit = yield* Effect.exit(Scope.close(scope, exit))
-    if (scopeLabel) record('scope-close', scopeLabel, Exit.isSuccess(exit) ? 'success' : 'failure')
+    if (scopeLabel) record(config, 'scope-close', scopeLabel, Exit.isSuccess(exit) ? 'success' : 'failure')
     if (Exit.isFailure(closeExit)) reportFinalizer(config, closeExit.cause)
     return exit
   })
@@ -252,6 +256,10 @@ export async function runEffect<A, E, R>(effect: Effect.Effect<A, E, R>, options
     Effect.gen(function* () {
       const built = yield* Effect.exit(runtime.runtimeEffect)
       if (Exit.isFailure(built)) return { buildFailure: built.cause } as const
+      if (devEnabled() && !acquired.has(runtime)) {
+        acquired.add(runtime)
+        record(config, 'acquire', 'app')
+      }
       return { exit: yield* Effect.provide(program, built.value) } as const
     }),
   )
