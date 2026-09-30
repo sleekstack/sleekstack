@@ -15,17 +15,17 @@ import { DemoLive, isDemoMode } from './demo.server'
 import { RequestLive } from './request.server'
 
 // Next loads this module once per server layer (RSC, actions), each with its own config object;
-// configures once per process, so a later load never replaces the runtime.
+// configures once per process, so a later load never replaces the runtime (restart `next dev` after
+// changing AppLive; the adapter's own HMR reconfigure would otherwise fight the second copy).
 const g = globalThis as { __showcaseRuntimeConfigured?: boolean }
 if (!g.__showcaseRuntimeConfigured) {
   g.__showcaseRuntimeConfigured = true
   configureRuntime({ layer: AppLive })
 }
 
-/** Logs defect causes to the console and the app's ActivityLog; never throws. */
+/** Records defect causes in the app's ActivityLog (the runtime's default sink logs to the console); never throws. */
 const report = (cause: Cause.Cause<unknown>) =>
   Effect.gen(function* () {
-    console.error('[showcase] error:', Cause.pretty(cause))
     const activityLog = yield* ActivityLog
     activityLog.record(`error: ${Cause.pretty(cause)}`)
   }).pipe(Effect.ignore)

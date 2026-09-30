@@ -126,7 +126,7 @@ describe('showcase request scopes', () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
       await expect(runApp(Effect.die('kaboom'))).rejects.toThrow()
-      expect(spy.mock.calls.some((c) => String(c[0]).includes('[showcase] error'))).toBe(true)
+      expect(spy.mock.calls.filter((c) => String(c[0]).includes('kaboom'))).toHaveLength(1)
       expect((await logMessages()).some((m) => m.includes('kaboom'))).toBe(true)
     } finally {
       spy.mockRestore()
