@@ -42,5 +42,5 @@ Reported at build time by `sleekstack check` (with file:line). At runtime, per-c
 
 ## Effect-native adapters
 
-- `@sleekstack/next`: `runEffect` called before `configureRuntime` rejects with `RuntimeNotConfigured`. A failure or defect rejects as `Effect.runPromise` does; defects and finalizer failures also reach `onError`.
+- `@sleekstack/next`: `runEffect` called before `configureRuntime` rejects with `RuntimeNotConfigured`. A failure or defect rejects as `Effect.runPromise` does; defects reach `onError`, and finalizer failures reach `onFinalizerError` when set, else `onError`.
 - `@sleekstack/react`: `useService` with no provider, or an unprovided Tag, throws a plain `Error`; a private Tag throws `PrivateDependency`; a failed scope build is rethrown from `useService` to the nearest error boundary.

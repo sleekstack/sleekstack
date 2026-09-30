@@ -3,7 +3,7 @@ title: Next.js
 description: Runtime management for Effect in Next.js, and Server Actions and queries in kit.
 ---
 
-`@sleekstack/next` holds one Effect runtime per process and runs Effects on it (`runEffect`); the `action`/`query` sugar lives in `@sleekstack/kit`, which is built on `runEffect`. A request scope is opened for every call. Request-lifetime services are built in that scope and cleaned up when the call ends, so no state leaks between requests.
+`@sleekstack/next` holds one Effect runtime per process and runs Effects on it (`runEffect`); the action/query sugar (`defineEffect`, `effect`, `defineQuery`, `query`) lives in `@sleekstack/kit/next`, which is built on `runEffect`. A request scope is opened for every call. Request-lifetime services are built in that scope and cleaned up when the call ends, so no state leaks between requests.
 
 ## Runtime
 
@@ -31,4 +31,4 @@ In development `@sleekstack/next` records request scopes, the app runtime's acqu
 
 ## Migrating from `action`/`query` in `@sleekstack/next`
 
-`action`, `query`, `Operation` and `OperationOptions` were removed from `@sleekstack/next` (ADR 0012). Use kit's `action`/`query`/`defineEffect`/`defineQuery`/`effect`, or call `runEffect` with your own Effect and Layer.
+`action`, `query`, `Operation` and `OperationOptions` were removed from `@sleekstack/next` (ADR 0012). Use kit's `defineEffect`/`effect`/`defineQuery`/`query` from `@sleekstack/kit/next`, or call `runEffect` with your own Effect and Layer.

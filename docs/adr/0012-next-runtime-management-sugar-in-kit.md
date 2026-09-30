@@ -1,6 +1,6 @@
 # `@sleekstack/next` manages the Effect runtime; action/query sugar lives in kit
 
-`@sleekstack/next` no longer exports `action`, `query`, `Operation` or `OperationOptions`. It provides `configureRuntime({ layer, onError })`, `runEffect(effect, { request, overrides })`, `getRuntime()` and a dev-only introspection buffer (`@sleekstack/next/devtools`). `@sleekstack/kit`'s `action`/`query`/`defineEffect`/`defineQuery`/`effect` are implemented on `runEffect`. Supersedes ADR 0009: the internal Exit hook is gone, because kit sees the call's `Exit` through `runEffect` and its `provide` option directly.
+`@sleekstack/next` no longer exports `action`, `query`, `Operation` or `OperationOptions`. It provides `configureRuntime({ layer, onError })`, `runEffect(effect, { request, overrides })`, `getRuntime()` and a dev-only introspection buffer (`@sleekstack/next/devtools`). `@sleekstack/kit/next`'s `defineEffect`/`effect`/`defineQuery`/`query` are implemented on `runEffect`. Supersedes ADR 0009: the internal Exit hook is gone, because kit sees the call's `Exit` through `runEffect` and its `provide` option directly.
 
 ## Considered options
 

@@ -73,7 +73,6 @@ Planned:
 ```txt
 @sleekstack/rpc
 @sleekstack/query
-@sleekstack/devtools
 @sleekstack/testing
 ```
 
@@ -142,13 +141,13 @@ Current surface:
 * Modules (`module()`) — imports, enforced exports (private Tags are visible only inside their Module, ADR 0006), shadowing
 * lifetime-scoped services (`app` / `request` / `component`) with captive-dependency checks
 * a dependency Graph validated at build time by `sleekstack check` (ADR 0011), reported as JSON with `--json`
-* `@sleekstack/next` runtime management (`configureRuntime`, `runEffect`) with kit's `action`/`query` on top, and `@sleekstack/react`'s Suspense-native, StrictMode-safe `LayerProvider` / `useService`
+* `@sleekstack/next` runtime management (`configureRuntime`, `runEffect`) with kit's `defineEffect`/`query` on top, and `@sleekstack/react`'s Suspense-native, StrictMode-safe `LayerProvider` / `useService`
 
 * `@sleekstack/kit` — an Effect-free facade (`tag`, `layer`, `effect`, `module`, deps inferred from `yield*`, one `SleekStackError`); see [`packages/kit`](packages/kit/README.md)
 
 See [`apps/showcase`](apps/showcase/README.md) for a Next.js team task board that exercises all of it end to end, and [`apps/showcase-kit`](apps/showcase-kit/README.md) for the same board built on the kit only.
 
-Still ahead: a devtools UI over the Graph value, session/transient/job lifetimes, and stream-aware request-scope finalization.
+Still ahead: session/transient/job lifetimes, and stream-aware request-scope finalization.
 
 ---
 
