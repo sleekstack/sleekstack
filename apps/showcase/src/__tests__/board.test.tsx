@@ -48,11 +48,11 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }))
 const board: readonly BoardProject[] = [
   {
     project: { id: 'p1', name: 'Alpha' },
-    tasks: [{ task: { id: 't1', projectId: 'p1', title: 'Write spec', status: 'todo', createdAt: 0 }, comments: [] }],
+    tasks: [{ task: { id: 't1', title: 'Write spec', status: 'todo', statusLabel: 'To do', projectName: 'P', createdAtIso: '1970-01-01T00:00:00.000Z' }, comments: [] }],
   },
   {
     project: { id: 'p2', name: 'Beta' },
-    tasks: [{ task: { id: 't2', projectId: 'p2', title: 'Ship it', status: 'todo', createdAt: 0 }, comments: [] }],
+    tasks: [{ task: { id: 't2', title: 'Ship it', status: 'todo', statusLabel: 'To do', projectName: 'P', createdAtIso: '1970-01-01T00:00:00.000Z' }, comments: [] }],
   },
 ]
 

@@ -12,13 +12,16 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@hookform/resolvers": "^5.9.1",
     "@sleekstack/core": "workspace:*",
     "@sleekstack/react": "workspace:*",
     "effect": "^3.21.2",
     "next": "^15.3.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
-    "server-only": "^0.0.1"
+    "react-hook-form": "^7.89.0",
+    "server-only": "^0.0.1",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",

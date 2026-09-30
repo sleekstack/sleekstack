@@ -13,7 +13,9 @@ import { Suspense, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { LayerProvider, useAtom, useService } from '@sleekstack/react'
 import { addComment, moveTask } from '../server/board.actions'
-import type { CommentRecord, TaskRecord, TaskStatus } from '../domain/tags'
+import type { TaskStatus } from '../domain/tags'
+import { submitDraft } from '../models/contracts'
+import { TaskCommentDraft, type CommentModel, type TaskModel } from '../models/task'
 import { ErrorBoundary } from './ErrorBoundary'
 import { DraftEditor, makeBrokenDraftEditorLayer, makeDraftEditorLayer } from './component-services'
 
@@ -29,7 +31,7 @@ export function DraftEditorPanel({ taskId }: { readonly taskId: string }) {
 
   const submit = () => {
     startTransition(async () => {
-      const result = await addComment({ taskId, body, authorId: 'demo-user' })
+      const result = await submitDraft(TaskCommentDraft, { body }, { taskId, authorId: 'demo-user' }, addComment)
       if (!result.ok) {
         setError(result.error)
         return
@@ -57,8 +59,8 @@ export function DraftEditorPanel({ taskId }: { readonly taskId: string }) {
 }
 
 export interface TaskDetailProps {
-  readonly task: TaskRecord
-  readonly comments: readonly CommentRecord[]
+  readonly task: TaskModel
+  readonly comments: readonly CommentModel[]
   readonly onClose: () => void
 }
 

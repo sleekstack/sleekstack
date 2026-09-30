@@ -7,15 +7,12 @@
  * `ProjectFilterStore` component service owns its filter and (if any)
  * open task-detail selection.
  */
-import type { CommentRecord, ProjectRecord, TaskRecord } from '../domain/tags'
+import type { BoardProject } from '../models/task'
 import { DemoToggle } from './DemoToggle'
 import { ProjectView } from './ProjectView'
 import { ScopeLog } from './ScopeLog'
 
-export interface BoardProject {
-  readonly project: ProjectRecord
-  readonly tasks: ReadonlyArray<{ readonly task: TaskRecord; readonly comments: readonly CommentRecord[] }>
-}
+export type { BoardProject }
 
 export function Board({ board, demoMode }: { readonly board: readonly BoardProject[]; readonly demoMode: boolean }) {
   return (

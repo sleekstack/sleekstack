@@ -10,17 +10,20 @@
  * scope's lifetime and disappear with it); create-task calls the .2 Server
  * Action with the "Simulate failure" control (R5).
  */
-import { Suspense, useSyncExternalStore, useTransition, useState } from 'react'
+import { Suspense, useMemo, useSyncExternalStore, useTransition, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { LayerProvider, useService } from '@sleekstack/react'
 import { createTask } from '../server/board.actions'
-import type { CommentRecord, ProjectRecord, TaskRecord } from '../domain/tags'
+import type { ProjectRecord } from '../domain/tags'
 import { ProjectFilterStore, makeProjectFilterStoreLayer, type TaskStatusFilter } from './component-services'
 import { TaskDetail } from './TaskDetail'
+import { useDraftForm } from './useDraftForm'
+import { submitDraft } from '../models/contracts'
+import { NewTaskDraft, type CommentModel, type TaskModel } from '../models/task'
 
 export interface TaskWithComments {
-  readonly task: TaskRecord
-  readonly comments: readonly CommentRecord[]
+  readonly task: TaskModel
+  readonly comments: readonly CommentModel[]
 }
 
 function ProjectBody({ project, tasks }: { readonly project: ProjectRecord; readonly tasks: readonly TaskWithComments[] }) {
@@ -30,8 +33,8 @@ function ProjectBody({ project, tasks }: { readonly project: ProjectRecord; read
   // client one — required explicitly or React throws under SSR.
   const filter = useSyncExternalStore(store.filter.subscribe, store.filter.get, store.filter.get)
   const selectedTaskId = useSyncExternalStore(store.selectedTaskId.subscribe, store.selectedTaskId.get, store.selectedTaskId.get)
-  const [title, setTitle] = useState('')
-  const [simulateFailure, setSimulateFailure] = useState(false)
+  const newTaskCtx = useMemo(() => ({ projectId: project.id }), [project.id])
+  const form = useDraftForm(NewTaskDraft, newTaskCtx)
   const [createError, setCreateError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
   const router = useRouter()
@@ -39,18 +42,18 @@ function ProjectBody({ project, tasks }: { readonly project: ProjectRecord; read
   const visible = filter === 'all' ? tasks : tasks.filter(({ task }) => task.status === filter)
   const selected = tasks.find(({ task }) => task.id === selectedTaskId)
 
-  const submitCreate = () => {
+  const submitCreate = form.handleSubmit((draft) => {
     startTransition(async () => {
-      const result = await createTask({ projectId: project.id, title, simulateFailure })
+      const result = await submitDraft(NewTaskDraft, draft, newTaskCtx, createTask)
       if (!result.ok) {
         setCreateError(result.error)
         return
       }
       setCreateError(null)
-      setTitle('')
+      form.reset()
       router.refresh()
     })
-  }
+  })
 
   return (
     <section aria-label={`project: ${project.name}`}>
@@ -68,27 +71,23 @@ function ProjectBody({ project, tasks }: { readonly project: ProjectRecord; read
         {visible.map(({ task, comments }) => (
           <li key={task.id}>
             <button type="button" onClick={() => store.selectedTaskId.set(task.id)}>
-              {task.title} — {task.status} ({comments.length})
+              {task.title} — {task.statusLabel} ({comments.length})
             </button>
           </li>
         ))}
       </ul>
-      <div>
-        <input
-          aria-label={`new task title (${project.name})`}
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="New task title"
-        />
+      <form onSubmit={submitCreate} noValidate>
+        <input aria-label={`new task title (${project.name})`} placeholder="New task title" {...form.register('title')} />
+        {form.formState.errors.title && <p role="alert">{form.formState.errors.title.message}</p>}
         <label>
-          <input type="checkbox" checked={simulateFailure} onChange={(e) => setSimulateFailure(e.target.checked)} />
+          <input type="checkbox" {...form.register('simulateFailure')} />
           Simulate failure
         </label>
-        <button type="button" onClick={submitCreate} disabled={pending}>
+        <button type="submit" disabled={pending}>
           Create task
         </button>
         {createError && <p role="alert">{createError}</p>}
-      </div>
+      </form>
       {selected && (
         <TaskDetail task={selected.task} comments={selected.comments} onClose={() => store.selectedTaskId.set(null)} />
       )}
