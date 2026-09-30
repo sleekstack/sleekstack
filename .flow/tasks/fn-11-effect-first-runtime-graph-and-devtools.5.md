@@ -22,9 +22,8 @@ Replace the hand-written runtime module with `@sleekstack/next`, and bring back 
 - [ ] requests, board, bundle tests pass; `next build` succeeds
 
 ## Done summary
-TBD
-
+Showcase runs on @sleekstack/next (runEffect, instrumentation hook, HMR-aware configure), /graph and /errors from the analyzer Report, single defect report.
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 31de51b, 08e9f4f, db7e965
+- Tests: pnpm --filter showcase test, pnpm --filter showcase typecheck
 - PRs:
