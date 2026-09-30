@@ -1,7 +1,7 @@
 {
   "branch_name": "fn-11-effect-first-runtime-graph-and-devtools",
-  "completion_review_status": "unknown",
-  "completion_reviewed_at": null,
+  "completion_review_status": "needs_work",
+  "completion_reviewed_at": "2026-09-30T16:35:52.243849Z",
   "created_at": "2026-09-29T13:05:08.630334Z",
   "default_impl": null,
   "default_review": null,
@@ -19,7 +19,7 @@
     "fn-11-effect-first-runtime-graph-and-devtools.7": 0
   },
   "next_task": 1,
-  "plan_review_rounds": 0,
+  "plan_review_rounds": 1,
   "plan_review_status": "unknown",
   "plan_reviewed_at": null,
   "review_attempts": [
@@ -781,6 +781,67 @@
       "task": "fn-11-effect-first-runtime-graph-and-devtools.7",
       "timestamp": "2026-09-30T16:23:58.550573Z",
       "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "93645a30bea24128cd94d95aef9da315ecbfee816a57092e6674e3c28e5370c0",
+      "backend": "codex",
+      "base_sha": "a660ff08d835c92d2da4fff496468e1ec17aad13",
+      "counter_kind": "plan",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-59916c0cbc158d5f5357bebc2ab9487d",
+            "classification": "introduced",
+            "findingId": "finding-59916c0cbc158d5f5357bebc2ab9487d",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-c9f00a22e0c1a6c5f6b0beaf7a1c3235",
+            "classification": "introduced",
+            "findingId": "finding-c9f00a22e0c1a6c5f6b0beaf7a1c3235",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-2ef37051405e88356e152704186691c1",
+            "classification": "introduced",
+            "findingId": "finding-2ef37051405e88356e152704186691c1",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "4ab1c25f988eccb80704a513a65fc44fad1df9c1",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 518015,
+      "output_sha256": "f1b87c34dd2ac5393c505616639c26bcb8e1a6f13bc0706eaa242f79ab2a322c",
+      "reservation_id": "b2d796e8b69c4adebd02ceef7309bf81",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-09-30T16:35:52.235666Z",
+      "tool_calls": 20,
+      "verdict": "NEEDS_WORK"
     }
   ],
   "review_hash_epoch": {
@@ -794,6 +855,7 @@
   "review_pending_rounds": {},
   "review_reservations": {},
   "review_transport_failures": {
+    "completion": 0,
     "impl:fn-11-effect-first-runtime-graph-and-devtools.1": 0,
     "impl:fn-11-effect-first-runtime-graph-and-devtools.2": 0,
     "impl:fn-11-effect-first-runtime-graph-and-devtools.4": 0,
@@ -815,5 +877,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-09-30T16:23:58.552298Z"
+  "updated_at": "2026-09-30T16:36:23.242752Z"
 }
