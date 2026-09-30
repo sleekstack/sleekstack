@@ -11,5 +11,5 @@
 ## Consequences
 
 - Breaking for direct users of next's `action`/`query` (pre-1.0); migration is prose in the docs, no codemod.
-- Runtime contract: `onError` gets defects once and finalizer failures (unless `onFinalizerError`); a throwing sink is swallowed; redirect/notFound and interruption are unreported; a failed build is retried; reconfigure interrupts in-flight calls before disposing.
+- Runtime contract: `onError` gets defects once and finalizer failures (with a `{ provide }` config, `onFinalizerError` takes those instead); a throwing sink is swallowed; redirect/notFound and interruption are unreported; a failed build is retried; reconfigure interrupts in-flight calls before disposing.
 - The static analyzer reads plain `Layer.*` graphs from `configureRuntime({ layer })` roots.

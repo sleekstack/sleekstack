@@ -18,6 +18,7 @@ export interface DevtoolsSnapshot {
   readonly graph?: unknown
 }
 
+/** Options for {@link devtoolsHandler} and {@link devtoolsSnapshot}. */
 export interface DevtoolsOptions {
   /** Returns the analyzer `Report` (`@sleekstack/analyze`); omitted → scopes/errors only. */
   readonly graph?: () => unknown

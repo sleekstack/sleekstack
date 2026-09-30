@@ -49,9 +49,8 @@ describe.each(resolveEntryPoints())('$name', ({ pkg, entry, file }) => {
   })
 })
 
-it('next reference renders both Operation call signatures', () => {
+it('next reference documents runEffect', () => {
   const text = readFileSync(join(apiDir, 'next', 'index.md'), 'utf8')
-  const op = text.slice(text.indexOf('### Operation'))
-  expect(op).toMatch(/\*\*Operation\*\*.*\(`fn`\):/)
-  expect(op).toMatch(/\*\*Operation\*\*.*\(`options`, `fn`\):/)
+  expect(text).toMatch(/^### runEffect(\(\))?$/m)
+  expect(text).not.toMatch(/^### (Operation|action|query)(\(\))?$/m)
 })

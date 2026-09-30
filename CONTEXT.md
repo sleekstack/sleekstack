@@ -117,5 +117,5 @@ A server-side read operation declared with `defineQuery()` / `query()` from `@sl
 _Avoid_: Fetch, loader, resolver
 
 **Devtools**:
-The dev-only introspection of a running app: a bounded event buffer and route handler in `@sleekstack/next/devtools`, rendered by the `@sleekstack/devtools` panel (graph, live scopes, atoms, errors). Absent from production builds.
+The dev-only introspection of a running app: a bounded event buffer and route handler in `@sleekstack/next/devtools`, rendered by the `@sleekstack/devtools` panel (graph, live scopes, atoms, errors). In production recording is off and the handler returns 404; the panel is excluded from production client chunks when mounted behind a dynamic import.
 _Avoid_: Inspector, debug panel
