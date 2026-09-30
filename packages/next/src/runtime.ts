@@ -1,22 +1,38 @@
 /**
  * packages/next/src/runtime.ts
  *
- * The Next adapter's app runtime (R8). `configureRuntime` stores the config;
- * the app scope is built lazily on first use and held in a process-global
- * slot (`effect/GlobalValue`) so dev HMR does not duplicate it. The same
- * config reference again is a no-op; a different config disposes the
- * existing app scope and replaces it.
+ * The Next adapter's app runtime. `configureRuntime` stores the config; the
+ * runtime is built lazily on first use and held in a versioned process-global
+ * slot (`effect/GlobalValue`) so dev HMR and duplicate module copies share it.
+ * The same config reference again is a no-op; a different config interrupts
+ * in-flight `runEffect` calls, then disposes the old runtime.
  */
 
 import { makeAppScope, type AppScope, type Entry, type Module } from '@sleekstack/core'
-import { Cause, Effect } from 'effect'
+import { Cause, Context, Effect, Exit, Fiber, Layer, ManagedRuntime, Runtime, Scope } from 'effect'
 import { globalValue } from 'effect/GlobalValue'
 
-/** Config for {@link configureRuntime}: the app's root modules/entries and an optional finalizer-error sink. */
-export interface RuntimeConfig {
-  readonly provide: readonly (Module | Entry)[]
-  readonly onFinalizerError?: (cause: Cause.Cause<unknown>) => void
+/** Receives defects and finalizer failures (never typed failures, interruptions or Next control flow). A throw is swallowed. */
+type ErrorSink = (cause: Cause.Cause<unknown>) => void
+
+/** Layer-based config: one `ManagedRuntime` over `layer`. */
+export interface LayerRuntimeConfig {
+  readonly layer: Layer.Layer<never, unknown, never>
+  readonly onError?: ErrorSink
+  readonly provide?: undefined
+  readonly onFinalizerError?: undefined
 }
+
+/** Module-based config: the app's root modules/entries, built as a core app scope. */
+export interface ProvideRuntimeConfig {
+  readonly provide: readonly (Module | Entry)[]
+  readonly onFinalizerError?: ErrorSink
+  readonly onError?: ErrorSink
+  readonly layer?: undefined
+}
+
+/** Config for {@link configureRuntime}: either a plain Effect `layer` or core `provide` modules/entries. */
+export type RuntimeConfig = LayerRuntimeConfig | ProvideRuntimeConfig
 
 interface RuntimeSlot {
   config: RuntimeConfig | undefined
@@ -24,39 +40,45 @@ interface RuntimeSlot {
   generation: number
   appScope: AppScope | undefined
   building: Promise<AppScope> | undefined
+  /** The `runEffect` runtime for the current config, created lazily; reset when its build fails. */
+  runtime: ManagedRuntime.ManagedRuntime<any, any> | undefined
+  /** In-flight `runEffect` fibers, interrupted on reconfigure before the runtime is disposed. */
+  fibers: Set<Fiber.RuntimeFiber<any, any>>
 }
 
 const getSlot = (): RuntimeSlot =>
-  globalValue('@sleekstack/next/runtime-slot', (): RuntimeSlot => ({
+  globalValue('@sleekstack/next/runtime-slot/v2', (): RuntimeSlot => ({
     config: undefined,
     generation: 0,
     appScope: undefined,
     building: undefined,
+    runtime: undefined,
+    fibers: new Set(),
   }))
 
 export const defaultFinalizerSink = (cause: Cause.Cause<unknown>): void => console.error(Cause.pretty(cause))
 
-export const sinkFor = (config: RuntimeConfig): ((cause: Cause.Cause<unknown>) => void) =>
-  config.onFinalizerError ?? defaultFinalizerSink
+export const sinkFor = (config: RuntimeConfig): ErrorSink => config.onFinalizerError ?? config.onError ?? defaultFinalizerSink
 
 /** The current config's finalizer sink, or `undefined` if unconfigured. */
-export const getConfiguredSink = (): ((cause: Cause.Cause<unknown>) => void) | undefined => {
+export const getConfiguredSink = (): ErrorSink | undefined => {
   const config = getSlot().config
   return config ? sinkFor(config) : undefined
 }
 
 /**
- * Stores the runtime config. Same reference again is a no-op; a different reference disposes the
- * current app scope and replaces it. The app scope is built lazily on the first `action`/`query` call.
+ * Stores the runtime config. Same reference again is a no-op; a different reference interrupts
+ * in-flight `runEffect` calls, then disposes the current runtime and replaces it. The runtime is
+ * built lazily on first use.
  *
- * @param config - Root modules/entries and an optional `onFinalizerError` sink.
+ * @param config - `{ layer, onError? }`, or root modules/entries as `{ provide, onFinalizerError? }`.
  *
  * @example
  * ```ts
- * import { module } from '@sleekstack/core'
+ * import { Layer } from 'effect'
  * import { configureRuntime } from '@sleekstack/next'
  *
- * configureRuntime({ provide: [module({ name: 'app' })] })
+ * configureRuntime({ layer: Layer.empty })
  * ```
  */
 export function configureRuntime(config: RuntimeConfig): void {
@@ -69,26 +91,32 @@ export function configureRuntime(config: RuntimeConfig): void {
     // A build already in flight under the old config disposes itself once it resolves
     // (the generation check in `ensureAppScope`), so only an already-built scope is disposed here.
     if (slot.appScope) slot.appScope.dispose()
+    const runtime = slot.runtime
+    const fibers = [...slot.fibers]
+    void Effect.runPromise(Fiber.interruptAll(fibers)).then(() => runtime?.dispose())
   }
   slot.generation++
   slot.config = config
   slot.appScope = undefined
   slot.building = undefined
+  slot.runtime = undefined
+  slot.fibers = new Set()
 }
 
 /** Descriptive error for an unconfigured call, thrown at call time. */
 export class RuntimeNotConfigured extends Error {
   constructor() {
-    super('[@sleekstack/next] action/query was called before configureRuntime(); call configureRuntime({ provide }) first.')
+    super('[@sleekstack/next] runEffect/action/query was called before configureRuntime(); call configureRuntime({ layer }) first.')
     this.name = 'RuntimeNotConfigured'
   }
 }
 
-/** Resolves the app scope, building it lazily (and only once) on first use. */
+/** Resolves the app scope for `action`/`query`, building it lazily (and only once) on first use. */
 export function ensureAppScope(): Promise<AppScope> {
   const slot = getSlot()
   const config = slot.config
   if (config === undefined) return Promise.reject(new RuntimeNotConfigured())
+  if (config.provide === undefined) return Promise.reject(new Error('[@sleekstack/next] action/query need configureRuntime({ provide }).'))
   if (slot.appScope) return Promise.resolve(slot.appScope)
   if (!slot.building) {
     const generation = slot.generation
@@ -112,4 +140,134 @@ export function ensureAppScope(): Promise<AppScope> {
     slot.building = building
   }
   return slot.building
+}
+
+/** Options for {@link runEffect}. */
+export interface RunEffectOptions {
+  /** Built per call and released when the call ends. */
+  readonly request?: Layer.Layer<any, any, any>
+  /** Provided outside `request`: shadows services for both the effect and `request`'s services. */
+  readonly overrides?: Layer.Layer<any, any, any>
+}
+
+const AppScopeTag = Context.GenericTag<AppScope>('@sleekstack/next/AppScope')
+
+/** Next.js control-flow throws (`redirect()`, `notFound()`, `forbidden()`, ...): rethrown untouched, never reported. */
+const isNextControlFlow = (value: unknown): boolean => {
+  const digest = (value as { digest?: unknown } | null)?.digest
+  return (
+    typeof digest === 'string' &&
+    (digest.startsWith('NEXT_REDIRECT') || digest.startsWith('NEXT_HTTP_ERROR_FALLBACK') || digest === 'NEXT_NOT_FOUND')
+  )
+}
+
+const report = (config: RuntimeConfig, cause: Cause.Cause<unknown>): void => {
+  try {
+    ;(config.onError ?? defaultFinalizerSink)(cause)
+  } catch (sinkError) {
+    console.error('[@sleekstack/next] onError threw; swallowing so the call result is unaffected:', sinkError)
+  }
+}
+
+const runtimeFor = (slot: RuntimeSlot, config: RuntimeConfig): ManagedRuntime.ManagedRuntime<any, any> => {
+  if (slot.runtime) return slot.runtime
+  const layer: Layer.Layer<never, unknown, never> =
+    config.layer ??
+    Layer.scoped(
+      AppScopeTag,
+      Effect.acquireRelease(makeAppScope(config.provide, { onFinalizerError: sinkFor(config) }), (app) =>
+        Effect.flatMap(app.close, (exit) => Effect.sync(() => void (Exit.isFailure(exit) && report(config, exit.cause)))),
+      ),
+    )
+  return (slot.runtime = ManagedRuntime.make(layer) as ManagedRuntime.ManagedRuntime<any, any>)
+}
+
+/**
+ * Runs `effect` on the configured runtime. `request` is built per call and released when the call
+ * ends; `overrides` shadow both the effect's services and `request`'s. Defects and finalizer failures
+ * go to `onError` once each; a finalizer failure never changes the result.
+ *
+ * @param effect - The Effect to run.
+ * @param options - Optional per-call `request` and `overrides` Layers.
+ * @returns A promise of the Effect's value.
+ * @throws `RuntimeNotConfigured` (rejection) when `runEffect` is called before `configureRuntime`.
+ * @throws `FiberFailure` (rejection, as `Effect.runPromise`) on a typed failure, defect or interruption;
+ *   a Next `redirect()`/`notFound()` throw is rethrown as-is.
+ *
+ * @example
+ * ```ts
+ * import { Effect, Layer } from 'effect'
+ * import { configureRuntime, runEffect } from '@sleekstack/next'
+ *
+ * configureRuntime({ layer: Layer.empty })
+ * await runEffect(Effect.succeed(1))
+ * ```
+ */
+export async function runEffect<A, E, R>(effect: Effect.Effect<A, E, R>, options: RunEffectOptions = {}): Promise<A> {
+  const slot = getSlot()
+  const config = slot.config
+  if (config === undefined) throw new RuntimeNotConfigured()
+  const runtime = runtimeFor(slot, config)
+  try {
+    await runtime.runtime()
+  } catch (error) {
+    // A failed build is not cached: the next call builds again.
+    if (slot.runtime === runtime) slot.runtime = undefined
+    void runtime.dispose()
+    throw error
+  }
+
+  const program = Effect.gen(function* () {
+    const scope = yield* Scope.make()
+    const exit = yield* Effect.exit(
+      Effect.gen(function* () {
+        let base= Context.empty() as Context.Context<any>
+        if (config.layer === undefined) {
+          const app = yield* AppScopeTag
+          const requestScope = yield* app.child('request')
+          yield* Scope.addFinalizer(
+            scope,
+            Effect.flatMap(requestScope.close, (e) => Effect.sync(() => void (Exit.isFailure(e) && report(config, e.cause)))),
+          )
+          base = requestScope.context
+        }
+        const overrides: Context.Context<any> = options.overrides
+          ? yield* Layer.buildWithScope(options.overrides, scope).pipe(Effect.provide(base))
+          : (Context.empty() as Context.Context<any>)
+        const request: Context.Context<any> = options.request
+          ? yield* Layer.buildWithScope(options.request, scope).pipe(Effect.provide(Context.merge(base, overrides)))
+          : (Context.empty() as Context.Context<any>)
+        // Later contexts win: overrides shadow request services, which shadow the base.
+        const context = Context.merge(Context.merge(base, request), overrides) as Context.Context<R>
+        return yield* Effect.provide(effect, context)
+      }),
+    )
+    const closeExit = yield* Effect.exit(Scope.close(scope, exit))
+    if (Exit.isFailure(closeExit)) report(config, closeExit.cause)
+    return exit
+  })
+
+  const fiber = runtime.runFork(program as Effect.Effect<Exit.Exit<A, unknown>, never, any>)
+  slot.fibers.add(fiber)
+  const outcome = await new Promise<Exit.Exit<Exit.Exit<A, unknown>, unknown>>((resolve) => fiber.addObserver(resolve))
+  slot.fibers.delete(fiber)
+  // An interrupted fiber never reaches `return exit`; its own Exit is the outcome.
+  const exit: Exit.Exit<A, unknown> = Exit.isSuccess(outcome) ? outcome.value : (outcome as Exit.Exit<never, unknown>)
+  if (Exit.isSuccess(exit)) return exit.value
+  const cause = exit.cause
+  const controlFlow = [...Cause.defects(cause)].find(isNextControlFlow)
+  if (controlFlow !== undefined) throw controlFlow
+  if (!Cause.isInterruptedOnly(cause) && Cause.isDie(cause)) report(config, cause)
+  throw Runtime.makeFiberFailure(cause)
+}
+
+/**
+ * The configured `ManagedRuntime`, created lazily.
+ *
+ * @throws `RuntimeNotConfigured` when `getRuntime` is called before `configureRuntime`.
+ */
+export function getRuntime(): ManagedRuntime.ManagedRuntime<any, any> {
+  const slot = getSlot()
+  if (slot.config === undefined) throw new RuntimeNotConfigured()
+  return runtimeFor(slot, slot.config)
 }
