@@ -47,7 +47,7 @@ describe('devtools', () => {
     const started = Promise.withResolvers<void>()
     configureRuntime({ layer: Layer.empty, onError: () => {} })
     const inflight = runEffect(Effect.zipRight(Effect.sync(() => started.resolve()), Effect.never), {
-      request: Layer.scopedDiscard(Effect.addFinalizer(() => Effect.die('finalizer'))),
+      request: Layer.scopedDiscard(Effect.addFinalizer(() => Effect.die('finalizer'))) as Layer.Layer<any, any, any>,
     })
     inflight.catch(() => {})
     await started.promise
