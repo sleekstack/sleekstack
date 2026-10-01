@@ -8,7 +8,7 @@
  * in-flight `runEffect` calls, then disposes the old runtime.
  */
 
-import { Cause, Context, Effect, Exit, Fiber, Layer, ManagedRuntime, Runtime, Scope } from 'effect'
+import { Cause, Context, Effect, Exit, Fiber, FiberId, FiberRef, Layer, ManagedRuntime, Runtime, Scope } from 'effect'
 import { globalValue } from 'effect/GlobalValue'
 
 /** Why an error was reported: a call's defect, a finalizer/disposal failure, or a failed layer build. */
@@ -54,6 +54,10 @@ export interface DevEvent {
   readonly kind: 'scope-open' | 'scope-close' | 'acquire' | 'release' | 'error'
   readonly label: string
   readonly detail?: string
+  /** Owning scope: `app` or a `request#N` label. Errors keep it after the scope leaves `live`. */
+  readonly scope?: string
+  /** The fiber that emitted the event (acquire/release hooks only). */
+  readonly fiber?: string
 }
 
 /** @internal Devtools buffer capacity. */
@@ -64,13 +68,20 @@ export const DEV_EVENT_LIMIT = 200
 export const devEnabled = (): boolean =>
   (globalThis as { process?: { env?: { NODE_ENV?: string } } }).process?.env?.NODE_ENV !== 'production'
 
-/** Records into the buffer only while `config` is still the current one: late events from a replaced runtime are dropped. */
-const record = (config: RuntimeConfig, kind: DevEvent['kind'], label: string, detail?: string): void => {
-  const slot = getSlot()
-  if (slot.config !== config) return
-  const events = slot.events
-  events.push({ at: Date.now(), kind, label, detail })
-  if (events.length > DEV_EVENT_LIMIT) events.splice(0, events.length - DEV_EVENT_LIMIT)
+/**
+ * Records into the buffer only while `config` is still the current one: late events from a replaced runtime
+ * are dropped. Never throws: a devtools hook must not fail a request.
+ */
+const record = (config: RuntimeConfig, kind: DevEvent['kind'], label: string, detail?: string, extra: { scope?: string; fiber?: string } = {}): void => {
+  try {
+    const slot = getSlot()
+    if (slot.config !== config) return
+    const events = slot.events
+    events.push({ at: Date.now(), kind, label, ...(detail !== undefined && { detail }), ...extra })
+    if (events.length > DEV_EVENT_LIMIT) events.splice(0, events.length - DEV_EVENT_LIMIT)
+  } catch {
+    // ignored by design
+  }
 }
 
 /** @internal The devtools buffer, read by adapters' devtools handlers (e.g. `@sleekstack/next/devtools`). */
@@ -86,6 +97,36 @@ const setLive = (config: RuntimeConfig, update: (live: RuntimeSlot['live']) => v
   const slot = getSlot()
   if (slot.config === config) update(slot.live)
 }
+
+/** The config and scope label a fiber is tracing into; set by the runtime around the app build and each call, dev only. */
+const currentTrace = globalValue('@sleekstack/runtime/current-trace', () =>
+  FiberRef.unsafeMake<{ readonly config: RuntimeConfig; readonly scope: string } | undefined>(undefined),
+)
+
+/**
+ * @internal Wraps a service Layer so its acquire/release land in the devtools buffer with `id`, the owning
+ * scope and the fiber. No-op outside a runtime-traced fiber, and the caller wraps only in dev.
+ */
+export const traceService = <A, E, R>(id: string, layer: Layer.Layer<A, E, R>): Layer.Layer<A, E, R> =>
+  Layer.provideMerge(
+    Layer.scopedDiscard(
+      Effect.acquireRelease(
+        Effect.flatMap(Effect.zip(FiberRef.get(currentTrace), Effect.fiberId), ([trace, fiber]) =>
+          Effect.sync(() => {
+            if (trace) record(trace.config, 'acquire', id, undefined, { scope: trace.scope, fiber: FiberId.threadName(fiber) })
+            return trace
+          }),
+        ),
+        (trace) =>
+          Effect.flatMap(Effect.fiberId, (fiber) =>
+            Effect.sync(() => {
+              if (trace) record(trace.config, 'release', id, undefined, { scope: trace.scope, fiber: FiberId.threadName(fiber) })
+            }),
+          ),
+      ),
+    ),
+    layer,
+  )
 
 const getSlot = (): RuntimeSlot =>
   globalValue('@sleekstack/next/runtime-slot/v3', (): RuntimeSlot => ({
@@ -169,8 +210,8 @@ const findControlFlow = (cause: Cause.Cause<unknown>, isControlFlow: ControlFlow
   return i === -1 ? undefined : { value: values[i] }
 }
 
-const callSink = (config: RuntimeConfig, cause: Cause.Cause<unknown>, phase: ErrorInfo['phase']): void => {
-  if (devEnabled()) record(config, 'error', Cause.isDie(cause) ? 'defect' : 'failure', Cause.pretty(cause))
+const callSink = (config: RuntimeConfig, cause: Cause.Cause<unknown>, phase: ErrorInfo['phase'], scope?: string): void => {
+  if (devEnabled()) record(config, 'error', Cause.isDie(cause) ? 'defect' : 'failure', Cause.pretty(cause), scope ? { scope } : {})
   try {
     ;(config.onError ?? defaultSink)(cause, { phase })
   } catch (sinkError) {
@@ -178,9 +219,9 @@ const callSink = (config: RuntimeConfig, cause: Cause.Cause<unknown>, phase: Err
   }
 }
 
-const report = (config: RuntimeConfig, cause: Cause.Cause<unknown>, phase: ErrorInfo['phase'] = 'call'): void => callSink(config, cause, phase)
+const report = (config: RuntimeConfig, cause: Cause.Cause<unknown>, phase: ErrorInfo['phase'] = 'call', scope?: string): void => callSink(config, cause, phase, scope)
 
-const reportFinalizer = (config: RuntimeConfig, cause: Cause.Cause<unknown>): void => callSink(config, cause, 'finalizer')
+const reportFinalizer = (config: RuntimeConfig, cause: Cause.Cause<unknown>, scope?: string): void => callSink(config, cause, 'finalizer', scope)
 
 /**
  * @internal For adapters that own finalizers inside the app layer (kit's app scope): routes a
@@ -217,7 +258,7 @@ const runtimeFor = (slot: RuntimeSlot, config: RuntimeConfig): ManagedRuntime.Ma
               }),
           ),
         ),
-        layer,
+        Layer.locally(layer, currentTrace, { config, scope: 'app' }),
       )
     : layer
   return (slot.runtime = ManagedRuntime.make(tracked as Layer.Layer<never, unknown, never>) as ManagedRuntime.ManagedRuntime<any, any>)
@@ -275,9 +316,9 @@ export async function runEffect<A, E, R>(effect: Effect.Effect<A, E, R>, options
     const closeExit = yield* Effect.exit(Scope.close(scope, exit))
     if (scopeLabel) setLive(config, (l) => void l.scopes.delete(scopeLabel))
     if (scopeLabel) record(config, 'scope-close', scopeLabel, Exit.isSuccess(exit) ? 'success' : 'failure')
-    if (Exit.isFailure(closeExit)) reportFinalizer(config, closeExit.cause)
+    if (Exit.isFailure(closeExit)) reportFinalizer(config, closeExit.cause, scopeLabel || undefined)
     return exit
-  })
+  }).pipe((p) => (scopeLabel ? Effect.locally(p, currentTrace, { config, scope: scopeLabel }) : p))
 
   // The call is registered synchronously, before the runtime finishes building, so a `configureRuntime()`
   // issued right after this call starts can still interrupt it.
@@ -311,7 +352,7 @@ export async function runEffect<A, E, R>(effect: Effect.Effect<A, E, R>, options
   const cause = exit.cause
   const controlFlow = findControlFlow(cause, isControlFlow)
   if (controlFlow !== undefined) throw controlFlow.value
-  if (!Cause.isInterruptedOnly(cause) && Cause.isDie(cause)) report(config, cause)
+  if (!Cause.isInterruptedOnly(cause) && Cause.isDie(cause)) report(config, cause, 'call', scopeLabel || undefined)
   throw Runtime.makeFiberFailure(cause)
 }
 
