@@ -20,7 +20,7 @@ function libId(sym: ts.Symbol | undefined, checker: ts.TypeChecker): string | un
   if (sym.flags & ts.SymbolFlags.Alias) sym = checker.getAliasedSymbol(sym)
   const file = sym.declarations?.[0]?.getSourceFile().fileName.replace(/\\/g, '/')
   if (!file) return undefined
-  const own = /\/(?:packages|@sleekstack)\/(kit|core|next)\/src\/(.+)\.ts$/.exec(file)
+  const own = /\/(?:packages|@sleekstack)\/(kit|core|next|runtime)\/src\/(.+)\.ts$/.exec(file)
   if (own) return `${own[1]}/${own[2]}#${sym.name}`
   if (/\/effect\/dist\/dts\/Context\.d\.ts$/.test(file)) return `effect/Context#${sym.name}`
   if (/\/effect\/dist\/dts\/Effect\.d\.ts$/.test(file)) return `effect/Effect#${sym.name}`
@@ -31,7 +31,7 @@ function libId(sym: ts.Symbol | undefined, checker: ts.TypeChecker): string | un
 const TAG_CALLS = new Set(['kit/tag#tag', 'effect/Context#GenericTag'])
 const MODULE_CALLS = new Set(['kit/module#makeModule', 'core/module#makeModule'])
 const ATOM_CALLS = new Set(['kit/atom#atom', 'kit/atom#family'])
-const RUNTIME_CALLS = new Set(['kit/next/runtime#configureRuntime', 'next/runtime#configureRuntime'])
+const RUNTIME_CALLS = new Set(['kit/next/runtime#configureRuntime', 'next/runtime#configureRuntime', 'runtime/runtime#configureRuntime'])
 const ACTION_CALLS = new Set(['kit/next/action#defineEffect', 'kit/next/action#defineQuery', 'kit/next/action#effect', 'kit/next/action#query'])
 /** Plain Layer combinators walked structurally (data-first or as `.pipe` steps). */
 const LAYER_COMBINATORS = new Set(['effect/Layer#mergeAll', 'effect/Layer#merge', 'effect/Layer#provide', 'effect/Layer#provideMerge'])

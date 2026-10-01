@@ -1,5 +1,5 @@
 {
-  "name": "@sleekstack/next",
+  "name": "@sleekstack/runtime",
   "version": "0.0.1",
   "private": true,
   "main": "src/index.ts",
@@ -8,26 +8,16 @@
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"
-    },
-    "./devtools": {
-      "types": "./src/devtools.ts",
-      "default": "./src/devtools.ts"
     }
   },
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
-  "peerDependencies": {
-    "next": ">=15.0.0"
-  },
   "dependencies": {
-    "@sleekstack/core": "workspace:*",
-    "@sleekstack/runtime": "workspace:*",
     "effect": "^3.15.0"
   },
   "devDependencies": {
-    "vitest": "^4.1.9",
-    "next": "^15.5.20"
+    "vitest": "^4.1.9"
   }
 }

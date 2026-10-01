@@ -10,10 +10,11 @@
 import type { AppScope, Entry, Module as CoreModule } from '@sleekstack/core'
 import { makeAppScope } from '@sleekstack/core'
 import {
-  configureRuntime as nextConfigure,
+  configureRuntime as baseConfigure,
   reportFinalizerFailure,
-  type RuntimeConfig as NextConfig,
-} from '@sleekstack/next'
+  type RuntimeConfig as RuntimeLayerConfig,
+} from '@sleekstack/runtime'
+import { isNextControlFlow } from '@sleekstack/next'
 import { Cause, Context, Effect, Exit, Layer } from 'effect'
 import { normalize, toFinalizerError, type FinalizerError } from '../errors'
 import type { Layer as KitLayer } from '../layer'
@@ -35,11 +36,11 @@ const closeOrFail = (close: Effect.Effect<Exit.Exit<void, unknown>>): Effect.Eff
   Effect.flatMap(close, (exit) => (Exit.isFailure(exit) ? Effect.failCause(exit.cause as Cause.Cause<never>) : Effect.void))
 
 /** @internal The runtime Layer: a core app scope over `provide`. */
-const appLayer = (provide: readonly (CoreModule | Entry)[]): NextConfig['layer'] =>
+const appLayer = (provide: readonly (CoreModule | Entry)[]): RuntimeLayerConfig['layer'] =>
   Layer.scoped(
     AppScopeTag,
     Effect.acquireRelease(makeAppScope(provide, { onFinalizerError: reportFinalizerFailure }), (app) => closeOrFail(app.close)),
-  ) as unknown as NextConfig['layer']
+  ) as unknown as RuntimeLayerConfig['layer']
 
 /** @internal The per-call request scope as a Layer: child-boundary `provide` shadows the runtime graph for this call only. */
 export const requestLayer = (provide: readonly (CoreModule | Entry)[]): Layer.Layer<any, any, any> =>
@@ -52,7 +53,7 @@ export const requestLayer = (provide: readonly (CoreModule | Entry)[]): Layer.La
     }),
   )
 
-const lowered = new WeakMap<RuntimeConfig, NextConfig>()
+const lowered = new WeakMap<RuntimeConfig, RuntimeLayerConfig>()
 
 /**
  * Configures the app runtime that `action`/`query` run in. Call it once at module load (for example
@@ -81,6 +82,7 @@ export function configureRuntime(config: RuntimeConfig, options: { readonly repl
       next = {
         ...(config.id !== undefined && { id: config.id }),
         layer: appLayer(unwrap(config.provide)),
+        isControlFlow: isNextControlFlow,
         // Defects and failed builds keep logging; only finalizer failures reach the kit sink, as a plain FinalizerError.
         onError: (cause, info) => {
           if (info.phase === 'finalizer' && sink) sink(toFinalizerError(cause))
@@ -92,5 +94,5 @@ export function configureRuntime(config: RuntimeConfig, options: { readonly repl
     }
     lowered.set(config, next)
   }
-  nextConfigure(next, options)
+  baseConfigure(next, options)
 }
