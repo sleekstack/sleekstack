@@ -91,20 +91,29 @@ describe('graph error fixtures', () => {
     const roots = r.runtimes.map((x) => [x.kind, x.graph.root, x.line, x.errors.map((e) => e.code)])
     expect(roots).toEqual([
       ['app', 'runtime.ts:5', 5, []],
-      ['request', 'ReqLive', 15, []],
-      ['request', 'BadReqLive', 16, ['MissingDependency']],
-      ['overrides', 'AppMock', 17, []],
-      ['overrides', 'ALive', 17, []],
-      ['overrides', 'ALive', 18, []],
-      ['request', 'Untyped', 21, ['Computed']],
+      ['request', 'ReqLive', 18, []],
+      ['request', 'BadReqLive', 19, ['MissingDependency']],
+      ['overrides', 'AppMock', 20, []],
+      ['overrides', 'ALive', 20, []],
+      ['overrides', 'ALive', 21, []],
+      ['request', 'Untyped', 24, ['Computed']],
+      // Conditionals behind a const and an import expand; a branch resolving to undefined is skipped.
+      ['request', 'ReqLive', 25, []],
+      ['request', 'ALive', 25, []],
+      ['request', 'ReqLive', 26, []],
+      ['request', 'ALive', 26, []],
+      ['overrides', 'ReqLive', 27, []],
+      // String-literal and computed string keys.
+      ['request', 'ReqLive', 28, []],
+      ['overrides', 'ALive', 28, []],
     ])
     // Edges into the app graph; an overrides layer shadows the app's Tag.
     expect(r.runtimes[1]!.graph.edges).toEqual([{ from: 'Req', to: 'App', tag: 'App' }])
     expect(r.runtimes[3]!.graph.shadowing).toEqual([{ tag: 'App', winner: 'App', shadowed: ['App@runtime.ts:5'] }])
     expect(r.extraction.map((e) => e.code)).toEqual(['NonLiteralOptions', 'NonLiteralOptions'])
     // Lenient: the unresolvable layer is an opaque root with its file:line, not an error.
-    const lenient = analyze({ project: path.join(dir('request-roots'), 'tsconfig.json'), lenient: true }).runtimes.at(-1)!
-    expect([lenient.kind, lenient.file, lenient.line, lenient.errors, lenient.graph.nodes.filter((n) => n.opaque).length]).toEqual(['opaque', 'runtime.ts', 21, [], 1])
+    const lenient = analyze({ project: path.join(dir('request-roots'), 'tsconfig.json'), lenient: true }).runtimes.find((x) => x.line === 24)!
+    expect([lenient.kind, lenient.file, lenient.line, lenient.errors, lenient.graph.nodes.filter((n) => n.opaque).length]).toEqual(['opaque', 'runtime.ts', 24, [], 1])
   })
 
   it('clean projects yield no errors', () => {

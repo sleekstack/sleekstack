@@ -9,3 +9,7 @@ export const BadReqLive = Layer.effect(Req, Effect.map(Z, () => ({})))
 /** Shadows the app's App. */
 export const AppMock = Layer.succeed(App, {})
 export const ALive = Layer.succeed(A, {})
+
+declare const flag: boolean
+/** A conditional behind an imported binding. */
+export const ImportedChoice = flag ? ReqLive : ALive

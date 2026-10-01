@@ -24,6 +24,7 @@ export interface RootCtx {
   readonly loc: (n: ts.Node) => Location
   readonly text: (n: ts.Node) => string
   readonly unwrap: (e: ts.Expression) => ts.Expression
+  readonly follow: (e: ts.Expression) => ts.Expression | ts.ClassDeclaration
   readonly fail: (n: ts.Node, message: string, code?: string) => never
   readonly plainLayer: (e: ts.Expression, out: (p: ProviderDecl) => void) => void
   readonly report: (e: unknown, owner?: ModuleDecl) => void
@@ -36,6 +37,13 @@ export interface RootCtx {
 const isNullish = (e: ts.Expression) =>
   e.kind === ts.SyntaxKind.NullKeyword || ts.isVoidExpression(e) || (ts.isIdentifier(e) && e.text === 'undefined')
 
+/** A property's static key (`a`, `'a'`, `['a']`, `[`a`]`); null when computed from anything else. */
+const staticName = (n: ts.PropertyName): string | null => {
+  if (ts.isIdentifier(n) || ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n) || ts.isNumericLiteral(n)) return n.text
+  if (ts.isComputedPropertyName(n) && (ts.isStringLiteral(n.expression) || ts.isNoSubstitutionTemplateLiteral(n.expression))) return n.expression.text
+  return ts.isComputedPropertyName(n) ? null : n.getText()
+}
+
 /** The roots of one `runEffect` call (throws a NonLiteralOptions Unreadable for unreadable options). */
 export function runEffectRoots(call: ts.CallExpression, ctx: RootCtx): ExtraRoot[] {
   const opts = call.arguments[1]
@@ -47,8 +55,8 @@ export function runEffectRoots(call: ts.CallExpression, ctx: RootCtx): ExtraRoot
   const values: ['request' | 'overrides', ts.Expression][] = []
   for (const p of o.properties) {
     if (ts.isSpreadAssignment(p)) return nonLiteral(p, 'spread')
-    if (p.name && ts.isComputedPropertyName(p.name)) return nonLiteral(p, 'key')
-    const name = p.name && ts.isIdentifier(p.name) ? p.name.text : undefined
+    const name = p.name && staticName(p.name)
+    if (name === null) return nonLiteral(p, 'key')
     if (name !== 'request' && name !== 'overrides') continue
     if (ts.isPropertyAssignment(p)) values.push([name, p.initializer])
     else if (ts.isShorthandPropertyAssignment(p)) values.push([name, p.name])
@@ -60,6 +68,12 @@ export function runEffectRoots(call: ts.CallExpression, ctx: RootCtx): ExtraRoot
     const u = ctx.unwrap(e)
     if (ts.isConditionalExpression(u)) return (branch(kind, u.whenTrue), branch(kind, u.whenFalse))
     if (isNullish(u)) return
+    // A const (or imported) binding to a conditional or a nullish value expands like the value itself.
+    if (ts.isIdentifier(u) || ts.isPropertyAccessExpression(u)) {
+      let f: ts.Expression | ts.ClassDeclaration | undefined
+      try { f = ctx.follow(u) } catch { f = undefined } // plainLayer below reports the same failure, located
+      if (f && !ts.isClassDeclaration(f) && (ts.isConditionalExpression(f) || isNullish(f))) return branch(kind, f)
+    }
     const m: ModuleDecl = { name: ctx.text(u), entries: [], imports: [], exports: undefined, lifetime: undefined, loc: at }
     try {
       // Located at the call: that is where the layer meets the app graph.
