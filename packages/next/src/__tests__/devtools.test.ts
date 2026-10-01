@@ -92,7 +92,7 @@ describe('devtools', () => {
 
   it('an error links to its request scope after the scope closes; traced services carry scope and fiber', async () => {
     configureRuntime({ layer: Layer.empty, onError: () => {} })
-    await expect(runEffect(Effect.die('boom'), { request: traceService('Svc', Layer.empty) as unknown as Layer.Layer<any, any, any> })).rejects.toBeDefined()
+    await expect(runEffect(Effect.die('boom'), { request: traceService(['Svc', 'Repo'], Layer.empty) as unknown as Layer.Layer<any, any, any> })).rejects.toBeDefined()
     const snap = devtoolsSnapshot()
     const scope = snap.scopes.find((e) => e.kind === 'scope-open')!.label
     expect(snap.errors[0]?.scope).toBe(scope)
@@ -101,6 +101,30 @@ describe('devtools', () => {
       ['acquire', scope, 'string'],
       ['release', scope, 'string'],
     ])
+    // One wrapper over a multi-Tag layer emits one event per provided Tag key (the analyzer's node ids).
+    expect(snap.scopes.filter((e) => e.label === 'Repo').map((e) => e.kind)).toEqual(['acquire', 'release'])
+    // A plain request Layer gets whole-layer events in its scope.
+    expect(snap.scopes.filter((e) => e.label === 'request').map((e) => [e.kind, e.scope])).toEqual([
+      ['acquire', scope],
+      ['release', scope],
+    ])
+  })
+
+  it('a lazy app-layer build failure triggered by a call is linked to that call\'s request scope', async () => {
+    configureRuntime({ layer: Layer.fail('nope') as unknown as Layer.Layer<never>, onError: () => {} })
+    await expect(runEffect(Effect.void)).rejects.toBeDefined()
+    expect(devtoolsSnapshot().errors.map((e) => e.scope)).toEqual([expect.stringMatching(/^request#\d+$/)])
+  })
+
+  it('production wraps the request layer with nothing', async () => {
+    configureRuntime({ layer: Layer.empty })
+    vi.stubEnv('NODE_ENV', 'production')
+    try {
+      await runEffect(Effect.void, { request: Layer.empty as unknown as Layer.Layer<any, any, any> })
+      expect(devEvents()).toEqual([])
+    } finally {
+      vi.unstubAllEnvs()
+    }
   })
 
   it('a user Tracer is left intact and a throwing hook does not fail the request', async () => {
@@ -116,7 +140,7 @@ describe('devtools', () => {
     configureRuntime({ layer: Layer.setTracer(user) })
     // Every record() now throws (buffer push), including the traced service hook.
     Object.defineProperty(devEvents(), 'push', { value: () => { throw new Error('hook') } })
-    await expect(runEffect(Effect.withSpan(Effect.succeed(1), 'mine'), { request: traceService('Svc', Layer.empty) as unknown as Layer.Layer<any, any, any> })).resolves.toBe(1)
+    await expect(runEffect(Effect.withSpan(Effect.succeed(1), 'mine'), { request: traceService(['Svc'], Layer.empty) as unknown as Layer.Layer<any, any, any> })).resolves.toBe(1)
     expect(spans).toContain('mine')
   })
 })

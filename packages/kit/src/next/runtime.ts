@@ -46,10 +46,10 @@ const trace = <T extends CoreModule | Entry>(x: T): T => {
     out = { ...m, entries: m.entries.map(trace), imports: typeof imports === 'function' ? () => imports().map(trace) : imports.map(trace) }
   } else if (e._tag === 'ServiceDefinition') {
     const d = x as unknown as { tag: { key: string }; layer: Layer.Layer<any, any, any> }
-    out = { ...d, layer: traceService(d.tag.key, d.layer) }
+    out = { ...d, layer: traceService([d.tag.key], d.layer) }
   } else if (e._tag === 'DeclaredLayer') {
     const d = x as unknown as { provides: readonly { key: string }[]; layer: Layer.Layer<any, any, any> }
-    out = { ...d, layer: traceService(d.provides.map((t) => t.key).join(', '), d.layer) }
+    out = { ...d, layer: traceService(d.provides.map((t) => t.key), d.layer) }
   }
   traced.set(x, out as T)
   return out as T

@@ -104,23 +104,23 @@ const currentTrace = globalValue('@sleekstack/runtime/current-trace', () =>
 )
 
 /**
- * @internal Wraps a service Layer so its acquire/release land in the devtools buffer with `id`, the owning
+ * @internal Wraps a service Layer so its acquire/release land in the devtools buffer, one event per id (the analyzer's node ids), the owning
  * scope and the fiber. No-op outside a runtime-traced fiber, and the caller wraps only in dev.
  */
-export const traceService = <A, E, R>(id: string, layer: Layer.Layer<A, E, R>): Layer.Layer<A, E, R> =>
+export const traceService = <A, E, R>(ids: readonly string[], layer: Layer.Layer<A, E, R>): Layer.Layer<A, E, R> =>
   Layer.provideMerge(
     Layer.scopedDiscard(
       Effect.acquireRelease(
         Effect.flatMap(Effect.zip(FiberRef.get(currentTrace), Effect.fiberId), ([trace, fiber]) =>
           Effect.sync(() => {
-            if (trace) record(trace.config, 'acquire', id, undefined, { scope: trace.scope, fiber: FiberId.threadName(fiber) })
+            if (trace) for (const id of ids) record(trace.config, 'acquire', id, undefined, { scope: trace.scope, fiber: FiberId.threadName(fiber) })
             return trace
           }),
         ),
         (trace) =>
           Effect.flatMap(Effect.fiberId, (fiber) =>
             Effect.sync(() => {
-              if (trace) record(trace.config, 'release', id, undefined, { scope: trace.scope, fiber: FiberId.threadName(fiber) })
+              if (trace) for (const id of ids) record(trace.config, 'release', id, undefined, { scope: trace.scope, fiber: FiberId.threadName(fiber) })
             }),
           ),
       ),
@@ -233,9 +233,9 @@ export const reportFinalizerFailure = (cause: Cause.Cause<unknown>): void => {
 }
 
 /** Disposes `runtime`, routing a finalizer failure to the finalizer sink instead of an unhandled rejection. */
-const disposeReported = async (config: RuntimeConfig, runtime: ManagedRuntime.ManagedRuntime<any, any>): Promise<void> => {
+const disposeReported = async (config: RuntimeConfig, runtime: ManagedRuntime.ManagedRuntime<any, any>, scope?: string): Promise<void> => {
   const exit = await Effect.runPromiseExit(runtime.disposeEffect)
-  if (Exit.isFailure(exit)) reportFinalizer(config, exit.cause)
+  if (Exit.isFailure(exit)) reportFinalizer(config, exit.cause, scope)
 }
 
 const runtimeFor = (slot: RuntimeSlot, config: RuntimeConfig): ManagedRuntime.ManagedRuntime<any, any> => {
@@ -306,7 +306,7 @@ export async function runEffect<A, E, R>(effect: Effect.Effect<A, E, R>, options
           ? yield* Layer.buildWithScope(options.overrides, scope).pipe(Effect.provide(base))
           : (Context.empty() as Context.Context<any>)
         const request: Context.Context<any> = options.request
-          ? yield* Layer.buildWithScope(options.request, scope).pipe(Effect.provide(Context.merge(base, overrides)))
+          ? yield* Layer.buildWithScope(scopeLabel ? traceService(['request'], options.request) : options.request, scope).pipe(Effect.provide(Context.merge(base, overrides)))
           : (Context.empty() as Context.Context<any>)
         // Later contexts win: overrides shadow request services, which shadow the base.
         const context = Context.merge(Context.merge(base, request), overrides) as Context.Context<R>
@@ -340,8 +340,8 @@ export async function runEffect<A, E, R>(effect: Effect.Effect<A, E, R>, options
     // A failed build is not cached: the next call builds again.
     if (slot.runtime === runtime) slot.runtime = undefined
     const controlFlow = findControlFlow(failure, isControlFlow)
-    if (controlFlow === undefined && !Cause.isInterruptedOnly(failure)) report(config, failure, 'build')
-    await disposeReported(config, runtime)
+    if (controlFlow === undefined && !Cause.isInterruptedOnly(failure)) report(config, failure, 'build', scopeLabel || undefined)
+    await disposeReported(config, runtime, scopeLabel || undefined)
     if (controlFlow !== undefined) throw controlFlow.value
     // Reject exactly as `Effect.runPromise` would.
     await Effect.runPromise(Effect.failCause(failure))
