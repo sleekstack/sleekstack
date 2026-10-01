@@ -8,10 +8,11 @@ export {
   configureRuntime,
   getRuntime,
   isNextControlFlow,
+  reportFinalizerFailure,
   runEffect,
   RuntimeNotConfigured,
-  type LayerRuntimeConfig,
-  type ProvideRuntimeConfig,
+  type ErrorInfo,
+  type ErrorSink,
   type RunEffectOptions,
   type RuntimeConfig,
 } from './runtime'

@@ -104,20 +104,26 @@ describe('runEffect', () => {
     expect(Cause.pretty(sink.causes[0]!)).toMatch(/root release/)
   })
 
-  it('finalizer failures go to onFinalizerError on the provide config, defects to onError', async () => {
-    const finalizers: Cause.Cause<unknown>[] = []
-    const defects = collect()
-    configureRuntime({
-      provide: [],
-      onFinalizerError: (c: Cause.Cause<unknown>) => void finalizers.push(c),
-      onError: defects.onError,
-    } as never)
+  it('one onError sink gets every report with its phase: call defect, finalizer failure, failed build', async () => {
+    const seen: string[] = []
+    configureRuntime({ layer: Layer.empty, onError: (_c, info) => void seen.push(info.phase) })
     const failingRelease = Layer.scoped(Req, Effect.acquireRelease(Effect.succeed('r'), () => Effect.die('fin')))
     await expect(runEffect(Req, { request: failingRelease })).resolves.toBe('r')
-    expect(finalizers).toHaveLength(1)
-    expect(defects.causes).toHaveLength(0)
     await expect(runEffect(Effect.die(new Error('d')))).rejects.toThrow()
-    expect(defects.causes).toHaveLength(1)
+    configureRuntime({ layer: Layer.fail('startup') as never, onError: (_c, info) => void seen.push(info.phase) })
+    await expect(runEffect(Effect.void)).rejects.toBeDefined()
+    expect(seen).toEqual(['finalizer', 'call', 'build'])
+  })
+
+  it('a new runtime is not built until the previous one has finished disposing', async () => {
+    const log: string[] = []
+    const slow = (name: string) =>
+      Layer.scopedDiscard(Effect.acquireRelease(Effect.sync(() => void log.push(`up:${name}`)), () => Effect.promise(() => new Promise<void>((r) => setTimeout(() => (log.push(`down:${name}`), r()), 30)))))
+    configureRuntime({ layer: slow('a') })
+    await runEffect(Effect.void)
+    configureRuntime({ layer: slow('b') })
+    await runEffect(Effect.void)
+    expect(log).toEqual(['up:a', 'down:a', 'up:b'])
   })
 
   it('a call started right before a synchronous reconfigure is still interrupted', async () => {

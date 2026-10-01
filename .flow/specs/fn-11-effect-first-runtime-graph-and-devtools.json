@@ -1,7 +1,7 @@
 {
   "branch_name": "fn-11-effect-first-runtime-graph-and-devtools",
-  "completion_review_status": "needs_work",
-  "completion_reviewed_at": "2026-09-30T16:35:52.243849Z",
+  "completion_review_status": "ship",
+  "completion_reviewed_at": "2026-09-30T16:39:32.104782Z",
   "created_at": "2026-09-29T13:05:08.630334Z",
   "default_impl": null,
   "default_review": null,
@@ -19,7 +19,7 @@
     "fn-11-effect-first-runtime-graph-and-devtools.7": 0
   },
   "next_task": 1,
-  "plan_review_rounds": 1,
+  "plan_review_rounds": 0,
   "plan_review_status": "unknown",
   "plan_reviewed_at": null,
   "review_attempts": [
@@ -842,6 +842,35 @@
       "timestamp": "2026-09-30T16:35:52.235666Z",
       "tool_calls": 20,
       "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "fc8472ee208e645a19ed67a0d95d9b90e75b803a6af7763337a89fc0e4b29a6c",
+      "backend": "codex",
+      "base_sha": "a660ff08d835c92d2da4fff496468e1ec17aad13",
+      "counter_kind": "plan",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "87e1197ec2688c938d790465fb047d265b6ee857",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 5411,
+      "output_sha256": "2725703e165b1f1524d5da1481042b10fe7a16164b54936919a19b9bae27e643",
+      "reservation_id": "01f0c56722a64f0f9d1ffad0dbc3b0bb",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-09-30T16:39:21.495391Z",
+      "verdict": "SHIP"
     }
   ],
   "review_hash_epoch": {
@@ -850,7 +879,8 @@
     "impl:fn-11-effect-first-runtime-graph-and-devtools.4": 1,
     "impl:fn-11-effect-first-runtime-graph-and-devtools.5": 1,
     "impl:fn-11-effect-first-runtime-graph-and-devtools.6": 1,
-    "impl:fn-11-effect-first-runtime-graph-and-devtools.7": 1
+    "impl:fn-11-effect-first-runtime-graph-and-devtools.7": 1,
+    "plan#completion": 1
   },
   "review_pending_rounds": {},
   "review_reservations": {},
@@ -877,5 +907,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-09-30T16:36:23.242752Z"
+  "updated_at": "2026-10-01T09:14:08.587266Z"
 }

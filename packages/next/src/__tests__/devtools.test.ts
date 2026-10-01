@@ -78,4 +78,13 @@ describe('devtools', () => {
     configureRuntime({ layer: Layer.empty })
     await long.catch(() => {})
   })
+
+  it('serves loopback requests only unless allowRemote', async () => {
+    configureRuntime({ layer: Layer.empty })
+    const local = new Request('http://localhost:3000/api/devtools')
+    const lan = new Request('http://192.168.1.5:3000/api/devtools')
+    expect(devtoolsHandler()(local).status).toBe(200)
+    expect(devtoolsHandler()(lan).status).toBe(403)
+    expect(devtoolsHandler({ allowRemote: true })(lan).status).toBe(200)
+  })
 })

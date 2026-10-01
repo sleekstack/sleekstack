@@ -22,6 +22,8 @@ export interface DevtoolsSnapshot {
 export interface DevtoolsOptions {
   /** Returns the analyzer `Report` (`@sleekstack/analyze`); omitted → scopes/errors only. */
   readonly graph?: () => unknown
+  /** Serve requests whose host is not loopback (e.g. a phone on the LAN). Default: loopback only, since errors carry stack traces. */
+  readonly allowRemote?: boolean
 }
 
 /** The current buffer split into scopes (scope/acquire/release) and errors, plus the graph when available. */
@@ -31,8 +33,10 @@ export function devtoolsSnapshot(options: DevtoolsOptions = {}): DevtoolsSnapsho
   return options.graph ? { ...snapshot, graph: options.graph() } : snapshot
 }
 
+const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]', '::1'])
+
 /**
- * A `GET` route handler returning {@link devtoolsSnapshot} as JSON in dev and 404 in production.
+ * A `GET` route handler returning {@link devtoolsSnapshot} as JSON in dev (loopback hosts only unless `allowRemote`; 403 otherwise) and 404 in production.
  *
  * @example
  * ```ts
@@ -42,6 +46,9 @@ export function devtoolsSnapshot(options: DevtoolsOptions = {}): DevtoolsSnapsho
  * ```
  */
 export function devtoolsHandler(options: DevtoolsOptions = {}): { (): Response; (request: Request): Response } {
-  return (_request?: Request) =>
-    devEnabled() ? Response.json(devtoolsSnapshot(options)) : new Response('Not Found', { status: 404 })
+  return (request?: Request) => {
+    if (!devEnabled()) return new Response('Not Found', { status: 404 })
+    if (request && !options.allowRemote && !LOOPBACK.has(new URL(request.url).hostname)) return new Response('Forbidden', { status: 403 })
+    return Response.json(devtoolsSnapshot(options))
+  }
 }
