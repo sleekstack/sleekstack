@@ -9,7 +9,7 @@ A Tag identifies a service. In kit it is `tag<T>(name)` or a named (abstract) cl
 
 ## Layer and Service
 
-A Layer describes how to build a service, including acquisition and cleanup. The Service is the value a Layer builds, which you read with `useService` or receive as an action dependency. Kit's `layer()` lowers to core's `service()` (a Service Definition), which carries the provided Tag, the required Tags and the lifetime.
+A Layer describes how to build a service, including acquisition and cleanup. The Service is the value a Layer builds, which you read with `useService` or receive as an action dependency. Kit's `layer()` lowers to core's `declareLayer()` (a Declared Layer), a plain Effect Layer plus its lifetime; kit also orders a module's `provide` list by the `deps` arrays.
 
 ## Module
 
@@ -35,7 +35,7 @@ When a module lists `exports`, every other Tag it provides is private: only the 
 
 ## Shadowing
 
-The same Tag provided in several places resolves to the most local provider: a module's own entry beats one it imports, and a per-call `provide` beats the runtime graph. That is how you override a service; there is no separate override API. Entries build in position order (deepest import first, root entries last), so the later, more local one wins. Two providers at the same locality are an `AmbiguousProvider`, reported by `sleekstack check`. Shadowing a private Tag from outside is allowed: it creates a new public provider.
+The same Tag provided in several places resolves to the most local provider: a module's own entry beats one it imports, and a per-call `provide` beats the entries already built. That is how you override a service; there is no separate override API. Entries build in position order (deepest import first, root entries last), so the later, more local one wins. Kit sorts each `provide` list by its `deps` arrays, so list order does not matter there; core Layers and kit generator Layers must be listed after the Tags they need, or they fail with `MissingDependency`. Two providers at the same locality are an `AmbiguousProvider`, reported by `sleekstack check`. Shadowing a private Tag from outside is allowed: it creates a new public provider.
 
 <include>../../snippets/concepts/shadowing.ts</include>
 

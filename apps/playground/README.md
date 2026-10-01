@@ -11,7 +11,7 @@ A runnable Vite + React demo of `@sleekstack/core` and `@sleekstack/react`.
 - **Modules:** `module({ name, entries, imports, exports })` in `src/api-example.tsx`.
   `AppModule` imports `HttpModule`, so listing `AppModule` alone provides `HttpClient`.
 - **`<LayerProvider provide={[...]}>`:** a top-level provider owns an app scope plus a
-  component scope; entries can be service definitions, declared or bare Layers, and modules.
+  component scope; entries can be declared or bare Layers, and modules.
 - **`useService(tag)`:** suspends while the scope is acquired, then returns synchronously.
   Wrap consumers (or the provider) in `<Suspense>`; failures reach the nearest error boundary.
 - **Nested providers:** the inner provider's `provide` (here `MockHttpClientLayer`) shadows

@@ -119,7 +119,7 @@ type Gen<R> = Generator<unknown, R, any>
 async function runGen<R>(impl: () => Gen<R>, opts: OperationOptions): Promise<ActionResult<Awaited<R>>> {
   // `yield* Tag` reads the request scope's public Context on demand. Effect's own miss is an
   // untyped "Service not found: <key>" defect; when that key is really absent from the scope it is
-  // mapped to MissingDependency / PrivateDependency. Build-time isolation is the analyzer's job (fn-9).
+  // mapped to MissingDependency. Build-time isolation is the analyzer's job (fn-9).
   const make = (scope: Context.Context<any>) => {
     const inner = Effect.gen(() => impl() as never) as Effect.Effect<R, unknown, never>
     return Effect.mapInputContext(inner, () => scope as Context.Context<never>).pipe(
@@ -179,7 +179,7 @@ export function defineQuery<A extends readonly unknown[], R>(impl: (...args: A) 
  * one-shot form of {@link defineEffect}, for a literal `'use server'` export that closes over its own arguments.
  *
  * @throws {@link SleekStackError} with code `DuplicateTag` when `opts.provide` holds two Tags with one key.
- * @throws {@link SleekStackError} with code `MissingDependency` or `PrivateDependency` when a dep is not visible.
+ * @throws {@link SleekStackError} with code `MissingDependency` when a dep is not provided.
  * @throws {@link SleekStackError} with code `HandlerFailed` when the body throws (other than {@link fail}).
  * @throws {@link SleekStackError} with code `LayerFailed` when a request-scope Layer fails to build, or `Unknown` when the runtime is not configured.
  */

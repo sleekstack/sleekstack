@@ -29,7 +29,7 @@ export type SetAtom<T> = (value: T | ((prev: T) => T)) => void
  *
  * @param atom - The atom to read.
  * @returns Its value.
- * @throws {@link SleekStackError} with code `MissingDependency` or `PrivateDependency` when a dep is not visible,
+ * @throws {@link SleekStackError} with code `MissingDependency` when a dep is not provided,
  *   `AtomCycle` when atoms read each other in a cycle, and `Unknown` when `fn` throws or rejects, outside a
  *   `LayerProvider`, or during a server render.
  *

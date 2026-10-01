@@ -9,7 +9,7 @@ In kit, every failure is a `SleekStackError` with a `code`, a `message` and `det
 
 ## Graph errors
 
-Reported at build time by `sleekstack check` (with file:line). At runtime, per-call `provide` sets and nested providers still throw `DuplicateTag`, `AmbiguousProvider` and `DependencyCycle`, and resolving an unprovided or private Tag fails with `MissingDependency` / `PrivateDependency`.
+Reported at build time by `sleekstack check` (with file:line). The runtime keeps no graph: it builds in position order and only `DuplicateTag` (a kit check) and `MissingDependency` (a Tag not built yet or never provided) are thrown at run time. Privacy, ambiguity, cycles and captive dependencies are build-time only.
 
 | Code | Triggered when |
 | --- | --- |
@@ -20,7 +20,7 @@ Reported at build time by `sleekstack check` (with file:line). At runtime, per-c
 | `DuplicateModule` | Two distinct modules share one name. |
 | `InvalidModule` | A module config is malformed: an empty name, a `provide`/`entries` item that is not a Layer, or malformed `imports`/`exports`. Thrown by `module()` itself. |
 | `CaptiveDependency` | A service depends on one whose lifetime it may not capture, for example `app` on `request`. |
-| `PrivateDependency` | Something outside a module requires a Tag the module does not export. Also thrown by `useService` and action deps. |
+| `PrivateDependency` | Something outside a module requires a Tag the module does not export. Build-time only: the runtime does not enforce it. |
 
 ## Kit checks
 
@@ -43,4 +43,4 @@ Reported at build time by `sleekstack check` (with file:line). At runtime, per-c
 ## Effect-native adapters
 
 - `@sleekstack/next`: `runEffect` called before `configureRuntime` rejects with `RuntimeNotConfigured`. A failure or defect rejects as `Effect.runPromise` does; defects, finalizer failures and failed layer builds reach `onError(cause, { phase })`.
-- `@sleekstack/react`: `useService` with no provider, or an unprovided Tag, throws a plain `Error`; a private Tag throws `PrivateDependency`; a failed scope build is rethrown from `useService` to the nearest error boundary.
+- `@sleekstack/react`: `useService` with no provider, or an unprovided Tag, throws a plain `Error`; a failed scope build is rethrown from `useService` to the nearest error boundary.

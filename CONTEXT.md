@@ -15,7 +15,7 @@ An Effect `Layer` that describes how to construct one or more services, includin
 _Avoid_: Provider, factory, ServiceProvider
 
 **Service**:
-The resolved runtime value obtained by providing a Tag to `useService()`. Distinct from the Tag (the identifier), the Layer (the constructor), and the Service Definition (the helper that carries the constructor's dependency metadata).
+The resolved runtime value obtained by providing a Tag to `useService()`. Distinct from the Tag (the identifier), the Layer (the constructor), and the Declared Layer (a Layer plus its lifetime).
 _Avoid_: Instance, dependency, singleton
 
 **Declared Layer**:
@@ -27,7 +27,7 @@ One of `app`, `request`, or `component` — how long a constructed service lives
 _Avoid_: Scope kind, duration, lifecycle tier
 
 **Module**:
-A named group of entries — declared Layers or bare Layers — with imports (other Modules, pulled in transitively) and exports. Exports are enforced: when `exports` is given, every other Tag the Module provides is private and may be required only by the Module's own entries — importers, root entries, `useService`, action/query deps, per-call `provide` entries and child scopes get `PrivateDependency`. Omitted `exports` means all public. Shadowing a private Tag from outside provides a new public one (ADR 0006). The primary architectural unit in SleekStack. Created with `module()`.
+A named group of entries — declared Layers or bare Layers — with imports (other Modules, pulled in transitively) and exports. Exports are enforced: when `exports` is given, every other Tag the Module provides is private and may be required only by the Module's own entries — importers, root entries, `useService`, action/query deps, per-call `provide` entries and child scopes get `PrivateDependency` from the Analyzer (the runtime does not enforce it). Omitted `exports` means all public. Shadowing a private Tag from outside provides a new public one (ADR 0006). The primary architectural unit in SleekStack. Created with `module()`.
 _Avoid_: Package, bundle, plugin, feature
 
 **Graph**:
@@ -65,7 +65,7 @@ _Avoid_: Handler, deps array
 _Avoid_: Linter, compiler plugin
 
 **Position Order**:
-Core's construction order for a scope: entries flattened deepest import first, then importers, then root entries; each builds over what was built before and a later one overrides an earlier one. Nothing is validated; a Layer that needs a Tag not built yet fails with `MissingDependency`.
+Core's construction order for a scope: entries flattened deepest import first, then importers, then root entries; each builds over what was built before and a later one overrides an earlier one. Nothing is validated; a Layer that needs a Tag not built yet fails with `MissingDependency`. Kit sorts each `provide` list by its `deps` arrays first, so list order only matters for core Layers and kit generator Layers (their yields are not declared).
 _Avoid_: Resolution Plan, Graph, snapshot
 
 **SleekStackError**:
@@ -83,7 +83,7 @@ An Effect `Scope` managed internally by a LayerProvider. Finalizes all acquired 
 _Avoid_: Lifecycle, container, context
 
 **Shadowing**:
-The mechanism by which a Layer or Module in a `provide` array overrides a transitive dependency introduced by a Module's `imports`. No separate override API exists — shadowing is implicit when the same Tag is satisfied by multiple entries. It is per Tag: a local entry can shadow one output of a multi-Tag declared Layer, and `AmbiguousProvider` fires only when two providers have equal precedence.
+The mechanism by which a Layer or Module in a `provide` array overrides a transitive dependency introduced by a Module's `imports`. No separate override API exists — shadowing is implicit when the same Tag is satisfied by multiple entries. It is per Tag: a local entry can shadow one output of a multi-Tag declared Layer, and the Analyzer reports `AmbiguousProvider` only when two providers have equal precedence. At run time the later entry in Position Order wins.
 _Avoid_: Overriding, mocking, replacing, substituting
 
 **Island**:

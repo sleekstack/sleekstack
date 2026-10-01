@@ -53,7 +53,6 @@ function entryFor(state: ProviderState, tag: Context.Tag<any, any>): CacheEntry 
  * @returns The service instance.
  * @throws `Error` when there is no `LayerProvider` above.
  * @throws `MissingDependency` when the Tag is not provided.
- * @throws `PrivateDependency` when the Tag is private to a module.
  * @throws The scope's build failure, to the nearest error boundary.
  *
  * @example

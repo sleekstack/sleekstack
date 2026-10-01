@@ -73,7 +73,7 @@ const Name = () => <span>{String(useAtomValue(userName))}</span>             // 
 const Next = () => { const [id, set] = useAtom(userId); return <button onClick={() => set(id + 1)}>next</button> }
 ```
 
-- Readers suspend until the first value; failures reach the error boundary as `SleekStackError` (`MissingDependency`, `PrivateDependency`, `AtomCycle`, or `Unknown` for a throw/rejection in `fn`).
+- Readers suspend until the first value; failures reach the error boundary as `SleekStackError` (`MissingDependency`, `AtomCycle`, or `Unknown` for a throw/rejection in `fn`).
 - `useAtomSet` accepts a value or an updater `(prev) => next`. Hooks are client only.
 
 ## `@sleekstack/kit/next`
