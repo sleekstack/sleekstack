@@ -6,6 +6,9 @@
  * declarations read by `extract.ts`, never from executing app code.
  */
 
+/** What made a root: `configureRuntime`, a runEffect `request` / `overrides` Layer, or a lenient opaque layer. */
+export type RootKind = 'app' | 'request' | 'overrides' | 'opaque'
+
 export type Lifetime = 'app' | 'request' | 'component'
 
 export interface Location {
@@ -97,6 +100,12 @@ export interface Report {
   readonly errors: readonly AnalyzeError[]
   /** Unreadable-declaration errors outside every module (emitted siblings, atoms, a bare module() call). */
   readonly extraction: readonly AnalyzeError[]
-  /** One root per `configureRuntime` call (outside test files, or only in `entries` when given), validated independently: its errors are the unreadable declarations in the modules it reaches plus graph validation. */
-  readonly runtimes: readonly (Location & { readonly graph: Graph; readonly errors: readonly AnalyzeError[] })[]
+  /**
+   * App roots first: one per `configureRuntime` call (`kind: 'app'`). Then one per Layer-valued branch of a
+   * `runEffect({ request, overrides })` option (`'request'` / `'overrides'`, its graph overlaid on an app root),
+   * or `'opaque'` when `lenient` downgraded its unresolvable layer.
+   * Calls count outside test files, or only in `entries` when given. Each root is validated independently: its
+   * errors are the unreadable declarations it reaches plus graph validation.
+   */
+  readonly runtimes: readonly (Location & { readonly kind: RootKind; readonly graph: Graph; readonly errors: readonly AnalyzeError[] })[]
 }

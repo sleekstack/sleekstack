@@ -85,6 +85,28 @@ describe('graph error fixtures', () => {
     expect(r.runtimes.find((x) => x.file === 'bad.ts')!.errors.map((e) => e.code)).toEqual(['Computed'])
   })
 
+  it('runEffect request/overrides layers are roots over the app graph; non-literal options fail closed', () => {
+    expect(sorted(located('request-roots'))).toEqual(expected('request-roots'))
+    const r = analyze({ project: path.join(dir('request-roots'), 'tsconfig.json') })
+    const roots = r.runtimes.map((x) => [x.kind, x.graph.root, x.line, x.errors.map((e) => e.code)])
+    expect(roots).toEqual([
+      ['app', 'runtime.ts:5', 5, []],
+      ['request', 'ReqLive', 15, []],
+      ['request', 'BadReqLive', 16, ['MissingDependency']],
+      ['overrides', 'AppMock', 17, []],
+      ['overrides', 'ALive', 17, []],
+      ['overrides', 'ALive', 18, []],
+      ['request', 'Untyped', 21, ['Computed']],
+    ])
+    // Edges into the app graph; an overrides layer shadows the app's Tag.
+    expect(r.runtimes[1]!.graph.edges).toEqual([{ from: 'Req', to: 'App', tag: 'App' }])
+    expect(r.runtimes[3]!.graph.shadowing).toEqual([{ tag: 'App', winner: 'App', shadowed: ['App@runtime.ts:5'] }])
+    expect(r.extraction.map((e) => e.code)).toEqual(['NonLiteralOptions', 'NonLiteralOptions'])
+    // Lenient: the unresolvable layer is an opaque root with its file:line, not an error.
+    const lenient = analyze({ project: path.join(dir('request-roots'), 'tsconfig.json'), lenient: true }).runtimes.at(-1)!
+    expect([lenient.kind, lenient.file, lenient.line, lenient.errors, lenient.graph.nodes.filter((n) => n.opaque).length]).toEqual(['opaque', 'runtime.ts', 21, [], 1])
+  })
+
   it('clean projects yield no errors', () => {
     expect(located('kit-app')).toEqual([])
     expect(located('core-app')).toEqual([])

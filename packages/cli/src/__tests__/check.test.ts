@@ -42,8 +42,27 @@ describe('sleekstack check', () => {
   it('showcase-kit: valid JSON only on stdout, exit 0', () => {
     const r = run(path.join(__dirname, '../../../../apps/showcase-kit'), '--json', '--entry', 'src/server/runtime.server.ts')
     expect(r.code).toBe(0)
-    expect(JSON.parse(r.out).ok).toBe(true)
+    const json = JSON.parse(r.out)
+    expect(json.ok).toBe(true)
+    // Kit action bodies pass no request layer of their own: no extra roots.
+    expect(json.roots.map((x: { kind: string }) => x.kind)).toEqual(['app'])
   }, 30_000)
+
+  it('showcase: RequestLive and DemoLive are request/overrides roots over the app, exit 0', () => {
+    const r = run(path.join(__dirname, '../../../../apps/showcase'), '--entry', 'src/server/runtime.server.ts')
+    expect(r.code).toBe(0)
+    expect(r.err).toMatch(/ok {3}\[app\] [\s\S]*ok {3}\[request\] RequestLive [\s\S]*ok {3}\[overrides\] DemoLive /)
+    expect(r.err.match(/\[(request|overrides)\]/g)).toEqual(['[request]', '[overrides]'])
+  }, 30_000)
+
+  it('an unresolvable runEffect layer fails by default; --lenient makes it an opaque root, exit 0', () => {
+    expect(run(fixture('lenient'), '--json').code).toBe(1)
+    const r = run(fixture('lenient'), '--json', '--lenient')
+    expect(r.code).toBe(0)
+    const json = JSON.parse(r.out)
+    expect(json.ok).toBe(true)
+    expect(json.roots.map((x: { kind: string; file: string; line: number }) => [x.kind, x.file, x.line])).toEqual([['app', 'runtime.ts', 6], ['opaque', 'runtime.ts', 9]])
+  })
 
   it.each([
     [['--version'], 0, /^0\.0\.1/],

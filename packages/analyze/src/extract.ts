@@ -12,6 +12,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import ts from 'typescript'
 import { validate, validateAction } from './validate'
+import { checkRoot, RUNTIME_RUN_CALLS, runEffectRoots, type ExtraRoot } from './runtimeRoots'
 import type { ActionDecl, AnalyzeError, Atoms, Edge, Graph, GraphNode, Lifetime, Location, ModuleDecl, ProviderDecl, Report, Shadowing } from './model'
 
 /** Which library function a call resolves to, e.g. `kit/layer#layer`, `effect/Context#GenericTag`. */
@@ -79,7 +80,7 @@ const bodyReturns = (fn: ts.FunctionLikeDeclaration): ts.Expression[] => {
   return out
 }
 
-export function extract(project: string, entries?: readonly string[]): Report {
+export function extract(project: string, entries?: readonly string[], lenient = false): Report {
   const configPath = path.resolve(project)
   const root = path.dirname(configPath)
   const read = ts.readConfigFile(configPath, ts.sys.readFile)
@@ -502,7 +503,9 @@ export function extract(project: string, entries?: readonly string[]): Report {
   const atomNodes: Atoms['nodes'][number][] = []
   const atomEdges: Edge[] = []
   const runtimes: ModuleDecl[] = []
+  const extraRoots: ExtraRoot[] = []
   const entryFiles = entries && new Set(entries.map((f) => path.resolve(f)))
+  const isRootFile = (sf: ts.SourceFile) => (entryFiles ? entryFiles.has(path.resolve(sf.fileName)) : !TEST_FILE.test(path.relative(root, sf.fileName)))
   const plain = new Map<string, ProviderDecl>()
   /** Every `Context.GenericTag<S>('K')` declaration in the program, by its identifier type `S`. */
   let genericIndex: Map<ts.Type, string[]> | undefined
@@ -677,8 +680,15 @@ export function extract(project: string, entries?: readonly string[]): Report {
       // A module() inside a function is evaluated where it is called (with its bindings), never bare.
       if (id && MODULE_CALLS.has(id) && !ts.findAncestor(n, ts.isFunctionLike)) {
         try { found.push(moduleOf(n)) } catch (err) { report(err) }
-      } else if (id && RUNTIME_CALLS.has(id) && (entryFiles ? entryFiles.has(path.resolve(n.getSourceFile().fileName)) : !TEST_FILE.test(path.relative(root, n.getSourceFile().fileName)))) {
+      } else if (id && RUNTIME_CALLS.has(id) && isRootFile(n.getSourceFile())) {
         try { runtimeOf(n, id === 'next/runtime#configureRuntime') } catch (err) { report(err) }
+      } else if (id && RUNTIME_RUN_CALLS.has(id) && isRootFile(n.getSourceFile())) {
+        try {
+          extraRoots.push(...runEffectRoots(n, {
+            loc, text, unwrap, fail, plainLayer, report, lenient,
+            isUnreadable: (e) => e instanceof Unreadable || e instanceof Unbound,
+          }))
+        } catch (err) { report(err) }
       } else if (id && ATOM_CALLS.has(id) && n.arguments[0] && (id === 'kit/atom#family' || n.arguments.length > 1 || checker.getTypeAtLocation(n.arguments[0]).getCallSignatures().length > 0)) {
         try {
           const requires = tagList(n.arguments[1])
@@ -727,11 +737,17 @@ export function extract(project: string, entries?: readonly string[]): Report {
     errors.push(e)
     extraction.push(e) // owned by no runtime: fails the whole check
   }
-  const runtimeReports = runtimes.map((m, i) => {
+  const runtimeReports: Report['runtimes'][number][] = runtimes.map((m, i) => {
     const actionErrors = actions.filter((a) => (runtimes.length === 1 && !claimed.has(a)) || reaches[i]!.has(a.file)).flatMap((a) => validateAction(m, a))
     errors.push(...actionErrors)
-    return { ...m.loc, graph: graphOf(m), errors: [...[...resolve(m).visits.keys()].flatMap((v) => owned.get(v) ?? []), ...validate(m), ...actionErrors] }
+    return { ...m.loc, kind: 'app', graph: graphOf(m), errors: [...[...resolve(m).visits.keys()].flatMap((v) => owned.get(v) ?? []), ...validate(m), ...actionErrors] }
   })
+  // App roots first; each runEffect root after them, checked over the app graph.
+  for (const { kind, module: m } of extraRoots) {
+    const { graph, errors: rootErrors } = checkRoot(m, runtimes)
+    errors.push(...rootErrors)
+    runtimeReports.push({ ...m.loc, kind, graph, errors: [...(owned.get(m) ?? []), ...rootErrors] })
+  }
   return {
     graphs: roots.map(graphOf),
     atoms: { nodes: atomNodes, edges: atomEdges },
