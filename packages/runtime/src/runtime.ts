@@ -48,7 +48,7 @@ interface RuntimeSlot {
   nextScopeId: number
 }
 
-/** One devtools buffer entry: a per-call scope, the app runtime's acquire/release, or a reported error. */
+/** @internal One devtools buffer entry: a per-call scope, the app runtime's acquire/release, or a reported error. */
 export interface DevEvent {
   readonly at: number
   readonly kind: 'scope-open' | 'scope-close' | 'acquire' | 'release' | 'error'
@@ -162,8 +162,12 @@ const neverControlFlow: ControlFlowClassifier = () => false
 const classifierFor = (config: RuntimeConfig, fallback: ControlFlowClassifier | undefined): ControlFlowClassifier =>
   typeof config.isControlFlow === 'function' ? config.isControlFlow : (fallback ?? neverControlFlow)
 
-const findControlFlow = (cause: Cause.Cause<unknown>, isControlFlow: ControlFlowClassifier): unknown =>
-  [...Cause.defects(cause), ...Cause.failures(cause)].find(isControlFlow)
+/** The first classified value, boxed so a classified `undefined` is distinguishable from no match. */
+const findControlFlow = (cause: Cause.Cause<unknown>, isControlFlow: ControlFlowClassifier): { readonly value: unknown } | undefined => {
+  const values = [...Cause.defects(cause), ...Cause.failures(cause)]
+  const i = values.findIndex(isControlFlow)
+  return i === -1 ? undefined : { value: values[i] }
+}
 
 const callSink = (config: RuntimeConfig, cause: Cause.Cause<unknown>, phase: ErrorInfo['phase']): void => {
   if (devEnabled()) record(config, 'error', Cause.isDie(cause) ? 'defect' : 'failure', Cause.pretty(cause))
@@ -297,6 +301,7 @@ export async function runEffect<A, E, R>(effect: Effect.Effect<A, E, R>, options
     const controlFlow = findControlFlow(failure, isControlFlow)
     if (controlFlow === undefined && !Cause.isInterruptedOnly(failure)) report(config, failure, 'build')
     await disposeReported(config, runtime)
+    if (controlFlow !== undefined) throw controlFlow.value
     // Reject exactly as `Effect.runPromise` would.
     await Effect.runPromise(Effect.failCause(failure))
   }
@@ -305,7 +310,7 @@ export async function runEffect<A, E, R>(effect: Effect.Effect<A, E, R>, options
   if (Exit.isSuccess(exit)) return exit.value
   const cause = exit.cause
   const controlFlow = findControlFlow(cause, isControlFlow)
-  if (controlFlow !== undefined) throw controlFlow
+  if (controlFlow !== undefined) throw controlFlow.value
   if (!Cause.isInterruptedOnly(cause) && Cause.isDie(cause)) report(config, cause)
   throw Runtime.makeFiberFailure(cause)
 }

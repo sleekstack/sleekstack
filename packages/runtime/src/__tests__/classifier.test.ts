@@ -24,3 +24,20 @@ describe('isControlFlow', () => {
     expect(reported).toHaveLength(1)
   })
 })
+
+describe('isControlFlow edges', () => {
+  it('rethrows a classified value from a failed app-layer build untouched, unreported', async () => {
+    const reported: unknown[] = []
+    configureRuntime({ id: 'build', layer: Layer.effectDiscard(Effect.die(custom)), onError: (c) => void reported.push(c), isControlFlow: (v) => v === custom })
+    await expect(runEffect(Effect.void)).rejects.toBe(custom)
+    expect(reported).toHaveLength(0)
+  })
+
+  it('a classified undefined is control flow, not a defect', async () => {
+    const reported: unknown[] = []
+    configureRuntime({ id: 'undef', layer: Layer.empty, onError: (c) => void reported.push(c), isControlFlow: (v) => v === undefined })
+    await expect(runEffect(Effect.die(undefined))).rejects.toBeUndefined()
+    await expect(runEffect(Effect.fail(undefined))).rejects.toBeUndefined()
+    expect(reported).toHaveLength(0)
+  })
+})
