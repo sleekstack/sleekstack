@@ -22,9 +22,8 @@ Record the decision and update every place that attributes action/query to `@sle
 - [ ] apps/docs builds
 
 ## Done summary
-TBD
-
+ADR 0012, docs (nextjs/errors/index), READMEs, CONTEXT (Devtools term), migration note, effect snippet on runEffect; api coverage test updated.
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 747ec15
+- Tests: pnpm --filter docs test, pnpm --filter docs build
 - PRs:

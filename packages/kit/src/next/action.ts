@@ -3,16 +3,17 @@
  *
  * `effect`/`query` run once, immediately (`defineEffect`/`defineQuery` are the reusable, directly callable forms): open a request scope Shadowed by
  * `opts.provide`, run the generator (resolving each `yield*` Tag on demand, plus `opts.scope` up front), close the scope, settle. Next's `'use server'` transform only
- * recognizes a literal `async function` export, so call them from inside one. next's internal
- * `onExit` hook (ADR 0009) hands back the Exit, mapped once to an ActionResult or a rejection.
+ * recognizes a literal `async function` export, so call them from inside one. The call runs on next's
+ * `runEffect` and its Exit is mapped once to an ActionResult or a rejection.
  */
 
 import { resolutionFailure, resolveTagEffect } from '@sleekstack/core'
-import { action as nextAction, query as nextQuery } from '@sleekstack/next'
-import { Cause, Context, Effect, Exit } from 'effect'
+import { isNextControlFlow, runEffect } from '@sleekstack/next'
+import { Cause, Context, Effect, Exit, Runtime } from 'effect'
 import { normalize, SleekStackError } from '../errors'
 import type { Layer } from '../layer'
 import { unwrap, validateProvide, type Module } from '../module'
+import { requestLayer } from './runtime'
 import { coreTag, type AnyTag } from '../tag'
 
 /** What an {@link effect} resolves to: `{ ok: true, data }`, or `{ ok: false, error }` after {@link fail}. */
@@ -57,9 +58,25 @@ export function fail(message: string): never {
   throw new Failure(message)
 }
 
+const isStreamShaped = (value: unknown): boolean =>
+  (typeof ReadableStream !== 'undefined' && value instanceof ReadableStream) ||
+  (typeof value === 'object' && value !== null && typeof (value as { [Symbol.asyncIterator]?: unknown })[Symbol.asyncIterator] === 'function')
+
+const streamingError = () =>
+  new Error(
+    '[@sleekstack/kit] action/query returned a ReadableStream or async iterable; streaming results are not supported because the request scope closes before the stream is consumed.',
+  )
+
+/** The body's non-interrupt failures become what the settle step expects: Failure, Next control flow (a defect) or HandlerFailed. */
+const classify = (cause: Cause.Cause<unknown>): Effect.Effect<never, unknown> => {
+  if (Cause.isInterruptedOnly(cause)) return Effect.failCause(cause)
+  const e = Cause.squash(cause)
+  if (isNextControlFlow(e)) return Effect.die(e)
+  return Effect.fail(e instanceof Failure ? e : normalize(e, 'HandlerFailed'))
+}
+
 async function run(
-  op: typeof nextAction,
-  factory: (context: Context.Context<any>) => unknown,
+  make: (context: Context.Context<any>) => Effect.Effect<unknown, unknown, unknown>,
   opts: OperationOptions,
 ): Promise<ActionResult<unknown>> {
   const onExit = (exit: Exit.Exit<unknown, unknown>): ActionResult<unknown> => {
@@ -72,54 +89,47 @@ async function run(
     Effect.gen(function* () {
       yield* Effect.all((opts.scope ?? []).map((t) => resolveTagEffect(coreTag(t), 'action'))).pipe(Effect.mapError((e) => normalize(e)))
       const context = (yield* Effect.context<never>()) as Context.Context<any>
-      return yield* Effect.tryPromise({
-        try: async () => factory(context),
-        catch: (e) => (e instanceof Failure ? e : normalize(e, 'HandlerFailed')),
-      })
+      // The body runs on the managed runtime's fiber: its logger, tracer and interruption all apply.
+      const value = yield* (make(context) as Effect.Effect<unknown, unknown, never>).pipe(Effect.catchAllCause(classify))
+      return isStreamShaped(value) ? yield* Effect.fail(streamingError()) : value
     })
   // Not normalized: Next's dynamic-rendering bailouts (e.g. from `cookies()`) must reach Next as thrown.
   const raw = typeof opts.provide === 'function' ? await opts.provide() : (opts.provide ?? [])
   let provide: never
   try {
     validateProvide(raw)
-    // next types `provide` as Entry[], but its request scope (core `child`) accepts modules too;
-    // passing core modules keeps their privacy and local-over-import Shadowing.
+    // Core modules go to the request scope unflattened: they keep privacy and local-over-import Shadowing.
     provide = unwrap(raw) as never
   } catch (e) {
     throw normalize(e)
   }
-  const invoke = op({ provide, onExit }, fn) as unknown as () => Promise<ActionResult<unknown>>
+  let exit: Exit.Exit<unknown, unknown>
   try {
-    return await invoke()
+    exit = Exit.succeed(await runEffect(fn(), { request: requestLayer(provide) }))
   } catch (e) {
-    throw normalize(e)
+    if (isNextControlFlow(e)) throw e
+    if (!Runtime.isFiberFailure(e)) throw normalize(e)
+    exit = Exit.failCause(e[Runtime.FiberFailureCauseId])
   }
+  return onExit(exit)
 }
 
 type Gen<R> = Generator<unknown, R, any>
 
-async function runGen<R>(op: typeof nextAction, impl: () => Gen<R>, opts: OperationOptions): Promise<ActionResult<Awaited<R>>> {
+async function runGen<R>(impl: () => Gen<R>, opts: OperationOptions): Promise<ActionResult<Awaited<R>>> {
   // `yield* Tag` reads the request scope's public Context on demand. Effect's own miss is an
-  // untyped "Service not found" defect, so the last missed key is remembered and mapped to
-  // MissingDependency / PrivateDependency. Build-time isolation is the analyzer's job (fn-9).
-  const factory = async (scope: Context.Context<any>) => {
-    let missed: string | undefined
-    const map = new (class extends Map<string, unknown> {
-      override has(key: string) {
-        const hit = super.has(key)
-        if (!hit) missed = key
-        return hit
-      }
-    })(scope.unsafeMap)
-    const context = Context.unsafeMake(map) as Context.Context<never>
+  // untyped "Service not found: <key>" defect; when that key is really absent from the scope it is
+  // mapped to MissingDependency / PrivateDependency. Build-time isolation is the analyzer's job (fn-9).
+  const make = (scope: Context.Context<any>) => {
     const inner = Effect.gen(() => impl() as never) as Effect.Effect<R, unknown, never>
-    const exit = await Effect.runPromiseExit(Effect.mapInputContext(inner, () => context))
-    if (Exit.isSuccess(exit)) return exit.value
-    const e = Cause.squash(exit.cause)
-    if (missed !== undefined && e instanceof Error && e.message.startsWith('Service not found')) throw resolutionFailure(scope, missed, 'action')
-    throw e
+    return Effect.mapInputContext(inner, () => scope as Context.Context<never>).pipe(
+      Effect.catchAllDefect((e) => {
+        const key = e instanceof Error ? /^Service not found: (.+?)(?: \(defined at|$)/.exec(e.message)?.[1] : undefined
+        return key !== undefined && !scope.unsafeMap.has(key) ? Effect.fail(resolutionFailure(scope, key, 'action')) : Effect.die(e)
+      }),
+    )
   }
-  return (await run(op, factory, opts)) as ActionResult<Awaited<R>>
+  return (await run(make, opts)) as ActionResult<Awaited<R>>
 }
 
 const unwrapQuery = async <R>(r: Promise<ActionResult<R>>): Promise<R> => {
@@ -156,12 +166,12 @@ export function defineEffect<A extends readonly unknown[], R>(
   impl: (...args: A) => Gen<R>,
   opts: OperationOptions = {},
 ): (...args: A) => Promise<ActionResult<Awaited<R>>> {
-  return (...args: A) => runGen(nextAction, () => impl(...args), opts)
+  return (...args: A) => runGen(() => impl(...args), opts)
 }
 
 /** Like {@link defineEffect}, for a read: the call resolves the plain value and a {@link fail} rejects with its message. */
 export function defineQuery<A extends readonly unknown[], R>(impl: (...args: A) => Gen<R>, opts: OperationOptions = {}): (...args: A) => Promise<Awaited<R>> {
-  return (...args: A) => unwrapQuery(runGen(nextQuery, () => impl(...args), opts))
+  return (...args: A) => unwrapQuery(runGen(() => impl(...args), opts))
 }
 
 /**
@@ -174,10 +184,10 @@ export function defineQuery<A extends readonly unknown[], R>(impl: (...args: A) 
  * @throws {@link SleekStackError} with code `LayerFailed` when a request-scope Layer fails to build, or `Unknown` when the runtime is not configured.
  */
 export function effect<R>(impl: () => Gen<R>, opts: OperationOptions = {}): Promise<ActionResult<Awaited<R>>> {
-  return runGen(nextAction, impl, opts)
+  return runGen(impl, opts)
 }
 
 /** Runs a generator now like {@link effect}, but resolves the plain value; a {@link fail} rejects with its message. */
 export function query<R>(impl: () => Gen<R>, opts: OperationOptions = {}): Promise<Awaited<R>> {
-  return unwrapQuery(runGen(nextQuery, impl, opts))
+  return unwrapQuery(runGen(impl, opts))
 }

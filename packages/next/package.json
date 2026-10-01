@@ -4,6 +4,16 @@
   "private": true,
   "main": "src/index.ts",
   "types": "src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./devtools": {
+      "types": "./src/devtools.ts",
+      "default": "./src/devtools.ts"
+    }
+  },
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc --noEmit"

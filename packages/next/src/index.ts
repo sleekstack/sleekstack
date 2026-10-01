@@ -1,8 +1,18 @@
 /**
  * packages/next/src/index.ts
  *
- * @sleekstack/next public barrel (R8): the Next.js adapter over the core scope runtime.
+ * @sleekstack/next public barrel: the Next.js adapter's Effect runtime.
  */
 
-export { configureRuntime, RuntimeNotConfigured, type RuntimeConfig } from './runtime'
-export { action, query, type Operation, type OperationOptions } from './action'
+export {
+  configureRuntime,
+  getRuntime,
+  isNextControlFlow,
+  reportFinalizerFailure,
+  runEffect,
+  RuntimeNotConfigured,
+  type ErrorInfo,
+  type ErrorSink,
+  type RunEffectOptions,
+  type RuntimeConfig,
+} from './runtime'

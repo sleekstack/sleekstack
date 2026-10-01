@@ -20,7 +20,7 @@ export interface AnalyzeError extends Location {
   readonly message: string
 }
 
-/** A `layer()` / kit `effect()` / `service()` / `declareLayer()` / bare Layer, as read from source. */
+/** A `layer()` / kit `effect()` / `service()` / `declareLayer()` / bare Layer / plain-Layer leaf, as read from source. */
 export interface ProviderDecl {
   readonly provides: readonly string[]
   readonly requires: readonly string[]

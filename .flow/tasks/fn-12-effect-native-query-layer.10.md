@@ -1,0 +1,37 @@
+---
+satisfies: [R11]
+---
+# fn-12-effect-native-query-layer.10 Showcase adoption: queries and mutations replace router.refresh
+
+Touches: [apps/showcase/**, apps/showcase-kit/**]
+
+## Description
+Both showcases read through query hooks with server prefetch and mutate through `useMutation` (spec: RSC vs cache single source of truth).
+
+**Size:** M
+**Files:** apps/showcase/{app/page.tsx,src/client/ProjectView.tsx,src/client/TaskDetail.tsx,src/client/DemoToggle.tsx,src/__tests__/board.test.tsx,e2e/smoke.spec.ts}, apps/showcase-kit equivalents
+**Touches:** [apps/showcase/**, apps/showcase-kit/**]
+
+### Approach
+- The query cache owns client reads; RSC only prefetches/hydrates; remove `router.refresh()` from mutation paths (`apps/showcase/src/client/ProjectView.tsx:39,54`, `TaskDetail.tsx:30,41,70,81`, showcase-kit `ProjectView.tsx:51`, `TaskDetail.tsx:39,79`). Mutations use `Draft.toDto` Effects and optimistic task moves with rollback.
+- `select` uses `TaskModel.fromDto` (Effect with `ProjectNames`); DemoToggle reset/invalidate semantics documented.
+- `board.test.tsx` and e2e smoke are rewritten for the new flow.
+
+### Investigation targets
+**Required**:
+- `apps/showcase/src/client/ProjectView.tsx`, `TaskDetail.tsx`, `app/page.tsx`
+- `apps/showcase/src/models/{contracts,task,task.server}.ts`
+- `apps/showcase/src/__tests__/board.test.tsx`
+
+## Acceptance
+- [ ] No `router.refresh()` remains in mutation paths of either showcase
+- [ ] Create/move/comment update the board via cache with optimistic rollback on the simulated failure
+- [ ] Showcase and showcase-kit unit tests, typecheck and e2e smoke pass
+
+## Done summary
+TBD
+
+## Evidence
+- Commits:
+- Tests:
+- PRs:

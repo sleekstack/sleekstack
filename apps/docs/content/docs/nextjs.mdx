@@ -1,15 +1,15 @@
 ---
 title: Next.js
-description: Server Actions and queries that run in a request scope.
+description: Runtime management for Effect in Next.js, and Server Actions and queries in kit.
 ---
 
-The Next.js adapter holds one app runtime per process and opens a request scope for every `action` or `query` call. Request-lifetime services are built in that scope and cleaned up when the call ends, so no state leaks between requests.
+`@sleekstack/next` holds one Effect runtime per process and runs Effects on it (`runEffect`); the action/query sugar (`defineEffect`, `effect`, `defineQuery`, `query`) lives in `@sleekstack/kit/next`, which is built on `runEffect`. A request scope is opened for every call. Request-lifetime services are built in that scope and cleaned up when the call ends, so no state leaks between requests.
 
 ## Runtime
 
-Call `configureRuntime` once at module load, for example from `instrumentation.ts` or a shared server file. The same config object again is a no-op (safe under HMR); a different one disposes the old runtime and replaces it. The app scope builds lazily on the first call. A call before `configureRuntime` rejects.
+Call `configureRuntime({ layer, onError })` once at module load, for example from `instrumentation.ts` or a shared server file. `layer` is a plain Effect Layer; kit's `configureRuntime({ provide })` builds a core app scope into one for you. The same config object, or one with the same `id` (so the RSC and Server Action bundles, which each load your module, agree on one runtime), is a no-op; pass `{ replace: true }` as the second argument to replace it anyway (a dev hot reload of the configuring module). A different one interrupts in-flight calls, then disposes the old runtime and replaces it. The runtime builds lazily on the first call; a failed build is not cached, so the next call retries. A call before `configureRuntime` rejects with `RuntimeNotConfigured`.
 
-`onFinalizerError` receives cleanup failures. In kit it gets a plain `FinalizerError` (`{ message, tag }`); in `@sleekstack/next` it gets the Effect `Cause`.
+`onError(cause, { phase })` receives defects (`'call'`), finalizer failures (`'finalizer'`) and failed layer builds (`'build'`). A sink that throws is swallowed and never changes the call's result; `redirect()`/`notFound()` (also when thrown inside a kit handler) and interruptions pass through unreported. In kit, `onFinalizerError` gets a plain `FinalizerError` (`{ message, tag }`) for the `'finalizer'` phase; `@sleekstack/next` hands you the Effect `Cause`. A reconfigure waits for the previous runtime to finish disposing before the next one builds; `getRuntime()` is unmanaged, so calls made on it directly are not interrupted by a reconfigure. The devtools handler answers loopback hosts only (403 otherwise) unless you pass `allowRemote`.
 
 ## Actions and queries (kit)
 
@@ -19,8 +19,16 @@ The functions `defineEffect` and `defineQuery` return are plain async functions.
 
 <include>../../snippets/kit/next.ts</include>
 
-## Actions and queries (Effect)
+## Running Effects (Effect)
 
-In `@sleekstack/next`, an operation is a function returning an Effect that reads services with `yield*`. It resolves the Effect's value; a failure or defect rejects with an `Error` whose `cause` is the Effect `Cause`. Returning a `ReadableStream` or async iterable is not supported and rejects the same way, with a `StreamingResultNotSupported` failure inside the cause.
+`runEffect(effect, { request?, overrides? })` runs an Effect on the configured runtime and rejects exactly as `Effect.runPromise` does. `request` is a Layer built per call and released when the call ends; `overrides` is provided outside it, so it shadows both the Effect's and `request`'s services for that call only. Wrap calls in `'use server'` functions to use them from Client Components.
 
 <include>../../snippets/effect/next.ts</include>
+
+## Devtools
+
+In development `@sleekstack/next` records request scopes, the app runtime's acquire/release and reported errors in a bounded (200 events) per-process buffer, and `@sleekstack/next/devtools` exposes it, with the analyzer report, through a route handler (404 in production). `@sleekstack/devtools` renders it as a panel; mount it only outside production so client bundles never include it.
+
+## Migrating from `action`/`query` in `@sleekstack/next`
+
+`action`, `query`, `Operation` and `OperationOptions` were removed from `@sleekstack/next` (ADR 0012). Use kit's `defineEffect`/`effect`/`defineQuery`/`query` from `@sleekstack/kit/next`, or call `runEffect` with your own Effect and Layer.

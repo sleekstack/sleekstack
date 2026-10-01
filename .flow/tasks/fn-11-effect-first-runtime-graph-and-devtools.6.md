@@ -22,9 +22,8 @@ New package with `<SleekStackDevtools />` polling the dev handler and showing gr
 - [ ] Empty-state render test
 
 ## Done summary
-TBD
-
+@sleekstack/devtools: dev-only polling panel (graph, live scopes, errors, passed atoms), mounted in the showcase layout behind a NODE_ENV dead-branch import; bundle test asserts absence from production client chunks.
 ## Evidence
-- Commits:
-- Tests:
+- Commits: c9995e6, f86ec60
+- Tests: pnpm --filter @sleekstack/devtools test, pnpm --filter showcase test
 - PRs:

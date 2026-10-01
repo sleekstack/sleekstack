@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-09-30T15:36:15.062966Z",
+  "depends_on": [
+    "fn-12-effect-native-query-layer.2"
+  ],
+  "id": "fn-12-effect-native-query-layer.4",
+  "priority": null,
+  "spec": "fn-12-effect-native-query-layer",
+  "spec_path": ".flow/tasks/fn-12-effect-native-query-layer.4.md",
+  "status": "todo",
+  "title": "Infinite queries and Effect-valued select (Models)",
+  "updated_at": "2026-09-30T15:36:15.062966Z"
+}

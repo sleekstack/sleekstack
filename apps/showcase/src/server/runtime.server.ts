@@ -1,24 +1,31 @@
 /**
  * apps/showcase/src/server/runtime.server.ts
  *
- * One ManagedRuntime over `AppLive`, cached on globalThis so dev HMR reuses it.
- * `runApp` runs an Effect with a fresh request scope (RequestLive) and, in demo
- * mode, the mock Layers shadowing the real ones.
+ * Configures the `@sleekstack/next` runtime over `AppLive` (a module-level call, so a
+ * repeat import is a same-reference no-op; the analyzer reads this call as the app root).
+ * `runApp` runs an Effect with a fresh request scope (RequestLive) and, in demo mode,
+ * the mock Layers shadowing the real ones.
  */
 import 'server-only'
-import { Cause, Effect, Layer, ManagedRuntime } from 'effect'
+import { configureRuntime, runEffect } from '@sleekstack/next'
+import { Cause, Effect, type Layer } from 'effect'
 import { AppLive } from '../domain/live.server'
 import { ActivityLog } from '../domain/tags'
 import { DemoLive, isDemoMode } from './demo.server'
 import { RequestLive } from './request.server'
 
-const g = globalThis as { __showcaseRuntime?: ManagedRuntime.ManagedRuntime<Layer.Layer.Success<typeof AppLive>, never> }
-export const runtime = (g.__showcaseRuntime ??= ManagedRuntime.make(AppLive))
+// Next loads this module once per server layer (RSC, actions); the shared `id` makes the second copy's
+// call a no-op. A dev hot reload of this module (webpack/turbopack `hot.data`) replaces the runtime, so
+// the adapter interrupts in-flight calls and disposes the old one.
+type Hot = { data?: { reloaded?: boolean }; dispose(cb: (data: { reloaded?: boolean }) => void): void }
+const hot = (import.meta as { webpackHot?: Hot; turbopackHot?: Hot })
+const hotModule = hot.webpackHot ?? hot.turbopackHot
+hotModule?.dispose((data) => void (data.reloaded = true))
+configureRuntime({ id: 'showcase', layer: AppLive }, { replace: hotModule?.data?.reloaded === true })
 
-/** Logs finalizer/defect causes to the console and the app's ActivityLog; never throws. */
+/** Records defect causes in the app's ActivityLog (the runtime's default sink logs to the console); never throws. */
 const report = (cause: Cause.Cause<unknown>) =>
   Effect.gen(function* () {
-    console.error('[showcase] error:', Cause.pretty(cause))
     const activityLog = yield* ActivityLog
     activityLog.record(`error: ${Cause.pretty(cause)}`)
   }).pipe(Effect.ignore)
@@ -27,11 +34,5 @@ export async function runApp<A, E>(
   effect: Effect.Effect<A, E, Layer.Layer.Success<typeof RequestLive> | Layer.Layer.Success<typeof AppLive>>,
 ): Promise<A> {
   const demo = await isDemoMode()
-  return runtime.runPromise(
-    effect.pipe(
-      Effect.tapDefect(report),
-      Effect.provide(RequestLive),
-      Effect.provide(demo ? DemoLive : Layer.empty),
-    ),
-  )
+  return runEffect(effect.pipe(Effect.tapDefect(report)), { request: RequestLive, overrides: demo ? DemoLive : undefined })
 }

@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-09-30T15:36:15.063116Z",
+  "depends_on": [
+    "fn-12-effect-native-query-layer.10"
+  ],
+  "id": "fn-12-effect-native-query-layer.11",
+  "priority": null,
+  "spec": "fn-12-effect-native-query-layer",
+  "spec_path": ".flow/tasks/fn-12-effect-native-query-layer.11.md",
+  "status": "todo",
+  "title": "ADR, CONTEXT, docs guides, TanStack mapping page, API reference",
+  "updated_at": "2026-09-30T15:36:15.063116Z"
+}
