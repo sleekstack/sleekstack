@@ -6,6 +6,8 @@ satisfies: [R3]
 Touches: packages/runtime/src/**, packages/next/src/devtools.ts, packages/kit/src/next/runtime.ts, packages/devtools/src/panel/**, packages/devtools/src/index.tsx
 
 ## Description
+**Task 1 drift:** the devtools buffer (devEvents/devLive/devEnabled, DevEvent) lives at the `@sleekstack/runtime/internal` subpath (not the main barrel); import from there. Kit already sets `isControlFlow: isNextControlFlow` in its runtime config.
+
 **Touches:** packages/runtime/src (event model, tracing layer), packages/next/src/devtools.ts, packages/kit/src/next/runtime.ts, packages/devtools/src (new panel section files plus the panel entry that mounts them)
 
 **Files:** packages/runtime/src (new tracing module), packages/next/src/devtools.ts, packages/kit/src/next/runtime.ts (service-construction seam), packages/devtools/src/{panel sections, new files}
