@@ -5,9 +5,9 @@
  * when given one, the analyzer graph Report. Its own entry, so production server bundles never import it.
  */
 
-import { devEnabled, devEvents, devLive, type DevEvent } from '@sleekstack/runtime'
+import { devEnabled, devEvents, devLive, type DevEvent } from '@sleekstack/runtime/internal'
 
-export type { DevEvent } from '@sleekstack/runtime'
+export type { DevEvent } from '@sleekstack/runtime/internal'
 
 /** The handler's JSON body. `graph` is present only when a Report source was given. */
 export interface DevtoolsSnapshot {
