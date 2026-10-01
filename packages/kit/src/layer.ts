@@ -1,14 +1,14 @@
 /**
  * packages/kit/src/layer.ts
  *
- * `layer()` lowers to core `service()`: resolve the deps tuple, then construct
+ * `layer()` lowers to a core `declareLayer()` node: resolve the deps tuple, then construct
  * (class), call (factory, sync or async) or return (value). A `withCleanup`
  * result lowers to acquireRelease.
  */
 
-import { Context, Effect, Option } from 'effect'
+import { Context, Effect, Layer as EffectLayer, Option } from 'effect'
 import { isGeneratorFunction, YieldWrap, yieldWrapGet } from 'effect/Utils'
-import { Resolver, service, type AnyServiceDefinition, type Resolve } from '@sleekstack/core'
+import { declareLayer, Resolver, type DeclaredLayer, type Resolve } from '@sleekstack/core'
 import { CleanupFailure, LayerFailure } from './errors'
 import { coreTag, keyOf, type AnyTag, type ServiceOf, type TagLike } from './tag'
 
@@ -77,10 +77,13 @@ const isClass = (f: Function) => /^class[\s{]/.test(Function.prototype.toString.
 interface LayerInfo {
   readonly tag: AnyTag
   readonly deps: readonly AnyTag[]
-  readonly def: AnyServiceDefinition
+  readonly def: DeclaredLayer
 }
 
 const infos = new WeakMap<object, LayerInfo>()
+
+/** @internal The Tag key behind a lowered core entry (for dev tracing); core entries carry no Tag metadata. */
+export const defKeys = new WeakMap<object, string>()
 
 /** A generator factory for {@link layer}: its `yield*`ed Tags are its requirements, resolved lazily. */
 export type LayerGenerator<T> = () => Generator<unknown, T | Cleanup<T>, any>
@@ -155,9 +158,9 @@ export function layer(tag: AnyTag, impl: unknown, depsOrOpts?: readonly AnyTag[]
     gen
       ? runGenerator(key, impl as () => Iterator<unknown, unknown, unknown>)
       : Effect.tryPromise({ try: () => run(resolved), catch: (e) => new LayerFailure(key, e) })
-  const def = service(
-    coreTag(tag),
-    { requires: depTags.map(coreTag), ...(opts.lifetime && { lifetime: opts.lifetime }) },
+  const requires = depTags.map(coreTag)
+  const acquire = Effect.flatMap(
+    Effect.all(requires) as unknown as Effect.Effect<readonly unknown[]>,
     (resolved) =>
       make(resolved).pipe(
         Effect.flatMap((r) =>
@@ -172,10 +175,15 @@ export function layer(tag: AnyTag, impl: unknown, depsOrOpts?: readonly AnyTag[]
                 }))
             : Effect.succeed(r),
         ),
-      ) as Effect.Effect<unknown, unknown, never>,
+      ),
   )
+  const def = declareLayer(EffectLayer.scoped(coreTag(tag), acquire as Effect.Effect<unknown, unknown, never>), {
+    attribute: false,
+    ...(opts.lifetime && { lifetime: opts.lifetime }),
+  })
   const l = Object.freeze({}) as Layer<unknown>
   infos.set(l, { tag, deps: depTags, def })
+  defKeys.set(def, key)
   return l
 }
 

@@ -1,10 +1,11 @@
-// Shared by generate-api.mjs and test/api-coverage.test.ts: the one list of public entry points.
+// Shared by generate-api.mjs and test/api-coverage.test.ts: the one list of public entry points
+// (a package's `./internal` subpath is adapter plumbing, never public).
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 export const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
-export const PACKAGES = ['core', 'next', 'react', 'kit']
+export const PACKAGES = ['core', 'runtime', 'next', 'react', 'kit']
 
 /** @returns {{ pkg: string, name: string, entry: string, file: string, route: string }[]} */
 export function resolveEntryPoints() {
@@ -12,7 +13,7 @@ export function resolveEntryPoints() {
     const dir = join(repoRoot, 'packages', pkg)
     const json = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'))
     const subpaths = json.exports
-      ? Object.entries(json.exports).map(([key, v]) => [key, typeof v === 'string' ? v : v.types ?? v.default])
+      ? Object.entries(json.exports).filter(([key]) => key !== './internal').map(([key, v]) => [key, typeof v === 'string' ? v : v.types ?? v.default])
       : [['.', json.types]]
     return subpaths.map(([key, rel]) => {
       if (!rel) throw new Error(`${json.name}: no types for export "${key}"`)

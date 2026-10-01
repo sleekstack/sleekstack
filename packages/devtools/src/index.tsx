@@ -8,11 +8,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Atom } from '@sleekstack/core'
 import { useAtomValue } from '@sleekstack/react'
+import { ScopedErrors, ServiceEvents, type DevEvent } from './panel/sections'
 
 /** Present in every devtools bundle; production bundle tests assert it is absent from client chunks. */
 export const DEVTOOLS_MARKER = 'sleekstack-devtools-panel-9f3c'
 
-interface DevEvent { readonly at: number; readonly kind: string; readonly label: string; readonly detail?: string }
 interface ReportGraph {
   readonly nodes: readonly { readonly id: string; readonly name: string; readonly lifetime: string }[]
   readonly edges: readonly { readonly from: string; readonly to: string; readonly tag: string }[]
@@ -20,6 +20,8 @@ interface ReportGraph {
 interface RootGraph extends ReportGraph { readonly root: string }
 /** The handler's JSON body (`devtoolsSnapshot`); `graph` is an analyzer Report when the app supplied one. */
 export interface DevtoolsData {
+  /** Tracing off on the server (absent from older handlers: treated as enabled). */
+  readonly disabled?: boolean
   readonly scopes: readonly DevEvent[]
   readonly errors: readonly DevEvent[]
   readonly live: { readonly app: boolean; readonly scopes: readonly string[] }
@@ -52,10 +54,12 @@ const REQUEST_TIMEOUT_MS = 5000
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null
 const strs = (v: unknown, keys: readonly string[]): boolean => isObj(v) && keys.every((k) => typeof v[k] === 'string')
 const isEvent = (v: unknown): v is DevEvent =>
-  strs(v, ['kind', 'label']) && typeof (v as DevEvent).at === 'number' && ((v as DevEvent).detail === undefined || typeof (v as DevEvent).detail === 'string')
+  strs(v, ['kind', 'label']) && typeof (v as DevEvent).at === 'number' &&
+  (['detail', 'scope', 'fiber'] as const).every((k) => (v as DevEvent)[k] === undefined || typeof (v as DevEvent)[k] === 'string')
 
 const isDevtoolsData = (v: unknown): v is DevtoolsData =>
   isObj(v) &&
+  (v.disabled === undefined || typeof v.disabled === 'boolean') &&
   Array.isArray(v.scopes) && v.scopes.every(isEvent) &&
   Array.isArray(v.errors) && v.errors.every(isEvent) &&
   isObj(v.live) && typeof v.live.app === 'boolean' && Array.isArray(v.live.scopes) && v.live.scopes.every((s) => typeof s === 'string')
@@ -124,6 +128,8 @@ export function SleekStackDevtools({ endpoint = '/api/devtools', intervalMs = 20
         <p>Connecting to {endpoint}…</p>
       ) : data === null ? (
         <p>Devtools are off: the handler at {endpoint} is not reachable in this build.</p>
+      ) : data.disabled ? (
+        <p>Devtools tracing is disabled in this build: nothing is recorded.</p>
       ) : (
         <>
           <section aria-label="graph">
@@ -146,12 +152,8 @@ export function SleekStackDevtools({ endpoint = '/api/devtools', intervalMs = 20
             <ul>{data.live.scopes.map((s) => <li key={s}>{s}</li>)}</ul>
             {data.live.scopes.length === 0 && <p>No open request scopes.</p>}
           </section>
-          <section aria-label="errors">
-            <h3>Errors</h3>
-            {data.errors.length === 0 ? <p>No errors recorded.</p> : (
-              <ul>{data.errors.slice(-10).map((e) => <li key={`${e.at}-${e.label}`}><pre>{e.detail ?? e.label}</pre></li>)}</ul>
-            )}
-          </section>
+          <ServiceEvents events={data.scopes} />
+          <ScopedErrors errors={data.errors} live={data.live.scopes} />
         </>
       )}
       <section aria-label="atoms">

@@ -6,25 +6,25 @@
  */
 
 import { Context, Layer } from 'effect'
-import type { AnyServiceDefinition, Lifetime } from './service'
+import type { Lifetime } from './lifetime'
 import { InvalidModule } from './errors'
 
 type AnyTag = Context.Tag<any, any>
 
-/** A raw Layer wrapped with the Tags it provides/requires: a full graph node. */
+/** A raw Layer with its {@link Lifetime}. What it provides and requires is read from its type by `sleekstack check`. */
 export interface DeclaredLayer {
   readonly _tag: 'DeclaredLayer'
   readonly layer: Layer.Layer<any, any, any>
-  readonly provides: readonly AnyTag[]
-  readonly requires: readonly AnyTag[]
   readonly lifetime?: Lifetime
+  /** @internal false: the Layer's failures pass through unwrapped (for adapters, like kit, that own their error types). */
+  readonly attribute?: false
 }
 
 /** Bare raw Layers must be self-contained (requirement type `never`). */
 export type BareLayer = Layer.Layer<any, any, never>
 
-/** Anything a module's `entries` may list: a service definition, a declared Layer, or a self-contained bare Layer. */
-export type Entry = AnyServiceDefinition | DeclaredLayer | BareLayer
+/** Anything a module's `entries` may list: a declared Layer, or a self-contained bare Layer. */
+export type Entry = DeclaredLayer | BareLayer
 
 /** A module's imports: a list, or a thunk returning one (for modules defined later or in a cycle-free forward reference). */
 export type Imports = readonly Module[] | (() => readonly Module[])
@@ -41,12 +41,13 @@ export interface Module {
 }
 
 /**
- * Wraps a raw Effect Layer with the Tags it provides and requires, so it becomes a full graph node.
+ * Wraps a raw Effect Layer with its {@link Lifetime}. The Tags it provides and requires are read from the
+ * Layer's type by `sleekstack check`; the runtime builds Layers in position order and keeps no graph.
  *
  * @param layer - The Effect Layer to declare.
- * @param options - `provides` (at least one Tag), optional `requires` and `lifetime`.
+ * @param options - Optional `lifetime` (default: the module's, else `'app'`).
  * @returns A declared Layer to list in a module's `entries`.
- * @throws {@link InvalidModule} `InvalidModule` when `layer` is not a Layer, `provides` is empty or not Tags, or `requires` is not Tags.
+ * @throws {@link InvalidModule} `InvalidModule` when `layer` is not a Layer.
  *
  * @example
  * ```ts
@@ -54,26 +55,19 @@ export interface Module {
  * import { declareLayer } from '@sleekstack/core'
  *
  * class Config extends Context.Tag('Config')<Config, { url: string }>() {}
- * const ConfigLayer = declareLayer(Layer.succeed(Config, { url: 'http://localhost' }), { provides: [Config] })
+ * const ConfigLayer = declareLayer(Layer.succeed(Config, { url: 'http://localhost' }), { lifetime: 'app' })
  * ```
  */
 export function declareLayer<ROut, E, RIn>(
   layer: Layer.Layer<ROut, E, RIn>,
-  options: { readonly provides: readonly AnyTag[]; readonly requires?: readonly AnyTag[]; readonly lifetime?: Lifetime },
+  options: { readonly lifetime?: Lifetime; /** @internal */ readonly attribute?: false } = {},
 ): DeclaredLayer {
   if (!Layer.isLayer(layer)) throw new InvalidModule({ message: 'declareLayer(): expected an Effect Layer' })
-  if (!isTagArray(options.provides) || options.provides.length === 0) {
-    throw new InvalidModule({ message: 'declareLayer(): `provides` must list at least one Tag' })
-  }
-  if (options.requires !== undefined && !isTagArray(options.requires)) {
-    throw new InvalidModule({ message: 'declareLayer(): `requires` must be an array of Tags' })
-  }
   return {
     _tag: 'DeclaredLayer',
     layer,
-    provides: options.provides,
-    requires: options.requires ?? [],
     ...(options.lifetime && { lifetime: options.lifetime }),
+    ...(options.attribute === false && { attribute: false as const }),
   }
 }
 
@@ -85,26 +79,20 @@ const isTagArray = (x: unknown): boolean =>
 
 /** Structural check for a tagged entry, so malformed values fail in module(), not at scope build. */
 function entryProblem(e: unknown): string | undefined {
-  if (isServiceDefinition(e)) {
-    return Context.isTag(e.tag) && isTagArray(e.requires) && Layer.isLayer(e.layer)
-      ? undefined
-      : 'is a malformed service definition'
-  }
   if (isDeclaredLayer(e)) {
-    return Layer.isLayer(e.layer) && isTagArray(e.provides) && e.provides.length > 0 && isTagArray(e.requires)
+    return Layer.isLayer(e.layer)
       ? undefined
       : 'is a malformed declared Layer'
   }
-  return Layer.isLayer(e) ? undefined : 'is not a service definition, declared Layer, or Layer'
+  return Layer.isLayer(e) ? undefined : 'is not a declared Layer or Layer'
 }
 
 export const isModule = (x: unknown): x is Module => isTagged(x, 'Module')
 export const isDeclaredLayer = (x: unknown): x is DeclaredLayer => isTagged(x, 'DeclaredLayer')
-export const isServiceDefinition = (x: unknown): x is AnyServiceDefinition => isTagged(x, 'ServiceDefinition')
 
 /**
  * Creates a module. Only the module's own structure is validated here; whole-graph checks
- * (cycles, duplicate names, dependencies) happen when a scope resolves the module (and in `sleekstack check`).
+ * (cycles, duplicate names, dependencies, privacy) happen only in `sleekstack check`; the runtime builds entries in position order.
  *
  * @param config - `name` (non-empty), `entries`, `imports`, `exports` (omit: all Tags public), `lifetime` (default for entries without one).
  * @returns The module.
@@ -112,13 +100,13 @@ export const isServiceDefinition = (x: unknown): x is AnyServiceDefinition => is
  *
  * @example
  * ```ts
- * import { Context, Effect } from 'effect'
- * import { module, service } from '@sleekstack/core'
+ * import { Context, Layer } from 'effect'
+ * import { declareLayer, module } from '@sleekstack/core'
  *
  * class Clock extends Context.Tag('Clock')<Clock, { now(): number }>() {}
  * const ClockModule = module({
  *   name: 'clock',
- *   entries: [service(Clock, {}, () => Effect.succeed({ now: () => Date.now() }))],
+ *   entries: [declareLayer(Layer.succeed(Clock, { now: () => Date.now() }))],
  *   exports: [Clock],
  * })
  * ```

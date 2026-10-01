@@ -28,7 +28,8 @@
 import { describe, it, expect } from 'vitest'
 import { useEffect, useRef, useState } from 'react'
 import { Context, Effect } from 'effect'
-import { makeAppScope, service, type AppScope, type ChildScope } from '@sleekstack/core'
+import { makeAppScope, type AppScope, type ChildScope } from '@sleekstack/core'
+import { service } from './service-helper'
 import { renderStrict } from './renderStrict'
 
 // --- Ordered trace: every acquire/render/release records its position ---

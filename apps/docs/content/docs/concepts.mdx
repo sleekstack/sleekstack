@@ -29,13 +29,13 @@ A scope owns the services it built and runs their cleanups when it closes. An `a
 
 ## Privacy
 
-When a module lists `exports`, every other Tag it provides is private: only the module's own entries may require it. Anything outside (an importing module, `useService`, an action dependency, a per-call `provide`) gets `PrivateDependency`. With no `exports`, every Tag is public. See [ADR 0006](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0006-enforce-module-privacy.md).
+When a module lists `exports`, every other Tag it provides is private: only the module's own entries may require it. Anything outside (an importing module, `useService`, an action dependency, a per-call `provide`) is a `PrivateDependency` error reported by `sleekstack check` at build time; the runtime does not enforce it. With no `exports`, every Tag is public. See [ADR 0006](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0006-enforce-module-privacy.md).
 
 <include>../../snippets/concepts/privacy.ts</include>
 
 ## Shadowing
 
-The same Tag provided in several places resolves to the most local provider: a module's own entry beats one it imports, and a per-call `provide` beats the runtime graph. That is how you override a service; there is no separate override API. Two providers at the same locality are an `AmbiguousProvider`. Shadowing a private Tag from outside is allowed: it creates a new public provider.
+The same Tag provided in several places resolves to the most local provider: a module's own entry beats one it imports, and a per-call `provide` beats the runtime graph. That is how you override a service; there is no separate override API. Entries build in position order (deepest import first, root entries last), so the later, more local one wins. Two providers at the same locality are an `AmbiguousProvider`, reported by `sleekstack check`. Shadowing a private Tag from outside is allowed: it creates a new public provider.
 
 <include>../../snippets/concepts/shadowing.ts</include>
 

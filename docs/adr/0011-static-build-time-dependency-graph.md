@@ -2,6 +2,8 @@
 
 Supersedes [ADR 0004](0004-hybrid-service-definitions.md) (in part: metadata is still carried, but read statically), [ADR 0005](0005-dependency-arrays-over-inject.md) (for actions and queries), and the build-time half of [ADR 0006](0006-enforce-module-privacy.md).
 
+> **Amended 2026-10-01:** the runtime no longer keeps a Resolution Plan. Entries build in position order (deepest import first, root entries last; later wins), runtime privacy and shadowing metadata are gone, and `declareLayer()` carries only a lifetime.
+
 A static analyzer, `@sleekstack/analyze` (run as `sleekstack check`), is the only place the whole graph is validated. It reads the same `tag` / `layer` / `module` / `service` / `defineEffect` / `defineQuery` / `effect` / `query` / `configureRuntime` declarations the runtime uses, through the TypeScript checker, without importing or executing app code, and reports missing, cyclic, captive, ambiguous, private-Tag, module-cycle and duplicate-module violations with file:line. `defineEffect` / `defineQuery` / `effect` / `query` drop their deps array: deps are the Tags the generator `yield*`s, followed through helper generators. `layer(Tag, function* () { ... })` infers its requirements the same way. A Tag the body never yields but whose layer must run (`RequestContext`) is declared with `opts.scope`. Core no longer builds a validated graph: `buildGraph` validation and `snapshot` are gone, and scopes consume an internal `ResolutionPlan` (`buildPlan(entries)`) that only orders and shadows.
 
 ## Why ADR 0005's compiler-plugin rejection no longer holds

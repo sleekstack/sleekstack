@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import React from 'react'
 import { Context, Effect } from 'effect'
-import { service } from '@sleekstack/core'
+import { service } from './service-helper'
 import { ADOPT_MS, acquire, mount, type ScopeProps } from '../managedScope'
 import type { ChildScope } from '@sleekstack/core'
 

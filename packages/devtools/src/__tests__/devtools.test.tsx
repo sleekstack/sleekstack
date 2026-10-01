@@ -38,6 +38,25 @@ describe('SleekStackDevtools', () => {
     expect(await screen.findByText('7')).not.toBeNull()
   })
 
+  it('shows service acquire/release with scope and fiber, and links an error to its closed scope', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({
+      disabled: false,
+      scopes: [{ at: 0, kind: 'acquire', label: 'Db', scope: 'request#2', fiber: '#7' }],
+      errors: [{ at: 1, kind: 'error', label: 'defect', detail: 'boom', scope: 'request#2' }],
+      live: { app: true, scopes: [] },
+    })))
+    render(<SleekStackDevtools />)
+    expect(await screen.findByText('acquire Db in request#2 (#7)')).not.toBeNull()
+    expect(screen.getByText('scope: request#2 (closed)')).not.toBeNull()
+  })
+
+  it('renders the disabled state, distinct from empty data', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ disabled: true, scopes: [], errors: [], live: { app: false, scopes: [] } })))
+    render(<SleekStackDevtools />)
+    expect(await screen.findByText(/tracing is disabled/)).not.toBeNull()
+    expect(screen.queryByText(/No errors recorded/)).toBeNull()
+  })
+
   it('keeps at most one request in flight while the endpoint is slow, and aborts on unmount', async () => {
     let calls = 0
     let signal: AbortSignal | undefined

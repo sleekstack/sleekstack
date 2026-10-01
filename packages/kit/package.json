@@ -27,6 +27,7 @@
     "@sleekstack/core": "workspace:*",
     "@sleekstack/next": "workspace:*",
     "@sleekstack/react": "workspace:*",
+    "@sleekstack/runtime": "workspace:*",
     "effect": "^3.15.0"
   },
   "devDependencies": {

@@ -1,0 +1,17 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-01T09:29:20.933657Z",
+  "depends_on": [
+    "fn-13-runtime-package-request-aware-graph.1",
+    "fn-13-runtime-package-request-aware-graph.4"
+  ],
+  "id": "fn-13-runtime-package-request-aware-graph.5",
+  "priority": null,
+  "spec": "fn-13-runtime-package-request-aware-graph",
+  "spec_path": ".flow/tasks/fn-13-runtime-package-request-aware-graph.5.md",
+  "status": "todo",
+  "title": "Dev-only atom store registry listed in the panel",
+  "updated_at": "2026-10-01T10:12:24.528245Z"
+}

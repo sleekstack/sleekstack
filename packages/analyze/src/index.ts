@@ -13,6 +13,8 @@ export type * from './model'
 
 /**
  * Extracts the static graph of the tsconfig project at `project` (a tsconfig.json path). `entries` limits
- * `runtimes` to the `configureRuntime` calls in those files (test files are then not skipped).
+ * `runtimes` to the `configureRuntime` / `runEffect` calls in those files (test files are then not skipped).
+ * `lenient` turns an unresolvable runEffect layer into an opaque root instead of an error.
  */
-export const analyze = (opts: { readonly project: string; readonly entries?: readonly string[] }): Report => extract(opts.project, opts.entries)
+export const analyze = (opts: { readonly project: string; readonly entries?: readonly string[]; readonly lenient?: boolean }): Report =>
+  extract(opts.project, opts.entries, opts.lenient)

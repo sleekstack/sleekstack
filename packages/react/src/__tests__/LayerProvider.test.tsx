@@ -12,7 +12,8 @@ import React, { Suspense } from 'react'
 import { Context, Layer, Effect } from 'effect'
 import { LayerProvider } from '../index'
 import { useService } from '../index'
-import { module, service } from '@sleekstack/core'
+import { module } from '@sleekstack/core'
+import { service } from './service-helper'
 
 // --- Test service setup ---
 

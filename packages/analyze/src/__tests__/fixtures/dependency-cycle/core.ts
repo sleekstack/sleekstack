@@ -1,11 +1,11 @@
-import { Context, Effect } from 'effect'
-import { module, service } from '@sleekstack/core'
-const A = Context.GenericTag<string>('A')
-const B = Context.GenericTag<string>('B')
+import { Context, Effect, Layer } from 'effect'
+import { declareLayer, module } from '@sleekstack/core'
+class A extends Context.Tag('A')<A, string>() {}
+class B extends Context.Tag('B')<B, string>() {}
 export const App = module({
   name: 'App',
   entries: [
-    service(A, { requires: [B] }, () => Effect.succeed('a')),
-    service(B, { requires: [A] }, () => Effect.succeed('b')), // @error DependencyCycle
+    declareLayer(Layer.effect(A, Effect.as(B, 'a' as never))),
+    declareLayer(Layer.effect(B, Effect.as(A, 'b' as never))), // @error DependencyCycle
   ],
 })

@@ -12,6 +12,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import ts from 'typescript'
 import { validate, validateAction } from './validate'
+import { checkRoot, RUNTIME_RUN_CALLS, runEffectRoots, type ExtraRoot } from './runtimeRoots'
 import type { ActionDecl, AnalyzeError, Atoms, Edge, Graph, GraphNode, Lifetime, Location, ModuleDecl, ProviderDecl, Report, Shadowing } from './model'
 
 /** Which library function a call resolves to, e.g. `kit/layer#layer`, `effect/Context#GenericTag`. */
@@ -20,7 +21,7 @@ function libId(sym: ts.Symbol | undefined, checker: ts.TypeChecker): string | un
   if (sym.flags & ts.SymbolFlags.Alias) sym = checker.getAliasedSymbol(sym)
   const file = sym.declarations?.[0]?.getSourceFile().fileName.replace(/\\/g, '/')
   if (!file) return undefined
-  const own = /\/(?:packages|@sleekstack)\/(kit|core|next)\/src\/(.+)\.ts$/.exec(file)
+  const own = /\/(?:packages|@sleekstack)\/(kit|core|next|runtime)\/src\/(.+)\.ts$/.exec(file)
   if (own) return `${own[1]}/${own[2]}#${sym.name}`
   if (/\/effect\/dist\/dts\/Context\.d\.ts$/.test(file)) return `effect/Context#${sym.name}`
   if (/\/effect\/dist\/dts\/Effect\.d\.ts$/.test(file)) return `effect/Effect#${sym.name}`
@@ -31,7 +32,7 @@ function libId(sym: ts.Symbol | undefined, checker: ts.TypeChecker): string | un
 const TAG_CALLS = new Set(['kit/tag#tag', 'effect/Context#GenericTag'])
 const MODULE_CALLS = new Set(['kit/module#makeModule', 'core/module#makeModule'])
 const ATOM_CALLS = new Set(['kit/atom#atom', 'kit/atom#family'])
-const RUNTIME_CALLS = new Set(['kit/next/runtime#configureRuntime', 'next/runtime#configureRuntime'])
+const RUNTIME_CALLS = new Set(['kit/next/runtime#configureRuntime', 'next/runtime#configureRuntime', 'runtime/runtime#configureRuntime'])
 const ACTION_CALLS = new Set(['kit/next/action#defineEffect', 'kit/next/action#defineQuery', 'kit/next/action#effect', 'kit/next/action#query'])
 /** Plain Layer combinators walked structurally (data-first or as `.pipe` steps). */
 const LAYER_COMBINATORS = new Set(['effect/Layer#mergeAll', 'effect/Layer#merge', 'effect/Layer#provide', 'effect/Layer#provideMerge'])
@@ -79,7 +80,7 @@ const bodyReturns = (fn: ts.FunctionLikeDeclaration): ts.Expression[] => {
   return out
 }
 
-export function extract(project: string, entries?: readonly string[]): Report {
+export function extract(project: string, entries?: readonly string[], lenient = false): Report {
   const configPath = path.resolve(project)
   const root = path.dirname(configPath)
   const read = ts.readConfigFile(configPath, ts.sys.readFile)
@@ -164,6 +165,7 @@ export function extract(project: string, entries?: readonly string[]): Report {
   const follow = (expr: ts.Expression): ts.Expression | ts.ClassDeclaration => {
     const e = unwrap(expr)
     if (!ts.isIdentifier(e) && !ts.isPropertyAccessExpression(e)) return e
+    if (ts.isIdentifier(e) && e.text === 'undefined') return e // a value, not a binding to follow
     const d = declOf(e)
     const bound = d && env.get(d)
     if (bound) return follow(bound)
@@ -441,16 +443,14 @@ export function extract(project: string, entries?: readonly string[]): Report {
       // Runtime numbers unnamed effects in evaluation order, which the analyzer cannot reproduce.
       if (!name) return fail(e, 'effect() in a module needs a literal `name` so its graph identity is static', 'UnnamedEffect')
       p = { ...base, provides: [`effect:${literal(name, 'effect name')}`], requires: tagList(a[1]), lifetime: lifetimeOf(prop(opts, 'lifetime')) }
-    } else if (id === 'core/service#service') {
-      const opts = objectOf(a[1])
-      p = { ...base, provides: [tagKey(a[0]!)], requires: tagList(prop(opts, 'requires')), lifetime: lifetimeOf(prop(opts, 'lifetime')) }
     } else if (id === 'core/module#declareLayer') {
-      const opts = objectOf(a[1])
-      p = { ...base, provides: tagList(prop(opts, 'provides')), requires: tagList(prop(opts, 'requires')), lifetime: lifetimeOf(prop(opts, 'lifetime')) }
+      // What it provides and requires comes from the wrapped Layer's type; only the lifetime is a literal option.
+      if (!a[0]) return fail(e, 'declareLayer() needs a Layer')
+      p = { ...layerLeaf(a[0]), loc: base.loc, lifetime: lifetimeOf(prop(objectOf(a[1]), 'lifetime')) }
     } else if (core && checker.getTypeAtLocation(expr).getSymbol()?.getName() === 'Layer') {
       p = { ...base, opaque: true, provides: [], requires: [], lifetime: undefined } // self-contained bare Layer
     } else {
-      return fail(expr, `"${text(expr)}" is not a recognized layer() / service() / declareLayer() declaration`)
+      return fail(expr, `"${text(expr)}" is not a recognized layer() / declareLayer() declaration`)
     }
     providers.set(key, p)
     return p
@@ -502,7 +502,9 @@ export function extract(project: string, entries?: readonly string[]): Report {
   const atomNodes: Atoms['nodes'][number][] = []
   const atomEdges: Edge[] = []
   const runtimes: ModuleDecl[] = []
+  const extraRoots: ExtraRoot[] = []
   const entryFiles = entries && new Set(entries.map((f) => path.resolve(f)))
+  const isRootFile = (sf: ts.SourceFile) => (entryFiles ? entryFiles.has(path.resolve(sf.fileName)) : !TEST_FILE.test(path.relative(root, sf.fileName)))
   const plain = new Map<string, ProviderDecl>()
   /** Every `Context.GenericTag<S>('K')` declaration in the program, by its identifier type `S`. */
   let genericIndex: Map<ts.Type, string[]> | undefined
@@ -677,8 +679,15 @@ export function extract(project: string, entries?: readonly string[]): Report {
       // A module() inside a function is evaluated where it is called (with its bindings), never bare.
       if (id && MODULE_CALLS.has(id) && !ts.findAncestor(n, ts.isFunctionLike)) {
         try { found.push(moduleOf(n)) } catch (err) { report(err) }
-      } else if (id && RUNTIME_CALLS.has(id) && (entryFiles ? entryFiles.has(path.resolve(n.getSourceFile().fileName)) : !TEST_FILE.test(path.relative(root, n.getSourceFile().fileName)))) {
+      } else if (id && RUNTIME_CALLS.has(id) && isRootFile(n.getSourceFile())) {
         try { runtimeOf(n, id === 'next/runtime#configureRuntime') } catch (err) { report(err) }
+      } else if (id && RUNTIME_RUN_CALLS.has(id) && isRootFile(n.getSourceFile())) {
+        try {
+          extraRoots.push(...runEffectRoots(n, {
+            loc, text, unwrap, follow, fail, plainLayer, report, lenient,
+            isUnreadable: (e) => e instanceof Unreadable || e instanceof Unbound,
+          }))
+        } catch (err) { report(err) }
       } else if (id && ATOM_CALLS.has(id) && n.arguments[0] && (id === 'kit/atom#family' || n.arguments.length > 1 || checker.getTypeAtLocation(n.arguments[0]).getCallSignatures().length > 0)) {
         try {
           const requires = tagList(n.arguments[1])
@@ -727,11 +736,17 @@ export function extract(project: string, entries?: readonly string[]): Report {
     errors.push(e)
     extraction.push(e) // owned by no runtime: fails the whole check
   }
-  const runtimeReports = runtimes.map((m, i) => {
+  const runtimeReports: Report['runtimes'][number][] = runtimes.map((m, i) => {
     const actionErrors = actions.filter((a) => (runtimes.length === 1 && !claimed.has(a)) || reaches[i]!.has(a.file)).flatMap((a) => validateAction(m, a))
     errors.push(...actionErrors)
-    return { ...m.loc, graph: graphOf(m), errors: [...[...resolve(m).visits.keys()].flatMap((v) => owned.get(v) ?? []), ...validate(m), ...actionErrors] }
+    return { ...m.loc, kind: 'app', graph: graphOf(m), errors: [...[...resolve(m).visits.keys()].flatMap((v) => owned.get(v) ?? []), ...validate(m), ...actionErrors] }
   })
+  // App roots first; each runEffect root after them, checked over the app graph.
+  for (const { kind, module: m } of extraRoots) {
+    const { graph, errors: rootErrors } = checkRoot(m, runtimes)
+    errors.push(...rootErrors)
+    runtimeReports.push({ ...m.loc, kind, graph, errors: [...(owned.get(m) ?? []), ...rootErrors] })
+  }
   return {
     graphs: roots.map(graphOf),
     atoms: { nodes: atomNodes, edges: atomEdges },

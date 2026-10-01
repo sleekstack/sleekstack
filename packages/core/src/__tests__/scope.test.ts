@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { Cause, Context, Deferred, Effect, Exit, Fiber } from 'effect'
-import { makeAppScope, module, service } from '../index'
+import { makeAppScope, module } from '../index'
+import { service } from './helpers'
 
 class A extends Context.Tag('A')<A, { n: number }>() {}
 class B extends Context.Tag('B')<B, { n: number }>() {}
@@ -115,13 +116,6 @@ describe('scope runtime', () => {
     expect(i.a).toBe(o.a)
     await run(inner.close)
     expect(log).toEqual([`-${i.n}`])
-  })
-
-  it('rejects duplicate providers among boundary entries', async () => {
-    const app = await run(makeAppScope([]))
-    const dup = () => service(A, {}, () => Effect.succeed({ n: 0 }))
-    const exit = await Effect.runPromiseExit(app.child('request', [dup(), dup()]))
-    expect(Exit.isFailure(exit) && Cause.pretty(exit.cause)).toContain('AmbiguousProvider')
   })
 
   it('rejects opening a request scope inside a component scope', async () => {

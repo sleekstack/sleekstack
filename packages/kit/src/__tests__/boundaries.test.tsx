@@ -56,11 +56,5 @@ describe('every boundary gives the canonical resolution failure', () => {
       assert(e.code === 'MissingDependency')
       expect(e.message).toBe(`"${e.details.service}" requires "Dep", which is not provided`)
     })
-    it('private -> PrivateDependency', async () => {
-      const e = await run([Lib] as never)
-      expect(e).toMatchObject({ name: 'SleekStackError', code: 'PrivateDependency', details: { tag: 'Dep', module: 'Lib' } })
-      assert(e.code === 'PrivateDependency')
-      expect(e.message).toBe(`"${e.details.requiredBy}" requires "Dep", which is private to module "Lib" (not in its exports)`)
-    })
   })
 })

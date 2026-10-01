@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { devEvents } from '@sleekstack/runtime/internal'
 import { Cause, Effect } from 'effect'
 import { layer, module, tag, withCleanup, type FinalizerError } from '../index'
 import { configureRuntime, defineEffect, effect, fail, query as runQuery, type OperationOptions } from '../next'
@@ -84,12 +85,6 @@ describe('@sleekstack/kit/next', () => {
         expect(e.message).toMatch(/init boom/)
       }
     }
-  })
-
-  it('a private action dependency rejects PrivateDependency', async () => {
-    configureRuntime({ provide: [module({ name: 'Lib', provide: [layer(Label, () => ({ label: 'x' }))], exports: [] })] })
-    const e = await caught(action((l: Label) => l.label, [Label]))
-    expect(e).toMatchObject({ code: 'PrivateDependency', details: { tag: 'Label', module: 'Lib' } })
   })
 
   it('stream returns reject through action and query', async () => {
@@ -186,5 +181,28 @@ describe('@sleekstack/kit/next', () => {
       await expect(readPlus(4)).resolves.toEqual({ ok: true, data: 7 })
       await expect(readPlus(-1)).resolves.toEqual({ ok: false, error: 'neg' })
     })
+  })
+
+  it('devtools: per-service acquire/release carry the Tag key, owning scope and fiber; production wraps nothing', async () => {
+    const app = layer(Label, () => ({ label: 'x' }))
+    const rq = layer(Rq, () => ({ id: 1 }), [], { lifetime: 'request' })
+    configureRuntime({ provide: [module({ name: 'traced', provide: [app, rq] })] })
+    await action((r: Rq) => r.id, [Rq])
+    const services = devEvents().filter((e) => e.label === 'Label' || e.label === 'Rq')
+    expect(services.map((e) => [e.kind, e.label, e.scope?.replace(/\d+$/, 'N')])).toEqual([
+      ['acquire', 'Label', 'app'],
+      ['acquire', 'Rq', 'request#N'],
+      ['release', 'Rq', 'request#N'],
+    ])
+    expect(services.every((e) => typeof e.fiber === 'string')).toBe(true)
+
+    vi.stubEnv('NODE_ENV', 'production')
+    try {
+      configureRuntime({ provide: [rq] })
+      await action((r: Rq) => r.id, [Rq])
+      expect(devEvents()).toEqual([])
+    } finally {
+      vi.unstubAllEnvs()
+    }
   })
 })

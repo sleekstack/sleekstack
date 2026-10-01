@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-01T09:29:20.933570Z",
+  "depends_on": [
+    "fn-13-runtime-package-request-aware-graph.1"
+  ],
+  "id": "fn-13-runtime-package-request-aware-graph.2",
+  "priority": null,
+  "spec": "fn-13-runtime-package-request-aware-graph",
+  "spec_path": ".flow/tasks/fn-13-runtime-package-request-aware-graph.2.md",
+  "status": "todo",
+  "title": "Analyzer request/overrides roots, Report kind, --lenient",
+  "updated_at": "2026-10-01T09:29:20.933570Z"
+}

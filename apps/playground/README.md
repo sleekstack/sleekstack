@@ -22,18 +22,18 @@ A runnable Vite + React demo of `@sleekstack/core` and `@sleekstack/react`.
 ## Minimal usage
 
 ```tsx
-import { Context, Effect } from 'effect'
-import { module, service } from '@sleekstack/core'
+import { Context, Effect, Layer } from 'effect'
+import { declareLayer, module } from '@sleekstack/core'
 import { Suspense } from 'react'
 import { LayerProvider, useService } from '@sleekstack/react'
 
 const Logger = Context.GenericTag<{ log(m: string): void }>('Logger')
 const Greeter = Context.GenericTag<{ greet(n: string): string }>('Greeter')
 
-const GreeterDef = service(Greeter, { requires: [Logger] }, ([logger]) =>
-  Effect.succeed({ greet: (n: string) => (logger.log(n), `Hello, ${n}`) }),
+const GreeterDef = declareLayer(
+  Layer.effect(Greeter, Effect.map(Logger, (logger) => ({ greet: (n: string) => (logger.log(n), `Hello, ${n}`) }))),
 )
-const LoggerDef = service(Logger, {}, () => Effect.succeed({ log: console.log }))
+const LoggerDef = declareLayer(Layer.succeed(Logger, { log: console.log }))
 const AppModule = module({ name: 'App', entries: [LoggerDef, GreeterDef], exports: [Greeter] })
 
 function Hello() {
@@ -49,8 +49,8 @@ export const App = () => (
 )
 ```
 
-A bare `Layer` works as an entry too, but service definitions cannot depend on it; wrap it with
-`declareLayer(layer, { provides: [...] })` to make it a graph node.
+A bare `Layer` works as an entry too, but it must be self-contained. Wrap a Layer that needs other Tags in
+`declareLayer(layer)`; `sleekstack check` reads what it provides and requires from its type. Entries build in listing order, so list a Layer after the ones it needs.
 
 ## Running
 

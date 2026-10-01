@@ -23,9 +23,13 @@ Pattern: follow packages/devtools for a small package layout. Do not commit emit
 - [ ] `pnpm typecheck && pnpm test` and docs api-coverage pass; analyzer still finds the showcase configureRuntime root
 
 ## Done summary
-TBD
+Extracted the runtime (configureRuntime/runEffect/getRuntime, error sink, slot, devtools buffer) into framework-agnostic @sleekstack/runtime with an `isControlFlow` config classifier (default never; per-call fallback); @sleekstack/next re-exports it, keeps isNextControlFlow, and its runEffect falls back to the Next classifier so old-shaped slots keep Next behavior. Devtools buffer lives at the `@sleekstack/runtime/internal` subpath (excluded from docs entry points). Wired CI, transpilePackages x3, docs PACKAGES, analyzer libId/RUNTIME_CALLS (showcase root still found). Tests: packages/runtime/src/__tests__/classifier.test.ts, packages/next/src/__tests__/mixed-copy.test.ts.
 
+baseline: red (pnpm test: showcase-kit bundle.test.ts Island marker, 2 tests, pre-existing; unchanged after)
+Tier: implementer tier, project routing block (opus at medium)
+
+stage: impl-review - ran (codex fan-out NEEDS_WORK -> 2 re-reviews -> SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 38c025e89e6d1333a7296b4b7a89501594e9bc5c, bfb40175fc38fc8fe087c270aa0ad3d8fbb70251, 0a8cb3900c882c3373f37c82d0ddfa1e3af880e7
+- Tests: pnpm typecheck && pnpm test (red only on inherited showcase-kit bundle test), pnpm --filter showcase build && pnpm --filter showcase test, pnpm --filter docs test
 - PRs:

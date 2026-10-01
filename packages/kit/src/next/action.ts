@@ -125,7 +125,7 @@ async function runGen<R>(impl: () => Gen<R>, opts: OperationOptions): Promise<Ac
     return Effect.mapInputContext(inner, () => scope as Context.Context<never>).pipe(
       Effect.catchAllDefect((e) => {
         const key = e instanceof Error ? /^Service not found: (.+?)(?: \(defined at|$)/.exec(e.message)?.[1] : undefined
-        return key !== undefined && !scope.unsafeMap.has(key) ? Effect.fail(resolutionFailure(scope, key, 'action')) : Effect.die(e)
+        return key !== undefined && !scope.unsafeMap.has(key) ? Effect.fail(resolutionFailure(key, 'action')) : Effect.die(e)
       }),
     )
   }

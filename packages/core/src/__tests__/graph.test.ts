@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { Cause, Context, Effect, Exit, Layer } from 'effect'
-import { declareLayer, makeAppScope, module, service, type Entry, type Module } from '../index'
+import { declareLayer, makeAppScope, module, type Entry, type Module } from '../index'
+import { service } from './helpers'
 
 class Config extends Context.Tag('Config')<Config, string>() {}
 class Db extends Context.Tag('Db')<Db, string>() {}
@@ -12,10 +13,22 @@ const ctx = async (xs: readonly (Module | Entry)[]) => (await Effect.runPromise(
 
 // Build-time graph errors (missing, cycle, ambiguity, captive, privacy) are the analyzer's: packages/analyze fixtures.
 describe('root resolution', () => {
-  it('orders service -> declared Layer and declared Layer -> service, in any listing order', async () => {
-    const DbDecl = declareLayer(Layer.effect(Db, Effect.map(Config, (c) => `db(${c})`)), { provides: [Db], requires: [Config] })
+  it('builds in position order: an entry sees the ones listed before it', async () => {
+    const DbDecl = declareLayer(Layer.effect(Db, Effect.map(Config, (c) => `db(${c})`)))
     const RepoDef = service(Repo, { requires: [Db] }, ([db]) => Effect.succeed(`repo(${db})`))
-    expect(Context.get(await ctx([RepoDef, DbDecl, ConfigDef]), Repo)).toBe('repo(db(cfg))')
+    expect(Context.get(await ctx([ConfigDef, DbDecl, RepoDef]), Repo)).toBe('repo(db(cfg))')
+  })
+
+  it('a dependency listed after its dependent fails with MissingDependency', async () => {
+    const DbDecl = declareLayer(Layer.effect(Db, Effect.map(Config, (c) => `db(${c})`)))
+    const exit = await Effect.runPromiseExit(makeAppScope([DbDecl, ConfigDef]))
+    expect(Exit.isFailure(exit) && Cause.squash(exit.cause)).toMatchObject({ _tag: 'MissingDependency', missing: 'Config' })
+  })
+
+  it('imports build before their importer, deepest first', async () => {
+    const Lib = module({ name: 'Lib', entries: [ConfigDef] })
+    const App = module({ name: 'App', imports: [Lib], entries: [declareLayer(Layer.effect(Db, Effect.map(Config, (c) => `db(${c})`)))] })
+    expect(Context.get(await ctx([App]), Db)).toBe('db(cfg)')
   })
 
   it('bare Layers are built as a base', async () => {
@@ -29,16 +42,16 @@ describe('root resolution', () => {
     expect(Context.get(await ctx([App, service(Config, {}, () => Effect.succeed('test'))]), Config)).toBe('test')
   })
 
-  it('declared Layer shadowed on only some of its Tags: local wins that Tag, the Layer still provides the rest', async () => {
+  it('a later entry shadows one Tag of a multi-Tag Layer; the Layer still provides the rest', async () => {
     let built = 0
-    const Both = declareLayer(Layer.effectContext(Effect.sync(() => (built++, Context.make(Db, 'd').pipe(Context.add(Repo, 'r'))))), { provides: [Db, Repo] })
+    const Both = declareLayer(Layer.effectContext(Effect.sync(() => (built++, Context.make(Db, 'd').pipe(Context.add(Repo, 'r'))))), {})
     const c = await ctx([module({ name: 'Lib', entries: [Both] }), service(Db, {}, () => Effect.succeed('local'))])
     expect([Context.get(c, Db), Context.get(c, Repo)]).toEqual(['local', 'r'])
     expect(built).toBe(1)
   })
 
   it('raw-Layer construction failure names the owning module and keeps the original Cause', async () => {
-    const NeedsRepo = declareLayer(Layer.effect(Db, Repo), { provides: [Db] })
+    const NeedsRepo = declareLayer(Layer.effect(Db, Repo))
     const exit = await Effect.runPromiseExit(makeAppScope([module({ name: 'OwningModule', entries: [NeedsRepo] })]))
     const e = Exit.isFailure(exit) ? Cause.squash(exit.cause) : undefined
     expect((e as Error).message).toMatch(/module "OwningModule".*Service not found: Repo/)
