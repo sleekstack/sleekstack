@@ -7,7 +7,7 @@
 
 import { module as coreModule, type Entry, type Module as CoreModule } from '@sleekstack/core'
 import { normalize, SleekStackError } from './errors'
-import { layerInfo, type Layer } from './layer'
+import { layerInfo, type Layer, type LayerInfo } from './layer'
 import { coreTag, type AnyTag } from './tag'
 
 declare const ModuleBrand: unique symbol
@@ -46,6 +46,29 @@ const coreModuleOf = (m: unknown, owner: string): CoreModule => {
 }
 
 /**
+ * Layers in dependency order: a layer follows the same-list layers that provide its `deps` tags.
+ * Core builds by position, so this makes list order irrelevant for array deps. Generator layers
+ * declare no deps (the analyzer reads their yields), so they keep their listed place; a cycle
+ * keeps its listed order (the analyzer reports it).
+ */
+function orderByDeps(infos: readonly LayerInfo[]): LayerInfo[] {
+  const provider = new Map(infos.map((i) => [coreTag(i.tag).key, i]))
+  const seen = new Set<LayerInfo>()
+  const out: LayerInfo[] = []
+  const visit = (i: LayerInfo) => {
+    if (seen.has(i)) return
+    seen.add(i)
+    for (const d of i.deps) {
+      const p = provider.get(coreTag(d).key)
+      if (p) visit(p)
+    }
+    out.push(i)
+  }
+  infos.forEach(visit)
+  return out
+}
+
+/**
  * Creates a module. Whole-graph checks run in `sleekstack check`; a provider or runtime resolves it without them.
  *
  * @param config - `name`, `provide`, `imports`, and `exports`.
@@ -66,11 +89,11 @@ function makeModule(config: ModuleConfig): Module {
     const name = config?.name
     const provide = config.provide ?? []
     if (!Array.isArray(provide)) throw new SleekStackError('InvalidModule', `module("${name}"): 'provide' must be an array`, { name })
-    const entries = provide.map((l, i) => {
+    const entries = orderByDeps(provide.map((l, i) => {
       const info = layerInfo(l)
       if (!info) throw new SleekStackError('InvalidModule', `module("${name}"): provide ${i} is not a layer()`, { name })
-      return info.def
-    })
+      return info
+    })).map((i) => i.def)
     const imports = config.imports ?? []
     const core = coreModule({
       name,
@@ -88,13 +111,15 @@ function makeModule(config: ModuleConfig): Module {
 
 /** @internal Lowers kit provide-set members to core graph input. */
 export function unwrap(items: readonly (Layer<any> | Module)[]): (Entry | CoreModule)[] {
-  return items.map((x) => {
+  const mapped = items.map((x) => {
     const m = moduleInfo(x)
     if (m) return m.core
     const l = layerInfo(x)
-    if (l) return l.def
+    if (l) return l
     throw new SleekStackError('InvalidModule', `Expected a layer() or module(), got: ${String(x)}`)
   })
+  const sorted = orderByDeps(mapped.filter((x): x is LayerInfo => 'def' in x)).map((i) => i.def)
+  return mapped.map((x) => ('def' in x ? sorted.shift()! : x))
 }
 
 /**

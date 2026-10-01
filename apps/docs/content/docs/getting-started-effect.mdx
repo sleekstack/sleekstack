@@ -1,6 +1,6 @@
 ---
 title: Getting started (Effect)
-description: Define Service Definitions with Effect Tags and build the graph with core.
+description: Declare Layers with Effect Tags and build the graph with core.
 ---
 
 Install core and Effect, plus the adapters you need.
@@ -10,10 +10,10 @@ Install core and Effect, plus the adapters you need.
 
 ## Define services
 
-Tags are Effect `Context.Tag` classes. `service(tag, { requires, lifetime }, make)` is a Service Definition: a scoped Layer plus the metadata (provided Tag, required Tags, lifetime) the graph needs. The requirement type is derived from `requires`, so the two cannot drift. `sleekstack check` validates the modules at build time and `makeAppScope` builds them.
+Tags are Effect `Context.Tag` classes. `declareLayer(layer, { lifetime })` wraps a plain Effect Layer with its lifetime. The provided and required Tags come from the Layer's type, which `sleekstack check` reads to validate the modules at build time. `makeAppScope` has no graph: it builds entries in position order, so list a Layer after the Layers it needs.
 
 <include>../../snippets/effect/getting-started.ts</include>
 
-Graph failures are Effect tagged errors (`MissingDependency`, `DependencyCycle` and so on, see [Errors](/docs/errors)). A module's `entries` can also hold declared Layers (`declareLayer`) and bare Layers; see the [core reference](/docs/api/core).
+At run time a missing Tag is a `MissingDependency` Effect tagged error; the other graph errors come from `sleekstack check` (see [Errors](/docs/errors)). A module's `entries` can also hold bare Layers; see the [core reference](/docs/api/core).
 
 Next: [Next.js](/docs/nextjs) and [React](/docs/react) show the Effect-native adapters next to the kit ones.

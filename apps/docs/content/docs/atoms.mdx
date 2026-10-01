@@ -12,7 +12,7 @@ An atom is a lazy, reactive value. It is defined once at module level, and its s
 - `atom(value)` is writable state; `useAtomSet` takes a value or an updater.
 - `atom(fn, deps)` resolves `deps` like `layer` and calls `fn(...services, get)`, which returns a value or a Promise.
 - `atom.family(fn, deps)` gives one atom per key; equal keys return the same atom.
-- Readers suspend until the first value, and failures reach the error boundary as `SleekStackError` (`MissingDependency`, `PrivateDependency`, `AtomCycle`).
+- Readers suspend until the first value, and failures reach the error boundary as `SleekStackError` (`MissingDependency`, `AtomCycle`).
 - An atom with no readers is disposed after an idle delay; pass `{ keepAlive: true }` to keep it until the provider unmounts.
 
 ## Effect-native

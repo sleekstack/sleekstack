@@ -62,7 +62,7 @@ This enables:
 
 | Package | What it is |
 |---------|------------|
-| [`@sleekstack/core`](packages/core/README.md) | Effect-native engine: Service Definitions, Modules, lifetimes, the Graph |
+| [`@sleekstack/core`](packages/core/README.md) | Effect-native engine: declared Layers, Modules, lifetimes, scopes (the Graph is build-time only) |
 | [`@sleekstack/next`](packages/next/README.md) | Effect runtime management for Next.js (`configureRuntime`, `runEffect`, dev introspection) |
 | [`@sleekstack/devtools`](packages/devtools/README.md) | Dev-only panel: graph, scopes, atoms, errors |
 | [`@sleekstack/react`](packages/react/README.md) | Suspense-native `LayerProvider` / `useService`, and atoms (`useAtom`, `useAtomValue`) whose state lives per provider |
@@ -81,13 +81,13 @@ Planned:
 ## Example Direction
 
 ```ts
-import { Context, Effect } from 'effect'
-import { module, service } from '@sleekstack/core'
+import { Context, Layer } from 'effect'
+import { declareLayer, module } from '@sleekstack/core'
 
 class Auth extends Context.Tag('Auth')<Auth, { userId: string }>() {}
 
-// A Service Definition: an Effect Layer plus dependency + lifetime metadata.
-const AuthDef = service(Auth, { lifetime: 'component' }, () => Effect.succeed({ userId: 'u_1' }))
+// A declared Layer: a plain Effect Layer plus a lifetime.
+const AuthDef = declareLayer(Layer.succeed(Auth, { userId: 'u_1' }), { lifetime: 'component' })
 
 const AuthModule = module({ name: 'auth', entries: [AuthDef], exports: [Auth] })
 ```
@@ -137,8 +137,8 @@ SleekStack's core engine, Next.js adapter, React adapter and kit facade are impl
 
 Current surface:
 
-* Service Definitions (`service()`) — auto-wired, with readable missing-dependency and cycle errors
-* Modules (`module()`) — imports, enforced exports (private Tags are visible only inside their Module, ADR 0006), shadowing
+* Declared Layers (`declareLayer()`) — plain Effect Layers plus a lifetime; the Analyzer reads their Tags from the types
+* Modules (`module()`) — imports, exports (private Tags are visible only inside their Module, enforced by `sleekstack check`, ADR 0006), shadowing by position
 * lifetime-scoped services (`app` / `request` / `component`) with captive-dependency checks
 * a dependency Graph validated at build time by `sleekstack check` (ADR 0011), reported as JSON with `--json`
 * `@sleekstack/next` runtime management (`configureRuntime`, `runEffect`) with kit's `defineEffect`/`query` on top, and `@sleekstack/react`'s Suspense-native, StrictMode-safe `LayerProvider` / `useService`

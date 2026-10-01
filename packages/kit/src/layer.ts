@@ -74,7 +74,8 @@ const isCleanup = (x: unknown): x is CleanupBox => typeof x === 'object' && x !=
 
 const isClass = (f: Function) => /^class[\s{]/.test(Function.prototype.toString.call(f))
 
-interface LayerInfo {
+/** @internal */
+export interface LayerInfo {
   readonly tag: AnyTag
   readonly deps: readonly AnyTag[]
   readonly def: DeclaredLayer

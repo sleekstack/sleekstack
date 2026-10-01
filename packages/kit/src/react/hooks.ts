@@ -131,7 +131,6 @@ const isThenable = (x: unknown) => typeof (x as { then?: unknown } | null)?.then
  * @returns The service instance.
  * @throws {@link SleekStackError} with code `Unknown` when there is no `LayerProvider` above.
  * @throws {@link SleekStackError} with code `MissingDependency` when the Tag is not provided.
- * @throws {@link SleekStackError} with code `PrivateDependency` when the Tag is private to a module.
  * @throws {@link SleekStackError} with `LayerFailed` or a graph code (for example `MissingDependency`) when the provider's scope failed to build.
  *
  * @example
