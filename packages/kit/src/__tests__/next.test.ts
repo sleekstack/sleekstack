@@ -61,6 +61,14 @@ describe('@sleekstack/kit/next', () => {
     expect(e).toMatchObject({ code: 'HandlerFailed', message: 'user' })
   })
 
+  it('Next redirect/notFound thrown in a handler reach Next untouched (action and query)', async () => {
+    configureRuntime({ provide: [] })
+    const redirect = Object.assign(new Error('NEXT_REDIRECT'), { digest: 'NEXT_REDIRECT;replace;/x;307;' })
+    const notFound = Object.assign(new Error('NEXT_HTTP_ERROR_FALLBACK;404'), { digest: 'NEXT_HTTP_ERROR_FALLBACK;404' })
+    await expect(action(() => { throw redirect }, [])).rejects.toBe(redirect)
+    await expect(query(() => { throw notFound }, [])).rejects.toBe(notFound)
+  })
+
   it('a missing dependency rejects MissingDependency', async () => {
     configureRuntime({ provide: [] })
     const e = await caught(action((r: Rq) => r.id, [Rq]))

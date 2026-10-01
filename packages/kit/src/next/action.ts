@@ -8,7 +8,7 @@
  */
 
 import { resolutionFailure, resolveTagEffect } from '@sleekstack/core'
-import { runEffect } from '@sleekstack/next'
+import { isNextControlFlow, runEffect } from '@sleekstack/next'
 import { Cause, Context, Effect, Exit, Runtime } from 'effect'
 import { normalize, SleekStackError } from '../errors'
 import type { Layer } from '../layer'
@@ -82,8 +82,8 @@ async function run(
       const context = (yield* Effect.context<never>()) as Context.Context<any>
       const value = yield* Effect.tryPromise({
         try: async () => factory(context),
-        catch: (e) => (e instanceof Failure ? e : normalize(e, 'HandlerFailed')),
-      })
+        catch: (e) => (e instanceof Failure || isNextControlFlow(e) ? e : normalize(e, 'HandlerFailed')),
+      }).pipe(Effect.catchAll((e) => (isNextControlFlow(e) ? Effect.die(e) : Effect.fail(e))))
       return isStreamShaped(value) ? yield* Effect.fail(streamingError()) : value
     })
   // Not normalized: Next's dynamic-rendering bailouts (e.g. from `cookies()`) must reach Next as thrown.
@@ -100,6 +100,7 @@ async function run(
   try {
     exit = Exit.succeed(await runEffect(fn(), { provide }))
   } catch (e) {
+    if (isNextControlFlow(e)) throw e
     if (!Runtime.isFiberFailure(e)) throw normalize(e)
     exit = Exit.failCause(e[Runtime.FiberFailureCauseId])
   }

@@ -126,4 +126,24 @@ describe('runEffect', () => {
     configureRuntime({ layer: Layer.empty })
     await expect(inFlight).rejects.toThrow()
   })
+
+  it('a config with the same id (another module copy) is a no-op; replace forces a new runtime', async () => {
+    const a = { id: 'app', layer: Layer.empty }
+    configureRuntime(a)
+    const runtime = getRuntime()
+    configureRuntime({ id: 'app', layer: Layer.empty })
+    expect(getRuntime()).toBe(runtime)
+    configureRuntime({ id: 'app', layer: Layer.empty }, { replace: true })
+    expect(getRuntime()).not.toBe(runtime)
+    configureRuntime({ id: 'other', layer: Layer.empty })
+    expect(getRuntime()).not.toBe(runtime)
+  })
+
+  it('Next control flow in the failure channel passes through unreported', async () => {
+    const seen: unknown[] = []
+    configureRuntime({ layer: Layer.empty, onError: (c) => seen.push(c) })
+    const redirect = Object.assign(new Error('NEXT_REDIRECT'), { digest: 'NEXT_REDIRECT;replace;/x;307;' })
+    await expect(runEffect(Effect.fail(redirect))).rejects.toBe(redirect)
+    expect(seen).toEqual([])
+  })
 })

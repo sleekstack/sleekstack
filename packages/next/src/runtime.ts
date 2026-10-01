@@ -17,6 +17,8 @@ type ErrorSink = (cause: Cause.Cause<unknown>) => void
 
 /** Layer-based config: one `ManagedRuntime` over `layer`. */
 export interface LayerRuntimeConfig {
+  /** Identity across module copies: a config with the same `id` as the current one is a no-op (first wins). */
+  readonly id?: string
   readonly layer: Layer.Layer<never, unknown, never>
   readonly onError?: ErrorSink
   readonly provide?: undefined
@@ -25,6 +27,8 @@ export interface LayerRuntimeConfig {
 
 /** Module-based config: the app's root modules/entries, built as a core app scope. */
 export interface ProvideRuntimeConfig {
+  /** Identity across module copies: a config with the same `id` as the current one is a no-op (first wins). */
+  readonly id?: string
   readonly provide: readonly (Module | Entry)[]
   readonly onFinalizerError?: ErrorSink
   readonly onError?: ErrorSink
@@ -100,11 +104,13 @@ const defaultFinalizerSink = (cause: Cause.Cause<unknown>): void => console.erro
 const sinkFor = (config: RuntimeConfig): ErrorSink => config.onFinalizerError ?? config.onError ?? defaultFinalizerSink
 
 /**
- * Stores the runtime config. Same reference again is a no-op; a different reference interrupts
+ * Stores the runtime config. The same reference, or a config with the same `id` (so duplicate module
+ * copies, e.g. the RSC and action bundles, agree on one runtime), is a no-op; anything else interrupts
  * in-flight `runEffect` calls, then disposes the current runtime and replaces it. The runtime is
  * built lazily on first use.
  *
- * @param config - `{ layer, onError? }`, or root modules/entries as `{ provide, onFinalizerError? }`.
+ * @param config - `{ layer, onError?, id? }`, or root modules/entries as `{ provide, onFinalizerError?, id? }`.
+ * @param options - `replace: true` replaces the runtime even for the same `id` (a dev hot reload of the module that configures it).
  *
  * @example
  * ```ts
@@ -114,9 +120,10 @@ const sinkFor = (config: RuntimeConfig): ErrorSink => config.onFinalizerError ??
  * configureRuntime({ layer: Layer.empty })
  * ```
  */
-export function configureRuntime(config: RuntimeConfig): void {
+export function configureRuntime(config: RuntimeConfig, options: { readonly replace?: boolean } = {}): void {
   const slot = getSlot()
-  if (slot.config === config) return
+  const same = slot.config === config || (config.id !== undefined && slot.config?.id === config.id)
+  if (same && !options.replace) return
   if (slot.config !== undefined) {
     console.warn(
       '[@sleekstack/next] configureRuntime() was called again with a different config; disposing the previous app runtime and replacing it.',
@@ -157,11 +164,15 @@ export interface RunEffectOptions {
 const AppScopeTag = Context.GenericTag<AppScope>('@sleekstack/next/AppScope')
 
 /** Next.js control-flow throws (`redirect()`, `notFound()`, `forbidden()`, ...): rethrown untouched, never reported. */
-const isNextControlFlow = (value: unknown): boolean => {
+/** @internal */
+export const isNextControlFlow = (value: unknown): boolean => {
   const digest = (value as { digest?: unknown } | null)?.digest
   return (
     typeof digest === 'string' &&
-    (digest.startsWith('NEXT_REDIRECT') || digest.startsWith('NEXT_HTTP_ERROR_FALLBACK') || digest === 'NEXT_NOT_FOUND')
+    (digest.startsWith('NEXT_REDIRECT') || digest.startsWith('NEXT_HTTP_ERROR_FALLBACK') ||
+      digest === 'NEXT_NOT_FOUND' ||
+      digest === 'DYNAMIC_SERVER_USAGE' ||
+      digest === 'BAILOUT_TO_CLIENT_SIDE_RENDERING')
   )
 }
 
@@ -303,7 +314,7 @@ export async function runEffect<A, E, R>(effect: Effect.Effect<A, E, R>, options
     const failure = outcome.value.buildFailure
     // A failed build is not cached: the next call builds again.
     if (slot.runtime === runtime) slot.runtime = undefined
-    const controlFlow = [...Cause.defects(failure)].find(isNextControlFlow)
+    const controlFlow = [...Cause.defects(failure), ...Cause.failures(failure)].find(isNextControlFlow)
     if (controlFlow === undefined && !Cause.isInterruptedOnly(failure) && Cause.isDie(failure)) report(config, failure)
     await disposeReported(config, runtime)
     // Reject exactly as `Effect.runPromise` would.
@@ -313,7 +324,7 @@ export async function runEffect<A, E, R>(effect: Effect.Effect<A, E, R>, options
   const exit: Exit.Exit<A, unknown> = Exit.isSuccess(outcome) ? (outcome.value as { exit: Exit.Exit<A, unknown> }).exit : (outcome as unknown as Exit.Exit<never, unknown>)
   if (Exit.isSuccess(exit)) return exit.value
   const cause = exit.cause
-  const controlFlow = [...Cause.defects(cause)].find(isNextControlFlow)
+  const controlFlow = [...Cause.defects(cause), ...Cause.failures(cause)].find(isNextControlFlow)
   if (controlFlow !== undefined) throw controlFlow
   if (!Cause.isInterruptedOnly(cause) && Cause.isDie(cause)) report(config, cause)
   throw Runtime.makeFiberFailure(cause)

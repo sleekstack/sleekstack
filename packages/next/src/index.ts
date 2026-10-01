@@ -7,6 +7,7 @@
 export {
   configureRuntime,
   getRuntime,
+  isNextControlFlow,
   runEffect,
   RuntimeNotConfigured,
   type LayerRuntimeConfig,

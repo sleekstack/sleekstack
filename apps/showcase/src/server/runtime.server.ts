@@ -14,18 +14,14 @@ import { ActivityLog } from '../domain/tags'
 import { DemoLive, isDemoMode } from './demo.server'
 import { RequestLive } from './request.server'
 
-// Next loads this module once per server layer (RSC, actions), each with its own config object;
-// configures once per process so a later load never replaces the runtime. A dev hot reload of this
-// module clears the flag as the old version is disposed, so the re-evaluation reconfigures (the
-// adapter interrupts in-flight calls, then disposes the old runtime).
-const g = globalThis as { __showcaseRuntimeConfigured?: boolean }
-if (!g.__showcaseRuntimeConfigured) {
-  g.__showcaseRuntimeConfigured = true
-  configureRuntime({ layer: AppLive })
-}
-type Hot = { dispose(cb: () => void): void }
+// Next loads this module once per server layer (RSC, actions); the shared `id` makes the second copy's
+// call a no-op. A dev hot reload of this module (webpack/turbopack `hot.data`) replaces the runtime, so
+// the adapter interrupts in-flight calls and disposes the old one.
+type Hot = { data?: { reloaded?: boolean }; dispose(cb: (data: { reloaded?: boolean }) => void): void }
 const hot = (import.meta as { webpackHot?: Hot; turbopackHot?: Hot })
-;(hot.webpackHot ?? hot.turbopackHot)?.dispose(() => void (g.__showcaseRuntimeConfigured = false))
+const hotModule = hot.webpackHot ?? hot.turbopackHot
+hotModule?.dispose((data) => void (data.reloaded = true))
+configureRuntime({ id: 'showcase', layer: AppLive }, { replace: hotModule?.data?.reloaded === true })
 
 /** Records defect causes in the app's ActivityLog (the runtime's default sink logs to the console); never throws. */
 const report = (cause: Cause.Cause<unknown>) =>
