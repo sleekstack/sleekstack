@@ -233,9 +233,9 @@ export const reportFinalizerFailure = (cause: Cause.Cause<unknown>): void => {
 }
 
 /** Disposes `runtime`, routing a finalizer failure to the finalizer sink instead of an unhandled rejection. */
-const disposeReported = async (config: RuntimeConfig, runtime: ManagedRuntime.ManagedRuntime<any, any>): Promise<void> => {
+const disposeReported = async (config: RuntimeConfig, runtime: ManagedRuntime.ManagedRuntime<any, any>, scope?: string): Promise<void> => {
   const exit = await Effect.runPromiseExit(runtime.disposeEffect)
-  if (Exit.isFailure(exit)) reportFinalizer(config, exit.cause)
+  if (Exit.isFailure(exit)) reportFinalizer(config, exit.cause, scope)
 }
 
 const runtimeFor = (slot: RuntimeSlot, config: RuntimeConfig): ManagedRuntime.ManagedRuntime<any, any> => {
@@ -340,8 +340,8 @@ export async function runEffect<A, E, R>(effect: Effect.Effect<A, E, R>, options
     // A failed build is not cached: the next call builds again.
     if (slot.runtime === runtime) slot.runtime = undefined
     const controlFlow = findControlFlow(failure, isControlFlow)
-    if (controlFlow === undefined && !Cause.isInterruptedOnly(failure)) report(config, failure, 'build')
-    await disposeReported(config, runtime)
+    if (controlFlow === undefined && !Cause.isInterruptedOnly(failure)) report(config, failure, 'build', scopeLabel || undefined)
+    await disposeReported(config, runtime, scopeLabel || undefined)
     if (controlFlow !== undefined) throw controlFlow.value
     // Reject exactly as `Effect.runPromise` would.
     await Effect.runPromise(Effect.failCause(failure))

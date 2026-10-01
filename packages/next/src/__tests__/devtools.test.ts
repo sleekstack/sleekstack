@@ -110,6 +110,12 @@ describe('devtools', () => {
     ])
   })
 
+  it('a lazy app-layer build failure triggered by a call is linked to that call\'s request scope', async () => {
+    configureRuntime({ layer: Layer.fail('nope') as unknown as Layer.Layer<never>, onError: () => {} })
+    await expect(runEffect(Effect.void)).rejects.toBeDefined()
+    expect(devtoolsSnapshot().errors.map((e) => e.scope)).toEqual([expect.stringMatching(/^request#\d+$/)])
+  })
+
   it('production wraps the request layer with nothing', async () => {
     configureRuntime({ layer: Layer.empty })
     vi.stubEnv('NODE_ENV', 'production')
