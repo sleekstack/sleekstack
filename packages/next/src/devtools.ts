@@ -11,6 +11,8 @@ export type { DevEvent } from '@sleekstack/runtime/internal'
 
 /** The handler's JSON body. `graph` is present only when a Report source was given. */
 export interface DevtoolsSnapshot {
+  /** True when tracing is off (production): the buffer is empty because nothing records, not because nothing happened. */
+  readonly disabled: boolean
   readonly scopes: readonly DevEvent[]
   readonly errors: readonly DevEvent[]
   /** Open request scopes and app-runtime state; unaffected by history eviction. */
@@ -29,7 +31,7 @@ export interface DevtoolsOptions {
 /** The current buffer split into scopes (scope/acquire/release) and errors, plus the graph when available. */
 export function devtoolsSnapshot(options: DevtoolsOptions = {}): DevtoolsSnapshot {
   const events = devEvents()
-  const snapshot = { scopes: events.filter((e) => e.kind !== 'error'), errors: events.filter((e) => e.kind === 'error'), live: devLive() }
+  const snapshot = { disabled: !devEnabled(), scopes: events.filter((e) => e.kind !== 'error'), errors: events.filter((e) => e.kind === 'error'), live: devLive() }
   return options.graph ? { ...snapshot, graph: options.graph() } : snapshot
 }
 
