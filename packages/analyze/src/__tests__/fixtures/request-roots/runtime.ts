@@ -1,6 +1,6 @@
 import { Effect } from 'effect'
 import { configureRuntime, runEffect } from '../../../../../runtime/src/index'
-import { ALive, AppLive, AppMock, BadReqLive, ReqLive } from './live'
+import { ALive, AppLive, AppMock, BadReqLive, ImportedChoice, ReqLive } from './live'
 
 configureRuntime({ layer: AppLive })
 
@@ -8,6 +8,9 @@ declare const cond: boolean
 declare const opts: { request?: typeof ReqLive }
 const Untyped: any = ReqLive
 const e = Effect.void
+const choice = cond ? ReqLive : ALive
+const none = undefined
+const maybe = cond ? ReqLive : none
 
 export const calls = [
   runEffect(e),
@@ -19,4 +22,9 @@ export const calls = [
   runEffect(e, opts), // @error NonLiteralOptions
   runEffect(e, { ...opts }), // @error NonLiteralOptions
   runEffect(e, { request: Untyped }), // @error Computed
+  runEffect(e, { request: choice }),
+  runEffect(e, { request: ImportedChoice }),
+  runEffect(e, { overrides: maybe }),
+  runEffect(e, { 'request': ReqLive, ['overrides']: ALive }),
+  runEffect(e, { request: none }),
 ]

@@ -165,6 +165,7 @@ export function extract(project: string, entries?: readonly string[], lenient = 
   const follow = (expr: ts.Expression): ts.Expression | ts.ClassDeclaration => {
     const e = unwrap(expr)
     if (!ts.isIdentifier(e) && !ts.isPropertyAccessExpression(e)) return e
+    if (ts.isIdentifier(e) && e.text === 'undefined') return e // a value, not a binding to follow
     const d = declOf(e)
     const bound = d && env.get(d)
     if (bound) return follow(bound)
@@ -685,7 +686,7 @@ export function extract(project: string, entries?: readonly string[], lenient = 
       } else if (id && RUNTIME_RUN_CALLS.has(id) && isRootFile(n.getSourceFile())) {
         try {
           extraRoots.push(...runEffectRoots(n, {
-            loc, text, unwrap, fail, plainLayer, report, lenient,
+            loc, text, unwrap, follow, fail, plainLayer, report, lenient,
             isUnreadable: (e) => e instanceof Unreadable || e instanceof Unbound,
           }))
         } catch (err) { report(err) }
