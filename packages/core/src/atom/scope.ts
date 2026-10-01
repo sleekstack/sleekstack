@@ -2,22 +2,12 @@
  * packages/core/src/atom/scope.ts
  *
  * Binds an AtomStore to a ChildScope: Effect atoms run on the scope's public context, Tag misses
- * become typed MissingDependency / PrivateDependency failures, and closing the scope disposes the store.
+ * become typed MissingDependency failures, and closing the scope disposes the store.
  */
 
 import { Cause, Effect, Scope } from 'effect'
-import { resolutionFailure, type ChildScope } from '../scope'
+import { notFoundKey, resolutionFailure, type ChildScope } from '../scope'
 import { makeAtomStore, type AtomStore, type AtomStoreOptions } from './AtomStore'
-
-// Effect 3.21 `Context.unsafeGet`: `Error("Service not found: <key>")` (no `: <key>` for an empty key), plus
-// ` (defined at <site>)` when the Tag recorded its creation site. Pinned by atom-scope.test.ts.
-const NOT_FOUND = /^Service not found(?:: (.*?))?(?: \(defined at .*\))?$/s
-
-const notFoundKey = (defect: unknown): string | undefined => {
-  if (!(defect instanceof Error)) return undefined
-  const m = NOT_FOUND.exec(defect.message)
-  return m ? (m[1] ?? '') : undefined
-}
 
 /**
  * Creates an {@link AtomStore} bound to `scope`. It is disposed (fibers interrupted) when the scope closes,
@@ -41,7 +31,7 @@ export const atomStoreFor = (scope: ChildScope, options: Omit<AtomStoreOptions, 
     ...options,
     context: scope.context,
     wrapBuild: (effect, atom) => {
-      const typed = (key: string) => resolutionFailure(scope.context, key, atom.label)
+      const typed = (key: string) => resolutionFailure(key, atom.label)
       // Die(Service not found) -> Fail(typed); every other node and the Cause's structure are kept.
       const mapCause = (cause: Cause.Cause<unknown>): Cause.Cause<unknown> =>
         Cause.match<Cause.Cause<unknown>, unknown>(cause, {

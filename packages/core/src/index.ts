@@ -4,9 +4,8 @@
  * @sleekstack/core public barrel. Tags/Layers/Effect come from 'effect' directly.
  */
 
-export { service, type Lifetime, type ServiceDefinition, type AnyServiceDefinition, type CaptiveViolations } from './service'
+export type { Lifetime } from './lifetime'
 export { module, declareLayer, type Module, type DeclaredLayer, type Entry, type BareLayer, type Imports } from './module'
-export { walkProvide } from './graph'
 export {
   MissingDependency,
   DependencyCycle,
@@ -21,8 +20,7 @@ export {
 } from './errors'
 /** @internal Lazy per-scope resolution for generator layers. */
 export { Resolver, type Resolve } from './lazy'
-export { canDependOn } from './lifetime'
-export { makeAppScope, privateDependencyOf, resolutionFailure, resolveTag, resolveTagEffect, Privacy, type AppScope, type ChildScope, type ScopeOptions } from './scope'
+export { makeAppScope, resolutionFailure, resolveTag, resolveTagEffect, type AppScope, type ChildScope, type ScopeOptions } from './scope'
 /** Atom definitions: `make`, `writable`, `family`, `keepAlive`, `setIdleTTL`. */
 export * as Atom from './atom/Atom'
 /** The async state of Effect and Stream atoms. */

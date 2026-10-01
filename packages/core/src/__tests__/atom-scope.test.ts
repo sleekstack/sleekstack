@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { Cause, Context, Effect, Option } from 'effect'
-import { Atom, atomStoreFor, makeAppScope, module, Result, service } from '../index'
+import { Atom, atomStoreFor, makeAppScope, module, Result } from '../index'
+import { service } from './helpers'
 
 class Db extends Context.Tag('Db')<Db, number>() {}
 class Pub extends Context.Tag('Pub')<Pub, number>() {}
@@ -20,7 +21,7 @@ describe('atomStoreFor', () => {
     expect(exit._tag === 'Failure' && (Cause.squash(exit.cause) as Error).message).toMatch(/^Service not found: Nope( \(defined at .*\))?$/s)
   })
 
-  it('resolves public and shadowed Tags; missing/private give typed failures', async () => {
+  it('resolves public and shadowed Tags; a missing Tag is a typed failure', async () => {
     const app = await Effect.runPromise(makeAppScope([Data]))
     const child = await Effect.runPromise(app.child('component', [service(Pub, { lifetime: 'component' }, () => Effect.succeed(20))]))
     const read = (tag: Context.Tag<any, number>) => Atom.make(Effect.gen(function* () { return yield* tag }))
@@ -31,10 +32,6 @@ describe('atomStoreFor', () => {
     const missing = read(Nope)
     expect(failureOf(store.get(missing))).toMatchObject({
       _tag: 'MissingDependency', service: missing.label, missing: 'Nope',
-    })
-    const hidden = read(Db)
-    expect(failureOf(store.get(hidden))).toMatchObject({
-      _tag: 'PrivateDependency', tag: 'Db', module: 'Data', requiredBy: hidden.label,
     })
   })
 

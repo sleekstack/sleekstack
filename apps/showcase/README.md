@@ -2,7 +2,7 @@
 
 A Next.js 15 (App Router) team task board written in plain Effect (Layers, `Context.GenericTag`) on the `@sleekstack/next` runtime, plus
 `@sleekstack/react` (`LayerProvider`, `useService`) and `@sleekstack/core` atoms. No SleekStack wrappers around Effect on the
-server: no `service()`, `module()`, `action()` or `query()`.
+server: no `declareLayer()`, `module()`, `action()` or `query()`.
 
 ## What it shows
 

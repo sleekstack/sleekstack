@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { Context, Effect, Either } from 'effect'
-import { makeAppScope, module, resolveTag, resolveTagEffect, service } from '../index'
+import { makeAppScope, module, resolveTag, resolveTagEffect } from '../index'
+import { service } from './helpers'
 
 class Db extends Context.Tag('Db')<Db, number>() {}
 class Pub extends Context.Tag('Pub')<Pub, number>() {}
@@ -15,7 +16,6 @@ describe('Tag resolution (resolveTag / resolveTagEffect)', async () => {
   it.each([
     ['public', app, Pub, { ok: 2 }],
     ['shadowed', child, Pub, { ok: 20 }],
-    ['private', app, Db, { err: { _tag: 'PrivateDependency', tag: 'Db', module: 'Data', requiredBy: 'who', message: '"who" requires "Db", which is private to module "Data" (not in its exports)' } }],
     ['missing', app, Nope, { err: { _tag: 'MissingDependency', tag: 'Nope', service: 'who', missing: 'Nope', message: '"who" requires "Nope", which is not provided' } }],
   ] as const)('%s', (_, scope, tag, want) => {
     const eff = Effect.runSync(Effect.either(Effect.provide(resolveTagEffect(tag, 'who'), scope.context)))

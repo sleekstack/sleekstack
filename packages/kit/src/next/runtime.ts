@@ -18,7 +18,7 @@ import { devEnabled, traceService } from '@sleekstack/runtime/internal'
 import { isNextControlFlow } from '@sleekstack/next'
 import { Cause, Context, Effect, Exit, Layer } from 'effect'
 import { normalize, toFinalizerError, type FinalizerError } from '../errors'
-import type { Layer as KitLayer } from '../layer'
+import { defKeys, type Layer as KitLayer } from '../layer'
 import { unwrap, validateProvide, type Module } from '../module'
 
 /** Config for {@link configureRuntime}: the app's Layers/modules and an optional cleanup-failure sink. */
@@ -44,12 +44,9 @@ const trace = <T extends CoreModule | Entry>(x: T): T => {
     const m = x as unknown as CoreModule
     const imports = m.imports
     out = { ...m, entries: m.entries.map(trace), imports: typeof imports === 'function' ? () => imports().map(trace) : imports.map(trace) }
-  } else if (e._tag === 'ServiceDefinition') {
-    const d = x as unknown as { tag: { key: string }; layer: Layer.Layer<any, any, any> }
-    out = { ...d, layer: traceService([d.tag.key], d.layer) }
-  } else if (e._tag === 'DeclaredLayer') {
-    const d = x as unknown as { provides: readonly { key: string }[]; layer: Layer.Layer<any, any, any> }
-    out = { ...d, layer: traceService(d.provides.map((t) => t.key), d.layer) }
+  } else if (e._tag === 'DeclaredLayer' && defKeys.has(x)) {
+    const d = x as unknown as { layer: Layer.Layer<any, any, any> }
+    out = { ...d, layer: traceService([defKeys.get(x)!], d.layer) }
   }
   traced.set(x, out as T)
   return out as T

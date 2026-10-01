@@ -443,16 +443,14 @@ export function extract(project: string, entries?: readonly string[], lenient = 
       // Runtime numbers unnamed effects in evaluation order, which the analyzer cannot reproduce.
       if (!name) return fail(e, 'effect() in a module needs a literal `name` so its graph identity is static', 'UnnamedEffect')
       p = { ...base, provides: [`effect:${literal(name, 'effect name')}`], requires: tagList(a[1]), lifetime: lifetimeOf(prop(opts, 'lifetime')) }
-    } else if (id === 'core/service#service') {
-      const opts = objectOf(a[1])
-      p = { ...base, provides: [tagKey(a[0]!)], requires: tagList(prop(opts, 'requires')), lifetime: lifetimeOf(prop(opts, 'lifetime')) }
     } else if (id === 'core/module#declareLayer') {
-      const opts = objectOf(a[1])
-      p = { ...base, provides: tagList(prop(opts, 'provides')), requires: tagList(prop(opts, 'requires')), lifetime: lifetimeOf(prop(opts, 'lifetime')) }
+      // What it provides and requires comes from the wrapped Layer's type; only the lifetime is a literal option.
+      if (!a[0]) return fail(e, 'declareLayer() needs a Layer')
+      p = { ...layerLeaf(a[0]), loc: base.loc, lifetime: lifetimeOf(prop(objectOf(a[1]), 'lifetime')) }
     } else if (core && checker.getTypeAtLocation(expr).getSymbol()?.getName() === 'Layer') {
       p = { ...base, opaque: true, provides: [], requires: [], lifetime: undefined } // self-contained bare Layer
     } else {
-      return fail(expr, `"${text(expr)}" is not a recognized layer() / service() / declareLayer() declaration`)
+      return fail(expr, `"${text(expr)}" is not a recognized layer() / declareLayer() declaration`)
     }
     providers.set(key, p)
     return p

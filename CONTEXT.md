@@ -18,20 +18,20 @@ _Avoid_: Provider, factory, ServiceProvider
 The resolved runtime value obtained by providing a Tag to `useService()`. Distinct from the Tag (the identifier), the Layer (the constructor), and the Service Definition (the helper that carries the constructor's dependency metadata).
 _Avoid_: Instance, dependency, singleton
 
-**Service Definition**:
-The output of `service(tag, { requires, lifetime }, make)` — an Effect Layer plus runtime metadata (provided Tag, required Tags, lifetime) that drives auto-wiring, readable dependency errors, and lifetime checks. A raw Layer carries none of this metadata; a Service Definition wraps it so the metadata and the Layer's requirement type cannot drift apart.
-_Avoid_: Definition, ServiceFactory, provider definition
+**Declared Layer**:
+The output of `declareLayer(layer, { lifetime? })` — a plain Effect Layer plus its Lifetime. What it provides and requires is read from the Layer's type by the Analyzer; the runtime keeps no such metadata. Core has no Effect-hiding builders: everything it accepts is a Layer. Only `@sleekstack/kit` hides Effect (`layer()`, `effect()`), and lowers to Declared Layers.
+_Avoid_: Service Definition, `service()`, provider definition
 
 **Lifetime**:
 One of `app`, `request`, or `component` — how long a constructed service lives before it is finalized. Constrains which lifetimes may depend on which (the lifetime matrix: `app` on `app`; `request` on `app`+`request`; `component` on `app`+`component`; `request` and `component` never nest).
 _Avoid_: Scope kind, duration, lifecycle tier
 
 **Module**:
-A named group of entries — Service Definitions, declared Layers, or bare Layers — with imports (other Modules, pulled in transitively) and exports. Exports are enforced: when `exports` is given, every other Tag the Module provides is private and may be required only by the Module's own entries — importers, root entries, `useService`, action/query deps, per-call `provide` entries and child scopes get `PrivateDependency`. Omitted `exports` means all public. Shadowing a private Tag from outside provides a new public one (ADR 0006). The primary architectural unit in SleekStack. Created with `module()`.
+A named group of entries — declared Layers or bare Layers — with imports (other Modules, pulled in transitively) and exports. Exports are enforced: when `exports` is given, every other Tag the Module provides is private and may be required only by the Module's own entries — importers, root entries, `useService`, action/query deps, per-call `provide` entries and child scopes get `PrivateDependency`. Omitted `exports` means all public. Shadowing a private Tag from outside provides a new public one (ADR 0006). The primary architectural unit in SleekStack. Created with `module()`.
 _Avoid_: Package, bundle, plugin, feature
 
 **Graph**:
-The dependency structure of every entry and imported Module under a root (`configureRuntime` call): nodes, edges, lifetimes, module privacy and shadowing. Validated only by the Analyzer, at build time (ADR 0011); `sleekstack check --json` reports it (one node per provided Tag, keyed by the Tag key, or `Tag@Module` when shadowed). The runtime keeps no validated Graph, only a Resolution Plan.
+The dependency structure of every entry and imported Module under a root (`configureRuntime` call): nodes, edges, lifetimes, module privacy and shadowing. Validated only by the Analyzer, at build time (ADR 0011); `sleekstack check --json` reports it (one node per provided Tag, keyed by the Tag key, or `Tag@Module` when shadowed). The runtime keeps no Graph at all: it builds entries in position order (deepest import first, root entries last), so a later, more local entry overrides an earlier one.
 _Avoid_: Dependency tree, container, registry
 
 **Captive Dependency**:
@@ -64,9 +64,9 @@ _Avoid_: Handler, deps array
 `@sleekstack/analyze`, run as `sleekstack check [--project <tsconfig>] [--entry <file>...] [--json]`. Reads the declarations through the TypeScript checker without executing app code, builds each root's Graph and reports every violation with file:line (exit 0 ok, 1 violations, 2 crash or no roots). Fails closed: a declaration it cannot read is an error. `--entry` limits the roots to the given files.
 _Avoid_: Linter, compiler plugin
 
-**Resolution Plan**:
-Core's internal, non-exported construction order and shadowing for a scope (`buildPlan(entries)`). The root plan does not validate; per-call `provide` and child-scope boundaries still check ambiguity and cycles.
-_Avoid_: Graph, snapshot
+**Position Order**:
+Core's construction order for a scope: entries flattened deepest import first, then importers, then root entries; each builds over what was built before and a later one overrides an earlier one. Nothing is validated; a Layer that needs a Tag not built yet fails with `MissingDependency`.
+_Avoid_: Resolution Plan, Graph, snapshot
 
 **SleekStackError**:
 The one public error type of the kit: every core tagged error, kit check (`DuplicateTag`, `InvalidTag`) and thrown value is normalized to it, with a `code` and `details`.

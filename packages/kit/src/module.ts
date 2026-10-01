@@ -5,7 +5,7 @@
  * DuplicateTag check. Whole-graph checks are the analyzer's (`sleekstack check`).
  */
 
-import { walkProvide, module as coreModule, type Entry, type Module as CoreModule } from '@sleekstack/core'
+import { module as coreModule, type Entry, type Module as CoreModule } from '@sleekstack/core'
 import { normalize, SleekStackError } from './errors'
 import { layerInfo, type Layer } from './layer'
 import { coreTag, type AnyTag } from './tag'
@@ -102,14 +102,37 @@ export function unwrap(items: readonly (Layer<any> | Module)[]): (Entry | CoreMo
  * Layer's deps) holds two distinct Tag objects with the same key. Never compares across sets.
  */
 export function validateProvide(items: readonly (Layer<any> | Module)[]): void {
+  unwrap(items) // InvalidModule for anything that is not a layer() or module()
   const byKey = new Map<string, object>()
-  walkProvide(unwrap(items), (t) => {
-    const prev = byKey.get(t.key)
-    if (prev === undefined) byKey.set(t.key, t)
-    else if (prev !== t) {
-      throw new SleekStackError('DuplicateTag', `Two distinct Tags share the key "${t.key}" in one provide set`, { tag: t.key })
+  const seen = new Set<object>()
+  const visit = (t: AnyTag) => {
+    const c = coreTag(t)
+    const prev = byKey.get(c.key)
+    if (prev === undefined) byKey.set(c.key, c)
+    else if (prev !== c) {
+      throw new SleekStackError('DuplicateTag', `Two distinct Tags share the key "${c.key}" in one provide set`, { tag: c.key })
     }
-  })
+  }
+  const walk = (x: Layer<any> | Module): void => {
+    const m = moduleInfo(x)
+    if (!m) {
+      const l = layerInfo(x)
+      return l && [l.tag, ...l.deps].forEach(visit)
+    }
+    if (seen.has(x)) return
+    seen.add(x)
+    m.config.provide?.forEach(walk)
+    m.config.exports?.forEach(visit)
+    const imports = m.config.imports ?? []
+    let list: readonly Module[]
+    try {
+      list = typeof imports === 'function' ? imports() : imports
+    } catch {
+      return // a thunk not yet resolvable is reported when the scope resolves it
+    }
+    list.forEach(walk)
+  }
+  items.forEach(walk)
 }
 
 // Not declared as `function module`: that would shadow the CommonJS `module` that webpack Fast Refresh reads (`module.hot`).

@@ -20,7 +20,7 @@ The [showcase](../showcase/README.md) team task board, ported to `@sleekstack/ki
 | Effect showcase | Kit showcase |
 | --- | --- |
 | `Context.Tag` classes | `tag<T>(name)` |
-| `service(Tag, { requires }, ([a, b]) => Effect...)` | `layer(Tag, (a, b) => value, [A, B])` |
+| `declareLayer(Layer.effect(Tag, ...))` | `layer(Tag, (a, b) => value, [A, B])` |
 | `module({ entries })` + `makeAppScope(entries)` | `module({ provide })` + `configureRuntime({ provide })` |
 | `action(Effect.gen(...))` | `defineEffect(function* (...args) { const a = yield* A; ... })` |
 | `_tag` errors (`Data.TaggedError`) | one `SleekStackError` with `code` |
