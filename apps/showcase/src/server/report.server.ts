@@ -18,7 +18,12 @@ export interface ReportGraph {
 export interface ReportError { readonly code: string; readonly message: string; readonly file: string; readonly line: number }
 export interface Report {
   readonly ok: boolean
-  readonly roots: readonly { readonly root: string; readonly graph: ReportGraph; readonly errors: readonly ReportError[] }[]
+  readonly roots: readonly {
+    readonly root: string
+    /** 'app' | 'request' | 'overrides' | 'opaque'; other values are shown as-is (additive schema). */
+    readonly kind?: string
+    readonly graph: ReportGraph; readonly errors: readonly ReportError[]
+  }[]
 }
 
 export function readReport(name: 'report' | 'errors', dir = process.cwd()): Report {

@@ -10,16 +10,14 @@ import type { Atom } from '@sleekstack/core'
 import { useAtomValue } from '@sleekstack/react'
 import { useProviderAtomStore } from '@sleekstack/react/internal'
 import { useStoreAtoms } from './atoms/useStoreAtoms'
+import { graphsOf } from './graph/graphsOf'
 import { ScopedErrors, ServiceEvents, type DevEvent } from './panel/sections'
+
+export { graphsOf } from './graph/graphsOf'
 
 /** Present in every devtools bundle; production bundle tests assert it is absent from client chunks. */
 export const DEVTOOLS_MARKER = 'sleekstack-devtools-panel-9f3c'
 
-interface ReportGraph {
-  readonly nodes: readonly { readonly id: string; readonly name: string; readonly lifetime: string }[]
-  readonly edges: readonly { readonly from: string; readonly to: string; readonly tag: string }[]
-}
-interface RootGraph extends ReportGraph { readonly root: string }
 /** The handler's JSON body (`devtoolsSnapshot`); `graph` is an analyzer Report when the app supplied one. */
 export interface DevtoolsData {
   /** Tracing off on the server (absent from older handlers: treated as enabled). */
@@ -65,25 +63,6 @@ const isDevtoolsData = (v: unknown): v is DevtoolsData =>
   Array.isArray(v.scopes) && v.scopes.every(isEvent) &&
   Array.isArray(v.errors) && v.errors.every(isEvent) &&
   isObj(v.live) && typeof v.live.app === 'boolean' && Array.isArray(v.live.scopes) && v.live.scopes.every((s) => typeof s === 'string')
-
-const isGraph = (g: unknown): g is ReportGraph =>
-  isObj(g) &&
-  Array.isArray(g.nodes) && g.nodes.every((n) => strs(n, ['id', 'name', 'lifetime'])) &&
-  Array.isArray(g.edges) && g.edges.every((e) => strs(e, ['from', 'to', 'tag']))
-
-/**
- * The graphs in whatever the app supplied: an analyzer `Report` (`runtimes[].graph`, else `graphs[]`) or the
- * `sleekstack check --json` envelope (`roots[].graph`). Anything malformed is skipped, never thrown on.
- */
-export function graphsOf(report: unknown): readonly RootGraph[] {
-  if (!isObj(report)) return []
-  const from = (list: unknown, pick: (r: unknown) => unknown): unknown[] => (Array.isArray(list) ? list.map(pick) : [])
-  const graphOf = (r: unknown) => (isObj(r) ? r.graph : undefined)
-  // The canonical Report (`runtimes`, else `graphs`) or the CLI envelope (`roots`): first source with a graph wins.
-  const sources = [from(report.runtimes, graphOf), from(report.graphs, (g) => g), from(report.roots, graphOf)]
-  const candidates = sources.find((c) => c.some(isGraph)) ?? []
-  return candidates.filter(isGraph).map((g, i) => ({ ...g, root: typeof (g as Partial<RootGraph>).root === 'string' ? (g as RootGraph).root : `graph ${i + 1}` }))
-}
 
 /** Polls `endpoint` (next poll only after the previous settles); `undefined` until the first response, `null` while off (404, network error or non-JSON). */
 function useDevtoolsData(endpoint: string, intervalMs: number): DevtoolsData | null | undefined {
@@ -142,9 +121,9 @@ export function SleekStackDevtools({ endpoint = '/api/devtools', intervalMs = 20
           <section aria-label="graph">
             <h3>Graph</h3>
             {graphs.length ? (
-              graphs.map((g) => (
-                <div key={g.root}>
-                  <strong>{g.root}</strong>: {g.nodes.length} nodes, {g.edges.length} edges
+              graphs.map((g, i) => (
+                <div key={`${i}:${g.root}`}>
+                  <strong>{g.root}</strong>{g.kind ? ` [${g.kind}]` : ''}: {g.nodes.length} nodes, {g.edges.length} edges
                   <ul>{g.nodes.map((n) => <li key={n.id}>{n.name} ({n.lifetime})</li>)}</ul>
                   <ul aria-label="edges">{g.edges.map((e) => <li key={`${e.from}>${e.to}>${e.tag}`}>{e.from} → {e.to} ({e.tag})</li>)}</ul>
                 </div>
