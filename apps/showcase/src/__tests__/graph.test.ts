@@ -1,12 +1,16 @@
 /**
  * apps/showcase/src/__tests__/graph.test.ts
  *
- * /graph lists every analyzer root with its kind: the app root, RequestLive and DemoLive.
+ * /graph lists every analyzer root with its kind: the app root, RequestLive and DemoLive. An unknown
+ * kind renders as a plain root.
  */
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import * as report from '../server/report.server'
 import GraphPage from '../../app/graph/page'
+
+afterEach(() => vi.restoreAllMocks())
 
 describe('/graph', () => {
   it('lists RequestLive and DemoLive with their kind, after the app root', () => {
@@ -15,5 +19,12 @@ describe('/graph', () => {
     expect(app).toBeGreaterThan(-1)
     expect(html.indexOf('RequestLive [request]')).toBeGreaterThan(app)
     expect(html.indexOf('DemoLive [overrides]')).toBeGreaterThan(app)
+  })
+
+  it('renders an unknown kind as a plain root', () => {
+    const graph = { root: 'Later', nodes: [], edges: [] }
+    vi.spyOn(report, 'readReport').mockReturnValue({ ok: true, roots: [{ root: 'Later', kind: 'future', graph, errors: [] }] })
+    const html = renderToStaticMarkup(createElement(GraphPage))
+    expect(html).toContain('<h2>Later</h2>')
   })
 })

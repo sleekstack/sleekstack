@@ -6,6 +6,9 @@
  */
 import { readReport } from '../../src/server/report.server'
 
+// Unknown kinds render as a plain root: the Report schema is additive.
+const KINDS = new Set(['app', 'request', 'overrides', 'opaque'])
+
 export default function GraphPage() {
   const roots = readReport('report').roots
   return (
@@ -15,7 +18,7 @@ export default function GraphPage() {
         <section key={`${i}:${root}`}>
           <h2>
             {root}
-            {kind ? ` [${kind}]` : ''}
+            {kind && KINDS.has(kind) ? ` [${kind}]` : ''}
           </h2>
           <h3>Nodes</h3>
           <table border={1} cellPadding={4}>

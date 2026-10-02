@@ -18,4 +18,9 @@ describe('graphsOf', () => {
       ['App', 'app'], ['RequestLive', 'request'], ['DemoLive', 'overrides'], ['x.ts:3', 'opaque'], ['Later', undefined],
     ])
   })
+
+  it('prefers kind-carrying roots over a bare graphs list in the CLI envelope', () => {
+    const roots = graphsOf({ graphs: [g], roots: [{ kind: 'request', graph: { ...g, root: 'RequestLive' } }] })
+    expect(roots.map((r) => [r.root, r.kind])).toEqual([['RequestLive', 'request']])
+  })
 })

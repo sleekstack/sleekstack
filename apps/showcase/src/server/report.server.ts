@@ -20,7 +20,7 @@ export interface Report {
   readonly ok: boolean
   readonly roots: readonly {
     readonly root: string
-    /** 'app' | 'request' | 'overrides' | 'opaque'; other values are shown as-is (additive schema). */
+    /** 'app' | 'request' | 'overrides' | 'opaque'; /graph shows any other value as a plain root (additive schema). */
     readonly kind?: string
     readonly graph: ReportGraph; readonly errors: readonly ReportError[]
   }[]

@@ -21,8 +21,8 @@ const isGraph = (g: unknown): g is ReportGraph =>
   Array.isArray(g.edges) && g.edges.every((e) => strs(e, ['from', 'to', 'tag']))
 
 /**
- * The graphs in whatever the app supplied: an analyzer `Report` (`runtimes[].graph`, else `graphs[]`) or the
- * `sleekstack check --json` envelope (`roots[].graph`), each with its root `kind` when one is given, in report
+ * The graphs in whatever the app supplied: an analyzer `Report` (`runtimes[].graph`), the
+ * `sleekstack check --json` envelope (`roots[].graph`), else a bare `graphs[]`, each with its root `kind` when one is given, in report
  * order (app roots first). Anything malformed is skipped, never thrown on.
  */
 export function graphsOf(report: unknown): readonly RootGraph[] {
@@ -30,8 +30,8 @@ export function graphsOf(report: unknown): readonly RootGraph[] {
   type Entry = { readonly graph: unknown; readonly kind?: unknown }
   const from = (list: unknown, pick: (r: unknown) => Entry): Entry[] => (Array.isArray(list) ? list.map(pick) : [])
   const rootOf = (r: unknown): Entry => (isObj(r) ? { graph: r.graph, kind: r.kind } : { graph: undefined })
-  // The canonical Report (`runtimes`, else `graphs`) or the CLI envelope (`roots`): first source with a graph wins.
-  const sources = [from(report.runtimes, rootOf), from(report.graphs, (g) => ({ graph: g })), from(report.roots, rootOf)]
+  // Kind-carrying sources first (`runtimes`, then the CLI envelope's `roots`), bare `graphs` last: first source with a graph wins.
+  const sources = [from(report.runtimes, rootOf), from(report.roots, rootOf), from(report.graphs, (g) => ({ graph: g }))]
   const candidates = sources.find((c) => c.some((e) => isGraph(e.graph))) ?? []
   return candidates.filter((e) => isGraph(e.graph)).map(({ graph, kind }, i) => {
     const g = graph as ReportGraph & { root?: unknown }
