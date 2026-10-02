@@ -8,6 +8,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Atom } from '@sleekstack/core'
 import { useAtomValue } from '@sleekstack/react'
+import { useStoreAtoms } from './atoms/useStoreAtoms'
 import { ScopedErrors, ServiceEvents, type DevEvent } from './panel/sections'
 
 /** Present in every devtools bundle; production bundle tests assert it is absent from client chunks. */
@@ -121,6 +122,7 @@ export function SleekStackDevtools({ endpoint = '/api/devtools', intervalMs = 20
   const data = useDevtoolsData(endpoint, intervalMs)
   const entries = Object.entries(atoms ?? {})
   const graphs = useMemo(() => graphsOf(data?.graph), [data])
+  const stores = useStoreAtoms(intervalMs)
   return (
     <aside aria-label="SleekStack devtools" data-devtools={DEVTOOLS_MARKER} style={{ borderTop: '1px solid #ccc', marginTop: '2rem', fontSize: 13 }}>
       <h2>SleekStack devtools</h2>
@@ -158,7 +160,14 @@ export function SleekStackDevtools({ endpoint = '/api/devtools', intervalMs = 20
       )}
       <section aria-label="atoms">
         <h3>Atoms</h3>
-        {entries.length === 0 ? <p>No atoms registered.</p> : <ul>{entries.map(([k, a]) => <AtomRow key={k} label={k} atom={a} />)}</ul>}
+        {entries.length === 0 && stores.every((s) => s.length === 0) ? (
+          <p>No atoms registered.</p>
+        ) : (
+          <ul>
+            {entries.map(([k, a]) => <AtomRow key={k} label={k} atom={a} />)}
+            {stores.flatMap((atoms, i) => atoms.map((a) => <li key={`${i}:${a.label}`}>store {i + 1} · {a.label}: <code>{show(a.value)}</code></li>))}
+          </ul>
+        )}
       </section>
     </aside>
   )

@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import { Atom } from '@sleekstack/core'
-import { LayerProvider } from '@sleekstack/react'
+import { LayerProvider, useAtomValue } from '@sleekstack/react'
+import { STORES_KEY } from '@sleekstack/react/internal'
 import { SleekStackDevtools, DEVTOOLS_MARKER, graphsOf } from '../index'
 
 afterEach(() => {
@@ -36,6 +37,22 @@ describe('SleekStackDevtools', () => {
     expect(screen.getByText('request#3')).not.toBeNull()
     expect(screen.getByText('boom')).not.toBeNull()
     expect(await screen.findByText('7')).not.toBeNull()
+  })
+
+  it('lists atoms of every open provider store, skips a store that throws, and drops unmounted stores', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('Not Found', { status: 404 })))
+    const draft = Atom.make('hello')
+    const Reader = () => <span>{useAtomValue(draft)}</span>
+    const provider = render(<LayerProvider provide={[]}><Reader /></LayerProvider>)
+    await screen.findByText('hello')
+    const set = (globalThis as Record<string, unknown>)[STORES_KEY] as Set<unknown>
+    const broken = { inspect: () => { throw new Error('disposed') } }
+    set.add(broken)
+    render(<SleekStackDevtools intervalMs={20} />)
+    expect(await screen.findByText(`store 1 · ${draft.label}:`, { exact: false })).not.toBeNull()
+    set.delete(broken)
+    provider.unmount()
+    expect(await screen.findByText(/No atoms registered/)).not.toBeNull()
   })
 
   it('shows service acquire/release with scope and fiber, and links an error to its closed scope', async () => {

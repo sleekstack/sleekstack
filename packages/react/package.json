@@ -4,6 +4,16 @@
   "private": true,
   "main": "src/index.tsx",
   "types": "src/index.tsx",
+  "exports": {
+    ".": {
+      "types": "./src/index.tsx",
+      "default": "./src/index.tsx"
+    },
+    "./internal": {
+      "types": "./src/registry.ts",
+      "default": "./src/registry.ts"
+    }
+  },
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
