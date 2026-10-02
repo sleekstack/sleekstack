@@ -4,7 +4,8 @@
  * SSR prefetch + <HydrateQueries> (fn-12 task .6, R7): server reads, first-paint client data, nested providers.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, render, screen } from '@testing-library/react'
+import { hydrateRoot } from 'react-dom/client'
 import { renderToString } from 'react-dom/server'
 import { prerender } from 'react-dom/static'
 import React, { Suspense } from 'react'
@@ -60,5 +61,33 @@ describe('HydrateQueries', () => {
     expect(await screen.findByText('c#1')).toBeTruthy()
     await new Promise((r) => setTimeout(r, 20))
     expect(calls.n).toBe(1)
+  })
+
+  it('a lazily fetched server entry reaches the client without a refetch; a Schema-failing entry refetches on the server', async () => {
+    const { Show, calls } = setup()
+    Hydrate.setServerRunner((atoms) => Effect.runPromise(Hydrate.prefetch(atoms) as Effect.Effect<Hydrate.Dehydrated>))
+    const bad: Hydrate.Dehydrated = [{ key: '["todo","d"]', result: 'success', value: 42, updatedAt: Date.now() }]
+    const tree = <LayerProvider provide={[]}><Suspense fallback="loading"><HydrateQueries state={bad}><Show id="d" /></HydrateQueries></Suspense></LayerProvider>
+    vi.stubGlobal('window', undefined)
+    const out = await html(tree)
+    vi.unstubAllGlobals()
+    expect(out).toContain('d#1')
+    expect(calls.n).toBe(1)
+    const container = document.createElement('div')
+    container.innerHTML = out
+    document.body.appendChild(container)
+    const errors = vi.spyOn(console, 'error')
+    await act(async () => { hydrateRoot(container, tree) })
+    await new Promise((r) => setTimeout(r, 20))
+    expect(container.textContent).toContain('d#1')
+    expect(calls.n).toBe(1)
+    expect(errors.mock.calls.filter((c) => /hydrat/i.test(String(c[0])))).toEqual([]) // no hydration mismatch
+  })
+
+  it('a rejected server fetch reaches the renderer', async () => {
+    const { Show } = setup()
+    Hydrate.setServerRunner(() => Promise.reject(new Error('runtime down')))
+    vi.stubGlobal('window', undefined)
+    await expect(html(<LayerProvider provide={[]}><Show id="e" /></LayerProvider>)).rejects.toThrow('runtime down')
   })
 })

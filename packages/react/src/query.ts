@@ -75,7 +75,8 @@ export function useQueryResult<A, E>(atom: Query.QueryAtom<A, E>): QueryResult<A
   return useObserved('useQueryResult', atom).result
 }
 
-type ServerSlot = { entry?: Hydrate.DehydratedEntry; promise?: Promise<void>; done?: boolean }
+/** @internal A server-render map slot: a hydrated or lazily fetched entry, the running fetch, or its rejection. */
+export type ServerSlot = { entry?: Hydrate.DehydratedEntry; promise?: Promise<void>; lazy?: boolean; done?: boolean; error?: unknown }
 const serverMaps = new WeakMap<ProviderState, Map<string, ServerSlot>>()
 /** @internal The server-render dehydrated map of a query store (shared by nested providers). */
 export const serverMap = (state: ProviderState): Map<string, ServerSlot> => {
@@ -84,20 +85,24 @@ export const serverMap = (state: ProviderState): Map<string, ServerSlot> => {
   return m
 }
 
-// Server branch: no store. A hydrated entry renders as is; a missing (or Schema-failing) one suspends on a fetch.
+// Server branch: no store. A hydrated success renders as is; a missing or Schema-failing entry suspends on a
+// fetch through the server runner (whose rejection, e.g. a defect or RuntimeNotConfigured, is rethrown).
+// A typed failure renders pending, matching the client's first paint, which refetches it.
 function serverResult<A, E>(state: ProviderState, atom: Query.QueryAtom<A, E>): QueryResult<A, E> {
   const key = atom[Query.TypeId].key
   const m = serverMap(state)
-  const slot = m.get(key) ?? {}
-  const decoded = slot.entry && Hydrate.decode(atom, slot.entry)
-  if (decoded) return decoded
-  if (slot.done) return LOADING // fetched but not dehydratable (failure): the client fetches it
-  if (!slot.promise) {
-    slot.promise = Hydrate.serverRun([atom]).then(
-      ([entry]) => { slot.entry = entry; slot.done = true },
-      () => { slot.done = true },
+  let slot = m.get(key)
+  if (slot?.error !== undefined) throw slot.error
+  const decoded = slot?.entry && Hydrate.decode(atom, slot.entry)
+  if (decoded?._tag === 'Success') return decoded
+  if (slot?.done) return LOADING
+  if (!slot?.promise) {
+    const s: ServerSlot = (slot = { lazy: true })
+    s.promise = Hydrate.serverRun([atom]).then(
+      ([entry]) => { s.entry = entry; s.done = true },
+      (error) => { s.error = error ?? new Error('Server query runner rejected') },
     )
-    m.set(key, slot)
+    m.set(key, s)
   }
   throw slot.promise
 }

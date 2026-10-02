@@ -3,7 +3,9 @@
  *
  * Server prefetch for `@sleekstack/query`: runs queries in a request scope through `runEffect` and
  * returns the `Dehydrated` state for `<HydrateQueries state>`. Importing it also registers `prefetch`
- * as the server runner, so a server render suspends on an un-prefetched query instead of failing.
+ * as the server runner, so a server render suspends on an un-prefetched query instead of failing. That lazy
+ * fetch runs with the configured runtime only (no per-call `request` / `overrides` Layers, which a render
+ * cannot see): prefetch queries that need request-scoped services.
  */
 
 import { Hydrate, type Query } from '@sleekstack/query'

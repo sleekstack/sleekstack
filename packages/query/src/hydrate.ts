@@ -143,7 +143,7 @@ export const hydrate = (store: AtomStore, state: Dehydrated): void => {
  * Seeds `atom` from its staged entry (once): a value that fails its Schema is dropped (the query then
  * fetches), an entry older than the mounted one is ignored, and the seeded entry is fresh until `staleTime`
  * counted from the server's `updatedAt`.
- * ponytail: failures are not seeded on the client (it refetches them); seed them if error first paint matters.
+ * A failure entry is not seeded: the server renders it pending and the client refetches it.
  *
  * @param store - The client query store.
  * @param atom - The query being read.
