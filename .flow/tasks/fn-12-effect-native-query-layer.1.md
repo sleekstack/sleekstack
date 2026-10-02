@@ -39,9 +39,11 @@ If stale-while-revalidate and dedupe cannot be built without touching `AtomStore
 - [ ] Package is in CI and the docs entry-point list; `pnpm --filter @sleekstack/query test` and typecheck pass
 
 ## Done summary
-TBD
+Scaffolded @sleekstack/query (in CI loop and docs entry points) with Query.make: a keyed family of writable atoms on the native store (canonical stable-JSON keys, InvalidQueryKey), a replaceable QueryCache Tag resolved per store into a registry {updatedAt, observers}, staleTime-gated mount/refetchOn triggers, deduped refetchInterval, gcTime via setIdleTTL/keepAlive, Schedule retry for typed failures, Stream live queries. No Atom/AtomStore change was needed (proof point holds). Tests in packages/query/src/__tests__/query.test.ts. Follow-up: store.set on an unbuilt key pulls (runs the fetch) first - task 2's setData should account for that.
 
+Tier: implementer (actual_model: claude-opus-5-5)
+stage: impl-review - ran (codex fan-out NEEDS_WORK -> NEEDS_WORK -> SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 1cdb6777cbfd94401df1bdc060a001c36f55ccd4, ad1d75d1286bc523bfbfe85b0d6079fd579ae403, 63fbd1bded6b942d737f13c7b4a338d5dadf4b0e, e44a6880026f0f5b1c929e9e4f5e5d411e15c28a
+- Tests: pnpm --filter @sleekstack/query test && pnpm --filter @sleekstack/react test && pnpm --filter @sleekstack/kit test, pnpm --filter showcase typecheck && pnpm --filter showcase test, pnpm --filter @sleekstack/query typecheck
 - PRs:
