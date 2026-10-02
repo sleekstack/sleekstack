@@ -17,6 +17,8 @@ export const TypeId: unique symbol = Symbol.for('@sleekstack/query/Query') as ne
 export interface QueryInfo {
   /** Canonical key string. */
   readonly key: string
+  /** Registry id: the definition plus the canonical key (two definitions with one key are distinct entries). */
+  readonly id: string
   /** The key tuple as returned by `key` (kept for prefix matching). */
   readonly tuple: ReadonlyArray<unknown>
   /** Milliseconds a fetched value stays fresh. */
@@ -36,6 +38,7 @@ export interface QueryAtom<A, E> extends Atom.Writable<Result.Result<A, E | Atom
 
 /** One registry entry per built query node in a store. */
 export interface QueryEntry {
+  readonly id: string
   readonly key: string
   readonly tuple: ReadonlyArray<unknown>
   readonly atom: QueryAtom<unknown, unknown>
@@ -47,11 +50,19 @@ export interface QueryEntry {
   /** @internal stops the trigger fiber */ stop: (() => void) | undefined
 }
 
-// One Map per store: a keepAlive atom is built once per store and never recomputed.
-const registryAtom = Atom.keepAlive(Atom.make((): Map<string, QueryEntry> => new Map()))
+// One Map per store: a keepAlive atom is built once per store and never recomputed; its finalizer runs on
+// store disposal and stops every trigger fiber still running there.
+const registryAtom = Atom.keepAlive(
+  Atom.make((get): Map<string, QueryEntry> => {
+    const registry = new Map<string, QueryEntry>()
+    get.addFinalizer(() => { for (const e of registry.values()) { e.stop?.(); e.stop = undefined } })
+    return registry
+  }),
+)
+let definitions = 0
 
 /**
- * The query registry of `store`: canonical key -> entry, filled on read and cleared when the node is removed.
+ * The query registry of `store`: entry id (definition + canonical key) -> entry, filled on read and cleared when the node is removed.
  *
  * @param store - The atom store.
  * @returns The live registry (read-only view).
@@ -62,13 +73,13 @@ export const entries = (store: AtomStore): ReadonlyMap<string, QueryEntry> => st
 export interface QueryOptions<Args, A, E, R> {
   /** Maps arguments to a JSON-serializable key tuple. */
   readonly key: (args: Args) => ReadonlyArray<unknown>
-  /** The fetch; its requirements resolve from the store's scope. */
-  readonly fetch: (args: Args) => Effect.Effect<A, E, R>
+  /** The fetch (an Effect, or a Stream for a live query); its requirements resolve from the store's scope. */
+  readonly fetch: (args: Args) => Effect.Effect<A, E, R> | Stream.Stream<A, E, R>
   /** How long a value stays fresh. Defaults to 0. */
   readonly staleTime?: Duration.DurationInput
   /** Idle time before an unobserved node is removed (in-flight fetch interrupted). `Infinity` keeps it. Defaults to 5 minutes. */
   readonly gcTime?: Duration.DurationInput
-  /** Re-runs typed failures; defects and interruption are never retried. */
+  /** Re-runs typed Effect failures; defects and interruption are never retried. A Stream retries per its own pipeline. */
   readonly retry?: Schedule.Schedule<unknown, NoInfer<E>>
   /** Pluggable stale-gated refetch triggers (focus, reconnect, ...); the core has no DOM sources. */
   readonly refetchOn?: ReadonlyArray<Stream.Stream<unknown>>
@@ -99,37 +110,40 @@ export const make = <Args, A, E = never, R = never>(options: QueryOptions<Args, 
   const staleTime = millis(options.staleTime, 0)
   const gcTime = millis(options.gcTime, 5 * 60_000)
   const refetchInterval = options.refetchInterval === undefined ? undefined : Duration.toMillis(options.refetchInterval)
+  const definition = ++definitions
   let pending: { args: Args; tuple: ReadonlyArray<unknown> } | undefined
   const build = (key: string): QueryAtom<A, E> => {
     const { args, tuple } = pending!
+    const id = `${definition}:${key}`
     let self: QueryAtom<A, E>
     const base = Atom.make((get) => {
       const registry = get(registryAtom)
-      let entry = registry.get(key)
+      let entry = registry.get(id)
       if (!entry) {
-        entry = { key, tuple, atom: self as QueryAtom<unknown, unknown>, updatedAt: undefined, observers: 0, live: true, stop: undefined }
-        registry.set(key, entry)
+        entry = { id, key, tuple, atom: self as QueryAtom<unknown, unknown>, updatedAt: undefined, observers: 0, live: true, stop: undefined }
+        registry.set(id, entry)
       }
       const e = entry
       e.live = true
       // a rebuild runs this finalizer then re-reads synchronously; only a removal leaves the entry dead
       get.addFinalizer(() => {
         e.live = false
-        queueMicrotask(() => { if (!e.live && registry.get(key) === e) registry.delete(key) })
+        queueMicrotask(() => { if (!e.live && registry.get(id) === e) registry.delete(id) })
       })
       const fetch = options.fetch(args)
-      return (options.retry ? Effect.retry(fetch, options.retry) : fetch).pipe(
-        Effect.tap(() => Effect.sync(() => { e.updatedAt = Date.now() })),
-      )
+      const touch = () => Effect.sync(() => { e.updatedAt = Date.now() })
+      // the Stream branch is typed as an Effect atom: Atom.make dispatches on the runtime value, not the overload
+      if (!Effect.isEffect(fetch)) return Stream.tap(fetch, touch) as unknown as Effect.Effect<A, E, R>
+      return (options.retry ? Effect.retry(fetch, options.retry) : fetch).pipe(Effect.tap(touch))
     })
     const writable = Atom.writable(base.read, (ctx, value: A) => {
       ctx.setSelf(Result.success(value))
-      const entry = ctx.get(registryAtom).get(key)
+      const entry = ctx.get(registryAtom).get(id)
       if (entry) entry.updatedAt = Date.now()
     })
     const policy = Number.isFinite(gcTime) ? Atom.setIdleTTL(writable, gcTime) : Atom.keepAlive(writable)
     self = Object.assign(policy, {
-      [TypeId]: { key, tuple, staleTime, refetchOn: options.refetchOn ?? [], refetchInterval, refetchOnMount: options.refetchOnMount ?? true },
+      [TypeId]: { key, id, tuple, staleTime, refetchOn: options.refetchOn ?? [], refetchInterval, refetchOnMount: options.refetchOnMount ?? true },
     }) as QueryAtom<A, E>
     return self
   }
@@ -151,7 +165,7 @@ export const make = <Args, A, E = never, R = never>(options: QueryOptions<Args, 
  */
 export const trigger = (store: AtomStore, atom: QueryAtom<any, any>, force = false): void => {
   const info = atom[TypeId]
-  const entry = entries(store).get(info.key)
+  const entry = entries(store).get(info.id)
   if (!entry || store.get(atom).waiting) return
   if (!force && entry.updatedAt !== undefined && Date.now() - entry.updatedAt < info.staleTime) return
   store.refresh(atom)
@@ -168,9 +182,9 @@ export const trigger = (store: AtomStore, atom: QueryAtom<any, any>, force = fal
  */
 export const observe = <A, E>(store: AtomStore, atom: QueryAtom<A, E>, listener: () => void = () => {}): (() => void) => {
   const info = atom[TypeId]
-  const existed = entries(store).has(info.key)
+  const existed = entries(store).has(info.id)
   const unsubscribe = store.subscribe(atom, listener)
-  const entry = entries(store).get(info.key)!
+  const entry = entries(store).get(info.id)!
   if (existed && info.refetchOnMount) trigger(store, atom)
   if (++entry.observers === 1) {
     const sources: Array<Stream.Stream<boolean>> = info.refetchOn.map((s) => Stream.as(s, false))

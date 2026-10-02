@@ -13,7 +13,7 @@ export class InvalidQueryKey extends Data.TaggedError('InvalidQueryKey')<{
 }> {}
 
 /**
- * Serializes `key` to its canonical string: JSON with object keys sorted.
+ * Serializes `key` to its canonical string: JSON with object keys sorted, `toJSON` honoured and array holes as `null`.
  *
  * @param key - A JSON-serializable value (usually a tuple).
  * @returns The canonical string.
@@ -44,11 +44,12 @@ export const canonicalKey = (key: unknown): string => {
       case 'symbol':
         return fail(typeof value)
     }
+    if (typeof (value as { toJSON?: unknown }).toJSON === 'function') return walk((value as { toJSON: () => unknown }).toJSON())
     const obj = value as object
     if (seen.has(obj)) return fail('cycle')
     seen.add(obj)
     const out = Array.isArray(obj)
-      ? `[${obj.map(walk).join(',')}]`
+      ? `[${Array.from(obj, walk).join(',')}]`
       : `{${Object.keys(obj)
           .filter((k) => (obj as Record<string, unknown>)[k] !== undefined)
           .sort()

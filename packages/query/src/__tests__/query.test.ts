@@ -17,6 +17,8 @@ describe('keys', () => {
     expect(q({ id: 1, tag: 'x' })).not.toBe(q({ id: 2, tag: 'x' }))
     const shared = { a: 1 }
     expect(canonicalKey([shared, shared])).toBe('[{"a":1},{"a":1}]')
+    expect(canonicalKey([new Array(1)])).toBe('[[null]]')
+    expect(canonicalKey([new Date(0)])).not.toBe(canonicalKey([new Date(1)]))
   })
 
   it.each([
@@ -73,10 +75,11 @@ describe('Query.make', () => {
     release()
     await vi.advanceTimersByTimeAsync(500)
     expect(interrupted).toBe(false)
-    expect(Query.entries(store).has('["gc"]')).toBe(true)
+    const id = q(undefined)[Query.TypeId].id
+    expect(Query.entries(store).has(id)).toBe(true)
     await vi.advanceTimersByTimeAsync(600)
     expect(interrupted).toBe(true)
-    expect(Query.entries(store).has('["gc"]')).toBe(false)
+    expect(Query.entries(store).has(id)).toBe(false)
   })
 
   it('retry re-runs typed failures only, and an interval refetch never overlaps a retry', async () => {
@@ -126,6 +129,38 @@ describe('Query.make', () => {
     expect(store.get(q(undefined))).toMatchObject({ _tag: 'Success', value: 2 })
     store.set(q(undefined), 42)
     expect(store.get(q(undefined))).toMatchObject({ _tag: 'Success', value: 42 })
+    release()
+  })
+})
+
+describe('registry and lifecycle', () => {
+  it('two definitions with one key are separate entries', () => {
+    const a = Query.make({ key: () => ['same'], fetch: () => Effect.succeed('a') })
+    const b = Query.make({ key: () => ['same'], fetch: () => Effect.succeed('b') })
+    const store = makeAtomStore()
+    const ra = Query.observe(store, a(undefined))
+    const rb = Query.observe(store, b(undefined))
+    expect([...Query.entries(store).values()].map((e) => [e.key, e.observers])).toEqual([['["same"]', 1], ['["same"]', 1]])
+    ra(); rb()
+  })
+
+  it('disposing the store stops trigger fibers', async () => {
+    vi.useFakeTimers()
+    let n = 0
+    const q = Query.make({ key: () => ['i'], fetch: () => Effect.sync(() => ++n), refetchInterval: '10 millis' })
+    const store = makeAtomStore()
+    Query.observe(store, q(undefined))
+    await store.dispose()
+    await vi.advanceTimersByTimeAsync(50)
+    expect(n).toBe(1)
+  })
+
+  it('a Stream fetch is a live query', async () => {
+    const q = Query.make({ key: () => ['live'], fetch: () => Stream.make(1, 2) })
+    const store = makeAtomStore()
+    const release = Query.observe(store, q(undefined))
+    await new Promise((r) => setTimeout(r, 0))
+    expect(store.get(q(undefined))).toMatchObject({ _tag: 'Success', value: 2 })
     release()
   })
 })
