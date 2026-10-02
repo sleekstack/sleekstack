@@ -12,7 +12,7 @@ src/
   domain/                      entities, errors, inputs (zod), Tags, demo cookie name; imports nothing app-side
   application/                 use cases as Effects over domain Tags (board.ts, board-view.ts)
   infrastructure/              Live Layers: board-store.memory, runtime-infra.live (Infra, ActivityLog),
-                               request.live (RequestContext, UnitOfWork), demo.live; app.ts is the
+                               request.live (RequestContext), demo.live; app.ts is the
                                composition root (AppLive, re-exports RequestLive and DemoLive)
   delivery/                    Next.js edge: runtime.server (runApp), act.server (act()), actions (Server
                                Actions), board.server (page read), demo-mode, report.server
@@ -37,7 +37,7 @@ show. `ActivityLog` and `Clock` are real seams: a live Layer and a demo Layer (`
 | R1 | Domain as plain Layers (`AppLive`): Infra, BoardStore, ActivityLog | `src/domain/tags.ts`, `src/infrastructure/app.ts`, `src/infrastructure/runtime-infra.live.ts`, `src/infrastructure/board-store.memory.ts` |
 | R4 | `configureRuntime({ layer: AppLive })` from `@sleekstack/next`; `runApp` is `runEffect` with a `RequestLive` request scope, `DemoLive` overrides, and defect reporting | `src/delivery/runtime.server.ts` |
 | R2/R3 | `/graph` and `/errors` render the analyzer's prebuilt reports (`pnpm report`, run by predev/prebuild): the app root, and the broken plain-Layer fixtures | `app/graph/page.tsx`, `app/errors/page.tsx`, `src/delivery/report.server.ts`, `src/errors/graphs.ts` |
-| R5 | Server Actions (`act()` over `Board` use cases) and page reads through `runApp`; request-scoped `Layer.scoped` RequestContext and UnitOfWork, `{ok:false, error}` results | `src/delivery/actions.ts`, `src/delivery/act.server.ts`, `src/delivery/board.server.ts`, `src/application/board.ts`, `src/infrastructure/request.live.ts`, `app/page.tsx` |
+| R5 | Server Actions (`act()` over `Board` use cases) and page reads through `runApp`; a request-scoped `Layer.scoped` RequestContext, atomic writes through `BoardStore.transaction`, `{ok:false, error}` results | `src/delivery/actions.ts`, `src/delivery/act.server.ts`, `src/delivery/board.server.ts`, `src/application/board.ts`, `src/infrastructure/request.live.ts`, `app/page.tsx` |
 | R6 | `/log`: request and component scope open/close, finalizer errors | `app/log/page.tsx`, `src/client/components/ScopeLog.tsx`, `src/infrastructure/request.live.ts` |
 | R7 | Nested `LayerProvider`s app → project → task detail, async component services, error boundary per subtree | `app/providers.tsx`, `src/client/components/ProjectView.tsx`, `src/client/components/TaskDetail.tsx`, `src/client/services/component-services.ts`, `src/client/components/ErrorBoundary.tsx` |
 | R8 | `<React.StrictMode>` with exactly one acquire/release per real mount | `app/providers.tsx`, `src/__tests__/board.test.tsx` |
