@@ -5,7 +5,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 export const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
-export const PACKAGES = ['core', 'runtime', 'next', 'react', 'kit']
+export const PACKAGES = ['core', 'runtime', 'query', 'next', 'react', 'kit']
 
 /** @returns {{ pkg: string, name: string, entry: string, file: string, route: string }[]} */
 export function resolveEntryPoints() {
