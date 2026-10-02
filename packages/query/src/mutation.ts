@@ -123,8 +123,8 @@ const build = <I, A, E, R>(store: AtomStore, { options: o }: Mutation<I, A, E, R
       return o.onMutate ? o.onMutate(input) : Effect.void
     }).pipe(
       Effect.flatMap((rollback) => o.run(input).pipe(
-        Effect.onExit((exit) => (Exit.isSuccess(exit) || !rollback ? Effect.void : rollback)),
         Effect.tap((a) => o.onSuccess?.(a, input) ?? Effect.void),
+        Effect.onExit((exit) => (Exit.isSuccess(exit) || !rollback ? Effect.void : rollback)),
       )),
       Effect.tapErrorCause((cause) => o.onError?.(cause, input) ?? Effect.void),
       Effect.ensuring(Effect.suspend(() => o.onSettled?.(input) ?? Effect.void)),
@@ -166,13 +166,16 @@ const build = <I, A, E, R>(store: AtomStore, { options: o }: Mutation<I, A, E, R
   }
 }
 
-// Per-client, per-query stack of pending optimistic writes; each layer remembers the value beneath it.
-const stacks = new WeakMap<Queries.QueriesApi, Map<string, Array<{ previous: Option.Option<unknown> }>>>()
+// Per-client, per-query log of optimistic writes over the value beneath the oldest one. The cached
+// value is the log folded over that base; a write leaves the log on rollback, and folds into the base
+// once it and every older write have committed.
+interface Layer { readonly f: (previous: Option.Option<any>) => any; committed: boolean }
+const logs = new WeakMap<Queries.QueriesApi, Map<string, { base: Option.Option<unknown>; layers: Array<Layer> }>>()
 
 /**
- * Writes `f(previous)` into `atom` for the duration of the call and returns its rollback. Rolling back the
- * top write restores the value beneath it; rolling back a lower one keeps the later write (the layer above
- * now restores past both). A settled-successful write leaves the stack when the call's scope closes.
+ * Writes `f(previous)` into `atom` for the duration of the call and returns its rollback (also run when the
+ * call's scope closes on failure or interruption). Rolling one write back recomputes the value from the
+ * remaining writes, so overlapping rollbacks run in reverse order and never wipe a later write, committed or not.
  */
 export const optimistic = <A>(
   atom: QueryAtom<A, any>,
@@ -180,23 +183,27 @@ export const optimistic = <A>(
 ): Effect.Effect<Effect.Effect<void>, never, Queries.Queries | Scope.Scope> =>
   Effect.gen(function* () {
     const client = yield* Queries.Queries
-    let byKey = stacks.get(client)
-    if (!byKey) stacks.set(client, (byKey = new Map()))
+    let byKey = logs.get(client)
+    if (!byKey) logs.set(client, (byKey = new Map()))
     const id = atom[TypeId].id
-    const stack = byKey.get(id) ?? []
-    byKey.set(id, stack)
-    const layer = { previous: client.getData(atom) as Option.Option<unknown> }
-    client.setData(atom, f(layer.previous as Option.Option<A>))
-    stack.push(layer)
-    const remove = (restore: boolean) => {
-      const i = stack.indexOf(layer)
-      if (i < 0) return
-      stack.splice(i, 1)
-      // a committed lower write stays beneath the layer above, which already restores to it
-      if (restore && i < stack.length) stack[i]!.previous = layer.previous
-      else if (restore) Option.match(layer.previous as Option.Option<A>, { onNone: () => client.reset(atom), onSome: (v) => client.setData(atom, v) })
-      if (stack.length === 0) byKey.delete(id)
+    const log = byKey.get(id) ?? { base: client.getData(atom) as Option.Option<unknown>, layers: [] }
+    byKey.set(id, log)
+    const layer: Layer = { f, committed: false }
+    log.layers.push(layer)
+    // ponytail: a refetch landing mid-mutation is overwritten by the next recompute; rebase on it if that matters
+    const render = () => {
+      const value = log.layers.reduce((acc, l) => Option.some(l.f(acc)), log.base as Option.Option<A>)
+      Option.match(value, { onNone: () => client.reset(atom), onSome: (v) => client.setData(atom, v) })
     }
-    yield* Effect.addFinalizer(() => Effect.sync(() => remove(false)))
-    return Effect.sync(() => remove(true))
+    render()
+    const settle = (commit: boolean) => {
+      const i = log.layers.indexOf(layer)
+      if (i < 0 || layer.committed) return
+      if (commit) layer.committed = true
+      else { log.layers.splice(i, 1); render() }
+      while (log.layers[0]?.committed) log.base = Option.some(log.layers.shift()!.f(log.base))
+      if (log.layers.length === 0) byKey.delete(id)
+    }
+    yield* Effect.addFinalizer((exit) => Effect.sync(() => settle(Exit.isSuccess(exit))))
+    return Effect.sync(() => settle(false))
   })

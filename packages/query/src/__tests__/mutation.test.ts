@@ -57,6 +57,45 @@ describe('Mutation', () => {
     expect(client.getData(q('1'))).toEqual(Option.some('base'))
   })
 
+  it('an earlier failure after a later success keeps the later write', async () => {
+    const { store, q, client } = setup()
+    const gates = [0, 1].map(() => Effect.runSync(Deferred.make<void, string>()))
+    const r = Mutation.runner(store, Mutation.make({
+      run: (i: number) => Deferred.await(gates[i]!),
+      onMutate: (i: number) => Mutation.optimistic(q('1'), () => `opt${i}`),
+    }))
+    const ps = [r.mutate(0), r.mutate(1)]
+    await tick()
+    Effect.runSync(Deferred.succeed(gates[1]!, undefined))
+    await ps[1]
+    Effect.runSync(Deferred.fail(gates[0]!, 'x'))
+    await ps[0]
+    expect(client.getData(q('1'))).toEqual(Option.some('opt1'))
+  })
+
+  it.each([
+    ['onMutate fails after its optimistic write', 'fail'],
+    ['switch interrupts during onSuccess', 'switch'],
+  ] as const)('rolls back when %s', async (_, how) => {
+    const { store, q, client } = setup()
+    const r = Mutation.runner(store, Mutation.make({
+      concurrency: 'switch',
+      run: (_: number) => Effect.void,
+      onMutate: (i: number) => Effect.tap(Mutation.optimistic(q('1'), (p) => `${Option.getOrElse(p, () => '')}+${i}`), () => (how === 'fail' ? Effect.fail('x') : Effect.void)),
+      onSuccess: (_, i) => (i === 0 ? Effect.never : Effect.void),
+    }))
+    const first = r.mutate(0)
+    if (how === 'switch') {
+      await tick()
+      await r.mutate(1)
+      expect(Exit.isInterrupted(await first)).toBe(true)
+      expect(client.getData(q('1'))).toEqual(Option.some('base+1'))
+    } else {
+      expect(Exit.isFailure(await first)).toBe(true)
+      expect(client.getData(q('1'))).toEqual(Option.some('base'))
+    }
+  })
+
   it.each([
     ['switch', 1, ['interrupted', 'ok']],
     ['queue', 1, ['ok', 'ok']],
