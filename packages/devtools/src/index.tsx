@@ -8,6 +8,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Atom } from '@sleekstack/core'
 import { useAtomValue } from '@sleekstack/react'
+import { useProviderAtomStore } from '@sleekstack/react/internal'
 import { useStoreAtoms } from './atoms/useStoreAtoms'
 import { ScopedErrors, ServiceEvents, type DevEvent } from './panel/sections'
 
@@ -123,8 +124,10 @@ export function SleekStackDevtools({ endpoint = '/api/devtools', intervalMs = 20
   const entries = Object.entries(atoms ?? {})
   const graphs = useMemo(() => graphsOf(data?.graph), [data])
   const propAtoms = new Set(entries.map(([, a]) => a))
-  // A prop atom also built in a store renders once, under its prop label.
-  const stores = useStoreAtoms(intervalMs).map((atoms) => atoms.filter((a) => !propAtoms.has(a.atom)))
+  // Prop atoms read from the panel's own provider store: only that store's instance is hidden (prop label wins);
+  // the same atom in other stores holds its own value and stays listed.
+  const own = useProviderAtomStore()
+  const stores = useStoreAtoms(intervalMs).map(({ store, atoms }) => (store === own ? atoms.filter((a) => !propAtoms.has(a.atom)) : atoms))
   return (
     <aside aria-label="SleekStack devtools" data-devtools={DEVTOOLS_MARKER} style={{ borderTop: '1px solid #ccc', marginTop: '2rem', fontSize: 13 }}>
       <h2>SleekStack devtools</h2>

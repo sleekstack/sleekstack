@@ -65,6 +65,23 @@ describe('SleekStackDevtools', () => {
     expect(screen.queryByText(count.label, { exact: false })).toBeNull()
   })
 
+  it('hides a prop atom only in the panel provider store; the same atom in a sibling provider stays listed', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('Not Found', { status: 404 })))
+    const count = Atom.make(5)
+    const Bump = () => { const v = useAtomValue(count); return <span>sibling {v}</span> }
+    render(
+      <>
+        <LayerProvider provide={[]}><Bump /></LayerProvider>
+        <LayerProvider provide={[]}><SleekStackDevtools atoms={{ count }} intervalMs={20} /></LayerProvider>
+      </>,
+    )
+    expect(await screen.findByText('sibling 5')).not.toBeNull()
+    expect(await screen.findByText(`${count.label}:`, { exact: false })).not.toBeNull()
+    await new Promise((r) => setTimeout(r, 60))
+    expect(screen.getAllByText(`${count.label}:`, { exact: false })).toHaveLength(1) // sibling store's instance only
+    expect(screen.getByText('count:', { exact: false })).not.toBeNull() // prop row, once
+  })
+
   it('shows service acquire/release with scope and fiber, and links an error to its closed scope', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({
       disabled: false,
