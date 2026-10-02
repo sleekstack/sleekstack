@@ -12,9 +12,11 @@ Migration step 1. Under apps/showcase/src/domain/ add entities.ts, inputs.ts (on
 - [ ] pnpm -F showcase test + typecheck green (R10)
 
 ## Done summary
-TBD
+Added apps/showcase/src/domain/{entities,errors,inputs}.ts; client Drafts and Server Actions now share one zod schema per input. The server keeps its old error wording by mapping the field name, so no test assertions changed. A domain DomainError union replaces ExpectedFailure inside board.actions; act() comes in task 3.
 
+stage: impl-review - ran (codex: fan-out NEEDS_WORK on changed request assertion, fixed, re-review SHIP)
+Tier: opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: ff12255ff5768dbba2f5812895878314561a532e, be5ba9b54587a2d906db722eb963bae0b5ecb59c
+- Tests: pnpm -F showcase test, pnpm -F showcase typecheck, pnpm -F showcase build && vitest bundle.test.ts
 - PRs:
