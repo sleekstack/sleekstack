@@ -45,7 +45,7 @@ export interface AtomStore {
   /** Interrupts every build, runs every finalizer, and drops all nodes. */
   readonly dispose: () => Promise<void>
   /** @internal Read-only snapshot of the built atoms (devtools); never builds, reads or subscribes. Empty once disposed. */
-  readonly inspect: () => ReadonlyArray<{ readonly label: string; readonly value: unknown }>
+  readonly inspect: () => ReadonlyArray<{ readonly atom: Atom<unknown>; readonly label: string; readonly value: unknown }>
 }
 
 type State = 'uninit' | 'valid' | 'check' | 'dirty'
@@ -329,7 +329,7 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
     },
     refresh,
     batch,
-    inspect: () => [...nodes.values()].filter((n) => n.state !== 'uninit').map((n) => ({ label: n.atom.label, value: n.value })),
+    inspect: () => [...nodes.values()].filter((n) => n.state !== 'uninit').map((n) => ({ atom: n.atom, label: n.atom.label, value: n.value })),
     dispose: async () => {
       for (const { timer } of buckets.values()) clearTimeout(timer)
       buckets.clear()

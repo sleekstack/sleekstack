@@ -14,7 +14,7 @@ describe('dev atom store registry', () => {
     const { atomStores } = await import('../registry') // late load
     const labels = () => atomStores().flatMap((s) => s.inspect().map((a) => a.label))
     expect(labels()).toEqual([count.label])
-    expect(atomStores()[0]!.inspect()).toEqual([{ label: count.label, value: 3 }])
+    expect(atomStores()[0]!.inspect()).toEqual([{ atom: count, label: count.label, value: 3 }])
     view.unmount()
     await waitFor(() => expect(atomStores()).toEqual([]))
   })

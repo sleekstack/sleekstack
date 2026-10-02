@@ -122,7 +122,9 @@ export function SleekStackDevtools({ endpoint = '/api/devtools', intervalMs = 20
   const data = useDevtoolsData(endpoint, intervalMs)
   const entries = Object.entries(atoms ?? {})
   const graphs = useMemo(() => graphsOf(data?.graph), [data])
-  const stores = useStoreAtoms(intervalMs)
+  const propAtoms = new Set(entries.map(([, a]) => a))
+  // A prop atom also built in a store renders once, under its prop label.
+  const stores = useStoreAtoms(intervalMs).map((atoms) => atoms.filter((a) => !propAtoms.has(a.atom)))
   return (
     <aside aria-label="SleekStack devtools" data-devtools={DEVTOOLS_MARKER} style={{ borderTop: '1px solid #ccc', marginTop: '2rem', fontSize: 13 }}>
       <h2>SleekStack devtools</h2>

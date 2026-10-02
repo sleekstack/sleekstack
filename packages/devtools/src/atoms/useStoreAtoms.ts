@@ -5,9 +5,10 @@
  * `LayerProvider` store's built atoms. A store disposed or failing mid-poll is skipped, never thrown on.
  */
 import { useEffect, useState } from 'react'
+import type { Atom } from '@sleekstack/core'
 import { atomStores } from '@sleekstack/react/internal'
 
-type Snapshot = readonly (readonly { readonly label: string; readonly value: unknown }[])[]
+type Snapshot = readonly (readonly { readonly atom: Atom.Atom<unknown>; readonly label: string; readonly value: unknown }[])[]
 
 const read = (): Snapshot =>
   atomStores().flatMap((store) => {

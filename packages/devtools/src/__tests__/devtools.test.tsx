@@ -55,6 +55,16 @@ describe('SleekStackDevtools', () => {
     expect(await screen.findByText(/No atoms registered/)).not.toBeNull()
   })
 
+  it('renders a prop atom that is also in a registered store once, under its prop label', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('Not Found', { status: 404 })))
+    const count = Atom.make(42)
+    render(<LayerProvider provide={[]}><SleekStackDevtools atoms={{ count }} intervalMs={20} /></LayerProvider>)
+    expect(await screen.findByText('42')).not.toBeNull()
+    await new Promise((r) => setTimeout(r, 60)) // let the registry poll pick up the built atom
+    expect(screen.getAllByText('42')).toHaveLength(1)
+    expect(screen.queryByText(count.label, { exact: false })).toBeNull()
+  })
+
   it('shows service acquire/release with scope and fiber, and links an error to its closed scope', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({
       disabled: false,
