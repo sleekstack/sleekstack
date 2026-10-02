@@ -5,10 +5,10 @@
  * types; the wire input types stay behind `toDto`.
  */
 import { Context, Effect } from 'effect'
-import { z } from 'zod'
-import type { AddCommentInput, CreateTaskInput } from '../server/board.actions'
-import type { CommentRecord, ProjectRecord, TaskRecord, TaskStatus } from '../domain/tags'
-import type { DraftSpec, ModelSpec } from './contracts'
+import type { z } from 'zod'
+import type { CommentRecord, ProjectRecord, TaskRecord, TaskStatus } from '../domain/entities'
+import { AddComment, CreateTask } from '../domain/inputs'
+import type { DraftSpec, ModelSpec } from '../lib/contracts'
 
 /** The read DTO is the server's record. */
 export type TaskDto = TaskRecord
@@ -66,10 +66,7 @@ export interface BoardProject {
 
 // --- New task: blank create. Fields hold what the inputs hold; no z.coerce. ---
 
-const newTaskSchema = z.object({
-  title: z.string().trim().min(1, 'Please enter a title'),
-  simulateFailure: z.boolean(),
-})
+const newTaskSchema = CreateTask.pick({ title: true, simulateFailure: true }).required()
 export type NewTaskDraft = z.infer<typeof newTaskSchema>
 
 export interface NewTaskContext {
@@ -80,12 +77,12 @@ export const NewTaskDraft = {
   schema: () => newTaskSchema,
   create: (): NewTaskDraft => ({ title: '', simulateFailure: false }),
   toDto: (draft, ctx) =>
-    Effect.succeed<CreateTaskInput>({ projectId: ctx.projectId, title: draft.title.trim(), simulateFailure: draft.simulateFailure }),
-} satisfies DraftSpec<NewTaskDraft, CreateTaskInput, NewTaskContext>
+    Effect.succeed<CreateTask>({ projectId: ctx.projectId, title: draft.title.trim(), simulateFailure: draft.simulateFailure }),
+} satisfies DraftSpec<NewTaskDraft, CreateTask, NewTaskContext>
 
 // --- Comment: a second save boundary on the same task. ---
 
-const commentSchema = z.object({ body: z.string().trim().min(1, 'Please enter a comment') })
+const commentSchema = AddComment.pick({ body: true })
 export type TaskCommentDraft = z.infer<typeof commentSchema>
 
 export interface TaskCommentContext {
@@ -96,5 +93,5 @@ export interface TaskCommentContext {
 export const TaskCommentDraft = {
   schema: () => commentSchema,
   create: (): TaskCommentDraft => ({ body: '' }),
-  toDto: (draft, ctx) => Effect.succeed<AddCommentInput>({ taskId: ctx.taskId, authorId: ctx.authorId, body: draft.body.trim() }),
-} satisfies DraftSpec<TaskCommentDraft, AddCommentInput, TaskCommentContext>
+  toDto: (draft, ctx) => Effect.succeed<AddComment>({ taskId: ctx.taskId, authorId: ctx.authorId, body: draft.body.trim() }),
+} satisfies DraftSpec<TaskCommentDraft, AddComment, TaskCommentContext>

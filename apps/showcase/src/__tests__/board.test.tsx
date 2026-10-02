@@ -2,7 +2,7 @@
  * apps/showcase/src/__tests__/board.test.tsx
  *
  * R6/R7/R8: the client board under StrictMode. `next/navigation` is mocked
- * (no App Router context under RTL) and `board.actions.ts`'s Server Actions
+ * (no App Router context under RTL) and `delivery/actions.ts`'s Server Actions
  * are mocked, so these are pure component tests of the LayerProvider
  * nesting, scope-log ordering and the "break detail" error boundary.
  */
@@ -13,11 +13,11 @@ import { PassThrough } from 'node:stream'
 import { Suspense, useSyncExternalStore, type ReactNode } from 'react'
 import { LayerProvider, useAtomValue, useService } from '@sleekstack/react'
 import { renderStrict } from './renderStrict'
-import { Board, type BoardProject } from '../client/Board'
+import { Board, type BoardProject } from '../client/components/Board'
 import { Providers } from '../../app/providers'
-import { scopeLog } from '../client/ScopeLog'
-import { DraftEditorPanel } from '../client/TaskDetail'
-import { DraftEditor, makeDraftEditorLayer, selectionMemory } from '../client/component-services'
+import { scopeLog } from '../client/components/ScopeLog'
+import { DraftEditorPanel } from '../client/components/TaskDetail'
+import { DraftEditor, makeDraftEditorLayer, selectionMemory } from '../client/services/component-services'
 
 /**
  * A real (streaming) SSR pass, unlike jsdom RTL rendering: `renderToPipeableStream`

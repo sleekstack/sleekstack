@@ -1,5 +1,5 @@
 /**
- * apps/showcase/src/models/contracts.ts
+ * apps/showcase/src/lib/contracts.ts
  *
  * The two directions of the data-layer model pattern (see README, "Models").
  * Read and write shapes are not inverses: `DTO(read) -fromDto-> Model -create-> Draft -toDto-> DTO(write)`.

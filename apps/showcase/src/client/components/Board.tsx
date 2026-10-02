@@ -1,13 +1,13 @@
 'use client'
 /**
- * apps/showcase/src/client/Board.tsx
+ * apps/showcase/src/client/components/Board.tsx
  *
  * R7: the interactive board, rendered inside `providers.tsx`'s app-level
  * `LayerProvider`. One `ProjectView` per project — the project's own
  * `ProjectFilterStore` component service owns its filter and (if any)
  * open task-detail selection.
  */
-import type { BoardProject } from '../models/task'
+import type { BoardProject } from '../../models/task'
 import { DemoToggle } from './DemoToggle'
 import { ProjectView } from './ProjectView'
 import { ScopeLog } from './ScopeLog'

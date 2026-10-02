@@ -1,22 +1,12 @@
 /**
- * apps/showcase/src/server/demo.server.ts
+ * apps/showcase/src/infrastructure/demo.live.ts
  *
- * Demo-mode toggle: a cookie read on the server. `DemoLive` holds a mock
- * ActivityLog and Clock; `runApp` provides it over the app's Layers when the
- * cookie is set, so the mocks shadow the real services for that operation.
+ * Demo-mode Layers: a mock ActivityLog and Clock. `runApp` provides `DemoLive`
+ * as `runEffect` overrides, so the mocks shadow the real services per call.
  */
 import 'server-only'
-import { cookies } from 'next/headers'
 import { Layer } from 'effect'
 import { ActivityLog, Clock, type ActivityEvent } from '../domain/tags'
-import { DEMO_COOKIE } from '../domain/demo-cookie'
-
-export { DEMO_COOKIE }
-
-export async function isDemoMode(): Promise<boolean> {
-  const store = await cookies()
-  return store.get(DEMO_COOKIE)?.value === '1'
-}
 
 let mockSeq = 0
 const mockEvents: ActivityEvent[] = []

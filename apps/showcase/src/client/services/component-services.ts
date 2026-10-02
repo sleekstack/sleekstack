@@ -1,5 +1,5 @@
 /**
- * apps/showcase/src/client/component-services.ts
+ * apps/showcase/src/client/services/component-services.ts
  *
  * Client-safe component-scoped service definitions (R7): no `server-only`
  * or `next/headers` import here, only `effect` and the tags-only domain
@@ -16,7 +16,7 @@
  */
 import { Atom } from '@sleekstack/core'
 import { Clock, Context, Effect, Layer } from 'effect'
-import { scopeLog } from './ScopeLog'
+import { scopeLog } from '../components/ScopeLog'
 
 /** A minimal external store (`useSyncExternalStore`-compatible) for state a component service owns across its scope's lifetime. */
 export interface ReactiveStore<T> {

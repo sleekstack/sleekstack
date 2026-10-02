@@ -12,7 +12,7 @@ test('pages load', async ({ page }) => {
     await expect(page.getByRole('heading', { level: 1 })).toContainText(heading)
   }
   await page.goto('/graph')
-  await expect(page.getByRole('cell', { name: 'TaskRepo', exact: true }).first()).toBeVisible()
+  await expect(page.getByRole('cell', { name: 'BoardStore', exact: true }).first()).toBeVisible()
   await page.goto('/errors')
   for (const code of ['MissingDependency', 'DependencyCycle', 'Computed']) {
     await expect(page.getByRole('cell', { name: code, exact: true }).first()).toBeVisible()

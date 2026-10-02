@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-02T06:52:00.055604Z",
+  "depends_on": [
+    "fn-14-showcase-clean-architecture.4"
+  ],
+  "id": "fn-14-showcase-clean-architecture.5",
+  "priority": null,
+  "spec": "fn-14-showcase-clean-architecture",
+  "spec_path": ".flow/tasks/fn-14-showcase-clean-architecture.5.md",
+  "status": "todo",
+  "title": "README: mapping table and file layout",
+  "updated_at": "2026-10-02T06:52:00.055604Z"
+}
