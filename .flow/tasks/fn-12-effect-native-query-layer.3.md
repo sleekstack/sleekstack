@@ -31,9 +31,12 @@ Touches: [packages/query/src/index.ts, packages/query/src/mutation.ts, packages/
 - [ ] Unmount does not interrupt unless `interruptOnUnmount`; store disposal interrupts
 
 ## Done summary
-TBD
+Added `Mutation` (make/shared/runner/optimistic) to @sleekstack/query: an atom-backed idle|pending|success|failure runner with cancel -> onMutate -> run -> onSuccess/onError -> onSettled, switch/queue/parallel concurrency, interruptOnUnmount-gated release, and store disposal interruption. Optimistic writes are a per-key log folded over a base, so overlapping rollbacks run in reverse order and never wipe a later write (tests in packages/query/src/__tests__/mutation.test.ts cover each AC and error case).
 
+Tier: implementer
+stage: impl-review - ran (codex fan-out NEEDS_WORK -> fixed -> SHIP)
+Follow-up: a refetch landing mid-mutation is overwritten by the next optimistic recompute (marked ponytail in mutation.ts).
 ## Evidence
-- Commits:
-- Tests:
+- Commits: beb6ce7cc6714506bf2d5ccced5236eae74d615b, d96a705b8e4bf98bc65b0df6722ebd161b4854ef
+- Tests: pnpm --filter @sleekstack/query test && pnpm --filter @sleekstack/react test && pnpm --filter @sleekstack/kit test, pnpm --filter showcase typecheck && pnpm --filter showcase test, baseline: green via handoff (verified at 9844b57)
 - PRs:
