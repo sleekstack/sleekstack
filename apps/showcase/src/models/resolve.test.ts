@@ -1,6 +1,7 @@
 import { Effect } from 'effect'
 import { describe, expect, it, vi } from 'vitest'
-import { CommentRepo, ProjectRepo, TaskRepo } from '../domain/tags'
+import { BoardStore } from '../domain/tags'
+import { makeBoardStore } from '../infrastructure/board-store.memory'
 import { resolveDraft, submitDraft } from './contracts'
 import { NewTaskDraft, TaskCommentDraft } from './task'
 import { loadBoardModels } from './task.server'
@@ -29,37 +30,23 @@ describe('resolveDraft / submitDraft', () => {
 })
 
 describe('loadBoardModels', () => {
-  it('resolves Models with project names from the repos', async () => {
-    const board = await Effect.runPromise(
-      loadBoardModels.pipe(
-        Effect.provideService(ProjectRepo, { list: () => [{ id: 'p1', name: 'Launch' }], get: () => undefined }),
-        Effect.provideService(TaskRepo, {
-          listByProject: () => [{ id: 't1', projectId: 'p1', title: 'Ship', status: 'done', createdAt: 0 }],
-          get: () => undefined,
-          create: () => { throw new Error('unused') },
-          move: () => { throw new Error('unused') },
-        }),
-        Effect.provideService(CommentRepo, {
-          listByTask: () => [{ id: 'c1', taskId: 't1', body: 'ok', authorId: 'u', createdAt: 0 }],
-          create: () => { throw new Error('unused') },
-        }),
-      ),
-    )
+  it('resolves Models with project names from the store', async () => {
+    const store = makeBoardStore({
+      projects: [{ id: 'p1', name: 'Launch' }],
+      tasks: [{ id: 't1', projectId: 'p1', title: 'Ship', status: 'done', createdAt: 0 }],
+      comments: [{ id: 'c1', taskId: 't1', body: 'ok', authorId: 'u', createdAt: 0 }],
+    })
+    const board = await Effect.runPromise(loadBoardModels.pipe(Effect.provideService(BoardStore, store)))
     expect(board[0]!.tasks[0]!.task).toMatchObject({ statusLabel: 'Done', projectName: 'Launch' })
     expect(board[0]!.tasks[0]!.comments[0]).toMatchObject({ id: 'c1', createdAtIso: '1970-01-01T00:00:00.000Z' })
   })
 
   it('builds the project-name lookup once per load, however many tasks', async () => {
-    const list = vi.fn(() => [{ id: 'p1', name: 'Launch' }])
     const tasks = Array.from({ length: 5 }, (_, i) => ({ id: `t${i}`, projectId: 'p1', title: 'x', status: 'todo' as const, createdAt: 0 }))
-    await Effect.runPromise(
-      loadBoardModels.pipe(
-        Effect.provideService(ProjectRepo, { list, get: () => undefined }),
-        Effect.provideService(TaskRepo, { listByProject: () => tasks, get: () => undefined, create: () => { throw new Error('unused') }, move: () => { throw new Error('unused') } }),
-        Effect.provideService(CommentRepo, { listByTask: () => [], create: () => { throw new Error('unused') } }),
-      ),
-    )
+    const store = makeBoardStore({ projects: [{ id: 'p1', name: 'Launch' }], tasks, comments: [] })
+    const projects = vi.fn(store.projects)
+    await Effect.runPromise(loadBoardModels.pipe(Effect.provideService(BoardStore, { ...store, projects })))
     // once by the loader itself, once by the ProjectNames layer; not once per task
-    expect(list).toHaveBeenCalledTimes(2)
+    expect(projects).toHaveBeenCalledTimes(2)
   })
 })

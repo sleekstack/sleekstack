@@ -1,21 +1,20 @@
 /**
  * apps/showcase/src/__tests__/requests.test.ts
  *
- * Request scopes are isolated and finalized in order, UnitOfWork commits
+ * Request scopes are isolated and finalized in order, BoardStore transactions commit
  * atomically (a simulated or validation failure leaves the Store untouched),
  * the activity log shows request open/close in order, a defect is reported to
  * the log and still rejects, and demo-mode shadowing swaps the ActivityLog for the mock.
  */
 import { describe, expect, it, vi } from 'vitest'
 import { Effect } from 'effect'
-import { ActivityLog, TaskRepo } from '../domain/tags'
+import { ActivityLog, BoardStore } from '../domain/tags'
 import { __setDemoCookie } from '../test/next-headers-stub'
-import { UnitOfWork } from '../server/request.server'
 import { runApp } from '../server/runtime.server'
 import type { AddCommentInput, CreateTaskInput, MoveTaskInput } from '../server/board.actions'
 
 const countTasks = (projectId: string) =>
-  runApp(Effect.map(TaskRepo, (taskRepo) => taskRepo.listByProject(projectId).length))
+  runApp(Effect.flatMap(BoardStore, (store) => Effect.map(store.tasksOf(projectId), (tasks) => tasks.length)))
 
 const logMessages = () => runApp(Effect.map(ActivityLog, (activityLog) => activityLog.list().map((e) => e.message)))
 
@@ -94,32 +93,20 @@ describe('showcase request scopes', () => {
     expect(await countTasks('proj_1')).toBe(before + 1)
   })
 
-  it('a commit whose second staged write throws applies nothing (atomic)', async () => {
+  it('a transaction whose second write fails applies nothing (atomic)', async () => {
     const before = await countTasks('proj_1')
     const op = runApp(
-      Effect.gen(function* () {
-        const taskRepo = yield* TaskRepo
-        const uow = yield* UnitOfWork
-        uow.stage(() => void taskRepo.create({ projectId: 'proj_1', title: 'Half-applied' }))
-        uow.stage(() => {
-          throw new Error('second write failed')
-        })
-        yield* uow.commit
-      }),
+      Effect.flatMap(BoardStore, (store) =>
+        store.transaction((tx) =>
+          Effect.zipRight(
+            tx.createTask({ id: 'task_half', projectId: 'proj_1', title: 'Half-applied', status: 'todo', createdAt: 0 }),
+            tx.moveTask('no-such-task', 'done'),
+          ),
+        ),
+      ),
     )
-    await expect(op).rejects.toThrow(/second write failed/)
+    await expect(op).rejects.toThrow(/unknown task id/i)
     expect(await countTasks('proj_1')).toBe(before)
-  })
-
-  it("the UnitOfWork's scope finalizer discards uncommitted staged writes", async () => {
-    const uow = await runApp(
-      Effect.gen(function* () {
-        const uow = yield* UnitOfWork
-        uow.stage(() => {})
-        return uow
-      }),
-    )
-    expect(uow.pending()).toBe(0)
   })
 
   it('a defect rejects the operation and is reported to the console and the activity log', async () => {
