@@ -2,23 +2,30 @@
  * packages/react/src/query.ts
  *
  * Query hooks over `@sleekstack/query`. Queries live in the app-scoped store (the root LayerProvider's,
- * or the nearest QueryProvider's), so nested providers share one cache. Client only (SSR is the
- * hydration task's).
+ * or the nearest QueryProvider's), so nested providers share one cache. On the server the hooks read the
+ * provider's dehydrated map (filled by `<HydrateQueries>`) instead of a store, and suspend on an un-prefetched
+ * key while the registered server runner fetches it.
  */
 
 import React, { useCallback, useContext, useEffect, useState, useSyncExternalStore } from 'react'
 import { Cause, Chunk, Option, type Exit } from 'effect'
 import { Atom, Result, type AtomStore } from '@sleekstack/core'
-import { Mutation, Queries, Query } from '@sleekstack/query'
-import { ProviderContext, QueryStoreContext } from './context'
+import { Hydrate, Mutation, Queries, Query } from '@sleekstack/query'
+import { ProviderContext, QueryStoreContext, type ProviderState } from './context'
 import { AtomsClientOnly } from './atoms'
 
-function useQueryStore(hook: string): AtomStore {
-  if (typeof window === 'undefined') {
-    throw new AtomsClientOnly({ message: `${hook} ran during a server render; query hooks are client only here.` })
-  }
+function useQueryState(hook: string): ProviderState {
   const state = useContext(QueryStoreContext)
   if (state === null) throw new Error(`${hook} needs a <LayerProvider> above this component: queries live in the root provider's store.`)
+  return state
+}
+
+/** @internal */
+export function useQueryStore(hook: string): AtomStore {
+  if (typeof window === 'undefined') {
+    throw new AtomsClientOnly({ message: `${hook} ran during a server render; only query reads render on the server.` })
+  }
+  const state = useQueryState(hook)
   if (state.atoms) return state.atoms
   if (state.scopeState.status === 'rejected') throw state.scopeState.error
   state.start()
@@ -62,14 +69,45 @@ const LOADING: Result.Result<never, never> = Result.initial(true)
  *
  * @param atom - The query atom.
  * @returns The current `Result`.
- * @throws `AtomsClientOnly` during a server render; `Error` outside a `LayerProvider`.
+ * @throws `Error` outside a `LayerProvider`. On the server it reads hydrated data (suspending on an un-prefetched key).
  */
 export function useQueryResult<A, E>(atom: Query.QueryAtom<A, E>): QueryResult<A, E> {
   return useObserved('useQueryResult', atom).result
 }
 
-function useObserved<A, E>(hook: string, atom: Query.QueryAtom<A, E>) {
+type ServerSlot = { entry?: Hydrate.DehydratedEntry; promise?: Promise<void>; done?: boolean }
+const serverMaps = new WeakMap<ProviderState, Map<string, ServerSlot>>()
+/** @internal The server-render dehydrated map of a query store (shared by nested providers). */
+export const serverMap = (state: ProviderState): Map<string, ServerSlot> => {
+  let m = serverMaps.get(state)
+  if (!m) serverMaps.set(state, (m = new Map()))
+  return m
+}
+
+// Server branch: no store. A hydrated entry renders as is; a missing (or Schema-failing) one suspends on a fetch.
+function serverResult<A, E>(state: ProviderState, atom: Query.QueryAtom<A, E>): QueryResult<A, E> {
+  const key = atom[Query.TypeId].key
+  const m = serverMap(state)
+  const slot = m.get(key) ?? {}
+  const decoded = slot.entry && Hydrate.decode(atom, slot.entry)
+  if (decoded) return decoded
+  if (slot.done) return LOADING // fetched but not dehydratable (failure): the client fetches it
+  if (!slot.promise) {
+    slot.promise = Hydrate.serverRun([atom]).then(
+      ([entry]) => { slot.entry = entry; slot.done = true },
+      () => { slot.done = true },
+    )
+    m.set(key, slot)
+  }
+  throw slot.promise
+}
+
+const noop = () => {}
+
+function useObserved<A, E>(hook: string, atom: Query.QueryAtom<A, E>): { store: AtomStore | undefined; result: QueryResult<A, E> } {
+  if (typeof window === 'undefined') return { store: undefined, result: serverResult(useQueryState(hook), atom) }
   const store = useQueryStore(hook)
+  Hydrate.apply(store, atom) // seeds a staged <HydrateQueries> entry before the first read
   const subscribe = useCallback((listener: () => void) => {
     const release = claim(store, atom) ?? Query.observe(store, atom)
     const unsubscribe = store.subscribe(atom, listener)
@@ -80,7 +118,7 @@ function useObserved<A, E>(hook: string, atom: Query.QueryAtom<A, E>) {
     () => (Query.entries(store).has(atom[Query.TypeId].id) ? store.get(atom) : LOADING) as QueryResult<A, E>,
     [store, atom],
   )
-  return { store, result: useSyncExternalStore(subscribe, getSnapshot) }
+  return { store, result: useSyncExternalStore(subscribe, getSnapshot, getSnapshot) }
 }
 
 /** Plain values of a query. */
@@ -96,7 +134,7 @@ export interface UseQuery<A, E> {
   readonly refetch: () => void
 }
 
-const view = <A, E>(store: AtomStore, atom: Query.QueryAtom<A, E>, result: QueryResult<A, E>) => {
+const view = <A, E>(store: AtomStore | undefined, atom: Query.QueryAtom<A, E>, result: QueryResult<A, E>) => {
   let error: E | Atom.ScopeError | undefined
   if (result._tag === 'Failure') {
     const typed = Cause.failureOption(result.cause)
@@ -111,7 +149,7 @@ const view = <A, E>(store: AtomStore, atom: Query.QueryAtom<A, E>, result: Query
     error,
     isPending: result._tag === 'Initial',
     isFetching: result.waiting,
-    refetch: () => Query.trigger(store, atom, true),
+    refetch: store ? () => Query.trigger(store, atom, true) : noop,
   }
 }
 
@@ -121,7 +159,7 @@ const view = <A, E>(store: AtomStore, atom: Query.QueryAtom<A, E>, result: Query
  * @param atom - The query atom, e.g. `todo('t1')`.
  * @returns `data`, `error`, `isPending`, `isFetching`, `refetch`.
  * @throws A defect (non-typed failure) to the nearest error boundary.
- * @throws `AtomsClientOnly` during a server render; `Error` outside a `LayerProvider`.
+ * @throws `Error` outside a `LayerProvider`. On the server it reads hydrated data (suspending on an un-prefetched key).
  *
  * @example
  * ```tsx
@@ -189,11 +227,14 @@ const loaded = (store: AtomStore, atom: Query.QueryAtom<any, any>): Promise<void
  * @param atom - The query atom.
  * @returns `data` (always present), `error`, `isFetching`, `refetch`.
  * @throws `Cause.squash` of a `Failure` with no previous value, to the nearest error boundary.
- * @throws `AtomsClientOnly` during a server render; `Error` outside a `LayerProvider`.
+ * @throws `Error` outside a `LayerProvider`. On the server it reads hydrated data (suspending on an un-prefetched key).
  */
 export function useQuerySuspense<A, E>(atom: Query.QueryAtom<A, E>): UseQuery<A, E> & { readonly data: A } {
   const { store, result } = useObserved('useQuerySuspense', atom)
-  if (result._tag === 'Initial') throw loaded(store, atom)
+  if (result._tag === 'Initial') {
+    if (!store) throw new Error('useQuerySuspense: the query has no server data; rendering it on the client.')
+    throw loaded(store, atom)
+  }
   if (result._tag === 'Failure' && Option.isNone(result.previousValue)) throw Cause.squash(result.cause)
   return view(store, atom, result) as UseQuery<A, E> & { readonly data: A }
 }
@@ -209,10 +250,10 @@ export function useInfiniteQuery<A, P, E>(atom: Query.InfiniteQueryAtom<A, P, E>
   const { store, result } = useObserved('useInfiniteQuery', atom)
   return {
     ...view(store, atom, result),
-    isFetchingNext: Query.isFetchingNext(store, atom),
-    isFetchingPrevious: Query.isFetchingPrevious(store, atom),
-    fetchNext: () => Query.fetchNext(store, atom),
-    fetchPrevious: () => Query.fetchPrevious(store, atom),
+    isFetchingNext: store ? Query.isFetchingNext(store, atom) : false,
+    isFetchingPrevious: store ? Query.isFetchingPrevious(store, atom) : false,
+    fetchNext: store ? () => Query.fetchNext(store, atom) : noop,
+    fetchPrevious: store ? () => Query.fetchPrevious(store, atom) : noop,
   }
 }
 

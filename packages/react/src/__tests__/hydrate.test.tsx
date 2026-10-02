@@ -1,0 +1,64 @@
+/**
+ * packages/react/src/__tests__/hydrate.test.tsx
+ *
+ * SSR prefetch + <HydrateQueries> (fn-12 task .6, R7): server reads, first-paint client data, nested providers.
+ */
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, render, screen } from '@testing-library/react'
+import { renderToString } from 'react-dom/server'
+import { prerender } from 'react-dom/static'
+import React, { Suspense } from 'react'
+import { Effect, Schema } from 'effect'
+import { Hydrate, Query } from '@sleekstack/query'
+import { HydrateQueries, LayerProvider, useQuery } from '../index'
+
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); Hydrate.setServerRunner(undefined) })
+
+const setup = () => {
+  const calls = { n: 0 }
+  const todo = Hydrate.hydratable(
+    Query.make({ key: (id: string) => ['todo', id], fetch: (id) => Effect.sync(() => `${id}#${++calls.n}`), staleTime: '1 minute' }),
+    { value: Schema.String },
+  )
+  const Show = ({ id }: { id: string }) => { const { data } = useQuery(todo(id)); return <i>{data ?? 'pending'}</i> }
+  return { todo, calls, Show }
+}
+const html = async (node: React.ReactNode) => {
+  const { prelude } = await prerender(node)
+  return new Response(prelude).text()
+}
+
+describe('HydrateQueries', () => {
+  it('server HTML contains prefetched data; a nested provider reads the root store', async () => {
+    const { todo, calls, Show } = setup()
+    const state = await Effect.runPromise(Hydrate.prefetch([todo('a')]) as Effect.Effect<Hydrate.Dehydrated>)
+    vi.stubGlobal('window', undefined)
+    const out = renderToString(
+      <LayerProvider provide={[]}><HydrateQueries state={state}><LayerProvider provide={[]}><Show id="a" /></LayerProvider></HydrateQueries></LayerProvider>,
+    )
+    expect(out).toContain('a#1')
+    expect(calls.n).toBe(1)
+  })
+
+  it('an un-prefetched key on the server suspends on the server runner and resolves', async () => {
+    const { Show } = setup()
+    Hydrate.setServerRunner((atoms) => Effect.runPromise(Hydrate.prefetch(atoms) as Effect.Effect<Hydrate.Dehydrated>))
+    vi.stubGlobal('window', undefined)
+    expect(await html(<LayerProvider provide={[]}><Suspense fallback="loading"><Show id="b" /></Suspense></LayerProvider>)).toContain('b#1')
+  })
+
+  it('the client renders hydrated data on first paint without refetching until stale', async () => {
+    const { todo, calls, Show } = setup()
+    const state = await Effect.runPromise(Hydrate.prefetch([todo('c')]) as Effect.Effect<Hydrate.Dehydrated>)
+    render(
+      <LayerProvider provide={[]}>
+        <Suspense fallback="loading">
+          <HydrateQueries state={state}><LayerProvider provide={[]}><Show id="c" /></LayerProvider></HydrateQueries>
+        </Suspense>
+      </LayerProvider>,
+    )
+    expect(await screen.findByText('c#1')).toBeTruthy()
+    await new Promise((r) => setTimeout(r, 20))
+    expect(calls.n).toBe(1)
+  })
+})

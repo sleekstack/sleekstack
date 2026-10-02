@@ -11,3 +11,5 @@ export * as Queries from './queries'
 export { canonicalKey, InvalidQueryKey } from './key'
 /** Mutations: `make`, `shared`, `runner`, `optimistic`. */
 export * as Mutation from './mutation'
+/** SSR: `hydratable`, `prefetch`, `dehydrate`, `hydrate`, `apply`, `Dehydrated`. */
+export * as Hydrate from './hydrate'
