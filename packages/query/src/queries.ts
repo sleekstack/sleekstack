@@ -27,8 +27,10 @@ export interface QueriesApi {
   readonly invalidate: (target?: QueryTarget) => void
   /** Refetches every match now, ignoring `staleTime` (deduped against a running fetch). */
   readonly refetch: (target?: QueryTarget) => void
-  /** Writes data (or an updater of the current data); a missing key is created without fetching. */
-  readonly setData: <A>(atom: QueryAtom<A, any>, value: A | ((previous: Option.Option<A>) => A)) => void
+  /** Writes data, cancelling an in-flight fetch; a missing key is created without fetching. */
+  readonly setData: <A>(atom: QueryAtom<A, any>, value: A) => void
+  /** Like `setData`, with the value computed from the current data. */
+  readonly updateData: <A>(atom: QueryAtom<A, any>, f: (previous: Option.Option<A>) => A) => void
   /** The cached data; `Option.none` for a missing key (never starts a fetch). */
   readonly getData: <A>(atom: QueryAtom<A, any>) => Option.Option<A>
   /** Interrupts in-flight fetches and pending retries of the matches, keeping their previous value. */
@@ -58,36 +60,41 @@ const matches = (store: AtomStore, target: QueryTarget = {}): Array<QueryEntry> 
 export const make = (store: AtomStore): QueriesApi => {
   const cancelOne = (e: QueryEntry) => {
     if (!store.get(e.atom).waiting) return
-    withOverride(e.id, 'skip', () => { store.refresh(e.atom); store.get(e.atom) })
+    withOverride(store, e.id, 'skip', () => { store.refresh(e.atom); store.get(e.atom) })
+  }
+  const getData = <A>(atom: QueryAtom<A, any>): Option.Option<A> => {
+    const e = entries(store).get(atom[TypeId].id)
+    return e ? Result.value(store.get(atom)) : Option.none()
+  }
+  const setData = <A>(atom: QueryAtom<A, any>, value: A) => {
+    const e = entries(store).get(atom[TypeId].id)
+    if (e) cancelOne(e)
+    // the store pulls before writing: skip that build so a missing key never fetches
+    withOverride(store, atom[TypeId].id, 'skip', () => store.set(atom, value))
   }
   return {
     invalidate: (target) => {
       for (const e of matches(store, target)) {
-        if (e.observers > 0) trigger(store, e.atom, true)
-        else e.updatedAt = undefined
+        if (e.observers > 0) { trigger(store, e.atom, true); continue }
+        cancelOne(e) // a fetch started before the invalidation must not mark the entry fresh
+        e.updatedAt = undefined
       }
     },
     refetch: (target) => {
       for (const e of matches(store, target)) { trigger(store, e.atom, true); store.get(e.atom) }
     },
-    setData: (atom, value) => {
-      const update = typeof value === 'function'
-        ? (value as (previous: Option.Option<unknown>) => unknown)
-        : () => value
-      const previous = Option.flatMap(Option.fromNullable(entries(store).get(atom[TypeId].id)), (e) => Result.value(store.get(e.atom)))
-      // the store pulls before writing: skip that build so a missing key never fetches
-      withOverride(atom[TypeId].id, 'skip', () => store.set(atom, update(previous) as never))
-    },
-    getData: (atom) => {
-      const e = entries(store).get(atom[TypeId].id)
-      return e ? Result.value(store.get(atom)) : Option.none()
-    },
+    setData,
+    updateData: (atom, f) => setData(atom, f(getData(atom))),
+    getData,
     cancel: (target) => { for (const e of matches(store, target)) cancelOne(e) },
     reset: (target) => {
       const registry = entries(store) as Map<string, QueryEntry>
       for (const e of matches(store, target)) {
         e.updatedAt = undefined
-        withOverride(e.id, 'reset', () => store.refresh(e.atom))
+        // rebuild as Initial (interrupting any fetch), then invalidate: observed nodes refetch from
+        // Initial at once, unobserved ones stay dirty and drop their entry
+        withOverride(store, e.id, 'clear', () => { store.refresh(e.atom); store.get(e.atom) })
+        store.refresh(e.atom)
         if (!e.live) registry.delete(e.id)
       }
     },

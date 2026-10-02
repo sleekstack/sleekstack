@@ -6,4 +6,6 @@
 
 /** Query definitions: `make`, `observe`, `trigger`, `entries`, `QueryCache`. */
 export * as Query from './query'
+/** The query client service: `Queries` (Tag), `make`, filters. */
+export * as Queries from './queries'
 export { canonicalKey, InvalidQueryKey } from './key'
