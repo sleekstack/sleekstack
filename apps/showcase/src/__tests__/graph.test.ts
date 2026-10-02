@@ -19,7 +19,7 @@ describe('/graph', () => {
     const root = (name: string, kind: string) => ({ root: name, kind, graph: { root: name, nodes: [], edges: [] }, errors: [] })
     vi.spyOn(report, 'readReport').mockReturnValue({
       ok: true,
-      roots: [root('src/server/runtime.server.ts:24', 'app'), root('RequestLive', 'request'), root('DemoLive', 'overrides')],
+      roots: [root('src/delivery/runtime.server.ts:23', 'app'), root('RequestLive', 'request'), root('DemoLive', 'overrides')],
     })
     const html = renderToStaticMarkup(createElement(GraphPage))
     const app = html.indexOf('[app]')
