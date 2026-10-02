@@ -9,10 +9,8 @@
 import 'server-only'
 import { configureRuntime, runEffect } from '@sleekstack/next'
 import { Cause, Effect, type Layer } from 'effect'
-import { AppLive } from '../infrastructure/app'
+import { AppLive, DemoLive, RequestLive } from '../infrastructure/app'
 import { ActivityLog } from '../domain/tags'
-import { DemoLive } from '../infrastructure/demo.live'
-import { RequestLive } from '../infrastructure/request.live'
 import { isDemoMode } from './demo-mode'
 
 // Next loads this module once per server layer (RSC, actions); the shared `id` makes the second copy's
