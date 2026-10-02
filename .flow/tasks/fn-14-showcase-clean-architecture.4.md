@@ -13,9 +13,13 @@ Migration step 4. Move to the spec's src/ layout: infrastructure/{board-store.me
 - [ ] All showcase tests + Playwright smoke pass with only import-path changes (and the smoke graph assertion already moved to BoardStore in task 2) (R10)
 
 ## Done summary
-TBD
+Moved apps/showcase into the spec layout: AppLive composed only in infrastructure/app.ts (which also re-exports RequestLive/DemoLive), delivery/runtime.server.ts as the sole importer of app.ts, RequestContext Tag in domain/tags.ts, client/{components,services,drafts}, lib/contracts.ts, and a delivery/board.server.ts read used by app/page.tsx. check/report entries and the cli check test point at the new runtime path; the board-view test moved out of models/ so models/ imports no infrastructure.
 
+Deviation: act() stays in delivery/act.server.ts (requests.test imports it; a 'use server' file may only export async functions). ScopeLog stays a component under client/components. README is task 5.
+
+stage: impl-review - ran (codex: fan-out NEEDS_WORK x2, re-review SHIP)
+Tier: opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: cc7f0f4ad92d6ee390b2ed053e8146851fcddd84, eb916aa9b950e554811ef0825b900a06edcef030, 68255899b131e8d2b7097e38fdb437cb7916020a
+- Tests: pnpm -F showcase typecheck, pnpm -F showcase test (45/45), pnpm -F showcase build && pnpm -F showcase test:bundle (3/3), pnpm -F showcase test:e2e (3/3), pnpm -F showcase check (app root ok), packages/cli vitest check.test.ts (11/11)
 - PRs:
