@@ -71,6 +71,15 @@ const registryAtom = Atom.keepAlive(
   }),
 )
 let definitions = 0
+// Set synchronously around a store call: the matching query's next build skips the fetch or drops its previous value.
+let override: { readonly id: string; readonly mode: 'skip' | 'reset' } | undefined
+
+/** @internal Runs `f` with the build of query `id` overridden. */
+export const withOverride = <T>(id: string, mode: 'skip' | 'reset', f: () => T): T => {
+  const prior = override
+  override = { id, mode }
+  try { return f() } finally { override = prior }
+}
 
 /**
  * The query registry of `store`: entry id (definition + canonical key) -> entry, filled on read and cleared when the node is removed.
@@ -127,7 +136,7 @@ export const make = <Args, A, E = never, R = never>(options: QueryOptions<Args, 
     const { args, tuple } = pending!
     const id = `${definition}:${key}`
     let self: QueryAtom<A, E>
-    const base = Atom.make((get) => {
+    const read = (get: Atom.Context): Result.Result<A, E | Atom.ScopeError> => {
       const registry = get(registryAtom)
       let entry = registry.get(id)
       if (!entry) {
@@ -141,13 +150,21 @@ export const make = <Args, A, E = never, R = never>(options: QueryOptions<Args, 
         e.live = false
         queueMicrotask(() => { if (!e.live && registry.get(id) === e) registry.delete(id) })
       })
+      const mode = override?.id === id ? override.mode : undefined
+      if (mode === 'skip') {
+        const previous = get.self<Result.Result<A, E>>()
+        return previous ? { ...previous, waiting: false } : Result.initial()
+      }
       const fetch = options.fetch(args)
       const touch = () => Effect.sync(() => { e.updatedAt = Date.now() })
-      // the Stream branch is typed as an Effect atom: Atom.make dispatches on the runtime value, not the overload
-      if (!Effect.isEffect(fetch)) return Stream.tap(fetch, touch) as unknown as Effect.Effect<A, E, R>
-      return (options.retry ? Effect.retry(fetch, options.retry) : fetch).pipe(Effect.tap(touch))
-    })
-    const writable = Atom.writable(base.read, (ctx, value: A) => {
+      const run = Effect.isEffect(fetch)
+        ? Atom.make((options.retry ? Effect.retry(fetch, options.retry) : fetch).pipe(Effect.tap(touch)))
+        : Atom.make(Stream.tap(fetch, touch))
+      // a reset discards the previous value, so the refetch starts from Initial
+      const ctx = mode === 'reset' ? Object.assign((a: Atom.Atom<any>) => get(a), get, { self: () => undefined }) : get
+      return run.read(ctx) as Result.Result<A, E | Atom.ScopeError>
+    }
+    const writable = Atom.writable(read, (ctx, value: A) => {
       ctx.setSelf(Result.success(value))
       const entry = ctx.get(registryAtom).get(id)
       if (entry) entry.updatedAt = Date.now()
