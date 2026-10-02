@@ -15,6 +15,7 @@ Both showcases read through query hooks with server prefetch and mutate through 
 ### Approach
 - The query cache owns client reads; RSC only prefetches/hydrates; remove `router.refresh()` from mutation paths (`apps/showcase/src/client/ProjectView.tsx:39,54`, `TaskDetail.tsx:30,41,70,81`, showcase-kit `ProjectView.tsx:51`, `TaskDetail.tsx:39,79`). Mutations use `Draft.toDto` Effects and optimistic task moves with rollback.
 - `select` uses `TaskModel.fromDto` (Effect with `ProjectNames`); DemoToggle reset/invalidate semantics documented.
+- fn-12.3 known gap: a refetch landing mid-mutation is overwritten by the next optimistic recompute; avoid tests that depend on it. Optimistic moves use `Mutation.optimistic`. <!-- Updated by plan-sync: fn-12.3 -->
 - `board.test.tsx` and e2e smoke are rewritten for the new flow.
 
 ### Investigation targets
