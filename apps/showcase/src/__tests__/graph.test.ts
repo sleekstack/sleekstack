@@ -7,7 +7,7 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import * as report from '../server/report.server'
+import * as report from '../delivery/report.server'
 import GraphPage from '../../app/graph/page'
 
 afterEach(() => vi.restoreAllMocks())
