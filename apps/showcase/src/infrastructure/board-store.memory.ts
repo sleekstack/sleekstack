@@ -68,7 +68,8 @@ export const makeBoardStore = (seed: BoardSeed): BoardStoreService => {
             addComment: (record) =>
               Effect.as(reads.task(record.taskId), record).pipe(Effect.tap(() => void work.comments.set(record.id, record))),
           }
-          return Effect.tap(f(tx), () => void (committed = work))
+          // Publish a detached copy: a BoardTx kept past its transaction only ever writes an orphan.
+          return Effect.tap(f(tx), () => void (committed = copy(work)))
         }),
       ),
   }

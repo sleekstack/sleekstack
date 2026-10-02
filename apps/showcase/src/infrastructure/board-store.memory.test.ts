@@ -48,4 +48,11 @@ describe('BoardStore (in memory)', () => {
     expect(Exit.isFailure(failed)).toBe(true)
     expect((await Effect.runPromise(store.task('t1'))).status).toBe('done')
   })
+
+  it('a BoardTx kept past its transaction cannot write committed state', async () => {
+    const store = fresh()
+    const escaped = await Effect.runPromise(store.transaction((tx) => Effect.succeed(tx)))
+    await Effect.runPromise(escaped.moveTask('t1', 'done'))
+    expect((await Effect.runPromise(store.task('t1'))).status).toBe('todo')
+  })
 })
