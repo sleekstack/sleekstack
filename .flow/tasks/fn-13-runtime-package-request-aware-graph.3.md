@@ -6,6 +6,8 @@ satisfies: [R2]
 Touches: apps/showcase/app/graph/**, apps/showcase/src/server/report.server.ts, packages/devtools/src/graph/**, packages/devtools/src/index.tsx
 
 ## Description
+**Task 2 drift:** Report roots carry `kind` ('app'|'request'|'overrides'|'opaque'), app first; `--lenient` covers only runEffect request/overrides layers (an unresolvable configureRuntime layer still fails); errors for these roots sit at the runEffect call's file:line.
+
 **Touches:** apps/showcase graph page, packages/devtools graph helpers (graphsOf in a separate file from the panel/tracing work)
 
 **Files:** apps/showcase graph route, apps/showcase/src/server/report.server.ts (add root `kind` to the report type), packages/devtools graphsOf and the panel entry packages/devtools/src/index.tsx (shared with tasks 4/5, so this task runs after them)
