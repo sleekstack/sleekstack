@@ -42,5 +42,5 @@ Reported at build time by `sleekstack check` (with file:line). The runtime keeps
 
 ## Effect-native adapters
 
-- `@sleekstack/next`: `runEffect` called before `configureRuntime` rejects with `RuntimeNotConfigured`. A failure or defect rejects as `Effect.runPromise` does; defects, finalizer failures and failed layer builds reach `onError(cause, { phase })`.
+- `@sleekstack/runtime` (and `@sleekstack/next`): `runEffect` called before `configureRuntime` rejects with `RuntimeNotConfigured`. A failure or defect rejects as `Effect.runPromise` does; defects, finalizer failures and failed layer builds reach `onError(cause, { phase })`. Values your `isControlFlow` classifies (in `@sleekstack/next`, Next's `redirect()`/`notFound()`) are rethrown untouched and never reported, including when thrown while the app Layer builds.
 - `@sleekstack/react`: `useService` with no provider, or an unprovided Tag, throws a plain `Error`; a failed scope build is rethrown from `useService` to the nearest error boundary.

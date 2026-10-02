@@ -15,7 +15,8 @@ Both build the same graph, so you can start with kit and move one module to Effe
 | Package | What it does |
 | --- | --- |
 | `@sleekstack/core` | Declared Layers, modules and scopes |
-| `@sleekstack/next` | Effect runtime management for Next.js: `configureRuntime`, `runEffect`, dev introspection |
+| `@sleekstack/runtime` | The framework-agnostic Effect runtime: `configureRuntime`, `runEffect`, a pluggable control-flow classifier |
+| `@sleekstack/next` | The Next.js preset of the runtime: Next control flow, the devtools route handler |
 | `@sleekstack/devtools` | Dev-only panel: graph, scopes, atoms, errors |
 | `@sleekstack/react` | `LayerProvider` and `useService` |
 | `@sleekstack/kit` | The Effect-free facade, with `kit/next` and `kit/react` subpaths |

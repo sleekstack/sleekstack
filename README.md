@@ -63,7 +63,8 @@ This enables:
 | Package | What it is |
 |---------|------------|
 | [`@sleekstack/core`](packages/core/README.md) | Effect-native engine: declared Layers, Modules, lifetimes, scopes (the Graph is build-time only) |
-| [`@sleekstack/next`](packages/next/README.md) | Effect runtime management for Next.js (`configureRuntime`, `runEffect`, dev introspection) |
+| [`@sleekstack/runtime`](packages/runtime/README.md) | Framework-agnostic Effect app runtime (`configureRuntime`, `runEffect`, pluggable control-flow classifier) |
+| [`@sleekstack/next`](packages/next/README.md) | The Next.js preset of the runtime: Next control flow, devtools route handler |
 | [`@sleekstack/devtools`](packages/devtools/README.md) | Dev-only panel: graph, scopes, atoms, errors |
 | [`@sleekstack/react`](packages/react/README.md) | Suspense-native `LayerProvider` / `useService`, and atoms (`useAtom`, `useAtomValue`) whose state lives per provider |
 | [`@sleekstack/kit`](packages/kit/README.md) | Effect-free facade over all three (`tag`, `layer`, `effect`, `module`) |
@@ -141,7 +142,7 @@ Current surface:
 * Modules (`module()`) — imports, exports (private Tags are visible only inside their Module, enforced by `sleekstack check`, ADR 0006), shadowing by position
 * lifetime-scoped services (`app` / `request` / `component`) with captive-dependency checks
 * a dependency Graph validated at build time by `sleekstack check` (ADR 0011), reported as JSON with `--json`
-* `@sleekstack/next` runtime management (`configureRuntime`, `runEffect`) with kit's `defineEffect`/`query` on top, and `@sleekstack/react`'s Suspense-native, StrictMode-safe `LayerProvider` / `useService`
+* `@sleekstack/runtime` runtime management (`configureRuntime`, `runEffect`, used through the `@sleekstack/next` preset) with kit's `defineEffect`/`query` on top, and `@sleekstack/react`'s Suspense-native, StrictMode-safe `LayerProvider` / `useService`
 
 * `@sleekstack/kit` — an Effect-free facade (`tag`, `layer`, `effect`, `module`, deps inferred from `yield*`, one `SleekStackError`); see [`packages/kit`](packages/kit/README.md)
 

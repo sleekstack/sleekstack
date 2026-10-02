@@ -31,7 +31,7 @@ A named group of entries — declared Layers or bare Layers — with imports (ot
 _Avoid_: Package, bundle, plugin, feature
 
 **Graph**:
-The dependency structure of every entry and imported Module under a root (`configureRuntime` call): nodes, edges, lifetimes, module privacy and shadowing. Validated only by the Analyzer, at build time (ADR 0011); `sleekstack check --json` reports it (one node per provided Tag, keyed by the Tag key, or `Tag@Module` when shadowed). The runtime keeps no Graph at all: it builds entries in position order (deepest import first, root entries last), so a later, more local entry overrides an earlier one.
+The dependency structure of every entry and imported Module under a root (a `configureRuntime` app root, or a Request Root or Overrides Root): nodes, edges, lifetimes, module privacy and shadowing. Validated only by the Analyzer, at build time (ADR 0011); `sleekstack check --json` reports it (one node per provided Tag, keyed by the Tag key, or `Tag@Module` when shadowed). The runtime keeps no Graph at all: it builds entries in position order (deepest import first, root entries last), so a later, more local entry overrides an earlier one.
 _Avoid_: Dependency tree, container, registry
 
 **Captive Dependency**:
@@ -61,8 +61,16 @@ An action or query from `@sleekstack/kit/next`: `defineEffect(gen, opts?)` / `de
 _Avoid_: Handler, deps array
 
 **Analyzer**:
-`@sleekstack/analyze`, run as `sleekstack check [--project <tsconfig>] [--entry <file>...] [--json]`. Reads the declarations through the TypeScript checker without executing app code, builds each root's Graph and reports every violation with file:line (exit 0 ok, 1 violations, 2 crash or no roots). Fails closed: a declaration it cannot read is an error. `--entry` limits the roots to the given files.
+`@sleekstack/analyze`, run as `sleekstack check [--project <tsconfig>] [--entry <file>...] [--json] [--lenient]`. Reads the declarations through the TypeScript checker without executing app code, builds each root's Graph and reports every violation with file:line (exit 0 ok, 1 violations, 2 crash or no roots). Fails closed: a declaration it cannot read is an error. `--entry` limits the roots to the given files. `--lenient` turns an unresolvable `runEffect` Layer into an opaque root (`kind: 'opaque'`) instead of an error; it never excuses a missing Tag or an unresolvable app Layer.
 _Avoid_: Linter, compiler plugin
+
+**Request Root**:
+A Graph root made from the `request` Layer of a `runEffect({ request })` call (each Layer-valued branch is its own root). Checked against its own provides plus any `configureRuntime` app root, so needing an app singleton is not a missing dependency; its leaves have lifetime `request`. Reported with `kind: 'request'`; app roots are listed first with `kind: 'app'`.
+_Avoid_: Request graph, sub-graph
+
+**Overrides Root**:
+A Graph root made from the `overrides` Layer of a `runEffect({ overrides })` call, checked like a Request Root but keeping its typed lifetimes. Reported with `kind: 'overrides'`.
+_Avoid_: Override graph, patch layer
 
 **Position Order**:
 Core's construction order for a scope: entries flattened deepest import first, then importers, then root entries; each builds over what was built before and a later one overrides an earlier one. Nothing is validated; a Layer that needs a Tag not built yet fails with `MissingDependency`. Kit sorts each `provide` list by its `deps` arrays first, so list order only matters for core Layers and kit generator Layers (their yields are not declared).
@@ -105,17 +113,21 @@ _Avoid_: AsyncData, RemoteData, status
 ### Next.js integration concepts
 
 **Request Scope**:
-A server-side Scope created per `runEffect` call (`@sleekstack/next`) or per kit `defineEffect`/`defineQuery` call. Isolates services (auth, tracing, transactions) so no state leaks between requests.
+A server-side Scope created per `runEffect` call (`@sleekstack/runtime`, re-exported by `@sleekstack/next`) or per kit `defineEffect`/`defineQuery` call. Isolates services (auth, tracing, transactions) so no state leaks between requests.
 _Avoid_: Request context, request environment, request runtime
 
 **Action**:
-A server-side operation (Next.js Server Action) declared with `defineEffect()` / `effect()` from `@sleekstack/kit/next`. Runs a generator in a Request Scope on the `@sleekstack/next` runtime.
+A server-side operation (Next.js Server Action) declared with `defineEffect()` / `effect()` from `@sleekstack/kit/next`. Runs a generator in a Request Scope on the `@sleekstack/runtime` runtime, through the `@sleekstack/next` preset.
 _Avoid_: Mutation, procedure, RPC
+
+**Runtime Package**:
+`@sleekstack/runtime`, the framework-agnostic Effect app runtime: `configureRuntime`, `runEffect`, `getRuntime`, the `onError` sink and a pluggable `isControlFlow` classifier (default: nothing is control flow). `@sleekstack/next` is its Next preset, adding `isNextControlFlow` and the devtools route handler (ADR 0013). `@sleekstack/runtime/internal` is for sibling packages only.
+_Avoid_: Next runtime, server runtime
 
 **Query** *(server-side)*:
 A server-side read operation declared with `defineQuery()` / `query()` from `@sleekstack/kit/next`. Runs a generator in a Request Scope. Distinct from any future client-side query/cache primitives.
 _Avoid_: Fetch, loader, resolver
 
 **Devtools**:
-The dev-only introspection of a running app: a bounded event buffer and route handler in `@sleekstack/next/devtools`, rendered by the `@sleekstack/devtools` panel (graph, live scopes, atoms, errors). In production recording is off and the handler returns 404; the panel is excluded from production client chunks when mounted behind a dynamic import.
+The dev-only introspection of a running app: a bounded event buffer in `@sleekstack/runtime` (per-service acquire/release, fiber id, owning scope) served by the route handler in `@sleekstack/next/devtools`, rendered by the `@sleekstack/devtools` panel (graph roots, live scopes, services, atoms of every open AtomStore, errors linked to their scope). In production recording is off and the handler returns 404; the panel is excluded from production client chunks when mounted behind a dynamic import.
 _Avoid_: Inspector, debug panel

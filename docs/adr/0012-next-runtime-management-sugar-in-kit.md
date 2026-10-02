@@ -1,5 +1,7 @@
 # `@sleekstack/next` manages the Effect runtime; action/query sugar lives in kit
 
+> Superseded in part by [ADR 0013](0013-framework-agnostic-runtime-package.md): the runtime now lives in `@sleekstack/runtime`, and `@sleekstack/next` is its Next preset. The runtime contract below still holds.
+
 `@sleekstack/next` no longer exports `action`, `query`, `Operation` or `OperationOptions`. It provides `configureRuntime({ layer, onError })`, `runEffect(effect, { request, overrides })`, `getRuntime()` and a dev-only introspection buffer (`@sleekstack/next/devtools`). `@sleekstack/kit/next`'s `defineEffect`/`effect`/`defineQuery`/`query` are implemented on `runEffect`. Supersedes ADR 0009: the internal Exit hook is gone, because kit sees the call's `Exit` through `runEffect`. Kit owns the module system: its `configureRuntime({ provide })` builds a core app scope as the runtime's `layer`, and each call passes the request scope as a `request` Layer, so `@sleekstack/next` only ever sees plain Layers.
 
 ## Considered options
