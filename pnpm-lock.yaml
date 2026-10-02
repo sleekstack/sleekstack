@@ -445,6 +445,9 @@ importers:
       '@sleekstack/core':
         specifier: workspace:*
         version: link:../core
+      '@sleekstack/query':
+        specifier: workspace:*
+        version: link:../query
       effect:
         specifier: ^3.15.0
         version: 3.21.2

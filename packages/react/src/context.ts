@@ -6,7 +6,7 @@
  * service cache. Both live on one object so they share the provider's lifetime.
  */
 
-import { createContext } from 'react'
+import { createContext, createElement, useContext, type Provider, type ReactNode } from 'react'
 import type { Cause } from 'effect'
 import type { AtomStore, ChildScope } from '@sleekstack/core'
 
@@ -37,3 +37,19 @@ export interface ProviderState {
 }
 
 export const ProviderContext = createContext<ProviderState | null>(null)
+
+/**
+ * The provider whose store holds queries: the root `LayerProvider`, or the nearest `QueryProvider` marker.
+ * Nested providers inherit it, so they share one query store.
+ */
+export const QueryStoreContext = createContext<ProviderState | null>(null)
+
+// Every `<ProviderContext.Provider>` also seeds QueryStoreContext when nothing above set it (i.e. at the root),
+// so LayerProvider needs no query knowledge.
+const BaseProvider = ProviderContext.Provider
+const RootAwareProvider = ({ value, children }: { value: ProviderState | null; children?: ReactNode }) => {
+  const query = useContext(QueryStoreContext)
+  const inner = createElement(BaseProvider, { value }, children)
+  return query ? inner : createElement(QueryStoreContext.Provider, { value }, inner)
+}
+;(ProviderContext as { Provider: Provider<ProviderState | null> }).Provider = RootAwareProvider as unknown as Provider<ProviderState | null>
