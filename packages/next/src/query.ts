@@ -31,4 +31,6 @@ export const prefetch = (
   options: Hydrate.DehydrateOptions & RunEffectOptions = {},
 ): Promise<Hydrate.Dehydrated> => runEffect(Hydrate.prefetch(queries, options), options)
 
+// Process-global: a client-component SSR render has no handle on the RSC call that holds `request` / `overrides`
+// (Layers do not cross the RSC boundary), and a global holding them would leak across concurrent requests.
 Hydrate.setServerRunner((queries) => prefetch(queries, { failures: true }))

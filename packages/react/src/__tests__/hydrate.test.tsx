@@ -94,7 +94,7 @@ describe('HydrateQueries', () => {
   it('an opted-in failure renders on the server and on the client first paint', async () => {
     const calls = { n: 0 }
     const q = Hydrate.hydratable(
-      Query.make({ key: (id: string) => ['bad', id], fetch: () => Effect.suspend(() => { calls.n++; return Effect.fail('nope' as const) }) }),
+      Query.make({ key: (id: string) => ['bad', id], fetch: (): Effect.Effect<string, 'nope'> => Effect.suspend(() => { calls.n++; return Effect.fail('nope' as const) }) }),
       { value: Schema.String, error: Schema.Literal('nope') },
     )
     const state = await Effect.runPromise(Hydrate.prefetch([q('f')], { failures: true }) as Effect.Effect<Hydrate.Dehydrated>)
