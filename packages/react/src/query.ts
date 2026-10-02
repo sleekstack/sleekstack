@@ -87,14 +87,14 @@ export const serverMap = (state: ProviderState): Map<string, ServerSlot> => {
 
 // Server branch: no store. A hydrated success renders as is; a missing or Schema-failing entry suspends on a
 // fetch through the server runner (whose rejection, e.g. a defect or RuntimeNotConfigured, is rethrown).
-// A typed failure renders pending, matching the client's first paint, which refetches it.
+// A dehydrated typed failure renders as the failure (the client shows it until its refetch settles).
 function serverResult<A, E>(state: ProviderState, atom: Query.QueryAtom<A, E>): QueryResult<A, E> {
   const key = atom[Query.TypeId].key
   const m = serverMap(state)
   let slot = m.get(key)
   if (slot?.error !== undefined) throw slot.error
   const decoded = slot?.entry && Hydrate.decode(atom, slot.entry)
-  if (decoded?._tag === 'Success') return decoded
+  if (decoded) return decoded
   if (slot?.done) return LOADING
   if (!slot?.promise) {
     const s: ServerSlot = (slot = { lazy: true })
@@ -120,7 +120,10 @@ function useObserved<A, E>(hook: string, atom: Query.QueryAtom<A, E>): { store: 
   }, [store, atom])
   // A render never builds a missing query: the first observer does, so it is not then refetched as "stale on mount".
   const getSnapshot = useCallback(
-    () => (Query.entries(store).has(atom[Query.TypeId].id) ? store.get(atom) : LOADING) as QueryResult<A, E>,
+    () => {
+      const r = (Query.entries(store).has(atom[Query.TypeId].id) ? store.get(atom) : LOADING) as QueryResult<A, E>
+      return Hydrate.hydratedFailure(store, atom, r) ?? r
+    },
     [store, atom],
   )
   return { store, result: useSyncExternalStore(subscribe, getSnapshot, getSnapshot) }

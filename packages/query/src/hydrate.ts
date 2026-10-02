@@ -143,7 +143,8 @@ export const hydrate = (store: AtomStore, state: Dehydrated): void => {
  * Seeds `atom` from its staged entry (once): a value that fails its Schema is dropped (the query then
  * fetches), an entry older than the mounted one is ignored, and the seeded entry is fresh until `staleTime`
  * counted from the server's `updatedAt`.
- * A failure entry is not seeded: the server renders it pending and the client refetches it.
+ * A failure entry (opted in at `prefetch`) is shown by {@link hydratedFailure} until the query's own
+ * fetch settles: atoms only accept values, and the client refetches a failure.
  *
  * @param store - The client query store.
  * @param atom - The query being read.
@@ -153,13 +154,37 @@ export const apply = (store: AtomStore, atom: QueryAtom<any, any>): void => {
   const entry = m?.get(atom[TypeId].key)
   if (!entry) return
   m!.delete(atom[TypeId].key)
-  if (entry.result !== 'success' || !codecs.has(atom)) return
+  if (!codecs.has(atom)) return
   const decoded = decode(atom, entry)
-  if (!decoded || decoded._tag !== 'Success') return
+  if (!decoded) return
   const current = entries(store).get(atom[TypeId].id)
   if (current?.updatedAt !== undefined && current.updatedAt >= entry.updatedAt) return
-  makeQueries(store).setData(atom, decoded.value)
+  if (decoded._tag === 'Failure') {
+    let f = failures.get(store)
+    if (!f) failures.set(store, (f = new Map()))
+    f.set(atom[TypeId].id, decoded)
+    return
+  }
+  makeQueries(store).setData(atom, (decoded as Result.Success<unknown>).value)
   entries(store).get(atom[TypeId].id)!.updatedAt = entry.updatedAt
+}
+
+const failures = new WeakMap<AtomStore, Map<string, Result.Result<any, any>>>()
+
+/**
+ * The hydrated failure of `atom` while its own `current` result is still `Initial`; dropped once it settles.
+ *
+ * @param store - The client query store.
+ * @param atom - The query.
+ * @param current - The query's current result in `store`.
+ * @returns The hydrated `Failure`, or `undefined`.
+ */
+export const hydratedFailure = <A, E>(store: AtomStore, atom: QueryAtom<A, E>, current: Result.Result<A, any>): Result.Result<A, E> | undefined => {
+  const f = failures.get(store)
+  const failure = f?.get(atom[TypeId].id)
+  if (!failure) return undefined
+  if (current._tag !== 'Initial') { f!.delete(atom[TypeId].id); return undefined }
+  return failure
 }
 
 let serverRunner: ((atoms: ReadonlyArray<QueryAtom<any, any>>) => Promise<Dehydrated>) | undefined

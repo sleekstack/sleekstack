@@ -31,4 +31,4 @@ export const prefetch = (
   options: Hydrate.DehydrateOptions & RunEffectOptions = {},
 ): Promise<Hydrate.Dehydrated> => runEffect(Hydrate.prefetch(queries, options), options)
 
-Hydrate.setServerRunner((queries) => prefetch(queries))
+Hydrate.setServerRunner((queries) => prefetch(queries, { failures: true }))

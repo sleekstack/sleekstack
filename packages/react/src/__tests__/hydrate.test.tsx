@@ -90,4 +90,21 @@ describe('HydrateQueries', () => {
     vi.stubGlobal('window', undefined)
     await expect(html(<LayerProvider provide={[]}><Show id="e" /></LayerProvider>)).rejects.toThrow('runtime down')
   })
+
+  it('an opted-in failure renders on the server and on the client first paint', async () => {
+    const calls = { n: 0 }
+    const q = Hydrate.hydratable(
+      Query.make({ key: (id: string) => ['bad', id], fetch: () => Effect.suspend(() => { calls.n++; return Effect.fail('nope' as const) }) }),
+      { value: Schema.String, error: Schema.Literal('nope') },
+    )
+    const state = await Effect.runPromise(Hydrate.prefetch([q('f')], { failures: true }) as Effect.Effect<Hydrate.Dehydrated>)
+    const Show = () => { const { error } = useQuery(q('f')); return <i>{`err:${String(error)}`}</i> }
+    const tree = <LayerProvider provide={[]}><Suspense fallback="loading"><HydrateQueries state={state}><Show /></HydrateQueries></Suspense></LayerProvider>
+    vi.stubGlobal('window', undefined)
+    const out = await html(tree)
+    vi.unstubAllGlobals()
+    expect(out).toContain('err:nope')
+    render(tree)
+    expect(await screen.findByText('err:nope')).toBeTruthy()
+  })
 })

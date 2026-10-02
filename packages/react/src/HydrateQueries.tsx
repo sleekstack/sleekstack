@@ -21,7 +21,7 @@ function LazyState({ id, provider }: { readonly id: string; readonly provider: P
   const slots = [...serverMap(provider).values()].filter((s) => s.lazy)
   const running = slots.filter((s) => !s.done && s.error === undefined).map((s) => s.promise!)
   if (running.length > 0) throw Promise.all(running)
-  const entries = slots.flatMap((s) => (s.entry?.result === 'success' ? [s.entry] : []))
+  const entries = slots.flatMap((s) => (s.entry ? [s.entry] : []))
   return <script id={id} type="application/json" dangerouslySetInnerHTML={{ __html: json(entries) }} />
 }
 
@@ -42,8 +42,8 @@ export function HydrateQueries({ state, children }: { readonly state: Hydrate.De
     const provider = useContext(QueryStoreContext)
     if (provider === null) throw new Error('HydrateQueries needs a <LayerProvider> above it.')
     const m = serverMap(provider)
-    // a failure entry renders pending (the client refetches it); a success is decoded on read, refetched if it fails its Schema
-    for (const entry of state) if (!m.get(entry.key)?.entry) m.set(entry.key, { entry, done: entry.result === 'failure' })
+    // decoded on read; an entry failing its Schema is refetched
+    for (const entry of state) if (!m.get(entry.key)?.entry) m.set(entry.key, { entry })
     return <>{children}<LazyState id={id} provider={provider} /></>
   }
   const store = useQueryStore('HydrateQueries')
