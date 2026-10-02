@@ -19,10 +19,15 @@ import { runApp } from './runtime.server'
 
 export type ActionResult<T> = { readonly ok: true; readonly data: T } | { readonly ok: false; readonly error: string }
 
+/** Server-facing wording per field; the rule itself lives only in the domain schema. */
+const SERVER_MESSAGES: Record<string, string> = { title: 'Task title cannot be empty', body: 'Comment body cannot be empty' }
+
 /** Parses with the domain schema; the first issue becomes the `InvalidInput` message. */
 const parse = <S extends z.ZodType>(schema: S, input: unknown): Effect.Effect<z.output<S>, InvalidInput> => {
   const r = schema.safeParse(input)
-  return r.success ? Effect.succeed(r.data) : Effect.fail(new InvalidInput({ message: r.error.issues[0]?.message ?? 'Invalid input' }))
+  if (r.success) return Effect.succeed(r.data)
+  const issue = r.error.issues[0]
+  return Effect.fail(new InvalidInput({ message: SERVER_MESSAGES[String(issue?.path[0])] ?? issue?.message ?? 'Invalid input' }))
 }
 
 /**

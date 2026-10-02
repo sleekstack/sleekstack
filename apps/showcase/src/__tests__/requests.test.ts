@@ -55,7 +55,7 @@ describe('showcase request scopes', () => {
     const before = await countTasks('proj_1')
     const result = await createTask({ projectId: 'proj_1', title: '   ' } satisfies CreateTaskInput)
     expect(result.ok).toBe(false)
-    if (!result.ok) expect(result.error).toMatch(/Please enter a title/)
+    if (!result.ok) expect(result.error).toMatch(/title cannot be empty/i)
     expect(await countTasks('proj_1')).toBe(before)
   })
 
