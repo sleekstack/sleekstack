@@ -144,6 +144,14 @@ describe('registry and lifecycle', () => {
     ra(); rb()
   })
 
+  it('QueryCache is replaceable through the store context', () => {
+    const registry = new Map<string, Query.QueryEntry>()
+    const q = Query.make({ key: () => ['c'], fetch: () => Effect.succeed(1) })
+    const store = makeAtomStore({ context: Context.make(Query.QueryCache, { registry }) })
+    store.get(q(undefined))
+    expect([...registry.values()].map((e) => e.key)).toEqual(['["c"]'])
+  })
+
   it('disposing the store stops trigger fibers', async () => {
     vi.useFakeTimers()
     let n = 0

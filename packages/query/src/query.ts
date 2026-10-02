@@ -7,7 +7,7 @@
  */
 
 import { Atom, Result, type AtomStore } from '@sleekstack/core'
-import { Duration, Effect, Fiber, Schedule, Stream } from 'effect'
+import { Context, Duration, Effect, Fiber, Option, Schedule, Stream } from 'effect'
 import { canonicalKey } from './key'
 
 /** Brand carrying a query atom's policy. */
@@ -50,11 +50,22 @@ export interface QueryEntry {
   /** @internal stops the trigger fiber */ stop: (() => void) | undefined
 }
 
-// One Map per store: a keepAlive atom is built once per store and never recomputed; its finalizer runs on
-// store disposal and stops every trigger fiber still running there.
+/**
+ * The query cache service: holds the registry a store's queries record into. Optional - a store whose
+ * context lacks it gets a fresh registry; provide it to share or inspect a registry (tests, devtools).
+ */
+export class QueryCache extends Context.Tag('@sleekstack/query/QueryCache')<QueryCache, { readonly registry: Map<string, QueryEntry> }>() {}
+
+// Resolved once per store: a synchronous Effect atom completes during its build, so the read stays sync.
+const cacheAtom = Atom.keepAlive(
+  Atom.make(Effect.map(Effect.serviceOption(QueryCache), Option.getOrElse(() => ({ registry: new Map<string, QueryEntry>() })))),
+)
+// Its finalizer runs on store disposal and stops every trigger fiber still running there.
 const registryAtom = Atom.keepAlive(
   Atom.make((get): Map<string, QueryEntry> => {
-    const registry = new Map<string, QueryEntry>()
+    const cache = get(cacheAtom)
+    if (!Result.isSuccess(cache)) throw new Error('QueryCache did not resolve synchronously')
+    const registry = cache.value.registry
     get.addFinalizer(() => { for (const e of registry.values()) { e.stop?.(); e.stop = undefined } })
     return registry
   }),
