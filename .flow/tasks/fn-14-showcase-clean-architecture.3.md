@@ -13,9 +13,12 @@ Migration step 3. Add application/board.ts (createTask, moveTask, addComment) an
 - [ ] Demo-mode override test passes, and a new test asserts a task created in demo mode carries the overridden Clock timestamp (R9); existing tests green (R10)
 
 ## Done summary
-TBD
+Added application/board.ts (Board: loadBoard, createTask, moveTask, addComment) and board-view.ts, plus server/act.server.ts mapping DomainError to ActionResult (defects reject). Actions are now `export const x = act(Board.x)`; ids/timestamps come from per-call IdGen/Clock. Tests: application/board.test.ts (R2/R4 error cases, store and audit untouched), act defect test and demo-mode Clock timestamp test in requests.test.ts.
 
+baseline: green via handoff (verified at ff814b5 by task .2)
+stage: impl-review - ran (codex fan-out NEEDS_WORK -> fixes -> SHIP)
+Tier: opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 639aed281d59be0aebc2d146a9b2e1a5ba3dbfc7, c3e6df8da1a1ab8db4ee33b8d5f32fa51b128af5
+- Tests: pnpm -F showcase typecheck, pnpm -F showcase test (45/45)
 - PRs:
