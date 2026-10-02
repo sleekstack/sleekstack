@@ -153,4 +153,16 @@ describe('showcase request scopes', () => {
     const realEvents = await logMessages()
     expect(realEvents.some((m) => m.includes('Demo task'))).toBe(false)
   })
+
+  it('a task created in demo mode carries the overridden Clock timestamp', async () => {
+    const { createTask } = await import('../server/board.actions')
+    __setDemoCookie('1')
+    let result: Awaited<ReturnType<typeof createTask>>
+    try {
+      result = await createTask({ projectId: 'proj_1', title: 'Demo clock task' } satisfies CreateTaskInput)
+    } finally {
+      __setDemoCookie(undefined)
+    }
+    expect(result.ok && result.data.createdAt).toBe(0)
+  })
 })

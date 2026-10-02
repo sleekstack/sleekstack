@@ -4,7 +4,7 @@ import { BoardStore } from '../domain/tags'
 import { makeBoardStore } from '../infrastructure/board-store.memory'
 import { resolveDraft, submitDraft } from './contracts'
 import { NewTaskDraft, TaskCommentDraft } from './task'
-import { loadBoardModels } from './task.server'
+import { loadBoard as loadBoardModels } from '../application/board-view'
 
 describe('resolveDraft / submitDraft', () => {
   const ctx = { projectId: 'p1' }
