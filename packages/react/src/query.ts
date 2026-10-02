@@ -7,7 +7,7 @@
  */
 
 import React, { useCallback, useContext, useEffect, useState, useSyncExternalStore } from 'react'
-import { Cause, Option, type Exit } from 'effect'
+import { Cause, Chunk, Option, type Exit } from 'effect'
 import { Atom, Result, type AtomStore } from '@sleekstack/core'
 import { Mutation, Queries, Query } from '@sleekstack/query'
 import { ProviderContext, QueryStoreContext } from './context'
@@ -73,7 +73,7 @@ function useObserved<A, E>(hook: string, atom: Query.QueryAtom<A, E>) {
   const subscribe = useCallback((listener: () => void) => {
     const release = claim(store, atom) ?? Query.observe(store, atom)
     const unsubscribe = store.subscribe(atom, listener)
-    return () => { unsubscribe(); park(store, atom, release) }
+    return () => { unsubscribe(); park(store, atom, release, 0) } // StrictMode remounts synchronously
   }, [store, atom])
   // A render never builds a missing query: the first observer does, so it is not then refetched as "stale on mount".
   const getSnapshot = useCallback(
@@ -100,7 +100,10 @@ const view = <A, E>(store: AtomStore, atom: Query.QueryAtom<A, E>, result: Query
   let error: E | Atom.ScopeError | undefined
   if (result._tag === 'Failure') {
     const typed = Cause.failureOption(result.cause)
-    if (Option.isNone(typed)) throw Cause.squash(result.cause) // defects go to the error boundary
+    // any defect (even beside a typed failure) goes to the error boundary
+    const defects = Cause.defects(result.cause)
+    if (Chunk.isNonEmpty(defects)) throw Chunk.headNonEmpty(defects)
+    if (Option.isNone(typed)) throw Cause.squash(result.cause)
     error = typed.value
   }
   return {
@@ -130,9 +133,10 @@ export function useQuery<A, E>(atom: Query.QueryAtom<A, E>): UseQuery<A, E> {
   return view(store, atom, result)
 }
 
-// An observation outlives its observer by HANDOFF_MS so a StrictMode remount or a Suspense retry takes it over
-// instead of observing anew (which refetches a stale entry "on mount").
-// ponytail: one parked observation per atom; a genuinely new observer within the window also skips the mount refetch.
+// A released observation is parked briefly so the next subscriber takes it over instead of observing anew (which
+// refetches a stale entry "on mount"): until the next task after an unmount (StrictMode's synchronous remount), and
+// for HANDOFF_MS after a Suspense load (React throttles the retry's commit ~300 ms).
+// ponytail: a new observer claiming a just-loaded suspension's observation also skips the mount refetch (the data is fresh).
 const HANDOFF_MS = 400
 const parked = new WeakMap<AtomStore, WeakMap<object, { readonly release: () => void; readonly timer: ReturnType<typeof setTimeout> }>>()
 const parkedFor = (store: AtomStore) => {
@@ -148,10 +152,10 @@ const claim = (store: AtomStore, atom: object): (() => void) | undefined => {
   clearTimeout(p.timer)
   return p.release
 }
-function park(store: AtomStore, atom: object, release: () => void) {
+function park(store: AtomStore, atom: object, release: () => void, ms: number) {
   claim(store, atom)?.()
   const m = parkedFor(store)
-  m.set(atom, { release, timer: setTimeout(() => { if (m.get(atom)?.release === release) m.delete(atom); release() }, HANDOFF_MS) })
+  m.set(atom, { release, timer: setTimeout(() => { if (m.get(atom)?.release === release) m.delete(atom); release() }, ms) })
 }
 
 const suspensions = new WeakMap<AtomStore, WeakMap<object, Promise<void>>>()
@@ -162,13 +166,16 @@ const loaded = (store: AtomStore, atom: Query.QueryAtom<any, any>): Promise<void
   if (!p) {
     p = new Promise<void>((resolve) => {
       let done = false
-      const release = Query.observe(store, atom, () => {
-        if (done || store.get(atom)._tag === 'Initial') return
+      let release: (() => void) | undefined
+      const check = () => {
+        if (done || !release || store.get(atom)._tag === 'Initial') return
         done = true
         perStore!.delete(atom)
-        park(store, atom, release) // the retried render's subscription takes the observation over
+        park(store, atom, release, HANDOFF_MS) // the retried render's subscription takes the observation over
         resolve()
-      })
+      }
+      release = Query.observe(store, atom, check)
+      check() // a synchronous fetch settles during observe, without notifying
     })
     perStore.set(atom, p)
   }

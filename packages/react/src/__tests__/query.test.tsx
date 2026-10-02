@@ -6,12 +6,13 @@
 import { afterEach, describe, it, expect } from 'vitest'
 import { act, cleanup, screen, waitFor } from '@testing-library/react'
 import React, { Component, Suspense, type ReactNode } from 'react'
-import { Effect, Exit } from 'effect'
+import { Cause, Effect, Exit } from 'effect'
 import { Mutation, Query } from '@sleekstack/query'
 import { renderStrict } from './renderStrict'
 import { LayerProvider, QueryProvider, useMutation, useQueries, useQuery, useQuerySuspense } from '../index'
 
 afterEach(cleanup)
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 class Boundary extends Component<{ children: ReactNode }, { error?: unknown }> {
   state: { error?: unknown } = {}
@@ -100,5 +101,36 @@ describe('useQuery / useMutation', () => {
     await waitFor(() => expect(screen.getByTestId('v').textContent).toBe('a#1|boom|false'))
     expect(fallbacks).toBe(seen)
     expect(screen.queryByTestId('error')).toBeNull()
+  })
+
+  it.each([
+    ['success', Effect.succeed('ok'), 'v', 'ok'],
+    ['failure', Effect.fail('bad'), 'error', 'bad'],
+  ] as const)('useQuerySuspense settles a synchronous %s', async (_, effect, id, text) => {
+    const q = Query.make({ key: () => ['sync', _], fetch: () => effect as Effect.Effect<string, string> })
+    const View = () => <span data-testid="v">{useQuerySuspense(q(undefined)).data}</span>
+    renderStrict(<LayerProvider provide={[]}><Boundary><Suspense fallback={null}><View /></Suspense></Boundary></LayerProvider>)
+    await waitFor(() => expect(screen.getByTestId(id).textContent).toBe(text))
+  })
+
+  it('a real remount of a stale query refetches', async () => {
+    const { q, calls } = counted()
+    const View = () => <span data-testid="v">{useQuery(q('a')).data ?? 'loading'}</span>
+    let show!: (b: boolean) => void
+    const Toggle = () => { const [on, set] = React.useState(true); show = set; return on ? <View /> : null }
+    renderStrict(<LayerProvider provide={[]}><Suspense fallback={null}><Toggle /></Suspense></LayerProvider>)
+    await waitFor(() => expect(screen.getByTestId('v').textContent).toBe('a#1'))
+    act(() => show(false))
+    await act(() => sleep(5))
+    act(() => show(true))
+    await waitFor(() => expect(screen.getByTestId('v').textContent).toBe('a#2'))
+    expect(calls.n).toBe(2)
+  })
+
+  it('a defect beside a typed failure goes to the error boundary', async () => {
+    const q = Query.make({ key: () => ['mixed'], fetch: () => Effect.failCause(Cause.parallel(Cause.fail('typed'), Cause.die(new Error('defect')))) })
+    const View = () => <span data-testid="v">{String(useQuery(q(undefined)).error)}</span>
+    renderStrict(<LayerProvider provide={[]}><Boundary><Suspense fallback={null}><View /></Suspense></Boundary></LayerProvider>)
+    await waitFor(() => expect(screen.getByTestId('error').textContent).toContain('defect'))
   })
 })
