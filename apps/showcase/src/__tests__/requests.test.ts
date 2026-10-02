@@ -120,6 +120,18 @@ describe('showcase request scopes', () => {
     }
   })
 
+  it('act maps a DomainError to { ok: false } and rejects on a defect', async () => {
+    const { act } = await import('../server/act.server')
+    const { InvalidInput } = await import('../domain/errors')
+    await expect(act(() => Effect.fail(new InvalidInput({ message: 'nope' })))(undefined)).resolves.toEqual({ ok: false, error: 'nope' })
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      await expect(act(() => Effect.die('act-defect'))(undefined)).rejects.toThrow()
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
   it('the log shows request open and close, in order and with matching ids, for a single call', async () => {
     const { createTask } = await import('../server/board.actions')
     const result = await createTask({ projectId: 'proj_1', title: 'Logged request' } satisfies CreateTaskInput)

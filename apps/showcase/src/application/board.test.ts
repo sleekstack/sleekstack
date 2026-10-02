@@ -22,7 +22,8 @@ const setup = () => {
   )
   const run = <A, E>(e: Effect.Effect<A, E, any>) => Effect.runPromise(Effect.either(Effect.provide(e, env) as Effect.Effect<A, E>))
   const tasks = () => Effect.runPromise(store.tasksOf('p1'))
-  return { run, tasks, log }
+  const comments = () => Effect.runPromise(store.commentsOf('t1'))
+  return { run, tasks, comments, log }
 }
 
 describe('Board', () => {
@@ -45,10 +46,11 @@ describe('Board', () => {
     ['InvalidInput', Board.addComment({ taskId: 't1', body: ' ', authorId: 'u' })],
     ['SimulatedFailure', Board.createTask({ projectId: 'p1', title: 'x', simulateFailure: true })],
   ] as const)('%s leaves the store untouched and writes no audit entry', async (tag, op) => {
-    const { run, tasks, log } = setup()
+    const { run, tasks, comments, log } = setup()
     const r = await run(op as Effect.Effect<unknown, { _tag: string }, any>)
     expect(r).toMatchObject({ _tag: 'Left', left: { _tag: tag } })
     expect(await tasks()).toEqual([{ id: 't1', projectId: 'p1', title: 'Ship', status: 'todo', createdAt: 0 }])
+    expect(await comments()).toEqual([])
     expect(log).toEqual([])
   })
 })

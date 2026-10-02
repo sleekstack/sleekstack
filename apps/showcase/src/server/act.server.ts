@@ -13,7 +13,7 @@ export type ActionResult<T> = { readonly ok: true; readonly data: T } | { readon
 
 export const act =
   <I, A>(useCase: (input: I) => Effect.Effect<A, DomainError, Parameters<typeof runApp>[0] extends Effect.Effect<any, any, infer R> ? R : never>) =>
-  (input: I): Promise<ActionResult<A>> =>
+  async (input: I): Promise<ActionResult<A>> =>
     runApp(
       useCase(input).pipe(
         Effect.map((data): ActionResult<A> => ({ ok: true, data })),

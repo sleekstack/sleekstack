@@ -13,8 +13,8 @@ export type CreateTaskInput = CreateTask
 export type MoveTaskInput = MoveTask
 export type AddCommentInput = AddComment
 
-export async function createTask(input: CreateTaskInput) { return act(Board.createTask)(input) }
+export const createTask = act(Board.createTask)
 
-export async function moveTask(input: MoveTaskInput) { return act(Board.moveTask)(input) }
+export const moveTask = act(Board.moveTask)
 
-export async function addComment(input: AddCommentInput) { return act(Board.addComment)(input) }
+export const addComment = act(Board.addComment)
