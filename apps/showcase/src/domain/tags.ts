@@ -2,7 +2,7 @@
  * apps/showcase/src/domain/tags.ts
  *
  * Tag-only module (R10): identifiers safe for client code to import. No
- * implementations here — see the sibling `*.server.ts` files for the Layer
+ * implementations here — see infrastructure/*.live.ts (composed in infrastructure/app.ts) for the Layer
  * factories. A bundle that imports only this file never pulls in a server
  * implementation (pattern: apps/playground/src/tags.ts).
  */
