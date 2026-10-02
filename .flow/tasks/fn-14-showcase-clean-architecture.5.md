@@ -11,9 +11,11 @@ Migration step 5. Update apps/showcase/README.md mapping table and file layout t
 - [ ] Tests still green
 
 ## Done summary
-TBD
+Rewrote apps/showcase/README.md for the layered tree: a Layout section, the dependency rule with its one composition-boundary exception (delivery/runtime.server.ts -> infrastructure/app.ts), the BoardStore single-adapter note, ActivityLog/Clock as live+demo seams, and the R1-R11 table plus Models section repointed to real paths (every path verified to exist).
 
+stage: impl-review - ran (codex route; triage_skip SHIP, docs-only)
+Tier: implementer opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 41d34fa413acfdf5a04090b58fdda644be5a8be2
+- Tests: GATE_SKIPPED:typecheck:docs-only - cumulative diff classified tier-B (no executable paths touched), GATE_SKIPPED:test:docs-only - cumulative diff classified tier-B (no executable paths touched), README path existence check (all referenced paths exist)
 - PRs:
