@@ -49,7 +49,7 @@ describe('sleekstack check', () => {
   }, 30_000)
 
   it('showcase: RequestLive and DemoLive are request/overrides roots over the app, exit 0', () => {
-    const r = run(path.join(__dirname, '../../../../apps/showcase'), '--entry', 'src/server/runtime.server.ts')
+    const r = run(path.join(__dirname, '../../../../apps/showcase'), '--entry', 'src/delivery/runtime.server.ts')
     expect(r.code).toBe(0)
     expect(r.err).toMatch(/ok {3}\[app\] [\s\S]*ok {3}\[request\] RequestLive [\s\S]*ok {3}\[overrides\] DemoLive /)
     expect(r.err.match(/\[(request|overrides)\]/g)).toEqual(['[request]', '[overrides]'])

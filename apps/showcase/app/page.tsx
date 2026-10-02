@@ -1,19 +1,16 @@
 /**
  * apps/showcase/app/page.tsx
  *
- * The interactive board (R5, R7): resolves the board's Models (`loadBoardModels`)
- * through plain Effect (`runApp`), with demo-mode shadowing (R9) applied via per-call `provide`,
+ * The interactive board (R5, R7): resolves the board's Models through delivery's `loadBoard`
+ * (`runApp` over the application read), with demo-mode shadowing (R9) applied via per-call `provide`,
  * then hands the data to the client `Board` (nested `LayerProvider`s,
- * forms wired to the Server Actions in board.actions.ts).
+ * forms wired to the Server Actions in delivery/actions.ts).
  */
 import Link from 'next/link'
-import { loadBoardModels } from '../src/models/task.server'
-import { Board } from '../src/client/Board'
-import { isDemoMode } from '../src/server/demo.server'
-import { runApp } from '../src/server/runtime.server'
+import { Board } from '../src/client/components/Board'
+import { isDemoMode } from '../src/delivery/demo-mode'
+import { loadBoard } from '../src/delivery/board.server'
 import { Providers } from './providers'
-
-const loadBoard = () => runApp(loadBoardModels)
 
 export default async function HomePage() {
   const [board, demoMode] = await Promise.all([loadBoard(), isDemoMode()])

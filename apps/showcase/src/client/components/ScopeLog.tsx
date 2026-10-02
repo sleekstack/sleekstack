@@ -1,6 +1,6 @@
 'use client'
 /**
- * apps/showcase/src/client/ScopeLog.tsx
+ * apps/showcase/src/client/components/ScopeLog.tsx
  *
  * R6/R7: a client-side event log fed by the component-scoped services'
  * acquire/release finalizers (component-services.ts), shown next to the

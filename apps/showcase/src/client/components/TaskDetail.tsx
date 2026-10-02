@@ -1,6 +1,6 @@
 'use client'
 /**
- * apps/showcase/src/client/TaskDetail.tsx
+ * apps/showcase/src/client/components/TaskDetail.tsx
  *
  * R7: mounts with `key={taskId}` (plus the "break detail" flag, since both
  * must remount together — `provide` changes alone are ignored,
@@ -12,12 +12,12 @@
 import { Suspense, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { LayerProvider, useAtom, useService } from '@sleekstack/react'
-import { addComment, moveTask } from '../server/board.actions'
-import type { TaskStatus } from '../domain/tags'
-import { submitDraft } from '../models/contracts'
-import { TaskCommentDraft, type CommentModel, type TaskModel } from '../models/task'
+import { addComment, moveTask } from '../../delivery/actions'
+import type { TaskStatus } from '../../domain/tags'
+import { submitDraft } from '../../lib/contracts'
+import { TaskCommentDraft, type CommentModel, type TaskModel } from '../../models/task'
 import { ErrorBoundary } from './ErrorBoundary'
-import { DraftEditor, makeBrokenDraftEditorLayer, makeDraftEditorLayer } from './component-services'
+import { DraftEditor, makeBrokenDraftEditorLayer, makeDraftEditorLayer } from '../services/component-services'
 
 const STATUSES: readonly TaskStatus[] = ['todo', 'in_progress', 'done']
 

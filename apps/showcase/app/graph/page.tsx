@@ -4,7 +4,7 @@
  * Renders the analyzer's prebuilt report: every root (app first, then `runEffect` request/overrides
  * layers) with its kind. Request/overrides graphs include the app graph they were checked over.
  */
-import { readReport } from '../../src/server/report.server'
+import { readReport } from '../../src/delivery/report.server'
 
 // Unknown kinds render as a plain root: the Report schema is additive.
 const KINDS = new Set(['app', 'request', 'overrides', 'opaque'])

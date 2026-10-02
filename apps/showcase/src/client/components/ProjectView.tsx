@@ -1,6 +1,6 @@
 'use client'
 /**
- * apps/showcase/src/client/ProjectView.tsx
+ * apps/showcase/src/client/components/ProjectView.tsx
  *
  * R7: the project-scope `LayerProvider`, nested under the app-level one
  * (providers.tsx) and parent to the task-detail `LayerProvider`
@@ -13,13 +13,13 @@
 import { Suspense, useMemo, useSyncExternalStore, useTransition, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { LayerProvider, useService } from '@sleekstack/react'
-import { createTask } from '../server/board.actions'
-import type { ProjectRecord } from '../domain/tags'
-import { ProjectFilterStore, makeProjectFilterStoreLayer, type TaskStatusFilter } from './component-services'
+import { createTask } from '../../delivery/actions'
+import type { ProjectRecord } from '../../domain/tags'
+import { ProjectFilterStore, makeProjectFilterStoreLayer, type TaskStatusFilter } from '../services/component-services'
 import { TaskDetail } from './TaskDetail'
-import { useDraftForm } from './useDraftForm'
-import { submitDraft } from '../models/contracts'
-import { NewTaskDraft, type CommentModel, type TaskModel } from '../models/task'
+import { useDraftForm } from '../drafts/useDraftForm'
+import { submitDraft } from '../../lib/contracts'
+import { NewTaskDraft, type CommentModel, type TaskModel } from '../../models/task'
 
 export interface TaskWithComments {
   readonly task: TaskModel

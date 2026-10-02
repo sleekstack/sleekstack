@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-02T06:52:00.055537Z",
+  "depends_on": [
+    "fn-14-showcase-clean-architecture.1"
+  ],
+  "id": "fn-14-showcase-clean-architecture.2",
+  "priority": null,
+  "spec": "fn-14-showcase-clean-architecture",
+  "spec_path": ".flow/tasks/fn-14-showcase-clean-architecture.2.md",
+  "status": "todo",
+  "title": "BoardStore: replace Store/repos/UnitOfWork",
+  "updated_at": "2026-10-02T06:52:00.055537Z"
+}

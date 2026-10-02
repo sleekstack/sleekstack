@@ -1,6 +1,6 @@
 'use client'
 /**
- * apps/showcase/src/client/useDraftForm.ts
+ * apps/showcase/src/client/drafts/useDraftForm.ts
  *
  * Binds a Draft to react-hook-form: `defaultValues = spec.create(src)`, resolver from `spec.schema(src)`.
  * Re-seeds when `src` changes, but only while the form is pristine, so a refetch never wipes edits.
@@ -9,7 +9,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect, useMemo, useRef } from 'react'
 import { useForm, type DefaultValues, type FieldValues, type Resolver, type UseFormProps, type UseFormReturn } from 'react-hook-form'
-import type { DraftSpec } from '../models/contracts'
+import type { DraftSpec } from '../../lib/contracts'
 
 export function useDraftForm<D extends FieldValues, Dto, Src, P>(
   spec: DraftSpec<D, Dto, Src, P>,

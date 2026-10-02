@@ -1,5 +1,5 @@
 /**
- * apps/showcase/src/server/report.server.ts
+ * apps/showcase/src/delivery/report.server.ts
  *
  * The analyzer's prebuilt reports (`pnpm report`, run by predev / prebuild): `report.json` for the
  * app runtime (runtime.server.ts), `errors.json` for the broken fixtures (src/errors/graphs.ts).

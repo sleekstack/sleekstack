@@ -3,7 +3,7 @@
  *
  * `next/headers`'s `cookies()` needs Next's request AsyncLocalStorage,
  * unavailable under plain Vitest. Aliased in vitest.config.ts so
- * demo.server.ts's `cookies()` call resolves to this test-controlled jar
+ * delivery/demo-mode.ts's `cookies()` call resolves to this test-controlled jar
  * instead of throwing. `__setDemoCookie` lets a test flip demo mode on/off.
  */
 let value: string | undefined
