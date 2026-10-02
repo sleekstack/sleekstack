@@ -20,9 +20,15 @@ Write ADR 0013 (supersedes the package-boundary part of ADR 0012; 0014 stays res
 - [ ] docs api-coverage test and docs build pass
 
 ## Done summary
-TBD
+Added ADR 0013 (runtime in `@sleekstack/runtime`, `@sleekstack/next` is its Next preset; supersedes ADR 0012's package boundary), with a superseded-in-part note on 0012 and an index row. CONTEXT.md gains Runtime Package, Request Root and Overrides Root and an updated Analyzer (`--lenient`), Graph, Request Scope, Action and Devtools. Root README, docs index/nextjs/errors/testing/kit-vs-effect/getting-started-effect, and the devtools and react READMEs now describe the new boundary, request/overrides roots, `--lenient`, per-service devtools events and the dev atom store list. kit-vs-effect no longer names the removed core `service()`.
 
+Notes: CONTEXT keeps AtomStore's "Avoid: atom registry", so the term is not added there; the code's `@sleekstack/react/internal` registry is described as a store list. The generated API pages were left as generated. runtime and next READMEs were already current.
+
+baseline: none run pre-edit (docs-only diff); gate classify returned full, so full gates ran post-edit: all green
+Tier: implementer tier, project routing block (opus at medium)
+
+stage: impl-review - ran (codex: triage_skip docs-only, SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: e216216c3d49e66bd2d615ad694b4664b62fc27b
+- Tests: pnpm typecheck && pnpm test, pnpm --filter showcase build && pnpm --filter showcase test, pnpm --filter docs test, pnpm --filter docs build
 - PRs:
