@@ -6,7 +6,7 @@ description: Effect-native dependency injection, services and modules for full-s
 SleekStack gives you dependency injection, a service layer and module management for full-stack TypeScript apps, with React and Next.js adapters. It is built on [Effect](https://effect.website), and you can use it two ways:
 
 - **Kit** (`@sleekstack/kit`): an Effect-free API. Tags, Layers and modules are plain functions and values, and every failure is one `SleekStackError`.
-- **Effect-native** (`@sleekstack/core`, `@sleekstack/next`, `@sleekstack/react`): Effect Tags, Layers and Effects directly, with typed errors.
+- **Effect-native** (`@sleekstack/core`, `@sleekstack/runtime` or its preset `@sleekstack/next`, `@sleekstack/react`): Effect Tags, Layers and Effects directly, with typed errors.
 
 Both build the same graph, so you can start with kit and move one module to Effect later. [Kit vs Effect-native](/docs/kit-vs-effect) compares them.
 
@@ -15,7 +15,8 @@ Both build the same graph, so you can start with kit and move one module to Effe
 | Package | What it does |
 | --- | --- |
 | `@sleekstack/core` | Declared Layers, modules and scopes |
-| `@sleekstack/next` | Effect runtime management for Next.js: `configureRuntime`, `runEffect`, dev introspection |
+| `@sleekstack/runtime` | The framework-agnostic Effect runtime: `configureRuntime`, `runEffect`, a pluggable control-flow classifier |
+| `@sleekstack/next` | The Next.js preset of the runtime: Next control flow, the devtools route handler |
 | `@sleekstack/devtools` | Dev-only panel: graph, scopes, atoms, errors |
 | `@sleekstack/react` | `LayerProvider` and `useService` |
 | `@sleekstack/kit` | The Effect-free facade, with `kit/next` and `kit/react` subpaths |

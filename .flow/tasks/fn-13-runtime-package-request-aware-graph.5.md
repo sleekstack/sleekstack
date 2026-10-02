@@ -22,9 +22,15 @@ Core: add an `@internal` read-only enumeration of a store's atoms (AtomStore has
 - [ ] core api-coverage and react tests pass
 
 ## Done summary
-TBD
+Dev-only atom store registry: core AtomStore gains @internal inspect(); managedScope adds/removes each LayerProvider store on a globalThis list under a NODE_ENV guard; @sleekstack/react/internal (registry.ts) only reads it; devtools panel polls it client-side (packages/devtools/src/atoms/useStoreAtoms.ts), skips throwing stores, merges with the atoms prop, de-duplicated only against the panel's own provider store (prop label wins; the same atom in sibling stores stays listed). Tests: react registry.test.tsx (late load, StrictMode unmount, disposed store), devtools.test.tsx (panel lists store atoms, throwing store skipped, unmount clears, prop atom also in a store renders once), playground bundle.test.ts (production build has no registry key; dev build does). Subpath named ./internal so docs api-coverage excludes it.
 
+baseline: red (showcase-kit bundle.test.ts Islands, 2 tests, pre-existing)
+stage: impl-review - skipped(policy: host-deferred - conductor owns the gate; earlier codex attempt failed on usage limit, round refunded)
+Tier: implementer tier, project routing block (opus at medium)
+
+stage: impl-review - ran (codex: first attempt blocked by usage limit, refunded; fan-out NEEDS_WORK -> re-review SHIP)
+stage: plan-sync - skipped(empty: conductor noted drift in tasks 3 and 6 directly)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 2e553d0c83e6bd98292ed0bbbf95a71ff91a4dba, c8a08292262fdf7c2193a35ec9fac3fa34322f26, 65377f082254b900bca6ddfb0b48d68eddb62196
+- Tests: pnpm typecheck, pnpm --filter @sleekstack/react test, pnpm --filter @sleekstack/devtools test, pnpm --filter docs test, pnpm --filter sleekstack-playground test, pnpm test (earlier run: red only on pre-existing showcase-kit bundle.test.ts Islands x2)
 - PRs:

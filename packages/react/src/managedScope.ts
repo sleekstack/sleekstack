@@ -21,6 +21,14 @@ export interface ScopeProps {
   readonly appScope?: ChildScope
 }
 
+declare const process: { readonly env: { readonly NODE_ENV?: string } }
+// Dev-only rendezvous list read by `@sleekstack/react/internal` (registry.ts); the literal key is
+// duplicated there so the main barrel imports no registry code. Bundlers fold the guard away in production.
+const devStores = (): Set<unknown> | undefined =>
+  typeof process !== 'undefined' && process.env.NODE_ENV !== 'production'
+    ? (((globalThis as Record<string, unknown>).__sleekstack_atom_stores__ as Set<unknown> | undefined) ??= new Set())
+    : undefined
+
 const defaultSink = (cause: Cause.Cause<unknown>) => console.error(Cause.pretty(cause))
 
 export const sameEntries = (a: ReadonlyArray<unknown>, b: ReadonlyArray<unknown>) =>
@@ -129,6 +137,7 @@ function create(provide: ReadonlyArray<Entry | Module>, parent: ProviderState | 
       defaultIdleTTL: 400,
       onFinalizerError: (e) => report(Exit.failCause(Cause.isCause(e) ? e : Cause.die(e))),
     })
+    devStores()?.add(state.atoms)
     return s
   })
 
@@ -149,6 +158,7 @@ function create(provide: ReadonlyArray<Entry | Module>, parent: ProviderState | 
     (closing ??= (async () => {
       if (!state.started) return
       await scope.catch(() => undefined)
+      if (state.atoms) devStores()?.delete(state.atoms)
       for (const child of [...state.children].reverse()) await child()
       state.children.clear()
       for (const s of owned.reverse()) report(await Effect.runPromise(s.close))

@@ -1,8 +1,8 @@
 # @sleekstack/devtools
 
 Dev-only panel for `@sleekstack/next` apps. `<SleekStackDevtools />` polls the route handler from
-`@sleekstack/next/devtools` and shows the dependency graph, live scopes, read-only values of the atoms you pass it (under a `LayerProvider`) and
-the last errors. It renders an empty state when the handler is off (404 or unreachable).
+`@sleekstack/next/devtools` and shows every graph root with its kind, live scopes, per-service acquire/release, read-only values of the atoms of every open
+`LayerProvider` store (plus any you pass it) and the last errors with the scope each ran in. It renders an empty state when the handler is off (404 or unreachable).
 
 ```tsx
 // app/api/devtools/route.ts

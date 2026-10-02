@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { build, type RollupOutput } from 'vite'
 import { SERVER_ONLY_MARKER } from '../services.server'
+import { STORES_KEY } from '@sleekstack/react/internal'
 
 const root = fileURLToPath(new URL('../..', import.meta.url))
 
@@ -58,6 +59,22 @@ describe('playground bundle separation (R11)', () => {
       )
       expect(markerFoundOutsideClientGraph).toBe(true)
     } finally {
+      rmSync(outDir, { recursive: true, force: true })
+    }
+  }, 30_000)
+
+  it('production client chunks carry no dev atom store registry code', async () => {
+    const outDir = mkdtempSync(path.join(tmpdir(), 'sleekstack-playground-dist-'))
+    const env = process.env.NODE_ENV
+    process.env.NODE_ENV = 'production' // vitest sets 'test', which Vite would otherwise bake into the build
+    try {
+      const result = (await build({ root, mode: 'production', logLevel: 'silent', build: { outDir, emptyOutDir: true, write: true } })) as RollupOutput
+      const sources = result.output.filter((o) => o.type === 'chunk').map((c) => c.code)
+      // Sanity: LayerProvider (whose dev path writes the registry) is in the build.
+      expect(sources.some((c) => c.includes('[@sleekstack/react] onFinalizerError threw:'))).toBe(true)
+      for (const code of sources) expect(code).not.toContain(STORES_KEY)
+    } finally {
+      process.env.NODE_ENV = env
       rmSync(outDir, { recursive: true, force: true })
     }
   }, 30_000)

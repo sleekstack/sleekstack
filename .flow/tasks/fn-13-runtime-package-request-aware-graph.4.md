@@ -21,9 +21,24 @@ Supervisor and spans do not expose individual Layer service acquire/release, so 
 - [ ] Existing 19 next tests and 9 devtools tests still pass
 
 ## Done summary
-TBD
+Devtools now shows acquire/release for each service, the fiber id, and the request scope each error belongs to. The runtime exports `traceService(id, layer)` from `@sleekstack/runtime/internal`. A FiberRef carries the owning config and scope: the runtime sets it to `app` around the app build and to `request#N` around each runEffect call. In dev only, kit wraps each ServiceDefinition and DeclaredLayer with this hook. The wrapper uses the Tag key, which is the same id the analyzer gives the node. Wrapped entries are cached so module and entry identity holds. Bare Layers and plain Layers passed straight to the runtime still get only whole-layer app/request events. Each error records its `scope`. `record()` never throws. The snapshot has a `disabled` flag. The panel adds two sections, services and scoped errors (packages/devtools/src/panel/sections.tsx), and a disabled state.
 
+Deviation: no Supervisor and no Tracer is installed. Fiber ids come from `Effect.fiberId` inside the hook, and the FiberRef records which request owns a service. Because nothing is installed, a user's Tracer is left alone, and a test shows it still receives spans.
+
+Tests:
+- packages/kit/src/__tests__/next.test.ts: per-service events; production records nothing.
+- packages/next/src/__tests__/devtools.test.ts: an error links to its closed scope; a user Tracer is intact and a throwing hook does not fail the request (this test failed as expected with the guard removed); `disabled` is set in production.
+- packages/devtools/src/__tests__/devtools.test.tsx: service and scope rendering; disabled state.
+
+Docs follow-up for task 6: plain Layers passed to the runtime produce only app/request events.
+
+baseline: green
+Tier: implementer tier, project routing block (opus at medium)
+stage: impl-review - skipped(policy: parallel-wave - conductor owns the gate)
+
+stage: impl-review - ran (codex fan-out NEEDS_WORK -> re-review -> SHIP)
+stage: plan-sync - skipped(empty: conductor edited downstream task notes directly)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 47645f8, 89371b0, 4f92575
+- Tests: pnpm typecheck && pnpm test, pnpm --filter showcase build && pnpm --filter showcase test
 - PRs:
