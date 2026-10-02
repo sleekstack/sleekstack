@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { Cause, Effect, Option } from 'effect'
 import { makeAtomStore, Result } from '@sleekstack/core'
 import { Query } from '../index'
@@ -63,5 +63,34 @@ describe('Query.infinite', () => {
     const r = store.get(q)
     expect(Result.isFailure(r) && Option.getOrUndefined(Cause.failureOption(r.cause))).toBe('boom')
     expect(pages(store, q)).toEqual({ pages: [0, 10], pageParams: [0, 1] })
+  })
+
+  it('is a no-op before the first page is built', () => {
+    const { q, fetched } = setup()
+    const store = makeAtomStore()
+    Query.fetchNext(store, q)
+    expect(fetched).toEqual([])
+  })
+
+  it('isFetchingNext is set only while a next page loads', async () => {
+    vi.useFakeTimers()
+    try {
+      const q = Query.infinite({
+        key: () => ['slow'],
+        initialParam: 0,
+        fetchPage: (_: undefined, p: number) => Effect.delay(Effect.succeed(p), '10 millis'),
+        getNextParam: (last) => last + 1,
+      })(undefined)
+      const store = makeAtomStore()
+      const unsub = store.subscribe(q, () => {})
+      await vi.advanceTimersByTimeAsync(10)
+      Query.fetchNext(store, q)
+      expect([Query.isFetchingNext(store, q), Query.isFetchingPrevious(store, q)]).toEqual([true, false])
+      await vi.advanceTimersByTimeAsync(10)
+      expect(Query.isFetchingNext(store, q)).toBe(false)
+      store.refresh(q)
+      expect(store.get(q).waiting && Query.isFetchingNext(store, q)).toBe(false)
+      unsub()
+    } finally { vi.useRealTimers() }
   })
 })

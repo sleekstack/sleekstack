@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
-import { Cause, Context, Effect, Option } from 'effect'
+import { Cause, Context, Data, Effect, Option } from 'effect'
 import { atomStoreFor, makeAppScope, makeAtomStore, Result } from '@sleekstack/core'
-import { Query } from '../index'
+import { Queries, Query } from '../index'
 
 class Names extends Context.Tag('Names')<Names, { readonly get: (id: string) => string }>() {}
 const dto = { id: 't1', projectId: 'p1' }
@@ -49,5 +49,31 @@ describe('Query.select', () => {
     const q = Query.make({ key: () => ['s3'], fetch: () => Effect.succeed(dto) })
     const r = store.get(Query.select(fromDto)(q(undefined)))
     expect(Result.isFailure(r) && Option.getOrUndefined(Cause.failureOption(r.cause))).toMatchObject({ _tag: 'MissingDependency', missing: 'Names' })
+  })
+
+  it('memoises on reference, not structural equality', () => {
+    let selects = 0
+    const q = Query.make({ key: () => ['s4'], fetch: () => Effect.succeed(Data.struct({ n: 1 })) })
+    const model = Query.select((d: { n: number }) => Effect.sync(() => ++selects + d.n))
+    const store = makeAtomStore()
+    const unsub = store.subscribe(model(q(undefined)), () => {})
+    store.refresh(q(undefined)) // a new, Equal struct
+    store.get(model(q(undefined)))
+    expect(selects).toBe(2)
+    unsub()
+  })
+
+  it('a failed refetch with cached data is a Failure keeping the previous Model', () => {
+    let fail = false
+    const q = Query.make({ key: () => ['s5'], fetch: () => Effect.suspend(() => (fail ? Effect.fail('down' as const) : Effect.succeed(dto))) })
+    const model = Query.select(fromDto)
+    const store = makeAtomStore({ context: Context.make(Names, { get: () => 'Alpha' }) })
+    const unsub = store.subscribe(model(q(undefined)), () => {})
+    fail = true
+    Queries.make(store).refetch(q(undefined))
+    const r = store.get(model(q(undefined)))
+    expect(Result.isFailure(r) && Option.getOrUndefined(Cause.failureOption(r.cause))).toBe('down')
+    expect(Option.getOrUndefined(Result.value(r))).toMatchObject({ projectName: 'Alpha' })
+    unsub()
   })
 })

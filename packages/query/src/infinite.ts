@@ -9,7 +9,7 @@
 
 import { Result, type AtomStore } from '@sleekstack/core'
 import { Effect } from 'effect'
-import { make, type QueryAtom, type QueryOptions } from './query'
+import { entries, make, TypeId, type QueryAtom, type QueryOptions } from './query'
 
 /** The value of an infinite query. */
 export interface InfiniteData<A, P> {
@@ -104,18 +104,28 @@ export const infinite = <Args, A, P, E = never, R = never>(
   }
 }
 
+// The waiting Result a page fetch produced -> its direction; a later refetch yields a new Result object.
+const directions = new WeakMap<object, 'next' | 'previous'>()
+
 const page = (direction: 'next' | 'previous') => (store: AtomStore, atom: InfiniteQueryAtom<any, any, any>): void => {
+  if (!entries(store).has(atom[TypeId].id)) return
   const current = store.get(atom)
   if (current.waiting || Result.isInitial(current)) return
   const prior = request
   request = { atom, direction }
-  try { store.refresh(atom); store.get(atom) } finally { request = prior }
+  let next: Result.Result<unknown, unknown>
+  try { store.refresh(atom); next = store.get(atom) } finally { request = prior }
+  if (next.waiting) directions.set(next, direction)
 }
 
 /** Fetches the page after the last one (no-op while a fetch runs or before the first page). */
 export const fetchNext = page('next')
 /** Fetches the page before the first one (no-op while a fetch runs or before the first page). */
 export const fetchPrevious = page('previous')
+/** True while a `fetchNext` runs (a plain refetch is only `waiting`). */
+export const isFetchingNext = (store: AtomStore, atom: InfiniteQueryAtom<any, any, any>): boolean => directions.get(store.get(atom)) === 'next'
+/** True while a `fetchPrevious` runs. */
+export const isFetchingPrevious = (store: AtomStore, atom: InfiniteQueryAtom<any, any, any>): boolean => directions.get(store.get(atom)) === 'previous'
 
 // The `Query` namespace is query.ts plus these and `select` (index.ts re-exports this module as `Query`).
 export * from './query'
