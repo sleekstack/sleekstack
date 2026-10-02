@@ -14,7 +14,7 @@ Server prefetch through the Next runtime and client hydration of the query store
 
 ### Approach
 - `prefetch(queries)` runs the query Effects via `runEffect` (packages/next/src/runtime.ts) and returns `Dehydrated`; values encoded with a required `Schema`; failures opt-in.
-- `<HydrateQueries>` seeds the app-scoped query store through the `setSelf` path; hydrating into a mounted key keeps the newer `updatedAt`; a value failing its Schema is dropped and refetched; hydrated entries are fresh until `staleTime`.
+- `<HydrateQueries>` seeds the app-scoped query store through the atom write path (`store.set`; it pulls the node first, so seeding an unbuilt key starts a fetch unless the seeding avoids it - verify/handle; fn-12.1 drift); hydrating into a mounted key keeps the newer `updatedAt`; a value failing its Schema is dropped and refetched; hydrated entries are fresh until `staleTime`.
 - Server hooks take a separate branch reading the dehydrated map from context (no store, so no `AtomsClientOnly`); an un-prefetched key on the server suspends on a fetch started through `runEffect`.
 - Lessons: island server branch must nest the same provider context (`.flow/memory/bug/runtime-errors/island-server-branch-needs-the-same-2026-09-29.md`).
 
