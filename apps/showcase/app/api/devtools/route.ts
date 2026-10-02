@@ -5,7 +5,7 @@
  * analyzer Report of the app root. 404 in production.
  */
 import { devtoolsHandler } from '@sleekstack/next/devtools'
-import { readReport } from '../../../src/server/report.server'
+import { readReport } from '../../../src/delivery/report.server'
 
 export const dynamic = 'force-dynamic'
 

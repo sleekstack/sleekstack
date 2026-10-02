@@ -1,5 +1,5 @@
 /**
- * apps/showcase/src/server/act.server.ts
+ * apps/showcase/src/delivery/act.server.ts
  *
  * Adapts a use case to a Server Action. Next production hides thrown server messages, so a modeled
  * `DomainError` becomes `{ ok: false, error }`; a defect rejects and reaches `error.tsx`.

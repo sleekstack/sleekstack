@@ -8,7 +8,7 @@ import { Context, Effect } from 'effect'
 import type { z } from 'zod'
 import type { CommentRecord, ProjectRecord, TaskRecord, TaskStatus } from '../domain/entities'
 import { AddComment, CreateTask } from '../domain/inputs'
-import type { DraftSpec, ModelSpec } from './contracts'
+import type { DraftSpec, ModelSpec } from '../lib/contracts'
 
 /** The read DTO is the server's record. */
 export type TaskDto = TaskRecord

@@ -2,7 +2,7 @@ import { act, renderHook } from '@testing-library/react'
 import { Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
-import type { DraftSpec } from '../models/contracts'
+import type { DraftSpec } from '../../lib/contracts'
 import { useDraftForm } from './useDraftForm'
 
 const schema = z.object({ name: z.string() })

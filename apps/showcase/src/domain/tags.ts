@@ -49,3 +49,15 @@ export const BoardStore = Context.GenericTag<BoardStoreService>('BoardStore')
 export const ActivityLog = Context.GenericTag<ActivityLogService>('ActivityLog')
 export const Clock = Context.GenericTag<ClockService>('Clock')
 export const IdGen = Context.GenericTag<IdGenService>('IdGen')
+
+export interface RequestUser {
+  readonly id: string
+  readonly name: string
+}
+
+export interface RequestContextService {
+  readonly requestId: string
+  readonly user: RequestUser
+}
+
+export const RequestContext = Context.GenericTag<RequestContextService>('RequestContext')

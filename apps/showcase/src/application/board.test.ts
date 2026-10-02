@@ -1,8 +1,7 @@
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
-import { ActivityLog, BoardStore, Clock, IdGen } from '../domain/tags'
+import { ActivityLog, BoardStore, Clock, IdGen, RequestContext } from '../domain/tags'
 import { makeBoardStore } from '../infrastructure/board-store.memory'
-import { RequestContext } from '../server/request.server'
 import { Board } from './board'
 
 const setup = () => {

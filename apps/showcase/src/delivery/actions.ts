@@ -1,6 +1,6 @@
 'use server'
 /**
- * apps/showcase/src/server/board.actions.ts
+ * apps/showcase/src/delivery/actions.ts
  *
  * The board's mutating Server Actions (R5): each is one application of `act` to a Board use case.
  */

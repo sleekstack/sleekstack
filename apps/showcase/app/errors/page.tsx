@@ -4,7 +4,7 @@
  * The error gallery: each broken plain-Layer runtime in src/errors/graphs.ts and the errors
  * the analyzer reported for it (file:line), read from the prebuilt `errors.json` report.
  */
-import { readReport } from '../../src/server/report.server'
+import { readReport } from '../../src/delivery/report.server'
 
 export default function ErrorsPage() {
   const rows = readReport('errors').roots.flatMap((r) => r.errors.map((e) => ({ root: r.root, ...e })))

@@ -10,7 +10,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { DEVTOOLS_MARKER } from '@sleekstack/devtools'
-import { SERVER_ONLY_MARKER } from '../domain/live.server'
+import { SERVER_ONLY_MARKER } from '../infrastructure/runtime-infra.live'
 
 const nextDir = fileURLToPath(new URL('../../.next', import.meta.url))
 const built = existsSync(path.join(nextDir, 'static', 'chunks'))

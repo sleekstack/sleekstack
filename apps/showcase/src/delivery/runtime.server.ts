@@ -1,7 +1,7 @@
 /**
- * apps/showcase/src/server/runtime.server.ts
+ * apps/showcase/src/delivery/runtime.server.ts
  *
- * Configures the `@sleekstack/next` runtime over `AppLive` (a module-level call, so a
+ * Configures the `@sleekstack/next` runtime over `AppLive` (the composition boundary: the one delivery file allowed to import infrastructure/app.ts; a module-level call, so a
  * repeat import is a same-reference no-op; the analyzer reads this call as the app root).
  * `runApp` runs an Effect with a fresh request scope (RequestLive) and, in demo mode,
  * the mock Layers shadowing the real ones.
@@ -9,10 +9,11 @@
 import 'server-only'
 import { configureRuntime, runEffect } from '@sleekstack/next'
 import { Cause, Effect, type Layer } from 'effect'
-import { AppLive } from '../domain/live.server'
+import { AppLive } from '../infrastructure/app'
 import { ActivityLog } from '../domain/tags'
-import { DemoLive, isDemoMode } from './demo.server'
-import { RequestLive } from './request.server'
+import { DemoLive } from '../infrastructure/demo.live'
+import { RequestLive } from '../infrastructure/request.live'
+import { isDemoMode } from './demo-mode'
 
 // Next loads this module once per server layer (RSC, actions); the shared `id` makes the second copy's
 // call a no-op. A dev hot reload of this module (webpack/turbopack `hot.data`) replaces the runtime, so

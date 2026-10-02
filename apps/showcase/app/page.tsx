@@ -4,13 +4,13 @@
  * The interactive board (R5, R7): resolves the board's Models (`loadBoard`)
  * through plain Effect (`runApp`), with demo-mode shadowing (R9) applied via per-call `provide`,
  * then hands the data to the client `Board` (nested `LayerProvider`s,
- * forms wired to the Server Actions in board.actions.ts).
+ * forms wired to the Server Actions in delivery/actions.ts).
  */
 import Link from 'next/link'
 import { loadBoard as loadBoardView } from '../src/application/board-view'
-import { Board } from '../src/client/Board'
-import { isDemoMode } from '../src/server/demo.server'
-import { runApp } from '../src/server/runtime.server'
+import { Board } from '../src/client/components/Board'
+import { isDemoMode } from '../src/delivery/demo-mode'
+import { runApp } from '../src/delivery/runtime.server'
 import { Providers } from './providers'
 
 const loadBoard = () => runApp(loadBoardView)

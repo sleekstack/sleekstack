@@ -1,6 +1,6 @@
 'use client'
 /**
- * apps/showcase/src/client/DemoToggle.tsx
+ * apps/showcase/src/client/components/DemoToggle.tsx
  *
  * R9: the demo-mode toggle. Writes the (non-sensitive, demo-only) cookie
  * directly from the client — no separate override API — then
@@ -10,8 +10,8 @@
  * component scope (project, task detail) before the new ones acquire.
  */
 import { useRouter } from 'next/navigation'
-import { DEMO_COOKIE } from '../domain/demo-cookie'
-import { DEMO_TOGGLED } from './app-atoms'
+import { DEMO_COOKIE } from '../../domain/demo-cookie'
+import { DEMO_TOGGLED } from '../services/app-atoms'
 
 export function DemoToggle({ demoMode }: { readonly demoMode: boolean }) {
   const router = useRouter()

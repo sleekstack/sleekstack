@@ -1,25 +1,13 @@
 /**
- * apps/showcase/src/server/request.server.ts
+ * apps/showcase/src/infrastructure/request.live.ts
  *
  * Request-scoped services as plain scoped Layers, built per operation by
- * `Effect.provide(RequestLive)` in runtime.server.ts and released when it ends.
+ * `Effect.provide(RequestLive)` in delivery/runtime.server.ts and released when it ends.
  * RequestContext: a request id plus a fake user; logs open/close to ActivityLog.
  */
 import 'server-only'
-import { Context, Effect, Layer } from 'effect'
-import { ActivityLog, IdGen } from '../domain/tags'
-
-export interface RequestUser {
-  readonly id: string
-  readonly name: string
-}
-
-export interface RequestContextService {
-  readonly requestId: string
-  readonly user: RequestUser
-}
-
-export const RequestContext = Context.GenericTag<RequestContextService>('RequestContext')
+import { Effect, Layer } from 'effect'
+import { ActivityLog, IdGen, RequestContext, type RequestUser } from '../domain/tags'
 
 const FAKE_USER: RequestUser = { id: 'user_1', name: 'Ada Lovelace' }
 

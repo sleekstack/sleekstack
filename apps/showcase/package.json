@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "check": "sleekstack check --entry src/server/runtime.server.ts",
-    "report": "mkdir -p .sleekstack && sleekstack check --json --entry src/server/runtime.server.ts > .sleekstack/report.json && (sleekstack check --json --entry src/errors/graphs.ts > .sleekstack/errors.json || [ $? = 1 ])",
+    "check": "sleekstack check --entry src/delivery/runtime.server.ts",
+    "report": "mkdir -p .sleekstack && sleekstack check --json --entry src/delivery/runtime.server.ts > .sleekstack/report.json && (sleekstack check --json --entry src/errors/graphs.ts > .sleekstack/errors.json || [ $? = 1 ])",
     "predev": "pnpm report",
     "prebuild": "pnpm report",
     "build": "next build",

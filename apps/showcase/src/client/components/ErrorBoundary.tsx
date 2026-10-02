@@ -1,6 +1,6 @@
 'use client'
 /**
- * apps/showcase/src/client/ErrorBoundary.tsx
+ * apps/showcase/src/client/components/ErrorBoundary.tsx
  *
  * R7: catches a failing component-scope acquisition (the "break detail"
  * control's `makeBrokenDraftEditorLayer`) for its own subtree only, so a

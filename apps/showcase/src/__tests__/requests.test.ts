@@ -10,8 +10,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { Effect } from 'effect'
 import { ActivityLog, BoardStore } from '../domain/tags'
 import { __setDemoCookie } from '../test/next-headers-stub'
-import { runApp } from '../server/runtime.server'
-import type { AddCommentInput, CreateTaskInput, MoveTaskInput } from '../server/board.actions'
+import { runApp } from '../delivery/runtime.server'
+import type { AddCommentInput, CreateTaskInput, MoveTaskInput } from '../delivery/actions'
 
 const countTasks = (projectId: string) =>
   runApp(Effect.flatMap(BoardStore, (store) => Effect.map(store.tasksOf(projectId), (tasks) => tasks.length)))
@@ -20,7 +20,7 @@ const logMessages = () => runApp(Effect.map(ActivityLog, (activityLog) => activi
 
 describe('showcase request scopes', () => {
   it('20 concurrent createTask calls open 20 distinct request ids, all commit, and none cross-talk', async () => {
-    const { createTask } = await import('../server/board.actions')
+    const { createTask } = await import('../delivery/actions')
     const before = await countTasks('proj_1')
     const beforeLog = await logMessages()
     const results = await Promise.all(
@@ -50,7 +50,7 @@ describe('showcase request scopes', () => {
   })
 
   it('an empty title is rejected with a descriptive error; the store is unchanged', async () => {
-    const { createTask } = await import('../server/board.actions')
+    const { createTask } = await import('../delivery/actions')
     const before = await countTasks('proj_1')
     const result = await createTask({ projectId: 'proj_1', title: '   ' } satisfies CreateTaskInput)
     expect(result.ok).toBe(false)
@@ -59,21 +59,21 @@ describe('showcase request scopes', () => {
   })
 
   it('moving an unknown task id is rejected with a descriptive error', async () => {
-    const { moveTask } = await import('../server/board.actions')
+    const { moveTask } = await import('../delivery/actions')
     const result = await moveTask({ taskId: 'no-such-task', status: 'done' } satisfies MoveTaskInput)
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.error).toMatch(/unknown task id/i)
   })
 
   it('adding a comment to an unknown task id is rejected with a descriptive error', async () => {
-    const { addComment } = await import('../server/board.actions')
+    const { addComment } = await import('../delivery/actions')
     const result = await addComment({ taskId: 'no-such-task', body: 'hi', authorId: 'user_1' } satisfies AddCommentInput)
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.error).toMatch(/unknown task id/i)
   })
 
   it('a simulated failure rejects after staging but before commit: the store is unchanged', async () => {
-    const { createTask } = await import('../server/board.actions')
+    const { createTask } = await import('../delivery/actions')
     const before = await countTasks('proj_1')
     const result = await createTask({
       projectId: 'proj_1',
@@ -86,7 +86,7 @@ describe('showcase request scopes', () => {
   })
 
   it('a successful create commits exactly once', async () => {
-    const { createTask } = await import('../server/board.actions')
+    const { createTask } = await import('../delivery/actions')
     const before = await countTasks('proj_1')
     const result = await createTask({ projectId: 'proj_1', title: 'Commits once' } satisfies CreateTaskInput)
     expect(result.ok).toBe(true)
@@ -121,7 +121,7 @@ describe('showcase request scopes', () => {
   })
 
   it('act maps a DomainError to { ok: false } and rejects on a defect', async () => {
-    const { act } = await import('../server/act.server')
+    const { act } = await import('../delivery/act.server')
     const { InvalidInput } = await import('../domain/errors')
     await expect(act(() => Effect.fail(new InvalidInput({ message: 'nope' })))(undefined)).resolves.toEqual({ ok: false, error: 'nope' })
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -133,7 +133,7 @@ describe('showcase request scopes', () => {
   })
 
   it('the log shows request open and close, in order and with matching ids, for a single call', async () => {
-    const { createTask } = await import('../server/board.actions')
+    const { createTask } = await import('../delivery/actions')
     const result = await createTask({ projectId: 'proj_1', title: 'Logged request' } satisfies CreateTaskInput)
     expect(result.ok).toBe(true)
     const events = await logMessages()
@@ -149,8 +149,8 @@ describe('showcase request scopes', () => {
   })
 
   it('demo mode shadows ActivityLog with the mock: the real log never sees the call', async () => {
-    const { createTask } = await import('../server/board.actions')
-    const { __peekMockActivityEvents } = await import('../server/demo.server')
+    const { createTask } = await import('../delivery/actions')
+    const { __peekMockActivityEvents } = await import('../infrastructure/demo.live')
     const beforeMock = __peekMockActivityEvents().length
     __setDemoCookie('1')
     let result: Awaited<ReturnType<typeof createTask>>
@@ -167,7 +167,7 @@ describe('showcase request scopes', () => {
   })
 
   it('a task created in demo mode carries the overridden Clock timestamp', async () => {
-    const { createTask } = await import('../server/board.actions')
+    const { createTask } = await import('../delivery/actions')
     __setDemoCookie('1')
     let result: Awaited<ReturnType<typeof createTask>>
     try {

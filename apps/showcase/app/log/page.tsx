@@ -11,8 +11,8 @@
  */
 import { Effect } from 'effect'
 import { ActivityLog } from '../../src/domain/tags'
-import { runApp } from '../../src/server/runtime.server'
-import { ScopeLog } from '../../src/client/ScopeLog'
+import { runApp } from '../../src/delivery/runtime.server'
+import { ScopeLog } from '../../src/client/components/ScopeLog'
 
 const loadLog = () =>
   runApp(

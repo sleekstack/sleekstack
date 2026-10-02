@@ -7,6 +7,6 @@
  */
 export async function register(): Promise<void> {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
-    await import('./src/server/runtime.server')
+    await import('./src/delivery/runtime.server')
   }
 }

@@ -10,8 +10,7 @@ import { Effect } from 'effect'
 import type { z } from 'zod'
 import { InvalidInput, SimulatedFailure } from '../domain/errors'
 import { AddComment, CreateTask, MoveTask } from '../domain/inputs'
-import { ActivityLog, BoardStore, Clock, IdGen } from '../domain/tags'
-import { RequestContext } from '../server/request.server'
+import { ActivityLog, BoardStore, Clock, IdGen, RequestContext } from '../domain/tags'
 import { loadBoard } from './board-view'
 
 /** Server-facing wording per field; the rule itself lives only in the domain schema. */

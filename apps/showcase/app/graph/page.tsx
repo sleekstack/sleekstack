@@ -3,7 +3,7 @@
  *
  * Renders the analyzer's prebuilt report for the app runtime root (`configureRuntime({ layer: AppLive })`).
  */
-import { readReport } from '../../src/server/report.server'
+import { readReport } from '../../src/delivery/report.server'
 
 export default function GraphPage() {
   const graph = readReport('report').roots[0]!.graph
