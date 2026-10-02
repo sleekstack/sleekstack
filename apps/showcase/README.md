@@ -4,20 +4,46 @@ A Next.js 15 (App Router) team task board written in plain Effect (Layers, `Cont
 `@sleekstack/react` (`LayerProvider`, `useService`) and `@sleekstack/core` atoms. No SleekStack wrappers around Effect on the
 server: no `declareLayer()`, `module()`, `action()` or `query()`.
 
+## Layout
+
+```text
+app/                           Next.js routes (page, graph, errors, log, providers, api/devtools)
+src/
+  domain/                      entities, errors, inputs (zod), Tags, demo cookie name; imports nothing app-side
+  application/                 use cases as Effects over domain Tags (board.ts, board-view.ts)
+  infrastructure/              Live Layers: board-store.memory, runtime-infra.live (Infra, ActivityLog),
+                               request.live (RequestContext, UnitOfWork), demo.live; app.ts is the
+                               composition root (AppLive, re-exports RequestLive and DemoLive)
+  delivery/                    Next.js edge: runtime.server (runApp), act.server (act()), actions (Server
+                               Actions), board.server (page read), demo-mode, report.server
+  client/                      components/, drafts/ (useDraftForm), services/ (component services, atoms)
+  models/                      TaskModel / Drafts (task.ts) and ProjectNamesLive (task.server.ts)
+  lib/contracts.ts             ModelSpec, DraftSpec, resolveDraft, submitDraft
+  errors/graphs.ts             broken plain-Layer fixtures for /errors
+```
+
+Dependencies point inward only: `client` -> `domain`; `delivery` -> `application` -> `domain`; `infrastructure` -> `domain`.
+Only `infrastructure/app.ts` (the composition root) knows every layer. One exception: `delivery/runtime.server.ts` is the
+composition boundary and the only delivery file that imports `infrastructure/app.ts`, to call `configureRuntime` over
+`AppLive`. `application/` never imports `infrastructure/`.
+
+`BoardStore` has a single adapter (`board-store.memory.ts`); it stays a Tag so the Graph page has a real service edge to
+show. `ActivityLog` and `Clock` are real seams: a live Layer and a demo Layer (`demo.live.ts`).
+
 ## What it shows
 
 | Req | What | Files |
 | --- | --- | --- |
-| R1 | Domain as plain Layers (`AppLive`): Infra, Store, repos, ActivityLog | `src/domain/tags.ts`, `src/domain/live.server.ts` |
-| R4 | `configureRuntime({ layer: AppLive })` from `@sleekstack/next`; `runApp` is `runEffect` with a `RequestLive` request scope, `DemoLive` overrides, and defect reporting | `src/server/runtime.server.ts` |
-| R2/R3 | `/graph` and `/errors` render the analyzer's prebuilt reports (`pnpm report`, run by predev/prebuild): the app root, and the broken plain-Layer fixtures | `app/graph/page.tsx`, `app/errors/page.tsx`, `src/server/report.server.ts`, `src/errors/graphs.ts` |
-| R5 | Server Actions and page reads through `runApp`; request-scoped `Layer.scoped` RequestContext and UnitOfWork, `{ok:false, error}` results | `src/server/board.actions.ts`, `src/server/request.server.ts`, `app/page.tsx` |
-| R6 | `/log`: request and component scope open/close, finalizer errors | `app/log/page.tsx`, `src/client/ScopeLog.tsx`, `src/domain/live.server.ts` |
-| R7 | Nested `LayerProvider`s app → project → task detail, async component services, error boundary per subtree | `app/providers.tsx`, `src/client/ProjectView.tsx`, `src/client/TaskDetail.tsx`, `src/client/component-services.ts`, `src/client/ErrorBoundary.tsx` |
+| R1 | Domain as plain Layers (`AppLive`): Infra, BoardStore, ActivityLog | `src/domain/tags.ts`, `src/infrastructure/app.ts`, `src/infrastructure/runtime-infra.live.ts`, `src/infrastructure/board-store.memory.ts` |
+| R4 | `configureRuntime({ layer: AppLive })` from `@sleekstack/next`; `runApp` is `runEffect` with a `RequestLive` request scope, `DemoLive` overrides, and defect reporting | `src/delivery/runtime.server.ts` |
+| R2/R3 | `/graph` and `/errors` render the analyzer's prebuilt reports (`pnpm report`, run by predev/prebuild): the app root, and the broken plain-Layer fixtures | `app/graph/page.tsx`, `app/errors/page.tsx`, `src/delivery/report.server.ts`, `src/errors/graphs.ts` |
+| R5 | Server Actions (`act()` over `Board` use cases) and page reads through `runApp`; request-scoped `Layer.scoped` RequestContext and UnitOfWork, `{ok:false, error}` results | `src/delivery/actions.ts`, `src/delivery/act.server.ts`, `src/delivery/board.server.ts`, `src/application/board.ts`, `src/infrastructure/request.live.ts`, `app/page.tsx` |
+| R6 | `/log`: request and component scope open/close, finalizer errors | `app/log/page.tsx`, `src/client/components/ScopeLog.tsx`, `src/infrastructure/request.live.ts` |
+| R7 | Nested `LayerProvider`s app → project → task detail, async component services, error boundary per subtree | `app/providers.tsx`, `src/client/components/ProjectView.tsx`, `src/client/components/TaskDetail.tsx`, `src/client/services/component-services.ts`, `src/client/components/ErrorBoundary.tsx` |
 | R8 | `<React.StrictMode>` with exactly one acquire/release per real mount | `app/providers.tsx`, `src/__tests__/board.test.tsx` |
-| R9 | Demo mode shadows ActivityLog/Clock on the server by passing `DemoLive` as `runEffect` overrides | `src/server/demo.server.ts`, `src/domain/demo-cookie.ts`, `src/client/DemoToggle.tsx` |
+| R9 | Demo mode shadows ActivityLog/Clock on the server by passing `DemoLive` as `runEffect` overrides | `src/infrastructure/demo.live.ts`, `src/delivery/demo-mode.ts`, `src/domain/demo-cookie.ts`, `src/client/components/DemoToggle.tsx` |
 | R10 | Client components import only Tags; marker absent from client chunks, present on the server | `src/domain/tags.ts`, `src/__tests__/bundle.test.ts` |
-| R11 | Vitest (20 concurrent actions, rollback, StrictMode) and a Playwright smoke against `next start` | `src/__tests__/*`, `e2e/smoke.spec.ts`, `playwright.config.ts` |
+| R11 | Vitest (20 concurrent actions, rollback, StrictMode, use cases, store adapter) and a Playwright smoke against `next start` | `src/__tests__/*`, `src/application/*.test.ts`, `src/infrastructure/board-store.memory.test.ts`, `e2e/smoke.spec.ts`, `playwright.config.ts` |
 
 ## Running
 
@@ -46,9 +72,9 @@ Read and write shapes are not inverses, so there is no `toDto(model)`. They meet
 DTO(read) -fromDto(dto) [Effect, needs services]-> Model -create-> Draft -toDto-> DTO(write)
 ```
 
-- `src/models/contracts.ts`: `ModelSpec` and `DraftSpec`.
+- `src/lib/contracts.ts`: `ModelSpec` and `DraftSpec`.
 - `src/models/task.ts`: `TaskModel` (`fromDto` is an Effect that resolves its own context from services such as `ProjectNames`; labels live in the Model), plus `NewTaskDraft` and `TaskCommentDraft`, one Draft per save boundary. Zod-first, no `z.coerce`, only `toDto` may read ambients.
-- `src/client/useDraftForm.ts`: binds a Draft to react-hook-form; re-seeds on `src` change only while pristine. Pass a stable `src`.
-- `src/models/task.server.ts`: `loadBoardModels`, an Effect that reads the repos and runs each DTO through `fromDto`; `ProjectNamesLive` builds the name lookup once per load, so N tasks share one read. `app/page.tsx` runs it with `runApp`, so the client only ever receives Models.
-- `resolveDraft` / `submitDraft` (`contracts.ts`): resolve a Draft through Effect (validate, then run the Effect `toDto`, failing with `DraftInvalid`), then hand the wire body to the Server Action. `ProjectView` (new task) and `TaskDetail` (comment) submit this way, so a component never builds the wire body.
-- Tests: `src/models/task.test.ts` (`fromDto`, `toDto`, defaults invariant) and `resolve.test.ts` (`resolveDraft`, `submitDraft`, `loadBoardModels`).
+- `src/client/drafts/useDraftForm.ts`: binds a Draft to react-hook-form; re-seeds on `src` change only while pristine. Pass a stable `src`.
+- `src/application/board-view.ts`: `loadBoard`, an Effect that reads `BoardStore` and runs each DTO through `fromDto`; `ProjectNamesLive` (`src/models/task.server.ts`) builds the name lookup once per load, so N tasks share one read. `app/page.tsx` runs it through `src/delivery/board.server.ts`, so the client only ever receives Models.
+- `resolveDraft` / `submitDraft` (`src/lib/contracts.ts`): resolve a Draft through Effect (validate, then run the Effect `toDto`, failing with `DraftInvalid`), then hand the wire body to the Server Action. `ProjectView` (new task) and `TaskDetail` (comment) submit this way, so a component never builds the wire body.
+- Tests: `src/models/task.test.ts` (`fromDto`, `toDto`, defaults invariant) and `src/application/board-view.test.ts` (`resolveDraft`, `submitDraft`, `loadBoard`).
