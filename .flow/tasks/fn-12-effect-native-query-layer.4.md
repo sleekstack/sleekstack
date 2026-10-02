@@ -30,9 +30,13 @@ Touches: [packages/query/src/index.ts, packages/query/src/infinite.ts, packages/
 - [ ] Pending re-select keeps the previous Model with `waiting`; missing select service yields the scope error
 
 ## Done summary
-TBD
+Added `Query.infinite` (pages + pageParams in one atom, fetchNext/fetchPrevious, maxPages trimming, sequential refetch, failing page keeps prior pages as previousValue, isFetchingNext/isFetchingPrevious) and `Query.select` (Effect-valued, memoised per data reference and store, refetch failure kept as Failure with previous Model, scope error on missing service). Tests in packages/query/src/__tests__/{infinite,select}.test.ts cover each AC.
 
+Note: query.ts gives fetch no node access, so infinite wraps the family atom's read in place (ponytail-marked); `Query` namespace is now re-exported via infinite.ts. Follow-up: a `fetch(args, previous)` hook in Query.make would remove the wrap.
+
+Tier: implementer
+stage: impl-review - ran (codex fan-out NEEDS_WORK -> NEEDS_WORK -> SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: c6135240edf556b7631c4a3dccf863ea9a0f3499, 1f2ffad81acfb22351c3d396c451caa5e1fe0b61, 54de4dd536a7f41190108ce1be9a885926a3fe37
+- Tests: pnpm --filter @sleekstack/query test && pnpm --filter @sleekstack/react test && pnpm --filter @sleekstack/kit test, pnpm --filter showcase typecheck && pnpm --filter showcase test
 - PRs:
