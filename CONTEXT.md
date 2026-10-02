@@ -41,7 +41,7 @@ _Avoid_: Lifetime leak, scope violation
 ### Kit facade concepts
 
 **Kit**:
-`@sleekstack/kit`, the Effect-free facade over core, next and react. It lowers every call to the core API; no Effect type is reachable from its public entries.
+`@sleekstack/kit`, the Effect-free facade over core, runtime, next and react. It lowers every call to the core API; no Effect type is reachable from its public entries.
 _Avoid_: Wrapper, lite, simple API
 
 **Kit Tag**:

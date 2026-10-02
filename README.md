@@ -67,7 +67,7 @@ This enables:
 | [`@sleekstack/next`](packages/next/README.md) | The Next.js preset of the runtime: Next control flow, devtools route handler |
 | [`@sleekstack/devtools`](packages/devtools/README.md) | Dev-only panel: graph, scopes, atoms, errors |
 | [`@sleekstack/react`](packages/react/README.md) | Suspense-native `LayerProvider` / `useService`, and atoms (`useAtom`, `useAtomValue`) whose state lives per provider |
-| [`@sleekstack/kit`](packages/kit/README.md) | Effect-free facade over all three (`tag`, `layer`, `effect`, `module`) |
+| [`@sleekstack/kit`](packages/kit/README.md) | Effect-free facade over core, runtime, next and react (`tag`, `layer`, `effect`, `module`) |
 
 Planned:
 
@@ -144,7 +144,7 @@ Current surface:
 * a dependency Graph validated at build time by `sleekstack check` (ADR 0011), reported as JSON with `--json`
 * `@sleekstack/runtime` runtime management (`configureRuntime`, `runEffect`, used through the `@sleekstack/next` preset) with kit's `defineEffect`/`query` on top, and `@sleekstack/react`'s Suspense-native, StrictMode-safe `LayerProvider` / `useService`
 
-* `@sleekstack/kit` — an Effect-free facade (`tag`, `layer`, `effect`, `module`, deps inferred from `yield*`, one `SleekStackError`); see [`packages/kit`](packages/kit/README.md)
+* `@sleekstack/kit` — an Effect-free facade over core, runtime, next and react (`tag`, `layer`, `effect`, `module`, deps inferred from `yield*`, one `SleekStackError`); see [`packages/kit`](packages/kit/README.md)
 
 See [`apps/showcase`](apps/showcase/README.md) for a Next.js team task board that exercises all of it end to end, and [`apps/showcase-kit`](apps/showcase-kit/README.md) for the same board built on the kit only.
 
