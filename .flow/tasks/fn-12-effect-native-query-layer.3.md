@@ -3,19 +3,20 @@ satisfies: [R4]
 ---
 # fn-12-effect-native-query-layer.3 Mutations: state machine, optimistic updates with ordered rollback, concurrency modes
 
-Touches: [packages/query/src/mutation.ts, packages/query/src/__tests__/mutation.test.ts]
+Touches: [packages/query/src/index.ts, packages/query/src/mutation.ts, packages/query/src/__tests__/mutation.test.ts]
 
 ## Description
 `Mutation.make` with `idle|pending|success|failure`, optimistic updates and `switch|queue|parallel` concurrency (spec: Mutation, Edge Cases).
 
 **Size:** M
 **Files:** packages/query/src/mutation.ts, packages/query/src/__tests__/mutation.test.ts
-**Touches:** [packages/query/src/mutation.ts, packages/query/src/__tests__/mutation.test.ts]
+**Touches:** [packages/query/src/index.ts, packages/query/src/mutation.ts, packages/query/src/__tests__/mutation.test.ts]
 
 ### Approach
 - State and concurrency are per hook instance by default (a per-call runner object); `Mutation.shared` opts into shared/keyed state.
 - Order: `Queries.cancel(key)` -> `onMutate` (returns a rollback Effect) -> `run` -> `onSuccess`/`onError` -> `onSettled`. Failure or interruption runs rollbacks in reverse order so an earlier rollback never wipes a later optimistic write.
 - `onMutate` failure aborts before `run`. A Draft's `toDto` Effect is an accepted `run` input shape (Model/Draft pattern in apps/showcase/src/models/contracts.ts).
+- fn-12.2 drift: `Queries` (packages/query/src/queries.ts) has `invalidate/refetch/setData/updateData/getData/cancel/reset`; `setData(atom, value)` is sync `void` and takes a value only (no function); use `updateData(atom, f)` where `f` receives `Option` of the previous data. The spec's `Queries.setData(todo, id, updater)` form returning an Effect is NOT built; add that Effect wrapper here (or use `updateData`) for optimistic writes. `setData` cancels an in-flight fetch; `reset` clears unobserved nodes; overrides are store-scoped. Export `Mutation` from packages/query/src/index.ts (`export * as Mutation from './mutation'`). <!-- Updated by plan-sync: fn-12.2 used updateData/value-only setData -->
 - An in-flight mutation is not interrupted by unmount unless `interruptOnUnmount`; store disposal interrupts it.
 
 ### Investigation targets
