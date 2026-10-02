@@ -82,9 +82,12 @@ describe('Query.infinite', () => {
         getNextParam: (last) => last + 1,
       })(undefined)
       const store = makeAtomStore()
-      const unsub = store.subscribe(q, () => {})
+      const seen: boolean[] = []
+      const unsub = store.subscribe(q, () => { seen.push(Query.isFetchingNext(store, q)) })
       await vi.advanceTimersByTimeAsync(10)
+      seen.length = 0
       Query.fetchNext(store, q)
+      expect(seen).toEqual([true])
       expect([Query.isFetchingNext(store, q), Query.isFetchingPrevious(store, q)]).toEqual([true, false])
       await vi.advanceTimersByTimeAsync(10)
       expect(Query.isFetchingNext(store, q)).toBe(false)

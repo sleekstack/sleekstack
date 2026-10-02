@@ -34,6 +34,8 @@ export interface InfiniteOptions<Args, A, P, E, R> extends Omit<QueryOptions<Arg
   readonly maxPages?: number
 }
 
+// The waiting Result a page fetch produced -> its direction; a later refetch yields a new Result object.
+const directions = new WeakMap<object, 'next' | 'previous'>()
 const brand = Symbol('@sleekstack/query/infinite')
 // Set synchronously around the rebuild `fetchNext`/`fetchPrevious` trigger.
 let request: { readonly atom: object; readonly direction: 'next' | 'previous' } | undefined
@@ -96,7 +98,12 @@ export const infinite = <Args, A, P, E = never, R = never>(
         const value = self ? Result.value(self) : undefined
         previous = value?._tag === 'Some' ? value.value : undefined
         direction = request?.atom === atom ? request.direction : undefined
-        try { return read(get) } finally { previous = undefined; direction = undefined }
+        try {
+          const result = read(get)
+          // recorded before the store notifies subscribers, so a listener sees the direction
+          if (direction && result.waiting) directions.set(result, direction)
+          return result
+        } finally { previous = undefined; direction = undefined }
       }
       atom[brand] = true
     }
@@ -104,18 +111,13 @@ export const infinite = <Args, A, P, E = never, R = never>(
   }
 }
 
-// The waiting Result a page fetch produced -> its direction; a later refetch yields a new Result object.
-const directions = new WeakMap<object, 'next' | 'previous'>()
-
 const page = (direction: 'next' | 'previous') => (store: AtomStore, atom: InfiniteQueryAtom<any, any, any>): void => {
   if (!entries(store).has(atom[TypeId].id)) return
   const current = store.get(atom)
   if (current.waiting || Result.isInitial(current)) return
   const prior = request
   request = { atom, direction }
-  let next: Result.Result<unknown, unknown>
-  try { store.refresh(atom); next = store.get(atom) } finally { request = prior }
-  if (next.waiting) directions.set(next, direction)
+  try { store.refresh(atom); store.get(atom) } finally { request = prior }
 }
 
 /** Fetches the page after the last one (no-op while a fetch runs or before the first page). */
