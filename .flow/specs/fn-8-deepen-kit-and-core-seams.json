@@ -621,7 +621,7 @@
     "plan": 0
   },
   "spec_path": ".flow/specs/fn-8-deepen-kit-and-core-seams.md",
-  "status": "open",
+  "status": "done",
   "title": "Deepen kit and core seams",
   "tracker": {
     "baseHashFlow": null,
@@ -634,5 +634,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-09-28T17:18:20.081294Z"
+  "updated_at": "2026-10-03T16:08:34.452145Z"
 }

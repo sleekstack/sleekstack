@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-9-static-build-time-dependency-graph",
   "spec_path": ".flow/tasks/fn-9-static-build-time-dependency-graph.4.md",
-  "status": "todo",
+  "status": "done",
   "title": "Runtime API: no deps arrays, lazy Tag resolution, opts.scope",
   "updated_at": "2026-09-29T09:20:10.034168Z"
 }

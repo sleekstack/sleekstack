@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-2-showcase-app-team-task-board",
   "spec_path": ".flow/tasks/fn-2-showcase-app-team-task-board.2.md",
-  "status": "todo",
+  "status": "done",
   "title": "Next runtime, request scopes, actions/queries, activity log, demo-mode server shadowing",
   "updated_at": "2026-09-27T17:42:13.193966Z"
 }

@@ -12,7 +12,7 @@
   "priority": null,
   "spec": "fn-9-static-build-time-dependency-graph",
   "spec_path": ".flow/tasks/fn-9-static-build-time-dependency-graph.6.md",
-  "status": "todo",
+  "status": "done",
   "title": "Parity test, showcase graph and errors pages on the analyzer report, test port list",
   "updated_at": "2026-09-29T09:20:10.333447Z"
 }

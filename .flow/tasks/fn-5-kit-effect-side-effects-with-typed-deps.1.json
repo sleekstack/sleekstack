@@ -8,7 +8,7 @@
   "priority": null,
   "spec": "fn-5-kit-effect-side-effects-with-typed-deps",
   "spec_path": ".flow/tasks/fn-5-kit-effect-side-effects-with-typed-deps.1.md",
-  "status": "todo",
+  "status": "done",
   "title": "kit effect() + tests + README",
   "updated_at": "2026-09-28T09:53:46.466749Z"
 }

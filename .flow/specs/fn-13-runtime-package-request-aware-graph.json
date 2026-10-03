@@ -943,7 +943,7 @@
     "plan": 0
   },
   "spec_path": ".flow/specs/fn-13-runtime-package-request-aware-graph.md",
-  "status": "open",
+  "status": "done",
   "title": "Runtime package, request-aware graph, richer devtools",
   "tracker": {
     "baseHashFlow": null,
@@ -956,5 +956,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-02T15:38:13.314411Z"
+  "updated_at": "2026-10-03T16:08:37.554790Z"
 }

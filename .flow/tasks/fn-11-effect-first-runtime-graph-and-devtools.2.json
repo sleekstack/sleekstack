@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-11-effect-first-runtime-graph-and-devtools",
   "spec_path": ".flow/tasks/fn-11-effect-first-runtime-graph-and-devtools.2.md",
-  "status": "todo",
+  "status": "done",
   "title": "kit: rebase action/query/defineEffect/defineQuery/effect on runEffect; delete next action/query",
   "updated_at": "2026-09-29T13:11:05.469115Z"
 }

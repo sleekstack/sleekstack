@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-13-runtime-package-request-aware-graph",
   "spec_path": ".flow/tasks/fn-13-runtime-package-request-aware-graph.4.md",
-  "status": "todo",
+  "status": "done",
   "title": "Tracer/Supervisor-based devtools events and richer panel",
   "updated_at": "2026-10-01T09:29:20.933636Z"
 }

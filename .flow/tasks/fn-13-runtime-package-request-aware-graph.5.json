@@ -11,7 +11,7 @@
   "priority": null,
   "spec": "fn-13-runtime-package-request-aware-graph",
   "spec_path": ".flow/tasks/fn-13-runtime-package-request-aware-graph.5.md",
-  "status": "todo",
+  "status": "done",
   "title": "Dev-only atom store registry listed in the panel",
   "updated_at": "2026-10-01T10:12:24.528245Z"
 }

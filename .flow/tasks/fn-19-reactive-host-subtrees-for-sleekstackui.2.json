@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-19-reactive-host-subtrees-for-sleekstackui",
   "spec_path": ".flow/tasks/fn-19-reactive-host-subtrees-for-sleekstackui.2.md",
-  "status": "todo",
+  "status": "done",
   "title": "ui: DOM renderer subscribes, re-runs and swaps reactive components",
   "updated_at": "2026-10-03T10:58:15.392037Z"
 }

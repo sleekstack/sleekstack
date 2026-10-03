@@ -1214,7 +1214,7 @@
     "plan": 0
   },
   "spec_path": ".flow/specs/fn-15-effect-native-component-framework-mvp.md",
-  "status": "open",
+  "status": "done",
   "title": "Effect-native component framework MVP",
   "tracker": {
     "baseHashFlow": null,
@@ -1227,5 +1227,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-03T05:46:26.718903Z"
+  "updated_at": "2026-10-03T16:08:39.023156Z"
 }

@@ -8,7 +8,7 @@
   "priority": null,
   "spec": "fn-8-deepen-kit-and-core-seams",
   "spec_path": ".flow/tasks/fn-8-deepen-kit-and-core-seams.5.md",
-  "status": "todo",
+  "status": "done",
   "title": "Extract the LayerProvider scope lifecycle module",
   "updated_at": "2026-09-28T16:15:54.549632Z"
 }
