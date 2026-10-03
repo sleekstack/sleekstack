@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-03T10:58:15.392037Z",
+  "depends_on": [
+    "fn-19-reactive-host-subtrees-for-sleekstackui.1"
+  ],
+  "id": "fn-19-reactive-host-subtrees-for-sleekstackui.2",
+  "priority": null,
+  "spec": "fn-19-reactive-host-subtrees-for-sleekstackui",
+  "spec_path": ".flow/tasks/fn-19-reactive-host-subtrees-for-sleekstackui.2.md",
+  "status": "todo",
+  "title": "ui: DOM renderer subscribes, re-runs and swaps reactive components",
+  "updated_at": "2026-10-03T10:58:15.392037Z"
+}
