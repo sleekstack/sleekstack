@@ -17,8 +17,7 @@ sleekstack explain <CODE>
 - Each error prints as `file:line CODE: message`, followed by indented `fix:` lines (most likely first) and a
   `docs:` line. `--json` carries the same `fix` and `docs` fields on every error.
 - `sleekstack explain <CODE>` prints the code's rule, fixes and docs path; an unknown code exits 2.
-- Exit codes (defined in `src/check.ts`): 0 clean, 1 violations, 2 usage error, unknown command or code, no roots,
-  or a crash.
+- Exit codes are defined in one place: the header of `src/check.ts`.
 - `--json` writes only JSON to stdout (each root's graph and errors).
 - Declarations the analyzer cannot read (`any`, widened arrays, non-literal keys) fail the check; there is no opt-out.
 

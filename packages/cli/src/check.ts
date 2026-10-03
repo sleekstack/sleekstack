@@ -52,8 +52,9 @@ function components(project: string): ComponentReport | undefined {
 export function main(argv: readonly string[], io: Io = stdio): number {
   try {
     if (argv[0] === 'explain') {
-      const help = Object.hasOwn(ERROR_CODES, argv[1] ?? '') ? ERROR_CODES[argv[1] as AnalyzeCode] : undefined
-      if (!help || argv.length !== 2) return (io.err(`Unknown code "${argv[1] ?? ''}". Known: ${Object.keys(ERROR_CODES).join(', ')}\n${USAGE}`), 2)
+      if (argv.length !== 2) return (io.err(USAGE), 2)
+      const help = Object.hasOwn(ERROR_CODES, argv[1]!) ? ERROR_CODES[argv[1] as AnalyzeCode] : undefined
+      if (!help) return (io.err(`Unknown code "${argv[1] ?? ''}". Known: ${Object.keys(ERROR_CODES).join(', ')}\n${USAGE}`), 2)
       io.out(`${argv[1]}: ${help.rule}\n${help.fix.map((f) => `  fix: ${f}`).join('\n')}\n  docs: ${help.docs}`)
       return 0
     }

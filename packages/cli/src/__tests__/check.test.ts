@@ -104,9 +104,14 @@ describe('sleekstack explain', () => {
     expect(r.out).toMatch(/^MissingDependency: .+\n(  fix: .+\n)+  docs: \/docs\/errors#graph-errors$/)
   })
 
-  it.each([['Nope'], ['toString'], []])('unknown or missing code %s exits 2', (...args) => {
+  it.each([
+    [['Nope'], /^Unknown code "Nope"[\s\S]*Usage:/],
+    [['toString'], /^Unknown code "toString"/],
+    [[], /^Usage:/],
+    [['MissingDependency', 'extra'], /^Usage:/],
+  ])('%j exits 2', (args, err) => {
     const r = explain(...args)
     expect([r.code, r.out]).toEqual([2, ''])
-    expect(r.err).toMatch(/Unknown code[\s\S]*Usage:/)
+    expect(r.err).toMatch(err)
   })
 })
