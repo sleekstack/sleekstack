@@ -55,6 +55,10 @@ describe('graph error fixtures', () => {
     expect(r.runtimes[0]!.errors.map((e) => e.code).sort()).toEqual(['MissingDependency', 'MissingDependency', 'MissingDependency', 'MissingDependency', 'MissingDependency', 'MissingDependency', 'MissingDependency', 'MissingDependency', 'PrivateDependency'])
   })
 
+  it('query and mutation fetchers: requirements checked like action bodies; non-static keys are Computed', () => {
+    expect(sorted(located('queries'))).toEqual(expected('queries'))
+  })
+
   it('generator layers: yielded Tags are edges feeding missing, captive and cycle checks', () => {
     expect(sorted(located('generator-layers'))).toEqual(expected('generator-layers'))
     const ok = analyze({ project: path.join(dir('generator-layers'), 'tsconfig.json') }).graphs.find((g) => g.root === 'Ok')!

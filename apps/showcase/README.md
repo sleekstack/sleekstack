@@ -14,11 +14,12 @@ src/
   infrastructure/              Live Layers: board-store.memory, runtime-infra.live (Infra, ActivityLog),
                                request.live (RequestContext), demo.live; app.ts is the
                                composition root (AppLive, re-exports RequestLive and DemoLive)
-  delivery/                    Next.js edge: runtime.server (runApp), act.server (act()), actions (Server
-                               Actions), board.server (page read), demo-mode, report.server
-  client/                      components/, drafts/ (useDraftForm), services/ (component services, atoms)
-  models/                      TaskModel / Drafts (task.ts) and ProjectNamesLive (task.server.ts)
-  lib/contracts.ts             ModelSpec, DraftSpec, resolveDraft, submitDraft
+  delivery/                    Next.js edge: runtime.server (runApp, prefetchApp), act.server (act()), actions
+                               (Server Actions, including the board read), demo-mode, report.server
+  client/                      components/, drafts/ (useDraftForm), services/ (component services, atoms,
+                               board-query: the board query and its mutations)
+  models/                      BoardDto / BoardModel / TaskModel / Drafts (task.ts)
+  lib/contracts.ts             ModelSpec, DraftSpec, resolveDraft
   errors/graphs.ts             broken plain-Layer fixtures for /errors
 ```
 
@@ -75,6 +76,17 @@ DTO(read) -fromDto(dto) [Effect, needs services]-> Model -create-> Draft -toDto-
 - `src/lib/contracts.ts`: `ModelSpec` and `DraftSpec`.
 - `src/models/task.ts`: `TaskModel` (`fromDto` is an Effect that resolves its own context from services such as `ProjectNames`; labels live in the Model), plus `NewTaskDraft` and `TaskCommentDraft`, one Draft per save boundary. Zod-first, no `z.coerce`, only `toDto` may read ambients.
 - `src/client/drafts/useDraftForm.ts`: binds a Draft to react-hook-form; re-seeds on `src` change only while pristine. Pass a stable `src`.
-- `src/application/board-view.ts`: `loadBoard`, an Effect that reads `BoardStore` and runs each DTO through `fromDto`; `ProjectNamesLive` (`src/models/task.server.ts`) builds the name lookup once per load, so N tasks share one read. `app/page.tsx` runs it through `src/delivery/board.server.ts`, so the client only ever receives Models.
-- `resolveDraft` / `submitDraft` (`src/lib/contracts.ts`): resolve a Draft through Effect (validate, then run the Effect `toDto`, failing with `DraftInvalid`), then hand the wire body to the Server Action. `ProjectView` (new task) and `TaskDetail` (comment) submit this way, so a component never builds the wire body.
-- Tests: `src/models/task.test.ts` (`fromDto`, `toDto`, defaults invariant) and `src/application/board-view.test.ts` (`resolveDraft`, `submitDraft`, `loadBoard`).
+- `src/application/board-view.ts`: `loadBoard`, an Effect that reads the board DTO from `BoardStore`; `readBoard` (`src/delivery/actions.ts`) serves it as the fetch of the `board` query (`src/client/services/board-query.ts`).
+- `BoardModel.fromDto` (`src/models/task.ts`) runs each task through `TaskModel.fromDto`, providing `ProjectNames` once from the DTO's own projects; `Board` applies it to the cached DTO once per data change.
+
+## Queries and mutations
+
+The query cache owns the board's client reads; the server only prefetches. `app/page.tsx` calls `prefetchApp([board()])`
+(`prefetch` with the same request scope and demo overrides as `runApp`) and `providers.tsx` seeds the store through
+`<HydrateQueries>`. Every query that needs request-scoped services must be prefetched this way: a lazy server read runs on the
+configured runtime only. Create, move and comment are `Mutation.make` definitions (`board-query.ts`): each resolves its
+Draft through `toDto`, writes optimistically with `Mutation.optimistic` (rolled back when the action returns `{ ok: false }`,
+e.g. "Simulate failure"), and invalidates the board on success. No mutation calls `router.refresh()`. The demo toggle still
+does: it remounts the app `LayerProvider`, so the query store is reset and rehydrated from the demo-mode prefetch.
+- `resolveDraft` (`src/lib/contracts.ts`): resolves a Draft through Effect (validate, then run the Effect `toDto`, failing with `DraftInvalid`). The board mutations (`board-query.ts`) run it before handing the wire body to the Server Action, so a component never builds the wire body.
+- Tests: `src/models/task.test.ts` (`fromDto`, `toDto`, defaults invariant) and `src/application/board-view.test.ts` (`resolveDraft`, `loadBoard` + `BoardModel.fromDto`); `src/__tests__/board.test.tsx` (optimistic create with rollback, refetch on success, optimistic move).

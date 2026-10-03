@@ -4,7 +4,7 @@
  * The task Model (read) and its Drafts (write), in one file. Components import the Model and Draft
  * types; the wire input types stay behind `toDto`.
  */
-import { Context, Effect } from 'effect'
+import { Context, Effect, Schema } from 'effect'
 import type { z } from 'zod'
 import type { CommentRecord, ProjectRecord, TaskRecord, TaskStatus } from '../domain/entities'
 import { AddComment, CreateTask } from '../domain/inputs'
@@ -63,6 +63,34 @@ export interface BoardProject {
   readonly project: ProjectRecord
   readonly tasks: ReadonlyArray<{ readonly task: TaskModel; readonly comments: readonly CommentModel[] }>
 }
+
+/** The board read DTO: what the query caches and the server dehydrates (plain JSON, so it crosses the wire as is). */
+const ProjectDto = Schema.Struct({ id: Schema.String, name: Schema.String })
+const TaskDtoSchema = Schema.Struct({
+  id: Schema.String,
+  projectId: Schema.String,
+  title: Schema.String,
+  status: Schema.Literal('todo', 'in_progress', 'done'),
+  createdAt: Schema.Number,
+})
+const CommentDtoSchema = Schema.Struct({ id: Schema.String, taskId: Schema.String, body: Schema.String, authorId: Schema.String, createdAt: Schema.Number })
+export const BoardDto = Schema.Array(
+  Schema.Struct({ project: ProjectDto, tasks: Schema.Array(Schema.Struct({ task: TaskDtoSchema, comments: Schema.Array(CommentDtoSchema) })) }),
+)
+export type BoardDto = typeof BoardDto.Type
+
+/** The board's Model: every task through `TaskModel.fromDto`, with `ProjectNames` built once from the DTO's own projects. */
+export const BoardModel = {
+  fromDto: (dto) => {
+    const names = new Map(dto.map(({ project }) => [project.id, project.name]))
+    return Effect.forEach(dto, ({ project, tasks }) =>
+      Effect.map(
+        Effect.forEach(tasks, ({ task, comments }) =>
+          Effect.all({ task: TaskModel.fromDto(task), comments: Effect.forEach(comments, CommentModel.fromDto) })),
+        (tasks): BoardProject => ({ project, tasks }),
+      )).pipe(Effect.provideService(ProjectNames, { get: (id) => names.get(id) }))
+  },
+} satisfies ModelSpec<BoardDto, readonly BoardProject[]>
 
 // --- New task: blank create. Fields hold what the inputs hold; no z.coerce. ---
 

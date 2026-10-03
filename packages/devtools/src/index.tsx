@@ -12,8 +12,10 @@ import { useProviderAtomStore } from '@sleekstack/react/internal'
 import { useStoreAtoms } from './atoms/useStoreAtoms'
 import { graphsOf } from './graph/graphsOf'
 import { ScopedErrors, ServiceEvents, type DevEvent } from './panel/sections'
+import { QueriesSection } from './panel/queries'
 
 export { graphsOf } from './graph/graphsOf'
+export { QUERY_DEVTOOLS_MARKER } from './panel/queries'
 
 /** Present in every devtools bundle; production bundle tests assert it is absent from client chunks. */
 export const DEVTOOLS_MARKER = 'sleekstack-devtools-panel-9f3c'
@@ -142,6 +144,7 @@ export function SleekStackDevtools({ endpoint = '/api/devtools', intervalMs = 20
           <ScopedErrors errors={data.errors} live={data.live.scopes} />
         </>
       )}
+      <QueriesSection intervalMs={intervalMs} />
       <section aria-label="atoms">
         <h3>Atoms</h3>
         {entries.length === 0 && stores.every((s) => s.length === 0) ? (

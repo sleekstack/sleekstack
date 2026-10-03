@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@sleekstack/core": "workspace:*",
+    "@sleekstack/query": "workspace:*",
     "effect": "^3.15.0"
   },
   "devDependencies": {

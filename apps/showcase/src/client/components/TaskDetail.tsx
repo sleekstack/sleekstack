@@ -5,17 +5,16 @@
  * R7: mounts with `key={taskId}` (plus the "break detail" flag, since both
  * must remount together — `provide` changes alone are ignored,
  * packages/react/src/LayerProvider.tsx:133) providing the async `DraftEditor`
- * component service. Move/comment mutations call the .2 Server Actions and
- * render `{ ok: false, error }` inline (R5) rather than depending on a
- * thrown message crossing the Server Action boundary.
+ * component service. Move/comment run `moveTaskMutation` / `addCommentMutation`
+ * (optimistic writes into the cached board) and render an action's
+ * `{ ok: false, error }` inline (R5).
  */
-import { Suspense, useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useState } from 'react'
 import { LayerProvider, useAtom, useService } from '@sleekstack/react'
-import { addComment, moveTask } from '../../delivery/actions'
 import type { TaskStatus } from '../../domain/tags'
-import { submitDraft } from '../../lib/contracts'
-import { TaskCommentDraft, type CommentModel, type TaskModel } from '../../models/task'
+import type { CommentModel, TaskModel } from '../../models/task'
+import { addCommentMutation, failureOf, moveTaskMutation } from '../services/board-query'
+import { useBoardMutation } from '../services/useBoardMutation'
 import { ErrorBoundary } from './ErrorBoundary'
 import { DraftEditor, makeBrokenDraftEditorLayer, makeDraftEditorLayer } from '../services/component-services'
 
@@ -23,22 +22,16 @@ const STATUSES: readonly TaskStatus[] = ['todo', 'in_progress', 'done']
 
 export function DraftEditorPanel({ taskId }: { readonly taskId: string }) {
   const { draft } = useService(DraftEditor)
-  const router = useRouter()
   // The draft is an atom owned by the DraftEditor service, not local state. TaskDetail only renders on the client.
   const [body, setBody] = useAtom(draft)
   const [error, setError] = useState<string | null>(null)
-  const [pending, startTransition] = useTransition()
+  const { mutate, isPending: pending } = useBoardMutation(addCommentMutation)
 
   const submit = () => {
-    startTransition(async () => {
-      const result = await submitDraft(TaskCommentDraft, { body }, { taskId, authorId: 'demo-user' }, addComment)
-      if (!result.ok) {
-        setError(result.error)
-        return
-      }
-      setError(null)
-      setBody('')
-      router.refresh()
+    void mutate({ draft: { body }, src: { taskId, authorId: 'demo-user' } }).then((exit) => {
+      const failure = failureOf(exit)
+      setError(failure)
+      if (failure === null) setBody('')
     })
   }
 
@@ -67,19 +60,10 @@ export interface TaskDetailProps {
 export function TaskDetail({ task, comments, onClose }: TaskDetailProps) {
   const [breakDetail, setBreakDetail] = useState(false)
   const [moveError, setMoveError] = useState<string | null>(null)
-  const [movePending, startMove] = useTransition()
-  const router = useRouter()
+  const { mutate: moveTo, isPending: movePending } = useBoardMutation(moveTaskMutation)
 
   const move = (status: TaskStatus) => {
-    startMove(async () => {
-      const result = await moveTask({ taskId: task.id, status })
-      if (!result.ok) {
-        setMoveError(result.error)
-        return
-      }
-      setMoveError(null)
-      router.refresh()
-    })
+    void moveTo({ taskId: task.id, status }).then((exit) => setMoveError(failureOf(exit)))
   }
 
   return (

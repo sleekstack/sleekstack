@@ -152,9 +152,31 @@ _Avoid_: Mutation, procedure, RPC
 _Avoid_: Next runtime, server runtime
 
 **Query** *(server-side)*:
-A server-side read operation declared with `defineQuery()` / `query()` from `@sleekstack/kit/next`. Runs a generator in a Request Scope. Distinct from any future client-side query/cache primitives.
+A server-side read operation declared with `defineQuery()` / `query()` from `@sleekstack/kit/next`. Runs a generator in a Request Scope and caches nothing. Distinct from a Cached Query.
 _Avoid_: Fetch, loader, resolver
 
 **Devtools**:
 The dev-only introspection of a running app: a bounded event buffer in `@sleekstack/runtime` (per-service acquire/release, fiber id, owning scope) served by the route handler in `@sleekstack/next/devtools`, rendered by the `@sleekstack/devtools` panel (graph roots, live scopes, services, atoms of every open AtomStore, errors linked to their scope). In production recording is off and the handler returns 404; the panel is excluded from production client chunks when mounted behind a dynamic import.
 _Avoid_: Inspector, debug panel
+
+### Query cache concepts
+
+**Cached Query**:
+A keyed, cached async read from `@sleekstack/query` (ADR 0014). `Query.make({ key, fetch, staleTime, gcTime, retry })` returns a family `(args) => query atom`; equal canonical keys share one entry in the query store. Its `fetch` is an Effect or Stream whose Tags resolve from that store's scope. The kit form is `cachedQuery()` from `@sleekstack/kit`, read with `useQuery` from `@sleekstack/kit/react`. Not the server-side Query of `@sleekstack/kit/next`.
+_Avoid_: Query client, resource, loader
+
+**Query Store**:
+The AtomStore that holds Cached Queries for a subtree: the root LayerProvider's, or the nearest one marked with `QueryProvider`. Nested providers share it.
+_Avoid_: Query client, QueryClientProvider
+
+**QueryCache**:
+The optional Tag holding a store's query registry: one entry per query definition and canonical key, with `key`, `updatedAt` and observers. Provide it to share or inspect a registry; otherwise each store gets its own. The `Queries` service (`invalidate`, `refetch`, `setData`, `getData`, `cancel`, `reset`; kit: `useQueryClient`) works on that registry.
+_Avoid_: Query registry, cache client
+
+**Mutation**:
+A write from `Mutation.make({ run, onMutate, ... })` (`@sleekstack/query`) or `mutation()` (`@sleekstack/kit`), run with `useMutation`. Its state is `idle`, `pending`, `success` or `failure`, per hook unless `Mutation.shared`. `onMutate` can return a rollback, run on failure or interruption. Distinct from an Action, the server operation a mutation often calls.
+_Avoid_: Command, action (for the client write)
+
+**Dehydrated**:
+The serializable query state (`[{ key, result, updatedAt }]`) that `prefetch` (`@sleekstack/next`) returns on the server and `<HydrateQueries state>` (`@sleekstack/react`) seeds into the Query Store. Built with `Hydrate` from `@sleekstack/query`; only `Hydrate.hydratable` queries can be in it.
+_Avoid_: Snapshot, serialized cache

@@ -3,27 +3,37 @@
  * apps/showcase-kit/src/client/Board.tsx
  *
  * R7: the interactive board, rendered inside `providers.tsx`'s app-level
- * `LayerProvider`. One `ProjectView` per project — the project's own
- * `ProjectFilterStore` component service owns its filter and (if any)
- * open task-detail selection.
+ * `LayerProvider`. It reads the `board` query (board-query.ts); the kit facade
+ * has no server prefetch, so the server render and hydration show a
+ * placeholder and the client fetches. One `ProjectView` per project — the
+ * project's own `ProjectFilterStore` component service owns its filter and
+ * (if any) open task-detail selection.
  */
-import type { CommentRecord, ProjectRecord, TaskRecord } from '../domain/tags'
+import { useSyncExternalStore } from 'react'
+import { useQuery } from '@sleekstack/kit/react'
+import { board as boardQuery, type BoardProject } from './board-query'
 import { DemoToggle } from './DemoToggle'
 import { ProjectView } from './ProjectView'
 import { ScopeLog } from './ScopeLog'
 
-export interface BoardProject {
-  readonly project: ProjectRecord
-  readonly tasks: ReadonlyArray<{ readonly task: TaskRecord; readonly comments: readonly CommentRecord[] }>
+export type { BoardProject }
+
+const noSubscribe = () => () => {}
+
+function Projects() {
+  const { data, error } = useQuery(boardQuery())
+  if (error) return <p role="alert">{error.message}</p>
+  if (!data) return <p>Loading board…</p>
+  return data.map(({ project, tasks }) => <ProjectView key={project.id} project={project} tasks={tasks} />)
 }
 
-export function Board({ board, demoMode }: { readonly board: readonly BoardProject[]; readonly demoMode: boolean }) {
+export function Board({ demoMode }: { readonly demoMode: boolean }) {
+  // false on the server and while hydrating, true after: kit query hooks run on the client only
+  const client = useSyncExternalStore(noSubscribe, () => true, () => false)
   return (
     <div>
       <DemoToggle demoMode={demoMode} />
-      {board.map(({ project, tasks }) => (
-        <ProjectView key={project.id} project={project} tasks={tasks} />
-      ))}
+      {client ? <Projects /> : <p>Loading board…</p>}
       <ScopeLog />
     </div>
   )

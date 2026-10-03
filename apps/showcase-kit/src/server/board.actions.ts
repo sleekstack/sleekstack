@@ -8,13 +8,26 @@
  * validate, stage a write through UnitOfWork, commit last. Expected failures use kit `fail()` and
  * come back as `{ ok: false, error }`; anything else throws to error.tsx.
  */
-import { defineEffect, fail } from '@sleekstack/kit/next'
-import { ActivityLog, CommentRepo, TaskRepo, type CommentRecord, type TaskRecord, type TaskStatus } from '../domain/tags'
+import { defineEffect, fail, query } from '@sleekstack/kit/next'
+import { ActivityLog, CommentRepo, ProjectRepo, TaskRepo, type CommentRecord, type TaskRecord, type TaskStatus } from '../domain/tags'
 import { RequestContext, UnitOfWork } from './request.server'
 import { demoLayers } from './demo.server'
 
 // RequestContext is never yielded; `scope` still builds it so its request open / close is logged.
 const boardOpts = { provide: demoLayers, scope: [RequestContext] }
+
+/** The board read: the fetch of the client `board` query (src/client/board-query.ts), demo-Shadowed like the writes. */
+export async function readBoard() {
+  return query(function* () {
+    const projects = yield* ProjectRepo
+    const tasks = yield* TaskRepo
+    const comments = yield* CommentRepo
+    return projects.list().map((project) => ({
+      project,
+      tasks: tasks.listByProject(project.id).map((task) => ({ task, comments: comments.listByTask(task.id) })),
+    }))
+  }, { provide: demoLayers })
+}
 
 export interface CreateTaskInput {
   readonly projectId: string

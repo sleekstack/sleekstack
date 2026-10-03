@@ -44,19 +44,3 @@ export const resolveDraft = <D, Dto, Src, P, R>(spec: DraftSpec<D, Dto, Src, P, 
       ? spec.toDto(parsed.data, src)
       : Effect.fail(new DraftInvalid({ messages: parsed.error.issues.map((i) => i.message) }))
   })
-
-type Settled<T> = { readonly ok: true; readonly data: T } | { readonly ok: false; readonly error: string }
-
-/** The one submit path a component uses: resolve the Draft, hand the body to `send`, settle to `{ ok, data | error }`. */
-export const submitDraft = <D, Dto, Src, P, T>(
-  spec: DraftSpec<D, Dto, Src, P, never>,
-  draft: D,
-  src: Src,
-  send: (dto: Dto) => Promise<Settled<T>>,
-): Promise<Settled<T>> =>
-  Effect.runPromise(
-    resolveDraft(spec, draft, src).pipe(
-      Effect.flatMap((dto) => Effect.promise(() => send(dto))),
-      Effect.catchTag('DraftInvalid', (e) => Effect.succeed<Settled<T>>({ ok: false, error: e.message })),
-    ),
-  )

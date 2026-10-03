@@ -26,6 +26,7 @@
   "dependencies": {
     "@sleekstack/core": "workspace:*",
     "@sleekstack/next": "workspace:*",
+    "@sleekstack/query": "workspace:*",
     "@sleekstack/react": "workspace:*",
     "@sleekstack/runtime": "workspace:*",
     "effect": "^3.15.0"

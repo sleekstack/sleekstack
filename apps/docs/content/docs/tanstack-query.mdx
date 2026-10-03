@@ -1,0 +1,39 @@
+---
+title: TanStack Query mapping
+description: TanStack Query concepts and their SleekStack equivalents.
+---
+
+SleekStack has no TanStack Query adapter. It has its own query layer, `@sleekstack/query`, built on the native atom store (ADR 0014). This table maps TanStack Query names to SleekStack names. The Effect-native names come from `@sleekstack/query` and `@sleekstack/react`; the kit names come from `@sleekstack/kit` and `@sleekstack/kit/react`.
+
+| TanStack Query | Effect-native | kit |
+| --- | --- | --- |
+| `QueryClient` + `QueryClientProvider` | the root `LayerProvider`'s store; `QueryProvider` for a nearer one | same |
+| `queryOptions({ queryKey, queryFn })` | `Query.make({ key, fetch })` | `cachedQuery({ key, fetch })` |
+| `queryKey: ['todo', id]` | `key: (id) => ['todo', id]` | same |
+| `queryFn` (a Promise) | `fetch` (an Effect or a Stream; Tags as requirements) | `fetch` (a generator; `yield*` Tags) |
+| `useQuery` | `useQuery` (returns `data`, `error`, `isPending`, `isFetching`, `refetch`) | `useQuery` |
+| `useSuspenseQuery` | `useQuerySuspense` | none |
+| `useInfiniteQuery` | `Query.infinite` + `useInfiniteQuery` | none |
+| `select` | `Query.select` (an Effect) | none |
+| `staleTime`, `gcTime` | `staleTime`, `gcTime` (Durations) | same (milliseconds) |
+| `retry` | `retry` (a `Schedule`, typed failures only) | `retry` (a count) |
+| `refetchOnWindowFocus`, `refetchOnReconnect` | `refetchOn` (any `Stream`s) | none |
+| `refetchInterval` | `refetchInterval` | none |
+| `useMutation({ mutationFn })` | `Mutation.make({ run })` + `useMutation` | `mutation({ run })` + `useMutation` |
+| `onMutate` returning context for rollback | `onMutate` returning a rollback Effect; `Mutation.optimistic` | none |
+| `useQueryClient()` | `useQueries()` (the `Queries` service) | `useQueryClient()` |
+| `invalidateQueries`, `refetchQueries` | `invalidate`, `refetch` (atom, `prefix` or `predicate`) | `invalidate`, `refetch` (query or `prefix`) |
+| `setQueryData`, `getQueryData` | `setData`, `updateData`, `getData` | `setData`, `getData` |
+| `cancelQueries`, `resetQueries` | `cancel`, `reset` | none |
+| `prefetchQuery` + `dehydrate` | `prefetch` from `@sleekstack/next` | none yet |
+| `HydrationBoundary` | `HydrateQueries` | none yet |
+| React Query Devtools | Queries tab of `@sleekstack/devtools` | same |
+
+## Differences
+
+- A fetch's failure is typed (`E`), and its services are Tags resolved from the provider scope, not closed over.
+- The cache belongs to a `LayerProvider` scope and is disposed with it. There is no global client.
+- A mounted query never refetches only because it is stale. `staleTime` controls triggers.
+- `gcTime` is per query definition, not per key.
+- Mutation state is per hook by default; `Mutation.shared` shares it.
+- A lazy server read of a query that was not prefetched cannot use request-scoped services. See [Queries on the server](/docs/queries-ssr).

@@ -54,6 +54,9 @@ importers:
       '@sleekstack/next':
         specifier: workspace:*
         version: link:../../packages/next
+      '@sleekstack/query':
+        specifier: workspace:*
+        version: link:../../packages/query
       '@sleekstack/react':
         specifier: workspace:*
         version: link:../../packages/react
@@ -142,6 +145,9 @@ importers:
       '@sleekstack/next':
         specifier: workspace:*
         version: link:../../packages/next
+      '@sleekstack/query':
+        specifier: workspace:*
+        version: link:../../packages/query
       '@sleekstack/react':
         specifier: workspace:*
         version: link:../../packages/react
@@ -348,6 +354,9 @@ importers:
       '@sleekstack/core':
         specifier: workspace:*
         version: link:../core
+      '@sleekstack/query':
+        specifier: workspace:*
+        version: link:../query
       '@sleekstack/react':
         specifier: workspace:*
         version: link:../react
@@ -413,6 +422,9 @@ importers:
       '@sleekstack/next':
         specifier: workspace:*
         version: link:../next
+      '@sleekstack/query':
+        specifier: workspace:*
+        version: link:../query
       '@sleekstack/react':
         specifier: workspace:*
         version: link:../react
@@ -456,6 +468,9 @@ importers:
       '@sleekstack/core':
         specifier: workspace:*
         version: link:../core
+      '@sleekstack/query':
+        specifier: workspace:*
+        version: link:../query
       '@sleekstack/runtime':
         specifier: workspace:*
         version: link:../runtime
@@ -470,11 +485,30 @@ importers:
         specifier: ^4.1.9
         version: 4.1.9(@types/node@22.20.1)(jsdom@29.1.1)(vite@8.0.16(@types/node@22.20.1)(jiti@2.7.0)(yaml@2.9.1))
 
+  packages/query:
+    dependencies:
+      '@sleekstack/core':
+        specifier: workspace:*
+        version: link:../core
+      effect:
+        specifier: ^3.15.0
+        version: 3.21.2
+    devDependencies:
+      '@types/node':
+        specifier: ^22.20.1
+        version: 22.20.1
+      vitest:
+        specifier: ^4.1.9
+        version: 4.1.9(@types/node@22.20.1)(jsdom@29.1.1)(vite@8.0.16(@types/node@22.20.1)(jiti@2.7.0)(yaml@2.9.1))
+
   packages/react:
     dependencies:
       '@sleekstack/core':
         specifier: workspace:*
         version: link:../core
+      '@sleekstack/query':
+        specifier: workspace:*
+        version: link:../query
       effect:
         specifier: ^3.15.0
         version: 3.21.2

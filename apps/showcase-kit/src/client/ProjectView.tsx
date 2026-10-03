@@ -7,13 +7,12 @@
  * (TaskDetail.tsx). Provides the async `ProjectFilterStore` component
  * service, which owns the project's filter and selected-task state (not
  * just a `useState` in this component — that state must live for the
- * scope's lifetime and disappear with it); create-task calls the .2 Server
- * Action with the "Simulate failure" control (R5).
+ * scope's lifetime and disappear with it); create-task runs `createTaskMutation`
+ * (optimistic, rolled back on the "Simulate failure" control's rejection, R5).
  */
-import { Suspense, useSyncExternalStore, useTransition, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useSyncExternalStore, useState } from 'react'
 import { LayerProvider, useService } from '@sleekstack/kit/react'
-import { createTask } from '../server/board.actions'
+import { addTask, createTaskMutation, useBoardMutation, isPendingId } from './board-query'
 import type { CommentRecord, ProjectRecord, TaskRecord } from '../domain/tags'
 import { ProjectFilterStore, makeProjectFilterStoreLayer, type TaskStatusFilter } from './component-services'
 import { TaskDetail } from './TaskDetail'
@@ -33,23 +32,14 @@ function ProjectBody({ project, tasks }: { readonly project: ProjectRecord; read
   const [title, setTitle] = useState('')
   const [simulateFailure, setSimulateFailure] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
-  const [pending, startTransition] = useTransition()
-  const router = useRouter()
+  const { run, isPending: pending } = useBoardMutation(createTaskMutation, addTask)
 
   const visible = filter === 'all' ? tasks : tasks.filter(({ task }) => task.status === filter)
   const selected = tasks.find(({ task }) => task.id === selectedTaskId)
 
   const submitCreate = () => {
-    startTransition(async () => {
-      const result = await createTask({ projectId: project.id, title, simulateFailure })
-      if (!result.ok) {
-        setCreateError(result.error)
-        return
-      }
-      setCreateError(null)
-      setTitle('')
-      router.refresh()
-    })
+    setTitle('') // the task shows optimistically, so the input is free for the next one
+    void run({ projectId: project.id, title, simulateFailure }).then(setCreateError)
   }
 
   return (
@@ -67,7 +57,7 @@ function ProjectBody({ project, tasks }: { readonly project: ProjectRecord; read
       <ul>
         {visible.map(({ task, comments }) => (
           <li key={task.id}>
-            <button type="button" onClick={() => store.selectedTaskId.set(task.id)}>
+            <button type="button" disabled={isPendingId(task.id)} onClick={() => store.selectedTaskId.set(task.id)}>
               {task.title} — {task.status} ({comments.length})
             </button>
           </li>

@@ -28,6 +28,7 @@
     "@sleekstack/islands": "workspace:*",
     "@sleekstack/kit": "workspace:*",
     "@sleekstack/next": "workspace:*",
+    "@sleekstack/query": "workspace:*",
     "@sleekstack/react": "workspace:*",
     "@tailwindcss/postcss": "^4.1.0",
     "@types/mdx": "^2.0.13",
