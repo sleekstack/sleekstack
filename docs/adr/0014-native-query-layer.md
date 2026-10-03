@@ -12,7 +12,7 @@
 ## Consequences
 
 - Queries use the app-scoped store (the root `LayerProvider`'s, or the nearest `QueryProvider`'s); nested providers share it.
-- `staleTime` gates only triggers (a new observer, `refetchOn` sources, a non-forced `invalidate`) and hydrated entries. A mounted entry never refetches by itself.
+- `staleTime` gates only a new observer's refetch, `refetchOn` sources and hydrated entries. `invalidate`, `refetch` and `refetchInterval` are forced. A mounted entry never refetches by itself.
 - `gcTime` is the family's idle TTL, so it is per query definition, not per key. Removing a node interrupts its in-flight fetch.
 - SSR covers query atoms only; other atoms stay client only (`AtomsClientOnly`). `prefetch` needs a `Hydrate.hydratable` Schema, and typed failures are sent only with `failures: true`. A lazy server read of a query that was not prefetched uses the configured runtime only, with no per-call `request` or `overrides` Layers, so a query that needs request-scoped services must be prefetched with them. Its result travels in a `useId`-keyed JSON script; a read first reached after that script renders is not transferred.
 - `useMutation` throws `AtomsClientOnly` during a server render.

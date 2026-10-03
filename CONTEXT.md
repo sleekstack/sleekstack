@@ -143,7 +143,7 @@ The AtomStore that holds Cached Queries for a subtree: the root LayerProvider's,
 _Avoid_: Query client, QueryClientProvider
 
 **QueryCache**:
-The optional Tag holding a store's query registry (canonical key -> `updatedAt`, observers). Provide it to share or inspect a registry; otherwise each store gets its own. The `Queries` service (`invalidate`, `refetch`, `setData`, `getData`, `cancel`, `reset`; kit: `useQueryClient`) works on that registry.
+The optional Tag holding a store's query registry: one entry per query definition and canonical key, with `key`, `updatedAt` and observers. Provide it to share or inspect a registry; otherwise each store gets its own. The `Queries` service (`invalidate`, `refetch`, `setData`, `getData`, `cancel`, `reset`; kit: `useQueryClient`) works on that registry.
 _Avoid_: Query registry, cache client
 
 **Mutation**:

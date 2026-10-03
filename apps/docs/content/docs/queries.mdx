@@ -26,10 +26,10 @@ The query store is the `AtomStore` of the root `LayerProvider`. Nested providers
 <include>../../snippets/queries-effect.tsx</include>
 
 - `key` returns a serializable tuple. Equal keys (compared as canonical JSON, with sorted object keys) share one entry; a non-serializable key throws `InvalidQueryKey`.
-- `staleTime` (default 0) controls only refetch triggers: a new observer, `refetchOn` sources and a non-forced `invalidate`. A mounted entry never refetches by itself. `refetchInterval` refetches on a timer regardless of staleness.
+- `staleTime` (default 0) gates a new observer's refetch and `refetchOn` sources; a hydrated entry is fresh until it passes. A mounted entry never refetches by itself. `invalidate`, `refetch` and `refetchInterval` ignore it.
 - `gcTime` (default 5 minutes) is the idle time before an unobserved entry is removed. An in-flight fetch is interrupted when it is removed.
 - `retry` is a `Schedule`. It re-runs typed failures only, never defects or interruption.
-- `useQueries()` returns the `Queries` client: `invalidate`, `refetch`, `setData`, `updateData`, `getData`, `cancel` and `reset`. Each takes a query atom or a filter `{ prefix, predicate }`.
+- `useQueries()` returns the `Queries` client: `invalidate`, `refetch`, `cancel` and `reset` take a query atom or a filter `{ prefix, predicate }` (none: every query); `setData`, `updateData` and `getData` take one query atom.
 - `useQuerySuspense` suspends only while there is no value. A failure after a value returns the stale `data` with the `error`.
 - `Query.infinite` keeps pages in one entry; `useInfiniteQuery` adds `fetchNext` and `fetchPrevious`.
 - `Query.select` maps fetched data with an Effect (for example `Model.fromDto`) and memoizes it on the data.

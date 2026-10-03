@@ -5,7 +5,7 @@ Effect-native queries and mutations on the native atom store (ADR 0014). A query
 | Export | What it does |
 | --- | --- |
 | `Query` | `make`, `infinite`, `select`, plus `QueryCache` (the registry Tag), `entries`, `observe`, `trigger`, `fetchNext`, `fetchPrevious`. |
-| `Queries` | The `Queries` service: `invalidate`, `refetch`, `setData`, `updateData`, `getData`, `cancel`, `reset`, by atom or `{ prefix, predicate }`. |
+| `Queries` | The `Queries` service: `invalidate`, `refetch`, `cancel`, `reset` (by atom or `{ prefix, predicate }`) and `setData`, `updateData`, `getData` (by atom). |
 | `Mutation` | `make`, `shared`, `runner`, `optimistic` (an optimistic write with ordered rollback). |
 | `Hydrate` | SSR: `hydratable` (a value Schema), `prefetch`, `dehydrate`, `hydrate`, `Dehydrated`. |
 | `QueryEvents` | Dev-only client event buffer for the `@sleekstack/devtools` Queries tab. |
