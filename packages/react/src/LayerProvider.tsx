@@ -18,13 +18,16 @@
  * closed if no render adopts it within ADOPT_MS once settled.
  */
 
-import React, { useContext, useEffect, useRef } from 'react'
+import React, { createContext, useContext, useEffect, useRef } from 'react'
 import type { Cause } from 'effect'
-import type { ChildScope, Entry, Module } from '@sleekstack/core'
+import type { ChildScope, Entry, Module, Snapshot } from '@sleekstack/core'
 import { ProviderContext } from './context'
 import { mount, sameEntries, useScopeSource } from './managedScope'
 
 export { closeProvidersOn } from './managedScope'
+
+/** The nearest provider's `snapshotId` (`''` when absent), read by `AtomsSnapshot`. */
+export const SnapshotIdContext = createContext('')
 
 /** Props for {@link LayerProvider}. */
 export interface LayerProviderProps {
@@ -43,6 +46,10 @@ export interface LayerProviderProps {
    * its own props object, which is stable across its retries; the default is these props.
    */
   readonly owner?: { readonly children?: React.ReactNode }
+  /** Seeds serializable atoms (a `dehydrate` snapshot); wins over the transport tag. Applied when the store is built. */
+  readonly hydrate?: Snapshot
+  /** Id of the `AtomsSnapshot` tag this provider seeds from and emits; give sibling roots distinct ids. Default `''`. */
+  readonly snapshotId?: string
 }
 
 /**
@@ -83,5 +90,9 @@ export function LayerProvider(props: LayerProviderProps) {
     })
   }, [parent])
 
-  return <ProviderContext.Provider value={ownedRef.current!.state}>{children}</ProviderContext.Provider>
+  return (
+    <ProviderContext.Provider value={ownedRef.current!.state}>
+      <SnapshotIdContext.Provider value={props.snapshotId ?? ''}>{children}</SnapshotIdContext.Provider>
+    </ProviderContext.Provider>
+  )
 }

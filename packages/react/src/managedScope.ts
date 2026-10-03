@@ -8,9 +8,10 @@
 
 import React from 'react'
 import { Cause, Effect, Exit } from 'effect'
-import { atomStoreFor, makeAppScope, makeAtomStore, type ChildScope, type Entry, type Module } from '@sleekstack/core'
+import { atomStoreFor, makeAppScope, makeAtomStore, type ChildScope, type Entry, type Module, type Snapshot } from '@sleekstack/core'
 import { RegistryContext, type ProviderState, type RequestRegistry } from './context'
 import { settleSuspensions } from './atoms'
+import { seedFor } from './transport'
 
 /** The props adoption reads: entries, children shape, and the optional `owner` identity. */
 export interface ScopeProps {
@@ -19,6 +20,10 @@ export interface ScopeProps {
   readonly owner?: { readonly children?: React.ReactNode }
   /** Externally owned app scope a top-level provider opens its component scope on; never closed by the provider. */
   readonly appScope?: ChildScope
+  /** Seeds the provider's atom store; wins over the transport tag. */
+  readonly hydrate?: Snapshot
+  /** Id of the transport tag this provider reads and `AtomsSnapshot` writes; default `''`. */
+  readonly snapshotId?: string
 }
 
 declare const process: { readonly env: { readonly NODE_ENV?: string } }
@@ -109,7 +114,7 @@ const adopt = (props: ScopeProps, parent: ProviderState | null, appScope: ChildS
   return found
 }
 
-function create(provide: ReadonlyArray<Entry | Module>, parent: ProviderState | null, sink: ProviderState['onFinalizerError'], appScope?: ChildScope): Owned {
+function create(provide: ReadonlyArray<Entry | Module>, parent: ProviderState | null, sink: ProviderState['onFinalizerError'], appScope: ChildScope | undefined, seed: Snapshot | undefined): Owned {
   const report = (exit: Exit.Exit<void, unknown>) => {
     if (Exit.isSuccess(exit)) return
     try {
@@ -135,6 +140,7 @@ function create(provide: ReadonlyArray<Entry | Module>, parent: ProviderState | 
     // Registered on the scope after its services, so closing it interrupts atoms before service finalizers.
     state.atoms = atomStoreFor(s, {
       defaultIdleTTL: 400,
+      hydrate: seed,
       onFinalizerError: (e) => report(Exit.failCause(Cause.isCause(e) ? e : Cause.die(e))),
     })
     devStores()?.add(state.atoms)
@@ -182,7 +188,7 @@ export const closeProvidersOn = async (appScope: ChildScope): Promise<void> => {
 /** Adopts a parked scope for this render or creates one, then parks it under this render's identity. */
 export const acquire = (props: ScopeProps, parent: ProviderState | null, sink: ProviderState['onFinalizerError'] | undefined): Owned => {
   const appScope = parent ? undefined : props.appScope // ignored when nested
-  const owned = adopt(props, parent, appScope) ?? create(props.provide, parent, sink ?? parent?.onFinalizerError ?? defaultSink, appScope)
+  const owned = adopt(props, parent, appScope) ?? create(props.provide, parent, sink ?? parent?.onFinalizerError ?? defaultSink, appScope, seedFor(props))
   park(owned, props.owner ?? props)
   return owned
 }
@@ -226,7 +232,7 @@ const sinkFor = (sink: ProviderState['onFinalizerError'] | undefined, parent: Pr
 export const acquireOnServer = (registry: RequestRegistry, id: string, props: ScopeProps, parent: ProviderState | null, sink: ProviderState['onFinalizerError'] | undefined): Owned => {
   const found = registry.scopes.get(id)
   if (found) return found
-  const owned = create(props.provide, parent, sinkFor(sink, parent), parent ? undefined : props.appScope)
+  const owned = create(props.provide, parent, sinkFor(sink, parent), parent ? undefined : props.appScope, seedFor(props))
   owned.state.start()
   registry.scopes.set(id, owned)
   registry.closers.push(owned.close)
@@ -245,7 +251,7 @@ export const closeRegistry = (registry: RequestRegistry): Promise<void> =>
  */
 const inertServerState = (props: ScopeProps, parent: ProviderState | null, sink: ProviderState['onFinalizerError'] | undefined): Owned => {
   const owned = acquire(props, parent, sink)
-  const state: ProviderState = Object.create(owned.state, { atoms: { value: makeAtomStore({ inert: true }) } })
+  const state: ProviderState = Object.create(owned.state, { atoms: { value: makeAtomStore({ inert: true, hydrate: seedFor(props) }) } })
   return { ...owned, state }
 }
 
