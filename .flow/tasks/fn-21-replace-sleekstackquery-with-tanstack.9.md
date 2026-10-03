@@ -30,9 +30,8 @@ The showcase also runs under `apps/showcase-kit` style checks in CI e2e; do not 
 - [ ] The showcase imports only the bridge from `@sleekstack/query` (no `Query` / `Hydrate` / `Mutation` / `Queries`)
 
 ## Done summary
-TBD
-
+Board query is queryOptions over readBoard; mutations run through useBoardMutation (optimistic onMutate, rollback onError, invalidate onSettled); Providers use QueryClientLive + QueryProvider + HydrationBoundary; prefetchApp uses prefetchQueries.
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 27615d6
+- Tests: pnpm --filter showcase test, tsc, next build, sleekstack check
 - PRs:
