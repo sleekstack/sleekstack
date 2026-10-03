@@ -177,6 +177,23 @@ describe('resume', () => {
     expect(texts(c)).toEqual(['1', '1'])
   })
 
+  it('dispose interrupts a running handler; a sync throw does not stall the queue', async () => {
+    const c = await setup()
+    let wrote = false
+    const slow = defineHandler('inc', () => Effect.zipRight(Effect.sleep(20), Effect.sync(() => void (wrote = true))))
+    const thrower = defineHandler('boom', () => {
+      throw new Error('sync')
+    })
+    const onError = vi.fn()
+    const h = await start(c, loaders({ inc: async () => ({ default: slow }), boom: async () => ({ default: thrower }) }), onError)
+    click(c, '#boom'), click(c, '#b')
+    await flush()
+    expect(String(onError.mock.calls[0]![0])).toContain('sync')
+    await h.dispose()
+    await new Promise((r) => setTimeout(r, 40))
+    expect(wrote).toBe(false)
+  })
+
   it('dispose interrupts a forked fiber and removes listeners', async () => {
     const c = await setup()
     const interrupted = defer()

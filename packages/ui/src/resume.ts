@@ -1,5 +1,5 @@
 import { Atom, makeAtomStore } from '@sleekstack/core'
-import { Cause, Context, Data, Effect, Exit, Layer, Option, Schema, Scope } from 'effect'
+import { Cause, Context, Data, Effect, Exit, Fiber, Layer, Option, Schema, Scope } from 'effect'
 import type { Handler, HandlerEvent } from './handler'
 import { Store } from './reactive'
 
@@ -16,7 +16,8 @@ export interface ResumeOptions<R, LE> {
   readonly container: Element
   readonly layer: Layer.Layer<Exclude<R, Store>, LE, never>
   readonly handlers: Readonly<Record<string, HandlerLoader<R>>>
-  readonly atoms: Readonly<Record<string, Atom.Atom<any>>>
+  /** Manifest key to its atom. Seeded with `store.set`, so each must be a writable whose write stores the value (`Atom.make(v)`); derived atoms are rejected. */
+  readonly atoms: Readonly<Record<string, Atom.Writable<any, any>>>
   readonly onError?: (cause: Cause.Cause<unknown>) => void
 }
 
@@ -85,22 +86,31 @@ const snapshot = (e: Event): HandlerEvent => {
 const activate = async <R, LE>(opts: ResumeOptions<R, LE>): Promise<Resumed> => {
   const { container } = opts
   const m = readManifest(container)
-  const seeds = Object.entries(m.atoms).map(([key, v]) => [opts.atoms[key]!, decode(opts.atoms[key], key, v)] as const)
+  const seeds = Object.entries(m.atoms).map(([key, v]) => [key, opts.atoms[key]!, decode(opts.atoms[key], key, v)] as const)
   const binds = [...container.querySelectorAll('[data-sleek-bind]')].map((node) => {
     const key = node.getAttribute('data-sleek-bind')!
     if (!(key in m.atoms)) throw new ManifestInvalid({ reason: `bind key "${key}" missing from manifest` })
     return { node, atom: opts.atoms[key]! }
   })
 
+  const store = makeAtomStore()
+  for (const [key, atom, v] of seeds) {
+    try {
+      store.set(atom, v)
+    } catch (cause) {
+      await store.dispose()
+      throw new ManifestDecodeFailed({ key, cause })
+    }
+  }
+
   const scope = Effect.runSync(Scope.make())
   const built = await Effect.runPromiseExit(Layer.buildWithScope(opts.layer, scope))
   if (Exit.isFailure(built)) {
-    await Effect.runPromise(Scope.close(scope, built))
+    await Effect.runPromiseExit(Scope.close(scope, built)) // a finalizer defect never replaces the layer error
+    await store.dispose()
     throw original(built.cause)
   }
 
-  const store = makeAtomStore()
-  for (const [atom, v] of seeds) store.set(atom as Atom.Writable<unknown>, v)
   const ctx = Context.add(Context.add(built.value as Context.Context<unknown>, Store, store), Scope.Scope, scope)
 
   let active = true
@@ -145,7 +155,9 @@ const activate = async <R, LE>(opts: ResumeOptions<R, LE>): Promise<Resumed> => 
         return
       }
       if (!active) return
-      const exit = await Effect.runPromiseExit(Effect.provide(h.run(event), ctx as Context.Context<any>))
+      // Forked into the client Scope so `dispose` interrupts a run in flight; suspend turns a sync throw into a defect.
+      const run = Effect.provide(Effect.suspend(() => h.run(event)), ctx as Context.Context<any>)
+      const exit = await Effect.runPromise(Effect.flatMap(Effect.forkIn(run, scope), Fiber.await))
       if (active && Exit.isFailure(exit)) report(exit.cause)
     })
   }
