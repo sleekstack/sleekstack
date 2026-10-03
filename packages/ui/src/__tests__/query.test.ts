@@ -38,10 +38,13 @@ const Show = (key: string, queryFn: () => Promise<string>, tagName = 'b') => () 
 
 describe('useQuery', () => {
   it('renders pending then the resolved result; re-renders only readers of that query', async () => {
-    const fn = counting(async () => 'hi')
+    let resolve!: (v: string) => void
+    const fn = counting(() => new Promise<string>((r) => (resolve = r)))
     let otherRuns = 0
     const Other = () => Effect.sync(() => (otherRuns++, el('i', {}, 'x')))
     const { container } = await go(jsx('div', { children: [jsx(Show('a', fn.queryFn), {}), jsx(Other, {})] }))
+    expect(container.querySelector('b')!.textContent).toBe('pending:')
+    resolve('hi')
     await tick()
     expect(container.querySelector('b')!.textContent).toBe('success:hi')
     expect(otherRuns).toBe(1)
