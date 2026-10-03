@@ -8,7 +8,7 @@
   "priority": null,
   "spec": "fn-15-effect-native-component-framework-mvp",
   "spec_path": ".flow/tasks/fn-15-effect-native-component-framework-mvp.1.md",
-  "status": "todo",
+  "status": "done",
   "title": "ui package: Component, Provide, Catch, fromReact, string renderer and mount",
   "updated_at": "2026-10-02T17:41:59.308207Z"
 }

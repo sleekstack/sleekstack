@@ -11,7 +11,7 @@
   "priority": null,
   "spec": "fn-1-sleekstack-effect-native-di-modules-and",
   "spec_path": ".flow/tasks/fn-1-sleekstack-effect-native-di-modules-and.7.md",
-  "status": "todo",
+  "status": "done",
   "title": "React adapter: LayerProvider + useService (component scope, status cache, errors)",
   "updated_at": "2026-09-27T07:20:27.022365Z"
 }

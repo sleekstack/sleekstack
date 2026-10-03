@@ -11,7 +11,7 @@
   "priority": null,
   "spec": "fn-17-atom-ssr-and-hydration",
   "spec_path": ".flow/tasks/fn-17-atom-ssr-and-hydration.3.md",
-  "status": "todo",
+  "status": "done",
   "title": "React: hydrate prop, transport and AtomsSnapshot",
   "updated_at": "2026-10-03T09:16:49.754510Z"
 }

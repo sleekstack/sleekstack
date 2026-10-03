@@ -805,7 +805,7 @@
     "plan": 0
   },
   "spec_path": ".flow/specs/fn-2-showcase-app-team-task-board.md",
-  "status": "open",
+  "status": "done",
   "title": "Showcase app: Team Task Board demonstrating every SleekStack feature",
   "tracker": {
     "baseHashFlow": null,
@@ -818,5 +818,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-09-27T19:50:21.167209Z"
+  "updated_at": "2026-10-03T16:08:31.435721Z"
 }

@@ -1422,7 +1422,7 @@
     "plan": 0
   },
   "spec_path": ".flow/specs/fn-1-sleekstack-effect-native-di-modules-and.md",
-  "status": "open",
+  "status": "done",
   "title": "SleekStack: Effect-native DI, modules, and React/Next adapters",
   "tracker": {
     "baseHashFlow": null,
@@ -1435,5 +1435,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-09-27T15:06:09.898360Z"
+  "updated_at": "2026-10-03T16:08:30.561803Z"
 }

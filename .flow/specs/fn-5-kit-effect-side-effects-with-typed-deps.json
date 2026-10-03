@@ -7,7 +7,7 @@
   "plan_review_status": "unknown",
   "plan_reviewed_at": null,
   "spec_path": ".flow/specs/fn-5-kit-effect-side-effects-with-typed-deps.md",
-  "status": "open",
+  "status": "done",
   "title": "kit effect(): side effects with typed deps",
   "tracker": {
     "baseHashFlow": null,
@@ -20,5 +20,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-09-28T09:53:30.360716Z"
+  "updated_at": "2026-10-03T16:08:33.713906Z"
 }

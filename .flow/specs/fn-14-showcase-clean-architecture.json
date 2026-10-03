@@ -754,7 +754,7 @@
     "plan": 0
   },
   "spec_path": ".flow/specs/fn-14-showcase-clean-architecture.md",
-  "status": "open",
+  "status": "done",
   "title": "Showcase clean architecture",
   "tracker": {
     "baseHashFlow": null,
@@ -767,5 +767,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-02T14:49:18.436820Z"
+  "updated_at": "2026-10-03T16:08:38.295061Z"
 }

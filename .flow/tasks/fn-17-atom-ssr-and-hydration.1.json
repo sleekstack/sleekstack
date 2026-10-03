@@ -8,7 +8,7 @@
   "priority": null,
   "spec": "fn-17-atom-ssr-and-hydration",
   "spec_path": ".flow/tasks/fn-17-atom-ssr-and-hydration.1.md",
-  "status": "todo",
+  "status": "done",
   "title": "Core: Atom.serializable, dehydrate, store seeding",
   "updated_at": "2026-10-03T09:27:39.052797Z"
 }

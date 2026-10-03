@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-9-static-build-time-dependency-graph",
   "spec_path": ".flow/tasks/fn-9-static-build-time-dependency-graph.5.md",
-  "status": "todo",
+  "status": "done",
   "title": "Analyzer: infer action deps from yield* and enforce the graph",
   "updated_at": "2026-09-29T09:20:08.557661Z"
 }

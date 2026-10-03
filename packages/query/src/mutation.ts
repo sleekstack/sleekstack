@@ -86,9 +86,10 @@ const fibersAtom = Atom.keepAlive(
   }),
 )
 const clients = new WeakMap<AtomStore, Queries.QueriesApi>()
+const storeOf = new WeakMap<Queries.QueriesApi, AtomStore>()
 const clientFor = (store: AtomStore) => {
   let c = clients.get(store)
-  if (!c) clients.set(store, (c = Queries.make(store)))
+  if (!c) { clients.set(store, (c = Queries.make(store))); storeOf.set(c, store) }
   return c
 }
 const sharedRunners = new WeakMap<AtomStore, Map<Mutation<any, any, any, any>, Runner<any, any, any>>>()
@@ -168,9 +169,11 @@ const build = <I, A, E, R>(store: AtomStore, { options: o }: Mutation<I, A, E, R
 
 // Per-client, per-query log of optimistic writes over the value beneath the oldest one. The cached
 // value is the log folded over that base; a write leaves the log on rollback, and folds into the base
-// once it and every older write have committed.
+// once it and every older write have committed. While the log lives, a settled successful result the log did
+// not write (a refetch or an outside write) becomes the new base and the layers are re-applied over it.
 interface Layer { readonly f: (previous: Option.Option<any>) => any; committed: boolean }
-const logs = new WeakMap<Queries.QueriesApi, Map<string, { base: Option.Option<unknown>; layers: Array<Layer> }>>()
+interface Log { base: Option.Option<unknown>; layers: Array<Layer>; render: () => void; stop: () => void }
+const logs = new WeakMap<Queries.QueriesApi, Map<string, Log>>()
 
 /**
  * Writes `f(previous)` into `atom` for the duration of the call and returns its rollback (also run when the
@@ -186,23 +189,42 @@ export const optimistic = <A>(
     let byKey = logs.get(client)
     if (!byKey) logs.set(client, (byKey = new Map()))
     const id = atom[TypeId].id
-    const log = byKey.get(id) ?? { base: client.getData(atom) as Option.Option<unknown>, layers: [] }
-    byKey.set(id, log)
+    let found = byKey.get(id)
+    if (!found) {
+      const store = storeOf.get(client)
+      let shown: unknown
+      const l: Log = {
+        base: client.getData(atom),
+        layers: [],
+        render: () => {
+          const value = l.layers.reduce((acc, x) => Option.some(x.f(acc)), l.base as Option.Option<A>)
+          shown = undefined // our own write: never read back as a new base
+          Option.match(value, { onNone: () => client.reset(atom), onSome: (v) => client.setData(atom, v) })
+          if (store) shown = store.get(atom)
+        },
+        // without the runner's store (a hand-provided Queries) there is nothing to observe
+        stop: store
+          ? store.subscribe(atom, () => {
+              const r = store.get(atom)
+              if (shown === undefined || r === shown || r.waiting || !Result.isSuccess(r)) return
+              l.base = client.getData(atom)
+              l.render()
+            })
+          : () => {},
+      }
+      byKey.set(id, (found = l))
+    }
+    const log = found
     const layer: Layer = { f, committed: false }
     log.layers.push(layer)
-    // ponytail: a refetch landing mid-mutation is overwritten by the next recompute; rebase on it if that matters
-    const render = () => {
-      const value = log.layers.reduce((acc, l) => Option.some(l.f(acc)), log.base as Option.Option<A>)
-      Option.match(value, { onNone: () => client.reset(atom), onSome: (v) => client.setData(atom, v) })
-    }
-    render()
+    log.render()
     const settle = (commit: boolean) => {
       const i = log.layers.indexOf(layer)
       if (i < 0 || layer.committed) return
       if (commit) layer.committed = true
-      else { log.layers.splice(i, 1); render() }
+      else { log.layers.splice(i, 1); log.render() }
       while (log.layers[0]?.committed) log.base = Option.some(log.layers.shift()!.f(log.base))
-      if (log.layers.length === 0) byKey.delete(id)
+      if (log.layers.length === 0) { log.stop(); byKey.delete(id) }
     }
     yield* Effect.addFinalizer((exit) => Effect.sync(() => settle(Exit.isSuccess(exit))))
     return Effect.sync(() => settle(false))

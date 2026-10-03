@@ -8,7 +8,7 @@
   "priority": null,
   "spec": "fn-11-effect-first-runtime-graph-and-devtools",
   "spec_path": ".flow/tasks/fn-11-effect-first-runtime-graph-and-devtools.3.md",
-  "status": "todo",
+  "status": "done",
   "title": "analyze: recognize plain Effect Layers from configureRuntime({ layer }) roots",
   "updated_at": "2026-09-29T13:11:05.469159Z"
 }

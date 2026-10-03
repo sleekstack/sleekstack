@@ -11,7 +11,7 @@
   "priority": null,
   "spec": "fn-13-runtime-package-request-aware-graph",
   "spec_path": ".flow/tasks/fn-13-runtime-package-request-aware-graph.3.md",
-  "status": "todo",
+  "status": "done",
   "title": "Show all roots on the showcase /graph page and in the devtools panel",
   "updated_at": "2026-10-01T10:13:43.119539Z"
 }

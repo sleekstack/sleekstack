@@ -1,9 +1,9 @@
 // @sleekstack/kit/react public barrel. No Effect or core type is reachable from here.
 import { createElement, useCallback, type ReactNode } from 'react'
 import { Exit, Option } from 'effect'
-import { QueryProvider as CoreQueryProvider, useMutation as coreUseMutation, useQueries, useQuery as coreUseQuery } from '@sleekstack/react'
-import { normalize, type SleekStackError } from '../errors'
-import { coreMutation, coreQuery, type CachedQuery, type Mutation } from '../query'
+import { HydrateQueries as CoreHydrateQueries, QueryProvider as CoreQueryProvider, useMutation as coreUseMutation, useQueries, useQuery as coreUseQuery } from '@sleekstack/react'
+import { normalize, SleekStackError } from '../errors'
+import { coreMutation, coreQuery, type CachedQuery, type Dehydrated, type Mutation } from '../query'
 
 export { LayerProvider, useService, useServices, createAppScope, type LayerProviderProps, type AppScopeHandle } from './hooks'
 export { useAtom, useAtomValue, useAtomSet, type SetAtom } from './atoms'
@@ -35,6 +35,34 @@ export function QueryProvider({ children }: { readonly children?: ReactNode }) {
   return createElement(CoreQueryProvider, null, children)
 }
 
+/**
+ * Seeds the query store with `prefetch`ed state (from `@sleekstack/kit/next`), so the queries below render
+ * with data on first paint. Queries the server read lazily under it are transferred too.
+ *
+ * @throws {@link SleekStackError} with code `Unknown` outside a `LayerProvider`.
+ *
+ * @example
+ * ```tsx
+ * import { cachedQuery } from '@sleekstack/kit'
+ * import { prefetch } from '@sleekstack/kit/next'
+ * import { HydrateQueries, useQuery } from '@sleekstack/kit/react'
+ *
+ * const todo = cachedQuery({ key: (id: string) => ['todo', id], fetch: function* (id) { return `todo ${id}` }, serializable: true })
+ * const Todo = ({ id }: { id: string }) => <p>{useQuery(todo(id)).data}</p>
+ *
+ * export default async function Page() {
+ *   return <HydrateQueries state={await prefetch([todo('t1')])}><Todo id="t1" /></HydrateQueries>
+ * }
+ * ```
+ */
+export function HydrateQueries({ state, children }: { readonly state: Dehydrated; readonly children?: ReactNode }) {
+  // Called, not rendered, so its throws go through `kit` (its hooks run in this component's order).
+  return kit(() => CoreHydrateQueries({ state: state as never, children }))
+}
+
+// Core's exact rejection when a server render reads an un-prefetched query and no runner is registered.
+const NO_RUNNER = 'No server query runner: import @sleekstack/next (or call Hydrate.setServerRunner) on the server.'
+
 /** What {@link useQuery} returns. */
 export interface QueryState<T> {
   readonly data: T | undefined
@@ -55,7 +83,7 @@ export interface QueryState<T> {
  *
  * @param query - A query from a `cachedQuery()` family.
  * @returns `data`, `error`, `isPending`, `isFetching`, `refetch`.
- * @throws {@link SleekStackError} with code `Unknown` outside a `LayerProvider`. A fetch's own failure (including `MissingDependency`) is returned as `error`, not thrown.
+ * @throws {@link SleekStackError} with code `Unknown` outside a `LayerProvider`, `NoServerRunner` when a server render reads an un-prefetched query without `@sleekstack/kit/next` loaded, or `QueryDecodeFailed` when a `serializable` decode throws. A fetch's own failure (including `MissingDependency`) is returned as `error`, not thrown.
  *
  * @example
  * ```tsx
@@ -70,8 +98,18 @@ export interface QueryState<T> {
  * }
  * ```
  */
+
 export function useQuery<T>(query: CachedQuery<T>): QueryState<T> {
-  const r = kit(() => coreUseQuery(coreQuery(query)))
+  const r = kit(() => {
+    try {
+      return coreUseQuery(coreQuery(query))
+    } catch (e) {
+      if (e instanceof Error && e.message === NO_RUNNER) {
+        throw new SleekStackError('NoServerRunner', 'No server query runner: import @sleekstack/kit/next on the server, or prefetch the query.', {}, { cause: e })
+      }
+      throw e
+    }
+  })
   return { ...r, data: r.data as T | undefined, error: r.error === undefined ? undefined : normalize(r.error) }
 }
 
@@ -93,7 +131,10 @@ export interface MutationHandle<I, T> {
  *
  * @param mutation - A `mutation()` definition.
  * @returns `mutate`, `data`, `error`, `isPending`, `reset`.
- * @throws {@link SleekStackError} with code `Unknown` outside a `LayerProvider` or during a server render;
+ * During a server render it returns the idle handle, and calling `mutate` there throws a
+ * {@link SleekStackError} (code `Unknown`) whose cause is an `Error` named `MutateDuringRender`.
+ *
+ * @throws {@link SleekStackError} with code `Unknown` outside a `LayerProvider`;
  *   `mutate` rejects with code `MissingDependency` when a `yield*`ed Tag is not provided and `Unknown` when `run` throws.
  *
  * @example
@@ -112,10 +153,14 @@ export interface MutationHandle<I, T> {
 export function useMutation<I, T>(mutation: Mutation<I, T>): MutationHandle<I, T> {
   const m = kit(() => coreUseMutation(coreMutation(mutation)))
   const run = m.mutate
-  const mutate = useCallback(async (input: I) => {
-    const exit = await run(input)
-    if (Exit.isSuccess(exit)) return exit.value as T
-    throw normalize(exit.cause)
+  const mutate = useCallback((input: I) => {
+    // Server: the core throws MutateDuringRender synchronously; surface it as a sync SleekStackError.
+    if (typeof window === 'undefined') kit(() => run(input))
+    return (async () => {
+      const exit = await run(input)
+      if (Exit.isSuccess(exit)) return exit.value as T
+      throw normalize(exit.cause)
+    })()
   }, [run])
   const s = m.state
   return {

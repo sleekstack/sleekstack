@@ -1,0 +1,18 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-03T15:54:48.754822Z",
+  "depends_on": [
+    "fn-22-benchmark-suite-for-the-ui-renderer-and.2",
+    "fn-22-benchmark-suite-for-the-ui-renderer-and.3",
+    "fn-22-benchmark-suite-for-the-ui-renderer-and.4"
+  ],
+  "id": "fn-22-benchmark-suite-for-the-ui-renderer-and.5",
+  "priority": null,
+  "spec": "fn-22-benchmark-suite-for-the-ui-renderer-and",
+  "spec_path": ".flow/tasks/fn-22-benchmark-suite-for-the-ui-renderer-and.5.md",
+  "status": "todo",
+  "title": "bench: baseline, CI job and README",
+  "updated_at": "2026-10-03T15:54:48.754822Z"
+}

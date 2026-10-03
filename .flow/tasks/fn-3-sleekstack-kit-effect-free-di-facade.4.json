@@ -15,7 +15,7 @@
   ],
   "spec": "fn-3-sleekstack-kit-effect-free-di-facade",
   "spec_path": ".flow/tasks/fn-3-sleekstack-kit-effect-free-di-facade.4.md",
-  "status": "todo",
+  "status": "done",
   "title": "apps/showcase-kit: full task-board port (domain, server, client, tests)",
   "updated_at": "2026-09-28T07:14:15.948776Z"
 }

@@ -19,6 +19,8 @@ The functions `defineEffect` and `defineQuery` return are plain async functions.
 
 <include>../../snippets/kit/next.ts</include>
 
+`prefetch(queries, { provide? })` loads `serializable` cached queries in a server component for `<HydrateQueries>`; importing `@sleekstack/kit/next` also makes it the server runner for lazy reads. See [Queries on the server](/docs/queries-ssr#kit).
+
 ## Running Effects (Effect)
 
 `runEffect(effect, { request?, overrides? })` runs an Effect on the configured runtime and rejects exactly as `Effect.runPromise` does. `request` is a Layer built per call and released when the call ends; `overrides` is provided outside it, so it shadows both the Effect's and `request`'s services for that call only. Wrap calls in `'use server'` functions to use them from Client Components.

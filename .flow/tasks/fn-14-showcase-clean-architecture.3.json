@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-14-showcase-clean-architecture",
   "spec_path": ".flow/tasks/fn-14-showcase-clean-architecture.3.md",
-  "status": "todo",
+  "status": "done",
   "title": "Board use cases + act() action adapter",
   "updated_at": "2026-10-02T06:52:00.055563Z"
 }

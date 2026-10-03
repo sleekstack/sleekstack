@@ -1,0 +1,22 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-03T15:46:36.282775Z",
+  "depends_on": [
+    "fn-21-replace-sleekstackquery-with-tanstack.2",
+    "fn-21-replace-sleekstackquery-with-tanstack.3",
+    "fn-21-replace-sleekstackquery-with-tanstack.4",
+    "fn-21-replace-sleekstackquery-with-tanstack.5",
+    "fn-21-replace-sleekstackquery-with-tanstack.8",
+    "fn-21-replace-sleekstackquery-with-tanstack.9",
+    "fn-21-replace-sleekstackquery-with-tanstack.10"
+  ],
+  "id": "fn-21-replace-sleekstackquery-with-tanstack.12",
+  "priority": null,
+  "spec": "fn-21-replace-sleekstackquery-with-tanstack",
+  "spec_path": ".flow/tasks/fn-21-replace-sleekstackquery-with-tanstack.12.md",
+  "status": "todo",
+  "title": "query: remove the old engine and record the decision",
+  "updated_at": "2026-10-03T15:46:36.282775Z"
+}
