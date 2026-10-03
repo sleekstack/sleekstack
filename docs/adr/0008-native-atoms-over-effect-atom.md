@@ -10,5 +10,5 @@ SleekStack ships its own atoms (`Atom`, `Result`, `AtomStore` in `@sleekstack/co
 
 ## Consequences
 
-- Atoms are client only; a hook that runs during a server render throws `AtomsClientOnly`. There is no SSR hydration, persistence or devtools in v1.
+- In v1 atoms were client only (`AtomsClientOnly`), with no SSR hydration, persistence or devtools. ADR 0016 adds server rendering and hydration and removes `AtomsClientOnly`.
 - The kit hooks suspend and throw `SleekStackError` instead of exposing `Result`, to match kit `useService`.

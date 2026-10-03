@@ -37,8 +37,7 @@ const renderString = async (tree: React.ReactNode, registry: RequestRegistry): P
  * String mode resolves the HTML after closing every scope; stream mode closes them when the piped destination
  * ends (finish, close or error), on shell error, or on `abort` — a stream that is never piped must be aborted.
  *
- * @param element - The tree to render.
- * @param options - Omitted for string mode; `{ stream: options }` for `renderToPipeableStream` with `options`.
+ * @param element - The tree to render. Pass `{ stream: options }` as a second argument for `renderToPipeableStream` with `options`.
  * @returns The HTML (string mode) or the stream handle.
  *
  * @example

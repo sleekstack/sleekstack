@@ -8,7 +8,8 @@ The Effect-native engine. Core has no Effect-hiding sugar (that is [`@sleekstack
 | `module({ name, entries, imports, exports, lifetime })` | A named group of entries. `exports` makes every other Tag private (checked at build time). `imports` may be a thunk. |
 | `makeAppScope(entries, { onFinalizerError })` | Opens the app scope. `scope.child('request' \| 'component', entries?)` opens nested scopes; `scope.close` runs finalizers in reverse order. |
 | `resolveTag`, `resolveTagEffect` | Look a Tag up in a scope's `context`; a miss is `MissingDependency`. |
-| `Atom`, `Result`, `makeAtomStore` | Reactive client state modeled on effect-atom, no dependency. |
+| `Atom`, `Result`, `makeAtomStore` | Reactive state modeled on effect-atom, no dependency. |
+| `Atom.serializable`, `Atom.serializable.result`, `dehydrate`, `hydrate`, `Snapshot` | Atom SSR: opt an atom in with a key and a `Schema`, dehydrate a store's settled values, seed another store from the snapshot. `makeAtomStore({ hydrate, inert })` seeds at construction or never starts Effects. Keys are unique per store (`DuplicateAtomKey`). |
 | Error classes | `MissingDependency`, `DependencyCycle`, `AmbiguousProvider`, `ModuleCycle`, `DuplicateModule`, `InvalidModule`, `CaptiveDependency`, `PrivateDependency`, `AtomCycle`. Only `MissingDependency` is raised by the runtime; `sleekstack check` reports the rest. |
 
 ```ts

@@ -74,7 +74,7 @@ const Next = () => { const [id, set] = useAtom(userId); return <button onClick={
 ```
 
 - Readers suspend until the first value; failures reach the error boundary as `SleekStackError` (`MissingDependency`, `AtomCycle`, or `Unknown` for a throw/rejection in `fn`).
-- `useAtomSet` accepts a value or an updater `(prev) => next`. Hooks are client only.
+- `useAtomSet` accepts a value or an updater `(prev) => next`. Hooks render on the server too; kit atom values are not transferred to the client (no serializable atoms).
 
 ### Cached queries and mutations: `cachedQuery()`, `mutation()`
 

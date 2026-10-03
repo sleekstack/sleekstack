@@ -7,7 +7,8 @@ The React adapter for [`@sleekstack/core`](../core): a Suspense-native, StrictMo
 | `LayerProvider` | `provide` takes modules and entries. At the root it builds an app scope; nested under another provider it opens a component scope. Scopes close on unmount. Pass `appScope` to share one externally owned app scope between React roots, and `onFinalizerError` to receive finalizer failures. |
 | `useService(Tag)` | Reads a service from the nearest provider. Build failures (for example `MissingDependency`) are thrown to the nearest error boundary. |
 | `closeProvidersOn(appScope)` | Closes the providers sharing an external app scope before you close it. |
-| `useAtomValue`, `useAtomSet`, `useAtom`, `useAtomRefresh`, `useAtomSuspense` | Atom hooks (client only; they throw `AtomsClientOnly` during a server render). |
+| `useAtomValue`, `useAtomSet`, `useAtom`, `useAtomRefresh`, `useAtomSuspense` | Atom hooks. They also run during a server render. |
+| `renderWithAtoms`, `AtomsSnapshot`, `hydrate` / `snapshotId` props | Atom SSR: `renderWithAtoms(tree)` (string) or `renderWithAtoms(tree, { stream })` renders with request-owned provider scopes and closes them when the render ends; `<AtomsSnapshot />` emits the provider's serializable atoms as a JSON script tag the client provider seeds from; `hydrate` seeds a provider from a snapshot directly. See the Atoms guide. |
 | `useQuery`, `useQuerySuspense`, `useQueryResult`, `useInfiniteQuery`, `useQueries`, `useMutation`, `QueryProvider`, `HydrateQueries` | Hooks for [`@sleekstack/query`](../query). Query hooks also work in a server render (they read prefetched data); `useMutation` and `useQueries` are client only. See the Queries guide. |
 
 ```tsx
