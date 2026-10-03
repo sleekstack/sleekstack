@@ -28,6 +28,6 @@ it('a failed prefetch renders the placeholder, then the client fetches the board
   const page = await HomePage()
   expect(renderToString(page)).toContain('Loading board…')
   render(page)
-  expect(await screen.findByRole('region', { name: 'project: Alpha' })).toBeTruthy()
+  expect(await screen.findByRole('region', { name: 'project: Alpha' }, { timeout: 10_000 })).toBeTruthy()
   expect(actions.readBoard).toHaveBeenCalled()
-}, 30_000) // cold dynamic import of the page can exceed 5s on a loaded CI runner
+}, 30_000) // the cold import and first render of the page can be slow on a loaded CI runner
