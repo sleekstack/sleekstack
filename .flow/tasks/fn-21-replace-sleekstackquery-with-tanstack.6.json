@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-03T15:46:36.282631Z",
+  "depends_on": [
+    "fn-21-replace-sleekstackquery-with-tanstack.1"
+  ],
+  "id": "fn-21-replace-sleekstackquery-with-tanstack.6",
+  "priority": null,
+  "spec": "fn-21-replace-sleekstackquery-with-tanstack",
+  "spec_path": ".flow/tasks/fn-21-replace-sleekstackquery-with-tanstack.6.md",
+  "status": "todo",
+  "title": "ui: useQuery with ref-counted observer registry",
+  "updated_at": "2026-10-03T15:46:36.282631Z"
+}

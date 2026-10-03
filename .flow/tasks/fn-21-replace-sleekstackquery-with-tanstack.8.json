@@ -1,0 +1,17 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-03T15:46:36.282681Z",
+  "depends_on": [
+    "fn-21-replace-sleekstackquery-with-tanstack.4",
+    "fn-21-replace-sleekstackquery-with-tanstack.6"
+  ],
+  "id": "fn-21-replace-sleekstackquery-with-tanstack.8",
+  "priority": null,
+  "spec": "fn-21-replace-sleekstackquery-with-tanstack",
+  "spec_path": ".flow/tasks/fn-21-replace-sleekstackquery-with-tanstack.8.md",
+  "status": "todo",
+  "title": "analyze: query fetcher reads retargeted, QueryClientTag requirement checked",
+  "updated_at": "2026-10-03T15:46:36.282681Z"
+}
