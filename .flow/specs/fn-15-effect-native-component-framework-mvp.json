@@ -1,7 +1,7 @@
 {
   "branch_name": "fn-15-effect-native-component-framework-mvp",
-  "completion_review_status": "needs_work",
-  "completion_reviewed_at": "2026-10-03T05:44:37.069309Z",
+  "completion_review_status": "ship",
+  "completion_reviewed_at": "2026-10-03T05:46:26.718253Z",
   "created_at": "2026-10-02T17:26:33.604605Z",
   "default_impl": null,
   "default_review": null,
@@ -17,7 +17,7 @@
     "fn-15-effect-native-component-framework-mvp.6": 0
   },
   "next_task": 1,
-  "plan_review_rounds": 1,
+  "plan_review_rounds": 0,
   "plan_review_status": "ship",
   "plan_reviewed_at": "2026-10-02T17:51:32.190598Z",
   "review_attempts": [
@@ -1145,6 +1145,50 @@
       "timestamp": "2026-10-03T05:44:37.062462Z",
       "tool_calls": 11,
       "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "9e0838be739782d2da28592ef0cad2ac80844f39bd291c38de685e3c0dab8141",
+      "backend": "codex",
+      "base_sha": "54fa66bb907943a8f84cf1baa510150501f5c298",
+      "counter_kind": "plan",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-defd1b0f502852349db36cf3a2dec177",
+            "classification": "introduced",
+            "findingId": "finding-defd1b0f502852349db36cf3a2dec177",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "1df9eb133817af27f54ee0e4287e767ac0535b1b",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 3640,
+      "output_sha256": "c6e8e17199ba37dec0f68288b23d1055286420f89a956f0559f046268296c358",
+      "reservation_id": "9a49853aeaa646d2a27eefda314457ee",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-10-03T05:46:26.713975Z",
+      "verdict": "SHIP"
     }
   ],
   "review_hash_epoch": {
@@ -1155,7 +1199,7 @@
     "impl:fn-15-effect-native-component-framework-mvp.5": 1,
     "impl:fn-15-effect-native-component-framework-mvp.6": 1,
     "plan": 2,
-    "plan#completion": 0
+    "plan#completion": 1
   },
   "review_pending_rounds": {},
   "review_reservations": {},
@@ -1183,5 +1227,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-03T05:44:37.071324Z"
+  "updated_at": "2026-10-03T05:46:26.718903Z"
 }
