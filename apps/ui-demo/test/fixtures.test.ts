@@ -19,6 +19,7 @@ describe('one fixture per Analyzer code', { timeout: 60_000 }, () => {
     ['missing-dependency', 'MissingDependency'],
     ['unhandled-error', 'UnhandledError'],
     ['effect-inside-react', 'EffectInsideReact'],
+    ['jsx-missing-dependency', 'MissingDependency'],
     ['unresolved', 'Unresolved'],
   ])('%s reports %s', (name, code) => {
     const { errors } = analyzeComponents({ project: path.join(fixture(name), 'tsconfig.json') })
@@ -29,6 +30,6 @@ describe('one fixture per Analyzer code', { timeout: 60_000 }, () => {
   it('the demo app itself is clean', () => {
     const r = analyzeComponents({ project: path.join(root, 'tsconfig.json') })
     expect(r.errors).toEqual([])
-    expect(r.trees).toHaveLength(2)
+    expect(r.trees).toHaveLength(1)
   })
 })

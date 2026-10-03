@@ -123,6 +123,9 @@ describe('graph error fixtures', () => {
   it('clean projects yield no errors', () => {
     expect(located('kit-app')).toEqual([])
     expect(located('core-app')).toEqual([])
+    // An `Effect.Tag` class is a Tag: its Layers resolve to nodes named by its key.
+    expect(located('effect-tag')).toEqual([])
+    expect(analyze({ project: path.join(dir('effect-tag'), 'tsconfig.json') }).graphs[0]!.nodes.map((n) => n.id).sort()).toEqual(['Clock', 'Logger'])
     // Each runtime checks only the actions its file reaches.
     expect(located('actions-roots')).toEqual(expected('actions-roots'))
     expect(analyze({ project: path.join(dir('actions-roots'), 'tsconfig.json') }).extraction.map((e) => e.code)).toEqual(['UnownedAction'])

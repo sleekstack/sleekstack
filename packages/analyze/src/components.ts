@@ -93,6 +93,7 @@ export function analyzeComponents(opts: { readonly project: string }): Component
     if (ts.isBinaryExpression(e) && [ts.SyntaxKind.AmpersandAmpersandToken, ts.SyntaxKind.BarBarToken, ts.SyntaxKind.QuestionQuestionToken].includes(e.operatorToken.kind))
       return [...(e.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken ? [] : build(e.left)), ...build(e.right)]
     if (ts.isArrayLiteralExpression(e)) return e.elements.flatMap((x) => build(ts.isSpreadElement(x) ? x.expression : x))
+    if (ts.isJsxElement(e) || ts.isJsxSelfClosingElement(e) || ts.isJsxFragment(e)) return jsx(e)
     const t = checker.getTypeAtLocation(e)
     if (isAny(t)) return fail(e, `"${text(e)}" is typed ${checker.typeToString(t)}; what it renders cannot be read`)
     if (ts.isIdentifier(e) || ts.isPropertyAccessExpression(e)) {
@@ -126,7 +127,11 @@ export function analyzeComponents(opts: { readonly project: string }): Component
     if (id) return fail(e, `"${text(e)}" is not a component`)
     const target = calleeTarget(e.expression)
     if (ts.isCallExpression(target)) {
-      if (calleeOf(target) === 'ui/component#fromReact' && target.arguments[0]) return [guest(e, target.arguments[0])]
+      if (calleeOf(target) === 'ui/component#fromReact' && target.arguments[0]) {
+        const props = e.arguments[0] && unwrap(e.arguments[0])
+        const given = props && ts.isObjectLiteralExpression(props) ? props.properties.map((p) => [p, propType(p)] as const) : props ? [[props, checker.getTypeAtLocation(props)] as const] : []
+        return [guest(e, text(e.expression), target.arguments[0], given)]
+      }
       return fail(e.expression, `"${text(e.expression)}" is a dynamic component; its declaration cannot be read`)
     }
     if (stack.has(target)) return component(e, text(e.expression), () => [])
@@ -137,9 +142,71 @@ export function analyzeComponents(opts: { readonly project: string }): Component
       stack.delete(target)
     }
   }
+  /** An attribute's value expression (`a="x"` or `a={x}`). */
+  const attrOf = (open: ts.JsxOpeningLikeElement, name: string): ts.Expression | undefined => {
+    const a = open.attributes.properties.find((p): p is ts.JsxAttribute => ts.isJsxAttribute(p) && p.name.getText() === name)
+    return a?.initializer && (ts.isJsxExpression(a.initializer) ? a.initializer.expression : a.initializer)
+  }
+  /** What a `{expr}` between JSX tags renders: Effect components through branches and `.map`; plain values render nothing to analyze. */
+  const embedded = (x: ts.Expression): UiNode[] => {
+    const e = unwrap(x)
+    if (ts.isConditionalExpression(e)) return [...embedded(e.whenTrue), ...embedded(e.whenFalse)]
+    if (ts.isBinaryExpression(e) && [ts.SyntaxKind.AmpersandAmpersandToken, ts.SyntaxKind.BarBarToken, ts.SyntaxKind.QuestionQuestionToken].includes(e.operatorToken.kind))
+      return [...(e.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken ? [] : embedded(e.left)), ...embedded(e.right)]
+    if (ts.isArrayLiteralExpression(e)) return e.elements.flatMap((m) => embedded(ts.isSpreadElement(m) ? m.expression : m))
+    const t = checker.getTypeAtLocation(e)
+    if (isNodeEffect(t)) return build(e)
+    const item = checker.isArrayType(t) ? checker.getTypeArguments(t as ts.TypeReference)[0] : undefined
+    return item && isNodeEffect(item) ? list(e) : []
+  }
+  /** A JSX element or fragment: host elements are transparent, `Provider` / `Boundary` become `provide` / `catch`, anything else a component. */
+  const jsx = (e: ts.JsxElement | ts.JsxSelfClosingElement | ts.JsxFragment): UiNode[] => {
+    const open = ts.isJsxElement(e) ? e.openingElement : ts.isJsxSelfClosingElement(e) ? e : undefined
+    const kids = (ts.isJsxSelfClosingElement(e) ? [] : e.children).flatMap((c) => (ts.isJsxText(c) ? [] : ts.isJsxExpression(c) ? (c.expression ? embedded(c.expression) : []) : build(c)))
+    if (!open) return kids
+    const tag = open.tagName
+    if (ts.isIdentifier(tag) && /^[a-z]/.test(tag.text)) return kids
+    const id = libId(checker.getSymbolAtLocation(tag), checker)
+    if (id === 'ui/jsx-runtime#Fragment') return kids
+    if (id === 'ui/jsx-runtime#Provider') {
+      const layer = attrOf(open, 'layer') ?? fail(e, '<Provider> needs a layer')
+      const { provides, requires } = layerTags(layer, checker.getTypeAtLocation(layer))
+      return [{ kind: 'provide', provides, requires, children: kids, ...loc(e) }]
+    }
+    if (id === 'ui/jsx-runtime#Boundary') {
+      const t = attrOf(open, 'tag') ?? fail(e, '<Boundary> needs a tag')
+      const tt = ts.isStringLiteralLike(unwrap(t)) ? { value: (unwrap(t) as ts.StringLiteralLike).text } : checker.getTypeAtLocation(t)
+      if (!('value' in tt)) return fail(t, `Boundary tag "${text(t)}" is not a string literal`)
+      const fb = attrOf(open, 'fallback')
+      const target = fb && calleeTarget(fb)
+      // The fallback renders outside the boundary: its components are siblings, not caught children.
+      return [{ kind: 'catch', tag: tt.value, children: kids, ...loc(e) }, ...(target && !ts.isCallExpression(target) ? bodyReturns(target).flatMap(build) : [])]
+    }
+    if (ts.isJsxNamespacedName(tag)) return fail(tag, `"${text(tag)}" is not a component`)
+    const target = calleeTarget(tag)
+    const sig = checker.getTypeAtLocation(tag).getCallSignatures()[0]
+    if (!sig) return fail(tag, `"${text(tag)}" is not a component`)
+    const type = checker.getReturnTypeOfSignature(sig)
+    if (ts.isCallExpression(target)) {
+      if (calleeOf(target) !== 'ui/component#fromReact' || !target.arguments[0]) return fail(tag, `"${text(tag)}" is a dynamic component; its declaration cannot be read`)
+      const given = open.attributes.properties.flatMap((p) => {
+        const v = ts.isJsxSpreadAttribute(p) ? p.expression : p.initializer && (ts.isJsxExpression(p.initializer) ? p.initializer.expression : p.initializer)
+        return v ? [[p, checker.getTypeAtLocation(v)] as const] : []
+      })
+      return [guest(e, text(tag), target.arguments[0], given)]
+    }
+    if (stack.has(target)) return component(e, text(tag), () => kids, type)
+    stack.add(target)
+    try {
+      return component(e, text(tag), () => [...bodyReturns(target).flatMap(build), ...kids], type)
+    } finally {
+      stack.delete(target)
+    }
+  }
+  const propType = (p: ts.ObjectLiteralElementLike) => checker.getTypeAtLocation(ts.isPropertyAssignment(p) ? p.initializer : ts.isSpreadAssignment(p) ? p.expression : p)
   /** A component node carrying `e`'s `E` / `R`; unreadable members fail closed at `e` without hiding its children. */
-  const component = (e: ts.Expression, name: string, children: () => UiNode[]): UiNode[] => {
-    const args = effectArgs(checker.getTypeAtLocation(e))
+  const component = (e: ts.Expression, name: string, children: () => UiNode[], type = checker.getTypeAtLocation(e)): UiNode[] => {
+    const args = effectArgs(type)
     if (!args || !isNode(args[0])) return fail(e, `"${text(e)}" does not return Effect<Node, E, R>`)
     const own: UiNode[] = [...args[1], ...args[2]].some(isAny) ? [{ kind: 'unresolved', message: `"${text(e)}" has E / R typed any or unknown; its errors and requirements cannot be named`, ...loc(e) }] : []
     return [{ kind: 'component', name, guest: false, requires: tagNames(e, args[2].filter((m) => !isAny(m)), 'requires'), errors: errorTags(e, args[1].filter((m) => !isAny(m))), children: children(), ...loc(e) }, ...own]
@@ -175,7 +242,7 @@ export function analyzeComponents(opts: { readonly project: string }): Component
     return out
   }
   /** A `fromReact` guest: Effect components in its props or in its React body are its (illegal) children. */
-  const guest = (call: ts.CallExpression, cmp: ts.Expression): UiNode => {
+  const guest = (at: ts.Node, name: string, cmp: ts.Expression, given: ReadonlyArray<readonly [ts.Node, ts.Type]>): UiNode => {
     const inside: UiNode[] = []
     const found = (n: ts.Node) => inside.push({ kind: 'component', name: text(n), guest: false, requires: [], errors: [], children: [], ...loc(n) })
     /** Whether a prop value's type holds an Effect component anywhere: nested objects, arrays and tuples included. */
@@ -197,9 +264,7 @@ export function analyzeComponents(opts: { readonly project: string }): Component
         inside.push({ kind: 'unresolved', message: err.message, ...loc(err.node) })
       }
     }
-    const props = call.arguments[0] && unwrap(call.arguments[0])
-    if (props && ts.isObjectLiteralExpression(props)) for (const p of props.properties) inspect(p, checker.getTypeAtLocation(ts.isPropertyAssignment(p) ? p.initializer : ts.isSpreadAssignment(p) ? p.expression : p))
-    else if (props) inspect(props, checker.getTypeAtLocation(props))
+    for (const [n, t] of given) inspect(n, t)
     // The React body is scanned when local; a component declared in a library (.d.ts / node_modules) cannot hold app code.
     let body: ts.Node | undefined
     const d = declOf(unwrap(cmp))
@@ -223,7 +288,7 @@ export function analyzeComponents(opts: { readonly project: string }): Component
     }
     if (body) ts.forEachChild(body, scan)
     else if (!external && !inside.some((n) => n.kind === 'unresolved')) inside.push({ kind: 'unresolved', message: `React component "${text(cmp)}" has no readable declaration`, ...loc(cmp) })
-    return { kind: 'component', name: text(call.expression), guest: true, requires: [], errors: [], children: inside, ...loc(call) }
+    return { kind: 'component', name, guest: true, requires: [], errors: [], children: inside, ...loc(at) }
   }
 
   const trees: ComponentTree[] = []
