@@ -6,6 +6,7 @@
  * no client is in scope.
  */
 import { Component, Suspense, useEffect, useState, type ReactNode } from 'react'
+import { MissingDependency } from '@sleekstack/core'
 import { QueryClientTag } from '@sleekstack/query'
 import { useService } from '@sleekstack/react'
 
@@ -20,6 +21,8 @@ declare const process: { readonly env: { readonly NODE_ENV?: string } }
 const enabled = (): boolean => typeof process !== 'undefined' && process.env.NODE_ENV !== 'production'
 
 const SHOWN = 20
+/** TanStack `updated` actions in the panel's lifecycle vocabulary; observer bookkeeping is not listed. */
+const LIFECYCLE: Partial<Record<string, string>> = { fetch: 'fetching', success: 'success', error: 'failure' }
 const rowsOf = (client: Client): Row[] =>
   client.getQueryCache().getAll().map((q) => ({
     key: q.queryHash,
@@ -40,7 +43,8 @@ function Entries({ client }: { readonly client: Client }) {
     setRows(rowsOf(client))
     return client.getQueryCache().subscribe((e) => {
       setRows(rowsOf(client))
-      setEvents((prev) => [...prev, `${e.type} ${e.query.queryHash}`].slice(-SHOWN))
+      const kind = e.type === 'updated' ? LIFECYCLE[e.action.type] : e.type === 'added' || e.type === 'removed' ? e.type : undefined
+      if (kind) setEvents((prev) => [...prev, `${kind} ${e.query.queryHash}`].slice(-SHOWN))
     })
   }, [client])
   if (rows.length === 0 && events.length === 0) return empty
@@ -58,11 +62,20 @@ function Entries({ client }: { readonly client: Client }) {
 
 const ScopeEntries = () => <Entries client={useService(QueryClientTag)} />
 
-/** No `LayerProvider` or no `QueryClientTag` in scope: `useService` throws and the empty state shows. */
-class NoClient extends Component<{ readonly children: ReactNode }, { readonly failed: boolean }> {
-  override state = { failed: false }
-  static getDerivedStateFromError = () => ({ failed: true })
-  override render = () => (this.state.failed ? empty : this.props.children)
+const TAG = QueryClientTag.key
+/** `useService`'s errors for no `LayerProvider` above, or no `QueryClientTag` in its scope. */
+const noClient = (e: unknown): boolean =>
+  (e instanceof MissingDependency && e.tag === TAG) || (e instanceof Error && e.message.startsWith(`Service "${TAG}" is not provided: no <LayerProvider>`))
+
+/** Shows the empty state when no client is in scope; any other error is rethrown to the app's boundary. */
+class NoClient extends Component<{ readonly children: ReactNode }, { readonly error: unknown }> {
+  override state: { readonly error: unknown } = { error: undefined }
+  static getDerivedStateFromError = (error: unknown) => ({ error })
+  override render = () => {
+    if (this.state.error === undefined) return this.props.children
+    if (noClient(this.state.error)) return empty
+    throw this.state.error
+  }
 }
 
 /** Query entries (key, status, observers, updatedAt, gc time) and the last 20 cache events. `intervalMs` is unused: updates are pushed. */

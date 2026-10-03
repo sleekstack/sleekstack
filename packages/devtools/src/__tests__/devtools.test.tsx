@@ -1,3 +1,4 @@
+import { Component, type ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import { Atom } from '@sleekstack/core'
@@ -10,6 +11,7 @@ import { SleekStackDevtools, DEVTOOLS_MARKER, graphsOf } from '../index'
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
+  vi.restoreAllMocks()
 })
 
 describe('SleekStackDevtools', () => {
@@ -184,7 +186,9 @@ describe('SleekStackDevtools', () => {
     await client!.fetchQuery({ queryKey: ['todo', 't1'], queryFn: async () => 'title t1' })
     const entry = await screen.findByText(/success, 0 observers, updated \d{4}-/)
     expect(entry.textContent).toContain('["todo","t1"]')
-    expect(screen.getByText('added ["todo","t1"]')).not.toBeNull()
+    for (const e of ['added', 'fetching', 'success']) expect(screen.getByText(`${e} ["todo","t1"]`)).not.toBeNull()
+    await client!.fetchQuery({ queryKey: ['bad'], queryFn: async () => { throw new Error('nope') } }).catch(() => {})
+    expect(await screen.findByText('failure ["bad"]')).not.toBeNull()
     client!.removeQueries({ queryKey: ['todo', 't1'] })
     expect(await screen.findByText('removed ["todo","t1"]')).not.toBeNull()
   })
@@ -201,5 +205,18 @@ describe('SleekStackDevtools', () => {
     } finally {
       vi.unstubAllEnvs()
     }
+  })
+
+  it('Queries tab rethrows a client layer failure instead of showing the empty state', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('Not Found', { status: 404 })))
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    class Boundary extends Component<{ children: ReactNode }, { error?: unknown }> {
+      override state: { error?: unknown } = {}
+      static getDerivedStateFromError = (error: unknown) => ({ error })
+      override render = () => (this.state.error ? <p>app boundary: {String(this.state.error)}</p> : this.props.children)
+    }
+    const failing = QueryClientLive(() => { throw new Error('config broke') })
+    render(<Boundary><LayerProvider provide={[failing]}><SleekStackDevtools /></LayerProvider></Boundary>)
+    expect(await screen.findByText(/app boundary: .*config broke/)).not.toBeNull()
   })
 })
