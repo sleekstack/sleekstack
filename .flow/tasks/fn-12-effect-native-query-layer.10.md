@@ -36,9 +36,11 @@ Both showcases read through query hooks with server prefetch and mutate through 
 - [ ] Showcase and showcase-kit unit tests, typecheck and e2e smoke pass
 
 ## Done summary
-TBD
+Both showcases now read the board through a query and write through mutations; no mutation path calls router.refresh(). The Effect showcase prefetches with prefetchApp and hydrates via HydrateQueries. Create/move/comment use Mutation.optimistic with rollback, then invalidate. The kit showcase uses cachedQuery/mutation with a provider-scoped stacked optimistic log, but renders the board client-side only, because the kit facade has no prefetch/hydration API.
 
+Tier: implementer (actual model: claude-opus-5-5)
+stage: impl-review - accepted-by-user(NEEDS_WORK after 3 codex rounds; one finding left: showcase-kit has no server prefetch or hydration because @sleekstack/kit has no prefetch, HydrateQueries or codec API. The user accepted client-side fetching for showcase-kit as a documented kit gap; a follow-up spec covers the kit API)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 78a0f40fede747dbdfa488227d8aa490fa76d2cf, 53a411d373a4a3ca6904130d6c11d926a5ca0ba2, 7c40a067c13172f9a8fb86effc6a02bd53c32cca, 9d1f1073d7104ec0fb77dd9c016fbda5531a6061
+- Tests: baseline: green via handoff (verified at a209074 by fn-12.9), pnpm --filter showcase typecheck && test && build && test:bundle && test:e2e && check, pnpm --filter showcase-kit typecheck && test && build && test:bundle && test:e2e && check
 - PRs:
