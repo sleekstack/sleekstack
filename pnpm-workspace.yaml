@@ -17,3 +17,4 @@ minimumReleaseAgeExclude:
 # fumadocs-mdx (apps/docs) bundles source.config.ts with esbuild.
 allowBuilds:
   esbuild: true
+  msgpackr-extract: false
