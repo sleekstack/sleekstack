@@ -37,9 +37,13 @@ The collector must be per component instance and scoped to that instance's own r
 - [ ] A user-built `sleek-reactive` element is rejected; `pnpm --filter @sleekstack/ui typecheck` and tests pass
 
 ## Done summary
-TBD
+Added `Store`, `useAtomValue`/`useSetAtom`/`useAtom`, the per-instance JSX wrapper (`instance`) returning a `Reactive` node with a context-capturing `rerun`, the Boundary handler stack, per-run `RenderScope` so Provider layers survive reruns and superseded runs release them, string rendering of `Reactive` under a fresh store, and `sleek-reactive` rejection (string and DOM). Tests: packages/ui/src/__tests__/reactive.test.ts.
 
+Outside declared Touches (required for typecheck/analyzer gates): packages/ui/src/dom.ts (Reactive case renders child; checkTag), packages/analyze/src/components.ts (ReactiveNode accepted in Node member regex), pnpm-lock.yaml. Task .2 must provide `RenderScope` (a mount scope) and `Store` in `mount`.
+
+stage: impl-review - ran (codex: NEEDS_WORK x2 -> SHIP)
+Tier: opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 1a621eebeee2aa6dec74df6b6311ab4e81fbc28a, 821415738f80585b430679c2570c50249cd5c4ca, 4e5091a7330eddc2a788a80f72ee616fcdf923cd
+- Tests: pnpm --filter @sleekstack/ui test, pnpm --filter @sleekstack/ui typecheck, pnpm --filter @sleekstack/analyze test, cd apps/ui-demo && npx vitest run && npx tsc --noEmit
 - PRs:
