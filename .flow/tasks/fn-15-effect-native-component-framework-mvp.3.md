@@ -38,9 +38,13 @@ Add the DOM renderer: `mount` with a `container` renders the same `UserCard` tre
 - [ ] `pnpm --filter @sleekstack/ui test` passes with no act warnings.
 
 ## Done summary
-TBD
+Added the DOM renderer `mount` (packages/ui/src/dom.ts) with per-container generation tokens, one flushSync'd React root per guest host (`<sleek-guest style="display: contents">`) behind an error boundary, teardown at mount start, and a shared attribute policy (`checkAttr` in string.ts: rejects on*, srcdoc, javascript: URLs) used by both renderers. Tests in dom.test.ts cover every AC plus rejecting and re-entrant re-mounts.
 
+Notes: guest hosts add a `sleek-guest` wrapper element to the DOM (exact string markup is unchanged). pnpm-lock.yaml changed for the jsdom devDependency. Follow-up: README export table lacks `mount`/`Mounted` (README outside this task's Touches; task .6 owns docs).
+
+Tier: session (jev-unavailable(no_key))
+stage: impl-review - ran (codex fan-out x2 NEEDS_WORK -> fixes -> re-review SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 261a1bf667a0d492ea6251d19f6ffc8f6565e9fb, 9ae2e11a92fd21f840993a02e8290f8b0c11a2db, de0dbabe5f9199320a97577bdbbebfbfccab0cb7
+- Tests: pnpm --filter @sleekstack/ui test, pnpm --filter @sleekstack/ui typecheck
 - PRs:
