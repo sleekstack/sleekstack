@@ -22,6 +22,38 @@ export interface TaskWithComments {
   readonly comments: readonly CommentRecord[]
 }
 
+const noSubscribe = () => () => {}
+
+function CreateTaskForm({ project }: { readonly project: ProjectRecord }) {
+  const [title, setTitle] = useState('')
+  const [simulateFailure, setSimulateFailure] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
+  const { run, isPending: pending } = useBoardMutation(createTaskMutation, addTask)
+  const submitCreate = () => {
+    setTitle('') // the task shows optimistically, so the input is free for the next one
+    void run({ projectId: project.id, title, simulateFailure }).then(setCreateError)
+  }
+
+  return (
+    <div>
+      <input
+        aria-label={`new task title (${project.name})`}
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder="New task title"
+      />
+      <label>
+        <input type="checkbox" checked={simulateFailure} onChange={(e) => setSimulateFailure(e.target.checked)} />
+        Simulate failure
+      </label>
+      <button type="button" onClick={submitCreate} disabled={pending}>
+        Create task
+      </button>
+      {createError && <p role="alert">{createError}</p>}
+    </div>
+  )
+}
+
 function ProjectBody({ project, tasks }: { readonly project: ProjectRecord; readonly tasks: readonly TaskWithComments[] }) {
   const store = useService(ProjectFilterStore)
   // `getServerSnapshot` (3rd arg): the store is per-mount and always starts
@@ -29,18 +61,12 @@ function ProjectBody({ project, tasks }: { readonly project: ProjectRecord; read
   // client one — required explicitly or React throws under SSR.
   const filter = useSyncExternalStore(store.filter.subscribe, store.filter.get, store.filter.get)
   const selectedTaskId = useSyncExternalStore(store.selectedTaskId.subscribe, store.selectedTaskId.get, store.selectedTaskId.get)
-  const [title, setTitle] = useState('')
-  const [simulateFailure, setSimulateFailure] = useState(false)
-  const [createError, setCreateError] = useState<string | null>(null)
-  const { run, isPending: pending } = useBoardMutation(createTaskMutation, addTask)
+  // The create form's optimistic update needs `useQueryClient`, which (unlike `useMutation`) stays client-only,
+  // so the form mounts after hydration.
+  const client = useSyncExternalStore(noSubscribe, () => true, () => false)
 
   const visible = filter === 'all' ? tasks : tasks.filter(({ task }) => task.status === filter)
   const selected = tasks.find(({ task }) => task.id === selectedTaskId)
-
-  const submitCreate = () => {
-    setTitle('') // the task shows optimistically, so the input is free for the next one
-    void run({ projectId: project.id, title, simulateFailure }).then(setCreateError)
-  }
 
   return (
     <section aria-label={`project: ${project.name}`}>
@@ -63,22 +89,7 @@ function ProjectBody({ project, tasks }: { readonly project: ProjectRecord; read
           </li>
         ))}
       </ul>
-      <div>
-        <input
-          aria-label={`new task title (${project.name})`}
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="New task title"
-        />
-        <label>
-          <input type="checkbox" checked={simulateFailure} onChange={(e) => setSimulateFailure(e.target.checked)} />
-          Simulate failure
-        </label>
-        <button type="button" onClick={submitCreate} disabled={pending}>
-          Create task
-        </button>
-        {createError && <p role="alert">{createError}</p>}
-      </div>
+      {client && <CreateTaskForm project={project} />}
       {selected && (
         <TaskDetail task={selected.task} comments={selected.comments} onClose={() => store.selectedTaskId.set(null)} />
       )}

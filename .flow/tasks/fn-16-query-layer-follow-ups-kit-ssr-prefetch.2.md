@@ -20,9 +20,11 @@ Make showcase-kit render the board from server prefetch instead of client-only f
 - [ ] failed prefetch falls back to client fetch without a crash
 
 ## Done summary
-TBD
+showcase-kit's page prefetches `board()` through kit `prefetch` and passes the state to `<HydrateQueries>` in Providers. The board is in the server HTML and the client does not fetch it on first paint. A failed prefetch falls back to the client fetch (tested in src/__tests__/page.test.tsx, confirmed red without the catch). The board query moved to src/client/board-family.ts with no React imports, so the RSC page can import it. Its name avoids `board.ts`, which resolves to `Board.tsx` on case-insensitive macOS. It sets `serializable: true` and `staleTime: 30_000`, because without a staleTime the hydrated board was refetched on mount. The create-task form now mounts after hydration, because kit `useMutation` throws in a server render. Follow-up: remove that gate in ProjectView.tsx once fn-16.3 (R4) lands. Playwright: `pnpm build && CI=1 npx playwright test` passed 14/14, including the new test checking the board is in the server HTML and no readBoard Server Action POST runs on first paint.
 
+Tier: opus at medium
+stage: impl-review - ran (codex fan-out, 3 draws SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 5fc9f3d668316f518c7c45592aaf2ba7230b4431
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/kit --filter=@sleekstack/query --filter=@sleekstack/react --filter=./apps/showcase-kit, cd apps/showcase-kit && pnpm build && CI=1 npx playwright test (14 passed)
 - PRs:

@@ -4,3 +4,4 @@ export {
   type ActionResult, type OperationOptions,
 } from './action'
 export { configureRuntime, type RuntimeConfig } from './runtime'
+export { prefetch, type PrefetchOptions } from './prefetch'

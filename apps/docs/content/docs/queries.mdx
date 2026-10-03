@@ -16,7 +16,7 @@ The query store is the `AtomStore` of the root `LayerProvider`. Nested providers
 - `useQuery` never suspends on the client: check `isPending`. A failure comes back as `error` (a `SleekStackError`), with any earlier `data` kept.
 - `staleTime` and `gcTime` are milliseconds; `retry` is a number of retries.
 - `mutate` resolves with the value or rejects with a `SleekStackError`. `useQueryClient()` gives `invalidate`, `refetch`, `setData` and `getData`.
-- A key that is not serializable throws `SleekStackError` with code `Unknown` (there is no dedicated code).
+- A key that is not serializable throws `SleekStackError` with code `InvalidQueryKey`.
 - `@sleekstack/kit` depends on `@sleekstack/query`.
 
 ## Effect-native
@@ -33,7 +33,7 @@ The query store is the `AtomStore` of the root `LayerProvider`. Nested providers
 - `useQuerySuspense` suspends only while there is no value. A failure after a value returns the stale `data` with the `error`.
 - `Query.infinite` keeps pages in one entry; `useInfiniteQuery` adds `fetchNext` and `fetchPrevious`.
 - `Query.select` maps fetched data with an Effect (for example `Model.fromDto`) and memoizes it on the data.
-- A mutation's state and concurrency are per hook by default; `Mutation.shared` shares them per store. `concurrency` is `parallel` (default), `queue` or `switch`. Overlapping optimistic writes roll back in reverse order.
+- A mutation's state and concurrency are per hook by default; `Mutation.shared` shares them per store. `concurrency` is `parallel` (default), `queue` or `switch`. Overlapping optimistic writes roll back in reverse order. A successful refetch that lands while optimistic writes are pending becomes their new base: the writes are re-applied over it, and a failed mutation rolls back to it rather than to the stale value. With a hand-provided `Queries` service there is no store to watch, so the refetch is overwritten by the next recompute.
 
 ## Build-time checks
 
@@ -45,7 +45,7 @@ The `@sleekstack/devtools` panel has a Queries tab. `QueryEvents` (from `@sleeks
 
 ## Limits
 
-- `useMutation` is client only: in a server render it throws (kit: `SleekStackError` `Unknown`). Render it on the client only; `apps/showcase/src/client/services/useBoardMutation.ts` shows one way.
+- `useMutation` returns the idle result in a server render; `mutate` there throws. See [Queries on the server](/docs/queries-ssr#mutations-in-a-server-render).
 - An optimistic write is only a value in the cache. An item it adds (for example a new task with a temporary id) is not on the server until the refetch replaces it; the showcases do not let users select such an item.
 - `gcTime` is per query definition, not per key.
-- Server rendering with prefetch is in [Queries on the server](/docs/queries-ssr). The kit has no prefetch yet.
+- Server rendering with prefetch (core and kit) is in [Queries on the server](/docs/queries-ssr).

@@ -277,13 +277,27 @@ export interface UseMutation<I, A, E> {
 const IDLE: Mutation.MutationState<never, never> = { _tag: 'idle' }
 const noSubscribe = () => () => {}
 
+// `mutate` during a server render is a bug (handlers never run there): it throws an Error named `MutateDuringRender`.
+const SERVER_MUTATION: UseMutation<any, any, any> = {
+  mutate: () => {
+    const e = new Error('useMutation: mutate was called during a server render; call it from an event handler or effect.')
+    e.name = 'MutateDuringRender'
+    throw e
+  },
+  state: IDLE,
+  isPending: false,
+  reset: () => {},
+}
+
 /**
  * Runs a mutation against the query store. The runner is made on commit, so StrictMode's double mount
  * never runs `onMutate` twice; unmount releases it (in-flight calls keep running unless `interruptOnUnmount`).
  *
  * @param mutation - A `Mutation.make` definition.
+ * During a server render it returns the idle result, and `mutate` throws an `Error` named `MutateDuringRender`.
+ *
  * @returns `mutate`, `state`, `isPending`, `reset`.
- * @throws `Error` during a server render or outside a `LayerProvider`.
+ * @throws `Error` outside a `LayerProvider`.
  *
  * @example
  * ```tsx
@@ -292,6 +306,15 @@ const noSubscribe = () => () => {}
  * ```
  */
 export function useMutation<I, A, E, R>(mutation: Mutation.Mutation<I, A, E, R>): UseMutation<I, A, E> {
+  // The branch is fixed per environment, so hook order never changes within one.
+  if (typeof window === 'undefined') {
+    useQueryState('useMutation')
+    return SERVER_MUTATION
+  }
+  return useClientMutation(mutation)
+}
+
+function useClientMutation<I, A, E, R>(mutation: Mutation.Mutation<I, A, E, R>): UseMutation<I, A, E> {
   const store = useQueryStore('useMutation')
   const [runner, setRunner] = useState<Mutation.Runner<I, A, E> | null>(null)
   useEffect(() => {

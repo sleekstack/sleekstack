@@ -8,7 +8,7 @@ satisfies: [R4]
 
 **Size:** S
 **Files:** packages/react/src/query.ts, packages/react/src/__tests__/ (server render test), apps/showcase/src/client/services/useBoardMutation.ts (delete), apps/showcase/src/client/TaskDetail.tsx, apps/showcase/src/client/ProjectView.tsx
-**Touches:** [packages/react/src/query.ts, packages/react/src/__tests__/**, apps/showcase/src/client/**]
+**Touches:** [packages/react/src/query.ts, packages/react/src/__tests__/**, packages/kit/src/react/**, packages/kit/src/__tests__/**, apps/showcase/src/client/**, apps/showcase-kit/src/client/**]
 
 ### Approach
 - The throw is in `useQueryStore` (`packages/react/src/query.ts:24-26`); `useMutation` is at :295. Return the idle result on the server; a `mutate` call during render throws a named error.
@@ -22,9 +22,13 @@ satisfies: [R4]
 - [ ] useBoardMutation.ts removed and showcase tests pass
 
 ## Done summary
-TBD
+In a server render, core `useMutation` now returns the idle result, and calling `mutate` there throws an Error named `MutateDuringRender`. Kit `useMutation` does the same: on the server it throws a SleekStackError whose cause is `MutateDuringRender`, and on the client `mutate` stays async. The `useBoardMutation` shim in apps/showcase is deleted. Server-render tests in packages/react and packages/kit `hydrate.test.tsx` cover the idle result and the named error.
 
+Deviation: kit `useQueryClient` stays client-only (spec: only useMutation relaxes; all three Codex draws flagged the relaxation), so the showcase-kit post-hydration gate stays, its comment now naming `useQueryClient` as the reason.
+
+stage: impl-review - ran (codex fan-out NEEDS_WORK -> re-reviews -> SHIP)
+Tier: opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 8bc4791929bb3a4c9b1e08ff91b1a16142733794, bf81b6a6d2614745d44ec66de152cb50dd22641d, 98f3231afb0d44c11dadba7b3ab0038699d6abbe
+- Tests: pnpm typecheck && pnpm test, apps/showcase-kit: pnpm build && CI=1 npx playwright test, apps/showcase: pnpm build && CI=1 npx playwright test
 - PRs:

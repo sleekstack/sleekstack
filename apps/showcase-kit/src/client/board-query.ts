@@ -1,32 +1,19 @@
 /**
  * apps/showcase-kit/src/client/board-query.ts
  *
- * The board's client cache through the kit facade: the `board` query (its fetch is the `readBoard` Server Action)
+ * The board's client cache through the kit facade: the `board` query (board-family.ts, prefetched by the page)
  * and one `mutation()` per board action, settling `{ ok: false, error }` into a rejection. `useBoardMutation` writes
  * the expected board into the cache first, drops only that call's write when the action fails, and invalidates the
  * board once no call is in flight so the server's ids and timestamps win. No mutation calls `router.refresh()`.
  */
 import { createContext, createElement, useContext, useState, type ReactNode } from 'react'
-import { cachedQuery, mutation } from '@sleekstack/kit'
+import { mutation } from '@sleekstack/kit'
 import { useMutation, useQueryClient } from '@sleekstack/kit/react'
 import type { ActionResult } from '@sleekstack/kit/next'
-import { addComment, createTask, moveTask, readBoard, type AddCommentInput, type CreateTaskInput, type MoveTaskInput } from '../server/board.actions'
-import type { CommentRecord, ProjectRecord, TaskRecord } from '../domain/tags'
+import { addComment, createTask, moveTask, type AddCommentInput, type CreateTaskInput, type MoveTaskInput } from '../server/board.actions'
 
-export interface BoardProject {
-  readonly project: ProjectRecord
-  readonly tasks: ReadonlyArray<{ readonly task: TaskRecord; readonly comments: readonly CommentRecord[] }>
-}
-export type BoardData = readonly BoardProject[]
-
-const boardFamily = cachedQuery({
-  key: () => ['board'] as const,
-  fetch: function* () {
-    return readBoard() as Promise<BoardData>
-  },
-})
-/** The one board query (a family of one key). */
-export const board = () => boardFamily(undefined)
+export { board, type BoardData, type BoardProject } from './board-family'
+import { board, type BoardData } from './board-family'
 
 const settled = <T>(result: Promise<ActionResult<T>>) =>
   result.then((r) => {

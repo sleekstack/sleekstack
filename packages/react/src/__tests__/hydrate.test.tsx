@@ -10,8 +10,8 @@ import { renderToString } from 'react-dom/server'
 import { prerender } from 'react-dom/static'
 import React, { Suspense } from 'react'
 import { Effect, Schema } from 'effect'
-import { Hydrate, Query } from '@sleekstack/query'
-import { HydrateQueries, LayerProvider, useQuery } from '../index'
+import { Hydrate, Mutation, Query } from '@sleekstack/query'
+import { HydrateQueries, LayerProvider, useMutation, useQuery } from '../index'
 import { ProviderContext, QueryStoreContext } from '../context'
 
 // Fizz leaves a suspended render's context values on the shared context objects; in a real app the server and
@@ -111,5 +111,17 @@ describe('HydrateQueries', () => {
     expect(out).toContain('err:nope')
     render(tree)
     expect(await screen.findByText('err:nope')).toBeTruthy()
+  })
+
+  it('useMutation renders idle on the server; mutate during render throws MutateDuringRender (fn-16 R4)', () => {
+    const save = Mutation.make({ run: (_: string) => Effect.void })
+    const Form = ({ callNow }: { callNow?: boolean }) => {
+      const { mutate, state, isPending } = useMutation(save)
+      if (callNow) mutate('x')
+      return <form><button disabled={isPending}>{state._tag}</button></form>
+    }
+    vi.stubGlobal('window', undefined)
+    expect(renderToString(<LayerProvider provide={[]}><Form /></LayerProvider>)).toContain('idle')
+    expect(() => renderToString(<LayerProvider provide={[]}><Form callNow /></LayerProvider>)).toThrow(expect.objectContaining({ name: 'MutateDuringRender' }))
   })
 })

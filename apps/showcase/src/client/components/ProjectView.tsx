@@ -11,9 +11,8 @@
  * (optimistic, rolled back on the "Simulate failure" control's rejection, R5).
  */
 import { Suspense, useMemo, useSyncExternalStore, useState } from 'react'
-import { LayerProvider, useService } from '@sleekstack/react'
+import { LayerProvider, useMutation, useService } from '@sleekstack/react'
 import { createTaskMutation, failureOf, isPendingId } from '../services/board-query'
-import { useBoardMutation } from '../services/useBoardMutation'
 import type { ProjectRecord } from '../../domain/tags'
 import { ProjectFilterStore, makeProjectFilterStoreLayer, type TaskStatusFilter } from '../services/component-services'
 import { TaskDetail } from './TaskDetail'
@@ -35,7 +34,7 @@ function ProjectBody({ project, tasks }: { readonly project: ProjectRecord; read
   const newTaskCtx = useMemo(() => ({ projectId: project.id }), [project.id])
   const form = useDraftForm(NewTaskDraft, newTaskCtx)
   const [createError, setCreateError] = useState<string | null>(null)
-  const { mutate, isPending: pending } = useBoardMutation(createTaskMutation)
+  const { mutate, isPending: pending } = useMutation(createTaskMutation)
 
   const visible = filter === 'all' ? tasks : tasks.filter(({ task }) => task.status === filter)
   const selected = tasks.find(({ task }) => task.id === selectedTaskId)

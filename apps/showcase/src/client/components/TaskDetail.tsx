@@ -10,11 +10,10 @@
  * `{ ok: false, error }` inline (R5).
  */
 import { Suspense, useState } from 'react'
-import { LayerProvider, useAtom, useService } from '@sleekstack/react'
+import { LayerProvider, useAtom, useMutation, useService } from '@sleekstack/react'
 import type { TaskStatus } from '../../domain/tags'
 import type { CommentModel, TaskModel } from '../../models/task'
 import { addCommentMutation, failureOf, moveTaskMutation } from '../services/board-query'
-import { useBoardMutation } from '../services/useBoardMutation'
 import { ErrorBoundary } from './ErrorBoundary'
 import { DraftEditor, makeBrokenDraftEditorLayer, makeDraftEditorLayer } from '../services/component-services'
 
@@ -25,7 +24,7 @@ export function DraftEditorPanel({ taskId }: { readonly taskId: string }) {
   // The draft is an atom owned by the DraftEditor service, not local state. TaskDetail only renders on the client.
   const [body, setBody] = useAtom(draft)
   const [error, setError] = useState<string | null>(null)
-  const { mutate, isPending: pending } = useBoardMutation(addCommentMutation)
+  const { mutate, isPending: pending } = useMutation(addCommentMutation)
 
   const submit = () => {
     void mutate({ draft: { body }, src: { taskId, authorId: 'demo-user' } }).then((exit) => {
@@ -60,7 +59,7 @@ export interface TaskDetailProps {
 export function TaskDetail({ task, comments, onClose }: TaskDetailProps) {
   const [breakDetail, setBreakDetail] = useState(false)
   const [moveError, setMoveError] = useState<string | null>(null)
-  const { mutate: moveTo, isPending: movePending } = useBoardMutation(moveTaskMutation)
+  const { mutate: moveTo, isPending: movePending } = useMutation(moveTaskMutation)
 
   const move = (status: TaskStatus) => {
     void moveTo({ taskId: task.id, status }).then((exit) => setMoveError(failureOf(exit)))

@@ -6,10 +6,10 @@
  * `query`/`defineQuery` of `@sleekstack/kit/next`.
  */
 
-import { Effect, Schedule } from 'effect'
+import { Effect, ParseResult, Schedule, Schema } from 'effect'
 import { resolutionFailure } from '@sleekstack/core'
-import { normalize } from './errors'
-import { Mutation as CoreMutation, Query as CoreQuery } from '@sleekstack/query'
+import { normalize, SleekStackError } from './errors'
+import { Hydrate, Mutation as CoreMutation, Query as CoreQuery } from '@sleekstack/query'
 
 declare const QueryBrand: unique symbol
 declare const MutationBrand: unique symbol
@@ -27,6 +27,18 @@ export interface Mutation<I, T> {
 /** A generator body: `yield* SomeTag` resolves the service; it returns a value or a Promise. */
 export type Body<T> = Generator<unknown, T | Promise<T>, any>
 
+/** How a `serializable` query's value crosses the server-to-client wire: `encode` to JSON values, `decode` back. */
+export interface QueryCodec<T> {
+  readonly encode: (value: T) => unknown
+  readonly decode: (raw: unknown) => T
+}
+
+declare const DehydratedBrand: unique symbol
+/** Serializable query state from `prefetch` (`@sleekstack/kit/next`), handed to `<HydrateQueries state>`. */
+export interface Dehydrated extends ReadonlyArray<unknown> {
+  readonly [DehydratedBrand]: true
+}
+
 /** Options for {@link cachedQuery}. */
 export interface CachedQueryOptions<Args, T> {
   /** A serializable tuple; equal keys share one cache entry. */
@@ -38,6 +50,8 @@ export interface CachedQueryOptions<Args, T> {
   readonly gcTime?: number
   /** Retries after a failed fetch. Default 0. */
   readonly retry?: number
+  /** Opts the query in to SSR `prefetch`/`HydrateQueries`: `true` sends the value as is (it must be JSON-safe), or a {@link QueryCodec}. */
+  readonly serializable?: true | QueryCodec<T>
 }
 
 /** Options for {@link mutation}. */
@@ -69,6 +83,26 @@ const mutationCores = new WeakMap<object, CoreMutation.Mutation<unknown, unknown
 
 /** @internal The core query atom behind a kit query. */
 export const coreQuery = (q: CachedQuery<unknown>): CoreQueryAtom => queryCores.get(q)!
+const passthrough: QueryCodec<unknown> = { encode: (v) => v, decode: (raw) => raw }
+
+/** The kit codec as the core Schema; a throwing `decode` raises `QueryDecodeFailed` naming the query. */
+const toSchema = (codec: QueryCodec<unknown>, key: string): Schema.Schema<unknown, any, never> =>
+  Schema.transformOrFail(Schema.Unknown, Schema.Unknown, {
+    strict: true,
+    decode: (raw) => {
+      try {
+        return ParseResult.succeed(codec.decode(raw))
+      } catch (e) {
+        throw new SleekStackError('QueryDecodeFailed', `Query ${key} could not decode its server data: ${e instanceof Error ? e.message : String(e)}`, { key }, { cause: e })
+      }
+    },
+    encode: (value) => ParseResult.succeed(codec.encode(value)),
+  })
+
+const serializableCores = new WeakSet<CoreQueryAtom>()
+/** @internal Whether a core query atom was made by a `serializable` kit family. */
+export const isSerializable = (core: CoreQueryAtom): boolean => serializableCores.has(core)
+
 /** @internal The core mutation behind a kit mutation. */
 export const coreMutation = (m: Mutation<any, unknown>) => mutationCores.get(m)!
 
@@ -78,7 +112,7 @@ export const coreMutation = (m: Mutation<any, unknown>) => mutationCores.get(m)!
  *
  * @param options - `key`, `fetch` (a generator; `yield*` Tags), `staleTime`, `gcTime`, `retry`.
  * @returns The family; equal keys return the same query.
- * @throws {@link SleekStackError} with code `Unknown` (from the returned family) when `key(args)` is not serializable.
+ * @throws {@link SleekStackError} with code `InvalidQueryKey` (from the returned family) when `key(args)` is not serializable.
  *
  * @example
  * ```ts
@@ -117,6 +151,9 @@ export function cachedQuery<Args, T>(options: CachedQueryOptions<Args, T>): (arg
       q = {} as CachedQuery<unknown>
       queryKits.set(core, q)
       queryCores.set(q, core)
+      const codec = options.serializable === true ? passthrough : options.serializable
+      if (codec) serializableCores.add(core)
+      if (codec) Hydrate.hydratable(() => core, { value: toSchema(codec as QueryCodec<unknown>, core[CoreQuery.TypeId].key) })(undefined)
     }
     return q as CachedQuery<T>
   }

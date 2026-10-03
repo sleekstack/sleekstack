@@ -23,6 +23,12 @@ export interface SleekStackErrorDetails {
   LayerFailed: { readonly tag: string; readonly cause: string }
   HandlerFailed: {}
   AtomCycle: { readonly path: readonly string[] }
+  /** A `serializable` query's `decode` threw on server-prefetched data. */
+  QueryDecodeFailed: { readonly key: string }
+  /** A server render read an un-prefetched query, but no server query runner is registered (import `@sleekstack/kit/next` on the server). */
+  NoServerRunner: {}
+  /** A query key holds a value with no stable JSON form (function, BigInt, symbol, cycle). */
+  InvalidQueryKey: { readonly key: unknown }
   Unknown: {}
 }
 
@@ -75,7 +81,7 @@ export interface FinalizerError {
 }
 
 const GRAPH_CODES = new Set<string>([
-  'MissingDependency', 'DependencyCycle', 'AmbiguousProvider', 'ModuleCycle', 'DuplicateModule', 'InvalidModule', 'CaptiveDependency', 'PrivateDependency', 'AtomCycle',
+  'MissingDependency', 'DependencyCycle', 'AmbiguousProvider', 'ModuleCycle', 'DuplicateModule', 'InvalidModule', 'CaptiveDependency', 'PrivateDependency', 'AtomCycle', 'InvalidQueryKey',
 ])
 
 /** @internal A layer factory threw or rejected. */

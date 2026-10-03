@@ -78,7 +78,7 @@ Core's construction order for a scope: entries flattened deepest import first, t
 _Avoid_: Resolution Plan, Graph, snapshot
 
 **SleekStackError**:
-The one public error type of the kit: every core tagged error, kit check (`DuplicateTag`, `InvalidTag`) and thrown value is normalized to it, with a `code` and `details`.
+The one public error type of the kit: every core tagged error, kit check (`DuplicateTag`, `InvalidTag`, `InvalidQueryKey`) and thrown value is normalized to it, with a `code` and `details`. Kit query SSR adds `QueryDecodeFailed` (a `QueryCodec` `decode` threw) and `NoServerRunner` (a server render read an un-prefetched query with no server runner registered).
 _Avoid_: KitError, GraphError
 
 ### React integration concepts
@@ -190,5 +190,13 @@ A write from `Mutation.make({ run, onMutate, ... })` (`@sleekstack/query`) or `m
 _Avoid_: Command, action (for the client write)
 
 **Dehydrated**:
-The serializable query state (`[{ key, result, updatedAt }]`) that `prefetch` (`@sleekstack/next`) returns on the server and `<HydrateQueries state>` (`@sleekstack/react`) seeds into the Query Store. Built with `Hydrate` from `@sleekstack/query`; only `Hydrate.hydratable` queries can be in it.
+The serializable query state (`[{ key, result, updatedAt }]`) that `prefetch` (`@sleekstack/next`) returns on the server and `<HydrateQueries state>` (`@sleekstack/react`) seeds into the Query Store. Built with `Hydrate` from `@sleekstack/query`; only `Hydrate.hydratable` queries can be in it. The kit forms are `prefetch` (`@sleekstack/kit/next`) and `<HydrateQueries state>` (`@sleekstack/kit/react`), over `cachedQuery({ serializable })` queries only. A query that failed on the server is not in it.
 _Avoid_: Snapshot, serialized cache
+
+**QueryCodec**:
+The plain `{ encode, decode }` pair given as a kit `cachedQuery`'s `serializable` option, carrying its value across the server-to-client wire (`serializable: true` sends the value as is). The kit stand-in for the `Schema` of `Hydrate.hydratable`; never an Effect type.
+_Avoid_: Schema (in kit), serializer
+
+**Server Runner**:
+The function a server render uses to fetch a query nobody prefetched (a lazy server read). `@sleekstack/next` registers one; importing `@sleekstack/kit/next` replaces it with the kit request scope. It sees the configured runtime only, never per-call `request`/`overrides`/`provide`.
+_Avoid_: lazy fetcher

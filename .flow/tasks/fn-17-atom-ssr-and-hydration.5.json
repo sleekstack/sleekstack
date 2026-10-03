@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-17-atom-ssr-and-hydration",
   "spec_path": ".flow/tasks/fn-17-atom-ssr-and-hydration.5.md",
-  "status": "todo",
+  "status": "done",
   "title": "Docs, ADR 0016, CONTEXT terms and READMEs for atom SSR",
   "updated_at": "2026-10-03T09:25:23.094268Z"
 }
