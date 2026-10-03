@@ -14,7 +14,8 @@
     "fn-21-replace-sleekstackquery-with-tanstack.3": 0,
     "fn-21-replace-sleekstackquery-with-tanstack.4": 0,
     "fn-21-replace-sleekstackquery-with-tanstack.5": 0,
-    "fn-21-replace-sleekstackquery-with-tanstack.6": 0
+    "fn-21-replace-sleekstackquery-with-tanstack.6": 0,
+    "fn-21-replace-sleekstackquery-with-tanstack.7": 1
   },
   "next_task": 1,
   "plan_review_rounds": 0,
@@ -575,8 +576,19 @@
     "impl:fn-21-replace-sleekstackquery-with-tanstack.5": 1,
     "impl:fn-21-replace-sleekstackquery-with-tanstack.6": 1
   },
-  "review_pending_rounds": {},
-  "review_reservations": {},
+  "review_pending_rounds": {
+    "impl:fn-21-replace-sleekstackquery-with-tanstack.7": 1
+  },
+  "review_reservations": {
+    "b78f2266d74b45cb83e922db60e4ed36": {
+      "artifact_sha256": "62cd5cdd6d3efbcb2a2c1e890159755ac9ec6e6e795c23eb6c9b57f987342a71",
+      "counter_scope": "impl:fn-21-replace-sleekstackquery-with-tanstack.7",
+      "epoch": 0,
+      "exclusive": true,
+      "forced": false,
+      "review_type": "impl"
+    }
+  },
   "review_transport_failures": {
     "impl:fn-21-replace-sleekstackquery-with-tanstack.1": 0,
     "impl:fn-21-replace-sleekstackquery-with-tanstack.2": 0,
@@ -599,5 +611,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-03T17:22:34.409822Z"
+  "updated_at": "2026-10-03T17:32:32.557719Z"
 }
