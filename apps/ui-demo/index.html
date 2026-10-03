@@ -4,10 +4,26 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width" />
     <title>SleekStack UI Demo</title>
+    <style>
+      body { font: 14px system-ui; margin: 0; padding: 1rem; background: #f6f7f9; }
+      .views { display: grid; gap: 2rem; }
+      header { display: flex; align-items: center; justify-content: space-between; }
+      .columns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+      .column { background: #fff; padding: .75rem; border-radius: 8px; }
+      .card { border: 1px solid #e2e4e8; border-radius: 6px; padding: .5rem; margin-bottom: .5rem; }
+      .row { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+      .avatar { display: inline-grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 50%; background: #4f46e5; color: #fff; margin-right: .35rem; }
+      .badge { padding: .1rem .5rem; border-radius: 99px; background: #e2e4e8; }
+      .badge.done { background: #bbf7d0; } .badge.in_progress { background: #fde68a; }
+      .muted { color: #6b7280; } .error { color: #b91c1c; } .you { margin-left: .35rem; color: #4f46e5; }
+      .team { display: flex; gap: 1rem; list-style: none; padding: 0; }
+    </style>
   </head>
   <body>
-    <div id="found"></div>
-    <div id="missing"></div>
-    <script type="module" src="/src/main.ts"></script>
+    <div class="views">
+      <div id="ada"></div>
+      <div id="grace"></div>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -6,7 +6,7 @@ An Effect-native component is `Component<P, E, R> = (props: P) => Effect<Node, E
 
 ## Considered options
 
-- **A. A dialect that compiles to real React**: rejected. It cannot give interruption or scheduling beyond React's own, and requirements and errors would have to be re-derived from JSX instead of read from the Effect types.
+- **A. A dialect that compiles to real React**: rejected. It cannot give interruption or scheduling beyond React's own, and requirements and errors would have to be re-derived from JSX instead of read from the Effect types. (Amended: a JSX *syntax* for the host is accepted, see Amendment; it still compiles to Effect nodes, not React.)
 - **B. A React-compatible renderer**: rejected. It means tracking every React release, and it cannot work with Next.js.
 - **C. Host-first with React guests** (chosen, a variant): the Effect type system stays the source of truth, so typed requirements and typed errors per component are checked at build time across files, and existing React components still render as guests.
 
@@ -18,6 +18,14 @@ An Effect-native component is `Component<P, E, R> = (props: P) => Effect<Node, E
 - No Next.js or React Server Components: a host-first runtime cannot be aliased into React's flight protocol. No per-component Scopes, interruption, fine-grained reactivity or devtools in the MVP.
 - `@sleekstack/ui` is not in the docs API reference while it is a spike.
 - The ui Component is unrelated to the `component` Lifetime.
+
+## Amendment: JSX syntax for the host
+
+`@sleekstack/ui/jsx-runtime` lets a host file (opted in with `/** @jsxImportSource @sleekstack/ui */`) write the tree in JSX. Every JSX expression is an `Effect<Node>`; intrinsic tags build elements, function tags are host components, and `<Provider layer>` / `<Boundary tag fallback>` are the JSX forms of `Provide` / `Catch`. Nothing becomes React: the Effect program is still the host and React guests (files without the pragma) are still opaque leaves.
+
+- tsc cannot type a JSX expression's `E` / `R` (`JSX.Element` is `Effect<Node, never, never>`), so the Analyzer reads them from the JSX tree and the component's own return type. `sleekstack check` is the only check for missing dependencies and uncaught errors in JSX; the `el` form keeps tsc's checking.
+- The Analyzer's tree adds JSX elements and fragments (host tags are transparent), `Provider` as `provide` and `Boundary` as `catch`; a `Boundary` fallback's components are siblings, not caught children.
+- Host attributes stay strings (`className` / `htmlFor` map to `class` / `for`); event handlers stay in guests.
 
 ## Open decisions
 
