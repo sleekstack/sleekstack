@@ -1,5 +1,5 @@
 import { type Atom, type AtomStore, MissingDependency } from '@sleekstack/core'
-import { Context, Effect, Option, type Scope } from 'effect'
+import { Context, Effect, ExecutionStrategy, Exit, Option, Scope } from 'effect'
 import type { Node } from './node'
 
 /** The mount's atom store. `mount` and `renderToString` provide it. */
@@ -16,10 +16,10 @@ export class Handlers extends Context.Reference<Handlers>()('@sleekstack/ui/Hand
 }) {}
 
 /**
- * Lifetime of `Provider` layers. When set (by `mount`), layers are built into it so services captured for a
- * re-run stay alive until it closes; unset, a `Provider` layer lives only for the render, as before.
+ * Lifetime of `Provider` layers. When set (by `mount`), each component run gets a child scope and its layers are
+ * built there, so services captured for a re-run stay alive; a run's scope closes when the next run of the same
+ * instance succeeds, when that run fails, or with its parent. Unset, a `Provider` layer lives only for the render.
  */
-// ponytail: one scope per mount, so a replaced subtree's layers live until dispose; per-instance scopes if that matters.
 export class RenderScope extends Context.Reference<RenderScope>()('@sleekstack/ui/RenderScope', {
   defaultValue: (): Scope.Scope | undefined => undefined,
 }) {}
@@ -47,13 +47,24 @@ export const useSetAtom = <R, W>(atom: Atom.Writable<R, W>): Effect.Effect<(valu
 export const useAtom = <R, W>(atom: Atom.Writable<R, W>): Effect.Effect<readonly [R, (value: W) => void], never, Store> =>
   Effect.zip(useAtomValue(atom), useSetAtom(atom))
 
-/** Runs a component as one instance: fresh collector, captured context; returns a `Reactive` node when it read atoms. */
+/** Runs a component as one instance: fresh collector, own scope, captured context; returns a `Reactive` node when it read atoms. */
 export const instance = <P>(type: (props: P) => Effect.Effect<Node, any, any>, props: P): Effect.Effect<Node, any, any> => {
-  const run: Effect.Effect<Node, any, any> = Effect.flatMap(Effect.context<never>(), (ctx) => {
-    const atoms = new Set<Atom.Atom<any>>()
-    return Effect.map(Effect.provideService(type(props), Collector, atoms), (child): Node =>
-      atoms.size === 0 ? child : { _tag: 'Reactive', atoms: [...atoms], child, rerun: Effect.provide(run, ctx) as Effect.Effect<Node> },
-    )
-  })
-  return run
+  const run = (prev: Scope.CloseableScope | undefined): Effect.Effect<Node, any, any> =>
+    Effect.flatMap(Effect.context<never>(), (ctx) => {
+      const body = (own: Scope.CloseableScope | undefined): Effect.Effect<Node, any, any> => {
+        const atoms = new Set<Atom.Atom<any>>()
+        const scoped = own ? Effect.provideService(type(props), RenderScope, own) : type(props)
+        return Effect.map(Effect.provideService(scoped, Collector, atoms), (child): Node =>
+          atoms.size === 0 ? child : { _tag: 'Reactive', atoms: [...atoms], child, rerun: Effect.provide(run(own), ctx) as Effect.Effect<Node> },
+        )
+      }
+      return Effect.flatMap(RenderScope, (parent) =>
+        parent
+          ? Effect.flatMap(Scope.fork(parent, ExecutionStrategy.sequential), (own) =>
+              Effect.onExit(body(own), (exit) => (Exit.isSuccess(exit) ? (prev ? Scope.close(prev, Exit.void) : Effect.void) : Scope.close(own, exit))),
+            )
+          : body(undefined),
+      )
+    })
+  return run(undefined)
 }

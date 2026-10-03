@@ -4,7 +4,7 @@ import { flushSync } from 'react-dom'
 import { createRoot, type Root } from 'react-dom/client'
 import { reportRenderError, runToNode } from './component'
 import type { Node } from './node'
-import { checkAttr } from './string'
+import { checkAttr, checkTag } from './string'
 
 export interface Mounted {
   dispose(): Promise<void>
@@ -49,7 +49,7 @@ const build = (node: Node, doc: Document, roots: Array<Root>, onError?: OnError)
         return frag
       }
       case 'Element': {
-        const el = doc.createElement(node.tag)
+        const el = doc.createElement(checkTag(node.tag))
         for (const [k, v] of Object.entries(node.attrs)) {
           checkAttr(k, v)
           el.setAttribute(k, v)

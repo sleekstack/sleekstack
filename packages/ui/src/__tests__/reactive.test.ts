@@ -38,19 +38,22 @@ describe('reactive components', () => {
     expect(await renderToString(app, { layer: Layer.empty })).toBe('<p>hi 3</p>')
   })
 
-  it('keeps a scoped Provider layer alive for re-runs until the render scope closes', async () => {
+  it('keeps a scoped Provider layer alive for re-runs; a superseded run releases it', async () => {
     const log: Array<string> = []
     const layer = Layer.scoped(Greeting, Effect.acquireRelease(Effect.succeed('hi'), () => Effect.sync(() => log.push('released'))))
     const Hi = () => Effect.zipWith(Greeting, useAtomValue(count), (g, n) => el('p', {}, `${g} ${n}`))
+    const Outer = () => Effect.flatMap(useAtomValue(count), () => jsx(Provider, { layer, children: jsx(Hi, {}) }))
     const scope = Effect.runSync(Scope.make())
     const node = await Effect.runPromise(
-      jsx(Provider, { layer, children: jsx(Hi, {}) }).pipe(Effect.provideService(Store, makeAtomStore()), Effect.provideService(RenderScope, scope)),
+      jsx(Outer, {}).pipe(Effect.provideService(Store, makeAtomStore()), Effect.provideService(RenderScope, scope)),
     )
-    if (node._tag !== 'Fragment' || node.children[0]?._tag !== 'Reactive') throw new Error('expected a reactive child')
+    if (node._tag !== 'Reactive') throw new Error('expected a reactive node')
     expect(log).toEqual([])
-    expect(await Effect.runPromise(node.children[0].rerun)).toMatchObject({ _tag: 'Reactive' })
-    await Effect.runPromise(Scope.close(scope, Exit.void))
+    const next = await Effect.runPromise(node.rerun)
+    if (next._tag !== 'Reactive') throw new Error('expected a reactive node')
     expect(log).toEqual(['released'])
+    await Effect.runPromise(Scope.close(scope, Exit.void))
+    expect(log).toEqual(['released', 'released'])
   })
 
   it('fails with a tagged error naming Store without a store; untracked on a direct call', async () => {

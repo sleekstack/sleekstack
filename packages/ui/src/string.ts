@@ -11,6 +11,8 @@ const escape = (s: string): string => s.replace(/[&<>"']/g, (c) => ESCAPES[c]!)
 
 const TAG = /^[a-zA-Z][a-zA-Z0-9-]*$/
 const ATTR = /^[^\s"'<>\/=\x00-\x1f]+$/
+/** Rejects invalid tag names and the renderer-written `sleek-reactive`. */
+export const checkTag = (name: string): string => checkName(TAG, 'tag', name)
 const checkName = (re: RegExp, kind: string, name: string): string => {
   if (!re.test(name) || (kind === 'tag' && name.toLowerCase() === 'sleek-reactive')) throw new TypeError(`Invalid ${kind} name: ${JSON.stringify(name)}`)
   return name
@@ -33,7 +35,7 @@ const serialize = (node: Node, onError?: (cause: Cause.Cause<unknown>) => void):
     case 'Fragment':
       return node.children.map((c) => serialize(c, onError)).join('')
     case 'Element': {
-      checkName(TAG, 'tag', node.tag)
+      checkTag(node.tag)
       const attrs = Object.entries(node.attrs)
         .map(([k, v]) => (checkAttr(k, v), ` ${k}="${escape(v)}"`))
         .join('')
