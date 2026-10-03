@@ -115,24 +115,25 @@ export const mutationFn = <I, T>(m: Mutation<I, T>): ((input: I) => Promise<T>) 
  * ```
  */
 export function cachedQuery<Args, T>(options: CachedQueryOptions<Args, T>): (args: Args) => CachedQuery<T> {
-  // ponytail: one options object per key for the family's lifetime; unbounded, like the key space.
-  const byKey = new Map<string, QueryOpts>()
+  // Weak values: an unreferenced key's options are collected, and a live one keeps its identity.
+  const byKey = new Map<string, WeakRef<QueryOpts>>()
+  const evict = new FinalizationRegistry<string>((hash) => {
+    if (byKey.get(hash)?.deref() === undefined) byKey.delete(hash)
+  })
   return (args) => {
     const queryKey = checkKey(options.key(args))
     const hash = hashKey(queryKey)
-    let q = byKey.get(hash)
+    let q = byKey.get(hash)?.deref()
     if (!q) {
-      const run = effectFn(lower(() => options.fetch(args), 'query'))
       q = {
         queryKey,
-        // Only `client` is passed on: reading TanStack's `signal` makes an unobserved in-flight fetch cancel and
-        // restart, which would fetch twice under StrictMode's remount.
-        queryFn: (ctx) => run({ client: ctx.client }),
+        queryFn: effectFn(lower(() => options.fetch(args), 'query')),
         retry: options.retry ?? 0,
         ...(options.staleTime !== undefined && { staleTime: options.staleTime }),
         ...(options.gcTime !== undefined && { gcTime: options.gcTime }),
       }
-      byKey.set(hash, q)
+      byKey.set(hash, new WeakRef(q))
+      evict.register(q, hash)
     }
     return q as unknown as CachedQuery<T>
   }

@@ -26,11 +26,12 @@ const Show = ({ q }: { q: CachedQuery<string> }) => {
 }
 
 describe('kit queries (R8)', () => {
-  it('fetches once under StrictMode, resolving yield*ed Tags', async () => {
+  it('resolves yield*ed Tags under StrictMode; the remount aborts and refetches the first fetch', async () => {
     const { calls, provide } = fakeApi()
     renderStrict(tree(<Show q={item('a')} />, provide))
     await screen.findByText('A')
-    expect(calls.get).toBe(1)
+    // TanStack cancels an unobserved fetch that consumed its AbortSignal, so StrictMode's remount fetches again.
+    expect(calls.get).toBe(2)
     expect(item('a')).toBe(item('a'))
   })
 
@@ -68,7 +69,7 @@ describe('kit queries (R8)', () => {
     await screen.findByText('A')
     await act(async () => fireEvent.click(screen.getByRole('button')))
     await screen.findByText('B')
-    expect(calls.get).toBe(2)
+    expect(calls.get).toBe(3)
   })
 
   it('mutate rejects with a SleekStackError when run throws', async () => {
