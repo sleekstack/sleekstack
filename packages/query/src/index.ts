@@ -15,3 +15,5 @@ export * as Mutation from './mutation'
 export * as QueryEvents from './events'
 /** SSR: `hydratable`, `prefetch`, `dehydrate`, `hydrate`, `apply`, `Dehydrated`. */
 export * as Hydrate from './hydrate'
+/** TanStack bridge: `QueryClientTag`, `QueryClientLive`, `effectFn`. */
+export { QueryClientTag, QueryClientLive, effectFn } from './client'
