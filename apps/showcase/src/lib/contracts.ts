@@ -4,8 +4,7 @@
  * The two directions of the data-layer model pattern (see README, "Models").
  * Read and write shapes are not inverses: `DTO(read) -fromDto-> Model -create-> Draft -toDto-> DTO(write)`.
  */
-import { Data, Effect } from 'effect'
-import type { z } from 'zod'
+import { Data, Effect, ParseResult, Schema } from 'effect'
 
 /**
  * Read side: `fromDto` is an Effect that resolves its own context from the environment `R` (services such as a
@@ -22,7 +21,8 @@ export type ModelSpec<Dto, M, R = never> = { fromDto(dto: Dto): Effect.Effect<M,
  * - `P` is the read shape `toModel` returns for a live preview.
  */
 export interface DraftSpec<D, Dto, Src = void, P = never, R = never> {
-  schema(src: Src): z.ZodType<D>
+  /** Fields hold what the inputs hold, so a Draft's schema is `Schema<D, D>`: it validates and normalises, never reshapes. */
+  schema(src: Src): Schema.Schema<D, D>
   create(src: Src): D
   toDto(draft: D, src: Src): Effect.Effect<Dto, never, R>
   toModel?(draft: D, src: Src): P
@@ -38,9 +38,7 @@ export class DraftInvalid extends Data.TaggedError('DraftInvalid')<{ readonly me
 
 /** Resolves a Draft to its wire body: validate against the schema, then run `toDto`. Fails with `DraftInvalid`. */
 export const resolveDraft = <D, Dto, Src, P, R>(spec: DraftSpec<D, Dto, Src, P, R>, draft: D, src: Src): Effect.Effect<Dto, DraftInvalid, R> =>
-  Effect.suspend(() => {
-    const parsed = spec.schema(src).safeParse(draft)
-    return parsed.success
-      ? spec.toDto(parsed.data, src)
-      : Effect.fail(new DraftInvalid({ messages: parsed.error.issues.map((i) => i.message) }))
-  })
+  Schema.decodeUnknown(Schema.suspend(() => spec.schema(src)), { errors: 'all' })(draft).pipe(
+    Effect.mapError((e) => new DraftInvalid({ messages: ParseResult.ArrayFormatter.formatErrorSync(e).map((i) => i.message) })),
+    Effect.flatMap((parsed) => spec.toDto(parsed, src)),
+  )

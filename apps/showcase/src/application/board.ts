@@ -6,8 +6,7 @@
  * audit entry only after that transaction commits.
  */
 import 'server-only'
-import { Effect } from 'effect'
-import type { z } from 'zod'
+import { Effect, ParseResult, Schema } from 'effect'
 import { InvalidInput, SimulatedFailure } from '../domain/errors'
 import { AddComment, CreateTask, MoveTask } from '../domain/inputs'
 import { ActivityLog, BoardStore, Clock, IdGen, RequestContext } from '../domain/tags'
@@ -17,12 +16,13 @@ import { loadBoard } from './board-view'
 const SERVER_MESSAGES: Record<string, string> = { title: 'Task title cannot be empty', body: 'Comment body cannot be empty' }
 
 /** Parses with the domain schema; the first issue becomes the `InvalidInput` message. */
-const parse = <S extends z.ZodType>(schema: S, input: unknown): Effect.Effect<z.output<S>, InvalidInput> => {
-  const r = schema.safeParse(input)
-  if (r.success) return Effect.succeed(r.data)
-  const issue = r.error.issues[0]
-  return Effect.fail(new InvalidInput({ message: SERVER_MESSAGES[String(issue?.path[0])] ?? issue?.message ?? 'Invalid input' }))
-}
+const parse = <A, I>(schema: Schema.Schema<A, I>, input: unknown): Effect.Effect<A, InvalidInput> =>
+  Schema.decodeUnknown(schema)(input).pipe(
+    Effect.mapError((e) => {
+      const issue = ParseResult.ArrayFormatter.formatErrorSync(e)[0]
+      return new InvalidInput({ message: SERVER_MESSAGES[String(issue?.path[0])] ?? issue?.message ?? 'Invalid input' })
+    }),
+  )
 
 const createTask = (input: CreateTask) =>
   Effect.gen(function* () {
