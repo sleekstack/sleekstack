@@ -137,6 +137,10 @@ _Avoid_: Context provider, LayerProvider
 `Catch(tag, fallback, children)`: renders `fallback` for one tagged error and removes only that tag from `E`.
 _Avoid_: Error boundary, try
 
+**Store** *(ui)*:
+The `Store` Tag over core's `AtomStore`, one per `mount`. A host component that reads an atom through `useAtomValue` / `useAtom` re-runs when it changes; only its subtree is swapped and guests inside lose their React state (ADR 0015).
+_Avoid_: State, signal
+
 ### Next.js integration concepts
 
 **Request Scope**:
