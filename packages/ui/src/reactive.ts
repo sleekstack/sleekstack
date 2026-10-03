@@ -47,6 +47,18 @@ export const useSetAtom = <R, W>(atom: Atom.Writable<R, W>): Effect.Effect<(valu
 export const useAtom = <R, W>(atom: Atom.Writable<R, W>): Effect.Effect<readonly [R, (value: W) => void], never, Store> =>
   Effect.zip(useAtomValue(atom), useSetAtom(atom))
 
+// A re-run is outside any `Catch` frame: apply the innermost captured `Boundary` handler whose tag matches.
+const handled = (run: Effect.Effect<Node, any, any>): Effect.Effect<Node, any, any> =>
+  Effect.catchIf(
+    run,
+    (e: any) => typeof e?._tag === 'string',
+    (e: any) =>
+      Effect.flatMap(Handlers, (hs) => {
+        const h = [...hs].reverse().find((x) => x.tag === e._tag)
+        return h ? h.fallback(e) : Effect.fail(e)
+      }),
+  )
+
 /** Runs a component as one instance: fresh collector, own scope, captured context; returns a `Reactive` node when it read atoms. */
 export const instance = <P>(type: (props: P) => Effect.Effect<Node, any, any>, props: P): Effect.Effect<Node, any, any> => {
   const run = (prev: Scope.CloseableScope | undefined): Effect.Effect<Node, any, any> =>
@@ -55,7 +67,7 @@ export const instance = <P>(type: (props: P) => Effect.Effect<Node, any, any>, p
         const atoms = new Set<Atom.Atom<any>>()
         const scoped = own ? Effect.provideService(type(props), RenderScope, own) : type(props)
         return Effect.map(Effect.provideService(scoped, Collector, atoms), (child): Node =>
-          atoms.size === 0 ? child : { _tag: 'Reactive', atoms: [...atoms], child, rerun: Effect.provide(run(own), ctx) as Effect.Effect<Node> },
+          atoms.size === 0 ? child : { _tag: 'Reactive', atoms: [...atoms], child, rerun: Effect.provide(handled(run(own)), ctx) as Effect.Effect<Node> },
         )
       }
       return Effect.flatMap(RenderScope, (parent) =>
