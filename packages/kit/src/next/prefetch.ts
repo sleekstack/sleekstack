@@ -42,8 +42,12 @@ const run = async (atoms: ReadonlyArray<ReturnType<typeof coreQuery>>, options: 
  *
  * @example
  * ```tsx
+ * import { cachedQuery } from '@sleekstack/kit'
  * import { prefetch } from '@sleekstack/kit/next'
- * import { HydrateQueries } from '@sleekstack/kit/react'
+ * import { HydrateQueries, useQuery } from '@sleekstack/kit/react'
+ *
+ * const todo = cachedQuery({ key: (id: string) => ['todo', id], fetch: function* (id) { return `todo ${id}` }, serializable: true })
+ * const Todo = ({ id }: { id: string }) => <p>{useQuery(todo(id)).data}</p>
  *
  * export default async function Page() {
  *   return <HydrateQueries state={await prefetch([todo('t1')])}><Todo id="t1" /></HydrateQueries>

@@ -7,8 +7,8 @@ from any public entry.
 | Subpath | Exports |
 | --- | --- |
 | `@sleekstack/kit` | `tag`, `layer`, `withCleanup`, `effect`, `atom`, `cachedQuery`, `mutation`, `module`, `SleekStackError` (+ types `Tag`, `Layer`, `Module`, `FinalizerError`, ...) |
-| `@sleekstack/kit/next` | `configureRuntime`, `defineEffect`, `defineQuery`, `effect`, `query`, `fail` (+ `ActionResult`, `OperationOptions`, `RuntimeConfig`) |
-| `@sleekstack/kit/react` | `LayerProvider`, `useService`, `useServices`, `useAtom`, `useAtomValue`, `useAtomSet`, `useQuery`, `useMutation`, `useQueryClient`, `QueryProvider` |
+| `@sleekstack/kit/next` | `configureRuntime`, `defineEffect`, `defineQuery`, `effect`, `query`, `fail`, `prefetch` (+ `ActionResult`, `OperationOptions`, `RuntimeConfig`, `PrefetchOptions`) |
+| `@sleekstack/kit/react` | `LayerProvider`, `useService`, `useServices`, `useAtom`, `useAtomValue`, `useAtomSet`, `useQuery`, `useMutation`, `useQueryClient`, `QueryProvider`, `HydrateQueries` |
 
 Every failure is a `SleekStackError` with a `code` (`MissingDependency`, `DependencyCycle`, `CaptiveDependency`,
 `AmbiguousProvider`, `ModuleCycle`, `DuplicateModule`, `InvalidModule`, `PrivateDependency`, `DuplicateTag`,
@@ -95,8 +95,9 @@ function Rows() {
 }
 ```
 
-- Failures are `SleekStackError`: `useQuery` returns `error`, `mutate` rejects. An unserializable key throws code `Unknown`.
-- `useMutation` throws during a server render. The kit has no server prefetch yet, so kit queries fetch on the client (follow-up spec `fn-16-query-layer-follow-ups-kit-ssr-prefetch`).
+- Failures are `SleekStackError`: `useQuery` returns `error`, `mutate` rejects. An unserializable key throws code `InvalidQueryKey`.
+- `useMutation` returns the idle handle during a server render; `mutate` there throws (cause: `MutateDuringRender`).
+- Server prefetch: give the query `serializable` (`true`, or a `{ encode, decode }` codec), call `prefetch([q])` from `@sleekstack/kit/next` in a server component and pass the result to `<HydrateQueries state>`. Codes: `QueryDecodeFailed`, `NoServerRunner`. See the docs page "Queries on the server".
 
 ## `@sleekstack/kit/next`
 

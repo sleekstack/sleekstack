@@ -43,8 +43,12 @@ export function QueryProvider({ children }: { readonly children?: ReactNode }) {
  *
  * @example
  * ```tsx
+ * import { cachedQuery } from '@sleekstack/kit'
  * import { prefetch } from '@sleekstack/kit/next'
- * import { HydrateQueries } from '@sleekstack/kit/react'
+ * import { HydrateQueries, useQuery } from '@sleekstack/kit/react'
+ *
+ * const todo = cachedQuery({ key: (id: string) => ['todo', id], fetch: function* (id) { return `todo ${id}` }, serializable: true })
+ * const Todo = ({ id }: { id: string }) => <p>{useQuery(todo(id)).data}</p>
  *
  * export default async function Page() {
  *   return <HydrateQueries state={await prefetch([todo('t1')])}><Todo id="t1" /></HydrateQueries>
@@ -55,6 +59,9 @@ export function HydrateQueries({ state, children }: { readonly state: Dehydrated
   // Called, not rendered, so its throws go through `kit` (its hooks run in this component's order).
   return kit(() => CoreHydrateQueries({ state: state as never, children }))
 }
+
+// Core's exact rejection when a server render reads an un-prefetched query and no runner is registered.
+const NO_RUNNER = 'No server query runner: import @sleekstack/next (or call Hydrate.setServerRunner) on the server.'
 
 /** What {@link useQuery} returns. */
 export interface QueryState<T> {
@@ -91,8 +98,6 @@ export interface QueryState<T> {
  * }
  * ```
  */
-// Core's exact rejection when a server render reads an un-prefetched query and no runner is registered.
-const NO_RUNNER = 'No server query runner: import @sleekstack/next (or call Hydrate.setServerRunner) on the server.'
 
 export function useQuery<T>(query: CachedQuery<T>): QueryState<T> {
   const r = kit(() => {

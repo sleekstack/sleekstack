@@ -21,7 +21,18 @@ This lazy fetch uses the configured runtime only. It cannot see per-call `reques
 
 A lazy read that is first reached after `HydrateQueries` has rendered its script (behind a deeper suspension) is not transferred. Prefetch it.
 
-## Limits
+## kit
 
-- The kit has no server prefetch yet: `@sleekstack/kit` has no `prefetch`, `HydrateQueries` or value codec, so kit queries fetch on the client only. This is tracked in spec `fn-16-query-layer-follow-ups-kit-ssr-prefetch`.
-- `useMutation` throws during a server render; see [Queries](/docs/queries).
+The kit has the same flow without Effect types: `prefetch(queries, { provide? })` from `@sleekstack/kit/next`, `<HydrateQueries state>` from `@sleekstack/kit/react`, and a `serializable` option on `cachedQuery`.
+
+<include>../../snippets/kit/queries-ssr.tsx</include>
+
+- `serializable: true` sends the value as is, so it must be JSON-safe. Otherwise pass a `QueryCodec`, a plain `{ encode, decode }` pair. A `decode` that throws on the client raises `SleekStackError` with code `QueryDecodeFailed`, naming the query.
+- `prefetch` rejects with `SleekStackError` (code `Unknown`) naming the query when one has no `serializable`, and before `configureRuntime`.
+- A query whose fetch fails on the server is not sent. The client fetches it again.
+- Importing `@sleekstack/kit/next` on the server registers the kit request scope as the server runner, replacing the one `@sleekstack/next` registers. A server render that reads an un-prefetched query with no runner throws `NoServerRunner`.
+- The lazy read rule above applies: an un-prefetched kit query read on the server sees the configured runtime only, never a per-call `provide`. **A query that needs per-call services must be prefetched** with `prefetch(queries, { provide })`.
+
+## Mutations in a server render
+
+`useMutation` (core and kit) returns the idle result in a server render, so a form that uses it renders on the server. Calling `mutate` during a render throws an `Error` named `MutateDuringRender`; in kit it is a `SleekStackError` (code `Unknown`) whose `cause` is that error. Other hooks keep their client-only guard: kit `useQueryClient` still throws in a server render, which is why the create form in `apps/showcase-kit` mounts after hydration.
