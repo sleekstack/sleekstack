@@ -20,9 +20,8 @@ Contributor-facing agent context. Only non-derivable rules; commands come from `
 - [ ] root CLAUDE.md imports it, no duplicated content
 
 ## Done summary
-TBD
-
+Added AGENTS.md (~40 lines: sources of truth, commands, verify-by-change-type table, rules); root CLAUDE.md imports @AGENTS.md.
 ## Evidence
-- Commits:
+- Commits: 5101fc504515edff6d0c7f6979f99b985fc5e098
 - Tests:
 - PRs:

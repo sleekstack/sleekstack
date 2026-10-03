@@ -22,6 +22,19 @@ Reported at build time by `sleekstack check` (with file:line). The runtime keeps
 | `CaptiveDependency` | A service depends on one whose lifetime it may not capture, for example `app` on `request`. |
 | `PrivateDependency` | Something outside a module requires a Tag the module does not export. Build-time only: the runtime does not enforce it. |
 
+## Analyzer read errors
+
+Reported by `sleekstack check` (with file:line) when it cannot read a declaration statically. The analyzer fails closed: an unreadable declaration is an error, never a skip.
+
+| Code | Triggered when |
+| --- | --- |
+| `Unresolvable` | A provider, module or Layer cannot be read statically (a computed or dynamically picked value). |
+| `Computed` | A provide list, import list or name is computed in a way the analyzer cannot evaluate (use literals, local consts or loops over literal lists). |
+| `UnnamedEffect` | An `effect()` inside a module has no literal `name`. |
+| `NonLiteralOptions` | `runEffect` options are not an object literal the analyzer can read. |
+| `UnownedAction` | Several runtimes exist and no `configureRuntime` file imports the action; pass `--entry` to pick one. |
+| `EmittedSibling` | Emitted JavaScript or declaration output (`.js`, `.jsx`, `.d.ts`) sits next to its `.ts` source; delete it. |
+
 ## Component errors
 
 Reported by `sleekstack check` (with file:line) for projects whose package.json lists `@sleekstack/ui`, the Effect-native component framework MVP. There is one tree per `mount` call.

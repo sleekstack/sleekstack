@@ -13,7 +13,8 @@ function exportSymbols(file: string) {
   const moduleSymbol = checker.getSymbolAtLocation(program.getSourceFile(file)!)!
   // `@internal` exports are adapter plumbing, excluded from the reference like TypeDoc's excludeInternal.
   const internal = (s: ts.Symbol) =>
-    (s.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(s) : s).getJsDocTags(checker).some((t) => t.name === 'internal')
+    (s.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(s) : s).getJsDocTags(checker).some((t) => t.name === 'internal') ||
+    (s.declarations ?? []).some((d) => ts.isExportSpecifier(d) && ts.getJSDocDeprecatedTag(d.parent.parent)) // a deprecated alias (kit/next `effect`) stays out of the reference
   return { checker, symbols: checker.getExportsOfModule(moduleSymbol).filter((s) => !internal(s)) }
 }
 

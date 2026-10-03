@@ -27,9 +27,8 @@ Spec `.flow/specs/fn-22-benchmark-suite-for-the-ui-renderer-and.md` is authorita
 - [ ] Baseline committed from one recorded run; README documents the refresh commands
 
 ## Done summary
-TBD
-
+Committed baseline.json from one recorded run (Node 22, darwin arm64), added PR-only bench CI job (bench:json + compare, table to job summary, fails on regression, ::warning:: on Node major mismatch), added apps/bench to required-scripts list, README with refresh commands and ratio rationale.
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 52ea026
+- Tests: pnpm --filter bench compare
 - PRs:

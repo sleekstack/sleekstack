@@ -29,9 +29,8 @@ Spec `.flow/specs/fn-22-benchmark-suite-for-the-ui-renderer-and.md` is authorita
 - [ ] `pnpm --filter bench typecheck` passes
 
 ## Done summary
-TBD
-
+render-string and render-dom (jsdom) suites vs React on the 1k-row list; mount+unmount and one-row reactive update; node swaps counted via MutationObserver outside measurement (sleekstack 2, react 0) and merged into latest.json.
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 360c5e1
+- Tests: pnpm --filter bench bench:json, pnpm --filter bench test, pnpm typecheck
 - PRs:

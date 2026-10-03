@@ -27,9 +27,8 @@ Spec `.flow/specs/fn-22-benchmark-suite-for-the-ui-renderer-and.md` is authorita
 - [ ] Case naming exposes the reference case for `compare`
 
 ## Done summary
-TBD
-
+jsx-overhead suite: renderToString via jsx() vs direct component calls, non-reactive and one-reactive trees; HTML verified identical; 'direct' is the reference. Finding: wrapper costs ~2.6-3.1x on a 1k tree.
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 9923e09
+- Tests: pnpm --filter bench bench:json, pnpm --filter bench test, pnpm typecheck
 - PRs:

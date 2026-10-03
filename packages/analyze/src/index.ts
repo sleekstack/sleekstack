@@ -10,6 +10,7 @@ import { extract } from './extract'
 import type { Report } from './model'
 
 export type * from './model'
+export { ERROR_CODES } from './errorCodes'
 
 /**
  * Extracts the static graph of the tsconfig project at `project` (a tsconfig.json path). `entries` limits

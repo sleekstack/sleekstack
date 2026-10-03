@@ -10,18 +10,21 @@
 import * as path from 'node:path'
 import ts from 'typescript'
 import { bodyReturns, libId, programOf, TEST_FILE, unwrap, Unreadable } from './extract'
+import { analyzeError } from './errorCodes'
 import type { AnalyzeError, ComponentReport, ComponentTree, Location, UiNode } from './model'
 
 /** `@sleekstack/ui`'s `Store`, provided by every `mount` (ui/dom.ts) whatever its layer. */
 const UI_STORE = 'Store'
 /** Analyzer code for a handler the resume pass cannot prove resumable (fn-18). */
-export const NON_RESUMABLE_HANDLER = 'NonResumableHandler'
+export const NON_RESUMABLE_HANDLER = 'NonResumableHandler' as const
 
 export function analyzeComponents(opts: { readonly project: string }): ComponentReport {
   const { root, program, checker } = programOf(opts.project)
   const loc = (n: ts.Node): Location => {
     const sf = n.getSourceFile()
-    return { file: path.relative(root, sf.fileName), line: sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1 }
+    const start = sf.getLineAndCharacterOfPosition(n.getStart(sf))
+    const end = sf.getLineAndCharacterOfPosition(n.getEnd())
+    return { file: path.relative(root, sf.fileName), line: start.line + 1, column: start.character + 1, endLine: end.line + 1, endColumn: end.character + 1 }
   }
   const text = (n: ts.Node) => n.getText().replace(/\s+/g, ' ').slice(0, 80)
   const fail = (n: ts.Node, message: string): never => {
@@ -304,7 +307,7 @@ export function analyzeComponents(opts: { readonly project: string }): Component
 
   const trees: ComponentTree[] = []
   const nonResumable: AnalyzeError[] = []
-  const notResumable = (n: ts.Node, message: string) => nonResumable.push({ code: NON_RESUMABLE_HANDLER, message, ...loc(n) })
+  const notResumable = (n: ts.Node, message: string) => nonResumable.push(analyzeError(NON_RESUMABLE_HANDLER, message, loc(n)))
   /** An `on(node, { event: h })` entry must name a top-level `const h = defineHandler('literal', ...)`. */
   const checkOn = (call: ts.CallExpression) => {
     const map = call.arguments[1] && unwrap(call.arguments[1])
@@ -404,12 +407,12 @@ export function analyzeComponents(opts: { readonly project: string }): Component
  * children's). Returns the Tags and error tags already reported below.
  */
 function check(n: UiNode, provided: ReadonlySet<string>, caught: ReadonlySet<string>, out: AnalyzeError[]): Set<string> {
-  const at = { file: n.file, line: n.line }
-  if (n.kind === 'unresolved') return (out.push({ code: 'Unresolved', message: n.message, ...at }), new Set())
+  const at = { file: n.file, line: n.line, column: n.column, endLine: n.endLine, endColumn: n.endColumn }
+  if (n.kind === 'unresolved') return (out.push(analyzeError('Unresolved', n.message, at)), new Set())
   if (n.kind === 'component' && n.guest) {
     for (const c of n.children) {
       if (c.kind === 'unresolved') check(c, provided, caught, out)
-      else out.push({ code: 'EffectInsideReact', message: `Effect component "${c.kind === 'component' ? c.name : ''}" is rendered under the React guest "${n.name}"`, file: c.file, line: c.line })
+      else out.push(analyzeError('EffectInsideReact', `Effect component "${c.kind === 'component' ? c.name : ''}" is rendered under the React guest "${n.name}"`, { file: c.file, line: c.line, column: c.column, endLine: c.endLine, endColumn: c.endColumn }))
     }
     return new Set()
   }
@@ -422,12 +425,12 @@ function check(n: UiNode, provided: ReadonlySet<string>, caught: ReadonlySet<str
   for (const r of requires) {
     if (provided.has(r) || below.has(`R:${r}`)) continue
     below.add(`R:${r}`)
-    out.push({ code: 'MissingDependency', message: `${who} requires "${r}", but no enclosing Provide or root (mount / resume) layer provides it`, ...at })
+    out.push(analyzeError('MissingDependency', `${who} requires "${r}", but no enclosing Provide or root (mount / resume) layer provides it`, at))
   }
   for (const e of n.kind === 'component' ? n.errors : []) {
     if (caught.has(e) || below.has(`E:${e}`)) continue
     below.add(`E:${e}`)
-    out.push({ code: 'UnhandledError', message: `${who} can fail with "${e}", but no enclosing Catch handles it`, ...at })
+    out.push(analyzeError('UnhandledError', `${who} can fail with "${e}", but no enclosing Catch handles it`, at))
   }
   return below
 }
