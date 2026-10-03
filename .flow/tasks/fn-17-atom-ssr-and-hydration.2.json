@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-17-atom-ssr-and-hydration",
   "spec_path": ".flow/tasks/fn-17-atom-ssr-and-hydration.2.md",
-  "status": "todo",
+  "status": "done",
   "title": "React: renderWithAtoms request registry and server atom reads",
   "updated_at": "2026-10-03T09:27:39.350527Z"
 }

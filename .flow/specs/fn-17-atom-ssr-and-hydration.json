@@ -1087,7 +1087,7 @@
     "plan": 0
   },
   "spec_path": ".flow/specs/fn-17-atom-ssr-and-hydration.md",
-  "status": "open",
+  "status": "done",
   "title": "Atom SSR and hydration",
   "tracker": {
     "baseHashFlow": null,
@@ -1100,5 +1100,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-03T13:22:53.005388Z"
+  "updated_at": "2026-10-03T13:28:06.830253Z"
 }

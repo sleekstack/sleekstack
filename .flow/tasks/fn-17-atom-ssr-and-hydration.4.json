@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-17-atom-ssr-and-hydration",
   "spec_path": ".flow/tasks/fn-17-atom-ssr-and-hydration.4.md",
-  "status": "todo",
+  "status": "done",
   "title": "Next prefetchAtoms and showcase SSR atom page with e2e",
   "updated_at": "2026-10-03T09:27:39.645171Z"
 }
