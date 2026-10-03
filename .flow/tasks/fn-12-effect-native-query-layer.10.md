@@ -22,6 +22,8 @@ Both showcases read through query hooks with server prefetch and mutate through 
 <!-- Updated by plan-sync: fn-12.7 showcase-kit adopts through @sleekstack/kit: `cachedQuery({ key, fetch: function*(args){...} })`, `mutation({ run })`, and `useQuery`/`useMutation`/`useQueryClient`/`QueryProvider` from @sleekstack/kit/react; non-serializable keys throw SleekStackError code `Unknown` -->
 - Prefetch in the server component with `prefetch([...], { request, overrides })` from `@sleekstack/next`, wrapped in `<HydrateQueries state={...}>` from `@sleekstack/react`. A lazy server read of an un-prefetched query runs on the configured runtime only and does NOT see per-call request/overrides Layers, so every query needing request-scoped services MUST be prefetched. Typed failures reach the client only if opted in at prefetch. <!-- Updated by plan-sync: fn-12.6 -->
 
+- If the showcase mounts the devtools panel, its Queries tab (packages/devtools/src/panel/queries.tsx) lists live query entries (key, state, observers, updatedAt, gc timer) via `QueryEvents.snapshot(store)`; it is empty in production and `QUERY_DEVTOOLS_MARKER` must stay out of client chunks (the showcase bundle test asserts this; keep it passing). <!-- Updated by plan-sync: fn-12.9 -->
+
 ### Investigation targets
 **Required**:
 - `apps/showcase/src/client/ProjectView.tsx`, `TaskDetail.tsx`, `app/page.tsx`

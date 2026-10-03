@@ -20,6 +20,8 @@ Write the decision record and user docs for the query layer (spec R12); BLOCKED 
 <!-- Updated by plan-sync: fn-12.8 docs must cover the analyzer: query/mutation fetchers are read like action bodies (a needed Tag no reaching runtime provides is a MissingDependency at file:line); the key rule: a key must be a function returning a tuple literal of literals and its own parameters, e.g. `(id) => ['todo', id]`; parameters typed any, unknown or a union (including string-literal unions like 'open'|'closed') fail closed as Computed (boolean is allowed). Mention the fail-closed behaviour in the ADR known limits too. -->
 - regenerate the API reference with `query` in entry-points (anchors: `.flow/memory/bug/integration/typedoc-markdown-anchors-differ-from-2026-09-28.md`).
 
+- Document the devtools Queries tab (`@sleekstack/devtools`, which now depends on `@sleekstack/query`): `QueryEvents` (exported from `@sleekstack/query`) keeps per-kind rings of 50 events (added, fetching, success, failure, removed; interruptions are not failures) recorded by the `Query.make` lifecycle; `QueryEvents.snapshot(store)` lists live entries from `store.inspect()` without building or refetching; recording is off in production and when `process` is absent (direct `process.env.NODE_ENV` check), so the tab is empty there; the panel is excluded from client bundles (`QUERY_DEVTOOLS_MARKER` bundle test). Mention in the ADR known limits (client buffers only, production no-op). <!-- Updated by plan-sync: fn-12.9 -->
+
 ### Investigation targets
 **Required**:
 - `apps/docs/scripts/entry-points.mjs`, `apps/docs/scripts/generate-api.mjs`
