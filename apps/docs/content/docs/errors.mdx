@@ -39,16 +39,6 @@ Reported by `sleekstack check` (with file:line) for projects whose package.json 
 | --- | --- |
 | `DuplicateTag` | One provide set holds two distinct Tag objects with the same key. |
 | `InvalidTag` | `tag()` gets an empty or non-string name, or a dep is neither a `tag()` nor a named class. |
-| `InvalidQueryKey` | A `cachedQuery` key holds a value with no stable JSON form (a function, `BigInt`, symbol or cycle). `details.key` holds it. |
-
-## Query SSR errors (kit)
-
-| Code | Triggered when |
-| --- | --- |
-| `QueryDecodeFailed` | A `serializable` query's `decode` throws on server-prefetched data. `details.key` names the query. |
-| `NoServerRunner` | A server render reads an un-prefetched query and no server runner is registered: import `@sleekstack/kit/next` on the server, or prefetch the query. |
-
-See [Queries on the server](/docs/queries-ssr).
 
 ## Runtime errors
 
@@ -57,7 +47,7 @@ See [Queries on the server](/docs/queries-ssr).
 | `LayerFailed` | A Layer factory or constructor (or an `effect()` function) throws or rejects while its scope builds. `details.cause` holds the message. |
 | `HandlerFailed` | A kit action/query handler throws something other than `fail()`. |
 | `CleanupFailed` | A `withCleanup` cleanup or an `effect()` teardown throws. It is not thrown to you: `onFinalizerError` receives a plain `FinalizerError` (`{ message, tag }`) instead. |
-| `Unknown` | Anything else. In kit this includes `useService` with no `LayerProvider` above or a Tag the provider does not provide, an action/query called before `configureRuntime`, `prefetch` of a query without `serializable`, and `mutate` called during a server render (its `cause` is an `Error` named `MutateDuringRender`). |
+| `Unknown` | Anything else. In kit this includes `useService` with no `LayerProvider` above or a Tag the provider does not provide, and an action/query called before `configureRuntime`. |
 
 `fail(message)` is not an error code: an action resolves `{ ok: false, error }` and a query rejects with a plain `Error` carrying the message.
 

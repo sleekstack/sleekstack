@@ -15,6 +15,7 @@
 | [0011](0011-static-build-time-dependency-graph.md) | The dependency graph is validated statically, at build time | Accepted |
 | [0012](0012-next-runtime-management-sugar-in-kit.md) | `@sleekstack/next` manages the Effect runtime; action/query sugar lives in kit | Accepted, superseded in part by 0013 |
 | [0013](0013-framework-agnostic-runtime-package.md) | The Effect runtime lives in `@sleekstack/runtime`; `@sleekstack/next` is its Next preset | Accepted |
-| [0014](0014-native-query-layer.md) | Queries and mutations are built on native atoms, in `@sleekstack/query` | Accepted |
+| [0014](0014-native-query-layer.md) | Queries and mutations are built on native atoms, in `@sleekstack/query` | Superseded by 0018 |
 | [0015](0015-host-first-component-framework.md) | `@sleekstack/ui` (MVP spike): the Effect program is the host, React components are guests | Proposed |
 | [0016](0016-serializable-atoms-ssr.md) | Atoms render on the server and hydrate from opt-in serializable snapshots | Accepted |
+| [0018](0018-tanstack-query-over-native-query-layer.md) | Queries use TanStack Query; `@sleekstack/query` is a thin bridge | Accepted |

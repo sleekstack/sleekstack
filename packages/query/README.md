@@ -1,32 +1,19 @@
 # @sleekstack/query
 
-Effect-native queries and mutations on the native atom store (ADR 0014). A query is a keyed family of atoms whose read runs an Effect (or Stream): its services are Tags from the query store's scope, its failures are typed, and its cache is disposed with that scope. Depends on `effect` and `@sleekstack/core` only.
+The SleekStack bridge over [TanStack Query](https://tanstack.com/query) (ADR 0018). Queries, caching and hooks are TanStack's; this package wires its `QueryClient` to Effect Layers.
 
 | Export | What it does |
 | --- | --- |
-| `Query` | `make`, `infinite`, `select`, plus `QueryCache` (the registry Tag), `entries`, `observe`, `trigger`, `fetchNext`, `fetchPrevious`. |
-| `Queries` | The `Queries` service: `invalidate`, `refetch`, `cancel`, `reset` (by atom or `{ prefix, predicate }`) and `setData`, `updateData`, `getData` (by atom). |
-| `Mutation` | `make`, `shared`, `runner`, `optimistic` (an optimistic write with ordered rollback). |
-| `Hydrate` | SSR: `hydratable` (a value Schema), `prefetch`, `dehydrate`, `hydrate`, `Dehydrated`. |
-| `QueryEvents` | Dev-only client event buffer for the `@sleekstack/devtools` Queries tab. |
-| `canonicalKey`, `InvalidQueryKey` | Key canonical form (stable JSON, sorted object keys) and its error. |
+| `QueryClientTag` | The scope's TanStack `QueryClient`. |
+| `QueryClientLive(config?)` | A scoped Layer providing a mounted `QueryClient`, unmounted and cleared when its scope closes. |
+| `effectFn(effect)` | Lowers an Effect to a `queryFn` / `mutationFn` run with the services of the client's layer; rejects with the original failure, and an aborted `signal` interrupts it. |
 
 ```ts
-import { Effect, Option, Schedule } from 'effect'
-import { Mutation, Query } from '@sleekstack/query'
+import { Effect } from 'effect'
+import { queryOptions } from '@tanstack/react-query'
+import { effectFn } from '@sleekstack/query'
 
-const todo = Query.make({
-  key: (id: string) => ['todo', id],
-  fetch: (id) => Effect.flatMap(TodoApi, (api) => api.get(id)),  // R = TodoApi
-  staleTime: '30 seconds',
-  retry: Schedule.recurs(3),
-})
-
-const rename = Mutation.make({
-  run: (input: { id: string; title: string }) => Effect.flatMap(TodoApi, (api) => api.rename(input)),
-  cancel: (input) => todo(input.id),
-  onMutate: (input) => Mutation.optimistic(todo(input.id), (t) => ({ ...Option.getOrThrow(t), title: input.title })),
-})
+const todo = (id: string) => queryOptions({ queryKey: ['todo', id], queryFn: effectFn(Effect.flatMap(TodoApi, (api) => api.get(id))) })
 ```
 
-React hooks are in `@sleekstack/react`, server `prefetch` in `@sleekstack/next`, and an Effect-free facade (`cachedQuery`, `mutation`) in `@sleekstack/kit`. See the Queries, Queries on the server and TanStack Query mapping guides in [`apps/docs`](../../apps/docs/README.md).
+`QueryProvider` is in `@sleekstack/react`, server `prefetchQueries` in `@sleekstack/next`, ui hooks in `@sleekstack/ui/query`, and an Effect-free facade (`cachedQuery`, `mutation`) in `@sleekstack/kit`. See the Queries guides in [`apps/docs`](../../apps/docs/README.md).

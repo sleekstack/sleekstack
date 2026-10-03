@@ -1,4 +1,3 @@
-import { canonicalKey } from '@sleekstack/query'
 import { describe, expect, it } from 'vitest'
 import { Cause, Effect } from 'effect'
 import { MissingDependency } from '@sleekstack/core'
@@ -35,7 +34,6 @@ describe('normalize envelopes', () => {
     ['LayerFailure wrapping a Cause', new LayerFailure('L', Cause.fail(graph)), 'LayerFailed', { tag: 'L' }],
     ['CleanupFailure wrapping a Cause', new CleanupFailure('C', Cause.fail(graph)), 'CleanupFailed', { tag: 'C' }],
     ['plain Error with a non-Cause cause', new Error('x', { cause: 1 }), 'Unknown', {}],
-    ['unserializable query key', (() => { try { canonicalKey([() => 1]) } catch (e) { return e } })(), 'InvalidQueryKey', { key: [expect.any(Function)] }],
   ])('%s', (_, input, code, details) => {
     const e = normalize(input)
     expect(e).toBeInstanceOf(SleekStackError)
