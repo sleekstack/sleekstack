@@ -235,15 +235,219 @@
       "task": "fn-18-resumable-rendering-spike-for.1",
       "timestamp": "2026-10-03T15:58:49.702310Z",
       "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "9c0ff700acdb95ff06c61ad2d788772c911d0b7be2be5a3b5e62460e54b40210",
+      "backend": "codex",
+      "base_sha": "2f087f2cd0100464d9831e9fc0acca1c89efc50b",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-b80bdcce6aece795093886ff94af8da2",
+            "classification": "introduced",
+            "findingId": "finding-b80bdcce6aece795093886ff94af8da2",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-391bf79d0365384d038d942480d9ec1a",
+            "classification": "introduced",
+            "findingId": "finding-391bf79d0365384d038d942480d9ec1a",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-d0e106c85647eefd4e2f6e653d595958",
+            "classification": "introduced",
+            "findingId": "finding-d0e106c85647eefd4e2f6e653d595958",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-c5708269264f7468a8b54b4fb866ec70",
+            "classification": "introduced",
+            "findingId": "finding-c5708269264f7468a8b54b4fb866ec70",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "3fb57126bc20ab61e38ce184e1fdc4fe34ff5fa9",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 3178,
+      "output_sha256": "8efdac52658426368881d765cf588a988f538441f38c936eb8c1022f0e84b1fb",
+      "reservation_id": "4aea34e6291443f59f1561e785f3716a",
+      "round_consumed": true,
+      "scope": "impl:fn-18-resumable-rendering-spike-for.2",
+      "superseded_by": null,
+      "task": "fn-18-resumable-rendering-spike-for.2",
+      "timestamp": "2026-10-03T16:11:32.604018Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "fcbca6fb33b1d15fd30f2fb004c910075be8fe60b0a9a877a7ab497fd276662d",
+      "backend": "codex",
+      "base_sha": "2f087f2cd0100464d9831e9fc0acca1c89efc50b",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-b80bdcce6aece795093886ff94af8da2",
+            "classification": "introduced",
+            "findingId": "finding-b80bdcce6aece795093886ff94af8da2",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-391bf79d0365384d038d942480d9ec1a",
+            "classification": "introduced",
+            "findingId": "finding-391bf79d0365384d038d942480d9ec1a",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "not_fixed"
+          },
+          {
+            "chainRoot": "finding-482edb08b64303f668d313b59cae7f4b",
+            "classification": "introduced",
+            "findingId": "finding-482edb08b64303f668d313b59cae7f4b",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-d0e106c85647eefd4e2f6e653d595958",
+            "classification": "introduced",
+            "findingId": "finding-d0e106c85647eefd4e2f6e653d595958",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-c5708269264f7468a8b54b4fb866ec70",
+            "classification": "introduced",
+            "findingId": "finding-c5708269264f7468a8b54b4fb866ec70",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "57cf65ee0b8a52ffc9c2ab432d0129b1c3f4be7f",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1789,
+      "output_sha256": "d9ae437bc729c143588932e60ff0ce27ad26d9ba5ce298e0545f8fe8ffaeb5a2",
+      "reservation_id": "16f990c679754f139b6582178c8e2e62",
+      "round_consumed": true,
+      "scope": "impl:fn-18-resumable-rendering-spike-for.2",
+      "superseded_by": null,
+      "task": "fn-18-resumable-rendering-spike-for.2",
+      "timestamp": "2026-10-03T16:13:08.108303Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "2e1e5f15445920bce92a05db75d8451a68b0445eb42589cf9aa1122ee7932b6d",
+      "backend": "codex",
+      "base_sha": "2f087f2cd0100464d9831e9fc0acca1c89efc50b",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "76b83c29f71e44d2cdae5f272fdac566f00e4259",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1615,
+      "output_sha256": "4e25076c21d6e0946a4c3e0552aa2459622e964778e8cd5e837e188947d2310f",
+      "reservation_id": "c5333017340041309517ec6060ad9b35",
+      "round_consumed": true,
+      "scope": "impl:fn-18-resumable-rendering-spike-for.2",
+      "superseded_by": null,
+      "task": "fn-18-resumable-rendering-spike-for.2",
+      "timestamp": "2026-10-03T16:14:32.321582Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "10d4d63d075aae79e5d1387f6167b0b3191c4dee15d2521d865711a30ec61789",
+      "backend": "codex",
+      "base_sha": "2f087f2cd0100464d9831e9fc0acca1c89efc50b",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "602bba39890cc563e872ad93c0d8d0dff8e70eb0",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1724,
+      "output_sha256": "c270a986e5c2821106ea3acc51d8874e15fd8464ca41661137189f8e18a728b0",
+      "reservation_id": "dbb97cd17e63450794c67db54b45dd73",
+      "round_consumed": true,
+      "scope": "impl:fn-18-resumable-rendering-spike-for.2",
+      "superseded_by": null,
+      "task": "fn-18-resumable-rendering-spike-for.2",
+      "timestamp": "2026-10-03T16:15:54.295956Z",
+      "verdict": "NEEDS_WORK"
     }
   ],
   "review_hash_epoch": {
-    "impl:fn-18-resumable-rendering-spike-for.1": 1
+    "impl:fn-18-resumable-rendering-spike-for.1": 1,
+    "impl:fn-18-resumable-rendering-spike-for.2": 1
   },
   "review_pending_rounds": {},
   "review_reservations": {},
   "review_transport_failures": {
-    "impl:fn-18-resumable-rendering-spike-for.1": 0
+    "impl:fn-18-resumable-rendering-spike-for.1": 0,
+    "impl:fn-18-resumable-rendering-spike-for.2": 0
   },
   "spec_path": ".flow/specs/fn-18-resumable-rendering-spike-for.md",
   "status": "open",
@@ -259,5 +463,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-03T15:58:49.705038Z"
+  "updated_at": "2026-10-03T16:19:42.014535Z"
 }
