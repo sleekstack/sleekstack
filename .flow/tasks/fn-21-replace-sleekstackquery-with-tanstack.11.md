@@ -27,9 +27,8 @@ Guest React state is lost when its parent reader re-renders; keep the mutate but
 - [ ] `sleekstack check` on ui-demo is clean; tests, `tsc` and `vite build` pass
 
 ## Done summary
-TBD
-
+Backlog panel: BacklogList uses ui useQuery over effectFn(TaskRepo.byProject); AddTask uses useMutation and passes mutate to the AddButton guest, invalidating on success. AppWithQueriesLive builds QueryClientLive over AppLive. jsdom test covers SSR pending, load, guest mutate, sibling node stability.
 ## Evidence
-- Commits:
-- Tests:
+- Commits: b800db7
+- Tests: pnpm --filter ui-demo test, tsc, vite build, sleekstack check
 - PRs:
