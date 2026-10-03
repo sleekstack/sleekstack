@@ -1,0 +1,5 @@
+{
+  "extends": "../../../../../../../tsconfig.base.json",
+  "compilerOptions": { "paths": { "@sleekstack/ui": ["../../../../../../ui/src/index.ts"], "effect": ["../../../../../../ui/node_modules/effect"] } },
+  "include": ["."]
+}

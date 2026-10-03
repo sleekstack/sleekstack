@@ -62,6 +62,7 @@ _Avoid_: Handler, deps array
 
 **Analyzer**:
 `@sleekstack/analyze`, run as `sleekstack check [--project <tsconfig>] [--entry <file>...] [--json] [--lenient]`. Reads the declarations through the TypeScript checker without executing app code, builds each root's Graph and reports every violation with file:line (exit 0 ok, 1 violations, 2 crash or no roots). Fails closed: a declaration it cannot read is an error. `--entry` limits the roots to the given files. `--lenient` turns an unresolvable `runEffect` Layer into an opaque root (`kind: 'opaque'`) instead of an error; it never excuses a missing Tag or an unresolvable app Layer.
+In a project whose package.json lists `@sleekstack/ui`, `sleekstack check` also runs the component pass (`analyzeComponents`): one tree per `mount` call, reporting `MissingDependency`, `UnhandledError`, `EffectInsideReact` and `Unresolved` (`components` under `--json`).
 _Avoid_: Linter, compiler plugin
 
 **Request Root**:
@@ -109,6 +110,32 @@ _Avoid_: Registry, atom registry, atom context
 **Result**:
 The state of an Effect or Stream atom: `Initial`, `Success` or `Failure` (holding a Cause), each with a `waiting` flag while it reloads. Kit hooks never expose it: they suspend on `Initial` and throw a SleekStackError on `Failure`.
 _Avoid_: AsyncData, RemoteData, status
+
+### UI framework concepts (`@sleekstack/ui`, MVP)
+
+**Component** *(ui)*:
+A function `(props: P) => Effect<Node, E, R>`: `R` is the Tags it needs, `E` its tagged errors, `Node` a small renderable tree (text, element, fragment, guest). Unrelated to the `component` Lifetime.
+_Avoid_: Effect component, view, widget
+
+**Host**:
+The Effect program that renders a tree of Components. Components run only in the Host; a Component is never rendered inside a React component (ADR 0015).
+_Avoid_: Shell, root component
+
+**Guest**:
+A plain React component wrapped by `fromReact`, a `Component<P, never, never>` leaf. React renders it with its own `react-dom`; it receives no Effect context and its subtree is opaque. A Component under a Guest is an `EffectInsideReact` error.
+_Avoid_: Island, embedded React
+
+**Mount**:
+`mount(app, { layer, container, onError? })` (DOM) or `renderToString(app, { layer })` (string): runs a tree with a fully satisfied Layer. A failure in `E` rejects with the original error. Each `mount` call is one Analyzer tree; a later `mount` on the same container wins.
+_Avoid_: Render root, hydrate
+
+**Provide**:
+`Provide(layer, children)`: provides a Layer to a subtree, removing its Tags from the subtree's `R`.
+_Avoid_: Context provider, LayerProvider
+
+**Catch**:
+`Catch(tag, fallback, children)`: renders `fallback` for one tagged error and removes only that tag from `E`.
+_Avoid_: Error boundary, try
 
 ### Next.js integration concepts
 

@@ -22,6 +22,17 @@ Reported at build time by `sleekstack check` (with file:line). The runtime keeps
 | `CaptiveDependency` | A service depends on one whose lifetime it may not capture, for example `app` on `request`. |
 | `PrivateDependency` | Something outside a module requires a Tag the module does not export. Build-time only: the runtime does not enforce it. |
 
+## Component errors
+
+Reported by `sleekstack check` (with file:line) for projects whose package.json lists `@sleekstack/ui`, the Effect-native component framework MVP. There is one tree per `mount` call.
+
+| Code | Triggered when |
+| --- | --- |
+| `MissingDependency` | A component needs a Tag that no `Provide` or mount layer supplies. |
+| `UnhandledError` | A tagged error in a component's `E` reaches `mount` without a matching `Catch`. |
+| `EffectInsideReact` | An Effect component is placed under a `fromReact` guest, in its JSX or through its props. |
+| `Unresolved` | The analyzer cannot read a component or Layer (`any`, a dynamically picked component). It fails closed: never a skip. |
+
 ## Kit checks
 
 | Code | Triggered when |

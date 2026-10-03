@@ -16,12 +16,12 @@ import { checkRoot, RUNTIME_RUN_CALLS, runEffectRoots, type ExtraRoot } from './
 import type { ActionDecl, AnalyzeError, Atoms, Edge, Graph, GraphNode, Lifetime, Location, ModuleDecl, ProviderDecl, Report, Shadowing } from './model'
 
 /** Which library function a call resolves to, e.g. `kit/layer#layer`, `effect/Context#GenericTag`. */
-function libId(sym: ts.Symbol | undefined, checker: ts.TypeChecker): string | undefined {
+export function libId(sym: ts.Symbol | undefined, checker: ts.TypeChecker): string | undefined {
   if (!sym) return undefined
   if (sym.flags & ts.SymbolFlags.Alias) sym = checker.getAliasedSymbol(sym)
   const file = sym.declarations?.[0]?.getSourceFile().fileName.replace(/\\/g, '/')
   if (!file) return undefined
-  const own = /\/(?:packages|@sleekstack)\/(kit|core|next|runtime|query)\/src\/(.+)\.ts$/.exec(file)
+  const own = /\/(?:packages|@sleekstack)\/(kit|core|next|runtime|query|ui)\/src\/(.+)\.tsx?$/.exec(file)
   if (own) return `${own[1]}/${own[2]}#${sym.name}`
   if (/\/effect\/dist\/dts\/Context\.d\.ts$/.test(file)) return `effect/Context#${sym.name}`
   if (/\/effect\/dist\/dts\/Effect\.d\.ts$/.test(file)) return `effect/Effect#${sym.name}`
@@ -39,14 +39,14 @@ const ACTION_CALLS = new Set(['kit/next/action#defineEffect', 'kit/next/action#d
 const FETCHER_CALLS = new Map([['kit/query#cachedQuery', 'fetch'], ['query/query#make', 'fetch'], ['kit/query#mutation', 'run'], ['query/mutation#make', 'run']])
 /** Plain Layer combinators walked structurally (data-first or as `.pipe` steps). */
 const LAYER_COMBINATORS = new Set(['effect/Layer#mergeAll', 'effect/Layer#merge', 'effect/Layer#provide', 'effect/Layer#provideMerge'])
-const TEST_FILE = /(^|[\\/])__tests__[\\/]|\.(test|spec)\.[cm]?[jt]sx?$/
+export const TEST_FILE = /(^|[\\/])__tests__[\\/]|\.(test|spec)\.[cm]?[jt]sx?$/
 
-const unwrap = (e: ts.Expression): ts.Expression => {
+export const unwrap = (e: ts.Expression): ts.Expression => {
   while (ts.isParenthesizedExpression(e) || ts.isAsExpression(e) || ts.isSatisfiesExpression(e) || ts.isNonNullExpression(e) || ts.isTypeAssertionExpression(e)) e = e.expression
   return e
 }
 
-class Unreadable extends Error {
+export class Unreadable extends Error {
   constructor(readonly node: ts.Node, message: string, readonly code = 'Unresolvable') {
     super(message)
   }
@@ -70,7 +70,7 @@ const iterSource = (d: ts.Declaration): ts.Expression | undefined => {
 }
 
 /** The expressions a function body can return (nested functions excluded). */
-const bodyReturns = (fn: ts.FunctionLikeDeclaration): ts.Expression[] => {
+export const bodyReturns = (fn: ts.FunctionLikeDeclaration): ts.Expression[] => {
   if (!fn.body) return []
   if (!ts.isBlock(fn.body)) return [fn.body]
   const out: ts.Expression[] = []
@@ -83,14 +83,19 @@ const bodyReturns = (fn: ts.FunctionLikeDeclaration): ts.Expression[] => {
   return out
 }
 
-export function extract(project: string, entries?: readonly string[], lenient = false): Report {
+/** The tsconfig project at `project` as a program and checker; `root` is the tsconfig's directory. */
+export function programOf(project: string) {
   const configPath = path.resolve(project)
   const root = path.dirname(configPath)
   const read = ts.readConfigFile(configPath, ts.sys.readFile)
   if (read.error) throw new Error(ts.flattenDiagnosticMessageText(read.error.messageText, '\n'))
   const parsed = ts.parseJsonConfigFileContent(read.config, ts.sys, root, undefined, configPath)
   const program = ts.createProgram({ rootNames: parsed.fileNames, options: parsed.options, projectReferences: parsed.projectReferences })
-  const checker = program.getTypeChecker()
+  return { root, program, checker: program.getTypeChecker() }
+}
+
+export function extract(project: string, entries?: readonly string[], lenient = false): Report {
+  const { root, program, checker } = programOf(project)
   const errors: AnalyzeError[] = []
   /** Loop / callback variables bound to one member of their source list (see `each`). */
   const env = new Map<ts.Declaration, ts.Expression>()
