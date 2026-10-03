@@ -31,9 +31,11 @@ The fn-19 code is the reference for scope and store access; read the `RenderScop
 - [ ] `pnpm --filter @sleekstack/ui test` and `typecheck` pass
 
 ## Done summary
-TBD
+Added `@sleekstack/ui/query` with `useQueryClient` and `useQuery`. Each query's observer lives in a registry keyed by store and query hash, and run scopes ref-count it. Results go to a writable atom, and the component reads that atom through `useAtomValue`. jsdom tests cover R7 and R8: pending then success, error as a result, no refetch when an unrelated atom changes, one fetch shared by two readers, and the observer dropped when the last scope closes.
 
+stage: impl-review - ran (codex fan-out NEEDS_WORK on one P3 test gap, fixed, re-review SHIP)
+Tier: opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 66985c6935f132e6944fc926eb627c76759f56d5, ff41f2b594f11a1b83f5dfb4363190113ed5c054
+- Tests: pnpm --filter @sleekstack/ui test, pnpm --filter @sleekstack/ui typecheck
 - PRs:
