@@ -1,1 +1,1 @@
-{ "name": "ui-fixture", "private": true, "dependencies": { "@sleekstack/ui": "workspace:*" } }
+{ "name": "ui-fixture", "private": true, "optionalDependencies": { "@sleekstack/ui": "workspace:*" } }

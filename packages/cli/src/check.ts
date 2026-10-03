@@ -39,7 +39,7 @@ function configuredEntries(dir: string): string[] | undefined {
 /** The `@sleekstack/ui` component pass, only when the nearest package.json lists `@sleekstack/ui` (R8). */
 function components(project: string): ComponentReport | undefined {
   const pkg = nearestPackage(path.dirname(project))?.pkg
-  const listed = ['dependencies', 'devDependencies', 'peerDependencies'].some((k) => pkg?.[k]?.['@sleekstack/ui'] !== undefined)
+  const listed = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies'].some((k) => pkg?.[k]?.['@sleekstack/ui'] !== undefined)
   return listed ? analyzeComponents({ project }) : undefined
 }
 
@@ -64,7 +64,7 @@ export function main(argv: readonly string[], io: Io = stdio): number {
       lenient,
     })
     const ui = components(project)
-    if (report.runtimes.length === 0 && !ui?.trees.length) return (io.err(`No roots: no configureRuntime call found (pass --entry or set "sleekstack.entry" in package.json).\n${USAGE}`), 2)
+    if (report.runtimes.length === 0 && !ui?.trees.length) return (io.err(`No roots: no configureRuntime call or @sleekstack/ui mount found (pass --entry, set "sleekstack.entry" in package.json, or list @sleekstack/ui and mount a tree).\n${USAGE}`), 2)
     const roots = report.runtimes.map((r) => ({ kind: r.kind, root: r.graph.root, file: r.file, line: r.line, nodes: r.graph.nodes.length, errors: r.errors, graph: r.graph }))
     const ok = report.extraction.length === 0 && roots.every((r) => r.errors.length === 0) && !ui?.errors.length
     const line = (e: AnalyzeError) => `  ${e.file}:${e.line} ${e.code}: ${e.message}`
