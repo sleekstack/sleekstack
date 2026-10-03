@@ -30,9 +30,8 @@ This is removal plus docs; behavior changes belong to the earlier tasks. Run the
 - [ ] Workspace typecheck and tests pass; the lockfile has no unrelated importer
 
 ## Done summary
-TBD
-
+Old engine modules/tests deleted; index exports only the bridge; dead kit error codes removed; ADR 0018 added, 0014 superseded; CONTEXT and READMEs updated. Also fixed a task-4 regression (nested kit providers built separate QueryClients) and migrated showcase-kit off the removed kit prefetch (client fetch only). fn-16 was already closed on master.
 ## Evidence
-- Commits:
-- Tests:
+- Commits: df85da0, 4853a4d
+- Tests: pnpm -r typecheck, pnpm -r test
 - PRs:

@@ -78,7 +78,7 @@ Core's construction order for a scope: entries flattened deepest import first, t
 _Avoid_: Resolution Plan, Graph, snapshot
 
 **SleekStackError**:
-The one public error type of the kit: every core tagged error, kit check (`DuplicateTag`, `InvalidTag`, `InvalidQueryKey`) and thrown value is normalized to it, with a `code` and `details`. Kit query SSR adds `QueryDecodeFailed` (a `QueryCodec` `decode` threw) and `NoServerRunner` (a server render read an un-prefetched query with no server runner registered).
+The one public error type of the kit: every core tagged error, kit check (`DuplicateTag`, `InvalidTag`) and thrown value is normalized to it, with a `code` and `details`.
 _Avoid_: KitError, GraphError
 
 ### React integration concepts
@@ -116,7 +116,7 @@ An Atom opted in to SSR with a stable key, a `Schema` and an explicit kind: `Ato
 _Avoid_: Persisted atom, hydratable atom
 
 **Snapshot**:
-The `Record<key, encoded value>` of the settled Serializable Atoms built in an AtomStore (`dehydrate`), sent from the server and used to seed a client AtomStore before the first read (`hydrate`). Result atoms enter it only on `Success`. It is JSON-safe only when each schema encodes to JSON values (a `bigint` encoding breaks the transport). Distinct from the query layer's `Dehydrated`.
+The `Record<key, encoded value>` of the settled Serializable Atoms built in an AtomStore (`dehydrate`), sent from the server and used to seed a client AtomStore before the first read (`hydrate`). Result atoms enter it only on `Success`. It is JSON-safe only when each schema encodes to JSON values (a `bigint` encoding breaks the transport). Distinct from the query layer's Dehydrated State.
 _Avoid_: Payload, atom state
 
 ### UI framework concepts (`@sleekstack/ui`, MVP)
@@ -174,29 +174,17 @@ _Avoid_: Inspector, debug panel
 ### Query cache concepts
 
 **Cached Query**:
-A keyed, cached async read from `@sleekstack/query` (ADR 0014). `Query.make({ key, fetch, staleTime, gcTime, retry })` returns a family `(args) => query atom`; equal canonical keys share one entry in the query store. Its `fetch` is an Effect or Stream whose Tags resolve from that store's scope. The kit form is `cachedQuery()` from `@sleekstack/kit`, read with `useQuery` from `@sleekstack/kit/react`. Not the server-side Query of `@sleekstack/kit/next`.
-_Avoid_: Query client, resource, loader
+A keyed, cached async read: TanStack Query (ADR 0018). In Effect code it is a `queryOptions({ queryKey, queryFn: effectFn(effect) })` read with TanStack's hooks under `QueryProvider`. The kit form is `cachedQuery()` from `@sleekstack/kit`, read with `useQuery` from `@sleekstack/kit/react`; `@sleekstack/ui/query` has `useQuery` for ui components. Not the server-side Query of `@sleekstack/kit/next`.
+_Avoid_: resource, loader
 
-**Query Store**:
-The AtomStore that holds Cached Queries for a subtree: the root LayerProvider's, or the nearest one marked with `QueryProvider`. Nested providers share it.
-_Avoid_: Query client, QueryClientProvider
-
-**QueryCache**:
-The optional Tag holding a store's query registry: one entry per query definition and canonical key, with `key`, `updatedAt` and observers. Provide it to share or inspect a registry; otherwise each store gets its own. The `Queries` service (`invalidate`, `refetch`, `setData`, `getData`, `cancel`, `reset`; kit: `useQueryClient`) works on that registry.
-_Avoid_: Query registry, cache client
+**Query Client**:
+The TanStack `QueryClient` behind `QueryClientTag`, built by the scoped `QueryClientLive` Layer: one per scope that provides it, unmounted and cleared when that scope closes. `effectFn` runs with the services of the layer that built it.
+_Avoid_: Query store
 
 **Mutation**:
-A write from `Mutation.make({ run, onMutate, ... })` (`@sleekstack/query`) or `mutation()` (`@sleekstack/kit`), run with `useMutation`. Its state is `idle`, `pending`, `success` or `failure`, per hook unless `Mutation.shared`. `onMutate` can return a rollback, run on failure or interruption. Distinct from an Action, the server operation a mutation often calls.
+A write through TanStack's `useMutation` (or kit `mutation()` + `useMutation`, or `@sleekstack/ui/query`'s `useMutation`). Optimistic writes are TanStack's `onMutate` / `onError` / `onSettled`. Distinct from an Action, the server operation a mutation often calls.
 _Avoid_: Command, action (for the client write)
 
-**Dehydrated**:
-The serializable query state (`[{ key, result, updatedAt }]`) that `prefetch` (`@sleekstack/next`) returns on the server and `<HydrateQueries state>` (`@sleekstack/react`) seeds into the Query Store. Built with `Hydrate` from `@sleekstack/query`; only `Hydrate.hydratable` queries can be in it. The kit forms are `prefetch` (`@sleekstack/kit/next`) and `<HydrateQueries state>` (`@sleekstack/kit/react`), over `cachedQuery({ serializable })` queries only. A query that failed on the server is not in it.
+**Dehydrated State**:
+TanStack's `DehydratedState`, returned by `prefetchQueries` (`@sleekstack/next`) on the server and given to `HydrationBoundary` on the client.
 _Avoid_: Snapshot, serialized cache
-
-**QueryCodec**:
-The plain `{ encode, decode }` pair given as a kit `cachedQuery`'s `serializable` option, carrying its value across the server-to-client wire (`serializable: true` sends the value as is). The kit stand-in for the `Schema` of `Hydrate.hydratable`; never an Effect type.
-_Avoid_: Schema (in kit), serializer
-
-**Server Runner**:
-The function a server render uses to fetch a query nobody prefetched (a lazy server read). `@sleekstack/next` registers one; importing `@sleekstack/kit/next` replaces it with the kit request scope. It sees the configured runtime only, never per-call `request`/`overrides`/`provide`.
-_Avoid_: lazy fetcher

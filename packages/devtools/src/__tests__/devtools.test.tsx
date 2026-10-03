@@ -1,8 +1,9 @@
+import { Component, type ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import { Atom } from '@sleekstack/core'
-import { LayerProvider, useAtomValue, useQuery } from '@sleekstack/react'
-import { Query } from '@sleekstack/query'
+import { LayerProvider, useAtomValue, useService } from '@sleekstack/react'
+import { QueryClientLive, QueryClientTag } from '@sleekstack/query'
 import { Effect } from 'effect'
 import { STORES_KEY } from '@sleekstack/react/internal'
 import { SleekStackDevtools, DEVTOOLS_MARKER, graphsOf } from '../index'
@@ -10,6 +11,7 @@ import { SleekStackDevtools, DEVTOOLS_MARKER, graphsOf } from '../index'
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
+  vi.restoreAllMocks()
 })
 
 describe('SleekStackDevtools', () => {
@@ -172,25 +174,49 @@ describe('SleekStackDevtools', () => {
     expect(await screen.findByText(/Devtools are off/)).not.toBeNull()
   })
 
-  it('Queries tab lists query entries with state and updatedAt', async () => {
+  it('Queries tab lists the QueryCache entries and events of the scope client', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('Not Found', { status: 404 })))
-    const todo = Query.make({ key: (id: string) => ['todo', id], fetch: (id) => Effect.succeed(`title ${id}`) })
-    const Todo = () => <span>{useQuery(todo('t1')).data}</span>
-    render(<><LayerProvider provide={[]}><Todo /></LayerProvider><SleekStackDevtools intervalMs={20} /></>)
-    expect(await screen.findByText('title t1')).not.toBeNull()
-    const entry = await screen.findByText(/Success, 1 observers, updated \d{4}-/)
+    let client: typeof QueryClientTag.Service | undefined
+    const Probe = () => {
+      client = useService(QueryClientTag)
+      return null
+    }
+    render(<LayerProvider provide={[QueryClientLive()]}><Probe /><SleekStackDevtools intervalMs={20} /></LayerProvider>)
+    expect(await screen.findByText(/No queries recorded/)).not.toBeNull()
+    await client!.fetchQuery({ queryKey: ['todo', 't1'], queryFn: async () => 'title t1' })
+    const entry = await screen.findByText(/success, 0 observers, updated \d{4}-/)
     expect(entry.textContent).toContain('["todo","t1"]')
-    expect(screen.getByText('added ["todo","t1"]')).not.toBeNull()
+    for (const e of ['added', 'fetching', 'success']) expect(screen.getByText(`${e} ["todo","t1"]`)).not.toBeNull()
+    await client!.fetchQuery({ queryKey: ['bad'], queryFn: async () => { throw new Error('nope') } }).catch(() => {})
+    expect(await screen.findByText('failure ["bad"]')).not.toBeNull()
+    client!.removeQueries({ queryKey: ['todo', 't1'] })
+    expect(await screen.findByText('removed ["todo","t1"]')).not.toBeNull()
   })
 
-  it('Queries tab records removed when a provider holding a query unmounts', async () => {
+  it('Queries tab shows the empty state without a client in scope and nothing in production', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('Not Found', { status: 404 })))
-    const todo = Query.make({ key: (id: string) => ['gone', id], fetch: (id) => Effect.succeed(`title ${id}`) })
-    const Todo = () => <span>{useQuery(todo('t2')).data}</span>
-    const provider = render(<LayerProvider provide={[]}><Todo /></LayerProvider>)
-    render(<SleekStackDevtools intervalMs={20} />)
-    expect(await screen.findByText('added ["gone","t2"]')).not.toBeNull()
-    provider.unmount()
-    expect(await screen.findByText('removed ["gone","t2"]')).not.toBeNull()
+    const first = render(<LayerProvider provide={[]}><SleekStackDevtools /></LayerProvider>)
+    expect(await screen.findByText(/No queries recorded/)).not.toBeNull()
+    first.unmount()
+    vi.stubEnv('NODE_ENV', 'production')
+    try {
+      render(<SleekStackDevtools />)
+      expect(document.querySelector('[data-devtools-queries]')).toBeNull()
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+
+  it('Queries tab rethrows a client layer failure instead of showing the empty state', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('Not Found', { status: 404 })))
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    class Boundary extends Component<{ children: ReactNode }, { error?: unknown }> {
+      override state: { error?: unknown } = {}
+      static getDerivedStateFromError = (error: unknown) => ({ error })
+      override render = () => (this.state.error ? <p>app boundary: {String(this.state.error)}</p> : this.props.children)
+    }
+    const failing = QueryClientLive(() => { throw new Error('config broke') })
+    render(<Boundary><LayerProvider provide={[failing]}><SleekStackDevtools /></LayerProvider></Boundary>)
+    expect(await screen.findByText(/app boundary: .*config broke/)).not.toBeNull()
   })
 })

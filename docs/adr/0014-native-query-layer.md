@@ -1,5 +1,7 @@
 # Queries and mutations are built on native atoms, in `@sleekstack/query`
 
+Status: Superseded by ADR 0018.
+
 `@sleekstack/query` is SleekStack's server-state cache. A query is a family of writable atoms on the native `AtomStore` (ADR 0008): reading an atom runs its fetch Effect (or Stream), and writing it seeds data. Its requirements are Tags resolved from the query store's scope, its failures are typed, and its cache is disposed with that scope. A per-store registry (key, `updatedAt`, observers) holds staleness and serves invalidation, so neither `Atom` nor `Result` changes. `Mutation.make` is a scoped Effect runner with optimistic writes and ordered rollback. React hooks are in `@sleekstack/react`, a dependency-inferred facade (`cachedQuery`, `mutation`) is in `@sleekstack/kit`, and server `prefetch` is in `@sleekstack/next`. This supersedes the earlier planning note that SleekStack would not do TanStack Query packages: we ship no TanStack adapter, we ship our own layer and document the mapping.
 
 ## Considered options

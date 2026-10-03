@@ -29,9 +29,8 @@ The Analyzer's component pass treats the UI `Store` as provided at `mount` alrea
 - [ ] `pnpm --filter @sleekstack/analyze test` passes
 
 ## Done summary
-TBD
-
+FETCHER_CALLS reduced to kit cachedQuery/mutation; queries fixture moved off Query.make/Mutation.make; new ui-query fixture (clean with QueryClientLive, MissingDependency without).
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 61480c4
+- Tests: pnpm --filter @sleekstack/analyze test
 - PRs:

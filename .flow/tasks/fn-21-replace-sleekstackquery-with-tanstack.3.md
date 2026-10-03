@@ -29,9 +29,11 @@ The dehydrated shape is TanStack's `DehydratedState`; consumers pass it to `Hydr
 - [ ] `pnpm --filter @sleekstack/next test` and `typecheck` pass
 
 ## Done summary
-TBD
+Replaced `prefetch` (old Hydrate engine + global server runner) with `prefetchQueries(queries, runOptions?)` in @sleekstack/next: runs through `runEffect`, prefetches with the scope's `QueryClientTag` client, returns TanStack `dehydrate(client)`; rejected queries are omitted. Docs recommend `request: QueryClientLive()` for a per-request client. Added `@tanstack/query-core` dep and query.test.ts (success/omission/disposal, scope-build failure).
 
+Tier: opus at medium
+stage: impl-review - ran (codex fan-out, SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: f2a3746a8948082bf381bbba5e4e5e03acf5e27f
+- Tests: pnpm --filter @sleekstack/next test, pnpm --filter @sleekstack/next typecheck
 - PRs:

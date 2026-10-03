@@ -4,6 +4,5 @@ export {
   type ActionResult, type OperationOptions,
 } from './action'
 export { configureRuntime, type RuntimeConfig } from './runtime'
-export { prefetch, type PrefetchOptions } from './prefetch'
 /** @deprecated Renamed to {@link runOperation} (ADR 0019); `effect` from `@sleekstack/kit` is the side-effect Layer. Removed in the next release. */
 export { runOperation as effect } from './action'

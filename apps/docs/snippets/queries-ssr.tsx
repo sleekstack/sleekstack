@@ -1,33 +1,28 @@
-import { Context, Effect, Layer, Schema } from 'effect'
-import { prefetch } from '@sleekstack/next'
-import { Hydrate, Query } from '@sleekstack/query'
-import { HydrateQueries, useQuery } from '@sleekstack/react'
+import { Context, Effect, Layer } from 'effect'
+import { prefetchQueries } from '@sleekstack/next'
+import { effectFn, QueryClientLive } from '@sleekstack/query'
+import { HydrationBoundary, queryOptions, useQuery } from '@tanstack/react-query'
 
-const Todo = Schema.Struct({ id: Schema.String, title: Schema.String })
-class TodoApi extends Context.Tag('TodoApi')<TodoApi, { get(id: string): Effect.Effect<typeof Todo.Type> }>() {}
+interface Todo { readonly id: string; readonly title: string }
+class TodoApi extends Context.Tag('TodoApi')<TodoApi, { get(id: string): Effect.Effect<Todo> }>() {}
 
-// A query must be hydratable to be prefetched: the Schema encodes its value as plain JSON.
-export const todo = Hydrate.hydratable(
-  Query.make({ key: (id: string) => ['todo', id], fetch: (id) => Effect.flatMap(TodoApi, (api) => api.get(id)) }),
-  { value: Todo },
-)
+export const todoOptions = (id: string) =>
+  queryOptions({ queryKey: ['todo', id], queryFn: effectFn(Effect.flatMap(TodoApi, (api) => api.get(id))), staleTime: 30_000 })
 
-// A client component ('use client' in its own file in a real app).
+// A client component ('use client' in its own file in a real app), under the app's LayerProvider + QueryProvider.
 function TodoTitle({ id }: { id: string }) {
-  return <h1>{useQuery(todo(id)).data?.title}</h1>
+  return <h1>{useQuery(todoOptions(id)).data?.title}</h1>
 }
 
-// A server component under the app's LayerProvider: fetch on the server, then seed the client store
-// before its first render.
-// `prefetch` runs on the configured runtime (`configureRuntime`). Here `TodoApi` comes from a per-call
-// `request` Layer; a service from the app Layer needs nothing extra. `{ failures: true }` also sends typed failures.
+// A server component. `prefetchQueries` runs on the configured runtime (`configureRuntime`) with a fresh
+// QueryClient from the `request` Layer, and returns TanStack's dehydrated state.
 const TodoApiLive = Layer.succeed(TodoApi, { get: (id: string) => Effect.succeed({ id, title: 'Write docs' }) })
 
 export default async function Page() {
-  const state = await prefetch([todo('t1')], { request: TodoApiLive })
+  const state = await prefetchQueries([todoOptions('t1')], { request: Layer.merge(TodoApiLive, QueryClientLive()) })
   return (
-    <HydrateQueries state={state}>
+    <HydrationBoundary state={state}>
       <TodoTitle id="t1" />
-    </HydrateQueries>
+    </HydrationBoundary>
   )
 }

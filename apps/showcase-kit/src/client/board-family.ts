@@ -1,8 +1,7 @@
 /**
  * apps/showcase-kit/src/client/board-family.ts
  *
- * The `board` query, kept free of React so the server page can `prefetch` it. Its fetch is the `readBoard` Server
- * Action; `serializable: true` sends the board DTO to the client as JSON through `<HydrateQueries>`.
+ * The `board` query, kept free of React. Its fetch is the `readBoard` Server Action.
  */
 import { cachedQuery } from '@sleekstack/kit'
 import { readBoard } from '../server/board.actions'
@@ -19,8 +18,7 @@ const boardFamily = cachedQuery({
   fetch: function* () {
     return readBoard() as Promise<BoardData>
   },
-  serializable: true,
-  // the hydrated board is fresh on first paint; mutations invalidate it explicitly
+  // mutations invalidate it explicitly
   staleTime: 30_000,
 })
 /** The one board query (a family of one key). */

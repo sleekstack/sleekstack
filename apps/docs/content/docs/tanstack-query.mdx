@@ -1,39 +1,21 @@
 ---
-title: TanStack Query mapping
-description: TanStack Query concepts and their SleekStack equivalents.
+title: Using TanStack Query
+description: What SleekStack adds on top of TanStack Query.
 ---
 
-SleekStack has no TanStack Query adapter. It has its own query layer, `@sleekstack/query`, built on the native atom store (ADR 0014). This table maps TanStack Query names to SleekStack names. The Effect-native names come from `@sleekstack/query` and `@sleekstack/react`; the kit names come from `@sleekstack/kit` and `@sleekstack/kit/react`.
+SleekStack uses TanStack Query directly (ADR 0018 supersedes the native query layer of ADR 0014). Everything in the TanStack docs applies; this page lists what the bridge adds.
 
-| TanStack Query | Effect-native | kit |
-| --- | --- | --- |
-| `QueryClient` + `QueryClientProvider` | the root `LayerProvider`'s store; `QueryProvider` for a nearer one | same |
-| `queryOptions({ queryKey, queryFn })` | `Query.make({ key, fetch })` | `cachedQuery({ key, fetch })` |
-| `queryKey: ['todo', id]` | `key: (id) => ['todo', id]` | same |
-| `queryFn` (a Promise) | `fetch` (an Effect or a Stream; Tags as requirements) | `fetch` (a generator; `yield*` Tags) |
-| `useQuery` | `useQuery` (returns `data`, `error`, `isPending`, `isFetching`, `refetch`) | `useQuery` |
-| `useSuspenseQuery` | `useQuerySuspense` | none |
-| `useInfiniteQuery` | `Query.infinite` + `useInfiniteQuery` | none |
-| `select` | `Query.select` (an Effect) | none |
-| `staleTime`, `gcTime` | `staleTime`, `gcTime` (Durations) | same (milliseconds) |
-| `retry` | `retry` (a `Schedule`, typed failures only) | `retry` (a count) |
-| `refetchOnWindowFocus`, `refetchOnReconnect` | `refetchOn` (any `Stream`s) | none |
-| `refetchInterval` | `refetchInterval` | none |
-| `useMutation({ mutationFn })` | `Mutation.make({ run })` + `useMutation` | `mutation({ run })` + `useMutation` |
-| `onMutate` returning context for rollback | `onMutate` returning a rollback Effect; `Mutation.optimistic` | none |
-| `useQueryClient()` | `useQueries()` (the `Queries` service) | `useQueryClient()` |
-| `invalidateQueries`, `refetchQueries` | `invalidate`, `refetch` (atom, `prefix` or `predicate`) | `invalidate`, `refetch` (query or `prefix`) |
-| `setQueryData`, `getQueryData` | `setData`, `updateData`, `getData` | `setData`, `getData` |
-| `cancelQueries`, `resetQueries` | `cancel`, `reset` | none |
-| `prefetchQuery` + `dehydrate` | `prefetch` from `@sleekstack/next` | none yet |
-| `HydrationBoundary` | `HydrateQueries` | none yet |
-| React Query Devtools | Queries tab of `@sleekstack/devtools` | same |
+| TanStack Query | SleekStack |
+| --- | --- |
+| `new QueryClient()` + `QueryClientProvider` | `QueryClientLive()` in a `LayerProvider` + `QueryProvider` (client disposed with the scope) |
+| `queryFn` (a Promise) | `effectFn(effect)`: an Effect whose Tags come from the client's layer |
+| `prefetchQuery` + `dehydrate` | `prefetchQueries` from `@sleekstack/next` (runs on the configured runtime) |
+| `HydrationBoundary`, hooks, devtools | used as is |
+| `queryOptions` / `useMutation` without Effect | kit `cachedQuery` / `mutation` (generator bodies, `yield*` Tags) |
+| hooks outside React | `useQuery` / `useMutation` from `@sleekstack/ui/query` |
 
-## Differences
+## Differences from the old native layer
 
-- A fetch's failure is typed (`E`), and its services are Tags resolved from the provider scope, not closed over.
-- The cache belongs to a `LayerProvider` scope and is disposed with it. There is no global client.
-- A mounted query never refetches only because it is stale. `staleTime` controls triggers.
-- `gcTime` is per query definition, not per key.
-- Mutation state is per hook by default; `Mutation.shared` shares it.
-- A lazy server read of a query that was not prefetched cannot use request-scoped services. See [Queries on the server](/docs/queries-ssr).
+- Query errors are untyped: an Effect failure reaches TanStack as a rejection.
+- Retry, staleness, garbage collection and refetch triggers follow TanStack's defaults and options.
+- `sleekstack check` does not read `effectFn` bodies; a missing Tag rejects at run time.

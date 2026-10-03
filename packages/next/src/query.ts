@@ -1,36 +1,44 @@
 /**
  * packages/next/src/query.ts
  *
- * Server prefetch for `@sleekstack/query`: runs queries in a request scope through `runEffect` and
- * returns the `Dehydrated` state for `<HydrateQueries state>`. Importing it also registers `prefetch`
- * as the server runner, so a server render suspends on an un-prefetched query instead of failing. That lazy
- * fetch runs with the configured runtime only (no per-call `request` / `overrides` Layers, which a render
- * cannot see): prefetch queries that need request-scoped services.
+ * Server prefetch for `@sleekstack/query`: prefetches TanStack queries in a request scope through
+ * `runEffect` and returns the `DehydratedState` for `<HydrationBoundary state>`.
  */
 
-import { Hydrate, type Query } from '@sleekstack/query'
+import { QueryClientTag } from '@sleekstack/query'
 import type { RunEffectOptions } from '@sleekstack/runtime'
+import { dehydrate, type DehydratedState, type FetchQueryOptions } from '@tanstack/query-core'
+import { Effect } from 'effect'
 import { runEffect } from './runtime'
 
 /**
- * Fetches `queries` on the configured runtime and dehydrates them.
+ * Prefetches `queries` with the scope's `QueryClient` and dehydrates it. The client comes from
+ * `QueryClientTag`, so the runtime must provide `QueryClientLive`: pass it as the `request` Layer for a
+ * client built and disposed per call (an app-layer client is shared across requests). A rejecting
+ * `queryFn` does not throw; its query is left out of the state.
  *
- * @param queries - Hydratable query atoms (see `Hydrate.hydratable`).
- * @param options - `failures` opt-in, plus per-call `request` / `overrides` Layers.
- * @returns A promise of the serializable `Dehydrated` state.
- * @throws `RuntimeNotConfigured` (rejection) before `configureRuntime`.
+ * @param queries - TanStack query options (`queryKey`, `queryFn`, ...).
+ * @param options - Per-call `request` / `overrides` Layers.
+ * @returns A promise of the serializable `DehydratedState`.
+ * @throws `RuntimeNotConfigured` (rejection) before `configureRuntime`; rejects like `runEffect` when the
+ *   request scope fails to build.
  *
  * @example
  * ```ts
- * const state = await prefetch([todo('t1')])
- * return <HydrateQueries state={state}><Todo id="t1" /></HydrateQueries>
+ * const state = await prefetchQueries([todoOptions('t1')], { request: QueryClientLive() })
+ * return <HydrationBoundary state={state}><Todo id="t1" /></HydrationBoundary>
  * ```
  */
-export const prefetch = (
-  queries: ReadonlyArray<Query.QueryAtom<any, any>>,
-  options: Hydrate.DehydrateOptions & RunEffectOptions = {},
-): Promise<Hydrate.Dehydrated> => runEffect(Hydrate.prefetch(queries, options), options)
-
-// Process-global: a client-component SSR render has no handle on the RSC call that holds `request` / `overrides`
-// (Layers do not cross the RSC boundary), and a global holding them would leak across concurrent requests.
-Hydrate.setServerRunner((queries) => prefetch(queries, { failures: true }))
+export const prefetchQueries = (
+  queries: ReadonlyArray<FetchQueryOptions<any, any, any, any>>,
+  options: RunEffectOptions = {},
+): Promise<DehydratedState> =>
+  runEffect(
+    Effect.flatMap(QueryClientTag, (client) =>
+      Effect.promise(async () => {
+        await Promise.all(queries.map((q) => client.prefetchQuery(q)))
+        return dehydrate(client)
+      }),
+    ),
+    options,
+  )

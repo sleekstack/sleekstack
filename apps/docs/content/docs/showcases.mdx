@@ -10,6 +10,6 @@ The repository has the same team task board built twice, as Next.js apps you can
 
 Both show nested `LayerProvider`s, request-scoped units of work, Shadowing in a demo mode, a `/graph` page built from the `sleekstack check --json` report and an `/errors` page that triggers every graph error. Run one with `pnpm --filter showcase-kit dev` (or `showcase`) and open http://localhost:3000.
 
-Both read the board through the [query cache](/docs/queries), and no mutation calls `router.refresh()`. `apps/showcase` prefetches the board on the server and hydrates it with `HydrateQueries`; `apps/showcase-kit` fetches it on the client only, because the kit has no prefetch yet. The demo toggle still refreshes the router: it remounts the app `LayerProvider`, which resets the query store.
+Both read the board through the [query cache](/docs/queries), and no mutation calls `router.refresh()`. `apps/showcase` prefetches the board on the server with `prefetchQueries` and hydrates it with `HydrationBoundary`; `apps/showcase-kit` fetches it on the client only, because the kit has no prefetch. The demo toggle still refreshes the router: it remounts the app `LayerProvider`, which disposes its `QueryClient`.
 
 `apps/showcase-kit` also has an `/islands` page that exercises every [Islands](/docs/islands) trigger.

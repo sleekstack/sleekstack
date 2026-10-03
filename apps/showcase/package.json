@@ -22,6 +22,7 @@
     "@sleekstack/next": "workspace:*",
     "@sleekstack/query": "workspace:*",
     "@sleekstack/react": "workspace:*",
+    "@tanstack/react-query": "^5.104.1",
     "effect": "^3.21.2",
     "next": "^15.3.0",
     "react": "^19.2.6",

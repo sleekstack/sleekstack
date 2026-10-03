@@ -30,9 +30,12 @@ Keep the Effect-free kit facade working on the new engine (R5).
 - [ ] Removed names are listed in the commit message; `pnpm --filter @sleekstack/kit test` and `typecheck` pass
 
 ## Done summary
-TBD
+Kit `cachedQuery` / `mutation` now lower to TanStack query options and a mutationFn over `effectFn`; kit `useQuery` / `useMutation` / `useQueryClient` run on react-query against the scope's `QueryClientTag`. A root kit `LayerProvider` adds a component-lifetime `QueryClientLive`, and `QueryProvider` gives a subtree its own client. Removed (old Hydrate engine): `HydrateQueries`, kit/next `prefetch` + `PrefetchOptions`, `Dehydrated`, `QueryCodec`, `serializable`, mutation `concurrency`; keys hash via TanStack (no `InvalidQueryKey` pre-check). Under StrictMode the remount aborts and refetches (TanStack semantics; the test counts were updated to match).
 
+Touches deviation: deleted packages/kit/src/next/prefetch.ts and src/__tests__/hydrate.test.tsx and edited next/index.ts (forced by removing the Hydrate-based names). Follow-ups: apps/showcase-kit still uses prefetch/HydrateQueries/serializable, and the reviewer says no fn-21 task owns that migration (task 9 excludes showcase-kit). errors.ts still lists the codes QueryDecodeFailed, NoServerRunner and InvalidQueryKey, which nothing uses now.
+
+stage: impl-review - ran (codex: fan-out NEEDS_WORK x2, re-review SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: f17f83dda495583deef974be1fc546110da9fc24, bb307dbc007647b94edbd59baeac0816d10ce182, 042211bd1f42aa7eb54aa4412678c85fa4985c1f
+- Tests: pnpm --filter @sleekstack/kit test, pnpm --filter @sleekstack/kit typecheck
 - PRs:

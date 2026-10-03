@@ -39,7 +39,7 @@ const ATOM_CALLS = new Set(['kit/atom#atom', 'kit/atom#family'])
 const RUNTIME_CALLS = new Set(['kit/next/runtime#configureRuntime', 'next/runtime#configureRuntime', 'runtime/runtime#configureRuntime'])
 const ACTION_CALLS = new Set(['kit/next/action#defineEffect', 'kit/next/action#defineQuery', 'kit/next/action#runOperation', 'kit/next/action#effect', 'kit/next/action#query'])
 /** Query / mutation definitions: their fetcher (`fetch` / `run`) is read like an action body. */
-const FETCHER_CALLS = new Map([['kit/query#cachedQuery', 'fetch'], ['query/query#make', 'fetch'], ['kit/query#mutation', 'run'], ['query/mutation#make', 'run']])
+const FETCHER_CALLS = new Map([['kit/query#cachedQuery', 'fetch'], ['kit/query#mutation', 'run']])
 /** Plain Layer combinators walked structurally (data-first or as `.pipe` steps). */
 const LAYER_COMBINATORS = new Set(['effect/Layer#mergeAll', 'effect/Layer#merge', 'effect/Layer#provide', 'effect/Layer#provideMerge'])
 export const TEST_FILE = /(^|[\\/])__tests__[\\/]|\.(test|spec)\.[cm]?[jt]sx?$/

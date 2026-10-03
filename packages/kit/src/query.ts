@@ -1,15 +1,17 @@
 /**
  * packages/kit/src/query.ts
  *
- * `cachedQuery()` / `mutation()` lower to the query package. Bodies are generators: each `yield* Tag` resolves
- * from the nearest LayerProvider scope, so there is no deps array. Named apart from the server-side
- * `query`/`defineQuery` of `@sleekstack/kit/next`.
+ * `cachedQuery()` / `mutation()` lower to TanStack query / mutation options whose function is an `effectFn`
+ * (the query bridge). Bodies are generators: each `yield* Tag` resolves from the scope that built the
+ * nearest `QueryClient` (the root `LayerProvider`, or a `QueryProvider`), so there is no deps array. Named apart
+ * from the server-side `query`/`defineQuery` of `@sleekstack/kit/next`.
  */
 
-import { Effect, ParseResult, Schedule, Schema } from 'effect'
+import { Effect } from 'effect'
+import { hashKey, type QueryFunction, type QueryKey } from '@tanstack/react-query'
 import { resolutionFailure } from '@sleekstack/core'
-import { normalize, SleekStackError } from './errors'
-import { Hydrate, Mutation as CoreMutation, Query as CoreQuery } from '@sleekstack/query'
+import { effectFn } from '@sleekstack/query'
+import { normalize } from './errors'
 
 declare const QueryBrand: unique symbol
 declare const MutationBrand: unique symbol
@@ -27,21 +29,9 @@ export interface Mutation<I, T> {
 /** A generator body: `yield* SomeTag` resolves the service; it returns a value or a Promise. */
 export type Body<T> = Generator<unknown, T | Promise<T>, any>
 
-/** How a `serializable` query's value crosses the server-to-client wire: `encode` to JSON values, `decode` back. */
-export interface QueryCodec<T> {
-  readonly encode: (value: T) => unknown
-  readonly decode: (raw: unknown) => T
-}
-
-declare const DehydratedBrand: unique symbol
-/** Serializable query state from `prefetch` (`@sleekstack/kit/next`), handed to `<HydrateQueries state>`. */
-export interface Dehydrated extends ReadonlyArray<unknown> {
-  readonly [DehydratedBrand]: true
-}
-
 /** Options for {@link cachedQuery}. */
 export interface CachedQueryOptions<Args, T> {
-  /** A serializable tuple; equal keys share one cache entry. */
+  /** A JSON-like tuple, hashed by TanStack; equal keys share one cache entry. */
   readonly key: (args: Args) => ReadonlyArray<unknown>
   readonly fetch: (args: Args) => Body<T>
   /** Milliseconds a value stays fresh (no refetch on mount or focus). Default 0. */
@@ -50,15 +40,20 @@ export interface CachedQueryOptions<Args, T> {
   readonly gcTime?: number
   /** Retries after a failed fetch. Default 0. */
   readonly retry?: number
-  /** Opts the query in to SSR `prefetch`/`HydrateQueries`: `true` sends the value as is (it must be JSON-safe), or a {@link QueryCodec}. */
-  readonly serializable?: true | QueryCodec<T>
 }
 
 /** Options for {@link mutation}. */
 export interface MutationOptions<I, T> {
   readonly run: (input: I) => Body<T>
-  /** A call while one is in flight: `switch` interrupts it, `queue` waits, `parallel` (default) runs both. */
-  readonly concurrency?: 'switch' | 'queue' | 'parallel'
+}
+
+/** @internal The TanStack options a kit query lowers to. */
+export interface QueryOpts {
+  readonly queryKey: QueryKey
+  readonly queryFn: QueryFunction
+  readonly staleTime?: number
+  readonly gcTime?: number
+  readonly retry: number
 }
 
 const SERVICE_NOT_FOUND = /^Service not found: (.+?)(?: \(defined at|$)/
@@ -76,43 +71,18 @@ const lower = <T>(body: () => Body<T>, label: string): Effect.Effect<T, unknown>
     ),
   )
 
-type CoreQueryAtom = CoreQuery.QueryAtom<unknown, unknown>
-const queryCores = new WeakMap<object, CoreQueryAtom>()
-const queryKits = new WeakMap<CoreQueryAtom, CachedQuery<unknown>>()
-const mutationCores = new WeakMap<object, CoreMutation.Mutation<unknown, unknown, unknown, never>>()
-
-/** @internal The core query atom behind a kit query. */
-export const coreQuery = (q: CachedQuery<unknown>): CoreQueryAtom => queryCores.get(q)!
-const passthrough: QueryCodec<unknown> = { encode: (v) => v, decode: (raw) => raw }
-
-/** The kit codec as the core Schema; a throwing `decode` raises `QueryDecodeFailed` naming the query. */
-const toSchema = (codec: QueryCodec<unknown>, key: string): Schema.Schema<unknown, any, never> =>
-  Schema.transformOrFail(Schema.Unknown, Schema.Unknown, {
-    strict: true,
-    decode: (raw) => {
-      try {
-        return ParseResult.succeed(codec.decode(raw))
-      } catch (e) {
-        throw new SleekStackError('QueryDecodeFailed', `Query ${key} could not decode its server data: ${e instanceof Error ? e.message : String(e)}`, { key }, { cause: e })
-      }
-    },
-    encode: (value) => ParseResult.succeed(codec.encode(value)),
-  })
-
-const serializableCores = new WeakSet<CoreQueryAtom>()
-/** @internal Whether a core query atom was made by a `serializable` kit family. */
-export const isSerializable = (core: CoreQueryAtom): boolean => serializableCores.has(core)
-
-/** @internal The core mutation behind a kit mutation. */
-export const coreMutation = (m: Mutation<any, unknown>) => mutationCores.get(m)!
+/** @internal The TanStack query options behind a kit query. */
+export const queryOpts = (q: CachedQuery<unknown>): QueryOpts => q as unknown as QueryOpts
+/** @internal The TanStack mutation function behind a kit mutation. */
+export const mutationFn = <I, T>(m: Mutation<I, T>): ((input: I) => Promise<T>) => (m as unknown as { mutationFn: (input: I) => Promise<T> }).mutationFn
 
 /**
- * Defines a cached query: `(args) => CachedQuery`, one entry per canonical `key(args)`. Concurrent reads of a key
+ * Defines a cached query: `(args) => CachedQuery`, one entry per `key(args)`. Concurrent reads of a key
  * share one fetch; `staleTime` and `gcTime` control refetching and eviction.
  *
  * @param options - `key`, `fetch` (a generator; `yield*` Tags), `staleTime`, `gcTime`, `retry`.
  * @returns The family; equal keys return the same query.
- * @throws {@link SleekStackError} with code `InvalidQueryKey` (from the returned family) when `key(args)` is not serializable.
+ * @throws {@link SleekStackError} (from the returned family) when `key(args)` throws. Keys hash as TanStack's `hashKey` does.
  *
  * @example
  * ```ts
@@ -132,37 +102,39 @@ export const coreMutation = (m: Mutation<any, unknown>) => mutationCores.get(m)!
  * ```
  */
 export function cachedQuery<Args, T>(options: CachedQueryOptions<Args, T>): (args: Args) => CachedQuery<T> {
-  const family = CoreQuery.make<Args, unknown, unknown>({
-    key: options.key,
-    fetch: (args) => lower(() => options.fetch(args), 'query'),
-    ...(options.staleTime !== undefined && { staleTime: options.staleTime }),
-    ...(options.gcTime !== undefined && { gcTime: options.gcTime }),
-    ...(options.retry && { retry: Schedule.recurs(options.retry) }),
+  // Weak values: an unreferenced key's options are collected, and a live one keeps its identity.
+  const byKey = new Map<string, WeakRef<QueryOpts>>()
+  const evict = new FinalizationRegistry<string>((hash) => {
+    if (byKey.get(hash)?.deref() === undefined) byKey.delete(hash)
   })
   return (args) => {
-    let core: CoreQueryAtom
+    let queryKey: QueryKey, hash: string
     try {
-      core = family(args)
+      queryKey = options.key(args) as QueryKey
+      hash = hashKey(queryKey)
     } catch (e) {
       throw normalize(e)
     }
-    let q = queryKits.get(core)
+    let q = byKey.get(hash)?.deref()
     if (!q) {
-      q = {} as CachedQuery<unknown>
-      queryKits.set(core, q)
-      queryCores.set(q, core)
-      const codec = options.serializable === true ? passthrough : options.serializable
-      if (codec) serializableCores.add(core)
-      if (codec) Hydrate.hydratable(() => core, { value: toSchema(codec as QueryCodec<unknown>, core[CoreQuery.TypeId].key) })(undefined)
+      q = {
+        queryKey,
+        queryFn: effectFn(lower(() => options.fetch(args), 'query')),
+        retry: options.retry ?? 0,
+        ...(options.staleTime !== undefined && { staleTime: options.staleTime }),
+        ...(options.gcTime !== undefined && { gcTime: options.gcTime }),
+      }
+      byKey.set(hash, new WeakRef(q))
+      evict.register(q, hash)
     }
-    return q as CachedQuery<T>
+    return q as unknown as CachedQuery<T>
   }
 }
 
 /**
  * Defines a mutation. Run it with `useMutation`; invalidate affected queries with `useQueryClient`.
  *
- * @param options - `run` (a generator; `yield*` Tags) and `concurrency`.
+ * @param options - `run` (a generator; `yield*` Tags).
  * @returns The mutation.
  *
  * @example
@@ -181,13 +153,7 @@ export function cachedQuery<Args, T>(options: CachedQueryOptions<Args, T>): (arg
  * ```
  */
 export function mutation<I, T>(options: MutationOptions<I, T>): Mutation<I, T> {
-  const m = {} as Mutation<I, T>
-  mutationCores.set(
-    m,
-    CoreMutation.make<I, unknown, unknown, never>({
-      run: (input) => lower(() => options.run(input), 'mutation'),
-      ...(options.concurrency && { concurrency: options.concurrency }),
-    }) as never,
-  )
-  return m
+  // effectFn reads the client from TanStack's (variables, ctx) call, so the input is bound per call.
+  const mutationFn = (input: I, ctx: never) => effectFn(lower(() => options.run(input), 'mutation'))(input, ctx)
+  return { mutationFn } as unknown as Mutation<I, T>
 }

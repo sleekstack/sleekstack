@@ -26,11 +26,12 @@ const Show = ({ q }: { q: CachedQuery<string> }) => {
 }
 
 describe('kit queries (R8)', () => {
-  it('fetches once under StrictMode, resolving yield*ed Tags', async () => {
+  it('resolves yield*ed Tags under StrictMode; the remount aborts and refetches the first fetch', async () => {
     const { calls, provide } = fakeApi()
     renderStrict(tree(<Show q={item('a')} />, provide))
     await screen.findByText('A')
-    expect(calls.get).toBe(1)
+    // TanStack cancels an unobserved fetch that consumed its AbortSignal, so StrictMode's remount fetches again.
+    expect(calls.get).toBe(2)
     expect(item('a')).toBe(item('a'))
   })
 
@@ -47,9 +48,20 @@ describe('kit queries (R8)', () => {
     await screen.findByText('err:Unknown')
   })
 
-  it('a non-serializable key throws a SleekStackError', () => {
-    const q = cachedQuery({ key: (f: () => void) => [f], fetch: function* () { return 1 } })
-    expect(() => q(() => {})).toThrow(expect.objectContaining({ name: 'SleekStackError' }))
+  it('a throwing key surfaces as a SleekStackError', () => {
+    const q = cachedQuery({ key: (): string[] => { throw new Error('bad key') }, fetch: function* () { return 1 } })
+    expect(() => q(undefined)).toThrow(expect.objectContaining({ name: 'SleekStackError', message: 'bad key' }))
+  })
+
+  it('queries and mutations resolve a component-lifetime Tag', async () => {
+    const Comp = tag<{ v(): string }>('CompLifetime')
+    const q = cachedQuery({ key: () => ['comp'], fetch: function* () { return (yield* Comp).v() } })
+    const m = mutation({ run: function* (_: number) { return (yield* Comp).v() } })
+    let mutate!: (n: number) => Promise<string>
+    function M() { mutate = useMutation(m).mutate; return null }
+    renderStrict(tree(<><Show q={q(undefined)} /><M /></>, [layer(Comp, { v: () => 'C' }, [], { lifetime: 'component' })]))
+    await screen.findByText('C')
+    await expect(mutate(1)).resolves.toBe('C')
   })
 
   it('a missing Tag surfaces as error MissingDependency', async () => {
@@ -68,7 +80,7 @@ describe('kit queries (R8)', () => {
     await screen.findByText('A')
     await act(async () => fireEvent.click(screen.getByRole('button')))
     await screen.findByText('B')
-    expect(calls.get).toBe(2)
+    expect(calls.get).toBe(3)
   })
 
   it('mutate rejects with a SleekStackError when run throws', async () => {
