@@ -46,9 +46,9 @@ export interface LayerProviderProps {
    * its own props object, which is stable across its retries; the default is these props.
    */
   readonly owner?: { readonly children?: React.ReactNode }
-  /** Seeds serializable atoms (a `dehydrate` snapshot); wins over the transport tag. Applied when the store is built. */
+  /** Seeds serializable atoms (a `dehydrate` snapshot); wins over the transport tag. Read once, when the store is built; later changes are ignored. */
   readonly hydrate?: Snapshot
-  /** Id of the `AtomsSnapshot` tag this provider seeds from and emits; give sibling roots distinct ids. Default `''`. */
+  /** Id of the `AtomsSnapshot` tag this provider seeds from and emits; give sibling roots distinct ids. Fixed for the provider's lifetime. Default `''`. */
   readonly snapshotId?: string
 }
 
@@ -92,7 +92,7 @@ export function LayerProvider(props: LayerProviderProps) {
 
   return (
     <ProviderContext.Provider value={ownedRef.current!.state}>
-      <SnapshotIdContext.Provider value={props.snapshotId ?? ''}>{children}</SnapshotIdContext.Provider>
+      <SnapshotIdContext.Provider value={ownedRef.current!.snapshotId}>{children}</SnapshotIdContext.Provider>
     </ProviderContext.Provider>
   )
 }

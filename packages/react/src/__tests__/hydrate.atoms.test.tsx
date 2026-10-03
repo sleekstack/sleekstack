@@ -99,13 +99,24 @@ describe('atom hydration', () => {
     expect(warn.mock.calls.some((c) => String(c[0]).includes('atom snapshot tag'))).toBe(true)
   })
 
-  it('roots with different snapshotIds hydrate their own values; no snapshotId ignores two unkeyed tags', async () => {
-    document.body.innerHTML = ['a', 'b', '', ''].map((id, i) =>
-      `<script type="application/json" data-sleekstack-atoms="${id}">{"name":"n-${id || i}","count":${i + 5}}</script>`).join('')
+  it('independently hydrated roots with different snapshotIds each seed their own values', async () => {
     const { runs, tree } = setup()
-    render(<>{tree({ snapshotId: 'a' }, false)}{tree({ snapshotId: 'b' }, false)}{tree({}, false)}</>)
-    expect(await screen.findByText('n-a:5:10')).toBeTruthy()
-    expect(await screen.findByText('n-b:6:12')).toBeTruthy()
+    const shown = []
+    for (const [id, value] of [['a', 5], ['b', 6]] as const) {
+      const html = await serverHtml(tree({ snapshotId: id, hydrate: { name: `n-${id}`, count: value } }))
+      const { container, warnings } = await hydrate(html, tree({ snapshotId: id }))
+      expect(warnings).toEqual([])
+      expect(container.querySelector(`script[data-sleekstack-atoms="${id}"]`)).not.toBeNull()
+      shown.push(container.querySelector('button')!.textContent)
+    }
+    expect(shown).toEqual(['n-a:5:10', 'n-b:6:12'])
+    expect(runs.n).toBe(0)
+  })
+
+  it('a provider without snapshotId ignores transport when two unkeyed tags exist', async () => {
+    document.body.innerHTML = [1, 2].map((i) => `<script type="application/json" data-sleekstack-atoms="">{"name":"n-${i}"}</script>`).join('')
+    const { runs, tree } = setup()
+    render(tree({}, false))
     expect(await screen.findByText('name1:1:2')).toBeTruthy()
     expect(runs.n).toBe(1)
   })

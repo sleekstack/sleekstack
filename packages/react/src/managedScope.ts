@@ -64,6 +64,9 @@ export interface Owned {
   readonly provide: ReadonlyArray<Entry | Module>
   readonly parent: ProviderState | null
   readonly appScope?: ChildScope
+  /** Hydration inputs the store was seeded from; fixed for the scope's lifetime and part of adoption identity. */
+  readonly hydrate?: Snapshot
+  readonly snapshotId: string
   readonly close: () => Promise<void>
   committed: boolean
   /** Deferred close scheduled by the last unmount; a StrictMode remount cancels it. */
@@ -106,7 +109,7 @@ const park = (owned: Owned, props: object) => {
 const adopt = (props: ScopeProps, parent: ProviderState | null, appScope: ChildScope | undefined): Owned | undefined => {
   let found: Owned | undefined
   for (const o of parked) {
-    if (o.parent !== parent || o.appScope !== appScope) continue
+    if (o.parent !== parent || o.appScope !== appScope || o.hydrate !== props.hydrate || o.snapshotId !== (props.snapshotId ?? '')) continue
     if (o.parkedBy === (props.owner ?? props)) { found = o; break }
     if (!found && o.stale && sameEntries(o.provide, props.provide) && sameShape((o.parkedBy as ScopeProps).children, props.children)) found = o
   }
@@ -114,7 +117,10 @@ const adopt = (props: ScopeProps, parent: ProviderState | null, appScope: ChildS
   return found
 }
 
-function create(provide: ReadonlyArray<Entry | Module>, parent: ProviderState | null, sink: ProviderState['onFinalizerError'], appScope: ChildScope | undefined, seed: Snapshot | undefined): Owned {
+function create(props: ScopeProps, parent: ProviderState | null, sink: ProviderState['onFinalizerError'], appScope: ChildScope | undefined): Owned {
+  const { provide, hydrate } = props
+  const snapshotId = props.snapshotId ?? ''
+  const seed = seedFor(props)
   const report = (exit: Exit.Exit<void, unknown>) => {
     if (Exit.isSuccess(exit)) return
     try {
@@ -170,7 +176,7 @@ function create(provide: ReadonlyArray<Entry | Module>, parent: ProviderState | 
       for (const s of owned.reverse()) report(await Effect.runPromise(s.close))
       if (state.atoms) settleSuspensions(state.atoms)
     })())
-  return { state, provide, parent, appScope, close, committed: false }
+  return { state, provide, parent, appScope, hydrate, snapshotId, close, committed: false }
 }
 
 /** Closers of committed providers opened on each external app scope. */
@@ -188,7 +194,7 @@ export const closeProvidersOn = async (appScope: ChildScope): Promise<void> => {
 /** Adopts a parked scope for this render or creates one, then parks it under this render's identity. */
 export const acquire = (props: ScopeProps, parent: ProviderState | null, sink: ProviderState['onFinalizerError'] | undefined): Owned => {
   const appScope = parent ? undefined : props.appScope // ignored when nested
-  const owned = adopt(props, parent, appScope) ?? create(props.provide, parent, sink ?? parent?.onFinalizerError ?? defaultSink, appScope, seedFor(props))
+  const owned = adopt(props, parent, appScope) ?? create(props, parent, sink ?? parent?.onFinalizerError ?? defaultSink, appScope)
   park(owned, props.owner ?? props)
   return owned
 }
@@ -232,7 +238,7 @@ const sinkFor = (sink: ProviderState['onFinalizerError'] | undefined, parent: Pr
 export const acquireOnServer = (registry: RequestRegistry, id: string, props: ScopeProps, parent: ProviderState | null, sink: ProviderState['onFinalizerError'] | undefined): Owned => {
   const found = registry.scopes.get(id)
   if (found) return found
-  const owned = create(props.provide, parent, sinkFor(sink, parent), parent ? undefined : props.appScope, seedFor(props))
+  const owned = create(props, parent, sinkFor(sink, parent), parent ? undefined : props.appScope)
   owned.state.start()
   registry.scopes.set(id, owned)
   registry.closers.push(owned.close)
