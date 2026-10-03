@@ -38,7 +38,7 @@ export const runToNode = async <E, A, LE>(
 ): Promise<Node> => {
   const exit = await Effect.runPromiseExit(Effect.provide(app, layer))
   if (Exit.isSuccess(exit)) return exit.value
-  onError?.(exit.cause)
+  if (onError) safeReport(exit.cause, onError)
   const failure = Cause.failureOption(exit.cause)
   if (Option.isSome(failure)) throw failure.value
   const defect = Cause.dieOption(exit.cause)
@@ -46,9 +46,18 @@ export const runToNode = async <E, A, LE>(
   throw Cause.squash(exit.cause)
 }
 
-/** Reports a renderer failure to `onError`, or `console.error` when absent. */
+/** Calls `onError`; a throwing sink is logged and never replaces the original outcome. */
+const safeReport = (cause: Cause.Cause<unknown>, onError: (cause: Cause.Cause<unknown>) => void): void => {
+  try {
+    onError(cause)
+  } catch (sinkError) {
+    console.error(sinkError)
+  }
+}
+
+/** Reports a renderer failure to `onError`, or `console.error` when absent. Never throws. */
 export const reportRenderError = (error: unknown, onError?: (cause: Cause.Cause<unknown>) => void): void => {
   const cause = Cause.die(error)
-  if (onError) onError(cause)
+  if (onError) safeReport(cause, onError)
   else console.error(cause)
 }

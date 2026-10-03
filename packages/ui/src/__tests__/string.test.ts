@@ -57,4 +57,24 @@ describe('renderToString', () => {
     expect(spy).toHaveBeenCalled()
     spy.mockRestore()
   })
+  it('rejects hostile tag and attribute names', () => {
+    expect(() => el('img src=x onerror=alert(1)')).toThrow(TypeError)
+    expect(() => el('p', { 'x="y" onmouseover': 'z' })).toThrow(TypeError)
+    expect(() => el('my-el', { 'data-x': 'ok' })).not.toThrow()
+  })
+
+  it('a throwing onError never changes the outcome', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const onError = () => {
+      throw new Error('sink')
+    }
+    const err = await renderToString(UserCard({ id: '2' }), { layer: UserRepoTest, onError }).catch((e) => e)
+    expect(err).toBeInstanceOf(UserNotFound)
+    const Bad = fromReact((): never => {
+      throw new Error('guest')
+    })
+    const tree = Effect.map(Bad({}), (b) => fragment('a', b))
+    expect(await renderToString(tree, { layer: Layer.empty, onError })).toBe('a')
+    spy.mockRestore()
+  })
 })
