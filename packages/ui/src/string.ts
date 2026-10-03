@@ -108,8 +108,8 @@ const serialize = (node: Node, c: Collector): string => {
     case 'Guest':
       try {
         const html = reactRenderToString(createElement(node.component, node.props))
-        // Guests stay inert under resume: they may not forge renderer-owned attributes.
-        if (/\sdata-sleek-/i.test(html)) throw new TypeError('A guest rendered a reserved data-sleek-* attribute')
+        // Guests stay inert under resume: any `data-sleek-` in their markup is rejected (parser-proof; also rejects such text).
+        if (/data-sleek-/i.test(html)) throw new TypeError('A guest rendered a reserved data-sleek-* attribute')
         return html
       } catch (error) {
         reportRenderError(error, c.onError)

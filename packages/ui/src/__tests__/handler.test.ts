@@ -59,11 +59,13 @@ describe('resumable server render', () => {
   })
 
   it('a guest cannot forge data-sleek-* attributes', async () => {
-    const Forge = fromReact(() => createElement('b', { 'data-sleek-on-click': 'inc' }))
-    const errors: Array<unknown> = []
-    const html = await renderToString(Forge({}), { layer: Layer.empty, onError: (c) => errors.push(c) })
-    expect(html).toBe('')
-    expect(errors).toHaveLength(1)
+    const raw = fromReact(() => createElement('i', { dangerouslySetInnerHTML: { __html: '<b/data-sleek-on-click=inc>' } }))
+    for (const Forge of [fromReact(() => createElement('b', { 'data-sleek-on-click': 'inc' })), raw]) {
+      const errors: Array<unknown> = []
+      const html = await renderToString(Forge({}), { layer: Layer.empty, onError: (c) => errors.push(c) })
+      expect(html).toBe('')
+      expect(errors).toHaveLength(1)
+    }
   })
 
   it('rejects user on* and data-sleek-* attributes', async () => {
