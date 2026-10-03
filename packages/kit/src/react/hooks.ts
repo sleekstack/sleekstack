@@ -7,7 +7,7 @@
 
 import { createContext, createElement, useContext, useMemo, useRef, type ReactNode } from 'react'
 import { Effect, Exit } from 'effect'
-import { makeAppScope, type ChildScope } from '@sleekstack/core'
+import { declareLayer, makeAppScope, type ChildScope } from '@sleekstack/core'
 import { QueryClientLive } from '@sleekstack/query'
 import { closeProvidersOn, LayerProvider as CoreProvider, useService as coreUseService } from '@sleekstack/react'
 import { normalize, toFinalizerError, type FinalizerError } from '../errors'
@@ -114,7 +114,7 @@ export function LayerProvider(props: LayerProviderProps): ReactNode {
     try {
       validateProvide(provide)
       const entries = unwrap(provide)
-      return nested ? entries : [...entries, rootQueryClient]
+      return nested ? entries : [...entries, ROOT_QUERY_CLIENT]
     } catch (e) {
       throw normalize(e)
     }
@@ -123,12 +123,14 @@ export function LayerProvider(props: LayerProviderProps): ReactNode {
     () => onFinalizerError && ((cause: unknown) => onFinalizerError(toFinalizerError(cause))),
     [onFinalizerError],
   )
-  const core = createElement(CoreProvider, { provide: lowered, owner: props, ...(sink && { onFinalizerError: sink }), ...(appScope && { appScope: scopes.get(appScope) }) }, children)
-  return nested ? core : createElement(KitProviderContext.Provider, { value: true }, core)
+  return createElement(CoreProvider, { provide: lowered, owner: props, ...(sink && { onFinalizerError: sink }), ...(appScope && { appScope: scopes.get(appScope) }) }, nested ? children : createElement(KitProviderContext.Provider, { value: true }, children))
 }
 
-/** One Layer value, so StrictMode's repeated memo runs yield equal entries (each scope still builds its own client). */
-const rootQueryClient = QueryClientLive()
+/**
+ * A root provider's shared query client. Component lifetime, so its layer is built in the root's component scope and
+ * query bodies see component-lifetime Tags too; one value, so StrictMode's repeated memo runs yield equal entries.
+ */
+const ROOT_QUERY_CLIENT = declareLayer(QueryClientLive(), { lifetime: 'component' })
 
 /** @internal True under a kit `LayerProvider` (so nested providers share the root's query client). */
 export const KitProviderContext = createContext(false)

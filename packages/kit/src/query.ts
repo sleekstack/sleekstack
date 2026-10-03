@@ -11,7 +11,7 @@ import { Effect } from 'effect'
 import { hashKey, type QueryFunction, type QueryKey } from '@tanstack/react-query'
 import { resolutionFailure } from '@sleekstack/core'
 import { effectFn } from '@sleekstack/query'
-import { SleekStackError } from './errors'
+import { normalize } from './errors'
 
 declare const QueryBrand: unique symbol
 declare const MutationBrand: unique symbol
@@ -31,7 +31,7 @@ export type Body<T> = Generator<unknown, T | Promise<T>, any>
 
 /** Options for {@link cachedQuery}. */
 export interface CachedQueryOptions<Args, T> {
-  /** A serializable tuple; equal keys share one cache entry. */
+  /** A JSON-like tuple, hashed by TanStack; equal keys share one cache entry. */
   readonly key: (args: Args) => ReadonlyArray<unknown>
   readonly fetch: (args: Args) => Body<T>
   /** Milliseconds a value stays fresh (no refetch on mount or focus). Default 0. */
@@ -71,19 +71,6 @@ const lower = <T>(body: () => Body<T>, label: string): Effect.Effect<T, unknown>
     ),
   )
 
-/** Rejects a key with no stable JSON form (function, BigInt, symbol, cycle). */
-const checkKey = (key: ReadonlyArray<unknown>): QueryKey => {
-  try {
-    JSON.stringify(key, (_, v) => {
-      if (typeof v === 'function' || typeof v === 'bigint' || typeof v === 'symbol') throw new TypeError(`unsupported ${typeof v}`)
-      return v
-    })
-  } catch (e) {
-    throw new SleekStackError('InvalidQueryKey', `Query key is not serializable: ${e instanceof Error ? e.message : String(e)}`, { key }, { cause: e })
-  }
-  return key as QueryKey
-}
-
 /** @internal The TanStack query options behind a kit query. */
 export const queryOpts = (q: CachedQuery<unknown>): QueryOpts => q as unknown as QueryOpts
 /** @internal The TanStack mutation function behind a kit mutation. */
@@ -95,7 +82,7 @@ export const mutationFn = <I, T>(m: Mutation<I, T>): ((input: I) => Promise<T>) 
  *
  * @param options - `key`, `fetch` (a generator; `yield*` Tags), `staleTime`, `gcTime`, `retry`.
  * @returns The family; equal keys return the same query.
- * @throws {@link SleekStackError} with code `InvalidQueryKey` (from the returned family) when `key(args)` is not serializable.
+ * @throws {@link SleekStackError} (from the returned family) when `key(args)` throws. Keys hash as TanStack's `hashKey` does.
  *
  * @example
  * ```ts
@@ -121,8 +108,13 @@ export function cachedQuery<Args, T>(options: CachedQueryOptions<Args, T>): (arg
     if (byKey.get(hash)?.deref() === undefined) byKey.delete(hash)
   })
   return (args) => {
-    const queryKey = checkKey(options.key(args))
-    const hash = hashKey(queryKey)
+    let queryKey: QueryKey, hash: string
+    try {
+      queryKey = options.key(args) as QueryKey
+      hash = hashKey(queryKey)
+    } catch (e) {
+      throw normalize(e)
+    }
     let q = byKey.get(hash)?.deref()
     if (!q) {
       q = {
