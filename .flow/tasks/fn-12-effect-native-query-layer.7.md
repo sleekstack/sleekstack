@@ -27,9 +27,11 @@ Effect-free facade in `@sleekstack/kit` mirroring `atom()`: Tags inferred from `
 - [ ] Names chosen and non-clashing with kit Next `query`/`defineQuery`
 
 ## Done summary
-TBD
+Added the Effect-free kit facade: `cachedQuery({ key, fetch: function*(args){ yield* Tag } , staleTime, gcTime, retry })` and `mutation({ run, concurrency })` in `@sleekstack/kit`, plus `useQuery`, `useMutation`, `useQueryClient` and `QueryProvider` in `@sleekstack/kit/react`. Names avoid the server-side `query`/`defineQuery` of kit/next; record `cachedQuery`/`mutation` in CONTEXT.md in task 11 (CONTEXT.md is outside this task's Touches). The dts test now forbids `@sleekstack/query` and checks `query.d.ts`. Outside Touches but required: `packages/kit/package.json` and `pnpm-lock.yaml` gained the `@sleekstack/query` workspace dependency. Non-serializable keys throw SleekStackError code `Unknown` (no dedicated code; errors.ts out of scope).
 
+Tier: implementer
+stage: impl-review - ran (codex fan-out NEEDS_WORK -> fixes 5f1acd7 -> SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: e52d9f8898c6b702832705b7cb12f5971ec9c689, 5f1acd7498dd4f36f2172cb1d598d71c6209a9cb
+- Tests: pnpm --filter @sleekstack/query test && pnpm --filter @sleekstack/react test && pnpm --filter @sleekstack/kit test, pnpm --filter @sleekstack/kit typecheck
 - PRs:
