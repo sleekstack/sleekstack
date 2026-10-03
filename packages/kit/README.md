@@ -12,7 +12,7 @@ from any public entry.
 
 Every failure is a `SleekStackError` with a `code` (`MissingDependency`, `DependencyCycle`, `CaptiveDependency`,
 `AmbiguousProvider`, `ModuleCycle`, `DuplicateModule`, `InvalidModule`, `PrivateDependency`, `DuplicateTag`,
-`InvalidTag`, `LayerFailed`, `CleanupFailed`, `HandlerFailed`, `AtomCycle`, `Unknown`) and `details`.
+`InvalidTag`, `LayerFailed`, `CleanupFailed`, `HandlerFailed`, `AtomCycle`, `InvalidQueryKey`, `QueryDecodeFailed`, `NoServerRunner`, `Unknown`) and `details`.
 
 ## `@sleekstack/kit`
 
