@@ -51,7 +51,7 @@ export function analyzeComponents(opts: { readonly project: string }): Component
   /** `@sleekstack/ui`'s `Store`: every `mount` provides it (ui/dom.ts), so it is never a requirement. Matched by identity, not printed name. */
   const isUiStore = (m: ts.Type) => libId(m.getSymbol(), checker) === 'ui/reactive#Store'
   const tagNames = (at: ts.Node, t: ts.Type | ts.Type[] | undefined, what: string) =>
-    (Array.isArray(t) ? t : members(t)).map((m) => (isAny(m) ? fail(at, `"${text(at)}" ${what} "${checker.typeToString(m)}", which names no Tag`) : checker.typeToString(m)))
+    (Array.isArray(t) ? t : members(t)).filter((m) => what !== 'requires' || !isUiStore(m)).map((m) => (isAny(m) ? fail(at, `"${text(at)}" ${what} "${checker.typeToString(m)}", which names no Tag`) : checker.typeToString(m)))
   const errorTags = (at: ts.Node, t: ts.Type[]) =>
     t.map((m) => {
       if (isAny(m)) return fail(at, `"${text(at)}" fails with "${checker.typeToString(m)}"; its errors cannot be named`)
@@ -211,7 +211,7 @@ export function analyzeComponents(opts: { readonly project: string }): Component
     const args = effectArgs(type)
     if (!args || !isNode(args[0])) return fail(e, `"${text(e)}" does not return Effect<Node, E, R>`)
     const own: UiNode[] = [...args[1], ...args[2]].some(isAny) ? [{ kind: 'unresolved', message: `"${text(e)}" has E / R typed any or unknown; its errors and requirements cannot be named`, ...loc(e) }] : []
-    return [{ kind: 'component', name, guest: false, requires: tagNames(e, args[2].filter((m) => !isAny(m) && !isUiStore(m)), 'requires'), errors: errorTags(e, args[1].filter((m) => !isAny(m))), children: children(), ...loc(e) }, ...own]
+    return [{ kind: 'component', name, guest: false, requires: tagNames(e, args[2].filter((m) => !isAny(m)), 'requires'), errors: errorTags(e, args[1].filter((m) => !isAny(m))), children: children(), ...loc(e) }, ...own]
   }
   /** Members of a rendered list: array literals through const bindings, and `.map` callbacks' returns. */
   const list = (expr: ts.Expression): UiNode[] => {
