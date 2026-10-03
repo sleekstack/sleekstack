@@ -1,7 +1,7 @@
 {
   "branch_name": "fn-12-effect-native-query-layer",
-  "completion_review_status": "unknown",
-  "completion_reviewed_at": null,
+  "completion_review_status": "ship",
+  "completion_reviewed_at": "2026-10-03T07:59:52.813961Z",
   "created_at": "2026-09-30T15:31:44.093749Z",
   "default_impl": null,
   "default_review": null,
@@ -2238,6 +2238,42 @@
       "task": "fn-12-effect-native-query-layer.11",
       "timestamp": "2026-10-03T07:45:29.849610Z",
       "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "3c1761faaec1a5014c64d66155a227d8b1448e61c7bed6ff313a5a79f5920dbc",
+      "backend": "codex",
+      "base_sha": "596864207be985d722e55593021c2a09a087aed4",
+      "counter_kind": "plan",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "2e69e86f98e73b10638755171c593e5a04bd398e",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 511553,
+      "output_sha256": "14ad3c5fc7eb496c676a7edbe145e05aae7dfd567899d0bdec7724aaf1de243b",
+      "reservation_id": "ac2c527f68024c16a0892f72da6d7726",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-10-03T07:59:52.805840Z",
+      "tool_calls": 17,
+      "verdict": "SHIP"
     }
   ],
   "review_hash_epoch": {
@@ -2249,11 +2285,13 @@
     "impl:fn-12-effect-native-query-layer.5": 1,
     "impl:fn-12-effect-native-query-layer.7": 1,
     "impl:fn-12-effect-native-query-layer.8": 1,
-    "impl:fn-12-effect-native-query-layer.9": 1
+    "impl:fn-12-effect-native-query-layer.9": 1,
+    "plan#completion": 1
   },
   "review_pending_rounds": {},
   "review_reservations": {},
   "review_transport_failures": {
+    "completion": 0,
     "impl:fn-12-effect-native-query-layer.1": 0,
     "impl:fn-12-effect-native-query-layer.10": 0,
     "impl:fn-12-effect-native-query-layer.11": 0,
@@ -2281,5 +2319,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-03T07:45:29.853655Z"
+  "updated_at": "2026-10-03T07:59:52.816200Z"
 }
