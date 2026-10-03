@@ -230,6 +230,7 @@ Ordered by value per effort. Each ties to a finding above.
 
 ## 5. Open questions
 
+- **Baseline (2026-10-03, `evals/`, sonnet, 11 tasks x 1 run per condition):** with bundled docs 11/11 pass, mean 214.5k tokens, $1.93 total; without 11/11 pass, mean 218.4k tokens, $1.86 total. No measurable gain: the suite hits a ceiling, and kit ships its TypeScript source with JSDoc examples, so an agent without `llms.md` reads `node_modules/@sleekstack/kit/src` and `sleekstack check`'s fix/docs lines instead. Per-task token deltas swing both ways (-50% to +40%) with one run each, so they are noise. Next: harder multi-step tasks, N >= 3 runs, and a condition with the source stripped (published `dist-types` only) before drawing a conclusion. [I]
 - Does a small, young framework gain from bundled docs the way Next.js did, when models have little or no training data on it at all? Vercel's suite specifically used APIs absent from training data, which is SleekStack's situation, but the result is first-party and unreplicated. [?]
 - Whether Effect-specific idioms (generators, Layers) are well represented in current model training is not established by any source I read. [?]
 - Whether `llms.txt` is consumed by coding agents in practice. [?]
