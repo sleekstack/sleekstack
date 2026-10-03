@@ -32,6 +32,19 @@ Reported by `sleekstack check` (with file:line) for projects whose package.json 
 | `UnhandledError` | A tagged error in a component's `E` reaches `mount` without a matching `Catch`. |
 | `EffectInsideReact` | An Effect component is placed under a `fromReact` guest, in its JSX or through its props. |
 | `Unresolved` | The analyzer cannot read a component or Layer (`any`, a dynamically picked component). It fails closed: never a skip. |
+| `NonResumableHandler` | An `on(node, { event: h })` entry or a `resume` handler map is not provably a reference to a top-level `const h = defineHandler('literal-id', ...)` (a non-literal id, an inline function, an unreadable loader or handlers object). |
+
+### Resumable runtime errors
+
+Raised by `@sleekstack/ui` at render or `resume` time as tagged errors (`Data.TaggedError`), not by `sleekstack check`:
+
+| Code | Raised when |
+| --- | --- |
+| `UnsupportedAtom` | `bind` (or `resume`) receives an atom that is not a serializable value-kind atom: a plain atom or a result-kind atom. Carries the bind `key`. Use `Atom.serializable` with a Schema; the manifest holds each key's encoded value. |
+| `ManifestInvalid` | The container has no manifest, more than one, or a malformed one. |
+| `ManifestDecodeFailed` | A bound atom's value fails to decode. `resume` rejects (a wrong seed would render a wrong page); the error names the atom key. |
+| `DuplicateHandler`, `DuplicateBindKey` | Two different handlers share an id, or two different atoms share a bind key, in one render. |
+| `UnknownHandler`, `HandlerIdMismatch`, `UnsupportedEvent` | A handler id is missing from the `handlers` map, differs from its chunk's declared id, or names an event outside the bubbling allow-list. |
 
 ## Kit checks
 
