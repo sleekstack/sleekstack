@@ -6,6 +6,7 @@
  * the expected board into the cache first, drops only that call's write when the action fails, and invalidates the
  * board once no call is in flight so the server's ids and timestamps win. No mutation calls `router.refresh()`.
  */
+import { createContext, createElement, useContext, useState, type ReactNode } from 'react'
 import { cachedQuery, mutation } from '@sleekstack/kit'
 import { useMutation, useQueryClient } from '@sleekstack/kit/react'
 import type { ActionResult } from '@sleekstack/kit/next'
@@ -40,12 +41,19 @@ export const addCommentMutation = mutation({ run: function* (input: AddCommentIn
 // The cached board is `base` with every in-flight call's patch applied, oldest first. A failed call drops only its own
 // patch and recomputes, so overlapping rollbacks never wipe a later write; a committed patch folds into `base` once
 // every older one has settled.
-// ponytail: one log per module (the app has one query store); a demo-mode remount mid-call keeps the old base until it settles.
+// The log lives in `OptimisticScope`, mounted with the app `LayerProvider`, so a remount (demo mode) starts a new one.
 interface Layer {
   readonly patch: (b: BoardData) => BoardData
   committed: boolean
 }
-let log: { base: BoardData; layers: Layer[] } | undefined
+type Log = { current: { base: BoardData; layers: Layer[] } | undefined }
+const LogContext = createContext<Log | null>(null)
+
+/** Holds the optimistic log for the query store of the `LayerProvider` it is mounted under. */
+export function OptimisticScope({ children }: { readonly children?: ReactNode }) {
+  const [log] = useState<Log>(() => ({ current: undefined }))
+  return createElement(LogContext.Provider, { value: log }, children)
+}
 
 /**
  * Runs a board mutation with an optimistic `patch` of the cached board, rolled back on failure.
@@ -55,13 +63,16 @@ let log: { base: BoardData; layers: Layer[] } | undefined
 export function useBoardMutation<I, T>(m: Parameters<typeof useMutation<I, T>>[0], patch: (input: I, board: BoardData) => BoardData) {
   const { mutate, isPending } = useMutation(m)
   const client = useQueryClient()
+  const holder = useContext(LogContext)
+  if (!holder) throw new Error('useBoardMutation needs <OptimisticScope> (app/providers.tsx).')
   const run = async (input: I): Promise<string | null> => {
     const q = board()
     const current = client.getData(q)
     const layer: Layer = { patch: (b) => patch(input, b), committed: false }
+    let log = holder.current
     const render = () => log && client.setData(q, log.layers.reduce((b, l) => l.patch(b), log.base))
     if (current) {
-      log ??= { base: current, layers: [] }
+      log = holder.current ??= { base: current, layers: [] }
       log.layers.push(layer)
       render()
     }
@@ -73,7 +84,7 @@ export function useBoardMutation<I, T>(m: Parameters<typeof useMutation<I, T>>[0
         render()
       }
       while (log.layers[0]?.committed) log.base = log.layers.shift()!.patch(log.base)
-      if (log.layers.length === 0) log = undefined
+      if (log.layers.length === 0) log = holder.current = undefined
     }
     try {
       await mutate(input)
@@ -84,7 +95,7 @@ export function useBoardMutation<I, T>(m: Parameters<typeof useMutation<I, T>>[0
       return e instanceof Error ? e.message : String(e)
     } finally {
       // refetch once nothing is in flight, so the server's board never lands under a pending patch
-      if (!log) client.invalidate(q)
+      if (!holder.current) client.invalidate(q)
     }
   }
   return { run, isPending }

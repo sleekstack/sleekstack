@@ -13,12 +13,13 @@
 import React from 'react'
 import { LayerProvider } from '@sleekstack/kit/react'
 import { MockClientClockLayer, RealClientClockLayer } from '../src/client/component-services'
+import { OptimisticScope } from '../src/client/board-query'
 
 export function Providers({ demoMode, children }: { readonly demoMode: boolean; readonly children: React.ReactNode }) {
   return (
     <React.StrictMode>
       <LayerProvider key={String(demoMode)} provide={[demoMode ? MockClientClockLayer : RealClientClockLayer]}>
-        {children}
+        <OptimisticScope>{children}</OptimisticScope>
       </LayerProvider>
     </React.StrictMode>
   )
