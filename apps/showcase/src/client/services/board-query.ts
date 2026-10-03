@@ -46,7 +46,10 @@ const draftInput =
   ({ draft, src }: { readonly draft: D; readonly src: Src }) =>
     Effect.mapError(resolveDraft(spec, draft, src), (e) => e.message)
 
-const pendingId = (prefix: string) => `${prefix}_pending_${Date.now()}`
+const PENDING = '_pending_'
+const pendingId = (prefix: string) => `${prefix}${PENDING}${Date.now()}`
+/** An optimistic placeholder: not selectable, since the refetch replaces it with the saved record. */
+export const isPendingId = (id: string) => id.includes(PENDING)
 
 export const createTaskMutation = boardMutation(draftInput(NewTaskDraft), createTask, (dto, b) =>
   b.map((p) =>

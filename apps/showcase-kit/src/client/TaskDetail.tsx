@@ -9,10 +9,9 @@
  * render `{ ok: false, error }` inline (R5) rather than depending on a
  * thrown message crossing the Server Action boundary.
  */
-import { Suspense, useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useState } from 'react'
 import { LayerProvider, useAtom, useService } from '@sleekstack/kit/react'
-import { addComment, moveTask } from '../server/board.actions'
+import { addCommentMutation, addCommentTo, moveTaskMutation, setStatus, useBoardMutation } from './board-query'
 import type { CommentRecord, TaskRecord, TaskStatus } from '../domain/tags'
 import { ErrorBoundary } from './ErrorBoundary'
 import { DraftEditor, makeBrokenDraftEditorLayer, makeDraftEditorLayer } from './component-services'
@@ -21,22 +20,15 @@ const STATUSES: readonly TaskStatus[] = ['todo', 'in_progress', 'done']
 
 export function DraftEditorPanel({ taskId }: { readonly taskId: string }) {
   const { draft } = useService(DraftEditor)
-  const router = useRouter()
   // The draft is an atom owned by the DraftEditor service, not local state. TaskDetail only renders on the client.
   const [body, setBody] = useAtom(draft)
   const [error, setError] = useState<string | null>(null)
-  const [pending, startTransition] = useTransition()
+  const { run, isPending: pending } = useBoardMutation(addCommentMutation, addCommentTo)
 
   const submit = () => {
-    startTransition(async () => {
-      const result = await addComment({ taskId, body, authorId: 'demo-user' })
-      if (!result.ok) {
-        setError(result.error)
-        return
-      }
-      setError(null)
-      setBody('')
-      router.refresh()
+    void run({ taskId, body, authorId: 'demo-user' }).then((failure) => {
+      setError(failure)
+      if (failure === null) setBody('')
     })
   }
 
@@ -65,19 +57,10 @@ export interface TaskDetailProps {
 export function TaskDetail({ task, comments, onClose }: TaskDetailProps) {
   const [breakDetail, setBreakDetail] = useState(false)
   const [moveError, setMoveError] = useState<string | null>(null)
-  const [movePending, startMove] = useTransition()
-  const router = useRouter()
+  const { run: moveTo, isPending: movePending } = useBoardMutation(moveTaskMutation, setStatus)
 
   const move = (status: TaskStatus) => {
-    startMove(async () => {
-      const result = await moveTask({ taskId: task.id, status })
-      if (!result.ok) {
-        setMoveError(result.error)
-        return
-      }
-      setMoveError(null)
-      router.refresh()
-    })
+    void moveTo({ taskId: task.id, status }).then(setMoveError)
   }
 
   return (

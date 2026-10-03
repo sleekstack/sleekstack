@@ -12,7 +12,7 @@
  */
 import { Suspense, useMemo, useSyncExternalStore, useState } from 'react'
 import { LayerProvider, useService } from '@sleekstack/react'
-import { createTaskMutation, failureOf } from '../services/board-query'
+import { createTaskMutation, failureOf, isPendingId } from '../services/board-query'
 import { useBoardMutation } from '../services/useBoardMutation'
 import type { ProjectRecord } from '../../domain/tags'
 import { ProjectFilterStore, makeProjectFilterStoreLayer, type TaskStatusFilter } from '../services/component-services'
@@ -41,11 +41,8 @@ function ProjectBody({ project, tasks }: { readonly project: ProjectRecord; read
   const selected = tasks.find(({ task }) => task.id === selectedTaskId)
 
   const submitCreate = form.handleSubmit((draft) => {
-    void mutate({ draft, src: newTaskCtx }).then((exit) => {
-      const error = failureOf(exit)
-      setCreateError(error)
-      if (error === null) form.reset()
-    })
+    form.reset() // the task shows optimistically, so the form is free for the next one
+    void mutate({ draft, src: newTaskCtx }).then((exit) => setCreateError(failureOf(exit)))
   }, () => setCreateError(null))
 
   return (
@@ -63,7 +60,7 @@ function ProjectBody({ project, tasks }: { readonly project: ProjectRecord; read
       <ul>
         {visible.map(({ task, comments }) => (
           <li key={task.id}>
-            <button type="button" onClick={() => store.selectedTaskId.set(task.id)}>
+            <button type="button" disabled={isPendingId(task.id)} onClick={() => store.selectedTaskId.set(task.id)}>
               {task.title} — {task.statusLabel} ({comments.length})
             </button>
           </li>
