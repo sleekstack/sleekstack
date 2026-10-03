@@ -3,15 +3,16 @@
  * apps/showcase-kit/src/client/Board.tsx
  *
  * R7: the interactive board, rendered inside `providers.tsx`'s app-level
- * `LayerProvider`. It reads the `board` query (board-query.ts); the kit facade
- * has no server prefetch, so the server render and hydration show a
- * placeholder and the client fetches. One `ProjectView` per project — the
+ * `LayerProvider`. It reads the `board` query (board-family.ts). When the page's
+ * server prefetch succeeded (`prefetched`), the server HTML already holds the
+ * board; when it failed, the server render and hydration show a placeholder
+ * and the client fetches. One `ProjectView` per project — the
  * project's own `ProjectFilterStore` component service owns its filter and
  * (if any) open task-detail selection.
  */
 import { useSyncExternalStore } from 'react'
 import { useQuery } from '@sleekstack/kit/react'
-import { board as boardQuery, type BoardProject } from './board-query'
+import { board as boardQuery, type BoardProject } from './board-family'
 import { DemoToggle } from './DemoToggle'
 import { ProjectView } from './ProjectView'
 import { ScopeLog } from './ScopeLog'
@@ -27,13 +28,13 @@ function Projects() {
   return data.map(({ project, tasks }) => <ProjectView key={project.id} project={project} tasks={tasks} />)
 }
 
-export function Board({ demoMode }: { readonly demoMode: boolean }) {
-  // false on the server and while hydrating, true after: kit query hooks run on the client only
+export function Board({ demoMode, prefetched = false }: { readonly demoMode: boolean; readonly prefetched?: boolean }) {
+  // false on the server and while hydrating, true after: without a prefetch the board is fetched on the client only
   const client = useSyncExternalStore(noSubscribe, () => true, () => false)
   return (
     <div>
       <DemoToggle demoMode={demoMode} />
-      {client ? <Projects /> : <p>Loading board…</p>}
+      {prefetched || client ? <Projects /> : <p>Loading board…</p>}
       <ScopeLog />
     </div>
   )
