@@ -16,3 +16,4 @@ export {
 } from '@sleekstack/runtime'
 export { isNextControlFlow, runEffect } from './runtime'
 export { prefetch } from './query'
+export { prefetchAtoms } from './atoms'
