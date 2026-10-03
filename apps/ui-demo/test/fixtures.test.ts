@@ -13,7 +13,8 @@ const expected = (name: string) =>
       return m ? [{ code: m[1]!, file, line: i + 1 }] : []
     }))
 
-describe('one fixture per Analyzer code', () => {
+// Each case builds a full TypeScript program; that exceeds vitest's 5s default on a CI runner.
+describe('one fixture per Analyzer code', { timeout: 60_000 }, () => {
   it.each([
     ['missing-dependency', 'MissingDependency'],
     ['unhandled-error', 'UnhandledError'],
