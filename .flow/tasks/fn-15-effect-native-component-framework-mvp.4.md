@@ -39,9 +39,13 @@ Add the component pass to `@sleekstack/analyze`: build one tree per `mount` call
 - [ ] `pnpm --filter @sleekstack/analyze test` and `typecheck` pass.
 
 ## Done summary
-TBD
+Added the `@sleekstack/analyze` component pass: `analyzeComponents({ project })` builds one tree per ui `mount` call (component/provide/catch/unresolved) and reports MissingDependency, UnhandledError, EffectInsideReact and Unresolved with file:line; `analyze()`/`Report` unchanged. Provide outputs are read from the Layer type (ROut/RIn) via the checker rather than the leaf-walking plainLayer, which lives inside the extract closure; libId now matches ui and .tsx sources, and programOf was hoisted out of extract with no behavior change.
 
+Tests: src/__tests__/components.test.ts with fixtures ui-clean, ui-missing, ui-unhandled, ui-react (props, nested/spread props, JSX body, unreadable guest), ui-unresolved (any, dynamic component, declared-only component).
+
+stage: impl-review - ran (codex, round 1 NEEDS_WORK 4 findings fixed, round 2 SHIP)
+Tier: session (jev-unavailable(no_key))
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 4469325c1630fd90a66b0812d7baa42a93718115, 4d07c512fa7fbcb3d1b8521e797595074ec8da4b
+- Tests: pnpm --filter @sleekstack/analyze test, pnpm --filter @sleekstack/analyze typecheck
 - PRs:

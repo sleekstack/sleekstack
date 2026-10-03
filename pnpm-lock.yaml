@@ -244,11 +244,14 @@ importers:
         specifier: ^4.1.9
         version: 4.1.9(@types/node@22.20.1)(jsdom@29.1.1)(vite@8.0.16(@types/node@22.20.1)(jiti@2.7.0)(yaml@2.9.1))
 
-  apps/sleek-codes:
+  apps/ui-demo:
     dependencies:
-      next:
-        specifier: ^15.3.0
-        version: 15.5.20(@playwright/test@1.63.0)(@types/node@22.20.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@sleekstack/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      effect:
+        specifier: ^3.21.2
+        version: 3.21.2
       react:
         specifier: ^19.2.6
         version: 19.2.6
@@ -256,8 +259,11 @@ importers:
         specifier: ^19.2.6
         version: 19.2.6(react@19.2.6)
     devDependencies:
+      '@sleekstack/analyze':
+        specifier: workspace:*
+        version: link:../../packages/analyze
       '@types/node':
-        specifier: ^22.15.0
+        specifier: ^22.20.1
         version: 22.20.1
       '@types/react':
         specifier: ^19.2.17
@@ -265,9 +271,24 @@ importers:
       '@types/react-dom':
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.17)
+      '@vitejs/plugin-react':
+        specifier: ^6.0.2
+        version: 6.0.2(vite@8.0.16(@types/node@22.20.1)(jiti@2.7.0)(yaml@2.9.1))
+      jsdom:
+        specifier: ^29.1.1
+        version: 29.1.1
+      sleekstack:
+        specifier: workspace:*
+        version: link:../../packages/cli
       typescript:
         specifier: ^5.8.0
         version: 5.9.3
+      vite:
+        specifier: ^8.0.16
+        version: 8.0.16(@types/node@22.20.1)(jiti@2.7.0)(yaml@2.9.1)
+      vitest:
+        specifier: ^4.1.9
+        version: 4.1.9(@types/node@22.20.1)(jsdom@29.1.1)(vite@8.0.16(@types/node@22.20.1)(jiti@2.7.0)(yaml@2.9.1))
 
   packages/analyze:
     devDependencies:
@@ -486,6 +507,31 @@ importers:
         specifier: ^3.15.0
         version: 3.21.2
     devDependencies:
+      vitest:
+        specifier: ^4.1.9
+        version: 4.1.9(@types/node@22.20.1)(jsdom@29.1.1)(vite@8.0.16(@types/node@22.20.1)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/ui:
+    dependencies:
+      effect:
+        specifier: ^3.15.0
+        version: 3.21.2
+    devDependencies:
+      '@types/react':
+        specifier: ^19.2.17
+        version: 19.2.17
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.17)
+      jsdom:
+        specifier: ^29.1.1
+        version: 29.1.1
+      react:
+        specifier: ^19.2.6
+        version: 19.2.6
+      react-dom:
+        specifier: ^19.2.6
+        version: 19.2.6(react@19.2.6)
       vitest:
         specifier: ^4.1.9
         version: 4.1.9(@types/node@22.20.1)(jsdom@29.1.1)(vite@8.0.16(@types/node@22.20.1)(jiti@2.7.0)(yaml@2.9.1))

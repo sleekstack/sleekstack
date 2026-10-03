@@ -31,9 +31,11 @@ Pin the two typed guarantees with type tests (R2, R3). Separate from .1 so the r
 - [ ] `pnpm --filter @sleekstack/ui typecheck` passes.
 
 ## Done summary
-TBD
+Added type tests pinning R2 (missing Tag at renderToString fails to compile, with compiling twins, over-providing layer compiles, fromReact fits any slot) and R3 (Catch removes only its tag, catch-all leaves never, absent tag rejected). No typing bug found in component.ts.
 
+stage: impl-review - ran (codex fan-out NEEDS_WORK P3 comment fix -> SHIP)
+Tier: session (jev-unavailable(no_key))
 ## Evidence
-- Commits:
-- Tests:
+- Commits: a20e4106f415318ad5c580129a428758fee66e52, 57f9f4f82e9f703c853da45d5c4e5ee32bba59dc
+- Tests: pnpm --filter @sleekstack/ui typecheck, pnpm --filter @sleekstack/ui test
 - PRs:

@@ -18,3 +18,6 @@ export type * from './model'
  */
 export const analyze = (opts: { readonly project: string; readonly entries?: readonly string[]; readonly lenient?: boolean }): Report =>
   extract(opts.project, opts.entries, opts.lenient)
+
+/** The `@sleekstack/ui` component pass: one tree per `mount` call and its MissingDependency / UnhandledError / EffectInsideReact / Unresolved errors. */
+export { analyzeComponents } from './components'

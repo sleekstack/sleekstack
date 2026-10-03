@@ -29,9 +29,11 @@ Wire `analyzeComponents` into `sleekstack check`, gated so projects not using `@
 - [ ] `pnpm --filter sleekstack test` passes.
 
 ## Done summary
-TBD
+`sleekstack check` runs `analyzeComponents` when the nearest package.json lists `@sleekstack/ui` (any dependency field): component errors fail the check and print as `file:line code: message`, `--json` gains `components`, and mount trees count as roots so a ui-only project can pass. Non-ui projects are unchanged (no new key, still exit 2 with no roots). Tests: `ui project` and `non-ui project` cases in packages/cli/src/__tests__/check.test.ts.
 
+Tier: session (jev-unavailable(no_key))
+stage: impl-review - ran (codex fan-out NEEDS_WORK -> fix -> SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 1c868a46e4128ff74d66034aed879a1c6bd9a0fa, 4ad8a5694fed24e76c8cd846ca893537262a2bed
+- Tests: pnpm --filter sleekstack test
 - PRs:

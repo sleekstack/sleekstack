@@ -33,9 +33,12 @@ Add a runnable demo in `apps/` showing `UserCard` plus one fixture per Analyzer 
 - [ ] `pnpm --filter docs test` passes.
 
 ## Done summary
-TBD
+Added apps/ui-demo (Vite app mounting the canonical UserCard with the DOM renderer, `check` script), four fixtures (one per Analyzer code) asserted by vitest with exact file:line, and the docs: ADR 0015 + index row, CONTEXT.md ui terms (Component, Host, Guest, Mount, Provide, Catch) and Analyzer extension, errors.mdx component-errors table, testing.mdx gated check, root/analyze/ui READMEs (ui README now lists mount and Mounted).
 
+Tier: session (jev-unavailable(no_key))
+stage: impl-review - ran (codex fan-out, 3 draws SHIP, 0 findings)
+Note: baseline not run pre-edit (task is additive: new app + docs); post-edit Quick commands, ui-demo test/build/typecheck/check, and docs test all green.
 ## Evidence
-- Commits:
-- Tests:
+- Commits: b40eb14eba57d145d86c782fd4791876bf033dd6
+- Tests: pnpm --filter ui-demo test && pnpm --filter ui-demo build && pnpm --filter ui-demo typecheck && pnpm --filter ui-demo check, pnpm --filter docs test, pnpm --filter @sleekstack/ui test && pnpm --filter @sleekstack/ui typecheck && pnpm --filter @sleekstack/analyze test && pnpm --filter sleekstack test
 - PRs:

@@ -31,6 +31,20 @@ describe('sleekstack check', () => {
     const r = run(fixture('none'))
     expect(r.code).toBe(2)
     expect(r.err).toMatch(/No roots[\s\S]*Usage: sleekstack check/)
+    expect(r.err).toContain('No roots: no configureRuntime call found (pass --entry or set "sleekstack.entry" in package.json).\nUsage:')
+  })
+
+  it('ui project: a component error exits 1 with file:line code; a clean ui-only project exits 0', () => {
+    const bad = run(fixture('ui/bad'))
+    expect(bad.code).toBe(1)
+    expect(bad.err).toMatch(/app\.ts:9 MissingDependency: /)
+    const clean = run(fixture('ui/clean'), '--json')
+    expect(clean.code).toBe(0)
+    expect(JSON.parse(clean.out).components.trees).toHaveLength(1)
+  })
+
+  it('non-ui project: --json carries no components key', () => {
+    expect(JSON.parse(run(fixture('entry'), '--json').out)).not.toHaveProperty('components')
   })
 
   it('a crash exits 2', () => {
