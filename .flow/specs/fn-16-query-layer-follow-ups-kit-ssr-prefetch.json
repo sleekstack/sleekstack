@@ -657,7 +657,7 @@
     "impl:fn-16-query-layer-follow-ups-kit-ssr-prefetch.5": 0
   },
   "spec_path": ".flow/specs/fn-16-query-layer-follow-ups-kit-ssr-prefetch.md",
-  "status": "open",
+  "status": "done",
   "title": "Query layer follow-ups: kit SSR prefetch, server useMutation",
   "tracker": {
     "baseHashFlow": null,
@@ -670,5 +670,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-03T16:01:22.700967Z"
+  "updated_at": "2026-10-03T16:14:40.760865Z"
 }
