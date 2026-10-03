@@ -4,11 +4,12 @@
  * Configures the `@sleekstack/next` runtime over `AppLive` (the composition boundary: the one delivery file allowed to import infrastructure/app.ts; a module-level call, so a
  * repeat import is a same-reference no-op; the analyzer reads this call as the app root).
  * `runApp` runs an Effect with a fresh request scope (RequestLive) and, in demo mode,
- * the mock Layers shadowing the real ones. `prefetchApp` runs page queries the same way for `<HydrateQueries>`.
+ * the mock Layers shadowing the real ones. `prefetchApp` runs page queries the same way for `<HydrationBoundary>`.
  */
 import 'server-only'
-import { configureRuntime, prefetch, runEffect } from '@sleekstack/next'
-import { Cause, Effect, type Layer } from 'effect'
+import { configureRuntime, prefetchQueries, runEffect } from '@sleekstack/next'
+import { QueryClientLive } from '@sleekstack/query'
+import { Cause, Effect, Layer } from 'effect'
 import { AppLive, DemoLive, RequestLive } from '../infrastructure/app'
 import { ActivityLog } from '../domain/tags'
 import { isDemoMode } from './demo-mode'
@@ -37,7 +38,7 @@ export async function runApp<A, E>(
 }
 
 /** Prefetches queries with the same request scope and demo overrides as `runApp` (a lazy server read sees neither). */
-export async function prefetchApp(queries: Parameters<typeof prefetch>[0]) {
+export async function prefetchApp(queries: Parameters<typeof prefetchQueries>[0]) {
   const demo = await isDemoMode()
-  return prefetch(queries, { request: RequestLive, overrides: demo ? DemoLive : undefined })
+  return prefetchQueries(queries, { request: Layer.merge(RequestLive, QueryClientLive()), overrides: demo ? DemoLive : undefined })
 }

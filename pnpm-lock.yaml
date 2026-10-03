@@ -151,6 +151,9 @@ importers:
       '@sleekstack/react':
         specifier: workspace:*
         version: link:../../packages/react
+      '@tanstack/react-query':
+        specifier: ^5.104.1
+        version: 5.104.1(react@19.2.6)
       effect:
         specifier: ^3.21.2
         version: 3.21.2
