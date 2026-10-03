@@ -11,7 +11,7 @@ test('the seeded Effect atom does not run on the client', async ({ page }) => {
   const time = page.getByTestId('server-time')
   await expect(time).toHaveText(/run \d+ at /)
   const before = await time.textContent()
-  await page.waitForLoadState('networkidle')
+  await expect(page.locator('dl[data-hydrated="true"]')).toBeVisible()
   expect(await page.evaluate(() => (globalThis as { __ssrAtomRuns?: number }).__ssrAtomRuns)).toBeUndefined()
   await expect(time).toHaveText(before!)
 })

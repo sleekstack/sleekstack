@@ -39,6 +39,11 @@ describe('prefetchAtoms', () => {
     const clash = Atom.serializable(Atom.make(2), { key: 'keep', schema: Schema.Number })
     await expect(prefetchAtoms([keep, clash])).rejects.toThrow(/keep/)
     expect(released).toEqual(['store'])
+
+    released.length = 0
+    const boom = Atom.serializable(Atom.make((): number => { throw new Error('read boom') }), { key: 'boom', schema: Schema.Number })
+    await expect(prefetchAtoms([keep, boom])).rejects.toThrow(/read boom/)
+    expect(released).toEqual(['store'])
   })
 
   it('accepts only serializable atoms (type test)', () => {

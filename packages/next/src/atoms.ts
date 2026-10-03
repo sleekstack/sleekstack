@@ -13,7 +13,7 @@ import { runEffect } from './runtime'
 
 const settled = (store: AtomStore, atom: Atom.Atom<any>): Promise<void> =>
   new Promise((resolve) => {
-    const done = () => atom.serializable?.kind !== 'result' || store.get(atom)._tag !== 'Initial'
+    const done = () => { const v = store.get(atom); return atom.serializable?.kind !== 'result' || v._tag !== 'Initial' } // `get` rethrows a failed read
     if (done()) return resolve()
     const unsubscribe = store.subscribe(atom, () => { if (done()) { unsubscribe(); resolve() } })
   })
