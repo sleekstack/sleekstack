@@ -1,7 +1,7 @@
 // @sleekstack/kit/react public barrel. No Effect or core type is reachable from here.
-import { useCallback } from 'react'
+import { createElement, useCallback, type ReactNode } from 'react'
 import { Exit, Option } from 'effect'
-import { useMutation as coreUseMutation, useQueries, useQuery as coreUseQuery } from '@sleekstack/react'
+import { QueryProvider as CoreQueryProvider, useMutation as coreUseMutation, useQueries, useQuery as coreUseQuery } from '@sleekstack/react'
 import { normalize, type SleekStackError } from '../errors'
 import { coreMutation, coreQuery, type CachedQuery, type Mutation } from '../query'
 
@@ -16,6 +16,19 @@ const kit = <T>(f: () => T): T => {
     if (isThenable(e)) throw e
     throw normalize(e)
   }
+}
+
+/**
+ * Makes the nearest `LayerProvider` the query store for its subtree (instead of the root's), so queries and
+ * mutations below resolve `yield*`ed Tags from that provider.
+ *
+ * @example
+ * ```tsx
+ * <LayerProvider provide={[feature]}><QueryProvider>...</QueryProvider></LayerProvider>
+ * ```
+ */
+export function QueryProvider({ children }: { readonly children?: ReactNode }) {
+  return createElement(CoreQueryProvider, null, children)
 }
 
 /** What {@link useQuery} returns. */
@@ -33,12 +46,12 @@ export interface QueryState<T> {
 
 /**
  * Reads a {@link CachedQuery} from the nearest `LayerProvider`'s query store, fetching it when missing or stale.
- * Does not suspend: check `isPending`.
+ * On the client it does not suspend: check `isPending`. In a server render it reads hydrated data and suspends
+ * on an un-prefetched query while it fetches, so render it inside `<Suspense>`.
  *
  * @param query - A query from a `cachedQuery()` family.
  * @returns `data`, `error`, `isPending`, `isFetching`, `refetch`.
- * @throws {@link SleekStackError} with code `Unknown` outside a `LayerProvider` or during a server render without
- *   hydrated data. A fetch's own failure (including `MissingDependency`) is returned as `error`, not thrown.
+ * @throws {@link SleekStackError} with code `Unknown` outside a `LayerProvider`. A fetch's own failure (including `MissingDependency`) is returned as `error`, not thrown.
  *
  * @example
  * ```tsx

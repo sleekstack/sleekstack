@@ -3,7 +3,7 @@ import { Suspense, type ReactNode } from 'react'
 import { act, cleanup, fireEvent, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { cachedQuery, layer, mutation, tag, type CachedQuery } from '../index'
-import { LayerProvider, useMutation, useQuery, useQueryClient } from '../react'
+import { LayerProvider, QueryProvider, useMutation, useQuery, useQueryClient } from '../react'
 import { renderStrict } from './renderStrict'
 
 afterEach(cleanup)
@@ -32,6 +32,24 @@ describe('kit queries (R8)', () => {
     await screen.findByText('A')
     expect(calls.get).toBe(1)
     expect(item('a')).toBe(item('a'))
+  })
+
+  it('under QueryProvider, a nested provider supplies the Tags', async () => {
+    const { provide } = fakeApi()
+    renderStrict(tree(<LayerProvider provide={provide}><QueryProvider><Show q={item('a')} /></QueryProvider></LayerProvider>, []))
+    await screen.findByText('A')
+  })
+
+  it('a service throwing "Service not found" is not a MissingDependency', async () => {
+    const Bad = tag<{ get(): string }>('Bad')
+    const q = cachedQuery({ key: () => ['bad'], fetch: function* () { return (yield* Bad).get() } })
+    renderStrict(tree(<Show q={q(undefined)} />, [layer(Bad, { get: () => { throw new Error('Service not found: Bad') } })]))
+    await screen.findByText('err:Unknown')
+  })
+
+  it('a non-serializable key throws a SleekStackError', () => {
+    const q = cachedQuery({ key: (f: () => void) => [f], fetch: function* () { return 1 } })
+    expect(() => q(() => {})).toThrow(expect.objectContaining({ name: 'SleekStackError' }))
   })
 
   it('a missing Tag surfaces as error MissingDependency', async () => {

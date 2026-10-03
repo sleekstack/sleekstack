@@ -8,6 +8,7 @@
 
 import { Effect, Schedule } from 'effect'
 import { resolutionFailure } from '@sleekstack/core'
+import { normalize } from './errors'
 import { Mutation as CoreMutation, Query as CoreQuery } from '@sleekstack/query'
 
 declare const QueryBrand: unique symbol
@@ -52,10 +53,13 @@ const SERVICE_NOT_FOUND = /^Service not found: (.+?)(?: \(defined at|$)/
 const lower = <T>(body: () => Body<T>, label: string): Effect.Effect<T, unknown> =>
   Effect.gen(body as () => Generator<never, T | Promise<T>, any>).pipe(
     Effect.flatMap((out) => (out instanceof Promise ? Effect.tryPromise({ try: () => out, catch: (e) => e }) : Effect.succeed(out))),
-    Effect.catchAllDefect((e) => {
-      const key = e instanceof Error ? SERVICE_NOT_FOUND.exec(e.message)?.[1] : undefined
-      return Effect.fail(key === undefined ? e : resolutionFailure(key, label))
-    }),
+    Effect.catchAllDefect((e) =>
+      Effect.flatMap(Effect.context<never>(), (ctx) => {
+        // Only a Tag really absent from the scope is a MissingDependency, not a service throwing that message.
+        const key = e instanceof Error ? SERVICE_NOT_FOUND.exec(e.message)?.[1] : undefined
+        return Effect.fail(key !== undefined && !ctx.unsafeMap.has(key) ? resolutionFailure(key, label) : e)
+      }),
+    ),
   )
 
 type CoreQueryAtom = CoreQuery.QueryAtom<unknown, unknown>
@@ -74,7 +78,7 @@ export const coreMutation = (m: Mutation<any, unknown>) => mutationCores.get(m)!
  *
  * @param options - `key`, `fetch` (a generator; `yield*` Tags), `staleTime`, `gcTime`, `retry`.
  * @returns The family; equal keys return the same query.
- * @throws `InvalidQueryKey` (from the returned family) when `key(args)` is not serializable.
+ * @throws {@link SleekStackError} with code `Unknown` (from the returned family) when `key(args)` is not serializable.
  *
  * @example
  * ```ts
@@ -102,7 +106,12 @@ export function cachedQuery<Args, T>(options: CachedQueryOptions<Args, T>): (arg
     ...(options.retry && { retry: Schedule.recurs(options.retry) }),
   })
   return (args) => {
-    const core = family(args)
+    let core: CoreQueryAtom
+    try {
+      core = family(args)
+    } catch (e) {
+      throw normalize(e)
+    }
     let q = queryKits.get(core)
     if (!q) {
       q = {} as CachedQuery<unknown>
