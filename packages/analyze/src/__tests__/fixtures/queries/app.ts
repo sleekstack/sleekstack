@@ -10,6 +10,7 @@ class Gone extends Context.Tag('Gone')<Gone, string>() {}
 const loose: any = (id: string) => Effect.succeed(id)
 const dyn = (id: string) => ['todo', id]
 let prefix = 'todo'
+const Svc = Context.GenericTag<{ readonly svc: true }, string>('Svc')
 
 configureRuntime({ provide: [layer(A, 'a'), layer(Api, { get: (id: string) => Effect.succeed(id) })] })
 
@@ -27,3 +28,10 @@ export const notTuple = cachedQuery({ key: (id: string) => id.split('/'), fetch:
 export const nonLiteral = cachedQuery({ key: (id: string) => [prefix, id], fetch: function* () { return yield* A } }) // @error Computed
 export const anyParam = cachedQuery({ key: (id: any) => ['todo', id], fetch: function* () { return yield* A } }) // @error Computed
 export const anyFetch = Query.make({ key: (id: string) => ['x', id], fetch: loose }) // @error Computed
+export const okMethod = Query.make({ key(id: string, flag?: boolean) { return ['m', id] }, fetch(id: string) { return Effect.map(Api, (api) => id) } })
+export const okUnion = cachedQuery({ key: (s: 'open' | 'closed') => ['s', s], *fetch() { return yield* A } })
+export const missingTag = Query.make({ key: (id: string) => ['t', id], fetch: () => Gone }) // @error MissingDependency
+export const missingGeneric = Query.make({ key: (id: string) => ['g', id], fetch: () => Effect.map(Svc, (s) => s) }) // @error MissingDependency
+export const missingGenericRun = Mutation.make({ run: () => Svc }) // @error MissingDependency
+export const unknownParam = cachedQuery({ key: (id: unknown) => ['u', id], fetch: function* () { return yield* A } }) // @error Computed
+export const unionParam = cachedQuery({ key: (id: string | (() => void)) => ['u', id], fetch: function* () { return yield* A } }) // @error Computed
