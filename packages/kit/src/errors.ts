@@ -96,8 +96,6 @@ export class CleanupFailure extends Error {
   }
 }
 
-const NO_SERVER_RUNNER = /^No server query runner/
-
 const messageOf = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
 /** @internal Converts anything thrown (or an Effect Cause) into a SleekStackError. */
@@ -115,9 +113,6 @@ export function normalize(e: unknown, fallback: 'Unknown' | 'HandlerFailed' | 'I
   if (e instanceof Error && typeof tag === 'string' && GRAPH_CODES.has(tag)) {
     const { _tag, message, ...details } = { ...e } as Record<string, unknown>
     return new SleekStackError(tag as SleekStackErrorCode, e.message, details as never, { cause: e })
-  }
-  if (e instanceof Error && NO_SERVER_RUNNER.test(e.message)) {
-    return new SleekStackError('NoServerRunner', 'No server query runner: import @sleekstack/kit/next on the server, or prefetch the query.', {}, { cause: e })
   }
   return new SleekStackError(fallback, messageOf(e), {}, { cause: e })
 }

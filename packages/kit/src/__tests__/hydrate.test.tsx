@@ -59,3 +59,11 @@ describe('kit SSR prefetch', () => {
   })
 
 })
+
+describe('kit prefetch: Next control flow', () => {
+  it('a redirect() from the request scope reaches Next untouched', async () => {
+    const redirect = Object.assign(new Error('NEXT_REDIRECT'), { digest: 'NEXT_REDIRECT;replace;/x;307;' })
+    const q = cachedQuery({ key: () => ['kit-redirect'], fetch: function* () { return 1 }, serializable: true })
+    await expect(prefetch([q(undefined)], { provide: async () => { throw redirect } })).rejects.toBe(redirect)
+  })
+})

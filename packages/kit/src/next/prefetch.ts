@@ -7,7 +7,7 @@
  * services (configured runtime only: per-call `provide` cannot reach a render).
  */
 
-import { runEffect } from '@sleekstack/next'
+import { isNextControlFlow, runEffect } from '@sleekstack/next'
 import { Hydrate, Query } from '@sleekstack/query'
 import { normalize, SleekStackError } from '../errors'
 import { unwrap, validateProvide } from '../module'
@@ -17,8 +17,6 @@ import { requestLayer } from './runtime'
 
 /** Options for {@link prefetch}. */
 export interface PrefetchOptions {
-  /** Also send failed queries (the client shows the failure until its refetch settles). Default false. */
-  readonly failures?: boolean
   /** Built in the request scope for this call, as in `query`. */
   readonly provide?: OperationOptions['provide']
 }
@@ -27,8 +25,9 @@ const run = async (atoms: ReadonlyArray<ReturnType<typeof coreQuery>>, options: 
   const raw = typeof options.provide === 'function' ? await options.provide() : (options.provide ?? [])
   try {
     validateProvide(raw)
-    return await runEffect(Hydrate.prefetch(atoms, { failures: options.failures ?? false }), { request: requestLayer(unwrap(raw)) })
+    return await runEffect(Hydrate.prefetch(atoms, {}), { request: requestLayer(unwrap(raw)) })
   } catch (e) {
+    if (isNextControlFlow(e)) throw e // redirect() / notFound() must reach Next as thrown
     throw normalize(e)
   }
 }
@@ -37,7 +36,7 @@ const run = async (atoms: ReadonlyArray<ReturnType<typeof coreQuery>>, options: 
  * Fetches `queries` on the server and returns their state for `<HydrateQueries state>`.
  *
  * @param queries - Queries from `cachedQuery({ serializable })` families.
- * @param options - `failures` opt-in and per-call `provide`.
+ * @param options - Per-call `provide`.
  * @returns A promise of the `Dehydrated` state.
  * @throws {@link SleekStackError} (rejection) with code `Unknown` naming the query when one is not `serializable`, or before `configureRuntime`.
  *
@@ -61,4 +60,5 @@ export async function prefetch(queries: ReadonlyArray<CachedQuery<any>>, options
   return (await run(atoms, options)) as unknown as Dehydrated
 }
 
-Hydrate.setServerRunner((atoms) => run(atoms, { failures: true }))
+// A failed lazy read is not transferred (kit has no error codec): the client refetches it.
+Hydrate.setServerRunner((atoms) => run(atoms, {}))

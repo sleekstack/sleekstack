@@ -2,7 +2,7 @@
 import { createElement, useCallback, type ReactNode } from 'react'
 import { Exit, Option } from 'effect'
 import { HydrateQueries as CoreHydrateQueries, QueryProvider as CoreQueryProvider, useMutation as coreUseMutation, useQueries, useQuery as coreUseQuery } from '@sleekstack/react'
-import { normalize, type SleekStackError } from '../errors'
+import { normalize, SleekStackError } from '../errors'
 import { coreMutation, coreQuery, type CachedQuery, type Dehydrated, type Mutation } from '../query'
 
 export { LayerProvider, useService, useServices, createAppScope, type LayerProviderProps, type AppScopeHandle } from './hooks'
@@ -76,7 +76,7 @@ export interface QueryState<T> {
  *
  * @param query - A query from a `cachedQuery()` family.
  * @returns `data`, `error`, `isPending`, `isFetching`, `refetch`.
- * @throws {@link SleekStackError} with code `Unknown` outside a `LayerProvider`. A fetch's own failure (including `MissingDependency`) is returned as `error`, not thrown.
+ * @throws {@link SleekStackError} with code `Unknown` outside a `LayerProvider`, `NoServerRunner` when a server render reads an un-prefetched query without `@sleekstack/kit/next` loaded, or `QueryDecodeFailed` when a `serializable` decode throws. A fetch's own failure (including `MissingDependency`) is returned as `error`, not thrown.
  *
  * @example
  * ```tsx
@@ -91,8 +91,20 @@ export interface QueryState<T> {
  * }
  * ```
  */
+// Core's exact rejection when a server render reads an un-prefetched query and no runner is registered.
+const NO_RUNNER = 'No server query runner: import @sleekstack/next (or call Hydrate.setServerRunner) on the server.'
+
 export function useQuery<T>(query: CachedQuery<T>): QueryState<T> {
-  const r = kit(() => coreUseQuery(coreQuery(query)))
+  const r = kit(() => {
+    try {
+      return coreUseQuery(coreQuery(query))
+    } catch (e) {
+      if (e instanceof Error && e.message === NO_RUNNER) {
+        throw new SleekStackError('NoServerRunner', 'No server query runner: import @sleekstack/kit/next on the server, or prefetch the query.', {}, { cause: e })
+      }
+      throw e
+    }
+  })
   return { ...r, data: r.data as T | undefined, error: r.error === undefined ? undefined : normalize(r.error) }
 }
 
