@@ -1,0 +1,5 @@
+{
+  "extends": "../../../../../../tsconfig.base.json",
+  "compilerOptions": { "jsx": "preserve", "paths": { "@sleekstack/ui": ["../../../../../ui/src/index.ts"] } },
+  "include": ["."]
+}

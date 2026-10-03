@@ -318,7 +318,8 @@ export function analyzeComponents(opts: { readonly project: string }): Component
   }
 
   const errors: AnalyzeError[] = []
-  for (const t of trees) check(t.root, new Set(t.provides), new Set(), errors)
+  // `mount` provides `Store` itself (ui/dom.ts), whatever its layer.
+  for (const t of trees) check(t.root, new Set([...t.provides, 'Store']), new Set(), errors)
   return { trees, errors: [...new Map(errors.map((e) => [`${e.code}|${e.file}:${e.line}|${e.message}`, e])).values()] }
 }
 
