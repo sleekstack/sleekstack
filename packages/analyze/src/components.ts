@@ -28,11 +28,11 @@ export function analyzeComponents(opts: { readonly project: string }): Component
     throw new Unreadable(n, message, 'Unresolved')
   }
   const calleeOf = (c: ts.CallExpression) => libId(checker.getSymbolAtLocation(c.expression), checker)
-  const declOf = (e: ts.Expression): ts.Declaration | undefined => {
-    let sym = checker.getSymbolAtLocation(e)
+  const aliased = (sym: ts.Symbol | undefined): ts.Declaration | undefined => {
     if (sym && sym.flags & ts.SymbolFlags.Alias) sym = checker.getAliasedSymbol(sym)
     return sym?.valueDeclaration ?? sym?.declarations?.[0]
   }
+  const declOf = (e: ts.Expression) => aliased(checker.getSymbolAtLocation(e))
   const isAny = (t: ts.Type) => !!(t.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown))
   const members = (t: ts.Type | undefined) => (!t || t.flags & ts.TypeFlags.Never ? [] : t.isUnion() ? t.types : [t])
 
@@ -310,31 +310,49 @@ export function analyzeComponents(opts: { readonly project: string }): Component
     const map = call.arguments[1] && unwrap(call.arguments[1])
     if (!map || !ts.isObjectLiteralExpression(map)) return map && notResumable(map, `on() handlers "${text(map)}" are not an object literal`)
     for (const p of map.properties) {
-      const v = ts.isPropertyAssignment(p) ? unwrap(p.initializer) : ts.isShorthandPropertyAssignment(p) ? p.name : undefined
-      const d = v && (ts.isIdentifier(v) || ts.isPropertyAccessExpression(v)) ? declOf(v) : undefined
-      const init = d && ts.isVariableDeclaration(d) && d.initializer && unwrap(d.initializer)
-      const topLevel = !!d && ts.isVariableStatement(d.parent.parent) && ts.isSourceFile(d.parent.parent.parent) && !!(ts.getCombinedNodeFlags(d) & ts.NodeFlags.Const)
-      if (!init || !topLevel || !ts.isCallExpression(init) || calleeOf(init) !== 'ui/handler#defineHandler')
+      const v = ts.isPropertyAssignment(p) ? unwrap(p.initializer) : undefined
+      const d = ts.isShorthandPropertyAssignment(p) ? aliased(checker.getShorthandAssignmentValueSymbol(p)) : v && (ts.isIdentifier(v) || ts.isPropertyAccessExpression(v)) ? declOf(v) : undefined
+      // A top-level `const h = defineHandler(...)` or `export default defineHandler(...)`, possibly imported.
+      const init =
+        d && ts.isVariableDeclaration(d) && d.initializer && ts.isVariableStatement(d.parent.parent) && ts.isSourceFile(d.parent.parent.parent) && ts.getCombinedNodeFlags(d) & ts.NodeFlags.Const
+          ? unwrap(d.initializer)
+          : d && ts.isExportAssignment(d) && ts.isSourceFile(d.parent) ? unwrap(d.expression) : undefined
+      if (!init || !ts.isCallExpression(init) || calleeOf(init) !== 'ui/handler#defineHandler')
         notResumable(p, `Handler "${text(p)}" is not a reference to a top-level const defineHandler(...)`)
       else if (!init.arguments[0] || !ts.isStringLiteralLike(unwrap(init.arguments[0])))
         notResumable(p, `Handler "${text(p)}" has a non-literal id`)
     }
   }
+  /** An expression through shorthand properties and `const` bindings to the object literal it names. */
+  const objectOf = (e: ts.Node | undefined): ts.ObjectLiteralExpression | undefined => {
+    if (e && ts.isShorthandPropertyAssignment(e)) {
+      const d = checker.getShorthandAssignmentValueSymbol(e)?.valueDeclaration
+      return d && ts.isVariableDeclaration(d) && ts.getCombinedNodeFlags(d) & ts.NodeFlags.Const ? objectOf(d.initializer) : undefined
+    }
+    const x = e && (ts.isPropertyAssignment(e) ? e.initializer : ts.isExpression(e) ? e : undefined)
+    const u = x && unwrap(x)
+    if (!u) return undefined
+    if (ts.isObjectLiteralExpression(u)) return u
+    const d = ts.isIdentifier(u) ? declOf(u) : undefined
+    return d && ts.isVariableDeclaration(d) && ts.getCombinedNodeFlags(d) & ts.NodeFlags.Const ? objectOf(d.initializer) : undefined
+  }
   /** A `resume({ layer, handlers })` root: one child per handler carrying the `R` of its loader's `default`. */
   const resumeRoot = (n: ts.CallExpression): ComponentTree => {
     const opts = n.arguments[0] && unwrap(n.arguments[0])
-    const prop = (name: string) => opts && ts.isObjectLiteralExpression(opts) ? opts.properties.find((p) => p.name?.getText() === name) : undefined
     try {
       if (!opts) return fail(n, 'resume() needs { layer, handlers }')
       const sym = checker.getTypeAtLocation(opts).getProperty('layer') ?? fail(opts, 'resume() options have no layer')
       const provides = layerTags(opts, checker.getTypeOfSymbolAtLocation(sym, opts)).provides
-      const hp = prop('handlers')
-      const map = hp && ts.isPropertyAssignment(hp) ? unwrap(hp.initializer) : undefined
+      // The last `handlers` wins, through `...spread` of readable const objects.
+      const find = (o: ts.ObjectLiteralExpression | undefined): ts.ObjectLiteralElementLike | undefined =>
+        o?.properties.reduce<ts.ObjectLiteralElementLike | undefined>((hit, p) => (ts.isSpreadAssignment(p) ? find(objectOf(p.expression)) ?? hit : p.name?.getText() === 'handlers' ? p : hit), undefined)
+      const hp = find(objectOf(opts))
+      const map = objectOf(hp)
       const children: UiNode[] = []
-      if (!map || !ts.isObjectLiteralExpression(map)) notResumable(hp ?? opts, 'resume() handlers are not an object literal')
+      if (!map) notResumable(hp ?? opts, 'resume() handlers are not a readable object literal')
       else for (const p of map.properties) {
         const name = `handler ${p.name?.getText() ?? text(p)}`
-        const loader = ts.isPropertyAssignment(p) ? checker.getTypeAtLocation(p.initializer) : ts.isShorthandPropertyAssignment(p) ? checker.getTypeAtLocation(p.name) : undefined
+        const loader = p.name ? checker.getTypeAtLocation(p.name) : undefined
         const ret = loader?.getCallSignatures()[0] && checker.getAwaitedType(checker.getReturnTypeOfSignature(loader.getCallSignatures()[0]!))
         const def = ret && !isAny(ret) ? ret.getProperty('default') : undefined
         const run = def && checker.getTypeOfSymbolAtLocation(def, p).getProperty('run')
@@ -404,7 +422,7 @@ function check(n: UiNode, provided: ReadonlySet<string>, caught: ReadonlySet<str
   for (const r of requires) {
     if (provided.has(r) || below.has(`R:${r}`)) continue
     below.add(`R:${r}`)
-    out.push({ code: 'MissingDependency', message: `${who} requires "${r}", but no enclosing Provide or mount layer provides it`, ...at })
+    out.push({ code: 'MissingDependency', message: `${who} requires "${r}", but no enclosing Provide or root (mount / resume) layer provides it`, ...at })
   }
   for (const e of n.kind === 'component' ? n.errors : []) {
     if (caught.has(e) || below.has(`E:${e}`)) continue

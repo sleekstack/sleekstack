@@ -43,7 +43,7 @@ describe('component pass', () => {
   it('ui-resume-clean: one tree per resume, one child per handler, nothing reported', () => {
     const r = run('ui-resume-clean')
     expect(r.errors).toEqual([])
-    expect(r.trees.map((t) => [t.provides, t.root.kind === 'component' && t.root.children.map((c) => c.kind === 'component' && c.requires)])).toEqual([[['Repo'], [['Repo'], ['Store']]]])
+    expect(r.trees.map((t) => [t.provides, t.root.kind === 'component' && t.root.children.map((c) => c.kind === 'component' && c.requires)])).toEqual([[['Repo'], [['Repo'], ['Store'], []]]])
   })
 
   it('non-ui projects have no trees', () => {
