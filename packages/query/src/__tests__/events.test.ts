@@ -3,7 +3,7 @@ import { Effect } from 'effect'
 import { makeAtomStore } from '@sleekstack/core'
 import { Query, QueryEvents } from '../index'
 
-afterEach(() => { QueryEvents.clear(); vi.unstubAllEnvs() })
+afterEach(() => { QueryEvents.clear(); vi.unstubAllEnvs(); vi.useRealTimers() })
 
 const ev = (kind: QueryEvents.QueryEventKind, at: number): QueryEvents.QueryEvent =>
   ({ at, kind, key: `k${at}`, state: kind, observers: 0, updatedAt: undefined, gcTime: 0 })
@@ -24,20 +24,23 @@ describe('QueryEvents', () => {
     expect(QueryEvents.events()).toHaveLength(0)
   })
 
-  it('sample records added, state changes and removal with key, observers, updatedAt and gc timer', async () => {
-    const q = Query.make({ key: (id: string) => ['todo', id], fetch: (id) => Effect.succeed(id), gcTime: '1 second' })
+  it('the query lifecycle records added, fetching, success, failure and removed as they happen', async () => {
+    vi.useFakeTimers()
+    let fail = false
+    const q = Query.make({ key: (id: string) => ['todo', id], fetch: (id) => (fail ? Effect.fail('boom') : Effect.succeed(id)), gcTime: '1 second' })
     const store = makeAtomStore()
-    expect(QueryEvents.sample(store)).toEqual([])
+    expect(QueryEvents.snapshot(store)).toEqual([])
     const release = Query.observe(store, q('a'))
-    const [row] = QueryEvents.sample(store)
+    const [row] = QueryEvents.snapshot(store)
     expect(row).toMatchObject({ key: '["todo","a"]', state: 'Success', observers: 1, gcTime: 1000 })
     expect(row!.updatedAt).toBeTypeOf('number')
-    expect(QueryEvents.sample(store)).toHaveLength(1) // unchanged: no new event
-    expect(QueryEvents.events().map((e) => e.kind)).toEqual(['added'])
+    // refetches between any two panel polls are still recorded: the buffer does not depend on sampling
+    store.refresh(q('a'))
+    fail = true
+    store.refresh(q('a'))
     release()
-    QueryEvents.sample(store)
-    await store.dispose()
-    QueryEvents.sample(store)
-    expect(QueryEvents.events().map((e) => e.kind)).toEqual(['added', 'success', 'removed'])
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(QueryEvents.events().map((e) => e.kind)).toEqual(['added', 'fetching', 'success', 'fetching', 'success', 'fetching', 'failure', 'removed'])
+    vi.useRealTimers()
   })
 })

@@ -7,8 +7,9 @@
  */
 
 import { Atom, Result, type AtomStore } from '@sleekstack/core'
-import { Context, Duration, Effect, Fiber, Option, Schedule, Stream } from 'effect'
+import { Cause, Context, Duration, Effect, Fiber, Option, Schedule, Stream } from 'effect'
 import { canonicalKey } from './key'
+import { emit } from './events'
 
 /** Brand carrying a query atom's policy. */
 export const TypeId: unique symbol = Symbol.for('@sleekstack/query/Query') as never
@@ -143,23 +144,27 @@ export const make = <Args, A, E = never, R = never>(options: QueryOptions<Args, 
       if (!entry) {
         entry = { id, key, tuple, atom: self as QueryAtom<unknown, unknown>, updatedAt: undefined, observers: 0, live: true, stop: undefined }
         registry.set(id, entry)
+        emit('added', entry)
       }
       const e = entry
       e.live = true
       // a rebuild runs this finalizer then re-reads synchronously; only a removal leaves the entry dead
       get.addFinalizer(() => {
         e.live = false
-        queueMicrotask(() => { if (!e.live && registry.get(id) === e) registry.delete(id) })
+        queueMicrotask(() => { if (!e.live && registry.get(id) === e) { registry.delete(id); emit('removed', e) } })
       })
       if (override?.id === id && override.registry === registry) {
         const previous = get.self<Result.Result<A, E>>()
         return override.mode === 'skip' && previous ? { ...previous, waiting: false } : Result.initial()
       }
       const fetch = options.fetch(args)
-      const touch = () => Effect.sync(() => { e.updatedAt = Date.now() })
+      const touch = () => Effect.sync(() => { e.updatedAt = Date.now(); emit('success', e) })
+      // an interruption (refresh, removal) is not a failure
+      const failed = (cause: Cause.Cause<unknown>) => Effect.sync(() => { if (!Cause.isInterruptedOnly(cause)) emit('failure', e) })
+      emit('fetching', e)
       const run = Effect.isEffect(fetch)
-        ? Atom.make((options.retry ? Effect.retry(fetch, options.retry) : fetch).pipe(Effect.tap(touch)))
-        : Atom.make(Stream.tap(fetch, touch))
+        ? Atom.make((options.retry ? Effect.retry(fetch, options.retry) : fetch).pipe(Effect.tap(touch), Effect.tapErrorCause(failed)))
+        : Atom.make(Stream.tap(fetch, touch).pipe(Stream.tapErrorCause(failed)))
       return run.read(get) as Result.Result<A, E | Atom.ScopeError>
     }
     const writable = Atom.writable(read, (ctx, value: A) => {
