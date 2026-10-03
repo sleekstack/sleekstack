@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-12-effect-native-query-layer",
   "spec_path": ".flow/tasks/fn-12-effect-native-query-layer.11.md",
-  "status": "todo",
+  "status": "done",
   "title": "ADR, CONTEXT, docs guides, TanStack mapping page, API reference",
   "updated_at": "2026-09-30T15:36:15.063116Z"
 }
