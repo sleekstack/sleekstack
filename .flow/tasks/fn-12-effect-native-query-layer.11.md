@@ -37,9 +37,14 @@ Write the decision record and user docs for the query layer (spec R12); BLOCKED 
 - [ ] `pnpm --filter docs test` and `pnpm -r test` pass with the regenerated API reference
 
 ## Done summary
-TBD
+Added ADR 0014 (query layer on native atoms) and its index row, CONTEXT terms (Cached Query, Query Store, QueryCache, Mutation, Dehydrated; server Query reworded), guides Queries / Queries on the server / TanStack Query mapping with typechecked snippets, showcases.mdx update, a new packages/query README, and query coverage in the kit and react READMEs. Accepted limits are stated: lazy server reads see no request/overrides Layers (prefetch them), and the kit has no SSR prefetch (fn-16-query-layer-follow-ups-kit-ssr-prefetch).
 
+Outside the declared Touches, needed for `pnpm --filter docs test` to pass: apps/docs now depends on @sleekstack/query (pnpm-lock.yaml updated); the kit/react @example blocks were made self-contained (they failed the existing examples test); the HydrateQueries TSDoc dropped a `@param props.state` that made typedoc fail. The baseline handoff said green, but the docs test was red before this task.
+New test: apps/docs/test/examples.test.ts "guide snippets compile" (checked red first).
+
+Tier: implementer (actual model: claude-opus-5-5)
+stage: impl-review - ran (codex: NEEDS_WORK round 1 with 5 findings fixed, SHIP round 2)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: d5d9a6621e406cc223becac261e61b18adcf41df, 8ab23de669d802ddb90c6eeec9bc191d113193d0
+- Tests: pnpm --filter docs test, pnpm -r test
 - PRs:

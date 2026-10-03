@@ -11,6 +11,7 @@
   "impl_review_rounds": {
     "fn-12-effect-native-query-layer.1": 0,
     "fn-12-effect-native-query-layer.10": 3,
+    "fn-12-effect-native-query-layer.11": 0,
     "fn-12-effect-native-query-layer.2": 0,
     "fn-12-effect-native-query-layer.3": 0,
     "fn-12-effect-native-query-layer.4": 0,
@@ -2085,10 +2086,163 @@
       "task": "fn-12-effect-native-query-layer.10",
       "timestamp": "2026-10-03T05:57:35.551737Z",
       "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "4241a8c28e57bb2e6ada12b0976ba3690aea3faf98179cc393aa38ed7ad84bbd",
+      "backend": "codex",
+      "base_sha": "4ce17e0b06b5df0d8634723b8b3126486967a89a",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-931ccf6ba8dc00932bab38097b419d4b",
+            "classification": "introduced",
+            "findingId": "finding-931ccf6ba8dc00932bab38097b419d4b",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-18ddd3d90e7de4cc85c748090c722d96",
+            "classification": "introduced",
+            "findingId": "finding-18ddd3d90e7de4cc85c748090c722d96",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-a2b15699c25de9b536fb1be904a351fc",
+            "classification": "introduced",
+            "findingId": "finding-a2b15699c25de9b536fb1be904a351fc",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-b77753d629256e9a99ecc020f4c56fdc",
+            "classification": "introduced",
+            "findingId": "finding-b77753d629256e9a99ecc020f4c56fdc",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-afde82c5b48380d5b1cf2d44f4cea614",
+            "classification": "introduced",
+            "findingId": "finding-afde82c5b48380d5b1cf2d44f4cea614",
+            "firstSeenThisRound": true,
+            "severity": "P3",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "d5d9a6621e406cc223becac261e61b18adcf41df",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 3684,
+      "output_sha256": "f70a459c6ad5783001df70584d775023efc7067074421bfd3d28fd161cba6672",
+      "reservation_id": "51b900df7def4334bd1ec0536a316b63",
+      "round_consumed": true,
+      "scope": "impl:fn-12-effect-native-query-layer.11",
+      "superseded_by": null,
+      "task": "fn-12-effect-native-query-layer.11",
+      "timestamp": "2026-10-03T07:42:56.467844Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "5f9c3a0758bb47fd3fe076a27ed71f5973102413eb20fd951ef58895d7dcfe4d",
+      "backend": "codex",
+      "base_sha": "4ce17e0b06b5df0d8634723b8b3126486967a89a",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-931ccf6ba8dc00932bab38097b419d4b",
+            "classification": "introduced",
+            "findingId": "finding-931ccf6ba8dc00932bab38097b419d4b",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-18ddd3d90e7de4cc85c748090c722d96",
+            "classification": "introduced",
+            "findingId": "finding-18ddd3d90e7de4cc85c748090c722d96",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-a2b15699c25de9b536fb1be904a351fc",
+            "classification": "introduced",
+            "findingId": "finding-a2b15699c25de9b536fb1be904a351fc",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-b77753d629256e9a99ecc020f4c56fdc",
+            "classification": "introduced",
+            "findingId": "finding-b77753d629256e9a99ecc020f4c56fdc",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-afde82c5b48380d5b1cf2d44f4cea614",
+            "classification": "introduced",
+            "findingId": "finding-afde82c5b48380d5b1cf2d44f4cea614",
+            "firstSeenThisRound": false,
+            "severity": "P3",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "8ab23de669d802ddb90c6eeec9bc191d113193d0",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 494,
+      "output_sha256": "a66f7b56b43683b3689e1a98818fcf3c402984d4c38b0631f5b6e9f4a9c311a1",
+      "reservation_id": "be14c3bf07f14b9984c43cc98db8972b",
+      "round_consumed": true,
+      "scope": "impl:fn-12-effect-native-query-layer.11",
+      "superseded_by": null,
+      "task": "fn-12-effect-native-query-layer.11",
+      "timestamp": "2026-10-03T07:45:29.849610Z",
+      "verdict": "SHIP"
     }
   ],
   "review_hash_epoch": {
     "impl:fn-12-effect-native-query-layer.1": 1,
+    "impl:fn-12-effect-native-query-layer.11": 1,
     "impl:fn-12-effect-native-query-layer.2": 1,
     "impl:fn-12-effect-native-query-layer.3": 1,
     "impl:fn-12-effect-native-query-layer.4": 1,
@@ -2102,6 +2256,7 @@
   "review_transport_failures": {
     "impl:fn-12-effect-native-query-layer.1": 0,
     "impl:fn-12-effect-native-query-layer.10": 0,
+    "impl:fn-12-effect-native-query-layer.11": 0,
     "impl:fn-12-effect-native-query-layer.2": 0,
     "impl:fn-12-effect-native-query-layer.3": 0,
     "impl:fn-12-effect-native-query-layer.4": 0,
@@ -2126,5 +2281,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-03T05:57:35.556486Z"
+  "updated_at": "2026-10-03T07:45:29.853655Z"
 }
