@@ -29,21 +29,7 @@ The functions `defineEffect` and `defineQuery` return are plain async functions.
 
 Next owns the render, so `renderWithAtoms` cannot wrap it. A client `LayerProvider` rendered on the server serves atoms from an inert store: sync atoms compute, seeded atoms return their seed, and unseeded Effect and Stream atoms stay `Initial` and start no fiber. Load the values in the server component instead:
 
-```tsx
-// app/atoms/page.tsx (server component)
-import { prefetchAtoms } from '@sleekstack/next'
-
-export default async function Page() {
-  const snapshot = await prefetchAtoms([serverTime, greeting]) // serializable atoms only
-  return <Client snapshot={snapshot} />
-}
-
-// Client.tsx
-'use client'
-export function Client({ snapshot }: { snapshot: Snapshot }) {
-  return <LayerProvider provide={[app]} hydrate={snapshot}><Readers /></LayerProvider>
-}
-```
+<include>../../snippets/atoms-next-prefetch.tsx</include>
 
 `prefetchAtoms(atoms, { request?, overrides? })` runs in one `runEffect` call: it builds a store on that call's Effect context, waits until each listed atom settles, dehydrates, and disposes the store before resolving. A result atom that settles to `Failure` is left out (the client loads it); a failed value-atom read or a failed run rejects like `runEffect`. The snapshot is a plain object, so it passes as a client-component prop. See [Atoms](/docs/atoms#ssr-and-hydration) for the serializable-atom rules. `apps/showcase/app/atoms/page.tsx` is a working page.
 
