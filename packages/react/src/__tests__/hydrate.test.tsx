@@ -12,7 +12,11 @@ import React, { Suspense } from 'react'
 import { Effect, Schema } from 'effect'
 import { Hydrate, Query } from '@sleekstack/query'
 import { HydrateQueries, LayerProvider, useQuery } from '../index'
+import { ProviderContext, QueryStoreContext } from '../context'
 
+// Fizz leaves a suspended render's context values on the shared context objects; in a real app the server and
+// client renderers never share them, so reset them after each server render before a client render reads them as defaults.
+const resetContexts = () => { for (const c of [ProviderContext, QueryStoreContext]) (c as unknown as { _currentValue: unknown })._currentValue = null }
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); Hydrate.setServerRunner(undefined) })
 
 const setup = () => {
@@ -26,6 +30,7 @@ const setup = () => {
 }
 const html = async (node: React.ReactNode) => {
   const { prelude } = await prerender(node)
+  resetContexts()
   return new Response(prelude).text()
 }
 

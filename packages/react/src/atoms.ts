@@ -2,21 +2,15 @@
  * packages/react/src/atoms.ts
  *
  * Atom hooks (modeled on @effect-atom/atom-react) against the nearest LayerProvider's AtomStore.
- * Hooks suspend on the provider's scope promise until its store exists. Client only.
+ * Hooks suspend on the provider's scope promise until its store exists. On the server, see `renderWithAtoms`.
  */
 
 import { useCallback, useContext, useEffect, useMemo, useSyncExternalStore } from 'react'
-import { Cause, Data } from 'effect'
+import { Cause } from 'effect'
 import { Atom, Result, type AtomStore } from '@sleekstack/core'
 import { ProviderContext } from './context'
 
-/** Error code `AtomsClientOnly`: an atom hook ran during a server render. Atoms are client only. */
-export class AtomsClientOnly extends Data.TaggedError('AtomsClientOnly')<{ readonly message: string }> {}
-
 function useStore(hook: string): AtomStore {
-  if (typeof window === 'undefined') {
-    throw new AtomsClientOnly({ message: `${hook} ran during a server render; atoms are client only. Render the component on the client only.` })
-  }
   const state = useContext(ProviderContext)
   if (state === null) {
     throw new Error(`${hook} needs a <LayerProvider> above this component: atom state lives in the nearest provider.`)
@@ -47,7 +41,7 @@ const RETRY_MS = 400
 
 function useValue<A>(store: AtomStore, atom: Atom.Atom<A>): A {
   const b = bindingFor(store, atom)
-  return useSyncExternalStore(b.subscribe, b.getSnapshot) as A
+  return useSyncExternalStore(b.subscribe, b.getSnapshot, b.getSnapshot) as A
 }
 
 /**
@@ -55,7 +49,7 @@ function useValue<A>(store: AtomStore, atom: Atom.Atom<A>): A {
  *
  * @param atom - The atom to read.
  * @returns The atom's value.
- * @throws `AtomsClientOnly` during a server render; `Error` outside a `LayerProvider`.
+ * @throws `Error` outside a `LayerProvider`.
  *
  * @example
  * ```tsx
@@ -73,7 +67,7 @@ export function useAtomValue<A>(atom: Atom.Atom<A>): A
  * @param atom - The atom to read.
  * @param f - The mapping.
  * @returns `f` of the atom's value.
- * @throws `AtomsClientOnly` during a server render; `Error` outside a `LayerProvider`.
+ * @throws `Error` outside a `LayerProvider`.
  */
 export function useAtomValue<A, B>(atom: Atom.Atom<A>, f: (a: A) => B): B
 export function useAtomValue<A, B>(atom: Atom.Atom<A>, f?: (a: A) => B): A | B {
@@ -90,7 +84,7 @@ export function useAtomValue<A, B>(atom: Atom.Atom<A>, f?: (a: A) => B): A | B {
       return output
     }
   }, [b, f])
-  return useSyncExternalStore(b.subscribe, getSnapshot) as A | B
+  return useSyncExternalStore(b.subscribe, getSnapshot, getSnapshot) as A | B
 }
 
 function useMounted(store: AtomStore, atom: Atom.Atom<any>) {
@@ -102,7 +96,7 @@ function useMounted(store: AtomStore, atom: Atom.Atom<any>) {
  *
  * @param atom - The writable atom.
  * @returns `(value) => void`.
- * @throws `AtomsClientOnly` during a server render; `Error` outside a `LayerProvider`.
+ * @throws `Error` outside a `LayerProvider`.
  *
  * @example
  * ```tsx
@@ -121,7 +115,7 @@ export function useAtomSet<R, W>(atom: Atom.Writable<R, W>): (value: W) => void 
  *
  * @param atom - The writable atom.
  * @returns The value and its setter.
- * @throws `AtomsClientOnly` during a server render; `Error` outside a `LayerProvider`.
+ * @throws `Error` outside a `LayerProvider`.
  *
  * @example
  * ```tsx
@@ -141,7 +135,7 @@ export function useAtom<R, W>(atom: Atom.Writable<R, W>): readonly [R, (value: W
  *
  * @param atom - The atom to refresh.
  * @returns `() => void`.
- * @throws `AtomsClientOnly` during a server render; `Error` outside a `LayerProvider`.
+ * @throws `Error` outside a `LayerProvider`.
  *
  * @example
  * ```tsx
@@ -246,7 +240,7 @@ const suspensionFor = (store: AtomStore, atom: Atom.Atom<Result.Result<any, any>
  * @param options - `suspendOnWaiting`: also suspend while a refresh runs.
  * @returns The `Success` result.
  * @throws `Cause.squash` of a `Failure`'s Cause, to the nearest error boundary.
- * @throws `AtomsClientOnly` during a server render; `Error` outside a `LayerProvider`.
+ * @throws `Error` outside a `LayerProvider`.
  *
  * @example
  * ```tsx

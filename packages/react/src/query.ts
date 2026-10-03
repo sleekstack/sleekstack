@@ -12,7 +12,6 @@ import { Cause, Chunk, Option, type Exit } from 'effect'
 import { Atom, Result, type AtomStore } from '@sleekstack/core'
 import { Hydrate, Mutation, Queries, Query } from '@sleekstack/query'
 import { ProviderContext, QueryStoreContext, type ProviderState } from './context'
-import { AtomsClientOnly } from './atoms'
 
 function useQueryState(hook: string): ProviderState {
   const state = useContext(QueryStoreContext)
@@ -23,7 +22,7 @@ function useQueryState(hook: string): ProviderState {
 /** @internal */
 export function useQueryStore(hook: string): AtomStore {
   if (typeof window === 'undefined') {
-    throw new AtomsClientOnly({ message: `${hook} ran during a server render; only query reads render on the server.` })
+    throw new Error(`${hook} ran during a server render; only query reads render on the server.`)
   }
   const state = useQueryState(hook)
   if (state.atoms) return state.atoms
@@ -52,7 +51,7 @@ const clients = new WeakMap<AtomStore, Queries.QueriesApi>()
  * The `Queries` client bound to the query store.
  *
  * @returns `invalidate`, `refetch`, `setData`, `updateData`, `getData`, `cancel`, `reset`.
- * @throws `AtomsClientOnly` during a server render; `Error` outside a `LayerProvider`.
+ * @throws `Error` during a server render or outside a `LayerProvider`.
  */
 export function useQueries(): Queries.QueriesApi {
   const store = useQueryStore('useQueries')
@@ -284,7 +283,7 @@ const noSubscribe = () => () => {}
  *
  * @param mutation - A `Mutation.make` definition.
  * @returns `mutate`, `state`, `isPending`, `reset`.
- * @throws `AtomsClientOnly` during a server render; `Error` outside a `LayerProvider`.
+ * @throws `Error` during a server render or outside a `LayerProvider`.
  *
  * @example
  * ```tsx

@@ -22,7 +22,7 @@ import React, { useContext, useEffect, useRef } from 'react'
 import type { Cause } from 'effect'
 import type { ChildScope, Entry, Module } from '@sleekstack/core'
 import { ProviderContext } from './context'
-import { acquire, mount, sameEntries, type Owned } from './managedScope'
+import { mount, sameEntries, useScopeSource } from './managedScope'
 
 export { closeProvidersOn } from './managedScope'
 
@@ -67,13 +67,10 @@ export interface LayerProviderProps {
 export function LayerProvider(props: LayerProviderProps) {
   const { provide, onFinalizerError, children } = props
   const parent = useContext(ProviderContext)
-  const ownedRef = useRef<Owned | null>(null)
+  const ownedRef = useScopeSource(props, parent, onFinalizerError)
   const initialProvide = useRef(provide)
   const warned = useRef(false)
 
-  if (ownedRef.current === null) {
-    ownedRef.current = acquire(props, parent, onFinalizerError)
-  }
   if ((globalThis as { process?: { env?: { NODE_ENV?: string } } }).process?.env?.NODE_ENV !== 'production' && !warned.current && !sameEntries(initialProvide.current, provide)) {
     warned.current = true
     console.warn('[@sleekstack/react] <LayerProvider provide> changed after mount; changes are ignored for the provider\'s lifetime. Remount it (e.g. with a key) to apply new entries.')
@@ -86,5 +83,5 @@ export function LayerProvider(props: LayerProviderProps) {
     })
   }, [parent])
 
-  return <ProviderContext.Provider value={ownedRef.current.state}>{children}</ProviderContext.Provider>
+  return <ProviderContext.Provider value={ownedRef.current!.state}>{children}</ProviderContext.Provider>
 }

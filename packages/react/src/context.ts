@@ -9,6 +9,7 @@
 import { createContext, createElement, useContext, type Provider, type ReactNode } from 'react'
 import type { Cause } from 'effect'
 import type { AtomStore, ChildScope } from '@sleekstack/core'
+import type { Owned } from './managedScope'
 
 /** Discriminated cache entry; `promise` identity is stable for the entry's lifetime (Suspense / `use`). */
 export type CacheEntry =
@@ -37,6 +38,16 @@ export interface ProviderState {
 }
 
 export const ProviderContext = createContext<ProviderState | null>(null)
+
+/** One server request's provider scopes, keyed by provider `useId`; `closers` in acquisition order. */
+export interface RequestRegistry {
+  readonly scopes: Map<string, Owned>
+  readonly closers: Array<() => Promise<void>>
+  closing?: Promise<void>
+}
+
+/** Set by `renderWithAtoms`; server providers under it acquire their scopes through it. */
+export const RegistryContext = createContext<RequestRegistry | null>(null)
 
 /**
  * The provider whose store holds queries: the root `LayerProvider`, or the nearest `QueryProvider` marker.

@@ -8,8 +8,8 @@
 
 import React from 'react'
 import { Cause, Effect, Exit } from 'effect'
-import { atomStoreFor, makeAppScope, type ChildScope, type Entry, type Module } from '@sleekstack/core'
-import type { ProviderState } from './context'
+import { atomStoreFor, makeAppScope, makeAtomStore, type ChildScope, type Entry, type Module } from '@sleekstack/core'
+import { RegistryContext, type ProviderState, type RequestRegistry } from './context'
 import { settleSuspensions } from './atoms'
 
 /** The props adoption reads: entries, children shape, and the optional `owner` identity. */
@@ -215,4 +215,50 @@ export const mount = (owned: Owned, parent: ProviderState | null, onClosed: () =
       onClosed()
     })
   }
+}
+
+const sinkFor = (sink: ProviderState['onFinalizerError'] | undefined, parent: ProviderState | null) => sink ?? parent?.onFinalizerError ?? defaultSink
+
+/**
+ * Server acquisition under a request registry: the scope registered under `id` (a Suspense retry of the same
+ * provider), else a new one started at once (no commit on the server) and closed by {@link closeRegistry}.
+ */
+export const acquireOnServer = (registry: RequestRegistry, id: string, props: ScopeProps, parent: ProviderState | null, sink: ProviderState['onFinalizerError'] | undefined): Owned => {
+  const found = registry.scopes.get(id)
+  if (found) return found
+  const owned = create(props.provide, parent, sinkFor(sink, parent), parent ? undefined : props.appScope)
+  owned.state.start()
+  registry.scopes.set(id, owned)
+  registry.closers.push(owned.close)
+  return owned
+}
+
+/** Closes every scope `registry` handed out, newest first (children before parents); idempotent. */
+export const closeRegistry = (registry: RequestRegistry): Promise<void> =>
+  (registry.closing ??= (async () => {
+    for (const close of [...registry.closers].reverse()) await close()
+  })())
+
+/**
+ * Server render without a registry: services keep the client acquisition; atoms read from an inert per-render
+ * store (no fiber forked), shadowing the `atoms` the live state would set once its scope opens.
+ */
+const inertServerState = (props: ScopeProps, parent: ProviderState | null, sink: ProviderState['onFinalizerError'] | undefined): Owned => {
+  const owned = acquire(props, parent, sink)
+  const state: ProviderState = Object.create(owned.state, { atoms: { value: makeAtomStore({ inert: true }) } })
+  return { ...owned, state }
+}
+
+/** The provider's scope source: request registry (server under `renderWithAtoms`), inert server state, or client `acquire`. */
+export const useScopeSource = (props: ScopeProps, parent: ProviderState | null, sink: ProviderState['onFinalizerError'] | undefined): React.RefObject<Owned | null> => {
+  const id = React.useId()
+  const registry = React.useContext(RegistryContext)
+  const ref = React.useRef<Owned | null>(null)
+  if (ref.current === null) {
+    ref.current =
+      typeof window !== 'undefined' ? acquire(props, parent, sink)
+      : registry ? acquireOnServer(registry, id, props, parent, sink)
+      : inertServerState(props, parent, sink)
+  }
+  return ref
 }
