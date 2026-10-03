@@ -253,4 +253,22 @@ describe('Board — cache-backed mutations (no router.refresh)', () => {
     await waitFor(() => expect(within(project).getByRole('button', { name: /write spec — done/i })).not.toBeNull())
     expect(actions.moveTask).toHaveBeenCalledWith({ taskId: 't1', status: 'done' })
   })
+
+  it('a failed create rolls back only its own write, keeping an overlapping move', async () => {
+    let failCreate!: (r: unknown) => void
+    actions.createTask.mockImplementation(() => new Promise((resolve) => (failCreate = resolve)))
+    actions.moveTask.mockImplementation(() => new Promise(() => {}))
+    const project = await alpha()
+    fireEvent.change(within(project).getByLabelText(/new task title/i), { target: { value: 'Doomed' } })
+    fireEvent.click(within(project).getByRole('button', { name: /create task/i }))
+    await within(project).findByRole('button', { name: /doomed/i })
+    fireEvent.click(within(project).getByRole('button', { name: /write spec/i }))
+    const detail = await screen.findByLabelText(/task detail: write spec/i, {}, { timeout: SCOPE_LOAD_TIMEOUT })
+    fireEvent.click(within(detail).getByRole('button', { name: 'done' }))
+    await waitFor(() => expect(within(project).getByRole('button', { name: /write spec — done/i })).not.toBeNull())
+
+    failCreate({ ok: false, error: 'nope' })
+    await waitFor(() => expect(within(project).queryByRole('button', { name: /doomed/i })).toBeNull())
+    expect(within(project).getByRole('button', { name: /write spec — done/i })).not.toBeNull()
+  })
 })

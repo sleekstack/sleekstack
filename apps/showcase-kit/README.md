@@ -19,7 +19,7 @@ The [showcase](../showcase/README.md) team task board, ported to `@sleekstack/ki
 
 The board is read through the kit `cachedQuery` `board` (`src/client/board-query.ts`), whose fetch is the `readBoard`
 Server Action, and written through one `mutation()` per action. `useBoardMutation` writes the expected board into the cache
-with `useQueryClient().setData`, restores it when the action returns `{ ok: false }` ("Simulate failure"), and invalidates
+with `useQueryClient().setData`, drops only that call's write when the action returns `{ ok: false }` ("Simulate failure"), and invalidates
 the board afterwards; no mutation calls `router.refresh()`. The kit facade has no server prefetch yet, so the server render
 shows a placeholder and the client fetches the board on mount (the Effect showcase prefetches and hydrates instead). The demo
 toggle still refreshes the router: the remount resets the query store and the board is fetched again under demo mode.

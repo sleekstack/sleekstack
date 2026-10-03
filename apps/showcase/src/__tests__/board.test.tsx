@@ -253,4 +253,13 @@ describe('Board — cache-backed mutations (no router.refresh)', () => {
     await waitFor(() => expect(within(project).getByRole('button', { name: /write spec — done/i })).not.toBeNull())
     expect(actions.moveTask).toHaveBeenCalledWith({ taskId: 't1', status: 'done' })
   })
+
+  it('a rejected Server Action call rolls back and shows its message', async () => {
+    actions.createTask.mockRejectedValue(new Error('network down'))
+    const project = await alpha()
+    fireEvent.change(within(project).getByLabelText(/new task title/i), { target: { value: 'Lost' } })
+    fireEvent.click(within(project).getByRole('button', { name: /create task/i }))
+    await waitFor(() => expect(within(project).getByRole('alert').textContent).toBe('network down'))
+    expect(within(project).queryByRole('button', { name: /lost/i })).toBeNull()
+  })
 })

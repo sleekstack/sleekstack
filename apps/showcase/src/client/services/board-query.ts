@@ -30,7 +30,9 @@ const boardMutation = <I, Dto, A>(
   patch: (dto: Dto, board: BoardDto) => BoardDto,
 ) =>
   Mutation.make({
-    run: (input: I) => Effect.flatMap(toDto(input), (dto) => Effect.flatMap(Effect.promise(() => send(dto)), settle)),
+    run: (input: I) =>
+      Effect.flatMap(toDto(input), (dto) =>
+        Effect.flatMap(Effect.tryPromise({ try: () => send(dto), catch: (e) => (e instanceof Error ? e.message : String(e)) }), settle)),
     cancel: () => board(),
     onMutate: (input) =>
       Effect.flatMap(toDto(input), (dto) => Mutation.optimistic(board(), (prev) => patch(dto, Option.getOrElse(prev, (): BoardDto => [])))).pipe(

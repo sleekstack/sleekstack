@@ -3,8 +3,8 @@
  *
  * The board's client cache through the kit facade: the `board` query (its fetch is the `readBoard` Server Action)
  * and one `mutation()` per board action, settling `{ ok: false, error }` into a rejection. `useBoardMutation` writes
- * the expected board into the cache first, restores the previous board when the action fails, and invalidates the
- * board either way so the server's ids and timestamps win. No mutation calls `router.refresh()`.
+ * the expected board into the cache first, drops only that call's write when the action fails, and invalidates the
+ * board once no call is in flight so the server's ids and timestamps win. No mutation calls `router.refresh()`.
  */
 import { cachedQuery, mutation } from '@sleekstack/kit'
 import { useMutation, useQueryClient } from '@sleekstack/kit/react'
@@ -37,27 +37,54 @@ export const createTaskMutation = mutation({ run: function* (input: CreateTaskIn
 export const moveTaskMutation = mutation({ run: function* (input: MoveTaskInput) { return settled(moveTask(input)) } })
 export const addCommentMutation = mutation({ run: function* (input: AddCommentInput) { return settled(addComment(input)) } })
 
+// The cached board is `base` with every in-flight call's patch applied, oldest first. A failed call drops only its own
+// patch and recomputes, so overlapping rollbacks never wipe a later write; a committed patch folds into `base` once
+// every older one has settled.
+// ponytail: one log per module (the app has one query store); a demo-mode remount mid-call keeps the old base until it settles.
+interface Layer {
+  readonly patch: (b: BoardData) => BoardData
+  committed: boolean
+}
+let log: { base: BoardData; layers: Layer[] } | undefined
+
 /**
- * Runs a board mutation with an optimistic `patch` of the cached board.
+ * Runs a board mutation with an optimistic `patch` of the cached board, rolled back on failure.
  *
  * @returns `run` (resolves with the failure message, or null on success) and `isPending`.
- * ponytail: rollback restores the board seen before this call; the invalidate after it repairs an overlapping write.
  */
 export function useBoardMutation<I, T>(m: Parameters<typeof useMutation<I, T>>[0], patch: (input: I, board: BoardData) => BoardData) {
   const { mutate, isPending } = useMutation(m)
   const client = useQueryClient()
   const run = async (input: I): Promise<string | null> => {
     const q = board()
-    const previous = client.getData(q)
-    if (previous) client.setData(q, patch(input, previous))
+    const current = client.getData(q)
+    const layer: Layer = { patch: (b) => patch(input, b), committed: false }
+    const render = () => log && client.setData(q, log.layers.reduce((b, l) => l.patch(b), log.base))
+    if (current) {
+      log ??= { base: current, layers: [] }
+      log.layers.push(layer)
+      render()
+    }
+    const settle = (ok: boolean) => {
+      if (!log || !log.layers.includes(layer)) return
+      if (ok) layer.committed = true
+      else {
+        log.layers.splice(log.layers.indexOf(layer), 1)
+        render()
+      }
+      while (log.layers[0]?.committed) log.base = log.layers.shift()!.patch(log.base)
+      if (log.layers.length === 0) log = undefined
+    }
     try {
       await mutate(input)
+      settle(true)
       return null
     } catch (e) {
-      if (previous) client.setData(q, previous)
+      settle(false)
       return e instanceof Error ? e.message : String(e)
     } finally {
-      client.invalidate(q)
+      // refetch once nothing is in flight, so the server's board never lands under a pending patch
+      if (!log) client.invalidate(q)
     }
   }
   return { run, isPending }
