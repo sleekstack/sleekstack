@@ -4,7 +4,10 @@
  * The SleekStack bridge over `@tanstack/query-core`: a scoped `QueryClient` and `effectFn`.
  */
 import { QueryClient, type QueryClientConfig } from '@tanstack/query-core'
-import { Cause, Context, Effect, Exit, Fiber, Layer, Option } from 'effect'
+import { Cause, Context, Effect, Exit, FiberId, Layer, Option } from 'effect'
+
+/** The part of TanStack's query / mutation function context `effectFn` reads. */
+type FnContext = { signal?: AbortSignal; client?: QueryClient }
 
 /** The scope's TanStack `QueryClient`. */
 export class QueryClientTag extends Effect.Tag('QueryClientTag')<QueryClientTag, QueryClient>() {}
@@ -16,7 +19,7 @@ const contexts = new WeakMap<QueryClient, Context.Context<never>>()
  * A scoped layer providing a mounted `QueryClient`; on scope close it is unmounted and cleared.
  * A throwing config function fails the layer with the original error.
  */
-export const QueryClientLive = (config?: QueryClientConfig | (() => QueryClientConfig)): Layer.Layer<QueryClientTag> =>
+export const QueryClientLive = (config?: QueryClientConfig | (() => QueryClientConfig)): Layer.Layer<QueryClientTag, unknown> =>
   Layer.scoped(
     QueryClientTag,
     Effect.gen(function* () {
@@ -34,7 +37,7 @@ export const QueryClientLive = (config?: QueryClientConfig | (() => QueryClientC
       )
       return client
     }),
-  ) as Layer.Layer<QueryClientTag>
+  )
 
 /**
  * Lowers `effect` to a TanStack `queryFn` / `mutationFn` run with the services of the calling
@@ -43,16 +46,14 @@ export const QueryClientLive = (config?: QueryClientConfig | (() => QueryClientC
  */
 export const effectFn =
   <A, E, R>(effect: Effect.Effect<A, E, R>) =>
-  async (ctx?: { signal?: AbortSignal; client?: QueryClient }): Promise<A> => {
+  async (...args: [ctx?: FnContext] | [variables: unknown, ctx: FnContext]): Promise<A> => {
+    // queryFn is called as (ctx), mutationFn as (variables, ctx).
+    const ctx = (args.length > 1 ? args[1] : args[0]) as FnContext | undefined
     const services = (ctx?.client && contexts.get(ctx.client)) ?? Context.empty()
-    const fiber = Effect.runFork(Effect.provide(effect, services) as Effect.Effect<A, E>)
     const signal = ctx?.signal
-    const abort = () => Effect.runFork(Fiber.interrupt(fiber))
-    // `onabort`: TanStack hands each fetch its own signal, and the package bans DOM listener APIs.
-    if (signal?.aborted) abort()
-    else if (signal) signal.onabort = abort
-    const exit = await Effect.runPromise(Fiber.await(fiber))
-    if (signal) signal.onabort = null
+    const exit = signal?.aborted
+      ? Exit.interrupt(FiberId.none)
+      : await Effect.runPromiseExit(Effect.provide(effect, services) as Effect.Effect<A, E>, { signal })
     if (Exit.isSuccess(exit)) return exit.value
     const failure = Cause.failureOption(exit.cause)
     if (Option.isSome(failure)) throw failure.value

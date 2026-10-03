@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { Context, Data, Effect, Exit, Layer, Scope } from 'effect'
-import { QueryClient } from '@tanstack/query-core'
+import { MutationObserver, QueryClient } from '@tanstack/query-core'
 import { effectFn, QueryClientLive, QueryClientTag } from '../index'
 
 class Greeting extends Context.Tag('Greeting')<Greeting, string>() {}
@@ -68,6 +68,22 @@ describe('effectFn', () => {
     setTimeout(() => ac.abort(), 5)
     await expect(p).rejects.toBeDefined()
     expect(interrupted).toBe(true)
+  })
+
+  it('a pre-aborted signal never runs the effect', async () => {
+    const ac = new AbortController()
+    ac.abort()
+    let ran = false
+    await expect(run(effectFn(Effect.sync(() => { ran = true })), ac.signal)).rejects.toBeDefined()
+    expect(ran).toBe(false)
+  })
+
+  it('works as a mutationFn with layer services', async () => {
+    const { client, close } = await build()
+    try {
+      const m = new MutationObserver(client, { mutationFn: effectFn(Greeting) })
+      await expect(m.mutate(undefined)).resolves.toBe('hi')
+    } finally { await close() }
   })
 
   it('a missing Tag rejects with the standard missing-dependency error', async () => {

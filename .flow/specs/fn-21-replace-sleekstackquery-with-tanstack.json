@@ -8,11 +8,89 @@
   "default_sync": null,
   "depends_on_epics": [],
   "id": "fn-21-replace-sleekstackquery-with-tanstack",
-  "impl_review_rounds": {},
+  "impl_review_rounds": {
+    "fn-21-replace-sleekstackquery-with-tanstack.1": 1
+  },
   "next_task": 1,
   "plan_review_rounds": 0,
   "plan_review_status": "unknown",
   "plan_reviewed_at": null,
+  "review_attempts": [
+    {
+      "artifact_sha256": "782d18250d4eecdd422b21947041be53ae6066124a7a87873223383e2e7ece0c",
+      "backend": "codex",
+      "base_sha": "16b3f889038f4946ebdb889a3dee026c569ccb1f",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-da227189cba23a736b65951b5ee9c536",
+            "classification": "introduced",
+            "findingId": "finding-da227189cba23a736b65951b5ee9c536",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-1fea4b47554e36daa00bdc2232a82cc5",
+            "classification": "introduced",
+            "findingId": "finding-1fea4b47554e36daa00bdc2232a82cc5",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-0eebe101b3e3d00c0ba95676fa237e5d",
+            "classification": "introduced",
+            "findingId": "finding-0eebe101b3e3d00c0ba95676fa237e5d",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-6444891cc55f4ceb67e0213ba48c75cb",
+            "classification": "introduced",
+            "findingId": "finding-6444891cc55f4ceb67e0213ba48c75cb",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "9b67cf77fcb0b499801bfa0feef2c58b4cefd2b2",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 3152,
+      "output_sha256": "9717027dba2cfd28e40518ec08c6f8f400176eb886cb11238a2663fc42ff0521",
+      "reservation_id": "c0fb9ad64f0b48aea7b4bc222a26bf8c",
+      "round_consumed": true,
+      "scope": "impl:fn-21-replace-sleekstackquery-with-tanstack.1",
+      "superseded_by": null,
+      "task": "fn-21-replace-sleekstackquery-with-tanstack.1",
+      "timestamp": "2026-10-03T16:37:59.284132Z",
+      "verdict": "NEEDS_WORK"
+    }
+  ],
+  "review_hash_epoch": {},
+  "review_pending_rounds": {},
+  "review_reservations": {},
+  "review_transport_failures": {
+    "impl:fn-21-replace-sleekstackquery-with-tanstack.1": 0
+  },
   "spec_path": ".flow/specs/fn-21-replace-sleekstackquery-with-tanstack.md",
   "status": "open",
   "title": "Replace @sleekstack/query with TanStack Query core",
@@ -27,5 +105,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-03T15:45:28.875845Z"
+  "updated_at": "2026-10-03T16:37:59.286794Z"
 }
