@@ -20,7 +20,7 @@ expectTypeOf(app).toEqualTypeOf<Effect.Effect<Node, never, B>>()
 // @ts-expect-error B is missing from the layer
 void renderToString(app, { layer: layerA })
 void renderToString(app, { layer: layerB })
-// @ts-expect-error A and B both missing at the root
+// @ts-expect-error B missing at the root (layerA covers only A)
 void renderToString(NeedsAB({}), { layer: layerA })
 void renderToString(NeedsAB({}), { layer: layerAB })
 // a layer providing more than needed compiles
