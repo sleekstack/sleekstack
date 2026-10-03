@@ -39,7 +39,8 @@ interface Instance extends Owner {
   rerun: Effect.Effect<Node>
   unsubs: Array<() => void>
   fiber: Fiber.RuntimeFiber<Node, unknown> | undefined
-  queued: boolean
+  // Epoch a re-run is queued for (-1: none); per epoch so a stale queue never blocks a newer subscription set.
+  queued: number
   // Bumped by `unwatch`, so a change queued under an older subscription set is dropped.
   epoch: number
   dead: boolean
@@ -89,9 +90,10 @@ const states = new WeakMap<Element, ContainerState>()
 const closed = async () => {}
 // Synchronous DOM and subscription teardown; the returned promise settles once layers and an owned store are closed.
 const teardown = (container: Element, state: ContainerState): Promise<void> => {
-  release(state.top)
+  // Detach `close` first: a guest unmount below may mount here and install its own.
   const close = state.close
   state.close = closed
+  release(state.top)
   container.replaceChildren()
   return close()
 }
@@ -129,7 +131,7 @@ const build = (node: Node, env: Env, o: Owner): globalThis.Node | null => {
       case 'Reactive': {
         const host = env.doc.createElement('sleek-reactive')
         host.style.display = 'contents'
-        const inst: Instance = { ...owner(), host, rerun: node.rerun, unsubs: [], fiber: undefined, queued: false, epoch: 0, dead: false, scope: node.scope }
+        const inst: Instance = { ...owner(), host, rerun: node.rerun, unsubs: [], fiber: undefined, queued: -1, epoch: 0, dead: false, scope: node.scope }
         o.kids.push(inst)
         append(host, build(node.child, env, inst))
         watch(inst, node, env)
@@ -162,10 +164,10 @@ const watch = (inst: Instance, node: ReactiveNode, env: Env): void => {
   // Changes in one tick (a store batch, or several atoms) coalesce into one re-run.
   const epoch = inst.epoch
   const changed = () => {
-    if (inst.queued || inst.epoch !== epoch) return
-    inst.queued = true
+    if (inst.queued === epoch || inst.epoch !== epoch) return
+    inst.queued = epoch
     queueMicrotask(() => {
-      inst.queued = false
+      if (inst.queued === epoch) inst.queued = -1
       if (!inst.dead && inst.epoch === epoch && env.live()) rerun(inst, env)
     })
   }
