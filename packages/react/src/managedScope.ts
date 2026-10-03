@@ -256,9 +256,9 @@ export const useScopeSource = (props: ScopeProps, parent: ProviderState | null, 
   const ref = React.useRef<Owned | null>(null)
   if (ref.current === null) {
     ref.current =
-      typeof window !== 'undefined' ? acquire(props, parent, sink)
-      : registry ? acquireOnServer(registry, id, props, parent, sink)
-      : inertServerState(props, parent, sink)
+      registry ? acquireOnServer(registry, id, props, parent, sink)
+      : typeof window === 'undefined' ? inertServerState(props, parent, sink)
+      : acquire(props, parent, sink)
   }
   return ref
 }

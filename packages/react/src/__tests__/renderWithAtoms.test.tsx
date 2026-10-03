@@ -20,11 +20,15 @@ const stream = (element: React.ReactNode, options: RenderToPipeableStreamOptions
   new Promise<{ html: string; closed: Promise<void> }>((resolve, reject) => {
     let html = ''
     const decoder = new TextDecoder()
-    // Minimal Node Writable for Fizz's pipe (no @types/node here).
+    // Minimal Node Writable for Fizz's pipe (no @types/node here); emits 'finish' a tick after end, like a socket.
+    const listeners: Record<string, Array<() => void>> = {}
     const sink = {
       write: (chunk: Uint8Array | string) => { html += typeof chunk === 'string' ? chunk : decoder.decode(chunk); return true },
-      end: () => resolve({ html, closed: s.closed }),
-      on: () => sink,
+      end: () => {
+        resolve({ html, closed: s.closed })
+        setTimeout(() => { for (const l of listeners.finish ?? []) l() }, 5)
+      },
+      on: (event: string, l: () => void) => ((listeners[event] ??= []).push(l), sink),
       destroy: (e: unknown) => reject(e),
     }
     const s = renderWithAtoms(element, {
@@ -99,6 +103,8 @@ describe('renderWithAtoms', () => {
     const forever = Atom.make(Effect.never.pipe(Effect.onInterrupt(() => Effect.sync(() => void interrupted++))))
     const Read = () => <i>{useAtomValue(forever)._tag}</i>
     const { closed } = await stream(<Opened log={log} name="a"><Opened log={log} name="b"><Opened log={log} name="c"><Read /></Opened></Opened></Opened>)
+    await sleep(1)
+    expect(log).toEqual([]) // output ended, destination not finished yet
     await closed
     expect(log).toEqual(['c', 'b', 'a'])
     expect(interrupted).toBe(1)
@@ -108,7 +114,9 @@ describe('renderWithAtoms', () => {
     const log: string[] = []
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const Boom = () => { useService(Db); throw new Error('shell') }
-    const s = renderWithAtoms(<Opened log={log} name="a"><Opened log={log} name="b"><Boom /></Opened></Opened>, { stream: { onError: () => {} } })
+    const s = renderWithAtoms(<Opened log={log} name="a"><Opened log={log} name="b"><Boom /></Opened></Opened>, {
+      stream: { onError: () => {}, onShellError: () => {} },
+    })
     await s.closed
     expect(log).toEqual(['b', 'a'])
   })

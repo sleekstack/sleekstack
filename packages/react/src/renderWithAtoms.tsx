@@ -10,7 +10,7 @@ import { renderToPipeableStream, renderToString, type PipeableStream, type Rende
 import { RegistryContext, type RequestRegistry } from './context'
 import { closeRegistry } from './managedScope'
 
-/** A `renderToPipeableStream` handle whose provider scopes close on completion, shell error, a closed destination or `abort`. */
+/** A `renderToPipeableStream` handle whose provider scopes close once the piped destination ends, on shell error, or on `abort`. */
 export interface RenderWithAtomsStream extends PipeableStream {
   /** Resolves once every provider scope of the request has closed. */
   readonly closed: Promise<void>
@@ -34,7 +34,8 @@ const renderString = async (tree: React.ReactNode, registry: RequestRegistry): P
 
 /**
  * Renders `element` on the server with request-owned provider scopes, so atom hooks work during the render.
- * String mode resolves the HTML after closing every scope; stream mode closes them when the stream is done.
+ * String mode resolves the HTML after closing every scope; stream mode closes them when the piped destination
+ * ends (finish, close or error), on shell error, or on `abort` — a stream that is never piped must be aborted.
  *
  * @param element - The tree to render.
  * @param options - Omitted for string mode; `{ stream: options }` for `renderToPipeableStream` with `options`.
@@ -51,21 +52,21 @@ export function renderWithAtoms(element: React.ReactNode, options?: { readonly s
   const registry: RequestRegistry = { scopes: new Map(), closers: [] }
   const tree = <RegistryContext.Provider value={registry}>{element}</RegistryContext.Provider>
   if (!options) return renderString(tree, registry)
-  const { onAllReady, onShellError } = options.stream
+  const { onShellError } = options.stream
   let done!: () => void
   const closed = new Promise<void>((r) => (done = r))
   // Errors inside a Suspense boundary do not end the request (React renders on), so `onError` does not close.
   const close = () => void closeRegistry(registry).then(done)
   const stream = renderToPipeableStream(tree, {
     ...options.stream,
-    onAllReady: () => { onAllReady?.(); close() },
-    onShellError: (e) => { onShellError?.(e); close() },
+    onShellError: (e) => { try { onShellError?.(e) } finally { close() } },
   })
   return {
     closed,
     pipe: <W extends NodeJS.WritableStream>(destination: W) => {
-      // A fatal error or a client disconnect ends the destination without onAllReady.
+      // Scopes live until the output is flushed: the destination finishes, or a fatal error / client disconnect ends it.
       const events = destination as unknown as { on(event: string, listener: () => void): void }
+      events.on('finish', close)
       events.on('close', close)
       events.on('error', close)
       return stream.pipe(destination)
