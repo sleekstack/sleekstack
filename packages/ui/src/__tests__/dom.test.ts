@@ -119,6 +119,19 @@ describe('mount', () => {
     expect(container.innerHTML).toBe(card('B'))
   })
 
+  it.each([
+    ['onerror', 'alert(1)'],
+    ['srcdoc', '<script></script>'],
+    ['href', ' JavaScript:alert(1)'],
+  ])('rejects the unsafe attribute %s as a render error', async (name, value) => {
+    const container = document.createElement('div')
+    const onError = vi.fn()
+    const tree = Effect.succeed(el('div', {}, el('a', { [name]: value }), 'ok'))
+    await act(async () => void track(await mount(tree, { layer: Layer.empty, container, onError })))
+    expect(container.innerHTML).toBe('<div>ok</div>')
+    expect(onError).toHaveBeenCalledOnce()
+  })
+
   it('an uncaught UserNotFound rejects with the original instance', async () => {
     const container = document.createElement('div')
     const err = await mount(UserCard({ id: '2' }), { layer: UserRepoTest, container }).catch((e) => e)

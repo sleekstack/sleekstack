@@ -4,6 +4,7 @@ import { flushSync } from 'react-dom'
 import { createRoot, type Root } from 'react-dom/client'
 import { reportRenderError, runToNode } from './component'
 import type { Node } from './node'
+import { checkAttr } from './string'
 
 export interface Mounted {
   dispose(): Promise<void>
@@ -49,7 +50,10 @@ const build = (node: Node, doc: Document, roots: Array<Root>, onError?: OnError)
       }
       case 'Element': {
         const el = doc.createElement(node.tag)
-        for (const [k, v] of Object.entries(node.attrs)) el.setAttribute(k, v)
+        for (const [k, v] of Object.entries(node.attrs)) {
+          checkAttr(k, v)
+          el.setAttribute(k, v)
+        }
         for (const c of node.children) append(el, build(c, doc, roots, onError))
         return el
       }

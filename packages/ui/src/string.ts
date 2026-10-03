@@ -14,6 +14,16 @@ const checkName = (re: RegExp, kind: string, name: string): string => {
   return name
 }
 
+const URL_ATTRS = new Set(['href', 'src', 'action', 'formaction', 'xlink:href'])
+/** Shared attribute policy: rejects invalid names, inline handlers, `srcdoc` and `javascript:` URLs. */
+export const checkAttr = (name: string, value: string): void => {
+  checkName(ATTR, 'attribute', name)
+  const lower = name.toLowerCase()
+  const unsafeUrl = URL_ATTRS.has(lower) && /^javascript:/i.test(value.replace(/[\s\x00-\x1f]/g, ''))
+  if (lower.startsWith('on') || lower === 'srcdoc' || unsafeUrl)
+    throw new TypeError(`Unsafe attribute: ${JSON.stringify(name)}`)
+}
+
 const serialize = (node: Node, onError?: (cause: Cause.Cause<unknown>) => void): string => {
   switch (node._tag) {
     case 'Text':
@@ -23,7 +33,7 @@ const serialize = (node: Node, onError?: (cause: Cause.Cause<unknown>) => void):
     case 'Element': {
       checkName(TAG, 'tag', node.tag)
       const attrs = Object.entries(node.attrs)
-        .map(([k, v]) => ` ${checkName(ATTR, 'attribute', k)}="${escape(v)}"`)
+        .map(([k, v]) => (checkAttr(k, v), ` ${k}="${escape(v)}"`))
         .join('')
       return `<${node.tag}${attrs}>${node.children.map((c) => serialize(c, onError)).join('')}</${node.tag}>`
     }
