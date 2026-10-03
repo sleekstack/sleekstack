@@ -4,7 +4,7 @@ import { Component, createElement, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { createRoot, type Root } from 'react-dom/client'
 import { reportRenderError, runToNode } from './component'
-import type { Node } from './node'
+import type { Node, ReactiveNode } from './node'
 import { fallbacks, RenderScope, Store } from './reactive'
 import { checkAttr, checkTag } from './string'
 
@@ -40,8 +40,14 @@ interface Instance extends Owner {
   fiber: Fiber.RuntimeFiber<Node, unknown> | undefined
   queued: boolean
   dead: boolean
+  // Scope of the run whose DOM is committed; closed when that DOM is replaced or dropped.
+  scope: Scope.CloseableScope | undefined
 }
 const owner = (): Owner => ({ roots: [], kids: [] })
+
+const closeScope = (scope: Scope.CloseableScope | undefined): void => {
+  if (scope) Effect.runFork(Scope.close(scope, Exit.void))
+}
 
 const release = (o: Owner): void => {
   for (const kid of o.kids.splice(0)) kill(kid)
@@ -53,6 +59,8 @@ const kill = (i: Instance): void => {
   if (i.fiber) Effect.runFork(Fiber.interrupt(i.fiber))
   i.fiber = undefined
   release(i)
+  closeScope(i.scope)
+  i.scope = undefined
 }
 
 // Per-container generation token: a mount whose generation moved before it resolved writes nothing.
@@ -104,11 +112,10 @@ const build = (node: Node, env: Env, o: Owner): globalThis.Node | null => {
       case 'Reactive': {
         const host = env.doc.createElement('sleek-reactive')
         host.style.display = 'contents'
-        const inst: Instance = { ...owner(), host, rerun: node.rerun, unsubs: [], fiber: undefined, queued: false, dead: false }
+        const inst: Instance = { ...owner(), host, rerun: node.rerun, unsubs: [], fiber: undefined, queued: false, dead: false, scope: node.scope }
         o.kids.push(inst)
         append(host, build(node.child, env, inst))
-        // Subscribed now so a write during a guest commit is not missed; the re-run itself waits for a microtask.
-        watch(inst, node.atoms, env)
+        watch(inst, node, env)
         return host
       }
       case 'Guest': {
@@ -132,7 +139,8 @@ const append = (parent: globalThis.Node, child: globalThis.Node | null): void =>
   if (child) parent.appendChild(child)
 }
 
-const watch = (inst: Instance, atoms: ReadonlyArray<Atom.Atom<any>>, env: Env): void => {
+// A value that moved between the run's read and this subscription (an async run, a guest commit) re-runs at once.
+const watch = (inst: Instance, node: ReactiveNode, env: Env): void => {
   if (inst.dead) return
   // Changes in one tick (a store batch, or several atoms) coalesce into one re-run.
   const changed = () => {
@@ -143,7 +151,17 @@ const watch = (inst: Instance, atoms: ReadonlyArray<Atom.Atom<any>>, env: Env): 
       if (!inst.dead && env.live()) rerun(inst, env)
     })
   }
-  for (const a of atoms) inst.unsubs.push(env.store.subscribe(a, changed))
+  node.atoms.forEach((a, i) => {
+    inst.unsubs.push(env.store.subscribe(a, changed))
+    if (node.seen && !Object.is(read(env.store, a), node.seen[i])) changed()
+  })
+}
+const read = (store: AtomStore, atom: Atom.Atom<any>): unknown => {
+  try {
+    return store.get(atom)
+  } catch (error) {
+    return error
+  }
 }
 
 // Latest wins: a newer change interrupts the in-flight re-run; only the current fiber of a live instance writes.
@@ -152,7 +170,10 @@ const rerun = (inst: Instance, env: Env): void => {
   const fiber = Effect.runFork(inst.rerun)
   inst.fiber = fiber
   fiber.addObserver((exit) => {
-    if (inst.fiber !== fiber || inst.dead || !env.live()) return
+    if (inst.fiber !== fiber || inst.dead || !env.live()) {
+      if (Exit.isSuccess(exit) && exit.value._tag === 'Reactive') closeScope(exit.value.scope)
+      return
+    }
     inst.fiber = undefined
     if (Exit.isSuccess(exit)) swap(inst, exit.value, env)
     else if (!Cause.isInterruptedOnly(exit.cause)) safeReport(exit.cause, env.onError)
@@ -172,18 +193,25 @@ const swap = (inst: Instance, node: Node, env: Env): void => {
   const tree = build(own ? own.child : node, { ...env, defect: (e) => errors.push(e) }, content)
   if (errors.length > 0 || inst.dead || !env.live()) {
     release(content)
+    closeScope(own?.scope)
     for (const e of errors) reportRenderError(e, env.onError)
     return
   }
   release(inst)
   inst.roots = content.roots
   inst.kids = content.kids
+  const previous = inst.scope
   if (own) {
     unwatch(inst)
     inst.rerun = own.rerun
-    watch(inst, own.atoms, env)
-  } else if (!fallbacks.has(node)) unwatch(inst)
+    inst.scope = own.scope
+    watch(inst, own, env)
+  } else if (!fallbacks.has(node)) {
+    unwatch(inst)
+    inst.scope = undefined
+  }
   inst.host.replaceChildren(...(tree ? [tree] : []))
+  if (inst.scope !== previous) closeScope(previous)
 }
 
 const safeReport = (cause: Cause.Cause<unknown>, onError?: OnError): void => {
@@ -211,12 +239,15 @@ export const mount = async <E, A, LE = never>(
   const current = (): boolean => state.gen === gen
   const noop: Mounted = { dispose: async () => {} }
   // Re-mount clears the previous generation first, so a pending or rejecting mount orphans nothing.
-  void teardown(container, state)
+  teardown(container, state).catch((e) => reportRenderError(e, onError))
   const store = opts.store ?? makeAtomStore()
   const scope = Effect.runSync(Scope.make())
   state.close = async () => {
-    await Effect.runPromise(Scope.close(scope, Exit.void))
-    if (!opts.store) await store.dispose()
+    try {
+      await Effect.runPromise(Scope.close(scope, Exit.void))
+    } finally {
+      if (!opts.store) await store.dispose()
+    }
   }
   const provided = app.pipe(Effect.provideService(Store, store), Effect.provideService(RenderScope, scope)) as Effect.Effect<Node, E, Exclude<A, Store>>
   let node: Node
@@ -224,7 +255,8 @@ export const mount = async <E, A, LE = never>(
     // The mount layer lives in the mount scope: re-runs reuse its services after the first render.
     node = await runToNode(provided, Layer.effectContext(Layer.buildWithScope(opts.layer, scope)), onError)
   } catch (error) {
-    if (current()) await teardown(container, state)
+    // Cleanup failures are reported; the render failure stays the rejection.
+    if (current()) await teardown(container, state).catch((e) => reportRenderError(e, onError))
     throw error
   }
   if (!current()) return noop

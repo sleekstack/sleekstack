@@ -223,4 +223,36 @@ describe('reactive DOM', () => {
     await act(() => handle.dispose())
     expect(log).toEqual(['released'])
   })
+
+  it('a run scope is released when its DOM is replaced, not when a defective swap is rejected', async () => {
+    const a = Atom.make(0)
+    const log: Array<string> = []
+    const layer = Layer.scoped(Greeting, Effect.acquireRelease(Effect.succeed('hi'), () => Effect.sync(() => log.push('released'))))
+    const Hi = () => Effect.map(Greeting, (g) => el('i', {}, g))
+    const C = () => Effect.flatMap(useAtomValue(a), (n) => (n === 1 ? Effect.succeed(el('bad tag')) : jsx(Provider, { layer, children: jsx(Hi, {}) })))
+    const { container, store } = await go(jsx(C, {}), { onError: () => {} })
+    store.set(a, 1)
+    await tick()
+    expect(log).toEqual([])
+    expect(container.textContent).toBe('hi')
+    store.set(a, 2)
+    await tick()
+    expect(log).toEqual(['released'])
+  })
+
+  it('a change between an async first-render read and its subscription re-runs', async () => {
+    const a = Atom.make(0)
+    const store = makeAtomStore()
+    store.mount(a) // keep the node: an unobserved atom resets when the store drops it
+    const C = () => Effect.flatMap(useAtomValue(a), (n) => Effect.as(Effect.sleep(10), el('b', {}, String(n))))
+    const container = document.createElement('div')
+    await act(async () => {
+      const pending = mount(jsx(C, {}), { layer: Layer.empty, container, store })
+      await new Promise((r) => setTimeout(r, 1)) // the run has read 0 and is sleeping
+      store.set(a, 7)
+      handles.push(await pending)
+    })
+    await act(async () => void (await new Promise((r) => setTimeout(r, 30))))
+    expect(container.textContent).toBe('7')
+  })
 })

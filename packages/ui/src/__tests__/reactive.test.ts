@@ -38,7 +38,7 @@ describe('reactive components', () => {
     expect(await renderToString(app, { layer: Layer.empty })).toBe('<p>hi 3</p>')
   })
 
-  it('keeps a scoped Provider layer alive for re-runs; a superseded run releases it', async () => {
+  it('keeps a scoped Provider layer alive for re-runs; closing a superseded run scope releases it', async () => {
     const log: Array<string> = []
     const layer = Layer.scoped(Greeting, Effect.acquireRelease(Effect.succeed('hi'), () => Effect.sync(() => log.push('released'))))
     const Hi = () => Effect.zipWith(Greeting, useAtomValue(count), (g, n) => el('p', {}, `${g} ${n}`))
@@ -51,6 +51,9 @@ describe('reactive components', () => {
     expect(log).toEqual([])
     const next = await Effect.runPromise(node.rerun)
     if (next._tag !== 'Reactive') throw new Error('expected a reactive node')
+    // The owner (the DOM renderer) closes a superseded run's scope once the new DOM commits.
+    expect(log).toEqual([])
+    await Effect.runPromise(Scope.close(node.scope!, Exit.void))
     expect(log).toEqual(['released'])
     await Effect.runPromise(Scope.close(scope, Exit.void))
     expect(log).toEqual(['released', 'released'])

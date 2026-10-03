@@ -1,5 +1,5 @@
 import type { Atom } from '@sleekstack/core'
-import type { Effect } from 'effect'
+import type { Effect, Scope } from 'effect'
 import type { ComponentType } from 'react'
 
 export interface TextNode {
@@ -27,6 +27,10 @@ export interface ReactiveNode {
   readonly atoms: ReadonlyArray<Atom.Atom<any>>
   readonly child: Node
   readonly rerun: Effect.Effect<Node>
+  /** @internal The values `atoms` had when read, in order; a change before subscribing re-runs. */
+  readonly seen?: ReadonlyArray<unknown>
+  /** @internal This run's `RenderScope` child; closed by the renderer when the run's DOM is replaced or dropped. */
+  readonly scope?: Scope.CloseableScope
 }
 export type Node = TextNode | ElementNode | FragmentNode | GuestNode | ReactiveNode
 

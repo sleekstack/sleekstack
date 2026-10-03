@@ -7,7 +7,7 @@ export class Store extends Effect.Tag('Store')<Store, AtomStore>() {}
 
 /** Atoms read by the component instance that is running; `undefined` outside a wrapped instance. */
 export class Collector extends Context.Reference<Collector>()('@sleekstack/ui/Collector', {
-  defaultValue: (): Set<Atom.Atom<any>> | undefined => undefined,
+  defaultValue: (): Map<Atom.Atom<any>, unknown> | undefined => undefined,
 }) {}
 
 /** Enclosing `Boundary` handlers, innermost last; captured with an instance's context for its re-runs. */
@@ -34,8 +34,9 @@ const store = (hook: string): Effect.Effect<AtomStore, never, Store> =>
 export const useAtomValue = <A>(atom: Atom.Atom<A>): Effect.Effect<A, never, Store> =>
   Effect.flatMap(store('useAtomValue'), (s) =>
     Effect.map(Collector, (c) => {
-      c?.add(atom)
-      return s.get(atom)
+      const value = s.get(atom)
+      if (c && !c.has(atom)) c.set(atom, value)
+      return value
     }),
   )
 
@@ -47,8 +48,13 @@ export const useSetAtom = <R, W>(atom: Atom.Writable<R, W>): Effect.Effect<(valu
 export const useAtom = <R, W>(atom: Atom.Writable<R, W>): Effect.Effect<readonly [R, (value: W) => void], never, Store> =>
   Effect.zip(useAtomValue(atom), useSetAtom(atom))
 
-/** Nodes a re-run produced from a `Boundary` fallback rather than from the component itself. */
+/** Fresh wrappers around what a re-run produced from a `Boundary` fallback rather than from the component itself. */
 export const fallbacks = new WeakSet<Node>()
+const asFallback = (n: Node): Node => {
+  const wrapped: Node = { _tag: 'Fragment', children: [n] }
+  fallbacks.add(wrapped)
+  return wrapped
+}
 
 type Handler = Context.Tag.Service<Handlers>[number]
 
@@ -60,29 +66,33 @@ const withHandlers = (run: Effect.Effect<Node, any, any>, hs: ReadonlyArray<Hand
     (e: any) => {
       let i = hs.length - 1
       while (i >= 0 && hs[i]!.tag !== e._tag) i--
-      return i < 0 ? Effect.fail(e) : Effect.tap(withHandlers(hs[i]!.fallback(e), hs.slice(0, i)), (n) => void fallbacks.add(n))
+      return i < 0 ? Effect.fail(e) : Effect.map(withHandlers(hs[i]!.fallback(e), hs.slice(0, i)), asFallback)
     },
   )
 const handled = (run: Effect.Effect<Node, any, any>): Effect.Effect<Node, any, any> => Effect.flatMap(Handlers, (hs) => withHandlers(run, hs))
 
-/** Runs a component as one instance: fresh collector, own scope, captured context; returns a `Reactive` node when it read atoms. */
+/**
+ * Runs a component as one instance: fresh collector, own scope, captured context; returns a `Reactive` node when it read atoms.
+ * Under a `RenderScope` the node carries its run's scope: a failed run closes it, otherwise its owner (the DOM renderer) does.
+ */
 export const instance = <P>(type: (props: P) => Effect.Effect<Node, any, any>, props: P): Effect.Effect<Node, any, any> => {
-  const run = (prev: Scope.CloseableScope | undefined): Effect.Effect<Node, any, any> =>
-    Effect.flatMap(Effect.context<never>(), (ctx) => {
-      const body = (own: Scope.CloseableScope | undefined): Effect.Effect<Node, any, any> => {
-        const atoms = new Set<Atom.Atom<any>>()
-        const scoped = own ? Effect.provideService(type(props), RenderScope, own) : type(props)
-        return Effect.map(Effect.provideService(scoped, Collector, atoms), (child): Node =>
-          atoms.size === 0 ? child : { _tag: 'Reactive', atoms: [...atoms], child, rerun: Effect.provide(handled(run(own)), ctx) as Effect.Effect<Node> },
-        )
-      }
-      return Effect.flatMap(RenderScope, (parent) =>
-        parent
-          ? Effect.flatMap(Scope.fork(parent, ExecutionStrategy.sequential), (own) =>
-              Effect.onExit(body(own), (exit) => (Exit.isSuccess(exit) ? (prev ? Scope.close(prev, Exit.void) : Effect.void) : Scope.close(own, exit))),
-            )
-          : body(undefined),
+  const run: Effect.Effect<Node, any, any> = Effect.flatMap(Effect.context<never>(), (ctx) => {
+    const body = (own: Scope.CloseableScope | undefined): Effect.Effect<Node, any, any> => {
+      const reads = new Map<Atom.Atom<any>, unknown>()
+      const scoped = own ? Effect.provideService(type(props), RenderScope, own) : type(props)
+      return Effect.map(Effect.provideService(scoped, Collector, reads), (child): Node =>
+        reads.size === 0
+          ? child
+          : { _tag: 'Reactive', atoms: [...reads.keys()], seen: [...reads.values()], child, scope: own, rerun: Effect.provide(handled(run), ctx) as Effect.Effect<Node> },
       )
-    })
-  return run(undefined)
+    }
+    return Effect.flatMap(RenderScope, (parent) =>
+      parent
+        ? Effect.flatMap(Scope.fork(parent, ExecutionStrategy.sequential), (own) =>
+            Effect.onExit(body(own), (exit) => (Exit.isSuccess(exit) ? Effect.void : Scope.close(own, exit))),
+          )
+        : body(undefined),
+    )
+  })
+  return run
 }
