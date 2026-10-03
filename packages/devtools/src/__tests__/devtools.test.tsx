@@ -182,4 +182,15 @@ describe('SleekStackDevtools', () => {
     expect(entry.textContent).toContain('["todo","t1"]')
     expect(screen.getByText('added ["todo","t1"]')).not.toBeNull()
   })
+
+  it('Queries tab records removed when a provider holding a query unmounts', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('Not Found', { status: 404 })))
+    const todo = Query.make({ key: (id: string) => ['gone', id], fetch: (id) => Effect.succeed(`title ${id}`) })
+    const Todo = () => <span>{useQuery(todo('t2')).data}</span>
+    const provider = render(<LayerProvider provide={[]}><Todo /></LayerProvider>)
+    render(<SleekStackDevtools intervalMs={20} />)
+    expect(await screen.findByText('added ["gone","t2"]')).not.toBeNull()
+    provider.unmount()
+    expect(await screen.findByText('removed ["gone","t2"]')).not.toBeNull()
+  })
 })

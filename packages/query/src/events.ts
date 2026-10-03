@@ -4,7 +4,7 @@
  * Client-side dev event buffer for query entries (the runtime's dev buffer is server-only). `sample`
  * diffs a store's registry against what it last saw and records one event per change. Each kind has its
  * own ring, so focus/interval refetch chatter (`fetching`) cannot evict `added`/`success`/`failure`/`removed`.
- * Nothing records when `NODE_ENV` is `production`.
+ * Nothing records when `NODE_ENV` is `production` or `process` is absent.
  */
 
 import { Result, type AtomStore } from '@sleekstack/core'
@@ -31,7 +31,9 @@ export interface QueryEvent {
 /** Events kept per kind. */
 export const CAP_PER_KIND = 50
 
-const enabled = (): boolean => (globalThis as { process?: { env?: { NODE_ENV?: string } } }).process?.env?.NODE_ENV !== 'production'
+declare const process: { readonly env: { readonly NODE_ENV?: string } }
+// direct `process.env.NODE_ENV` so bundlers fold it; no `process` at all (unbundled browser) counts as production
+const enabled = (): boolean => typeof process !== 'undefined' && process.env.NODE_ENV !== 'production'
 
 const rings = new Map<QueryEventKind, QueryEvent[]>()
 const seen = new WeakMap<AtomStore, Map<string, QueryEvent>>()

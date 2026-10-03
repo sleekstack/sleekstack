@@ -6,6 +6,7 @@
  */
 import { useEffect, useState } from 'react'
 import { QueryEvents } from '@sleekstack/query'
+import type { AtomStore } from '@sleekstack/core'
 import { atomStores } from '@sleekstack/react/internal'
 
 /** Present in the Queries tab; production bundle tests assert it is absent from client chunks. */
@@ -13,8 +14,17 @@ export const QUERY_DEVTOOLS_MARKER = 'sleekstack-devtools-queries-4b7e'
 
 type Snapshot = { readonly rows: readonly QueryEvents.QueryEvent[]; readonly events: readonly QueryEvents.QueryEvent[] }
 
+// Stores seen on the previous poll: one that left the registry (provider unmounted) gets a final sample,
+// which records `removed` for its entries.
+let previous: readonly AtomStore[] = []
+
 const read = (): Snapshot => {
-  const rows = atomStores().flatMap((store) => {
+  const stores = atomStores()
+  for (const gone of previous.filter((s) => !stores.includes(s))) {
+    try { QueryEvents.sample(gone) } catch { /* disposed mid-poll */ }
+  }
+  previous = stores
+  const rows = stores.flatMap((store) => {
     try {
       return QueryEvents.sample(store)
     } catch {
