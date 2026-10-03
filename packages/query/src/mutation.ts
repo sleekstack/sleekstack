@@ -8,7 +8,7 @@
  */
 
 import { Atom, Result, type AtomStore } from '@sleekstack/core'
-import { Cause, Effect, Exit, Fiber, Option, Scope } from 'effect'
+import { Cause, Effect, Equal, Exit, Fiber, Option, Scope } from 'effect'
 import * as Queries from './queries'
 import { TypeId, type QueryAtom } from './query'
 
@@ -168,9 +168,10 @@ const build = <I, A, E, R>(store: AtomStore, { options: o }: Mutation<I, A, E, R
 
 // Per-client, per-query log of optimistic writes over the value beneath the oldest one. The cached
 // value is the log folded over that base; a write leaves the log on rollback, and folds into the base
-// once it and every older write have committed.
+// once it and every older write have committed. Cached data that differs from the last fold (a refetch or
+// write landing mid-mutation) becomes the new base before the next recompute.
 interface Layer { readonly f: (previous: Option.Option<any>) => any; committed: boolean }
-const logs = new WeakMap<Queries.QueriesApi, Map<string, { base: Option.Option<unknown>; layers: Array<Layer> }>>()
+const logs = new WeakMap<Queries.QueriesApi, Map<string, { base: Option.Option<unknown>; shown: Option.Option<unknown>; layers: Array<Layer> }>>()
 
 /**
  * Writes `f(previous)` into `atom` for the duration of the call and returns its rollback (also run when the
@@ -186,19 +187,23 @@ export const optimistic = <A>(
     let byKey = logs.get(client)
     if (!byKey) logs.set(client, (byKey = new Map()))
     const id = atom[TypeId].id
-    const log = byKey.get(id) ?? { base: client.getData(atom) as Option.Option<unknown>, layers: [] }
+    const current = (): Option.Option<unknown> => client.getData(atom)
+    const log = byKey.get(id) ?? { base: current(), shown: current(), layers: [] }
     byKey.set(id, log)
     const layer: Layer = { f, committed: false }
-    log.layers.push(layer)
-    // ponytail: a refetch landing mid-mutation is overwritten by the next recompute; rebase on it if that matters
+    const rebase = () => { const now = current(); if (!Equal.equals(now, log.shown)) log.base = now }
     const render = () => {
       const value = log.layers.reduce((acc, l) => Option.some(l.f(acc)), log.base as Option.Option<A>)
       Option.match(value, { onNone: () => client.reset(atom), onSome: (v) => client.setData(atom, v) })
+      log.shown = current()
     }
+    rebase()
+    log.layers.push(layer)
     render()
     const settle = (commit: boolean) => {
       const i = log.layers.indexOf(layer)
       if (i < 0 || layer.committed) return
+      rebase()
       if (commit) layer.committed = true
       else { log.layers.splice(i, 1); render() }
       while (log.layers[0]?.committed) log.base = Option.some(log.layers.shift()!.f(log.base))

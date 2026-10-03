@@ -163,4 +163,46 @@ describe('Mutation', () => {
     const exit = await a.mutate(undefined)
     expect(exit).toEqual(Exit.succeed(7))
   })
+
+  describe('a refetch landing mid-mutation becomes the base', () => {
+    const refetching = () => {
+      const store = makeAtomStore()
+      let server = 'base'
+      const q = Query.make({ key: (id: string) => ['todo', id], fetch: () => Effect.sync(() => server), staleTime: '1 hour' })
+      const client = Queries.make(store)
+      client.setData(q('1'), 'base')
+      Query.observe(store, q('1'))
+      const gates = [0, 1].map(() => Effect.runSync(Deferred.make<void, string>()))
+      const r = Mutation.runner(store, Mutation.make({
+        run: (i: number) => Deferred.await(gates[i]!),
+        onMutate: (i: number) => Mutation.optimistic(q('1'), (p) => `${Option.getOrElse(p, () => '')}+${i}`),
+      }))
+      const refetch = (value: string) => { server = value; client.refetch(q('1')) }
+      return { q, client, gates, r, refetch }
+    }
+
+    it('keeps the remaining optimistic write over the refetched base', async () => {
+      const { q, client, gates, r, refetch } = refetching()
+      const p0 = r.mutate(0)
+      const p1 = r.mutate(1)
+      await tick()
+      refetch('fresh')
+      expect(client.getData(q('1'))).toEqual(Option.some('fresh'))
+      Effect.runSync(Deferred.fail(gates[0]!, 'x'))
+      await p0
+      expect(client.getData(q('1'))).toEqual(Option.some('fresh+1'))
+      Effect.runSync(Deferred.succeed(gates[1]!, undefined))
+      await p1
+    })
+
+    it('a failed mutation rolls back to the refetched base', async () => {
+      const { q, client, gates, r, refetch } = refetching()
+      const p0 = r.mutate(0)
+      await tick()
+      refetch('fresh')
+      Effect.runSync(Deferred.fail(gates[0]!, 'x'))
+      await p0
+      expect(client.getData(q('1'))).toEqual(Option.some('fresh'))
+    })
+  })
 })
