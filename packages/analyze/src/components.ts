@@ -20,7 +20,9 @@ export function analyzeComponents(opts: { readonly project: string }): Component
   const { root, program, checker } = programOf(opts.project)
   const loc = (n: ts.Node): Location => {
     const sf = n.getSourceFile()
-    return { file: path.relative(root, sf.fileName), line: sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1 }
+    const start = sf.getLineAndCharacterOfPosition(n.getStart(sf))
+    const end = sf.getLineAndCharacterOfPosition(n.getEnd())
+    return { file: path.relative(root, sf.fileName), line: start.line + 1, column: start.character + 1, endLine: end.line + 1, endColumn: end.character + 1 }
   }
   const text = (n: ts.Node) => n.getText().replace(/\s+/g, ' ').slice(0, 80)
   const fail = (n: ts.Node, message: string): never => {
@@ -337,12 +339,12 @@ export function analyzeComponents(opts: { readonly project: string }): Component
  * children's). Returns the Tags and error tags already reported below.
  */
 function check(n: UiNode, provided: ReadonlySet<string>, caught: ReadonlySet<string>, out: AnalyzeError[]): Set<string> {
-  const at = { file: n.file, line: n.line }
+  const at = { file: n.file, line: n.line, column: n.column, endLine: n.endLine, endColumn: n.endColumn }
   if (n.kind === 'unresolved') return (out.push(analyzeError('Unresolved', n.message, at)), new Set())
   if (n.kind === 'component' && n.guest) {
     for (const c of n.children) {
       if (c.kind === 'unresolved') check(c, provided, caught, out)
-      else out.push(analyzeError('EffectInsideReact', `Effect component "${c.kind === 'component' ? c.name : ''}" is rendered under the React guest "${n.name}"`, { file: c.file, line: c.line }))
+      else out.push(analyzeError('EffectInsideReact', `Effect component "${c.kind === 'component' ? c.name : ''}" is rendered under the React guest "${n.name}"`, { file: c.file, line: c.line, column: c.column, endLine: c.endLine, endColumn: c.endColumn }))
     }
     return new Set()
   }

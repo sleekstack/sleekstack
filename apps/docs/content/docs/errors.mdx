@@ -33,7 +33,7 @@ Reported by `sleekstack check` (with file:line) when it cannot read a declaratio
 | `UnnamedEffect` | An `effect()` inside a module has no literal `name`. |
 | `NonLiteralOptions` | `runEffect` options are not an object literal the analyzer can read. |
 | `UnownedAction` | Several runtimes exist and no `configureRuntime` file imports the action; pass `--entry` to pick one. |
-| `EmittedSibling` | Emitted `.js` output sits next to its `.ts` source; delete it. |
+| `EmittedSibling` | Emitted JavaScript or declaration output (`.js`, `.jsx`, `.d.ts`) sits next to its `.ts` source; delete it. |
 
 ## Component errors
 

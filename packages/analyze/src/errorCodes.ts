@@ -123,7 +123,7 @@ export const ERROR_CODES: Readonly<Record<AnalyzeCode, ErrorHelp>> = {
 }
 
 /** An error with its code's fix and docs filled in. */
-export const analyzeError = (code: AnalyzeCode, message: string, at: Location & Partial<Pick<AnalyzeError, 'column' | 'endLine' | 'endColumn'>>): AnalyzeError => ({
+export const analyzeError = (code: AnalyzeCode, message: string, at: Location): AnalyzeError => ({
   ...at,
   code,
   message,

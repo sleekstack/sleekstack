@@ -1,6 +1,8 @@
 import * as path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { analyze, ERROR_CODES } from '../index'
+import { analyze, analyzeComponents, ERROR_CODES } from '../index'
+
+const project = (name: string) => path.join(__dirname, 'fixtures', name, 'tsconfig.json')
 
 describe('error table', () => {
   it('gives every code a rule, fixes and a docs anchor', () => {
@@ -11,10 +13,14 @@ describe('error table', () => {
     }
   })
 
-  it('fills fix, docs and the column span on errors read from a node', () => {
-    const e = analyze({ project: path.join(__dirname, 'fixtures', 'computed-lists', 'tsconfig.json') }).errors.find((x) => x.code === 'Computed')!
-    expect(e.fix).toEqual(ERROR_CODES.Computed.fix)
-    expect(e.docs).toBe(ERROR_CODES.Computed.docs)
+  it.each([
+    ['extraction', () => analyze({ project: project('computed-lists') }).errors, 'Computed'],
+    ['graph validation', () => analyze({ project: project('missing-dependency') }).errors, 'MissingDependency'],
+    ['component pass', () => analyzeComponents({ project: project('ui-missing') }).errors, 'MissingDependency'],
+  ] as const)('fills fix, docs and the column span on %s errors', (_, errors, code) => {
+    const e = errors().find((x) => x.code === code)!
+    expect(e.fix).toEqual(ERROR_CODES[code].fix)
+    expect(e.docs).toBe(ERROR_CODES[code].docs)
     expect(e.column).toBeGreaterThan(0)
     expect(e.endLine).toBeGreaterThanOrEqual(e.line)
   })

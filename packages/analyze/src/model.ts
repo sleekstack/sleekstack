@@ -20,13 +20,13 @@ export interface Location {
   readonly file: string
   /** 1-based. */
   readonly line: number
-}
-
-export interface AnalyzeError extends Location {
-  /** 1-based, with `endLine` / `endColumn`: set where the offending node is at hand. */
+  /** 1-based, with `endLine` / `endColumn`: set where a source node is at hand. */
   readonly column?: number
   readonly endLine?: number
   readonly endColumn?: number
+}
+
+export interface AnalyzeError extends Location {
   readonly code: AnalyzeCode
   readonly message: string
   /** Remedies from the error table, most likely first. */

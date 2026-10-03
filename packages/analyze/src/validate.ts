@@ -14,7 +14,7 @@ const allowed: Record<Lifetime, readonly Lifetime[]> = { app: ['app'], request: 
 
 export function validate(root: ModuleDecl): AnalyzeError[] {
   const errors: AnalyzeError[] = []
-  const err = (code: AnalyzeCode, message: string, at: Location) => errors.push(analyzeError(code, message, { file: at.file, line: at.line }))
+  const err = (code: AnalyzeCode, message: string, at: Location) => errors.push(analyzeError(code, message, at))
 
   // Module walk (core cycle.ts): identity cycles and distinct modules sharing a name.
   const byName = new Map<string, ModuleDecl>()

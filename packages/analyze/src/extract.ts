@@ -146,7 +146,9 @@ export function extract(project: string, entries?: readonly string[], lenient = 
 
   const loc = (n: ts.Node): Location => {
     const sf = n.getSourceFile()
-    return { file: path.relative(root, sf.fileName), line: sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1 }
+    const start = sf.getLineAndCharacterOfPosition(n.getStart(sf))
+    const end = sf.getLineAndCharacterOfPosition(n.getEnd())
+    return { file: path.relative(root, sf.fileName), line: start.line + 1, column: start.character + 1, endLine: end.line + 1, endColumn: end.character + 1 }
   }
   const fail = (n: ts.Node, message: string, code?: AnalyzeCode): never => {
     throw new Unreadable(n, message, code)
@@ -156,10 +158,7 @@ export function extract(project: string, entries?: readonly string[], lenient = 
   const report = (e: unknown, owner?: ModuleDecl) => {
     if (e instanceof Unbound) e = new Unreadable(e.source, `A loop variable over "${text(e.source)}" is used outside a list`, 'Computed')
     if (!(e instanceof Unreadable)) throw e
-    const sf = e.node.getSourceFile()
-    const start = sf.getLineAndCharacterOfPosition(e.node.getStart(sf))
-    const end = sf.getLineAndCharacterOfPosition(e.node.getEnd())
-    const err = analyzeError(e.code, e.message, { ...loc(e.node), column: start.character + 1, endLine: end.line + 1, endColumn: end.character + 1 })
+    const err = analyzeError(e.code, e.message, loc(e.node))
     errors.push(err)
     if (owner) owned.set(owner, [...(owned.get(owner) ?? []), err])
   }
