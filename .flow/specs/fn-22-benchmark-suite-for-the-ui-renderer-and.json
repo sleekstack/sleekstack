@@ -7,7 +7,7 @@
   "plan_review_status": "unknown",
   "plan_reviewed_at": null,
   "spec_path": ".flow/specs/fn-22-benchmark-suite-for-the-ui-renderer-and.md",
-  "status": "open",
+  "status": "done",
   "title": "Benchmark suite for the UI renderer and atoms",
   "tracker": {
     "baseHashFlow": null,
@@ -20,5 +20,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-03T15:49:40.260096Z"
+  "updated_at": "2026-10-03T17:55:01.019497Z"
 }

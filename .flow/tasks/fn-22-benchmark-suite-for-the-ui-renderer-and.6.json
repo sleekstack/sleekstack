@@ -11,7 +11,7 @@
   "priority": null,
   "spec": "fn-22-benchmark-suite-for-the-ui-renderer-and",
   "spec_path": ".flow/tasks/fn-22-benchmark-suite-for-the-ui-renderer-and.6.md",
-  "status": "todo",
+  "status": "done",
   "title": "docs: benchmarks page generated from published results",
   "updated_at": "2026-10-03T15:54:48.754844Z"
 }
