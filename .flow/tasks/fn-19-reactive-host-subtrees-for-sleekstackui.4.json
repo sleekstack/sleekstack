@@ -1,0 +1,17 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-03T10:58:15.392086Z",
+  "depends_on": [
+    "fn-19-reactive-host-subtrees-for-sleekstackui.2",
+    "fn-19-reactive-host-subtrees-for-sleekstackui.3"
+  ],
+  "id": "fn-19-reactive-host-subtrees-for-sleekstackui.4",
+  "priority": null,
+  "spec": "fn-19-reactive-host-subtrees-for-sleekstackui",
+  "spec_path": ".flow/tasks/fn-19-reactive-host-subtrees-for-sleekstackui.4.md",
+  "status": "todo",
+  "title": "ui-demo: atom-driven status filter and detail toggle with jsdom test",
+  "updated_at": "2026-10-03T10:58:15.392086Z"
+}

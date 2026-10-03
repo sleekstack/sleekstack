@@ -1,16 +1,20 @@
-import type { Cause, Effect, Layer } from 'effect'
+import { type Cause, Effect, type Layer } from 'effect'
 import { createElement } from 'react'
 import { renderToString as reactRenderToString } from 'react-dom/server'
+import { makeAtomStore } from '@sleekstack/core'
 import { reportRenderError, runToNode } from './component'
 import type { Node } from './node'
+import { Store } from './reactive'
 
 const ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
 const escape = (s: string): string => s.replace(/[&<>"']/g, (c) => ESCAPES[c]!)
 
 const TAG = /^[a-zA-Z][a-zA-Z0-9-]*$/
 const ATTR = /^[^\s"'<>\/=\x00-\x1f]+$/
+/** Rejects invalid tag names and the renderer-written `sleek-reactive`. */
+export const checkTag = (name: string): string => checkName(TAG, 'tag', name)
 const checkName = (re: RegExp, kind: string, name: string): string => {
-  if (!re.test(name)) throw new TypeError(`Invalid ${kind} name: ${JSON.stringify(name)}`)
+  if (!re.test(name) || (kind === 'tag' && name.toLowerCase() === 'sleek-reactive')) throw new TypeError(`Invalid ${kind} name: ${JSON.stringify(name)}`)
   return name
 }
 
@@ -31,12 +35,14 @@ const serialize = (node: Node, onError?: (cause: Cause.Cause<unknown>) => void):
     case 'Fragment':
       return node.children.map((c) => serialize(c, onError)).join('')
     case 'Element': {
-      checkName(TAG, 'tag', node.tag)
+      checkTag(node.tag)
       const attrs = Object.entries(node.attrs)
         .map(([k, v]) => (checkAttr(k, v), ` ${k}="${escape(v)}"`))
         .join('')
       return `<${node.tag}${attrs}>${node.children.map((c) => serialize(c, onError)).join('')}</${node.tag}>`
     }
+    case 'Reactive':
+      return serialize(node.child, onError)
     case 'Guest':
       try {
         return reactRenderToString(createElement(node.component, node.props))
@@ -47,8 +53,16 @@ const serialize = (node: Node, onError?: (cause: Cause.Cause<unknown>) => void):
   }
 }
 
-/** String renderer (SSR and tests). Rejection contract matches `mount`. */
+/** String renderer (SSR and tests). Rejection contract matches `mount`. Provides a fresh `Store`, disposed afterwards. */
 export const renderToString = async <E, A, LE = never>(
   app: Effect.Effect<Node, E, A>,
-  opts: { layer: Layer.Layer<A, LE, never>; onError?: (cause: Cause.Cause<unknown>) => void },
-): Promise<string> => serialize(await runToNode(app, opts.layer, opts.onError), opts.onError)
+  opts: { layer: Layer.Layer<Exclude<A, Store>, LE, never>; onError?: (cause: Cause.Cause<unknown>) => void },
+): Promise<string> => {
+  const store = makeAtomStore()
+  try {
+    const withStore = Effect.provideService(app, Store, store) as Effect.Effect<Node, E, Exclude<A, Store>>
+    return serialize(await runToNode(withStore, opts.layer, opts.onError), opts.onError)
+  } finally {
+    await store.dispose()
+  }
+}

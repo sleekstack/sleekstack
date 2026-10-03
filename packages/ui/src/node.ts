@@ -1,3 +1,5 @@
+import type { Atom } from '@sleekstack/core'
+import type { Effect, Scope } from 'effect'
 import type { ComponentType } from 'react'
 
 export interface TextNode {
@@ -19,7 +21,18 @@ export interface GuestNode {
   readonly component: ComponentType<any>
   readonly props: object
 }
-export type Node = TextNode | ElementNode | FragmentNode | GuestNode
+/** A component instance that read atoms: `child` is its last render, `rerun` renders it again in its captured context. */
+export interface ReactiveNode {
+  readonly _tag: 'Reactive'
+  readonly atoms: ReadonlyArray<Atom.Atom<any>>
+  readonly child: Node
+  readonly rerun: Effect.Effect<Node>
+  /** @internal The values `atoms` had when read, in order; a change before subscribing re-runs. */
+  readonly seen?: ReadonlyArray<unknown>
+  /** @internal This run's `RenderScope` child; closed by the renderer when the run's DOM is replaced or dropped. */
+  readonly scope?: Scope.CloseableScope
+}
+export type Node = TextNode | ElementNode | FragmentNode | GuestNode | ReactiveNode
 
 const toNode = (c: Node | string): Node => (typeof c === 'string' ? { _tag: 'Text', text: c } : c)
 

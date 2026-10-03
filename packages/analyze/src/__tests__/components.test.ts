@@ -16,7 +16,7 @@ const expected = (name: string) =>
 const sorted = <T extends { file: string; line: number }>(xs: T[]) => xs.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line)
 
 describe('component pass', () => {
-  it.each(['ui-missing', 'ui-unhandled', 'ui-react', 'ui-unresolved'])('%s: code and file:line', (name) => {
+  it.each(['ui-missing', 'ui-unhandled', 'ui-react', 'ui-unresolved', 'ui-hooks'])('%s: code and file:line', (name) => {
     const want = expected(name)
     expect(want.length).toBeGreaterThan(0)
     expect(sorted(located(name))).toEqual(want)
@@ -31,6 +31,13 @@ describe('component pass', () => {
     const walk = (n: UiNode): void => { if (n.kind === 'component') names.push(`${n.name}:${n.line}`); if ('children' in n) n.children.forEach(walk) }
     walk(r.trees[0]!.root)
     expect(names).toEqual(expect.arrayContaining(['UserCard:24', 'Avatar:16', 'Stamp:25']))
+  })
+
+  it('ui-hooks: the ui Store stays a requirement in the tree; a same-named app Tag is printed with its file', () => {
+    const r = run('ui-hooks')
+    const reqs = (n: UiNode): string[] => (n.kind === 'unresolved' ? [] : [...(n.kind === 'catch' ? [] : n.requires), ...n.children.flatMap(reqs)])
+    expect(reqs(r.trees[0]!.root)).toContain('Store')
+    expect(r.errors.find((e) => e.line === 22)?.message).toContain('requires "app.ts#Store"')
   })
 
   it('non-ui projects have no trees', () => {
