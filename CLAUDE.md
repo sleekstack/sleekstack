@@ -1,3 +1,5 @@
+@AGENTS.md
+
 <!-- BEGIN FLOW-NEXT -->
 <!-- flow-next:snippet:v1 -->
 ## Flow-Next
