@@ -34,9 +34,12 @@ Guest React state inside a swapped subtree is lost; keep the filter bar outside 
 - [ ] `sleekstack check` on ui-demo is clean, tests and `vite build` pass
 
 ## Done summary
-TBD
+ui-demo now has `filterAtom` / `selectedAtom` (src/state.ts). `Columns` re-renders on the status filter; `Selected` re-renders on the picked task and wraps `DetailPanel`. A host `Toolbar` hands `useSetAtom` setters to guest `FilterBar` buttons and sits outside the readers, so the buttons never remount. The jsdom test in test/app.test.ts checks that the header, team and filter-button nodes stay the same objects and that the detail swaps t2 -> t1 -> TaskNotFound("nope") -> t3. `@sleekstack/core` was added to ui-demo deps with a 3-line lockfile change; the unrelated sleek-codes importer was stripped. `fixtures.test.ts` needed no change because the trees count is still 1.
 
+Tier: opus at medium
+baseline: green via handoff (verified at 6654a0b by fn-19.3)
+stage: impl-review - ran (codex fan-out, 3 draws SHIP, 0 findings)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 788537da297cb987e94723fc309157ab465465d3
+- Tests: cd apps/ui-demo && npx vitest run && npx tsc --noEmit && npx vite build, pnpm --filter @sleekstack/ui test, pnpm --filter @sleekstack/analyze test
 - PRs:
