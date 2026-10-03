@@ -23,9 +23,8 @@ One public name, one meaning. Rename the `kit/next` inline runner; `kit/src/effe
 - [ ] ADR 0019 and CONTEXT.md updated
 
 ## Done summary
-TBD
-
+Renamed kit/next effect -> runOperation; deprecated alias analyzed; export-name clash test; ADR 0019; CONTEXT/docs updated. showcase-kit check --json byte-identical before/after.
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 6cae326204e1689012913bc0378bdcb1edd74d9c
+- Tests: vitest kit/analyze/islands, tsc kit/analyze/islands/showcase-kit, sleekstack check --json diff showcase-kit
 - PRs:
