@@ -10,7 +10,9 @@
     "fn-12-effect-native-query-layer"
   ],
   "id": "fn-17-atom-ssr-and-hydration",
-  "impl_review_rounds": {},
+  "impl_review_rounds": {
+    "fn-17-atom-ssr-and-hydration.1": 0
+  },
   "next_task": 1,
   "plan_review_rounds": 0,
   "plan_review_status": "ship",
@@ -337,15 +339,137 @@
       "task": null,
       "timestamp": "2026-10-03T09:28:27.645056Z",
       "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "e8b308c398c32968857036fe283d1eba0300d12079c47de58df98d1229296304",
+      "backend": "codex",
+      "base_sha": "3b0edb729ffcf39dcedbbfabb165480a32e9ba1a",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-38a69a53a3874d842026d3123e3acc04",
+            "classification": "introduced",
+            "findingId": "finding-38a69a53a3874d842026d3123e3acc04",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-596a24c24c43f9c8ba25ba3329203afb",
+            "classification": "introduced",
+            "findingId": "finding-596a24c24c43f9c8ba25ba3329203afb",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-2bbaf857aa338303923abb46e8127b9c",
+            "classification": "introduced",
+            "findingId": "finding-2bbaf857aa338303923abb46e8127b9c",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "ea2f2d9be608eabaebf0d7d8ad483f6bf8111dee",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 2126,
+      "output_sha256": "267cb46e3482f9a692e323ba56a5e19a1c96f5ca092c999ec4b99bbc245b6951",
+      "reservation_id": "52825b6c6cab4e5ea33246f839a30040",
+      "round_consumed": true,
+      "scope": "impl:fn-17-atom-ssr-and-hydration.1",
+      "superseded_by": null,
+      "task": "fn-17-atom-ssr-and-hydration.1",
+      "timestamp": "2026-10-03T12:19:30.118742Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "d5ff246846d90228d23e663d6f3b1a4ac58ce181faa6ac298fafd2f7cc05627f",
+      "backend": "codex",
+      "base_sha": "3b0edb729ffcf39dcedbbfabb165480a32e9ba1a",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-38a69a53a3874d842026d3123e3acc04",
+            "classification": "introduced",
+            "findingId": "finding-38a69a53a3874d842026d3123e3acc04",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-596a24c24c43f9c8ba25ba3329203afb",
+            "classification": "introduced",
+            "findingId": "finding-596a24c24c43f9c8ba25ba3329203afb",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-2bbaf857aa338303923abb46e8127b9c",
+            "classification": "introduced",
+            "findingId": "finding-2bbaf857aa338303923abb46e8127b9c",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "443b9cd6aafd3daeb4bcf88b1d73d76eafd875f3",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 988,
+      "output_sha256": "60b5b63724be4fc38d1f57cfadeb014af4ec6a9b5367577df7e856873043c28a",
+      "reservation_id": "6d225da21d72438a87baece16652f263",
+      "round_consumed": true,
+      "scope": "impl:fn-17-atom-ssr-and-hydration.1",
+      "superseded_by": null,
+      "task": "fn-17-atom-ssr-and-hydration.1",
+      "timestamp": "2026-10-03T12:20:44.879432Z",
+      "verdict": "SHIP"
     }
   ],
   "review_hash_epoch": {
+    "impl:fn-17-atom-ssr-and-hydration.1": 1,
     "plan": 1,
     "plan#completion": 0
   },
   "review_pending_rounds": {},
   "review_reservations": {},
   "review_transport_failures": {
+    "impl:fn-17-atom-ssr-and-hydration.1": 0,
     "plan": 0
   },
   "spec_path": ".flow/specs/fn-17-atom-ssr-and-hydration.md",
@@ -362,5 +486,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-03T09:28:27.648760Z"
+  "updated_at": "2026-10-03T12:20:44.884181Z"
 }
