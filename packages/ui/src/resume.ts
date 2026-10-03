@@ -17,9 +17,10 @@ export interface ResumeOptions<R, LE> {
   readonly layer: Layer.Layer<Exclude<R, Store>, LE, never>
   readonly handlers: Readonly<Record<string, HandlerLoader<R>>>
   /**
-   * Manifest key to its atom. A serializable atom (any kind of value atom, derived included) is seeded through the
-   * store's hydrate seed, which bypasses `write`. A plain atom has no seed primitive, so it is seeded with `set` and
-   * must be a state atom whose write stores the value (`Atom.make(v)`); a plain read-only atom is `ManifestDecodeFailed`.
+   * Manifest key to its atom. A serializable atom (derived included) is seeded through the store's hydrate seed,
+   * which bypasses `write`. A plain writable atom is seeded with `set` (a state cell, `Atom.make(v)`); a plain
+   * read-only atom is recomputed by the owned store from its sources, as the server's fresh store computed it.
+   * ponytail: core has no write-bypassing seed for non-serializable atoms; add one if custom `Writable<R, W>` binds appear.
    */
   readonly atoms: Readonly<Record<string, Atom.Atom<any>>>
   readonly onError?: (cause: Cause.Cause<unknown>) => void
@@ -59,10 +60,11 @@ const readManifest = (container: Element): { events: Array<string>; atoms: Recor
 }
 
 // Validates one entry strictly (unlike `hydrate`, which drops a bad seed) and returns how to seed it.
-const decode = (atom: Atom.Atom<any> | undefined, key: string, value: unknown) => {
+type Seed = { readonly key: string; readonly atom: Atom.Atom<any>; readonly set?: unknown; readonly seed?: Record<string, unknown> }
+const decode = (atom: Atom.Atom<any> | undefined, key: string, value: unknown): Seed => {
   const info = atom?.serializable
-  if (!atom || info?.kind === 'result' || (!info && !Atom.isWritable(atom))) throw new ManifestDecodeFailed({ key })
-  if (!info) return { key, atom, value }
+  if (!atom || info?.kind === 'result') throw new ManifestDecodeFailed({ key })
+  if (!info) return Atom.isWritable(atom) ? { key, atom, set: value } : { key, atom }
   try {
     Schema.decodeUnknownSync(info.schema)(value)
   } catch (cause) {
@@ -99,13 +101,13 @@ const activate = async <R, LE>(opts: ResumeOptions<R, LE>): Promise<Resumed> => 
   })
 
   const store = makeAtomStore()
-  for (const { key, atom, value, seed } of seeds) {
+  for (const s of seeds) {
     try {
-      if (seed) store.hydrate(seed)
-      else store.set(atom as Atom.Writable<unknown>, value)
+      if (s.seed) store.hydrate(s.seed)
+      else if ('set' in s) store.set(s.atom as Atom.Writable<unknown>, s.set)
     } catch (cause) {
       await store.dispose()
-      throw new ManifestDecodeFailed({ key, cause })
+      throw new ManifestDecodeFailed({ key: s.key, cause })
     }
   }
 

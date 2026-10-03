@@ -126,14 +126,13 @@ describe('resume', () => {
     expect(c.innerHTML).toBe(before)
   })
 
-  it('seeds a read-only serializable atom without calling write', async () => {
+  it('seeds a read-only serializable atom without calling write; a plain read-only atom resumes unseeded', async () => {
     const big = Atom.serializable(Atom.make(() => 1n), { key: 'big', schema: Schema.BigInt })
     const html = '<sleek-bind data-sleek-bind="b">7</sleek-bind><script type="application/json" data-sleek-manifest>{"v":1,"events":[],"atoms":{"b":"7"}}</script>'
     const c = await setup(html)
     const h = await resume({ container: c, layer: Layer.empty, handlers: {}, atoms: { b: big } })
     handles.push(h)
-    const plain = await setup(html)
-    await expect(resume({ container: plain, layer: Layer.empty, handlers: {}, atoms: { b: Atom.make(() => 1) } })).rejects.toBeInstanceOf(ManifestDecodeFailed)
+    handles.push(await resume({ container: await setup(html), layer: Layer.empty, handlers: {}, atoms: { b: Atom.make(() => 1) } }))
   })
 
   it('rejects with the original layer error and can be retried', async () => {
