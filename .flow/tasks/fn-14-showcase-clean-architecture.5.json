@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-14-showcase-clean-architecture",
   "spec_path": ".flow/tasks/fn-14-showcase-clean-architecture.5.md",
-  "status": "todo",
+  "status": "done",
   "title": "README: mapping table and file layout",
   "updated_at": "2026-10-02T06:52:00.055604Z"
 }

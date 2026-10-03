@@ -8,7 +8,7 @@
   "priority": null,
   "spec": "fn-8-deepen-kit-and-core-seams",
   "spec_path": ".flow/tasks/fn-8-deepen-kit-and-core-seams.6.md",
-  "status": "todo",
+  "status": "done",
   "title": "De-flake the showcase board scope test",
   "updated_at": "2026-09-28T16:15:54.839320Z"
 }

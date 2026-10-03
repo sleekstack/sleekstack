@@ -11,7 +11,7 @@
   "priority": null,
   "spec": "fn-9-static-build-time-dependency-graph",
   "spec_path": ".flow/tasks/fn-9-static-build-time-dependency-graph.7.md",
-  "status": "todo",
+  "status": "done",
   "title": "Remove snapshot and runtime graph validation; introduce ResolutionPlan",
   "updated_at": "2026-09-29T09:20:07.330440Z"
 }

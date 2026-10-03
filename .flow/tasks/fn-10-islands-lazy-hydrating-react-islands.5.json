@@ -11,7 +11,7 @@
   "priority": null,
   "spec": "fn-10-islands-lazy-hydrating-react-islands",
   "spec_path": ".flow/tasks/fn-10-islands-lazy-hydrating-react-islands.5.md",
-  "status": "todo",
+  "status": "done",
   "title": "showcase-kit: full Islands page, bundle test, Playwright coverage",
   "updated_at": "2026-09-29T11:18:09.698345Z"
 }

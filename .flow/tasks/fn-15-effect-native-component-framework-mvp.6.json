@@ -11,7 +11,7 @@
   "priority": null,
   "spec": "fn-15-effect-native-component-framework-mvp",
   "spec_path": ".flow/tasks/fn-15-effect-native-component-framework-mvp.6.md",
-  "status": "todo",
+  "status": "done",
   "title": "ui demo app, fixtures per error code and docs",
   "updated_at": "2026-10-02T17:42:00.826923Z"
 }

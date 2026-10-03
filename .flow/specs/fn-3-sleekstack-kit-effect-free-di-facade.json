@@ -445,7 +445,7 @@
     "plan": 0
   },
   "spec_path": ".flow/specs/fn-3-sleekstack-kit-effect-free-di-facade.md",
-  "status": "open",
+  "status": "done",
   "title": "sleekstack kit: Effect-free DI facade",
   "tracker": {
     "baseHashFlow": null,
@@ -458,5 +458,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-09-28T07:56:13.991053Z"
+  "updated_at": "2026-10-03T16:08:32.131028Z"
 }

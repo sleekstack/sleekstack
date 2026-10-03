@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-9-static-build-time-dependency-graph",
   "spec_path": ".flow/tasks/fn-9-static-build-time-dependency-graph.8.md",
-  "status": "todo",
+  "status": "done",
   "title": "ADR superseding 0004-0006, CONTEXT, docs, READMEs",
   "updated_at": "2026-09-29T09:07:53.009572Z"
 }

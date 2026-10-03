@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-3-sleekstack-kit-effect-free-di-facade",
   "spec_path": ".flow/tasks/fn-3-sleekstack-kit-effect-free-di-facade.5.md",
-  "status": "todo",
+  "status": "done",
   "title": "showcase-kit /graph, /errors, bundle + e2e; docs (README, ADR 0005, CONTEXT.md); CI",
   "updated_at": "2026-09-28T06:30:45.511360Z"
 }

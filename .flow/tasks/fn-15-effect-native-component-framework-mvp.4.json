@@ -11,7 +11,7 @@
   "priority": null,
   "spec": "fn-15-effect-native-component-framework-mvp",
   "spec_path": ".flow/tasks/fn-15-effect-native-component-framework-mvp.4.md",
-  "status": "todo",
+  "status": "done",
   "title": "Analyzer component pass: tree per mount and four checks",
   "updated_at": "2026-10-02T17:43:49.559533Z"
 }

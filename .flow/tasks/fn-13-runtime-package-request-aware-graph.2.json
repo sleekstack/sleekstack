@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-13-runtime-package-request-aware-graph",
   "spec_path": ".flow/tasks/fn-13-runtime-package-request-aware-graph.2.md",
-  "status": "todo",
+  "status": "done",
   "title": "Analyzer request/overrides roots, Report kind, --lenient",
   "updated_at": "2026-10-01T09:29:20.933570Z"
 }
