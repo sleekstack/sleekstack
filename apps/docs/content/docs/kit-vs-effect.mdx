@@ -12,7 +12,7 @@ Kit and core build the same graph: kit lowers every call to core. The choice is 
 | Modules | `module({ provide })` | `module({ entries })` + `makeAppScope` |
 | Actions | `defineEffect(function* (...args) { const a = yield* A; ... })` | `runEffect(Effect.gen(...), { request, overrides })` in a `'use server'` function |
 | Errors | one `SleekStackError` with a `code` | tagged errors, typed in the Effect error channel |
-| Query SSR | `cachedQuery({ serializable })`, kit `prefetch` + `HydrateQueries` | `Hydrate.hydratable` with a `Schema`, `prefetch` + `HydrateQueries` |
+| Query SSR | none (client fetch only) | `queryOptions` + `effectFn`, `prefetchQueries` + `HydrationBoundary` |
 | Cleanup | `withCleanup(service, fn)` | `Effect.addFinalizer` / `acquireRelease` |
 
 ## Choose kit when
