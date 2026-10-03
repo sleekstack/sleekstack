@@ -1,4 +1,4 @@
-import { type Cause, Effect, type Layer } from 'effect'
+import { type Cause, Effect, type Layer, Schema } from 'effect'
 import { createElement } from 'react'
 import { renderToString as reactRenderToString } from 'react-dom/server'
 import { type Atom, type AtomStore, makeAtomStore } from '@sleekstack/core'
@@ -35,7 +35,7 @@ interface Collector {
   onError?: (cause: Cause.Cause<unknown>) => void
   handlers: Map<string, Handler<any, any>>
   events: Set<string>
-  atoms: Map<string, { atom: Atom.Atom<any>; value: unknown }>
+  atoms: Map<string, { atom: Atom.Atom<any>; value: unknown }> // value is encoded
 }
 
 const JSON_ESCAPES = /[<>&\u2028\u2029]/g
@@ -52,10 +52,26 @@ const manifest = (c: Collector): string =>
         atoms: Object.fromEntries([...c.atoms].map(([k, { value }]) => [k, value])),
       })}</script>`
 
+// Handler ids and bind keys must survive an HTML attribute round trip unchanged.
+const ID = /^[A-Za-z0-9_.:/-]+$/
+const checkId = (kind: string, id: string): string => {
+  if (!ID.test(id)) throw new TypeError(`Invalid ${kind}: ${JSON.stringify(id)}`)
+  return id
+}
+
+// fn-17's codec for serializable atoms; plain atoms go into the manifest as-is (JSON).
+const encode = (atom: Atom.Atom<any>, value: unknown): unknown => {
+  const info = atom.serializable
+  if (!info) return value
+  if (info.kind === 'result') throw new TypeError(`bind() needs a value atom, got result atom "${info.key}"`)
+  return Schema.encodeSync(info.schema)(value)
+}
+
 const handlerAttrs = (on: Readonly<Record<string, Handler<any, any>>>, c: Collector): string =>
   Object.entries(on)
     .map(([event, h]) => {
       checkEvent(event)
+      checkId('handler id', h.id)
       const seen = c.handlers.get(h.id)
       if (seen && seen !== h) throw new DuplicateHandler({ id: h.id })
       c.handlers.set(h.id, h)
@@ -72,8 +88,9 @@ const serialize = (node: Node, c: Collector): string => {
     case 'Bind': {
       const seen = c.atoms.get(node.key)
       if (seen && seen.atom !== node.atom) throw new DuplicateBindKey({ key: node.key })
-      const value = seen ? seen.value : c.store.get(node.atom)
-      c.atoms.set(node.key, { atom: node.atom, value })
+      checkId('bind key', node.key)
+      const value = c.store.get(node.atom)
+      if (!seen) c.atoms.set(node.key, { atom: node.atom, value: encode(node.atom, value) })
       return `<sleek-bind data-sleek-bind="${escape(node.key)}">${escape(String(value))}</sleek-bind>`
     }
     case 'Fragment':
@@ -90,7 +107,10 @@ const serialize = (node: Node, c: Collector): string => {
       return serialize(node.child, c)
     case 'Guest':
       try {
-        return reactRenderToString(createElement(node.component, node.props))
+        const html = reactRenderToString(createElement(node.component, node.props))
+        // Guests stay inert under resume: they may not forge renderer-owned attributes.
+        if (/\sdata-sleek-/i.test(html)) throw new TypeError('A guest rendered a reserved data-sleek-* attribute')
+        return html
       } catch (error) {
         reportRenderError(error, c.onError)
         return ''

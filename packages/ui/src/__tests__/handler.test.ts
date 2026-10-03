@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { Atom } from '@sleekstack/core'
-import { Effect, Layer } from 'effect'
+import { Effect, Layer, Schema } from 'effect'
+import { createElement } from 'react'
 import { describe, expect, it } from 'vitest'
-import { bind, defineHandler, DuplicateBindKey, DuplicateHandler, el, fragment, mount, on, renderToString, UnsupportedEvent } from '../index'
+import { bind, defineHandler, fromReact, DuplicateBindKey, DuplicateHandler, el, fragment, mount, on, renderToString, UnsupportedEvent } from '../index'
 
 const count = Atom.make(3)
 const inc = defineHandler('inc', () => Effect.void, { preventDefault: true, stopPropagation: true })
@@ -41,8 +42,28 @@ describe('resumable server render', () => {
   })
 
   it('on() rejects non-bubbling events', () => {
-    for (const event of ['focus', 'blur', 'mouseenter', 'mouseleave', 'load', 'scroll'])
+    for (const event of ['focus', 'blur', 'mouseenter', 'mouseleave', 'load', 'scroll', 'invalid', 'play', 'close', 'onclick'])
       expect(() => on(el('a'), { [event]: inc })).toThrow(UnsupportedEvent)
+  })
+
+  it('encodes serializable atoms through their schema and rejects result atoms', async () => {
+    const big = Atom.serializable(Atom.make(5n), { key: 'big', schema: Schema.BigInt })
+    expect(await render(bind(big, 'b'))).toContain('"atoms":{"b":"5"}')
+    const res = Atom.serializable.result(Atom.make(Effect.succeed(1)), { key: 'r', schema: Schema.Number })
+    await expect(render(bind(res, 'r'))).rejects.toThrow('value atom')
+  })
+
+  it('rejects handler ids and bind keys that do not round-trip through an attribute', async () => {
+    await expect(render(on(el('a'), { click: defineHandler('a\rb', () => Effect.void) }))).rejects.toThrow('Invalid handler id')
+    await expect(render(bind(count, 'a\u0000'))).rejects.toThrow('Invalid bind key')
+  })
+
+  it('a guest cannot forge data-sleek-* attributes', async () => {
+    const Forge = fromReact(() => createElement('b', { 'data-sleek-on-click': 'inc' }))
+    const errors: Array<unknown> = []
+    const html = await renderToString(Forge({}), { layer: Layer.empty, onError: (c) => errors.push(c) })
+    expect(html).toBe('')
+    expect(errors).toHaveLength(1)
   })
 
   it('rejects user on* and data-sleek-* attributes', async () => {
