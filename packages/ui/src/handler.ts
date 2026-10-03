@@ -38,7 +38,7 @@ export const defineHandler = <E = never, R = never>(
 const BUBBLING = new Set(
   'click dblclick auxclick contextmenu mousedown mouseup mousemove mouseover mouseout pointerdown pointerup pointermove pointerover pointerout pointercancel touchstart touchend touchmove touchcancel wheel keydown keyup beforeinput input change submit reset focusin focusout select drag dragstart dragend dragenter dragleave dragover drop copy cut paste compositionstart compositionupdate compositionend animationstart animationiteration animationend transitionrun transitionstart transitionend transitioncancel'.split(' '),
 )
-/** Throws `UnsupportedEvent` unless `event` is a supported bubbling event. */
+/** Throws `UnsupportedEvent` unless `event` is on the fixed bubbling-event allow-list. */
 export const checkEvent = (event: string): string => {
   if (!BUBBLING.has(event)) throw new UnsupportedEvent({ event })
   return event

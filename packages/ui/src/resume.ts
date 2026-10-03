@@ -143,6 +143,10 @@ const activate = async <R, LE>(opts: ResumeOptions<R, LE>): Promise<Resumed> => 
     return p
   }
 
+  let deferred = false
+  const paint = () => {
+    for (const { node, atom } of binds) node.textContent = String(store.get(atom))
+  }
   let tail: Promise<void> = Promise.resolve()
   const enqueue = (id: string, event: HandlerEvent) => {
     const loading = load(id)
@@ -157,14 +161,21 @@ const activate = async <R, LE>(opts: ResumeOptions<R, LE>): Promise<Resumed> => 
       }
       if (!active) return
       // Forked into the client Scope so `dispose` interrupts a run in flight; suspend turns a sync throw into a defect.
-      // A failed handler leaves bound state (and so the DOM) as it was: restore what it may have written.
+      // DOM writes wait for the run's exit: a failed handler leaves the DOM as it was, and writable atoms are restored.
       const before = binds.map(({ atom }) => [atom, store.get(atom)] as const)
+      deferred = true
       const run = Effect.provide(Effect.suspend(() => h.run(event)), ctx as Context.Context<any>)
       const exit = await Effect.runPromise(Effect.flatMap(Effect.forkIn(run, scope), Fiber.await))
-      if (active && Exit.isFailure(exit)) {
-        for (const [atom, v] of before) if (store.get(atom) !== v) store.set(atom as any, v)
+      deferred = false
+      if (!active) return
+      if (Exit.isFailure(exit)) {
+        for (const [atom, v] of before) {
+          try {
+            if (store.get(atom) !== v) store.set(atom as any, v) // derived/read-only atoms have no write
+          } catch {}
+        }
         report(exit.cause)
-      }
+      } else paint()
     })
   }
 
@@ -178,7 +189,7 @@ const activate = async <R, LE>(opts: ResumeOptions<R, LE>): Promise<Resumed> => 
     enqueue(target.getAttribute(attr)!, snapshot(e))
   }
 
-  const unsubs = binds.map(({ node, atom }) => store.subscribe(atom, () => void (node.textContent = String(store.get(atom)))))
+  const unsubs = binds.map(({ node, atom }) => store.subscribe(atom, () => void (deferred || (node.textContent = String(store.get(atom))))))
   for (const type of m.events) container.addEventListener(type, listener)
 
   const handle: Resumed = {
