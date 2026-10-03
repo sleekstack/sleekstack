@@ -44,7 +44,7 @@ Raised by `@sleekstack/ui` at render or `resume` time as tagged errors (`Data.Ta
 | `ManifestInvalid` | The container has no manifest, more than one, or a malformed one. |
 | `ManifestDecodeFailed` | A bound atom's value fails to decode. `resume` rejects (a wrong seed would render a wrong page); the error names the atom key. |
 | `DuplicateHandler`, `DuplicateBindKey` | Two different handlers share an id, or two different atoms share a bind key, in one render. |
-| `UnknownHandler`, `HandlerIdMismatch`, `UnsupportedEvent` | A handler id is missing from the `handlers` map, differs from its chunk's declared id, or names an event outside the bubbling allow-list. |
+| `UnknownHandler`, `HandlerIdMismatch`, `UnsupportedEvent` | A handler id is missing from the `handlers` map, differs from its chunk's declared id, or names a non-bubbling event. |
 
 ## Kit checks
 
