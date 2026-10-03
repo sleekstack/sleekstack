@@ -32,7 +32,7 @@ jobs:
 
       - name: Require test/typecheck scripts
         run: |
-          for pkg in packages/core packages/react packages/islands packages/query packages/runtime packages/next packages/kit packages/devtools apps/showcase apps/showcase-kit apps/docs; do
+          for pkg in packages/core packages/react packages/islands packages/query packages/runtime packages/next packages/kit packages/devtools apps/showcase apps/showcase-kit apps/docs apps/bench; do
             node -e "const s=require('./$pkg/package.json').scripts||{};for(const k of ['test','typecheck'])if(!s[k]){console.error('$pkg missing script: '+k);process.exit(1)}"
           done
 
@@ -62,6 +62,39 @@ jobs:
 
       - name: Test docs
         run: pnpm --filter docs test
+
+  bench:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install
+
+      - name: Run benchmarks
+        run: pnpm --filter bench bench:json
+
+      # Ratio gate against apps/bench/baseline.json; the table goes to the job summary pass or fail.
+      - name: Compare with baseline
+        run: |
+          set +e
+          pnpm --silent --filter bench compare > compare.md
+          code=$?
+          cat compare.md >> "$GITHUB_STEP_SUMMARY"
+          cat compare.md
+          exit $code
 
   e2e:
     runs-on: ubuntu-latest

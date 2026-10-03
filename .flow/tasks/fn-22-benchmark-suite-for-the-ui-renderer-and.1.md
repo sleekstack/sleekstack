@@ -31,9 +31,8 @@ Spec `.flow/specs/fn-22-benchmark-suite-for-the-ui-renderer-and.md` is authorita
 - [ ] No `@sleekstack/*` manifest gains a dependency; `pnpm typecheck` passes
 
 ## Done summary
-TBD
-
+apps/bench workspace (comparison libs pinned exactly, devDeps only), scenarios.ts with Library/AtomScenario/check, atoms suite for sleekstack/jotai/effect-atom over 7 scenarios; correctness check aborts naming library+case; finalize.ts writes latest.json with versions+machine info, exit 2 on empty run.
 ## Evidence
-- Commits:
-- Tests:
+- Commits: f4757c4
+- Tests: pnpm --filter bench bench:json, pnpm --filter bench test, pnpm typecheck
 - PRs:

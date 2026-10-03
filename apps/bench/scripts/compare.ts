@@ -72,6 +72,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]!).href) {
   try {
     const report = compare(readResults(resolve(root, 'results/latest.json')), readResults(resolve(root, 'baseline.json')))
     console.log(report.markdown)
+    for (const w of report.warnings) console.error(`::warning::${w}`)
     process.exit(report.failed ? 1 : 0)
   } catch (e) {
     if (!(e instanceof InputError)) throw e
