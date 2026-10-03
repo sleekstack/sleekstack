@@ -27,7 +27,7 @@ Atom hooks run during a server render. Opted-in atoms are serialized to a `Snaps
 
 ### Serializable atoms
 
-Only atoms marked with a stable key and a `Schema` cross the wire:
+Only atoms marked with a stable key and a `Schema` cross the wire. Pick a schema whose encoded side is JSON (strings, numbers, booleans, null, arrays, plain objects): the snapshot travels as JSON, so an encoding such as `bigint` breaks `AtomsSnapshot` and the Next prop.
 
 ```ts
 import { Atom } from '@sleekstack/core'

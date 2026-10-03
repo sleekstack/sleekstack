@@ -30,7 +30,7 @@ export const App = () => (
 
 ## Atoms
 
-Atoms (`Atom.make` from `@sleekstack/core`) are reactive client state modeled on effect-atom. Each `LayerProvider` owns an `AtomStore`, so atom state is per provider and is disposed when the provider unmounts, and Effect atoms resolve their services from that provider's scope. See the Atoms guide. In development each provider's store is also listed for the devtools panel through `@sleekstack/react/internal` (not public API; production bundles carry none of it).
+Atoms (`Atom.make` from `@sleekstack/core`) are reactive state, read during server and client renders, modeled on effect-atom. Each `LayerProvider` owns an `AtomStore`, so atom state is per provider and is disposed when the provider unmounts, and Effect atoms resolve their services from that provider's scope. See the Atoms guide. In development each provider's store is also listed for the devtools panel through `@sleekstack/react/internal` (not public API; production bundles carry none of it).
 
 Using kit instead of Effect? Use `@sleekstack/kit/react`, which wraps these hooks.
 

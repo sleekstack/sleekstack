@@ -116,7 +116,7 @@ An Atom opted in to SSR with a stable key, a `Schema` and an explicit kind: `Ato
 _Avoid_: Persisted atom, hydratable atom
 
 **Snapshot**:
-The JSON-safe `Record<key, encoded value>` of the settled Serializable Atoms built in an AtomStore (`dehydrate`), sent from the server and used to seed a client AtomStore before the first read (`hydrate`). Result atoms enter it only on `Success`. Distinct from the query layer's `Dehydrated`.
+The `Record<key, encoded value>` of the settled Serializable Atoms built in an AtomStore (`dehydrate`), sent from the server and used to seed a client AtomStore before the first read (`hydrate`). Result atoms enter it only on `Success`. It is JSON-safe only when each schema encodes to JSON values (a `bigint` encoding breaks the transport). Distinct from the query layer's `Dehydrated`.
 _Avoid_: Payload, atom state
 
 ### UI framework concepts (`@sleekstack/ui`, MVP)

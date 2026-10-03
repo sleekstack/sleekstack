@@ -10,7 +10,7 @@ The Effect-native engine. Core has no Effect-hiding sugar (that is [`@sleekstack
 | `resolveTag`, `resolveTagEffect` | Look a Tag up in a scope's `context`; a miss is `MissingDependency`. |
 | `Atom`, `Result`, `makeAtomStore` | Reactive state modeled on effect-atom, no dependency. |
 | `Atom.serializable`, `Atom.serializable.result`, `dehydrate`, `hydrate`, `Snapshot` | Atom SSR: opt an atom in with a key and a `Schema`, dehydrate a store's settled values, seed another store from the snapshot. `makeAtomStore({ hydrate, inert })` seeds at construction or never starts Effects. Keys are unique per store (`DuplicateAtomKey`). |
-| Error classes | `MissingDependency`, `DependencyCycle`, `AmbiguousProvider`, `ModuleCycle`, `DuplicateModule`, `InvalidModule`, `CaptiveDependency`, `PrivateDependency`, `AtomCycle`. Only `MissingDependency` is raised by the runtime; `sleekstack check` reports the rest. |
+| Error classes | `DuplicateAtomKey`, `MissingDependency`, `DependencyCycle`, `AmbiguousProvider`, `ModuleCycle`, `DuplicateModule`, `InvalidModule`, `CaptiveDependency`, `PrivateDependency`, `AtomCycle`. `DuplicateAtomKey` (atom SSR) is raised by an `AtomStore`. Only `MissingDependency` is raised by the runtime; `sleekstack check` reports the rest. |
 
 ```ts
 import { Context, Effect, Layer } from 'effect'
