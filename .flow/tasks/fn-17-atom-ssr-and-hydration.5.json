@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-03T09:07:24.436318Z",
+  "depends_on": [
+    "fn-17-atom-ssr-and-hydration.3"
+  ],
+  "id": "fn-17-atom-ssr-and-hydration.5",
+  "priority": null,
+  "spec": "fn-17-atom-ssr-and-hydration",
+  "spec_path": ".flow/tasks/fn-17-atom-ssr-and-hydration.5.md",
+  "status": "todo",
+  "title": "Docs, ADR 0016, CONTEXT terms and READMEs for atom SSR",
+  "updated_at": "2026-10-03T09:25:23.094268Z"
+}
