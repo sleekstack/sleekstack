@@ -1,7 +1,7 @@
 {
   "branch_name": "fn-13-runtime-package-request-aware-graph",
-  "completion_review_status": "unknown",
-  "completion_reviewed_at": null,
+  "completion_review_status": "ship",
+  "completion_reviewed_at": "2026-10-02T15:38:13.312814Z",
   "created_at": "2026-10-01T09:18:43.614918Z",
   "default_impl": null,
   "default_review": null,
@@ -11,7 +11,10 @@
   ],
   "id": "fn-13-runtime-package-request-aware-graph",
   "impl_review_rounds": {
-    "fn-13-runtime-package-request-aware-graph.1": 0
+    "fn-13-runtime-package-request-aware-graph.1": 0,
+    "fn-13-runtime-package-request-aware-graph.3": 0,
+    "fn-13-runtime-package-request-aware-graph.5": 0,
+    "fn-13-runtime-package-request-aware-graph.6": 0
   },
   "next_task": 1,
   "plan_review_rounds": 0,
@@ -506,17 +509,437 @@
       "task": "fn-13-runtime-package-request-aware-graph.1",
       "timestamp": "2026-10-01T12:02:20.865087Z",
       "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "ad4743e825554e2fc79390906b3aa1828c2e6eca112b783df9c1f882b28b5ff2",
+      "backend": "codex",
+      "base_sha": "d0053d9ded31de5376e5b4e53657d0538e651384",
+      "counter_kind": "impl",
+      "failure_class": "nonzero_exit",
+      "finalized": {
+        "digest": "not_applicable",
+        "receipt": "not_applicable",
+        "status": "not_applicable"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "2e553d0c83e6bd98292ed0bbbf95a71ff91a4dba",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "outcome": "transport_failure",
+      "output_bytes": 75,
+      "output_sha256": "54a3f11c7b2d494ea37c84ca79ea09596e131b28e95c2073cb830fa99ab55bd5",
+      "reservation_id": "a36356d8735f4090bd5e5700090ea22b",
+      "round_consumed": false,
+      "scope": "impl:fn-13-runtime-package-request-aware-graph.5",
+      "superseded_by": null,
+      "task": "fn-13-runtime-package-request-aware-graph.5",
+      "timestamp": "2026-10-02T06:27:00.652092Z",
+      "verdict": null
+    },
+    {
+      "artifact_sha256": "85d806c58d7a401c110eb0f891f015ebaf9f82e2d4e40a7fe25fb410f35be155",
+      "backend": "codex",
+      "base_sha": "d0053d9ded31de5376e5b4e53657d0538e651384",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-adfdec127f2a4e7d86e2c326d051e6e6",
+            "classification": "introduced",
+            "findingId": "finding-adfdec127f2a4e7d86e2c326d051e6e6",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-fe2894eb0d5f330ece179265907919f6",
+            "classification": "introduced",
+            "findingId": "finding-fe2894eb0d5f330ece179265907919f6",
+            "firstSeenThisRound": true,
+            "severity": "P3",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "c8a08292262fdf7c2193a35ec9fac3fa34322f26",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1638,
+      "output_sha256": "2045b676867a817d22d4d61587f07014fed03cbee63df8d275fe52ae2b7e33bc",
+      "reservation_id": "7f93559b7aba4b74b37f10aa93b4ca88",
+      "round_consumed": true,
+      "scope": "impl:fn-13-runtime-package-request-aware-graph.5",
+      "superseded_by": null,
+      "task": "fn-13-runtime-package-request-aware-graph.5",
+      "timestamp": "2026-10-02T14:53:25.289098Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "daf321429986035ed79d07f00520f3a94ce147bbb1c32a91b828608f09446a67",
+      "backend": "codex",
+      "base_sha": "d0053d9ded31de5376e5b4e53657d0538e651384",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-adfdec127f2a4e7d86e2c326d051e6e6",
+            "classification": "introduced",
+            "findingId": "finding-adfdec127f2a4e7d86e2c326d051e6e6",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-fe2894eb0d5f330ece179265907919f6",
+            "classification": "introduced",
+            "findingId": "finding-fe2894eb0d5f330ece179265907919f6",
+            "firstSeenThisRound": false,
+            "severity": "P3",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "65377f082254b900bca6ddfb0b48d68eddb62196",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 587,
+      "output_sha256": "4ae3dfb5480baecf15a736aae7bbf52b3426abb829d4445ba63b016abc8d4db3",
+      "reservation_id": "08d9b748c1ba4a81b73c6d51f350e33d",
+      "round_consumed": true,
+      "scope": "impl:fn-13-runtime-package-request-aware-graph.5",
+      "superseded_by": null,
+      "task": "fn-13-runtime-package-request-aware-graph.5",
+      "timestamp": "2026-10-02T14:56:32.679093Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "945604282911042779cc2ef5dc7ab1ef32f514f2f96f8501698fa618ed461d86",
+      "backend": "codex",
+      "base_sha": "53bdcf9e210231696544f00c9353571cdad4c974",
+      "counter_kind": "impl",
+      "failure_class": "head_moved",
+      "finalized": {
+        "digest": "not_applicable",
+        "receipt": "not_applicable",
+        "status": "not_applicable"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "e7aecd6bf6ab140aa43b4bd2615b249eb496c332",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "outcome": "transport_failure",
+      "output_bytes": 65,
+      "output_sha256": "581b94cdc8a7e44875353d5bcecf823198ab0bfde4854b69400c1ecb82dfa4e6",
+      "reservation_id": "fbec371099f14e4c80a827eb7209c395",
+      "round_consumed": false,
+      "scope": "impl:fn-13-runtime-package-request-aware-graph.3",
+      "superseded_by": null,
+      "task": "fn-13-runtime-package-request-aware-graph.3",
+      "timestamp": "2026-10-02T15:02:26.450490Z",
+      "verdict": null
+    },
+    {
+      "artifact_sha256": "a0513ca2e3de481cba579342fbc08e6f003667d41ffa7cf6fc29619fef8f0a85",
+      "backend": "codex",
+      "base_sha": "53bdcf9e210231696544f00c9353571cdad4c974",
+      "counter_kind": "impl",
+      "failure_class": "head_moved",
+      "finalized": {
+        "digest": "not_applicable",
+        "receipt": "not_applicable",
+        "status": "not_applicable"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "a5276aa87b589eb955350d8f611a3628fa4c6ebe",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "outcome": "transport_failure",
+      "output_bytes": 65,
+      "output_sha256": "9cc4c2ca0f59e7579bb39b93b0b29f2afdadb9bd262da4a77a715a0dc032249c",
+      "reservation_id": "e685d4ea337f41319e219be19c8543c6",
+      "round_consumed": false,
+      "scope": "impl:fn-13-runtime-package-request-aware-graph.3",
+      "superseded_by": null,
+      "task": "fn-13-runtime-package-request-aware-graph.3",
+      "timestamp": "2026-10-02T15:10:11.898826Z",
+      "verdict": null
+    },
+    {
+      "artifact_sha256": "786a34ff0eb37a114efbd0b86a4ba6049698e8c34758a4b4c78821fd4253bf7f",
+      "backend": "codex",
+      "base_sha": "53bdcf9e210231696544f00c9353571cdad4c974",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-27b7cf215eece9f6abdb122e922eef7a",
+            "classification": "introduced",
+            "findingId": "finding-27b7cf215eece9f6abdb122e922eef7a",
+            "firstSeenThisRound": true,
+            "severity": "P3",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "e3160f34c2c1a30d59168e2b0def148b10185a1f",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 914,
+      "output_sha256": "d4ca3cd513e302b75332092ac72850f7517bc0c51c64a6be12de9a7ca6927ccc",
+      "reservation_id": "6a26e528511a4f6d87c6fc8afd3b993b",
+      "round_consumed": true,
+      "scope": "impl:fn-13-runtime-package-request-aware-graph.3",
+      "superseded_by": null,
+      "task": "fn-13-runtime-package-request-aware-graph.3",
+      "timestamp": "2026-10-02T15:20:02.759611Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "ed95e3e49cc06bb518a9cc0b1236c8bfe9c18b768fd17bafd190e1b411599bc4",
+      "backend": "codex",
+      "base_sha": "53bdcf9e210231696544f00c9353571cdad4c974",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-27b7cf215eece9f6abdb122e922eef7a",
+            "classification": "introduced",
+            "findingId": "finding-27b7cf215eece9f6abdb122e922eef7a",
+            "firstSeenThisRound": false,
+            "severity": "P3",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "19826233a0e726525b4d977012d4e74801803af0",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 517,
+      "output_sha256": "dcc6a4dee241ce6488fe5d6915bd7c10bfda34898d195ad612c2820f903d0215",
+      "reservation_id": "f0deb25039d44b5d9cf3a66be4c67f64",
+      "round_consumed": true,
+      "scope": "impl:fn-13-runtime-package-request-aware-graph.3",
+      "superseded_by": null,
+      "task": "fn-13-runtime-package-request-aware-graph.3",
+      "timestamp": "2026-10-02T15:20:50.027156Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "205eaa0cf22ee956a31b35247d1d05330d22704078b6c46a78b54b7f8c4db6f9",
+      "backend": "codex",
+      "base_sha": "f5bcefed860d82a88c7c985f0bf5083e8a4c5036",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-ab23cbb1ca3be17a883fc105573c1c81",
+            "classification": "introduced",
+            "findingId": "finding-ab23cbb1ca3be17a883fc105573c1c81",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-c0a8582a167b0818feb3f0562d4e7f61",
+            "classification": "introduced",
+            "findingId": "finding-c0a8582a167b0818feb3f0562d4e7f61",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "6b81a6d85392449ccb521624e75fe78674e4f2fb",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1747,
+      "output_sha256": "2cb22e91c033ec63a468204564f133ac5d842468a0b2c790e73f0e3cf31d701f",
+      "reservation_id": "1f5029ad8e6849ae9f55a4f73939a9df",
+      "round_consumed": true,
+      "scope": "impl:fn-13-runtime-package-request-aware-graph.6",
+      "superseded_by": null,
+      "task": "fn-13-runtime-package-request-aware-graph.6",
+      "timestamp": "2026-10-02T15:30:20.972245Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "ff81f98b94490c1fd5b32014bc5aad66f124994717e6d1092d9562d63ad6d9be",
+      "backend": "codex",
+      "base_sha": "f5bcefed860d82a88c7c985f0bf5083e8a4c5036",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-ab23cbb1ca3be17a883fc105573c1c81",
+            "classification": "introduced",
+            "findingId": "finding-ab23cbb1ca3be17a883fc105573c1c81",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-c0a8582a167b0818feb3f0562d4e7f61",
+            "classification": "introduced",
+            "findingId": "finding-c0a8582a167b0818feb3f0562d4e7f61",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "d73f206d92dbdb14d487fff89c2bd4ec6f661e72",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 671,
+      "output_sha256": "16cb1b2f2a40dbb45c27a64313fa66c695dd4c34a2d259a427e2d479f8916444",
+      "reservation_id": "acfabbe50fae419fa829bd2bf7ab95c2",
+      "round_consumed": true,
+      "scope": "impl:fn-13-runtime-package-request-aware-graph.6",
+      "superseded_by": null,
+      "task": "fn-13-runtime-package-request-aware-graph.6",
+      "timestamp": "2026-10-02T15:32:58.857708Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "ef5c72fc82033163c027968b190f5b6f1b0692ea1e4cdbde2c6b6f86e273fc04",
+      "backend": "codex",
+      "base_sha": "60002ea94af155191ee2449d333c2ccb6f68eb5f",
+      "counter_kind": "plan",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "d73f206d92dbdb14d487fff89c2bd4ec6f661e72",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 442842,
+      "output_sha256": "8a827e8e167e5ba967099067b00253e4e807f27e14b638f2838760af896aa00f",
+      "reservation_id": "6cfc5ac62ed44de5ab1ed63183195333",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-10-02T15:38:13.307542Z",
+      "tool_calls": 18,
+      "verdict": "SHIP"
     }
   ],
   "review_hash_epoch": {
     "impl:fn-13-runtime-package-request-aware-graph.1": 1,
+    "impl:fn-13-runtime-package-request-aware-graph.3": 1,
+    "impl:fn-13-runtime-package-request-aware-graph.5": 1,
+    "impl:fn-13-runtime-package-request-aware-graph.6": 1,
     "plan": 1,
-    "plan#completion": 0
+    "plan#completion": 1
   },
   "review_pending_rounds": {},
   "review_reservations": {},
   "review_transport_failures": {
+    "completion": 0,
     "impl:fn-13-runtime-package-request-aware-graph.1": 0,
+    "impl:fn-13-runtime-package-request-aware-graph.3": 0,
+    "impl:fn-13-runtime-package-request-aware-graph.5": 0,
+    "impl:fn-13-runtime-package-request-aware-graph.6": 0,
     "plan": 0
   },
   "spec_path": ".flow/specs/fn-13-runtime-package-request-aware-graph.md",
@@ -533,5 +956,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-01T12:02:20.869647Z"
+  "updated_at": "2026-10-02T15:38:13.314411Z"
 }

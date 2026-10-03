@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-03T15:46:36.282519Z",
+  "depends_on": [
+    "fn-21-replace-sleekstackquery-with-tanstack.1"
+  ],
+  "id": "fn-21-replace-sleekstackquery-with-tanstack.2",
+  "priority": null,
+  "spec": "fn-21-replace-sleekstackquery-with-tanstack",
+  "spec_path": ".flow/tasks/fn-21-replace-sleekstackquery-with-tanstack.2.md",
+  "status": "todo",
+  "title": "react: QueryProvider over the official react-query hooks",
+  "updated_at": "2026-10-03T15:46:36.282519Z"
+}

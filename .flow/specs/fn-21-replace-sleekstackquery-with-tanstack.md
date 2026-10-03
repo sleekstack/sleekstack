@@ -1,16 +1,16 @@
 ## Goal & Context
 <!-- scope: business -->
 
-Replace `@sleekstack/query` (the Effect-native query layer on atoms, fn-12 / ADR 0014) with TanStack Query's framework-agnostic core, `@tanstack/query-core`, across the stack, and bind it to `@sleekstack/ui` host components. One query engine, the one with the ecosystem: one cache semantics, existing docs, official React / devtools knowledge transfers, and ui gets `useQuery` / `useMutation` for free from the same core.
+Replace the engine inside `@sleekstack/query` (the Effect-native query layer on atoms, fn-12 / ADR 0014) with TanStack Query's framework-agnostic core, `@tanstack/query-core`, across the stack, and bind it to `@sleekstack/ui` host components. The package name stays: `@sleekstack/query` becomes the thin SleekStack bridge over the real core. One query engine, the one with the ecosystem: one cache semantics, existing docs, official React / devtools knowledge transfers, and ui gets `useQuery` / `useMutation` for free from the same core.
 
 ADR 0014 rejected wrapping TanStack ("a second cache with a second lifecycle beside our scopes, and its Promise boundary loses `R` and `E`"). That decision is reversed by the owner. The costs it named are accepted and mitigated in this spec: the cache lives in a `QueryClient` whose lifetime is a Layer scope (R1), and DI is kept by an Effect-to-`queryFn` helper that runs the Effect with the app's services (R2). Effect-typed query failures (`E` in the type) are given up; errors are TanStack's `TError`.
 
-This is a breaking change to private, pre-1.0 workspace packages: no compatibility shims, `@sleekstack/query` is deleted. Depends on fn-19 (merged). Obsoletes fn-16 (kit SSR prefetch for the old layer); that spec should be closed when this one is planned.
+This is a breaking change to private, pre-1.0 workspace packages: no compatibility shims, and the old engine's exports (`Query`, `Queries`, `Mutation`, `Hydrate`, `QueryEvents`, `canonicalKey`) are deleted. Depends on fn-19 (merged). Obsoletes fn-16 (kit SSR prefetch for the old layer); that spec should be closed when this one is planned.
 
 ## Architecture & Data Models
 <!-- scope: technical -->
 
-- **Shared bridge in core.** A new subpath `@sleekstack/core/query` (peer dependency `@tanstack/query-core`) holds the only SleekStack-specific pieces: `QueryClientTag` (an `Effect.Tag` over `QueryClient`), `QueryClientLive(config?)` (a `Layer` that builds the client, `mount()`s it, and on scope close `unmount()`s and `clear()`s it), and `effectFn(effect)` (below). React, Next, kit, ui and devtools all import these; none of them imports another's query code.
+- **Shared bridge: `@sleekstack/query`, rewritten.** The package (not `@sleekstack/core`, which stays free of TanStack) depends on `@tanstack/query-core` and holds the only SleekStack-specific pieces: `QueryClientTag` (an `Effect.Tag` over `QueryClient`), `QueryClientLive(config?)` (a `Layer` that builds the client, `mount()`s it, and on scope close `unmount()`s and `clear()`s it), and `effectFn(effect)` (below). React, Next, kit, ui and devtools all import these from `@sleekstack/query`; none of them imports another's query code. The bridge is added next to the old engine first and the old engine is removed in the last task, so the repo builds between tasks.
 - **DI kept: `effectFn`.** `effectFn(effect)` returns a `queryFn` / `mutationFn` that runs `effect` with the `Context` the client's layer was built in (captured by `QueryClientLive`), honoring the `AbortSignal` TanStack passes (interrupting the fiber) and rejecting with the original failure value (so a tagged error is the query's `error`). A query body can therefore `yield* SomeTag` exactly as kit's `cachedQuery` bodies do today. Plain promise `queryFn`s stay valid.
 - **React (`@sleekstack/react`).** Hooks come from the official `@tanstack/react-query` (peer dependency); `@sleekstack/react` stops shipping its own `useQuery` / `useMutation` / `HydrateQueries`. It adds `QueryProvider`, which reads `QueryClientTag` from the app scope and renders TanStack's `QueryClientProvider` (so one client per `LayerProvider` root, disposed with its scope). SSR hydration uses TanStack's `dehydrate` / `HydrationBoundary`.
 - **Next (`@sleekstack/next`).** `prefetchQueries(...)` runs inside the request-scoped `runEffect`, takes the client from the request scope, awaits `prefetchQuery` for the given options, and returns `dehydrate(client)` for the page to pass to `HydrationBoundary`; the client is disposed with the request scope.
@@ -18,7 +18,7 @@ This is a breaking change to private, pre-1.0 workspace packages: no compatibili
 - **ui (`@sleekstack/ui/query`).** The binding specified in "UI bindings" below.
 - **Devtools.** The queries panel reads the client's `QueryCache` (subscribe for events, `getAll` for the snapshot) instead of the removed `QueryEvents` buffer; production gating is kept.
 - **Showcase and docs.** The showcase board query layer is rewritten in TanStack idioms (optimistic update via `onMutate` and rollback via `onError`, invalidation on settle), keeping its tests and e2e green. `apps/docs` queries guide and snippets are rewritten; docs tests keep passing.
-- **Removal.** `packages/query` and every `@sleekstack/query` dependency, import, doc mention and lockfile entry are deleted. ADR 0014 is marked superseded by a new ADR recording this reversal; `CONTEXT.md` and READMEs updated. The Analyzer's reads of query fetchers (`FETCHER_CALLS`, `kit/query#cachedQuery`) are removed or retargeted to what remains.
+- **Removal.** The old engine (`packages/query/src` modules other than the bridge, their tests, and every import of their exports) is deleted; the package keeps only the bridge. ADR 0014 is marked superseded by a new ADR recording this reversal; `CONTEXT.md` and READMEs updated. The Analyzer's reads of query fetchers (`FETCHER_CALLS`, `kit/query#cachedQuery`) are removed or retargeted to what remains.
 
 ### UI bindings
 
@@ -31,7 +31,7 @@ This is a breaking change to private, pre-1.0 workspace packages: no compatibili
 <!-- scope: technical -->
 
 ```ts
-// @sleekstack/core/query
+// @sleekstack/query
 class QueryClientTag extends Effect.Tag('QueryClientTag')<QueryClientTag, QueryClient>() {}
 QueryClientLive(config?: QueryClientConfig): Layer<QueryClientTag>
 effectFn<A, E, R>(effect: Effect<A, E, R>): (ctx?: { signal?: AbortSignal }) => Promise<A>   // R must be satisfied by the client layer's context
@@ -74,7 +74,7 @@ prefetchQueries(optionsList, runOptions?): Promise<DehydratedState>
 - **R9:** ui: `useMutation` exposes `mutate` / `mutateAsync` and reactive status, a guest prop calling `mutate` updates the reader; `renderToString` starts no fetch (prefetched data renders, otherwise `pending`); `dispose` / a superseding `mount` leaves no observers or timers from this module. Errors: a failing `mutationFn` yields `status: 'error'`, `mutateAsync` rejects with the original error.
 - **R10:** `sleekstack check` reports a component using a query hook under a mount layer that does not provide `QueryClientTag` (`MissingDependency`) and is clean when provided; the Analyzer no longer references the removed query layer. Errors: no new error code.
 - **R11:** Showcase and docs compile, their tests and e2e pass on the new layer, and `apps/ui-demo` shows a query-driven list with a mutation from a guest (jsdom test with a fake `queryFn`). Errors: none.
-- **R12:** `packages/query` is deleted and no reference to `@sleekstack/query` remains in code, package manifests, lockfile, docs or CONTEXT (a repo grep returns only ADR history); ADR 0014 is marked superseded by the new ADR. Errors: none.
+- **R12:** The old engine is deleted from `packages/query` (only the bridge remains) and no import of a removed export (`Query`, `Queries`, `Mutation`, `Hydrate`, `QueryEvents`, `canonicalKey`, `InvalidQueryKey`) remains in code, docs or CONTEXT (a repo grep returns only ADR history); ADR 0014 is marked superseded by the new ADR. Errors: none.
 
 ## Boundaries
 <!-- scope: business -->
@@ -90,9 +90,9 @@ prefetchQueries(optionsList, runOptions?): Promise<DehydratedState>
 <!-- scope: both -->
 
 - **Replace over coexist** (owner decision, after choosing real `query-core` over binding the existing layer): one engine, no second query story to document or maintain.
-- **Tag and Layer in `@sleekstack/core/query`**: every consumer already depends on core, and a peer dependency keeps TanStack out of users who never import the subpath.
+- **Bridge in `@sleekstack/query`** (owner decision: not in core): every consumer of queries already depends on this package, core stays free of TanStack, and the name continues to mean "SleekStack's query layer".
 - **Official `@tanstack/react-query` for React**: the framework adapter is already the maintained binding; we only bridge the client's lifetime.
 - **`effectFn` instead of dropping DI**: kit's query bodies resolve Tags from the scope, and losing that would remove the reason to have queries inside SleekStack at all.
 - **Bridge ui through atoms and ref-counted entries**: fn-19 already re-renders on atom changes; a per-re-run observer would refetch in a loop, so observers are shared per store and released by scope.
-- **Rejected: keep `@sleekstack/query` beside it**: owner chose replacement; two layers double the surface.
+- **Rejected: keep the old engine beside it**: owner chose replacement; two layers double the surface.
 - **Rejected: an engine adapter interface**: no second engine is planned.
