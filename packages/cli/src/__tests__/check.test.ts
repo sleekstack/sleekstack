@@ -37,7 +37,7 @@ describe('sleekstack check', () => {
   it('ui project: a component error exits 1 with file:line code; a clean ui-only project exits 0', () => {
     const bad = run(fixture('ui/bad'))
     expect(bad.code).toBe(1)
-    expect(bad.err).toMatch(/app\.ts:9 MissingDependency: /)
+    expect(bad.err).toMatch(/app\.ts:9 MissingDependency: [^\n]*\n(    fix: [^\n]+\n)+    docs: \/docs\/errors#/)
     const clean = run(fixture('ui/clean'), '--json')
     expect(clean.code).toBe(0)
     expect(JSON.parse(clean.out).components.trees).toHaveLength(1)
@@ -82,9 +82,36 @@ describe('sleekstack check', () => {
     [['--version'], 0, /^0\.0\.1/],
     [['help'], 0, /Usage: sleekstack <command>/],
     [['bogus'], 2, /Usage: sleekstack <command>/],
+    [['explain', 'DependencyCycle'], 0, /^DependencyCycle: /],
   ])('bin %j keeps the informational commands', (args, status, out) => {
     const r = spawnSync(process.execPath, [path.join(__dirname, '../../bin/cli.js'), ...args], { encoding: 'utf8' })
     expect(r.status).toBe(status)
     expect(r.stdout).toMatch(out)
+  })
+})
+
+describe('sleekstack explain', () => {
+  const explain = (...args: string[]) => {
+    let out = ''
+    let err = ''
+    const code = main(['explain', ...args], { cwd: '.', out: (s) => (out += s), err: (s) => (err += s) })
+    return { code, out, err }
+  }
+
+  it('prints the rule, remedies and docs path of a code', () => {
+    const r = explain('MissingDependency')
+    expect(r.code).toBe(0)
+    expect(r.out).toMatch(/^MissingDependency: .+\n(  fix: .+\n)+  docs: \/docs\/errors#graph-errors$/)
+  })
+
+  it.each([
+    [['Nope'], /^Unknown code "Nope"[\s\S]*Usage:/],
+    [['toString'], /^Unknown code "toString"/],
+    [[], /^Usage:/],
+    [['MissingDependency', 'extra'], /^Usage:/],
+  ])('%j exits 2', (args, err) => {
+    const r = explain(...args)
+    expect([r.code, r.out]).toEqual([2, ''])
+    expect(r.err).toMatch(err)
   })
 })

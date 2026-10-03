@@ -6,6 +6,10 @@
  * declarations read by `extract.ts`, never from executing app code.
  */
 
+import type { AnalyzeCode } from './errorCodes'
+
+export type { AnalyzeCode, ErrorHelp } from './errorCodes'
+
 /** What made a root: `configureRuntime`, a runEffect `request` / `overrides` Layer, or a lenient opaque layer. */
 export type RootKind = 'app' | 'request' | 'overrides' | 'opaque'
 
@@ -16,11 +20,19 @@ export interface Location {
   readonly file: string
   /** 1-based. */
   readonly line: number
+  /** 1-based, with `endLine` / `endColumn`: set where a source node is at hand. */
+  readonly column?: number
+  readonly endLine?: number
+  readonly endColumn?: number
 }
 
 export interface AnalyzeError extends Location {
-  readonly code: string
+  readonly code: AnalyzeCode
   readonly message: string
+  /** Remedies from the error table, most likely first. */
+  readonly fix: readonly string[]
+  /** Docs path (with anchor) for the code. */
+  readonly docs: string
 }
 
 /** A `layer()` / kit `effect()` / `declareLayer()` (Tags read from the Layer type) / bare Layer / plain-Layer leaf, as read from source. */

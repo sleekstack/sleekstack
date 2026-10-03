@@ -52,7 +52,7 @@ describe('graph error fixtures', () => {
     const r = analyze({ project: path.join(dir('actions'), 'tsconfig.json') })
     // An action body with no readable declaration fails the whole check.
     expect(r.extraction.map((e) => [e.code, e.file])).toContainEqual(['Unresolvable', 'effects.ts'])
-    expect(r.runtimes[0]!.errors.map((e) => e.code).sort()).toEqual(['MissingDependency', 'MissingDependency', 'MissingDependency', 'MissingDependency', 'MissingDependency', 'MissingDependency', 'MissingDependency', 'MissingDependency', 'PrivateDependency'])
+    expect(r.runtimes[0]!.errors.map((e) => e.code).sort()).toEqual(['MissingDependency', 'MissingDependency', 'MissingDependency', 'MissingDependency', 'MissingDependency', 'MissingDependency', 'MissingDependency', 'MissingDependency', 'PrivateDependency', 'PrivateDependency']) // runOperation + its deprecated alias effect (ADR 0019)
   })
 
   it('query and mutation fetchers: requirements checked like action bodies; non-static keys are Computed', () => {

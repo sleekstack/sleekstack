@@ -1,0 +1,242 @@
+{
+  "model": "sonnet",
+  "runs": 1,
+  "summary": {
+    "with": {
+      "runs": 11,
+      "pass": 11,
+      "judged": 11,
+      "meanTokens": 214546,
+      "cost": 1.9283458
+    },
+    "without": {
+      "runs": 11,
+      "pass": 11,
+      "judged": 11,
+      "meanTokens": 218381,
+      "cost": 1.8637904
+    }
+  },
+  "results": [
+    {
+      "task": "add-request-service",
+      "cond": "with",
+      "run": 0,
+      "verdict": "pass",
+      "notes": [],
+      "tokens": 191576,
+      "cost": 0.16984860000000002,
+      "turns": 8
+    },
+    {
+      "task": "add-request-service",
+      "cond": "without",
+      "run": 0,
+      "verdict": "pass",
+      "notes": [],
+      "tokens": 220895,
+      "cost": 0.174615,
+      "turns": 8
+    },
+    {
+      "task": "add-action",
+      "cond": "with",
+      "run": 0,
+      "verdict": "pass",
+      "notes": [],
+      "tokens": 151262,
+      "cost": 0.15660480000000002,
+      "turns": 7
+    },
+    {
+      "task": "add-action",
+      "cond": "without",
+      "run": 0,
+      "verdict": "pass",
+      "notes": [],
+      "tokens": 187963,
+      "cost": 0.17205839999999997,
+      "turns": 6
+    },
+    {
+      "task": "add-inline-op",
+      "cond": "with",
+      "run": 0,
+      "verdict": "pass",
+      "notes": [],
+      "tokens": 151005,
+      "cost": 0.1546178,
+      "turns": 7
+    },
+    {
+      "task": "add-inline-op",
+      "cond": "without",
+      "run": 0,
+      "verdict": "pass",
+      "notes": [],
+      "tokens": 264436,
+      "cost": 0.1899216,
+      "turns": 7
+    },
+    {
+      "task": "add-side-effect",
+      "cond": "with",
+      "run": 0,
+      "verdict": "pass",
+      "notes": [],
+      "tokens": 319835,
+      "cost": 0.2132388,
+      "turns": 10
+    },
+    {
+      "task": "add-side-effect",
+      "cond": "without",
+      "run": 0,
+      "verdict": "pass",
+      "notes": [],
+      "tokens": 261720,
+      "cost": 0.19078939999999997,
+      "turns": 8
+    },
+    {
+      "task": "add-module",
+      "cond": "with",
+      "run": 0,
+      "verdict": "pass",
+      "notes": [],
+      "tokens": 150382,
+      "cost": 0.1560762,
+      "turns": 5
+    },
+    {
+      "task": "add-module",
+      "cond": "without",
+      "run": 0,
+      "verdict": "pass",
+      "notes": [],
+      "tokens": 305485,
+      "cost": 0.19913800000000004,
+      "turns": 8
+    },
+    {
+      "task": "add-query",
+      "cond": "with",
+      "run": 0,
+      "verdict": "pass",
+      "notes": [],
+      "tokens": 357076,
+      "cost": 0.21895,
+      "turns": 10
+    },
+    {
+      "task": "add-query",
+      "cond": "without",
+      "run": 0,
+      "verdict": "pass",
+      "notes": [],
+      "tokens": 265079,
+      "cost": 0.18874700000000003,
+      "turns": 8
+    },
+    {
+      "task": "fix-captive",
+      "cond": "with",
+      "run": 0,
+      "verdict": "pass",
+      "notes": [],
+      "tokens": 149775,
+      "cost": 0.1513628,
+      "turns": 4
+    },
+    {
+      "task": "fix-captive",
+      "cond": "without",
+      "run": 0,
+      "verdict": "pass",
+      "notes": [],
+      "tokens": 178411,
+      "cost": 0.1494864,
+      "turns": 6
+    },
+    {
+      "task": "fix-private",
+      "cond": "with",
+      "run": 0,
+      "verdict": "pass",
+      "notes": [],
+      "tokens": 191070,
+      "cost": 0.16800500000000002,
+      "turns": 8
+    },
+    {
+      "task": "fix-private",
+      "cond": "without",
+      "run": 0,
+      "verdict": "pass",
+      "notes": [],
+      "tokens": 142155,
+      "cost": 0.13948919999999998,
+      "turns": 5
+    },
+    {
+      "task": "fix-missing",
+      "cond": "with",
+      "run": 0,
+      "verdict": "pass",
+      "notes": [],
+      "tokens": 151980,
+      "cost": 0.1581454,
+      "turns": 7
+    },
+    {
+      "task": "fix-missing",
+      "cond": "without",
+      "run": 0,
+      "verdict": "pass",
+      "notes": [],
+      "tokens": 142271,
+      "cost": 0.13885820000000001,
+      "turns": 4
+    },
+    {
+      "task": "fix-cycle",
+      "cond": "with",
+      "run": 0,
+      "verdict": "pass",
+      "notes": [],
+      "tokens": 150960,
+      "cost": 0.154965,
+      "turns": 5
+    },
+    {
+      "task": "fix-cycle",
+      "cond": "without",
+      "run": 0,
+      "verdict": "pass",
+      "notes": [],
+      "tokens": 142233,
+      "cost": 0.1404996,
+      "turns": 4
+    },
+    {
+      "task": "fix-unnamed-effect",
+      "cond": "with",
+      "run": 0,
+      "verdict": "pass",
+      "notes": [],
+      "tokens": 395088,
+      "cost": 0.2265314,
+      "turns": 12
+    },
+    {
+      "task": "fix-unnamed-effect",
+      "cond": "without",
+      "run": 0,
+      "verdict": "pass",
+      "notes": [],
+      "tokens": 291542,
+      "cost": 0.1801876,
+      "turns": 8
+    }
+  ]
+}
