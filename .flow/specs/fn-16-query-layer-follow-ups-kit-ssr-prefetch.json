@@ -12,7 +12,8 @@
   "id": "fn-16-query-layer-follow-ups-kit-ssr-prefetch",
   "impl_review_rounds": {
     "fn-16-query-layer-follow-ups-kit-ssr-prefetch.1": 0,
-    "fn-16-query-layer-follow-ups-kit-ssr-prefetch.2": 0
+    "fn-16-query-layer-follow-ups-kit-ssr-prefetch.2": 0,
+    "fn-16-query-layer-follow-ups-kit-ssr-prefetch.3": 1
   },
   "next_task": 1,
   "plan_review_rounds": 0,
@@ -179,8 +180,19 @@
     "impl:fn-16-query-layer-follow-ups-kit-ssr-prefetch.1": 1,
     "impl:fn-16-query-layer-follow-ups-kit-ssr-prefetch.2": 1
   },
-  "review_pending_rounds": {},
-  "review_reservations": {},
+  "review_pending_rounds": {
+    "impl:fn-16-query-layer-follow-ups-kit-ssr-prefetch.3": 1
+  },
+  "review_reservations": {
+    "01bf390a272f4ac1bd7ff15d048113ae": {
+      "artifact_sha256": "7eb62ff1d891072ceaa97f320f5ffd27501bf1d2f56e418afd8cebb07555b183",
+      "counter_scope": "impl:fn-16-query-layer-follow-ups-kit-ssr-prefetch.3",
+      "epoch": 0,
+      "exclusive": true,
+      "forced": false,
+      "review_type": "impl"
+    }
+  },
   "review_transport_failures": {
     "impl:fn-16-query-layer-follow-ups-kit-ssr-prefetch.1": 0,
     "impl:fn-16-query-layer-follow-ups-kit-ssr-prefetch.2": 0
@@ -199,5 +211,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-03T13:46:25.720064Z"
+  "updated_at": "2026-10-03T15:22:08.714093Z"
 }

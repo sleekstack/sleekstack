@@ -6,7 +6,7 @@ import { renderToString } from 'react-dom/server'
 import { prerender } from 'react-dom/static'
 import { Hydrate } from '@sleekstack/query'
 import { cachedQuery, layer, mutation, tag, type CachedQuery } from '../index'
-import { HydrateQueries, LayerProvider, useMutation, useQuery, useQueryClient } from '../react'
+import { HydrateQueries, LayerProvider, useMutation, useQuery } from '../react'
 import { configureRuntime, prefetch } from '../next'
 
 const Api = tag<{ get(id: string): string }>('HydrateApi')
@@ -70,7 +70,6 @@ describe('kit prefetch: Next control flow', () => {
   it('a form using useMutation renders idle on the server; mutate during render throws (fn-16 R4)', () => {
     const save = mutation({ run: function* (title: string) { return title } })
     const Form = ({ callNow }: { callNow?: boolean }) => {
-      useQueryClient()
       const { mutate, isPending, data } = useMutation(save)
       if (callNow) void mutate('x')
       return <form><button disabled={isPending}>{data ?? 'idle'}</button></form>

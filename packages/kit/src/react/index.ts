@@ -182,9 +182,6 @@ const target = (t: QueryTarget | undefined) => (t === undefined || 'prefix' in t
 /**
  * The query cache of the nearest `LayerProvider`'s query store, e.g. to invalidate after a mutation.
  *
- * During a server render (no store there) it returns a client whose every call throws, so a component that
- * only uses it from handlers, like a mutation form, still renders on the server.
- *
  * @returns `invalidate`, `refetch`, `setData`, `getData`.
  * @throws {@link SleekStackError} with code `Unknown` outside a `LayerProvider`.
  *
@@ -206,14 +203,7 @@ const target = (t: QueryTarget | undefined) => (t === undefined || 'prefix' in t
  * }
  * ```
  */
-const serverCall = (): never => {
-  throw new SleekStackError('Unknown', 'useQueryClient: the query client was called during a server render.')
-}
-const SERVER_CLIENT: QueryClient = { invalidate: serverCall, refetch: serverCall, setData: serverCall, getData: serverCall }
-
 export function useQueryClient(): QueryClient {
-  // Environment-fixed branch, so hook order never changes within one.
-  if (typeof window === 'undefined') return SERVER_CLIENT
   const q = kit(() => useQueries())
   return {
     invalidate: (t) => q.invalidate(target(t)),

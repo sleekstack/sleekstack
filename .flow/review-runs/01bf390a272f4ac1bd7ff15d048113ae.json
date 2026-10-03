@@ -1,0 +1,29 @@
+{
+  "backend": "codex",
+  "counter_scope": "impl:fn-16-query-layer-follow-ups-kit-ssr-prefetch.3",
+  "failure_class": "fanout_abandoned",
+  "finalized": {
+    "digest": "not_applicable",
+    "receipt": "not_applicable",
+    "status": "not_applicable"
+  },
+  "metadata": null,
+  "outcome": "transport_failure",
+  "receipt_payload": null,
+  "receipt_target": null,
+  "reservation_id": "01bf390a272f4ac1bd7ff15d048113ae",
+  "reset_rounds_on_ship": false,
+  "response": "fan-out dispatched; no finalize landed before this refund-intent journal was replayed",
+  "response_sha256": "6ea4de7239adcef700fcf360528c3918564fc4300515f3a62b9a089c94e74f20",
+  "review_kind": "impl",
+  "review_type": "impl",
+  "reviewed_base_sha": "26cc01dab96bba93a2b9e9ddba5ec09e0d2606e8",
+  "reviewed_head_sha": "8bc4791929bb3a4c9b1e08ff91b1a16142733794",
+  "scope": "impl:fn-16-query-layer-follow-ups-kit-ssr-prefetch.3",
+  "spec_id": "fn-16-query-layer-follow-ups-kit-ssr-prefetch",
+  "status_target": null,
+  "superseded_by": null,
+  "task_id": "fn-16-query-layer-follow-ups-kit-ssr-prefetch.3",
+  "timestamp": "2026-10-03T15:22:08.714723Z",
+  "verdict": null
+}
