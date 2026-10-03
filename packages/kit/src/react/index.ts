@@ -1,11 +1,11 @@
 // @sleekstack/kit/react public barrel. No Effect or core type is reachable from here.
-import { createElement, useCallback, type ReactNode } from 'react'
+import { createElement, useCallback, useContext, type ReactNode } from 'react'
 import { useMutation as rqUseMutation, useQuery as rqUseQuery, type QueryFilters } from '@tanstack/react-query'
 import { QueryClientLive, QueryClientTag } from '@sleekstack/query'
 import { LayerProvider as CoreProvider, useService as coreUseService } from '@sleekstack/react'
 import { normalize, type SleekStackError } from '../errors'
 import { mutationFn, queryOpts, type CachedQuery, type Mutation } from '../query'
-import { kit, KitProviderContext } from './hooks'
+import { kit, KitClientContext, KitProviderContext } from './hooks'
 
 export { LayerProvider, useService, useServices, createAppScope, type LayerProviderProps, type AppScopeHandle } from './hooks'
 export { useAtom, useAtomValue, useAtomSet, type SetAtom } from './atoms'
@@ -26,10 +26,13 @@ const QUERY_PROVIDE = [QueryClientLive()]
  * ```
  */
 export function QueryProvider(props: { readonly children?: ReactNode }) {
-  return createElement(KitProviderContext.Provider, { value: true }, createElement(CoreProvider, { provide: QUERY_PROVIDE, owner: props }, props.children))
+  return createElement(KitProviderContext.Provider, { value: true }, createElement(KitClientContext.Provider, { value: null }, createElement(CoreProvider, { provide: QUERY_PROVIDE, owner: props }, props.children)))
 }
 
-const useClient = () => kit(() => coreUseService(QueryClientTag))
+const useClient = () => {
+  const shared = useContext(KitClientContext)
+  return shared ?? kit(() => coreUseService(QueryClientTag))
+}
 
 /** What {@link useQuery} returns. */
 export interface QueryState<T> {

@@ -13,20 +13,11 @@ test('pages load', async ({ page }) => {
   }
 })
 
-test('board is in the server HTML and not fetched by the client on first paint', async ({ page, request }) => {
+test('the server HTML holds a placeholder; the client fetches the board', async ({ page, request }) => {
   const html = await (await request.get('/')).text()
-  expect(html).toContain('aria-label="project: ')
-  expect(html).not.toContain('Loading board')
-
-  // readBoard is a Server Action: a client fetch of the board is a POST carrying a Next-Action header
-  const actionPosts: string[] = []
-  page.on('request', (r) => {
-    if (r.method() === 'POST' && r.headers()['next-action']) actionPosts.push(r.headers()['next-action'] + ' ' + r.postData())
-  })
+  expect(html).toContain('Loading board')
   await page.goto('/')
   await expect(page.locator('section[aria-label^="project:"]').first()).toBeVisible()
-  await page.waitForLoadState('networkidle')
-  expect(actionPosts).toEqual([])
 })
 
 test('create task: success, simulated failure, validation error', async ({ page }) => {

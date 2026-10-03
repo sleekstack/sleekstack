@@ -20,10 +20,9 @@ The [showcase](../showcase/README.md) team task board, ported to `@sleekstack/ki
 The board is read through the kit `cachedQuery` `board` (`src/client/board-query.ts`), whose fetch is the `readBoard`
 Server Action, and written through one `mutation()` per action. `useBoardMutation` writes the expected board into the cache
 with `useQueryClient().setData`, drops only that call's write when the action returns `{ ok: false }` ("Simulate failure"), and invalidates
-the board afterwards; no mutation calls `router.refresh()`. `app/page.tsx` prefetches the `serializable` board query
-(`src/client/board-family.ts`) with kit `prefetch` and hands the state to `<HydrateQueries>`, so the server HTML holds the
-board and the client does not refetch it on first paint; a failed prefetch falls back to the client fetch. The create form
-mounts after hydration, since `useQueryClient` stays client-only. The demo toggle still refreshes the router: the remount resets the query store and the board is fetched again under demo mode.
+the board afterwards; no mutation calls `router.refresh()`. The kit has no server prefetch (ADR 0018), so the board
+(`src/client/board-family.ts`) is fetched on the client after hydration. The create form
+mounts after hydration, since `useQueryClient` stays client-only. The demo toggle still refreshes the router: the remount disposes the query client and the board is fetched again under demo mode.
 
 ## Side by side with the Effect version
 

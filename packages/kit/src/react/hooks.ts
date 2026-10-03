@@ -8,7 +8,8 @@
 import { createContext, createElement, useContext, useMemo, useRef, type ReactNode } from 'react'
 import { Effect, Exit } from 'effect'
 import { declareLayer, makeAppScope, type ChildScope } from '@sleekstack/core'
-import { QueryClientLive } from '@sleekstack/query'
+import { QueryClientLive, QueryClientTag } from '@sleekstack/query'
+import type { QueryClient } from '@tanstack/react-query'
 import { closeProvidersOn, LayerProvider as CoreProvider, useService as coreUseService } from '@sleekstack/react'
 import { normalize, toFinalizerError, type FinalizerError } from '../errors'
 import type { Layer, Services } from '../layer'
@@ -108,6 +109,9 @@ export async function createAppScope(
 export function LayerProvider(props: LayerProviderProps): ReactNode {
   const { provide, onFinalizerError, children, appScope } = props
   const nested = useContext(KitProviderContext)
+  // `nested` is fixed for a mounted position, so this hook call is stable. Suspends until the enclosing scope is built.
+  const inherited = useContext(KitClientContext)
+  const client = nested ? (inherited ?? kit(() => coreUseService(QueryClientTag))) : null
   // Memoized on the reference so core's sameEntries / StrictMode adopt see a stable array.
   // A root provider also builds the query client its subtree's kit queries share.
   const lowered = useMemo(() => {
@@ -123,7 +127,7 @@ export function LayerProvider(props: LayerProviderProps): ReactNode {
     () => onFinalizerError && ((cause: unknown) => onFinalizerError(toFinalizerError(cause))),
     [onFinalizerError],
   )
-  return createElement(CoreProvider, { provide: lowered, owner: props, ...(sink && { onFinalizerError: sink }), ...(appScope && { appScope: scopes.get(appScope) }) }, nested ? children : createElement(KitProviderContext.Provider, { value: true }, children))
+  return createElement(CoreProvider, { provide: lowered, owner: props, ...(sink && { onFinalizerError: sink }), ...(appScope && { appScope: scopes.get(appScope) }) }, nested ? createElement(KitClientContext.Provider, { value: client }, children) : createElement(KitProviderContext.Provider, { value: true }, children))
 }
 
 /**
@@ -134,6 +138,13 @@ const ROOT_QUERY_CLIENT = declareLayer(QueryClientLive(), { lifetime: 'component
 
 /** @internal True under a kit `LayerProvider` (so nested providers share the root's query client). */
 export const KitProviderContext = createContext(false)
+
+/**
+ * @internal The query client a nested kit provider inherited from above. Its own component scope would build a new
+ * component-lifetime client, so nested providers pass the enclosing one down through React context instead.
+ */
+export const KitClientContext = createContext<QueryClient | null>(null)
+
 
 const isThenable = (x: unknown) => typeof (x as { then?: unknown } | null)?.then === 'function'
 

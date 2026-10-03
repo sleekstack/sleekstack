@@ -1,7 +1,7 @@
 /**
  * apps/showcase-kit/src/client/board-query.ts
  *
- * The board's client cache through the kit facade: the `board` query (board-family.ts, prefetched by the page)
+ * The board's client cache through the kit facade: the `board` query (board-family.ts)
  * and one `mutation()` per board action, settling `{ ok: false, error }` into a rejection. `useBoardMutation` writes
  * the expected board into the cache first, drops only that call's write when the action fails, and invalidates the
  * board once no call is in flight so the server's ids and timestamps win. No mutation calls `router.refresh()`.
