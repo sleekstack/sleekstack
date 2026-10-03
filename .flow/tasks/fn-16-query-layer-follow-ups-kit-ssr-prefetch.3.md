@@ -8,7 +8,7 @@ satisfies: [R4]
 
 **Size:** S
 **Files:** packages/react/src/query.ts, packages/react/src/__tests__/ (server render test), apps/showcase/src/client/services/useBoardMutation.ts (delete), apps/showcase/src/client/TaskDetail.tsx, apps/showcase/src/client/ProjectView.tsx
-**Touches:** [packages/react/src/query.ts, packages/react/src/__tests__/**, apps/showcase/src/client/**]
+**Touches:** [packages/react/src/query.ts, packages/react/src/__tests__/**, packages/kit/src/react/**, packages/kit/src/__tests__/**, apps/showcase/src/client/**, apps/showcase-kit/src/client/**]
 
 ### Approach
 - The throw is in `useQueryStore` (`packages/react/src/query.ts:24-26`); `useMutation` is at :295. Return the idle result on the server; a `mutate` call during render throws a named error.
