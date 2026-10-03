@@ -34,5 +34,6 @@ It builds one tree per `mount` call (nodes `component`, `provide`, `catch`, `unr
 - `UnhandledError`: a tagged error reaches `mount` without a `Catch`.
 - `EffectInsideReact`: a Component sits under a `fromReact` guest (in its JSX or passed through its props).
 - `Unresolved`: a component or Layer it cannot read (`any`, a dynamically picked component, an unread declaration). It fails closed.
+- `NonResumableHandler`: an `on()` handler that is not a reference to a top-level `const h = defineHandler('literal', ...)`, or a `resume` handler map it cannot read. Each `resume` call is a tree root whose handlers are checked against its layer.
 
 `sleekstack check` runs it only when the nearest package.json lists `@sleekstack/ui` (any dependency field) and adds a `components` key to `--json`; other projects are unchanged. [`apps/ui-demo`](../../apps/ui-demo) has one fixture per code.

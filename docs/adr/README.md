@@ -18,3 +18,4 @@
 | [0014](0014-native-query-layer.md) | Queries and mutations are built on native atoms, in `@sleekstack/query` | Accepted |
 | [0015](0015-host-first-component-framework.md) | `@sleekstack/ui` (MVP spike): the Effect program is the host, React components are guests | Proposed |
 | [0016](0016-serializable-atoms-ssr.md) | Atoms render on the server and hydrate from opt-in serializable snapshots | Accepted |
+| [0017](0017-resumable-host-first-components.md) | `@sleekstack/ui` (spike): host HTML resumes through named handlers and bound atoms without re-running components | Proposed |
