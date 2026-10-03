@@ -16,7 +16,7 @@ const expected = (name: string) =>
 const sorted = <T extends { file: string; line: number }>(xs: T[]) => xs.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line)
 
 describe('component pass', () => {
-  it.each(['ui-missing', 'ui-unhandled', 'ui-react', 'ui-unresolved', 'ui-hooks'])('%s: code and file:line', (name) => {
+  it.each(['ui-missing', 'ui-unhandled', 'ui-react', 'ui-unresolved', 'ui-hooks', 'ui-resumable'])('%s: code and file:line', (name) => {
     const want = expected(name)
     expect(want.length).toBeGreaterThan(0)
     expect(sorted(located(name))).toEqual(want)
@@ -38,6 +38,12 @@ describe('component pass', () => {
     const reqs = (n: UiNode): string[] => (n.kind === 'unresolved' ? [] : [...(n.kind === 'catch' ? [] : n.requires), ...n.children.flatMap(reqs)])
     expect(reqs(r.trees[0]!.root)).toContain('Store')
     expect(r.errors.find((e) => e.line === 22)?.message).toContain('requires "app.ts#Store"')
+  })
+
+  it('ui-resume-clean: one tree per resume, one child per handler, nothing reported', () => {
+    const r = run('ui-resume-clean')
+    expect(r.errors).toEqual([])
+    expect(r.trees.map((t) => [t.provides, t.root.kind === 'component' && t.root.children.map((c) => c.kind === 'component' && c.requires)])).toEqual([[['Repo'], [['Repo'], ['Store']]]])
   })
 
   it('non-ui projects have no trees', () => {
