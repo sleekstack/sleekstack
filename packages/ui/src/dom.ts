@@ -5,7 +5,7 @@ import { flushSync } from 'react-dom'
 import { createRoot, type Root } from 'react-dom/client'
 import { reportRenderError, runToNode } from './component'
 import type { Node, ReactiveNode } from './node'
-import { fallbacks, RenderScope, Store } from './reactive'
+import { fallbacks, RenderScope, runScopes, Store } from './reactive'
 import { checkAttr, checkTag } from './string'
 
 export interface Mounted {
@@ -32,6 +32,7 @@ class GuestBoundary extends Component<{ report: (error: unknown) => void; childr
 interface Owner {
   roots: Array<Root>
   kids: Array<Instance>
+  scopes: Array<Scope.CloseableScope>
 }
 interface Instance extends Owner {
   host: HTMLElement
@@ -39,11 +40,13 @@ interface Instance extends Owner {
   unsubs: Array<() => void>
   fiber: Fiber.RuntimeFiber<Node, unknown> | undefined
   queued: boolean
+  // Bumped by `unwatch`, so a change queued under an older subscription set is dropped.
+  epoch: number
   dead: boolean
   // Scope of the run whose DOM is committed; closed when that DOM is replaced or dropped.
   scope: Scope.CloseableScope | undefined
 }
-const owner = (): Owner => ({ roots: [], kids: [] })
+const owner = (): Owner => ({ roots: [], kids: [], scopes: [] })
 
 const closeScope = (scope: Scope.CloseableScope | undefined): void => {
   if (scope) Effect.runFork(Scope.close(scope, Exit.void))
@@ -52,6 +55,7 @@ const closeScope = (scope: Scope.CloseableScope | undefined): void => {
 const release = (o: Owner): void => {
   for (const kid of o.kids.splice(0)) kill(kid)
   for (const root of o.roots.splice(0)) root.unmount()
+  for (const scope of o.scopes.splice(0)) closeScope(scope)
 }
 const kill = (i: Instance): void => {
   i.dead = true
@@ -96,6 +100,8 @@ const build = (node: Node, env: Env, o: Owner): globalThis.Node | null => {
       case 'Text':
         return env.doc.createTextNode(node.text)
       case 'Fragment': {
+        const scope = runScopes.get(node)
+        if (scope) o.scopes.push(scope)
         const frag = env.doc.createDocumentFragment()
         for (const c of node.children) append(frag, build(c, env, o))
         return frag
@@ -112,7 +118,7 @@ const build = (node: Node, env: Env, o: Owner): globalThis.Node | null => {
       case 'Reactive': {
         const host = env.doc.createElement('sleek-reactive')
         host.style.display = 'contents'
-        const inst: Instance = { ...owner(), host, rerun: node.rerun, unsubs: [], fiber: undefined, queued: false, dead: false, scope: node.scope }
+        const inst: Instance = { ...owner(), host, rerun: node.rerun, unsubs: [], fiber: undefined, queued: false, epoch: 0, dead: false, scope: node.scope }
         o.kids.push(inst)
         append(host, build(node.child, env, inst))
         watch(inst, node, env)
@@ -143,12 +149,13 @@ const append = (parent: globalThis.Node, child: globalThis.Node | null): void =>
 const watch = (inst: Instance, node: ReactiveNode, env: Env): void => {
   if (inst.dead) return
   // Changes in one tick (a store batch, or several atoms) coalesce into one re-run.
+  const epoch = inst.epoch
   const changed = () => {
-    if (inst.queued) return
+    if (inst.queued || inst.epoch !== epoch) return
     inst.queued = true
     queueMicrotask(() => {
       inst.queued = false
-      if (!inst.dead && env.live()) rerun(inst, env)
+      if (!inst.dead && inst.epoch === epoch && env.live()) rerun(inst, env)
     })
   }
   node.atoms.forEach((a, i) => {
@@ -181,6 +188,7 @@ const rerun = (inst: Instance, env: Env): void => {
 }
 
 const unwatch = (inst: Instance): void => {
+  inst.epoch++
   for (const u of inst.unsubs.splice(0)) u()
 }
 
@@ -200,14 +208,16 @@ const swap = (inst: Instance, node: Node, env: Env): void => {
   release(inst)
   inst.roots = content.roots
   inst.kids = content.kids
+  inst.scopes = content.scopes
   const previous = inst.scope
   if (own) {
     unwatch(inst)
     inst.rerun = own.rerun
     inst.scope = own.scope
     watch(inst, own, env)
-  } else if (!fallbacks.has(node)) {
-    unwatch(inst)
+  } else {
+    // A fallback keeps the subscriptions (the next change retries); either way the replaced run's scope goes.
+    if (!fallbacks.has(node)) unwatch(inst)
     inst.scope = undefined
   }
   inst.host.replaceChildren(...(tree ? [tree] : []))

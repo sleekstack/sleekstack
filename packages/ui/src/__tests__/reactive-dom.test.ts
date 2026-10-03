@@ -243,7 +243,6 @@ describe('reactive DOM', () => {
   it('a change between an async first-render read and its subscription re-runs', async () => {
     const a = Atom.make(0)
     const store = makeAtomStore()
-    store.mount(a) // keep the node: an unobserved atom resets when the store drops it
     const C = () => Effect.flatMap(useAtomValue(a), (n) => Effect.as(Effect.sleep(10), el('b', {}, String(n))))
     const container = document.createElement('div')
     await act(async () => {
@@ -254,5 +253,46 @@ describe('reactive DOM', () => {
     })
     await act(async () => void (await new Promise((r) => setTimeout(r, 30))))
     expect(container.textContent).toBe('7')
+  })
+
+  it('a committed fallback releases the replaced run scope; an untracked run scope goes with its ancestor', async () => {
+    const a = Atom.make(0)
+    const outer = Atom.make(0)
+    const log: Array<string> = []
+    const layer = (name: string) => Layer.scoped(Greeting, Effect.acquireRelease(Effect.succeed(name), () => Effect.sync(() => log.push(name))))
+    const Hi = () => Effect.map(Greeting, (g) => el('i', {}, g))
+    const C = () =>
+      Effect.flatMap(useAtomValue(a), (n): Effect.Effect<any, Boom> => (n === 1 ? Effect.fail(new Boom()) : jsx(Provider, { layer: layer('c'), children: jsx(Hi, {}) })))
+    const Plain = () => jsx(Provider, { layer: layer('plain'), children: jsx(Hi, {}) })
+    const Outer = () => Effect.flatMap(useAtomValue(outer), () => jsx(Plain, {}))
+    const tree = jsx('div', {
+      children: [jsx(Boundary, { tag: 'Boom', fallback: () => Effect.succeed(el('p', {}, 'fb')), children: jsx(C, {}) }), jsx(Outer, {})],
+    })
+    const { store } = await go(tree)
+    store.set(a, 1)
+    await tick()
+    expect(log).toEqual(['c'])
+    store.set(outer, 1)
+    await tick()
+    expect(log).toEqual(['c', 'plain'])
+  })
+
+  it('a reactive fallback that later fails goes to the outer Boundary, not its own', async () => {
+    const a = Atom.make(0)
+    const f = Atom.make(0)
+    const C = () => Effect.flatMap(useAtomValue(a), (n): Effect.Effect<any, Boom> => (n === 1 ? Effect.fail(new Boom()) : Effect.succeed(el('b'))))
+    const Fb = () => Effect.flatMap(useAtomValue(f), (n): Effect.Effect<any, Boom> => (n === 1 ? Effect.fail(new Boom()) : Effect.succeed(el('i', {}, 'inner'))))
+    const tree = jsx(Boundary, {
+      tag: 'Boom',
+      fallback: () => Effect.succeed(el('p', {}, 'outer')),
+      children: jsx(Boundary, { tag: 'Boom', fallback: () => jsx(Fb, {}), children: jsx(C, {}) }),
+    })
+    const { container, store } = await go(tree)
+    store.set(a, 1)
+    await tick()
+    expect(container.textContent).toBe('inner')
+    store.set(f, 1)
+    await tick()
+    expect(container.textContent).toBe('outer')
   })
 })
