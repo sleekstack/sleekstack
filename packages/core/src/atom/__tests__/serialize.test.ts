@@ -71,8 +71,8 @@ describe('serializable atoms', () => {
     expect(dehydrate(store)).toEqual({ n: 7 })
     expect(warn).toHaveBeenCalledTimes(2)
 
-    for (const s of [null, 'x', [1]]) expect(() => hydrate(store, s as never)).not.toThrow()
-    expect(warn).toHaveBeenCalledTimes(5)
+    for (const s of [null, 'x', [1], new Date(0), new Proxy({}, { ownKeys: () => { throw new Error('boom') } })]) expect(() => hydrate(store, s as never)).not.toThrow()
+    expect(warn).toHaveBeenCalledTimes(7)
     warn.mockRestore()
   })
 
@@ -94,6 +94,19 @@ describe('serializable atoms', () => {
     store.get(b)
     hydrate(store, { b: 5 })
     expect(store.get(b)).toBe(0)
+    const c = Atom.serializable(Atom.make(0), { key: 'c', schema: Schema.Number })
+    store.retain(c)
+    hydrate(store, { c: 5 })
+    expect(store.get(c)).toBe(0)
+  })
+
+  it('round trips a `__proto__` key as an own entry', () => {
+    const p = Atom.serializable(Atom.make(3), { key: '__proto__', schema: Schema.Number })
+    const server = makeAtomStore()
+    server.get(p)
+    const snapshot = JSON.parse(JSON.stringify(dehydrate(server)))
+    expect(Object.keys(snapshot)).toEqual(['__proto__'])
+    expect(makeAtomStore({ hydrate: snapshot }).get(p)).toBe(3)
   })
 
   it('inert store: forks nothing, unseeded result stays Initial, seeds apply, sync atoms compute', () => {

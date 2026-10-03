@@ -357,12 +357,18 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
 
   const hydrateStore = (snapshot: Snapshot) => {
     if (disposed) return
-    if (typeof snapshot !== 'object' || snapshot === null || Array.isArray(snapshot)) {
+    let entries: Array<[string, unknown]>
+    try {
+      const proto = typeof snapshot === 'object' && snapshot !== null ? Object.getPrototypeOf(snapshot) : undefined
+      if (proto !== Object.prototype && proto !== null) throw new Error('not a plain object')
+      entries = Object.entries(snapshot)
+    } catch {
       devWarn('[sleekstack] hydrate ignored a snapshot that is not a plain object')
       return
     }
-    for (const [key, raw] of Object.entries(snapshot)) {
-      if (seeded.has(key) || (keys.get(key)?.state ?? 'uninit') !== 'uninit') continue
+    for (const [key, raw] of entries) {
+      // any node already created for the key keeps its own value
+      if (seeded.has(key) || keys.has(key)) continue
       seeded.add(key)
       seeds.set(key, raw)
     }
@@ -416,7 +422,7 @@ export const hydrate = (store: AtomStore, snapshot: Snapshot): void => store.hyd
  * A value failing its `Schema` encode is skipped with a dev warning. A disposed store gives `{}`.
  */
 export const dehydrate = (store: AtomStore): Snapshot => {
-  const out: Record<string, unknown> = {}
+  const out: Record<string, unknown> = Object.create(null) // a `__proto__` key stays an own entry
   for (const { atom, value } of store.inspect()) {
     const info = atom.serializable
     if (!info) continue
