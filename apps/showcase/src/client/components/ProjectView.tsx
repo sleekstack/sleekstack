@@ -7,18 +7,17 @@
  * (TaskDetail.tsx). Provides the async `ProjectFilterStore` component
  * service, which owns the project's filter and selected-task state (not
  * just a `useState` in this component — that state must live for the
- * scope's lifetime and disappear with it); create-task calls the .2 Server
- * Action with the "Simulate failure" control (R5).
+ * scope's lifetime and disappear with it); create-task runs `createTaskMutation`
+ * (optimistic, rolled back on the "Simulate failure" control's rejection, R5).
  */
-import { Suspense, useMemo, useSyncExternalStore, useTransition, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useMemo, useSyncExternalStore, useState } from 'react'
 import { LayerProvider, useService } from '@sleekstack/react'
-import { createTask } from '../../delivery/actions'
+import { createTaskMutation, failureOf } from '../services/board-query'
+import { useBoardMutation } from '../services/useBoardMutation'
 import type { ProjectRecord } from '../../domain/tags'
 import { ProjectFilterStore, makeProjectFilterStoreLayer, type TaskStatusFilter } from '../services/component-services'
 import { TaskDetail } from './TaskDetail'
 import { useDraftForm } from '../drafts/useDraftForm'
-import { submitDraft } from '../../lib/contracts'
 import { NewTaskDraft, type CommentModel, type TaskModel } from '../../models/task'
 
 export interface TaskWithComments {
@@ -36,22 +35,16 @@ function ProjectBody({ project, tasks }: { readonly project: ProjectRecord; read
   const newTaskCtx = useMemo(() => ({ projectId: project.id }), [project.id])
   const form = useDraftForm(NewTaskDraft, newTaskCtx)
   const [createError, setCreateError] = useState<string | null>(null)
-  const [pending, startTransition] = useTransition()
-  const router = useRouter()
+  const { mutate, isPending: pending } = useBoardMutation(createTaskMutation)
 
   const visible = filter === 'all' ? tasks : tasks.filter(({ task }) => task.status === filter)
   const selected = tasks.find(({ task }) => task.id === selectedTaskId)
 
   const submitCreate = form.handleSubmit((draft) => {
-    startTransition(async () => {
-      const result = await submitDraft(NewTaskDraft, draft, newTaskCtx, createTask)
-      if (!result.ok) {
-        setCreateError(result.error)
-        return
-      }
-      setCreateError(null)
-      form.reset()
-      router.refresh()
+    void mutate({ draft, src: newTaskCtx }).then((exit) => {
+      const error = failureOf(exit)
+      setCreateError(error)
+      if (error === null) form.reset()
     })
   }, () => setCreateError(null))
 

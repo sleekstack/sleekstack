@@ -142,6 +142,9 @@ importers:
       '@sleekstack/next':
         specifier: workspace:*
         version: link:../../packages/next
+      '@sleekstack/query':
+        specifier: workspace:*
+        version: link:../../packages/query
       '@sleekstack/react':
         specifier: workspace:*
         version: link:../../packages/react

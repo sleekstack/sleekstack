@@ -34,11 +34,29 @@ test('create task: success, simulated failure, validation error', async ({ page 
   await project.getByLabel('Simulate failure').check()
   await create.click()
   await expect(project.getByRole('alert')).toHaveText('Simulated failure: create rejected before commit')
+  // the optimistic task is rolled back out of the cached board
+  await expect(project.getByRole('button', { name: /should not persist/ })).toHaveCount(0)
   await project.getByLabel('Simulate failure').uncheck()
 
   await input.fill('')
   await create.click()
   await expect(project.getByRole('alert')).toHaveText('Please enter a title')
+})
+
+test('move and comment update the board through the query cache', async ({ page }) => {
+  await page.goto('/')
+  const project = page.locator('section[aria-label^="project:"]').first()
+  const title = `e2e move ${Date.now()}`
+  await project.getByPlaceholder('New task title').fill(title)
+  await project.getByRole('button', { name: 'Create task' }).click()
+  await project.getByRole('button', { name: new RegExp(title) }).click()
+  const detail = page.locator(`section[aria-label="task detail: ${title}"]`)
+  await detail.getByRole('button', { name: 'done', exact: true }).click()
+  await expect(project.getByRole('button', { name: new RegExp(`${title} — Done \\(0\\)`) })).toBeVisible()
+  await detail.getByLabel('new comment').fill('looks good')
+  await detail.getByRole('button', { name: 'Comment' }).click()
+  await expect(detail.getByRole('listitem').filter({ hasText: 'looks good' })).toBeVisible()
+  await expect(project.getByRole('button', { name: new RegExp(`${title} — Done \\(1\\)`) })).toBeVisible()
 })
 
 test('client navigation to /log keeps the component scope history', async ({ page }) => {
