@@ -10,11 +10,6 @@ it('the resume entry bundles without React; prints its gzipped size', { timeout:
     build: {
       write: false,
       minify: true,
-      // @sleekstack/ui declares no `sideEffects`, so its barrel keeps dom.ts/string.ts (React) alive.
-      // Its modules are side-effect free; treat them so here. React itself keeps its side effects,
-      // so a real React import from the resume path still fails this test.
-      // Follow-up: `"sideEffects": false` in packages/ui/package.json makes this unnecessary.
-      rollupOptions: { treeshake: { moduleSideEffects: (id) => !id.includes('/packages/ui/src/') } },
       lib: { entry: path.join(__dirname, '../src/resume/entry.ts'), formats: ['es'] },
     },
   })
