@@ -21,11 +21,12 @@ function libId(sym: ts.Symbol | undefined, checker: ts.TypeChecker): string | un
   if (sym.flags & ts.SymbolFlags.Alias) sym = checker.getAliasedSymbol(sym)
   const file = sym.declarations?.[0]?.getSourceFile().fileName.replace(/\\/g, '/')
   if (!file) return undefined
-  const own = /\/(?:packages|@sleekstack)\/(kit|core|next|runtime)\/src\/(.+)\.ts$/.exec(file)
+  const own = /\/(?:packages|@sleekstack)\/(kit|core|next|runtime|query)\/src\/(.+)\.ts$/.exec(file)
   if (own) return `${own[1]}/${own[2]}#${sym.name}`
   if (/\/effect\/dist\/dts\/Context\.d\.ts$/.test(file)) return `effect/Context#${sym.name}`
   if (/\/effect\/dist\/dts\/Effect\.d\.ts$/.test(file)) return `effect/Effect#${sym.name}`
   if (/\/effect\/dist\/dts\/Layer\.d\.ts$/.test(file)) return `effect/Layer#${sym.name}`
+  if (/\/effect\/dist\/dts\/Stream\.d\.ts$/.test(file)) return `effect/Stream#${sym.name}`
   return undefined
 }
 
@@ -34,6 +35,8 @@ const MODULE_CALLS = new Set(['kit/module#makeModule', 'core/module#makeModule']
 const ATOM_CALLS = new Set(['kit/atom#atom', 'kit/atom#family'])
 const RUNTIME_CALLS = new Set(['kit/next/runtime#configureRuntime', 'next/runtime#configureRuntime', 'runtime/runtime#configureRuntime'])
 const ACTION_CALLS = new Set(['kit/next/action#defineEffect', 'kit/next/action#defineQuery', 'kit/next/action#effect', 'kit/next/action#query'])
+/** Query / mutation definitions: their fetcher (`fetch` / `run`) is read like an action body. */
+const FETCHER_CALLS = new Map([['kit/query#cachedQuery', 'fetch'], ['query/query#make', 'fetch'], ['kit/query#mutation', 'run'], ['query/mutation#make', 'run']])
 /** Plain Layer combinators walked structurally (data-first or as `.pipe` steps). */
 const LAYER_COMBINATORS = new Set(['effect/Layer#mergeAll', 'effect/Layer#merge', 'effect/Layer#provide', 'effect/Layer#provideMerge'])
 const TEST_FILE = /(^|[\\/])__tests__[\\/]|\.(test|spec)\.[cm]?[jt]sx?$/
@@ -592,6 +595,16 @@ export function extract(project: string, entries?: readonly string[], lenient = 
     const s = t.getSymbol()
     return !!s && (TAG_TYPES.has(libId(s, checker) ?? '') || (!!(s.flags & ts.SymbolFlags.Class) && !(t.flags & ts.TypeFlags.Object && (t as ts.ObjectType).objectFlags & ts.ObjectFlags.Reference) && isTagClass(s.valueDeclaration)))
   }
+  /** The Tags an `Effect<A, E, R>` / `Stream<A, E, R>` type's `R` names; anything else in `R` is a located error. */
+  const requirements = (t: ts.Type, at: ts.Expression, out: ActionDecl['yields']) => {
+    const r = checker.getTypeArguments(t as ts.TypeReference)[2]
+    if (!r || r.flags & ts.TypeFlags.Never) return
+    for (const m of r.isUnion() ? r.types : [r]) {
+      const d = m.getSymbol()?.valueDeclaration
+      if (m.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown) || !isTagClass(d)) fail(at, `"${text(at)}" requires "${checker.typeToString(m)}", which does not resolve to a Tag declaration`)
+      out.push({ tag: classKey(d as ts.ClassDeclaration), loc: loc(at) })
+    }
+  }
   /**
    * Every Tag a generator body `yield*`s, following local helper generators with their parameters bound to
    * each call's arguments; conditionals (inline or behind a const) over-approximate; unreadable yields are
@@ -627,13 +640,7 @@ export function extract(project: string, entries?: readonly string[], lenient = 
         }
         // Any other Effect: its requirements R (Effect<A, E, R>) name the Tags it reads.
         if (libId(t.getSymbol(), checker) !== 'effect/Effect#Effect') return fail(u, `yield* "${text(u)}" is neither a Tag nor an Effect; what it requires cannot be read`)
-        const r = checker.getTypeArguments(t as ts.TypeReference)[2]
-        if (!r || r.flags & ts.TypeFlags.Never) return
-        for (const m of r.isUnion() ? r.types : [r]) {
-          const d = m.getSymbol()?.valueDeclaration
-          if (m.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown) || !isTagClass(d)) fail(u, `yield* "${text(u)}" requires "${checker.typeToString(m)}", which does not resolve to a Tag declaration`)
-          out.push({ tag: classKey(d as ts.ClassDeclaration), loc: loc(u) })
-        }
+        requirements(t, u, out)
       } catch (err) { report(err) }
     }
     const walk = (n: ts.Node): void => {
@@ -670,9 +677,58 @@ export function extract(project: string, entries?: readonly string[], lenient = 
     yieldsOf(fn, a.yields, new Set())
     actions.push(a)
   }
+  /** A query `key` is static when it is a function returning tuple literals of literals and its own parameters. */
+  const staticKey = (k: ts.Expression) => {
+    const u = unwrap(k)
+    const fn = ts.isArrowFunction(u) || ts.isFunctionExpression(u) ? u : fnOf(u)
+    if (!fn) return fail(k, `Query key "${text(k)}" is not a readable function`, 'Computed')
+    const rets = bodyReturns(fn)
+    if (!rets.length) fail(k, `Query key "${text(k)}" returns no tuple literal`, 'Computed')
+    for (const r of rets) {
+      const a = unwrap(r)
+      if (!ts.isArrayLiteralExpression(a)) fail(r, `Query key returns "${text(r)}", not a tuple literal`, 'Computed')
+      for (const el of (a as ts.ArrayLiteralExpression).elements) {
+        const x = unwrap(el)
+        const lit = ts.isStringLiteral(x) || ts.isNumericLiteral(x) || ts.isNoSubstitutionTemplateLiteral(x) || [ts.SyntaxKind.TrueKeyword, ts.SyntaxKind.FalseKeyword, ts.SyntaxKind.NullKeyword].includes(x.kind)
+          || (ts.isPrefixUnaryExpression(x) && x.operator === ts.SyntaxKind.MinusToken && ts.isNumericLiteral(x.operand))
+        const d = ts.isIdentifier(x) ? declOf(x) : undefined
+        const param = !!d && ts.isParameter(d) && fn.parameters.includes(d) && !(checker.getTypeAtLocation(x).flags & ts.TypeFlags.Any)
+        if (!lit && !param) fail(el, `Query key element "${text(el)}" is neither a literal nor a precisely typed key parameter`, 'Computed')
+      }
+    }
+  }
+  /** A query / mutation definition: its key must be static, its fetcher's requirements are checked like an action's yields. */
+  const fetcherOf = (n: ts.CallExpression, field: string) => {
+    const opts = objectOf(n.arguments[0])
+    const k = prop(opts, 'key')
+    if (field === 'fetch') {
+      if (!k) return fail(n, 'A query needs a `key`', 'Computed')
+      try { staticKey(k) } catch (err) { report(err) }
+    }
+    const body = prop(opts, field) ?? fail(n, `A ${field === 'fetch' ? 'query' : 'mutation'} needs a \`${field}\``)
+    const l = loc(n)
+    const a: ActionDecl = { yields: [], provide: { name: `${l.file}:${l.line}`, entries: [], imports: [], exports: undefined, lifetime: undefined, loc: l }, file: n.getSourceFile(), loc: l }
+    actions.push(a)
+    // Types, not syntax: an Effect / Stream-returning fetcher's R names its Tags; a generator's yields do.
+    const t = checker.getTypeAtLocation(body)
+    if (t.flags & ts.TypeFlags.Any || t.isUnion()) return fail(body, `The ${field} "${text(body)}" is typed imprecisely; its requirements cannot be read`, 'Computed')
+    const sigs = t.getCallSignatures()
+    const ret = sigs.length === 1 ? checker.getReturnTypeOfSignature(sigs[0]!) : undefined
+    if (!ret) return fail(body, `The ${field} "${text(body)}" is not a function with one signature; its requirements cannot be read`, 'Computed')
+    const rid = libId(ret.getSymbol(), checker)
+    if (rid === 'effect/Effect#Effect' || rid === 'effect/Stream#Stream') return requirements(ret, body, a.yields)
+    const u = unwrap(body)
+    const fn = ts.isFunctionExpression(u) ? u : fnOf(u)
+    if (!fn?.asteriskToken) return fail(body, `The ${field} "${text(body)}" is neither an Effect-returning function nor a readable function* declaration`)
+    yieldsOf(fn, a.yields, new Set())
+  }
   const visit = (n: ts.Node): void => {
     if (ts.isCallExpression(n)) {
       const id = calleeOf(n)
+      const field = id && FETCHER_CALLS.get(id)
+      if (field && !TEST_FILE.test(path.relative(root, n.getSourceFile().fileName))) {
+        try { fetcherOf(n, field) } catch (err) { report(err) }
+      }
       if (id && ACTION_CALLS.has(id) && !TEST_FILE.test(path.relative(root, n.getSourceFile().fileName))) {
         try { actionOf(n) } catch (err) { report(err) }
       }
