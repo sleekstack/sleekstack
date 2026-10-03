@@ -1,0 +1,17 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-02T17:35:32.649428Z",
+  "depends_on": [
+    "fn-15-effect-native-component-framework-mvp.1",
+    "fn-15-effect-native-component-framework-mvp.3"
+  ],
+  "id": "fn-15-effect-native-component-framework-mvp.4",
+  "priority": null,
+  "spec": "fn-15-effect-native-component-framework-mvp",
+  "spec_path": ".flow/tasks/fn-15-effect-native-component-framework-mvp.4.md",
+  "status": "todo",
+  "title": "Analyzer component pass: tree per mount and four checks",
+  "updated_at": "2026-10-02T17:43:49.559533Z"
+}

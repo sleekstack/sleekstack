@@ -1,0 +1,17 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-02T17:35:32.649469Z",
+  "depends_on": [
+    "fn-15-effect-native-component-framework-mvp.3",
+    "fn-15-effect-native-component-framework-mvp.5"
+  ],
+  "id": "fn-15-effect-native-component-framework-mvp.6",
+  "priority": null,
+  "spec": "fn-15-effect-native-component-framework-mvp",
+  "spec_path": ".flow/tasks/fn-15-effect-native-component-framework-mvp.6.md",
+  "status": "todo",
+  "title": "ui demo app, fixtures per error code and docs",
+  "updated_at": "2026-10-02T17:42:00.826923Z"
+}

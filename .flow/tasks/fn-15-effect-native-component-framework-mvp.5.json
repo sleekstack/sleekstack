@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-02T17:35:32.649449Z",
+  "depends_on": [
+    "fn-15-effect-native-component-framework-mvp.4"
+  ],
+  "id": "fn-15-effect-native-component-framework-mvp.5",
+  "priority": null,
+  "spec": "fn-15-effect-native-component-framework-mvp",
+  "spec_path": ".flow/tasks/fn-15-effect-native-component-framework-mvp.5.md",
+  "status": "todo",
+  "title": "sleekstack check runs the component pass only for ui projects",
+  "updated_at": "2026-10-02T17:42:00.522141Z"
+}
