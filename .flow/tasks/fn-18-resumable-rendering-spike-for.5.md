@@ -32,9 +32,11 @@ Record the spike's answer (R8): ADR 0017, the new vocabulary, and the new Analyz
 - [ ] TBD
 
 ## Done summary
-TBD
+Added ADR 0017 (resumable host-first components: design, measured size 78,633 B gzip entry dominated by Effect / 183 B gzip handler chunk, decode-policy divergence, known gaps, yes-as-spike answer, next steps) with its index row; CONTEXT.md gains Handler, Resume, Manifest (each with _Avoid_) and lists NonResumableHandler; packages/analyze/README.md lists NonResumableHandler. Not done (outside Touches): UnsupportedAtom / NonResumableHandler in the apps/docs errors page — a follow-up.
 
+Tier: implementer opus at medium
+stage: impl-review - ran (codex fan-out NEEDS_WORK -> 2 wording fixes -> SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 7ed079b94747f8617aff0c4573e947abc551b95c, 4e8aafa655fa2b07442d95a7199ac05adf1f80f5
+- Tests: pnpm --filter docs test
 - PRs:

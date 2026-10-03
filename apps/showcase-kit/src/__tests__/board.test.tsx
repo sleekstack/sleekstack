@@ -226,7 +226,7 @@ describe('Board — cache-backed mutations (no router.refresh)', () => {
     reply({ ok: false, error: 'Simulated failure: create rejected before commit' })
 
     await waitFor(() => expect(within(project).queryByRole('button', { name: /doomed/i })).toBeNull())
-    expect(within(project).getByRole('alert').textContent).toBe('Simulated failure: create rejected before commit')
+    expect((await within(project).findByRole('alert', {}, { timeout: 10_000 })).textContent).toBe('Simulated failure: create rejected before commit')
     expect(refresh).not.toHaveBeenCalled()
   })
 

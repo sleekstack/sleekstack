@@ -25,6 +25,7 @@ export type AnalyzeCode =
   | 'Unresolved'
   | 'UnhandledError'
   | 'EffectInsideReact'
+  | 'NonResumableHandler'
 
 export interface ErrorHelp {
   /** What the analyzer checks. */
@@ -118,6 +119,11 @@ export const ERROR_CODES: Readonly<Record<AnalyzeCode, ErrorHelp>> = {
   EffectInsideReact: {
     rule: 'Effect components are not rendered under a fromReact guest.',
     fix: ['Move the Effect component out of the React guest', 'Convert the guest subtree to Effect components'],
+    docs: UI,
+  },
+  NonResumableHandler: {
+    rule: 'Every on() entry names a top-level const defineHandler("literal-id", ...), and resume loaders import a module whose default export is one.',
+    fix: ['Hoist the defineHandler call to a top-level const with a string-literal id', 'Pass that const to on() instead of an inline function or a reassigned variable'],
     docs: UI,
   },
 }

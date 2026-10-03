@@ -13,9 +13,9 @@ export function resolveEntryPoints() {
     const dir = join(repoRoot, 'packages', pkg)
     const json = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'))
     const subpaths = json.exports
-      ? Object.entries(json.exports).filter(([key]) => key !== './internal').map(([key, v]) => [key, typeof v === 'string' ? v : v.types ?? v.default]).filter(([, rel]) => !rel?.endsWith('.md'))
-      :[['.', json.types]]
-    return subpaths.map(([key, rel]) => {
+      ? Object.entries(json.exports).filter(([key]) => key !== './internal').map(([key, v]) => [key, typeof v === 'string' ? v : v.types ?? v.default])
+      : [['.', json.types]]
+    return subpaths.filter(([, rel]) => !String(rel).endsWith('.md')).map(([key, rel]) => {
       if (!rel) throw new Error(`${json.name}: no types for export "${key}"`)
       const file = join(dir, rel)
       if (!existsSync(file)) throw new Error(`${json.name}: entry point "${key}" resolves to missing file ${file}`)

@@ -21,3 +21,4 @@
 | [0018](0018-tanstack-query-over-native-query-layer.md) | Queries use TanStack Query; `@sleekstack/query` is a thin bridge | Accepted |
 | [0019](0019-run-operation-rename.md) | `kit/next`'s inline runner is `runOperation`; `effect` means the side-effect Layer only | Accepted |
 | [0019](0019-one-name-one-meaning-run-operation.md) | One public name, one meaning: the `kit/next` inline runner is `runOperation` (`effect` deprecated alias) | Accepted |
+| [0017](0017-resumable-host-first-components.md) | `@sleekstack/ui` (spike): host HTML resumes through named handlers and bound atoms without re-running components | Proposed |

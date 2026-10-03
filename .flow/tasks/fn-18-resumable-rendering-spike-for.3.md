@@ -40,9 +40,11 @@ Teach the Analyzer's component pass about `resume` (R6): a second tree root next
 - [ ] TBD
 
 ## Done summary
-TBD
+The Analyzer's component pass now treats `resume` calls as a second tree root. It reads each loader's default Handler `R` and checks it against the resume layer, with Store always provided. A missing service reports `MissingDependency`. `NonResumableHandler` is reported for inline handlers, non-literal ids, non-top-level or loop-built handlers, and unreadable loader types. The code is defined once as `NON_RESUMABLE_HANDLER` in packages/analyze/src/components.ts. Handler maps resolve through shorthand properties, const bindings and spreads, and `export default defineHandler` is accepted. `BindNode` now counts as a rendered Node. Without that, every analyze component test failed after fn-18.1, so the analyze baseline was red before this task. The MissingDependency message now names "root (mount / resume) layer". Fixtures: ui-resumable (errors, including Effect.all and nested guest-prop cases) and ui-resume-clean.
 
+stage: impl-review - ran (codex fan-out NEEDS_WORK -> fixes -> SHIP)
+Tier: opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 631dba486450ea32b8dba17b42f265874d9f5d88, edcaeb2dea8c344880ade7dd3fbc6b691729ed9a, 8d06f4003c8287b0e8ed7c59ef26d3f4bd28c2fc
+- Tests: pnpm typecheck, pnpm --filter @sleekstack/analyze test, pnpm --filter ui-demo test
 - PRs:

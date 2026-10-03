@@ -112,6 +112,8 @@ const build = (node: Node, env: Env, o: Owner): globalThis.Node | null => {
     switch (node._tag) {
       case 'Text':
         return env.doc.createTextNode(node.text)
+      case 'Bind':
+        return env.doc.createTextNode(String(env.store.get(node.atom)))
       case 'Fragment': {
         const scope = runScopes.get(node)
         if (scope) o.scopes.push(scope)
