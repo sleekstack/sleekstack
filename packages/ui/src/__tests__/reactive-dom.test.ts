@@ -152,4 +152,75 @@ describe('reactive DOM', () => {
     await tick()
     expect(container.textContent).toBe('o2i3')
   })
+
+  it('a renderer defect on re-run keeps the old DOM and reports; a run that reads no atoms unsubscribes', async () => {
+    const a = Atom.make(0)
+    const b = Atom.make(0)
+    let runs = 0
+    const C = () =>
+      Effect.flatMap(useAtomValue(a), (n) => {
+        runs++
+        return n === 1 ? Effect.succeed(el('bad tag')) : Effect.map(useAtomValue(b), () => el('b', {}, String(n)))
+      })
+    const onError = vi.fn()
+    // At a === 2 the run reads no atom (a plain `get`), so it must drop its subscriptions.
+    const Wrapped = () => Effect.flatMap(Store, (s) => (s.get(a) === 2 ? Effect.succeed(el('p', {}, 'done')) : C()))
+    const { container, store } = await go(jsx(Wrapped, {}), { onError })
+    store.set(a, 1)
+    await tick()
+    expect(container.innerHTML).toContain('<b>0</b>')
+    expect(onError).toHaveBeenCalledOnce()
+    store.set(a, 2)
+    await tick()
+    expect(container.textContent).toBe('done')
+    const before = runs
+    store.set(b, 1)
+    store.set(a, 3)
+    await tick()
+    expect(runs).toBe(before)
+  })
+
+  it('a fallback failing re-run goes to the outer Boundary; a reactive fallback keeps the component retrying', async () => {
+    const a = Atom.make(0)
+    const msg = Atom.make('m')
+    const C = () => Effect.flatMap(useAtomValue(a), (n): Effect.Effect<any, Boom> => (n === 1 ? Effect.fail(new Boom()) : Effect.succeed(el('b', {}, String(n)))))
+    const Fb = () => Effect.map(useAtomValue(msg), (m) => el('i', {}, m))
+    const inner = jsx(Boundary, { tag: 'Boom', fallback: () => jsx(Fb, {}), children: jsx(C, {}) })
+    const { container, store } = await go(inner)
+    store.set(a, 1)
+    await tick()
+    expect(container.textContent).toBe('m')
+    store.set(msg, 'n')
+    await tick()
+    expect(container.textContent).toBe('n')
+    store.set(a, 2)
+    await tick()
+    expect(container.textContent).toBe('2')
+
+    const x = Atom.make(0)
+    const D = () => Effect.flatMap(useAtomValue(x), (n): Effect.Effect<any, Boom> => (n === 1 ? Effect.fail(new Boom()) : Effect.succeed(el('b'))))
+    const nested = jsx(Boundary, {
+      tag: 'Other',
+      fallback: () => Effect.succeed(el('p', {}, 'outer')),
+      children: jsx(Boundary, { tag: 'Boom', fallback: () => Effect.fail(new Other()), children: jsx(D, {}) }),
+    })
+    const second = await go(nested)
+    second.store.set(x, 1)
+    await tick()
+    expect(second.container.textContent).toBe('outer')
+  })
+
+  it('a scoped mount layer stays alive for re-runs; dispose awaits its release', async () => {
+    const a = Atom.make(0)
+    const log: Array<string> = []
+    const layer = Layer.scoped(Greeting, Effect.acquireRelease(Effect.succeed('hi'), () => Effect.sync(() => log.push('released'))))
+    const C = () => Effect.zipWith(Greeting, useAtomValue(a), (g, n) => el('b', {}, `${g}${n}`))
+    const { container, store, handle } = await go(jsx(C, {}), { layer: layer as any })
+    store.set(a, 1)
+    await tick()
+    expect(container.textContent).toBe('hi1')
+    expect(log).toEqual([])
+    await act(() => handle.dispose())
+    expect(log).toEqual(['released'])
+  })
 })

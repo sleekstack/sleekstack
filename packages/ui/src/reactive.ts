@@ -47,17 +47,23 @@ export const useSetAtom = <R, W>(atom: Atom.Writable<R, W>): Effect.Effect<(valu
 export const useAtom = <R, W>(atom: Atom.Writable<R, W>): Effect.Effect<readonly [R, (value: W) => void], never, Store> =>
   Effect.zip(useAtomValue(atom), useSetAtom(atom))
 
-// A re-run is outside any `Catch` frame: apply the innermost captured `Boundary` handler whose tag matches.
-const handled = (run: Effect.Effect<Node, any, any>): Effect.Effect<Node, any, any> =>
+/** Nodes a re-run produced from a `Boundary` fallback rather than from the component itself. */
+export const fallbacks = new WeakSet<Node>()
+
+type Handler = Context.Tag.Service<Handlers>[number]
+
+// A re-run is outside any `Catch` frame: apply the innermost captured handler whose tag matches; a failing fallback goes to the handlers outside it.
+const withHandlers = (run: Effect.Effect<Node, any, any>, hs: ReadonlyArray<Handler>): Effect.Effect<Node, any, any> =>
   Effect.catchIf(
     run,
     (e: any) => typeof e?._tag === 'string',
-    (e: any) =>
-      Effect.flatMap(Handlers, (hs) => {
-        const h = [...hs].reverse().find((x) => x.tag === e._tag)
-        return h ? h.fallback(e) : Effect.fail(e)
-      }),
+    (e: any) => {
+      let i = hs.length - 1
+      while (i >= 0 && hs[i]!.tag !== e._tag) i--
+      return i < 0 ? Effect.fail(e) : Effect.tap(withHandlers(hs[i]!.fallback(e), hs.slice(0, i)), (n) => void fallbacks.add(n))
+    },
   )
+const handled = (run: Effect.Effect<Node, any, any>): Effect.Effect<Node, any, any> => Effect.flatMap(Handlers, (hs) => withHandlers(run, hs))
 
 /** Runs a component as one instance: fresh collector, own scope, captured context; returns a `Reactive` node when it read atoms. */
 export const instance = <P>(type: (props: P) => Effect.Effect<Node, any, any>, props: P): Effect.Effect<Node, any, any> => {

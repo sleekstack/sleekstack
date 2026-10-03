@@ -1,11 +1,11 @@
 import { type Atom, type AtomStore, makeAtomStore } from '@sleekstack/core'
-import { Cause, Effect, Exit, Fiber, type Layer, Scope } from 'effect'
+import { Cause, Effect, Exit, Fiber, Layer, Scope } from 'effect'
 import { Component, createElement, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { createRoot, type Root } from 'react-dom/client'
 import { reportRenderError, runToNode } from './component'
 import type { Node } from './node'
-import { RenderScope, Store } from './reactive'
+import { fallbacks, RenderScope, Store } from './reactive'
 import { checkAttr, checkTag } from './string'
 
 export interface Mounted {
@@ -49,7 +49,7 @@ const release = (o: Owner): void => {
 }
 const kill = (i: Instance): void => {
   i.dead = true
-  for (const u of i.unsubs.splice(0)) u()
+  unwatch(i)
   if (i.fiber) Effect.runFork(Fiber.interrupt(i.fiber))
   i.fiber = undefined
   release(i)
@@ -59,25 +59,27 @@ const kill = (i: Instance): void => {
 interface ContainerState {
   gen: number
   top: Owner
-  close: () => void
+  close: () => Promise<void>
 }
 const states = new WeakMap<Element, ContainerState>()
 
-const teardown = (container: Element, state: ContainerState): void => {
+const closed = async () => {}
+// Synchronous DOM and subscription teardown; the returned promise settles once layers and an owned store are closed.
+const teardown = (container: Element, state: ContainerState): Promise<void> => {
   release(state.top)
   const close = state.close
-  state.close = () => {}
-  close()
+  state.close = closed
   container.replaceChildren()
+  return close()
 }
 
-// Renderer state for one mount: who to report to, and subscriptions to start once the built subtree is committed.
+// Renderer state for one mount. `defect` receives renderer failures (reported on first render; a re-run swap collects them).
 interface Env {
   doc: Document
   store: AtomStore
   onError?: OnError
   live: () => boolean
-  pending: Array<() => void>
+  defect: (error: unknown) => void
 }
 
 const build = (node: Node, env: Env, o: Owner): globalThis.Node | null => {
@@ -105,7 +107,8 @@ const build = (node: Node, env: Env, o: Owner): globalThis.Node | null => {
         const inst: Instance = { ...owner(), host, rerun: node.rerun, unsubs: [], fiber: undefined, queued: false, dead: false }
         o.kids.push(inst)
         append(host, build(node.child, env, inst))
-        env.pending.push(() => watch(inst, node.atoms, env))
+        // Subscribed now so a write during a guest commit is not missed; the re-run itself waits for a microtask.
+        watch(inst, node.atoms, env)
         return host
       }
       case 'Guest': {
@@ -120,17 +123,13 @@ const build = (node: Node, env: Env, o: Owner): globalThis.Node | null => {
       }
     }
   } catch (error) {
-    reportRenderError(error, env.onError)
+    env.defect(error)
     return null
   }
 }
 
 const append = (parent: globalThis.Node, child: globalThis.Node | null): void => {
   if (child) parent.appendChild(child)
-}
-
-const flush = (env: Env): void => {
-  for (const start of env.pending.splice(0)) start()
 }
 
 const watch = (inst: Instance, atoms: ReadonlyArray<Atom.Atom<any>>, env: Env): void => {
@@ -160,21 +159,31 @@ const rerun = (inst: Instance, env: Env): void => {
   })
 }
 
-// One `replaceChildren`: the old subtree's guests and instances go first. A non-reactive result keeps the subscriptions.
+const unwatch = (inst: Instance): void => {
+  for (const u of inst.unsubs.splice(0)) u()
+}
+
+// Transactional: build the new subtree aside; on a renderer defect or a supersede mid-build keep the old DOM.
+// A handled-error fallback is built as content and keeps the component's own subscriptions, so the next change retries.
 const swap = (inst: Instance, node: Node, env: Env): void => {
-  release(inst)
+  const errors: Array<unknown> = []
   const content = owner()
-  const sub: Env = { ...env, pending: [] }
-  const tree = build(node._tag === 'Reactive' ? node.child : node, sub, content)
+  const own = !fallbacks.has(node) && node._tag === 'Reactive' ? node : undefined
+  const tree = build(own ? own.child : node, { ...env, defect: (e) => errors.push(e) }, content)
+  if (errors.length > 0 || inst.dead || !env.live()) {
+    release(content)
+    for (const e of errors) reportRenderError(e, env.onError)
+    return
+  }
+  release(inst)
   inst.roots = content.roots
   inst.kids = content.kids
-  if (node._tag === 'Reactive') {
-    for (const u of inst.unsubs.splice(0)) u()
-    inst.rerun = node.rerun
-    sub.pending.push(() => watch(inst, node.atoms, env))
-  }
+  if (own) {
+    unwatch(inst)
+    inst.rerun = own.rerun
+    watch(inst, own.atoms, env)
+  } else if (!fallbacks.has(node)) unwatch(inst)
   inst.host.replaceChildren(...(tree ? [tree] : []))
-  flush(sub)
 }
 
 const safeReport = (cause: Cause.Cause<unknown>, onError?: OnError): void => {
@@ -197,30 +206,30 @@ export const mount = async <E, A, LE = never>(
 ): Promise<Mounted> => {
   const { container, onError } = opts
   let state = states.get(container)
-  if (!state) states.set(container, (state = { gen: 0, top: owner(), close: () => {} }))
+  if (!state) states.set(container, (state = { gen: 0, top: owner(), close: closed }))
   const gen = ++state.gen
   const current = (): boolean => state.gen === gen
   const noop: Mounted = { dispose: async () => {} }
   // Re-mount clears the previous generation first, so a pending or rejecting mount orphans nothing.
-  teardown(container, state)
+  void teardown(container, state)
   const store = opts.store ?? makeAtomStore()
   const scope = Effect.runSync(Scope.make())
-  const close = () => {
-    void Effect.runPromise(Scope.close(scope, Exit.void))
-    if (!opts.store) void store.dispose()
+  state.close = async () => {
+    await Effect.runPromise(Scope.close(scope, Exit.void))
+    if (!opts.store) await store.dispose()
   }
-  state.close = close
   const provided = app.pipe(Effect.provideService(Store, store), Effect.provideService(RenderScope, scope)) as Effect.Effect<Node, E, Exclude<A, Store>>
   let node: Node
   try {
-    node = await runToNode(provided, opts.layer, onError)
+    // The mount layer lives in the mount scope: re-runs reuse its services after the first render.
+    node = await runToNode(provided, Layer.effectContext(Layer.buildWithScope(opts.layer, scope)), onError)
   } catch (error) {
-    if (current()) teardown(container, state)
+    if (current()) await teardown(container, state)
     throw error
   }
   if (!current()) return noop
   const top = owner()
-  const env: Env = { doc: container.ownerDocument, store, onError, live: current, pending: [] }
+  const env: Env = { doc: container.ownerDocument, store, onError, live: current, defect: (e) => reportRenderError(e, onError) }
   const tree = build(node, env, top)
   // Guest callbacks (`onError`) may start a newer mount while building.
   if (!current()) {
@@ -229,10 +238,9 @@ export const mount = async <E, A, LE = never>(
   }
   state.top = top
   append(container, tree)
-  flush(env)
   return {
     dispose: async () => {
-      if (current()) teardown(container, state)
+      if (current()) await teardown(container, state)
     },
   }
 }
