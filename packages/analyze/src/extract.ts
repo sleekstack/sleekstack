@@ -683,9 +683,8 @@ export function extract(project: string, entries?: readonly string[], lenient = 
     yieldsOf(fn, a.yields, new Set())
     actions.push(a)
   }
-  /** A key parameter type that is not `any` / `unknown`, and if a union, only of primitives (`boolean`, `'a' | 'b'`). */
-  const preciseKeyPart = (t: ts.Type) => !(t.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown))
-    && (!t.isUnion() || t.types.every((m) => m.flags & (ts.TypeFlags.StringLike | ts.TypeFlags.NumberLike | ts.TypeFlags.BooleanLike | ts.TypeFlags.Null)))
+  /** A key parameter type that is not `any` / `unknown` / a union (`boolean`, TypeScript's `true | false`, excepted). */
+  const preciseKeyPart = (t: ts.Type) => !(t.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown)) && (!t.isUnion() || !!(t.flags & ts.TypeFlags.Boolean))
   /** An options member: a property's value, or a method declaration (`fetch(id) { ... }`). */
   const member = (o: ts.ObjectLiteralExpression, name: string): ts.Expression | ts.MethodDeclaration | undefined =>
     prop(o, name) ?? o.properties.find((p): p is ts.MethodDeclaration => ts.isMethodDeclaration(p) && ts.isIdentifier(p.name) && p.name.text === name)

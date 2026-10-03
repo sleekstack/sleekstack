@@ -29,7 +29,8 @@ export const nonLiteral = cachedQuery({ key: (id: string) => [prefix, id], fetch
 export const anyParam = cachedQuery({ key: (id: any) => ['todo', id], fetch: function* () { return yield* A } }) // @error Computed
 export const anyFetch = Query.make({ key: (id: string) => ['x', id], fetch: loose }) // @error Computed
 export const okMethod = Query.make({ key(id: string, flag?: boolean) { return ['m', id] }, fetch(id: string) { return Effect.map(Api, (api) => id) } })
-export const okUnion = cachedQuery({ key: (s: 'open' | 'closed') => ['s', s], *fetch() { return yield* A } })
+export const okBool = cachedQuery({ key: (b: boolean) => ['b', b], *fetch() { return yield* A } })
+export const literalUnion = cachedQuery({ key: (s: 'open' | 'closed') => ['s', s], *fetch() { return yield* A } }) // @error Computed
 export const missingTag = Query.make({ key: (id: string) => ['t', id], fetch: () => Gone }) // @error MissingDependency
 export const missingGeneric = Query.make({ key: (id: string) => ['g', id], fetch: () => Effect.map(Svc, (s) => s) }) // @error MissingDependency
 export const missingGenericRun = Mutation.make({ run: () => Svc }) // @error MissingDependency
