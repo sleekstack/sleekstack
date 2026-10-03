@@ -10,6 +10,7 @@
 import * as path from 'node:path'
 import ts from 'typescript'
 import { bodyReturns, libId, programOf, TEST_FILE, unwrap, Unreadable } from './extract'
+import { analyzeError } from './errorCodes'
 import type { AnalyzeError, ComponentReport, ComponentTree, Location, UiNode } from './model'
 
 /** `@sleekstack/ui`'s `Store`, provided by every `mount` (ui/dom.ts) whatever its layer. */
@@ -337,11 +338,11 @@ export function analyzeComponents(opts: { readonly project: string }): Component
  */
 function check(n: UiNode, provided: ReadonlySet<string>, caught: ReadonlySet<string>, out: AnalyzeError[]): Set<string> {
   const at = { file: n.file, line: n.line }
-  if (n.kind === 'unresolved') return (out.push({ code: 'Unresolved', message: n.message, ...at }), new Set())
+  if (n.kind === 'unresolved') return (out.push(analyzeError('Unresolved', n.message, at)), new Set())
   if (n.kind === 'component' && n.guest) {
     for (const c of n.children) {
       if (c.kind === 'unresolved') check(c, provided, caught, out)
-      else out.push({ code: 'EffectInsideReact', message: `Effect component "${c.kind === 'component' ? c.name : ''}" is rendered under the React guest "${n.name}"`, file: c.file, line: c.line })
+      else out.push(analyzeError('EffectInsideReact', `Effect component "${c.kind === 'component' ? c.name : ''}" is rendered under the React guest "${n.name}"`, { file: c.file, line: c.line }))
     }
     return new Set()
   }
@@ -354,12 +355,12 @@ function check(n: UiNode, provided: ReadonlySet<string>, caught: ReadonlySet<str
   for (const r of requires) {
     if (provided.has(r) || below.has(`R:${r}`)) continue
     below.add(`R:${r}`)
-    out.push({ code: 'MissingDependency', message: `${who} requires "${r}", but no enclosing Provide or mount layer provides it`, ...at })
+    out.push(analyzeError('MissingDependency', `${who} requires "${r}", but no enclosing Provide or mount layer provides it`, at))
   }
   for (const e of n.kind === 'component' ? n.errors : []) {
     if (caught.has(e) || below.has(`E:${e}`)) continue
     below.add(`E:${e}`)
-    out.push({ code: 'UnhandledError', message: `${who} can fail with "${e}", but no enclosing Catch handles it`, ...at })
+    out.push(analyzeError('UnhandledError', `${who} can fail with "${e}", but no enclosing Catch handles it`, at))
   }
   return below
 }

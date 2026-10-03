@@ -10,7 +10,7 @@
 import ts from 'typescript'
 import { graphOf } from './extract'
 import { validate } from './validate'
-import type { AnalyzeError, Graph, Location, ModuleDecl, ProviderDecl, RootKind } from './model'
+import type { AnalyzeCode, AnalyzeError, Graph, Location, ModuleDecl, ProviderDecl, RootKind } from './model'
 
 export const RUNTIME_RUN_CALLS = new Set(['runtime/runtime#runEffect', 'next/runtime#runEffect'])
 
@@ -25,7 +25,7 @@ export interface RootCtx {
   readonly text: (n: ts.Node) => string
   readonly unwrap: (e: ts.Expression) => ts.Expression
   readonly follow: (e: ts.Expression) => ts.Expression | ts.ClassDeclaration
-  readonly fail: (n: ts.Node, message: string, code?: string) => never
+  readonly fail: (n: ts.Node, message: string, code?: AnalyzeCode) => never
   readonly plainLayer: (e: ts.Expression, out: (p: ProviderDecl) => void) => void
   readonly report: (e: unknown, owner?: ModuleDecl) => void
   /** A located unreadable-declaration error (never a crash). */

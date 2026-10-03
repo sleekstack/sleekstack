@@ -7,13 +7,14 @@
  */
 
 import { isPrivate, resolve, type Seen } from './extract'
-import type { ActionDecl, AnalyzeError, Lifetime, Location, ModuleDecl } from './model'
+import { analyzeError } from './errorCodes'
+import type { ActionDecl, AnalyzeCode, AnalyzeError, Lifetime, Location, ModuleDecl } from './model'
 
 const allowed: Record<Lifetime, readonly Lifetime[]> = { app: ['app'], request: ['app', 'request'], component: ['app', 'component'] }
 
 export function validate(root: ModuleDecl): AnalyzeError[] {
   const errors: AnalyzeError[] = []
-  const err = (code: string, message: string, at: Location) => errors.push({ code, message, file: at.file, line: at.line })
+  const err = (code: AnalyzeCode, message: string, at: Location) => errors.push(analyzeError(code, message, { file: at.file, line: at.line }))
 
   // Module walk (core cycle.ts): identity cycles and distinct modules sharing a name.
   const byName = new Map<string, ModuleDecl>()
@@ -101,8 +102,8 @@ export function validateAction(runtime: ModuleDecl, a: ActionDecl): AnalyzeError
   const overlay = a.provide.entries.length || a.provide.imports.length ? validate(root).filter((e) => !base.has(key(e))) : []
   return [...overlay, ...a.yields.flatMap(({ tag, loc }): AnalyzeError[] => {
     const owner = won.get(tag)
-    if (!owner) return [{ code: 'MissingDependency', message: `The action yields "${tag}", but no entry provides it`, ...loc }]
-    if (owner.module !== root && owner.module !== runtime && isPrivate(owner.module, tag)) return [{ code: 'PrivateDependency', message: `The action yields "${tag}", which is private to module "${owner.module.name}" (not in its exports)`, ...loc }]
+    if (!owner) return [analyzeError('MissingDependency', `The action yields "${tag}", but no entry provides it`, loc)]
+    if (owner.module !== root && owner.module !== runtime && isPrivate(owner.module, tag)) return [analyzeError('PrivateDependency', `The action yields "${tag}", which is private to module "${owner.module.name}" (not in its exports)`, loc)]
     return []
   })]
 }
