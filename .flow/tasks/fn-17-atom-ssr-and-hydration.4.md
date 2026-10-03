@@ -40,9 +40,11 @@ Size: M. Next integration via server-component prefetch plus the showcase proof 
 - [ ] Existing showcase e2e and unit tests still pass
 
 ## Done summary
-TBD
+Added `prefetchAtoms` to @sleekstack/next. It builds an atom store on the request-scoped runtime, waits for result atoms to settle, and returns a plain-object Snapshot. The store is disposed on every path. A failed read rejects. Added the showcase `/atoms` page, which seeds a client LayerProvider via `hydrate`. An e2e checks that the server HTML contains the seeded values and that the seeded Effect never runs on the client after hydration. Tests: packages/next/src/__tests__/atoms.test.ts, apps/showcase/e2e/atoms.spec.ts. I confirmed the e2e goes red with an empty `hydrate`.
 
+stage: impl-review - ran (codex fan-out NEEDS_WORK, 2 findings fixed, re-review SHIP)
+Tier: opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: d15e55b3ce31187e598410167a47a547d6fad69f, 2c297b10b934a788c34e67eddc2d269cec167d3b
+- Tests: pnpm typecheck, pnpm test, pnpm --filter showcase build && npx playwright test (6/6)
 - PRs:

@@ -45,7 +45,7 @@ The `@sleekstack/devtools` panel has a Queries tab. `QueryEvents` (from `@sleeks
 
 ## Limits
 
-- `useMutation` is client only: in a server render it throws `AtomsClientOnly` (kit: `SleekStackError` `Unknown`). Render it on the client only; `apps/showcase/src/client/services/useBoardMutation.ts` shows one way.
+- `useMutation` is client only: in a server render it throws (kit: `SleekStackError` `Unknown`). Render it on the client only; `apps/showcase/src/client/services/useBoardMutation.ts` shows one way.
 - An optimistic write is only a value in the cache. An item it adds (for example a new task with a temporary id) is not on the server until the refetch replaces it; the showcases do not let users select such an item.
 - `gcTime` is per query definition, not per key.
 - Server rendering with prefetch is in [Queries on the server](/docs/queries-ssr). The kit has no prefetch yet.

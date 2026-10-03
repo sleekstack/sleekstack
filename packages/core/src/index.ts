@@ -16,6 +16,7 @@ export {
   CaptiveDependency,
   PrivateDependency,
   AtomCycle,
+  DuplicateAtomKey,
   type GraphError,
 } from './errors'
 /** @internal Lazy per-scope resolution for generator layers. */
@@ -25,5 +26,5 @@ export { makeAppScope, resolutionFailure, resolveTag, resolveTagEffect, type App
 export * as Atom from './atom/Atom'
 /** The async state of Effect and Stream atoms. */
 export * as Result from './atom/Result'
-export { makeAtomStore, type AtomStore, type AtomStoreOptions } from './atom/AtomStore'
+export { makeAtomStore, dehydrate, hydrate, type AtomStore, type AtomStoreOptions, type Snapshot } from './atom/AtomStore'
 export { atomStoreFor } from './atom/scope'

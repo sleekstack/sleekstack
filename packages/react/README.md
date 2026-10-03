@@ -7,7 +7,8 @@ The React adapter for [`@sleekstack/core`](../core): a Suspense-native, StrictMo
 | `LayerProvider` | `provide` takes modules and entries. At the root it builds an app scope; nested under another provider it opens a component scope. Scopes close on unmount. Pass `appScope` to share one externally owned app scope between React roots, and `onFinalizerError` to receive finalizer failures. |
 | `useService(Tag)` | Reads a service from the nearest provider. Build failures (for example `MissingDependency`) are thrown to the nearest error boundary. |
 | `closeProvidersOn(appScope)` | Closes the providers sharing an external app scope before you close it. |
-| `useAtomValue`, `useAtomSet`, `useAtom`, `useAtomRefresh`, `useAtomSuspense` | Atom hooks (client only; they throw `AtomsClientOnly` during a server render). |
+| `useAtomValue`, `useAtomSet`, `useAtom`, `useAtomRefresh`, `useAtomSuspense` | Atom hooks. They also run during a server render. |
+| `renderWithAtoms`, `AtomsSnapshot`, `hydrate` / `snapshotId` props | Atom SSR: `renderWithAtoms(tree)` (string) or `renderWithAtoms(tree, { stream })` renders with request-owned provider scopes and closes them when the render ends; `<AtomsSnapshot />` emits the provider's serializable atoms as a JSON script tag the client provider seeds from; `hydrate` seeds a provider from a snapshot directly. See the Atoms guide. |
 | `useQuery`, `useQuerySuspense`, `useQueryResult`, `useInfiniteQuery`, `useQueries`, `useMutation`, `QueryProvider`, `HydrateQueries` | Hooks for [`@sleekstack/query`](../query). Query hooks also work in a server render (they read prefetched data); `useMutation` and `useQueries` are client only. See the Queries guide. |
 
 ```tsx
@@ -29,7 +30,7 @@ export const App = () => (
 
 ## Atoms
 
-Atoms (`Atom.make` from `@sleekstack/core`) are reactive client state modeled on effect-atom. Each `LayerProvider` owns an `AtomStore`, so atom state is per provider and is disposed when the provider unmounts, and Effect atoms resolve their services from that provider's scope. See the Atoms guide. In development each provider's store is also listed for the devtools panel through `@sleekstack/react/internal` (not public API; production bundles carry none of it).
+Atoms (`Atom.make` from `@sleekstack/core`) are reactive state, read during server and client renders, modeled on effect-atom. Each `LayerProvider` owns an `AtomStore`, so atom state is per provider and is disposed when the provider unmounts, and Effect atoms resolve their services from that provider's scope. See the Atoms guide. In development each provider's store is also listed for the devtools panel through `@sleekstack/react/internal` (not public API; production bundles carry none of it).
 
 Using kit instead of Effect? Use `@sleekstack/kit/react`, which wraps these hooks.
 

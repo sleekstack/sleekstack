@@ -5,7 +5,7 @@
  * its state lives in an AtomStore.
  */
 
-import { Cause, Effect, Equal, Exit, Hash, Option, Stream } from 'effect'
+import { Cause, Effect, Equal, Exit, Hash, Option, Schema, Stream } from 'effect'
 import * as Result from './Result'
 import type { MissingDependency, PrivateDependency } from '../errors'
 
@@ -64,7 +64,23 @@ export interface Atom<A> {
   readonly idleTTL?: number
   /** Computes the value; `get(other)` records dependencies. */
   readonly read: (get: Context) => A
+  /** @internal Set by {@link serializable}: the wire key, the Schema and which value shape it describes. */
+  readonly serializable?: SerializableInfo
 }
+
+/** @internal How a serializable atom crosses the wire. */
+export interface SerializableInfo {
+  readonly key: string
+  readonly schema: Schema.Schema<any, any>
+  /** `value`: the schema describes the atom's value; `result`: it describes the `Success` value of a `Result`. */
+  readonly kind: 'value' | 'result'
+}
+
+/** Type-only brand marking an atom as opted into SSR snapshots. */
+export declare const SerializableBrand: unique symbol
+
+/** An atom opted into SSR snapshots via {@link serializable}; still assignable wherever `T` is expected. */
+export type Serializable<T extends Atom<any>> = T & { readonly [SerializableBrand]: 'value' | 'result' }
 
 /** An atom that can be written. */
 export interface Writable<R, W = R> extends Atom<R> {
@@ -161,6 +177,28 @@ export const keepAlive = <T extends Atom<any>>(self: T): T => ({ ...self, keepAl
 
 /** A copy of `self` removed `ms` after it becomes unused. */
 export const setIdleTTL = <T extends Atom<any>>(self: T, ms: number): T => ({ ...self, idleTTL: ms })
+
+const mark = (kind: 'value' | 'result') => (self: Atom<any>, opts: { readonly key: string; readonly schema: Schema.Schema<any, any> }): any =>
+  ({ ...self, serializable: { key: opts.key, schema: opts.schema, kind } })
+
+/** Value kind of {@link serializable}. */
+function serializableValue<R, W, I>(self: Writable<R, W>, opts: { readonly key: string; readonly schema: Schema.Schema<R, I> }): Serializable<Writable<R, W>>
+function serializableValue<A, I>(self: Atom<A>, opts: { readonly key: string; readonly schema: Schema.Schema<A, I> }): Serializable<Atom<A>>
+function serializableValue(self: Atom<any>, opts: { readonly key: string; readonly schema: Schema.Schema<any, any> }): any {
+  return mark('value')(self, opts)
+}
+
+/**
+ * A copy of `self` that `dehydrate` writes into a snapshot under `key` and `hydrate` seeds from it.
+ * `schema` describes the atom's value. `.result` is the kind for `Result` atoms: its schema describes
+ * the `Success` value, only `Success` is dehydrated, and a seed reads as `Result.success(A)`.
+ */
+export const serializable: typeof serializableValue & {
+  readonly result: <A, E, I>(
+    self: Atom<Result.Result<A, E>>,
+    opts: { readonly key: string; readonly schema: Schema.Schema<A, I> },
+  ) => Serializable<Atom<Result.Result<A, E>>>
+} = Object.assign(serializableValue, { result: mark('result') })
 
 /**
  * Memoizes `f` per structural key (`Equal`/`Hash`; primitives by value). Atoms are held

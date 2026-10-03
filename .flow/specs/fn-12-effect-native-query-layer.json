@@ -2306,7 +2306,7 @@
     "plan": 0
   },
   "spec_path": ".flow/specs/fn-12-effect-native-query-layer.md",
-  "status": "open",
+  "status": "done",
   "title": "Effect-native query layer (@sleekstack/query)",
   "tracker": {
     "baseHashFlow": null,
@@ -2319,5 +2319,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-03T07:59:52.816200Z"
+  "updated_at": "2026-10-03T12:11:19.664764Z"
 }

@@ -5,13 +5,12 @@
  */
 import { describe, it, expect, expectTypeOf, vi, afterEach } from 'vitest'
 import { act, render, screen, waitFor } from '@testing-library/react'
-import { renderToString } from 'react-dom/server'
 import { createRoot } from 'react-dom/client'
 import React, { Component, Suspense, type ReactNode } from 'react'
 import { Context, Effect, Layer } from 'effect'
 import { Atom, MissingDependency, PrivateDependency, Result } from '@sleekstack/core'
 import { renderStrict } from './renderStrict'
-import { AtomsClientOnly, LayerProvider, useAtom, useAtomSet, useAtomSuspense, useAtomValue, useService } from '../index'
+import { LayerProvider, useAtom, useAtomSet, useAtomSuspense, useAtomValue, useService } from '../index'
 
 const Db = Context.GenericTag<{ name: string }>('AtomDb')
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
@@ -135,13 +134,11 @@ describe('atom hooks', () => {
     expect((await screen.findByTestId('error')).textContent).toBe('boom')
   })
 
-  it('throws outside a provider and AtomsClientOnly during a server render', () => {
+  it('throws outside a provider', () => {
     const a = Atom.make(1)
     const View = () => <span>{useAtomValue(a)}</span>
     vi.spyOn(console, 'error').mockImplementation(() => {})
     expect(() => render(<View />)).toThrow(/needs a <LayerProvider>/)
-    vi.stubGlobal('window', undefined)
-    expect(() => renderToString(<LayerProvider provide={[]}><View /></LayerProvider>)).toThrow(AtomsClientOnly)
   })
 
   it('a selector returning an Effect keeps it as a value', async () => {

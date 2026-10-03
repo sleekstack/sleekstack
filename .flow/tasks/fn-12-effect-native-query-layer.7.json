@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-12-effect-native-query-layer",
   "spec_path": ".flow/tasks/fn-12-effect-native-query-layer.7.md",
-  "status": "todo",
+  "status": "done",
   "title": "Kit facade: dependency-inferred queries and mutations with the dts boundary",
   "updated_at": "2026-09-30T15:36:15.063039Z"
 }

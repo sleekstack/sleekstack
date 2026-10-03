@@ -6,6 +6,7 @@ Effect runtime management for Next.js: the Next preset over [`@sleekstack/runtim
 | --- | --- |
 | `configureRuntime({ layer, onError, id })` | Builds one runtime per process, safe across HMR (a config with the same `id` is a no-op). |
 | `runEffect(effect, { request, overrides })` | Runs an Effect on that runtime. `request` Layers build per call and are released when it ends; `overrides` shadow services for the effect and `request`. Next control flow (`redirect()`, `notFound()`, ...) is rethrown untouched and never reported. |
+| `prefetchAtoms(atoms, { request, overrides })` | Atom SSR for Next: in a server component, loads serializable atoms in one `runEffect` call, waits for them to settle and resolves their `Snapshot`; pass it to the client `LayerProvider`'s `hydrate` prop. A result atom settling to `Failure` is left out; a failed run rejects like `runEffect`. See the Next.js guide. |
 | `getRuntime`, `reportFinalizerFailure`, `RuntimeNotConfigured` | Runtime access and errors. `runEffect` before `configureRuntime` rejects with `RuntimeNotConfigured`. |
 | `@sleekstack/next/devtools` | Dev-only scope and error buffer behind the [devtools](../devtools) route handler. |
 

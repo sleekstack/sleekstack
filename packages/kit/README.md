@@ -59,7 +59,7 @@ export const App = module({ name: 'App', provide: [ClockLayer, DbLayer, refresh]
 
 ### Atoms: `atom()`
 
-Client-side reactive state, held per `LayerProvider`. `atom(value)` is writable state. `atom(fn, deps)` is derived: the services of `deps` are resolved like `layer`, then `fn(...services, get)` returns a value or a Promise; `get(other)` reads another atom and recomputes on change.
+Reactive state, held per `LayerProvider` and read during server and client renders. `atom(value)` is writable state. `atom(fn, deps)` is derived: the services of `deps` are resolved like `layer`, then `fn(...services, get)` returns a value or a Promise; `get(other)` reads another atom and recomputes on change.
 
 ```tsx
 import { atom } from '@sleekstack/kit'
@@ -74,7 +74,7 @@ const Next = () => { const [id, set] = useAtom(userId); return <button onClick={
 ```
 
 - Readers suspend until the first value; failures reach the error boundary as `SleekStackError` (`MissingDependency`, `AtomCycle`, or `Unknown` for a throw/rejection in `fn`).
-- `useAtomSet` accepts a value or an updater `(prev) => next`. Hooks are client only.
+- `useAtomSet` accepts a value or an updater `(prev) => next`. Hooks render on the server too; kit atom values are not transferred to the client (no serializable atoms).
 
 ### Cached queries and mutations: `cachedQuery()`, `mutation()`
 

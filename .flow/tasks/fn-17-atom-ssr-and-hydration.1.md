@@ -47,9 +47,11 @@ Size: M. Implements the core half of the API Contracts section (R1).
 - [ ] Non-encodable value types are a compile error (type test); `pnpm --filter @sleekstack/core test` and typecheck pass
 
 ## Done summary
-TBD
+Added `Atom.serializable` / `.result` (type-only `Serializable` brand), `dehydrate`, `hydrate`, `Snapshot`, `AtomStoreOptions.hydrate` / `inert`, and `DuplicateAtomKey` in @sleekstack/core; seeds decode lazily at first read and skip `read`. Tests: packages/core/src/atom/__tests__/serialize.test.ts and serialize-types.test-d.ts.
 
+Tier: opus at medium
+stage: impl-review - ran (codex fan-out NEEDS_WORK -> fixed __proto__ key, hydrate input guard, created-node overwrite -> SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: ea2f2d9be608eabaebf0d7d8ad483f6bf8111dee, 443b9cd6aafd3daeb4bcf88b1d73d76eafd875f3
+- Tests: pnpm --filter @sleekstack/core test, pnpm typecheck && pnpm test
 - PRs:

@@ -6,8 +6,9 @@
  * recomputes only when a dependency's version changed.
  */
 
-import { Cause, Context, Effect, Equal, Exit, Fiber, Scope } from 'effect'
-import { AtomCycle } from '../errors'
+import { Cause, Context, Effect, Equal, Exit, Fiber, Schema, Scope } from 'effect'
+import { AtomCycle, DuplicateAtomKey } from '../errors'
+import * as Result from './Result'
 import type { Atom, BuildContext, Writable, WriteContext } from './Atom'
 
 /** Options for {@link makeAtomStore}. */
@@ -22,6 +23,17 @@ export interface AtomStoreOptions {
   readonly defaultIdleTTL?: number
   /** @internal Wraps every Effect/Stream build before it forks (used by `atomStoreFor`). */
   readonly wrapBuild?: (effect: Effect.Effect<any, any, any>, atom: Atom<any>) => Effect.Effect<any, any, any>
+  /** Seeds serializable atoms from a snapshot at construction (see {@link hydrate}). */
+  readonly hydrate?: Snapshot
+  /** When true, Effect and Stream builds never start: unseeded result atoms stay `Initial`. */
+  readonly inert?: boolean
+}
+
+/** Encoded values of serializable atoms by key; JSON-safe. */
+export type Snapshot = Readonly<Record<string, unknown>>
+
+const devWarn = (message: string) => {
+  if ((globalThis as any).process?.env?.NODE_ENV !== 'production') console.warn(message)
 }
 
 /** Atom state container: one per scope. */
@@ -46,6 +58,8 @@ export interface AtomStore {
   readonly dispose: () => Promise<void>
   /** @internal Read-only snapshot of the built atoms (devtools); never builds, reads or subscribes. Empty once disposed. */
   readonly inspect: () => ReadonlyArray<{ readonly atom: Atom<unknown>; readonly label: string; readonly value: unknown }>
+  /** @internal Records seeds for serializable atoms; use {@link hydrate}. */
+  readonly hydrate: (snapshot: Snapshot) => void
 }
 
 type State = 'uninit' | 'valid' | 'check' | 'dirty'
@@ -80,15 +94,26 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
   const buckets = new Map<number, { nodes: Set<Node>; timer: ReturnType<typeof setTimeout> }>()
   const stack: Node[] = []
   let batchDepth = 0
+  let disposed = false
+  // seeds waiting for their atom's first read, and every key ever seeded (first seed wins)
+  const seeds = new Map<string, unknown>()
+  const seeded = new Set<string>()
+  // serializable key -> the atom first built for it; kept past node eviction until dispose, so keys stay unique per store
+  const keys = new Map<string, Atom<any>>()
 
   const ensure = (atom: Atom<any>): Node => {
     let node = nodes.get(atom)
     if (!node) {
+      const key = atom.serializable?.key
+      if (key !== undefined && keys.has(key) && keys.get(key) !== atom) {
+        throw new DuplicateAtomKey({ key, message: `Two serializable atoms share the key "${key}"` })
+      }
       node = {
         atom, state: 'uninit', value: undefined, version: 0, notified: 0, computing: false, deps: new Map(),
         children: new Set(), listeners: new Set(), retains: 0, finalizers: [], removalQueued: false, bucket: undefined,
       }
       nodes.set(atom, node)
+      if (key !== undefined) keys.set(key, atom)
       scheduleRemoval(node)
     }
     return node
@@ -171,6 +196,7 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
       refreshSelf: () => invalidate(node),
       addFinalizer: (f: () => void) => { node.finalizers.push(f) },
       fork: <A, E>(effect: Effect.Effect<A, E, any>, onExit: (exit: Exit.Exit<A, E>) => void) => {
+        if (options.inert) return undefined
         const scope = Effect.runSync(Scope.make())
         const fiber = Effect.runFork(wrapBuild(effect, node.atom).pipe(Scope.extend(scope), Effect.provide(context)) as Effect.Effect<A, E>)
         let active = true
@@ -215,8 +241,27 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
     node.state = 'valid'
   }
 
+  // first read of a seeded atom: the decoded seed replaces `read`, so no build runs
+  const applySeed = (node: Node): boolean => {
+    const info = node.atom.serializable
+    if (node.state !== 'uninit' || !info || !seeds.has(info.key)) return false
+    const raw = seeds.get(info.key)
+    seeds.delete(info.key)
+    let decoded: unknown
+    try {
+      decoded = Schema.decodeUnknownSync(info.schema)(raw)
+    } catch (e) {
+      devWarn(`[sleekstack] dropped the seed for atom key "${info.key}": ${String(e)}`)
+      return false
+    }
+    node.value = info.kind === 'result' ? Result.success(decoded) : decoded
+    node.version++
+    node.state = 'valid'
+    return true
+  }
+
   const pull = (node: Node) => {
-    if (node.state === 'valid') return
+    if (node.state === 'valid' || applySeed(node)) return
     if (node.state === 'check') {
       for (const [parent, version] of node.deps) {
         pull(parent)
@@ -309,7 +354,26 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
     try { f() } finally { batchDepth--; flush() }
   }
 
-  return {
+  const hydrateStore = (snapshot: Snapshot) => {
+    if (disposed) return
+    let entries: Array<[string, unknown]>
+    try {
+      const proto = typeof snapshot === 'object' && snapshot !== null ? Object.getPrototypeOf(snapshot) : undefined
+      if (proto !== Object.prototype && proto !== null) throw new Error('not a plain object')
+      entries = Object.entries(snapshot)
+    } catch {
+      devWarn('[sleekstack] hydrate ignored a snapshot that is not a plain object')
+      return
+    }
+    for (const [key, raw] of entries) {
+      // any node already created for the key keeps its own value
+      if (seeded.has(key) || keys.has(key)) continue
+      seeded.add(key)
+      seeds.set(key, raw)
+    }
+  }
+
+  const store: AtomStore = {
     get,
     set,
     update: (atom, f) => set(atom, f(get(atom))),
@@ -329,12 +393,45 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
     },
     refresh,
     batch,
-    inspect: () => [...nodes.values()].filter((n) => n.state !== 'uninit').map((n) => ({ atom: n.atom, label: n.atom.label, value: n.value })),
+    inspect: () => disposed ? [] : [...nodes.values()].filter((n) => n.state !== 'uninit').map((n) => ({ atom: n.atom, label: n.atom.label, value: n.value })),
+    hydrate: hydrateStore,
     dispose: async () => {
+      disposed = true
+      keys.clear()
+      seeds.clear()
       for (const { timer } of buckets.values()) clearTimeout(timer)
       buckets.clear()
       for (const node of [...nodes.values()]) { nodes.delete(node.atom); runFinalizers(node) }
       await Promise.all([...closing])
     },
   }
+  if (options.hydrate !== undefined) hydrateStore(options.hydrate)
+  return store
+}
+
+/**
+ * Seeds `store` from `snapshot`: each entry is decoded at its atom's first read, which then
+ * skips `read`. Unknown keys are ignored, the first seed per key wins, built nodes are never
+ * overwritten, and a failed decode is dropped with a dev warning. Never throws.
+ */
+export const hydrate = (store: AtomStore, snapshot: Snapshot): void => store.hydrate(snapshot)
+
+/**
+ * Encodes every built serializable atom: value kind always, result kind only on `Success`.
+ * A value failing its `Schema` encode is skipped with a dev warning. A disposed store gives `{}`.
+ */
+export const dehydrate = (store: AtomStore): Snapshot => {
+  const out: Record<string, unknown> = Object.create(null) // a `__proto__` key stays an own entry
+  for (const { atom, value } of store.inspect()) {
+    const info = atom.serializable
+    if (!info) continue
+    if (info.kind === 'result' && !Result.isSuccess(value as Result.Result<unknown, unknown>)) continue
+    const plain = info.kind === 'result' ? (value as Result.Success<unknown>).value : value
+    try {
+      out[info.key] = Schema.encodeSync(info.schema)(plain)
+    } catch (e) {
+      devWarn(`[sleekstack] dehydrate skipped atom key "${info.key}": ${String(e)}`)
+    }
+  }
+  return out
 }

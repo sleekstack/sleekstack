@@ -9,7 +9,7 @@
 | [0005](0005-dependency-arrays-over-inject.md) | Dependency arrays over `inject()` and params | Superseded by 0011 (actions/queries) |
 | [0006](0006-enforce-module-privacy.md) | Module exports are enforced | Accepted, superseded in part by 0011 |
 | [0007](0007-fumadocs-with-generated-api-reference.md) | Docs site on Fumadocs, with a generated API reference | Accepted |
-| [0008](0008-native-atoms-over-effect-atom.md) | Native atoms, modeled on effect-atom, instead of depending on it | Accepted |
+| [0008](0008-native-atoms-over-effect-atom.md) | Native atoms, modeled on effect-atom, instead of depending on it | Accepted, amended by 0016 (SSR) |
 | [0009](0009-next-internal-exit-hook.md) | `@sleekstack/next` exposes an internal Exit hook for adapters | Superseded by 0012 |
 | [0010](0010-islands-over-resumability.md) | Islands defer hydration per React root instead of resumability | Accepted |
 | [0011](0011-static-build-time-dependency-graph.md) | The dependency graph is validated statically, at build time | Accepted |
@@ -17,3 +17,4 @@
 | [0013](0013-framework-agnostic-runtime-package.md) | The Effect runtime lives in `@sleekstack/runtime`; `@sleekstack/next` is its Next preset | Accepted |
 | [0014](0014-native-query-layer.md) | Queries and mutations are built on native atoms, in `@sleekstack/query` | Accepted |
 | [0015](0015-host-first-component-framework.md) | `@sleekstack/ui` (MVP spike): the Effect program is the host, React components are guests | Proposed |
+| [0016](0016-serializable-atoms-ssr.md) | Atoms render on the server and hydrate from opt-in serializable snapshots | Accepted |

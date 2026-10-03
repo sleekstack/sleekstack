@@ -8,9 +8,10 @@
 
 import React from 'react'
 import { Cause, Effect, Exit } from 'effect'
-import { atomStoreFor, makeAppScope, type ChildScope, type Entry, type Module } from '@sleekstack/core'
-import type { ProviderState } from './context'
+import { atomStoreFor, makeAppScope, makeAtomStore, type ChildScope, type Entry, type Module, type Snapshot } from '@sleekstack/core'
+import { RegistryContext, type ProviderState, type RequestRegistry } from './context'
 import { settleSuspensions } from './atoms'
+import { seedFor } from './transport'
 
 /** The props adoption reads: entries, children shape, and the optional `owner` identity. */
 export interface ScopeProps {
@@ -19,6 +20,10 @@ export interface ScopeProps {
   readonly owner?: { readonly children?: React.ReactNode }
   /** Externally owned app scope a top-level provider opens its component scope on; never closed by the provider. */
   readonly appScope?: ChildScope
+  /** Seeds the provider's atom store; wins over the transport tag. */
+  readonly hydrate?: Snapshot
+  /** Id of the transport tag this provider reads and `AtomsSnapshot` writes; default `''`. */
+  readonly snapshotId?: string
 }
 
 declare const process: { readonly env: { readonly NODE_ENV?: string } }
@@ -59,6 +64,9 @@ export interface Owned {
   readonly provide: ReadonlyArray<Entry | Module>
   readonly parent: ProviderState | null
   readonly appScope?: ChildScope
+  /** Hydration inputs the store was seeded from; fixed for the scope's lifetime and part of adoption identity. */
+  readonly hydrate?: Snapshot
+  readonly snapshotId: string
   readonly close: () => Promise<void>
   committed: boolean
   /** Deferred close scheduled by the last unmount; a StrictMode remount cancels it. */
@@ -101,7 +109,7 @@ const park = (owned: Owned, props: object) => {
 const adopt = (props: ScopeProps, parent: ProviderState | null, appScope: ChildScope | undefined): Owned | undefined => {
   let found: Owned | undefined
   for (const o of parked) {
-    if (o.parent !== parent || o.appScope !== appScope) continue
+    if (o.parent !== parent || o.appScope !== appScope || o.hydrate !== props.hydrate || o.snapshotId !== (props.snapshotId ?? '')) continue
     if (o.parkedBy === (props.owner ?? props)) { found = o; break }
     if (!found && o.stale && sameEntries(o.provide, props.provide) && sameShape((o.parkedBy as ScopeProps).children, props.children)) found = o
   }
@@ -109,7 +117,10 @@ const adopt = (props: ScopeProps, parent: ProviderState | null, appScope: ChildS
   return found
 }
 
-function create(provide: ReadonlyArray<Entry | Module>, parent: ProviderState | null, sink: ProviderState['onFinalizerError'], appScope?: ChildScope): Owned {
+function create(props: ScopeProps, parent: ProviderState | null, sink: ProviderState['onFinalizerError'], appScope: ChildScope | undefined): Owned {
+  const { provide, hydrate } = props
+  const snapshotId = props.snapshotId ?? ''
+  const seed = seedFor(props)
   const report = (exit: Exit.Exit<void, unknown>) => {
     if (Exit.isSuccess(exit)) return
     try {
@@ -122,19 +133,23 @@ function create(provide: ReadonlyArray<Entry | Module>, parent: ProviderState | 
 
   let resolveStart!: () => void
   const started = new Promise<void>((r) => (resolveStart = r))
+  // `close` aborts a still-pending acquisition (e.g. a provider layer that never settles), interrupting its fiber.
+  const abort = new AbortController()
+  const run = <A>(effect: Effect.Effect<A, unknown>) => Effect.runPromise(effect, { signal: abort.signal })
   const opened: Promise<ChildScope> = parent
-    ? started.then(() => parent.scope).then((p) => Effect.runPromise(p.child('component', [...provide])))
+    ? started.then(() => parent.scope).then((p) => run(p.child('component', [...provide])))
     : appScope
-    ? started.then(() => Effect.runPromise(appScope.child('component', [...provide])))
-    : started.then(() => Effect.runPromise(Effect.suspend(() => makeAppScope([...provide], { onFinalizerError: sink })))).then((app) => {
+    ? started.then(() => run(appScope.child('component', [...provide])))
+    : started.then(() => run(Effect.suspend(() => makeAppScope([...provide], { onFinalizerError: sink })))).then((app) => {
         owned.push(app)
-        return Effect.runPromise(app.child('component'))
+        return run(app.child('component'))
       })
   const scope = opened.then((s) => {
     owned.push(s)
     // Registered on the scope after its services, so closing it interrupts atoms before service finalizers.
     state.atoms = atomStoreFor(s, {
       defaultIdleTTL: 400,
+      hydrate: seed,
       onFinalizerError: (e) => report(Exit.failCause(Cause.isCause(e) ? e : Cause.die(e))),
     })
     devStores()?.add(state.atoms)
@@ -157,6 +172,7 @@ function create(provide: ReadonlyArray<Entry | Module>, parent: ProviderState | 
   const close = () =>
     (closing ??= (async () => {
       if (!state.started) return
+      abort.abort()
       await scope.catch(() => undefined)
       if (state.atoms) devStores()?.delete(state.atoms)
       for (const child of [...state.children].reverse()) await child()
@@ -164,7 +180,7 @@ function create(provide: ReadonlyArray<Entry | Module>, parent: ProviderState | 
       for (const s of owned.reverse()) report(await Effect.runPromise(s.close))
       if (state.atoms) settleSuspensions(state.atoms)
     })())
-  return { state, provide, parent, appScope, close, committed: false }
+  return { state, provide, parent, appScope, hydrate, snapshotId, close, committed: false }
 }
 
 /** Closers of committed providers opened on each external app scope. */
@@ -182,7 +198,7 @@ export const closeProvidersOn = async (appScope: ChildScope): Promise<void> => {
 /** Adopts a parked scope for this render or creates one, then parks it under this render's identity. */
 export const acquire = (props: ScopeProps, parent: ProviderState | null, sink: ProviderState['onFinalizerError'] | undefined): Owned => {
   const appScope = parent ? undefined : props.appScope // ignored when nested
-  const owned = adopt(props, parent, appScope) ?? create(props.provide, parent, sink ?? parent?.onFinalizerError ?? defaultSink, appScope)
+  const owned = adopt(props, parent, appScope) ?? create(props, parent, sink ?? parent?.onFinalizerError ?? defaultSink, appScope)
   park(owned, props.owner ?? props)
   return owned
 }
@@ -215,4 +231,50 @@ export const mount = (owned: Owned, parent: ProviderState | null, onClosed: () =
       onClosed()
     })
   }
+}
+
+const sinkFor = (sink: ProviderState['onFinalizerError'] | undefined, parent: ProviderState | null) => sink ?? parent?.onFinalizerError ?? defaultSink
+
+/**
+ * Server acquisition under a request registry: the scope registered under `id` (a Suspense retry of the same
+ * provider), else a new one started at once (no commit on the server) and closed by {@link closeRegistry}.
+ */
+export const acquireOnServer = (registry: RequestRegistry, id: string, props: ScopeProps, parent: ProviderState | null, sink: ProviderState['onFinalizerError'] | undefined): Owned => {
+  const found = registry.scopes.get(id)
+  if (found) return found
+  const owned = create(props, parent, sinkFor(sink, parent), parent ? undefined : props.appScope)
+  owned.state.start()
+  registry.scopes.set(id, owned)
+  registry.closers.push(owned.close)
+  return owned
+}
+
+/** Closes every scope `registry` handed out, newest first (children before parents); idempotent. */
+export const closeRegistry = (registry: RequestRegistry): Promise<void> =>
+  (registry.closing ??= (async () => {
+    for (const close of [...registry.closers].reverse()) await close()
+  })())
+
+/**
+ * Server render without a registry: a never-started scope (no commit on the server, so nothing opens or needs
+ * closing) built without client adoption or parking; atoms read from an inert per-render store (no fiber forked).
+ */
+const inertServerState = (props: ScopeProps, parent: ProviderState | null, sink: ProviderState['onFinalizerError'] | undefined): Owned => {
+  const owned = create(props, parent, sinkFor(sink, parent), parent ? undefined : props.appScope)
+  const state: ProviderState = Object.create(owned.state, { atoms: { value: makeAtomStore({ inert: true, hydrate: seedFor(props) }) } })
+  return { ...owned, state }
+}
+
+/** The provider's scope source: request registry (server under `renderWithAtoms`), inert server state, or client `acquire`. */
+export const useScopeSource = (props: ScopeProps, parent: ProviderState | null, sink: ProviderState['onFinalizerError'] | undefined): React.RefObject<Owned | null> => {
+  const id = React.useId()
+  const registry = React.useContext(RegistryContext)
+  const ref = React.useRef<Owned | null>(null)
+  if (ref.current === null) {
+    ref.current =
+      registry ? acquireOnServer(registry, id, props, parent, sink)
+      : typeof window === 'undefined' ? inertServerState(props, parent, sink)
+      : acquire(props, parent, sink)
+  }
+  return ref
 }

@@ -38,6 +38,15 @@ describe('managedScope', () => {
     await first.close()
   })
 
+  it('never adopts by shape across different hydration inputs', async () => {
+    const first = acquire({ ...props(entries, 't-seed'), snapshotId: 'a' }, null, noSink)
+    await flush() // stale, so shape adoption would otherwise apply
+    expect(acquire({ ...props(entries, 't-seed'), snapshotId: 'b' }, null, noSink)).not.toBe(first)
+    expect(acquire({ ...props(entries, 't-seed'), snapshotId: 'a', hydrate: {} }, null, noSink)).not.toBe(first)
+    expect(acquire({ ...props(entries, 't-seed'), snapshotId: 'a' }, null, noSink)).toBe(first)
+    await first.close()
+  })
+
   it('new props adopt by shape only once the park is stale (after its task)', async () => {
     const first = acquire(props(entries, 't3'), null, noSink)
     const sibling = acquire(props(entries, 't3'), null, noSink)

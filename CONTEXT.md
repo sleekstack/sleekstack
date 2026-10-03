@@ -111,6 +111,14 @@ _Avoid_: Registry, atom registry, atom context
 The state of an Effect or Stream atom: `Initial`, `Success` or `Failure` (holding a Cause), each with a `waiting` flag while it reloads. Kit hooks never expose it: they suspend on `Initial` and throw a SleekStackError on `Failure`.
 _Avoid_: AsyncData, RemoteData, status
 
+**Serializable Atom**:
+An Atom opted in to SSR with a stable key, a `Schema` and an explicit kind: `Atom.serializable` (the schema describes the value) or `Atom.serializable.result` (the value is a Result; the schema describes its `Success` value). Only Serializable Atoms enter a Snapshot. Keys are unique per AtomStore (ADR 0016).
+_Avoid_: Persisted atom, hydratable atom
+
+**Snapshot**:
+The `Record<key, encoded value>` of the settled Serializable Atoms built in an AtomStore (`dehydrate`), sent from the server and used to seed a client AtomStore before the first read (`hydrate`). Result atoms enter it only on `Success`. It is JSON-safe only when each schema encodes to JSON values (a `bigint` encoding breaks the transport). Distinct from the query layer's `Dehydrated`.
+_Avoid_: Payload, atom state
+
 ### UI framework concepts (`@sleekstack/ui`, MVP)
 
 **Component** *(ui)*:
