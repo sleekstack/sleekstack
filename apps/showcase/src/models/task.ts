@@ -5,7 +5,6 @@
  * types; the wire input types stay behind `toDto`.
  */
 import { Context, Effect, Schema } from 'effect'
-import type { z } from 'zod'
 import type { CommentRecord, ProjectRecord, TaskRecord, TaskStatus } from '../domain/entities'
 import { AddComment, CreateTask } from '../domain/inputs'
 import type { DraftSpec, ModelSpec } from '../lib/contracts'
@@ -92,10 +91,10 @@ export const BoardModel = {
   },
 } satisfies ModelSpec<BoardDto, readonly BoardProject[]>
 
-// --- New task: blank create. Fields hold what the inputs hold; no z.coerce. ---
+// --- New task: blank create. Fields hold what the inputs hold; no coercion. ---
 
-const newTaskSchema = CreateTask.pick({ title: true, simulateFailure: true }).required()
-export type NewTaskDraft = z.infer<typeof newTaskSchema>
+const newTaskSchema = Schema.Struct({ title: CreateTask.fields.title, simulateFailure: Schema.Boolean })
+export type NewTaskDraft = typeof newTaskSchema.Type
 
 export interface NewTaskContext {
   readonly projectId: string
@@ -110,8 +109,8 @@ export const NewTaskDraft = {
 
 // --- Comment: a second save boundary on the same task. ---
 
-const commentSchema = AddComment.pick({ body: true })
-export type TaskCommentDraft = z.infer<typeof commentSchema>
+const commentSchema = Schema.Struct({ body: AddComment.fields.body })
+export type TaskCommentDraft = typeof commentSchema.Type
 
 export interface TaskCommentContext {
   readonly taskId: string

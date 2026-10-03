@@ -1,26 +1,28 @@
 /**
  * apps/showcase/src/domain/inputs.ts
  *
- * One zod schema per input: the client Drafts validate with these, the server re-parses with them.
+ * One Effect Schema per input: the client Drafts validate with these, the server re-parses with them.
  */
-import { z } from 'zod'
+import { Schema } from 'effect'
 
-export const CreateTask = z.object({
-  projectId: z.string(),
-  title: z.string().trim().min(1, 'Please enter a title'),
-  simulateFailure: z.boolean().optional(),
-})
-export type CreateTask = z.infer<typeof CreateTask>
+const NonEmpty = (message: string) => Schema.Trim.pipe(Schema.minLength(1, { message: () => message }))
 
-export const MoveTask = z.object({
-  taskId: z.string(),
-  status: z.enum(['todo', 'in_progress', 'done']),
+export const CreateTask = Schema.Struct({
+  projectId: Schema.String,
+  title: NonEmpty('Please enter a title'),
+  simulateFailure: Schema.optional(Schema.Boolean),
 })
-export type MoveTask = z.infer<typeof MoveTask>
+export type CreateTask = typeof CreateTask.Type
 
-export const AddComment = z.object({
-  taskId: z.string(),
-  body: z.string().trim().min(1, 'Please enter a comment'),
-  authorId: z.string(),
+export const MoveTask = Schema.Struct({
+  taskId: Schema.String,
+  status: Schema.Literal('todo', 'in_progress', 'done'),
 })
-export type AddComment = z.infer<typeof AddComment>
+export type MoveTask = typeof MoveTask.Type
+
+export const AddComment = Schema.Struct({
+  taskId: Schema.String,
+  body: NonEmpty('Please enter a comment'),
+  authorId: Schema.String,
+})
+export type AddComment = typeof AddComment.Type

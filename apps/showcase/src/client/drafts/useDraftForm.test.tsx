@@ -1,11 +1,10 @@
 import { act, renderHook } from '@testing-library/react'
-import { Effect } from 'effect'
+import { Effect, Schema } from 'effect'
 import { describe, expect, it } from 'vitest'
-import { z } from 'zod'
 import type { DraftSpec } from '../../lib/contracts'
 import { useDraftForm } from './useDraftForm'
 
-const schema = z.object({ name: z.string() })
+const schema = Schema.Struct({ name: Schema.String })
 const spec = {
   schema: () => schema,
   create: (src: string) => ({ name: src }),

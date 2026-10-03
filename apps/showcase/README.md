@@ -9,7 +9,7 @@ server: no `declareLayer()`, `module()`, `action()` or `query()`.
 ```text
 app/                           Next.js routes (page, graph, errors, log, providers, api/devtools)
 src/
-  domain/                      entities, errors, inputs (zod), Tags, demo cookie name; imports nothing app-side
+  domain/                      entities, errors, inputs (Effect Schema), Tags, demo cookie name; imports nothing app-side
   application/                 use cases as Effects over domain Tags (board.ts, board-view.ts)
   infrastructure/              Live Layers: board-store.memory, runtime-infra.live (Infra, ActivityLog),
                                request.live (RequestContext), demo.live; app.ts is the
@@ -74,7 +74,7 @@ DTO(read) -fromDto(dto) [Effect, needs services]-> Model -create-> Draft -toDto-
 ```
 
 - `src/lib/contracts.ts`: `ModelSpec` and `DraftSpec`.
-- `src/models/task.ts`: `TaskModel` (`fromDto` is an Effect that resolves its own context from services such as `ProjectNames`; labels live in the Model), plus `NewTaskDraft` and `TaskCommentDraft`, one Draft per save boundary. Zod-first, no `z.coerce`, only `toDto` may read ambients.
+- `src/models/task.ts`: `TaskModel` (`fromDto` is an Effect that resolves its own context from services such as `ProjectNames`; labels live in the Model), plus `NewTaskDraft` and `TaskCommentDraft`, one Draft per save boundary. Schema-first, no coercion, only `toDto` may read ambients.
 - `src/client/drafts/useDraftForm.ts`: binds a Draft to react-hook-form; re-seeds on `src` change only while pristine. Pass a stable `src`.
 - `src/application/board-view.ts`: `loadBoard`, an Effect that reads the board DTO from `BoardStore`; `readBoard` (`src/delivery/actions.ts`) serves it as the fetch of the `board` query (`src/client/services/board-query.ts`).
 - `BoardModel.fromDto` (`src/models/task.ts`) runs each task through `TaskModel.fromDto`, providing `ProjectNames` once from the DTO's own projects; `Board` applies it to the cached DTO once per data change.

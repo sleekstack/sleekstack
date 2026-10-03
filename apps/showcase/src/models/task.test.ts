@@ -1,4 +1,4 @@
-import { Effect } from 'effect'
+import { Effect, Either, ParseResult, Schema } from 'effect'
 import { describe, expect, it } from 'vitest'
 import { NewTaskDraft, ProjectNames, TaskCommentDraft, TaskModel, type TaskDto } from './task'
 
@@ -25,14 +25,19 @@ describe('TaskModel.fromDto', () => {
   })
 })
 
+const valid = (schema: Schema.Schema<any, any>, v: unknown) => Either.isRight(Schema.decodeUnknownEither(schema)(v))
+const messages = (schema: Schema.Schema<any, any>, v: unknown) => {
+  const r = Schema.decodeUnknownEither(schema, { errors: 'all' })(v)
+  return Either.isLeft(r) ? ParseResult.ArrayFormatter.formatErrorSync(r.left).map((i) => i.message) : []
+}
+
 describe('NewTaskDraft', () => {
   const pctx = { projectId: 'p1' }
   it('blank create fails its own schema until filled', () => {
-    expect(NewTaskDraft.schema().safeParse(NewTaskDraft.create()).success).toBe(false)
+    expect(valid(NewTaskDraft.schema(), NewTaskDraft.create())).toBe(false)
   })
   it('reports the designed message', () => {
-    const r = NewTaskDraft.schema().safeParse(NewTaskDraft.create())
-    expect(r.success ? [] : r.error.issues.map((i) => i.message)).toEqual(['Please enter a title'])
+    expect(messages(NewTaskDraft.schema(), NewTaskDraft.create())).toEqual(['Please enter a title'])
   })
   it('toDto trims and shapes the wire body', () => {
     expect(Effect.runSync(NewTaskDraft.toDto({ title: '  Write docs ', simulateFailure: true }, pctx))).toEqual({
@@ -47,8 +52,8 @@ describe('TaskCommentDraft', () => {
   const cctx = { taskId: 't1', authorId: 'u1' }
   it('rejects a blank body and accepts a filled one', () => {
     const schema = TaskCommentDraft.schema()
-    expect(schema.safeParse(TaskCommentDraft.create()).success).toBe(false)
-    expect(schema.safeParse({ body: ' hi ' }).success).toBe(true)
+    expect(valid(schema, TaskCommentDraft.create())).toBe(false)
+    expect(valid(schema, { body: ' hi ' })).toBe(true)
   })
   it('toDto carries the context', () => {
     expect(Effect.runSync(TaskCommentDraft.toDto({ body: ' hi ' }, cctx))).toEqual({ taskId: 't1', authorId: 'u1', body: 'hi' })
