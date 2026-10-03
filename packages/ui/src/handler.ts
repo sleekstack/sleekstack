@@ -23,6 +23,8 @@ export interface Handler<E = never, R = never> {
 
 export class DuplicateHandler extends Data.TaggedError('DuplicateHandler')<{ readonly id: string }> {}
 export class DuplicateBindKey extends Data.TaggedError('DuplicateBindKey')<{ readonly key: string }> {}
+/** `bind`/`resume` got an atom that is not a serializable value-kind atom (`Atom.serializable`). */
+export class UnsupportedAtom extends Data.TaggedError('UnsupportedAtom')<{ readonly key: string }> {}
 export class UnsupportedEvent extends Data.TaggedError('UnsupportedEvent')<{ readonly event: string }> {}
 
 /** Declares a handler. Call at module top level with a literal `id`. */
@@ -49,5 +51,15 @@ export const on = (node: Node, events: Record<string, Handler<any, any>>): Node 
   return { ...node, on: { ...node.on, ...events } }
 }
 
-/** Renders `atom`'s current value as text, bound under `key` for resume. */
-export const bind = <A>(atom: Atom.Atom<A>, key: string): Node => ({ _tag: 'Bind', atom, key })
+/** Throws `UnsupportedAtom` unless `atom` is a serializable value-kind atom; returns its wire info. */
+export const valueInfo = (atom: Atom.Atom<any>, key: string): NonNullable<Atom.Atom<any>['serializable']> => {
+  const info = atom.serializable
+  if (info?.kind !== 'value') throw new UnsupportedAtom({ key })
+  return info
+}
+
+/** Renders a serializable value-kind `atom`'s current value as text, bound under `key` for resume. */
+export const bind = <A>(atom: Atom.Atom<A>, key: string): Node => {
+  valueInfo(atom, key)
+  return { _tag: 'Bind', atom, key }
+}

@@ -49,8 +49,8 @@ resume<R, LE>(opts: {
 }): Promise<{ dispose(): Promise<void> }>
 ```
 
-- Tagged errors: `DuplicateHandler` (two different `Handler` values with one id in one render), `DuplicateBindKey`, `UnsupportedEvent`, `UnknownHandler`, `HandlerIdMismatch`, `ManifestInvalid` (missing, more than one, or malformed), `ManifestDecodeFailed` (names the atom key).
-- `renderToString` rejects with the first three. `resume` rejects with `ManifestInvalid`, `ManifestDecodeFailed` or the original layer error (never a `FiberFailure`), and leaves the container untouched.
+- Tagged errors: `DuplicateHandler` (two different `Handler` values with one id in one render), `DuplicateBindKey`, `UnsupportedEvent`, `UnknownHandler`, `HandlerIdMismatch`, `ManifestInvalid` (missing, more than one, or malformed), `ManifestDecodeFailed` (names the atom key), `UnsupportedAtom` (names the key; `bind` and `resume` accept only `Atom.serializable` value-kind atoms, so every bound atom seeds through the fn-17 hydrate seed).
+- `bind` throws `UnsupportedAtom`; `renderToString` rejects with the first three (and `UnsupportedAtom` for a hand-built Bind node). `resume` rejects with `ManifestInvalid`, `ManifestDecodeFailed`, `UnsupportedAtom` or the original layer error (never a `FiberFailure`), and leaves the container untouched.
 - Runtime errors never reject `resume` after it resolved: `UnknownHandler` (id not in `handlers`), `HandlerIdMismatch`, a rejected chunk import and a failing handler each call `onError`, drop that one run and keep later events working. A failed chunk load is not cached, so the next event retries it.
 - `mount` renders `Bind` as its current value as static text and ignores `on`; it is otherwise unchanged.
 

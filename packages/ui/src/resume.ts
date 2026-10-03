@@ -1,6 +1,6 @@
-import { Atom, makeAtomStore } from '@sleekstack/core'
+import { type Atom, makeAtomStore } from '@sleekstack/core'
 import { Cause, Context, Data, Effect, Exit, Fiber, Layer, Option, Schema, Scope } from 'effect'
-import type { Handler, HandlerEvent } from './handler'
+import { type Handler, type HandlerEvent, valueInfo } from './handler'
 import { Store } from './reactive'
 
 export class ManifestInvalid extends Data.TaggedError('ManifestInvalid')<{ readonly reason: string }> {}
@@ -16,12 +16,7 @@ export interface ResumeOptions<R, LE> {
   readonly container: Element
   readonly layer: Layer.Layer<Exclude<R, Store>, LE, never>
   readonly handlers: Readonly<Record<string, HandlerLoader<R>>>
-  /**
-   * Manifest key to its atom. A serializable atom (derived included) is seeded through the store's hydrate seed,
-   * which bypasses `write`. A plain writable atom is seeded with `set` (a state cell, `Atom.make(v)`); a plain
-   * read-only atom is recomputed by the owned store from its sources, as the server's fresh store computed it.
-   * ponytail: core has no write-bypassing seed for non-serializable atoms; add one if custom `Writable<R, W>` binds appear.
-   */
+  /** Manifest key to its serializable value-kind atom (else `UnsupportedAtom`), seeded through the store's hydrate seed. */
   readonly atoms: Readonly<Record<string, Atom.Atom<any>>>
   readonly onError?: (cause: Cause.Cause<unknown>) => void
 }
@@ -32,7 +27,7 @@ const activations = new WeakMap<Element, Promise<Resumed>>()
 /**
  * Makes server-rendered HTML interactive without calling any component: seeds an owned store from the manifest,
  * subscribes `data-sleek-bind` text, and runs lazily loaded handlers through one FIFO queue with `layer`.
- * Rejects with `ManifestInvalid`, `ManifestDecodeFailed` or the original layer error, leaving the container untouched.
+ * Rejects with `ManifestInvalid`, `ManifestDecodeFailed`, `UnsupportedAtom` or the original layer error, leaving the container untouched.
  */
 export const resume = <R, LE>(opts: ResumeOptions<R, LE>): Promise<Resumed> => {
   const existing = activations.get(opts.container)
@@ -60,17 +55,16 @@ const readManifest = (container: Element): { events: Array<string>; atoms: Recor
 }
 
 // Validates one entry strictly (unlike `hydrate`, which drops a bad seed) and returns how to seed it.
-type Seed = { readonly key: string; readonly atom: Atom.Atom<any>; readonly set?: unknown; readonly seed?: Record<string, unknown> }
+type Seed = { readonly key: string; readonly seed: Record<string, unknown> }
 const decode = (atom: Atom.Atom<any> | undefined, key: string, value: unknown): Seed => {
-  const info = atom?.serializable
-  if (!atom || info?.kind === 'result') throw new ManifestDecodeFailed({ key })
-  if (!info) return Atom.isWritable(atom) ? { key, atom, set: value } : { key, atom }
+  if (!atom) throw new ManifestDecodeFailed({ key })
+  const info = valueInfo(atom, key)
   try {
     Schema.decodeUnknownSync(info.schema)(value)
   } catch (cause) {
     throw new ManifestDecodeFailed({ key, cause })
   }
-  return { key, atom, seed: { [info.key]: value } }
+  return { key, seed: { [info.key]: value } }
 }
 
 const original = (cause: Cause.Cause<unknown>): unknown => {
@@ -103,8 +97,7 @@ const activate = async <R, LE>(opts: ResumeOptions<R, LE>): Promise<Resumed> => 
   const store = makeAtomStore()
   for (const s of seeds) {
     try {
-      if (s.seed) store.hydrate(s.seed)
-      else if ('set' in s) store.set(s.atom as Atom.Writable<unknown>, s.set)
+      store.hydrate(s.seed)
     } catch (cause) {
       await store.dispose()
       throw new ManifestDecodeFailed({ key: s.key, cause })

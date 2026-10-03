@@ -7,7 +7,7 @@ import {
 } from '../index'
 
 class Step extends Context.Tag('Step')<Step, number>() {}
-const count = Atom.make(0)
+const count = Atom.serializable(Atom.make(0), { key: 'count', schema: Schema.Number })
 const inc = defineHandler('inc', () => Effect.flatMap(Step, (n) => Effect.flatMap(Store, (s) => Effect.sync(() => s.update(count, (c) => c + n)))), { preventDefault: true })
 const seen: Array<unknown> = []
 const log = defineHandler('log', (e) => Effect.sync(() => void seen.push(e)), { stopPropagation: true })
@@ -126,13 +126,17 @@ describe('resume', () => {
     expect(c.innerHTML).toBe(before)
   })
 
-  it('seeds a read-only serializable atom without calling write; a plain read-only atom resumes unseeded', async () => {
+  it('seeds a read-only serializable atom without calling write; rejects a non-serializable atom', async () => {
     const big = Atom.serializable(Atom.make(() => 1n), { key: 'big', schema: Schema.BigInt })
     const html = '<sleek-bind data-sleek-bind="b">7</sleek-bind><script type="application/json" data-sleek-manifest>{"v":1,"events":[],"atoms":{"b":"7"}}</script>'
     const c = await setup(html)
     const h = await resume({ container: c, layer: Layer.empty, handlers: {}, atoms: { b: big } })
     handles.push(h)
-    handles.push(await resume({ container: await setup(html), layer: Layer.empty, handlers: {}, atoms: { b: Atom.make(() => 1) } }))
+    expect(c.querySelector('sleek-bind')!.textContent).toBe('7')
+    const c2 = await setup(html)
+    const before = c2.innerHTML
+    await expect(resume({ container: c2, layer: Layer.empty, handlers: {}, atoms: { b: Atom.make(1) } })).rejects.toMatchObject({ _tag: 'UnsupportedAtom', key: 'b' })
+    expect(c2.innerHTML).toBe(before)
   })
 
   it('rejects with the original layer error and can be retried', async () => {

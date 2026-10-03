@@ -3,7 +3,7 @@ import { createElement } from 'react'
 import { renderToString as reactRenderToString } from 'react-dom/server'
 import { type Atom, type AtomStore, makeAtomStore } from '@sleekstack/core'
 import { reportRenderError, runToNode } from './component'
-import { checkEvent, DuplicateBindKey, DuplicateHandler, type Handler } from './handler'
+import { checkEvent, DuplicateBindKey, DuplicateHandler, type Handler, valueInfo } from './handler'
 import type { Node } from './node'
 import { Store } from './reactive'
 
@@ -59,13 +59,9 @@ const checkId = (kind: string, id: string): string => {
   return id
 }
 
-// fn-17's codec for serializable atoms; plain atoms go into the manifest as-is (JSON).
-const encode = (atom: Atom.Atom<any>, value: unknown): unknown => {
-  const info = atom.serializable
-  if (!info) return value
-  if (info.kind === 'result') throw new TypeError(`bind() needs a value atom, got result atom "${info.key}"`)
-  return Schema.encodeSync(info.schema)(value)
-}
+// fn-17's codec; render rechecks the value kind for Bind nodes not built by `bind`.
+const encode = (atom: Atom.Atom<any>, key: string, value: unknown): unknown =>
+  Schema.encodeSync(valueInfo(atom, key).schema)(value)
 
 const handlerAttrs = (on: Readonly<Record<string, Handler<any, any>>>, c: Collector): string =>
   Object.entries(on)
@@ -90,7 +86,7 @@ const serialize = (node: Node, c: Collector): string => {
       if (seen && seen.atom !== node.atom) throw new DuplicateBindKey({ key: node.key })
       checkId('bind key', node.key)
       const value = c.store.get(node.atom)
-      if (!seen) c.atoms.set(node.key, { atom: node.atom, value: encode(node.atom, value) })
+      if (!seen) c.atoms.set(node.key, { atom: node.atom, value: encode(node.atom, node.key, value) })
       return `<sleek-bind data-sleek-bind="${escape(node.key)}">${escape(String(value))}</sleek-bind>`
     }
     case 'Fragment':

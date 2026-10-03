@@ -3,9 +3,9 @@ import { Atom } from '@sleekstack/core'
 import { Effect, Layer, Schema } from 'effect'
 import { createElement } from 'react'
 import { describe, expect, it } from 'vitest'
-import { bind, defineHandler, fromReact, DuplicateBindKey, DuplicateHandler, el, fragment, mount, on, renderToString, UnsupportedEvent } from '../index'
+import { bind, defineHandler, fromReact, DuplicateBindKey, DuplicateHandler, el, fragment, mount, on, renderToString, UnsupportedAtom, UnsupportedEvent } from '../index'
 
-const count = Atom.make(3)
+const count = Atom.serializable(Atom.make(3), { key: 'count', schema: Schema.Number })
 const inc = defineHandler('inc', () => Effect.void, { preventDefault: true, stopPropagation: true })
 const log = defineHandler('log', () => Effect.void)
 const render = (tree: ReturnType<typeof el>) => renderToString(Effect.succeed(tree), { layer: Layer.empty })
@@ -23,7 +23,7 @@ describe('resumable server render', () => {
   })
 
   it('keeps manifest values inert in the script', async () => {
-    const text = Atom.make('</script><b>&\u2028\u2029')
+    const text = Atom.serializable(Atom.make('</script><b>&\u2028\u2029'), { key: 't', schema: Schema.String })
     const html = await render(bind(text, 't'))
     const script = html.slice(html.indexOf('<script'))
     expect(script).toBe(
@@ -35,7 +35,7 @@ describe('resumable server render', () => {
 
   it.each([
     ['DuplicateHandler', fragment(on(el('a'), { click: inc }), on(el('b'), { click: defineHandler('inc', () => Effect.void) })), DuplicateHandler],
-    ['DuplicateBindKey', fragment(bind(count, 'n'), bind(Atom.make(1), 'n')), DuplicateBindKey],
+    ['DuplicateBindKey', fragment(bind(count, 'n'), bind(Atom.serializable(Atom.make(1), { key: 'one', schema: Schema.Number }), 'n')), DuplicateBindKey],
     ['UnsupportedEvent on a raw node', { _tag: 'Element', tag: 'a', attrs: {}, children: [], on: { focus: inc } } as const, UnsupportedEvent],
   ])('rejects %s', async (_, tree, error) => {
     await expect(render(tree)).rejects.toBeInstanceOf(error)
@@ -46,11 +46,13 @@ describe('resumable server render', () => {
       expect(() => on(el('a'), { [event]: inc })).toThrow(UnsupportedEvent)
   })
 
-  it('encodes serializable atoms through their schema and rejects result atoms', async () => {
+  it('encodes serializable atoms through their schema; bind and render reject non-value atoms', async () => {
     const big = Atom.serializable(Atom.make(5n), { key: 'big', schema: Schema.BigInt })
     expect(await render(bind(big, 'b'))).toContain('"atoms":{"b":"5"}')
     const res = Atom.serializable.result(Atom.make(Effect.succeed(1)), { key: 'r', schema: Schema.Number })
-    await expect(render(bind(res, 'r'))).rejects.toThrow('value atom')
+    expect(() => bind(res, 'r')).toThrow(UnsupportedAtom)
+    expect(() => bind(Atom.make(1), 'p')).toThrow(UnsupportedAtom)
+    await expect(render({ _tag: 'Bind', atom: Atom.make(1), key: 'p' })).rejects.toBeInstanceOf(UnsupportedAtom)
   })
 
   it('rejects handler ids and bind keys that do not round-trip through an attribute', async () => {
