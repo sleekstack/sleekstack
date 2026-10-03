@@ -38,9 +38,13 @@ Size: M. Documentation for R6.
 - [ ] Docs build passes
 
 ## Done summary
-TBD
+Added the atom SSR and hydration section to the Atoms guide and an Atom SSR (prefetchAtoms) section to the Next.js guide. Recorded ADR 0016 and added it to the index, with amendment notes on ADR 0008 and 0014. Added the Serializable Atom and Snapshot terms to CONTEXT.md and updated the core, react, next and kit READMEs. No doc claims that atoms are client only any more.
+Outside the declared Touches: packages/kit/README.md, queries.mdx, ADR 0008/0014 (stale AtomsClientOnly mentions). Also renderWithAtoms.tsx JSDoc: its unused `@param options` raised a typedoc warning, which failed the docs build.
+Baseline: the docs build was red before any edit (that same typedoc warning). Docs build and check:links are green now.
 
+stage: impl-review - ran (codex fan-out NEEDS_WORK -> re-review SHIP)
+Tier: opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 8a76efffbe74e59ed9218b0e8f085f3c509c5712, 7f48c67207ac66e83bba4579017cb7512ad91930
+- Tests: cd apps/docs && pnpm build (incl. check:links), baseline: red (apps/docs pnpm build: typedoc warning) - fixed in task
 - PRs:
