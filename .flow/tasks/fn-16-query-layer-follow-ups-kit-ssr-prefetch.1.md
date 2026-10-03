@@ -30,9 +30,11 @@ Add the Effect-free kit facade over core `Hydrate`. Names are fixed here against
 - [ ] boundary test and .d.ts emit check pass
 
 ## Done summary
-TBD
+Kit SSR prefetch facade: `prefetch` (kit/next, request-scoped, registers the kit server runner), `HydrateQueries` (kit/react via kit()), and the `serializable: true | QueryCodec` option on cachedQuery; new codes `QueryDecodeFailed` and `NoServerRunner`; an unserializable query fails closed naming its key. Tests: packages/kit/src/__tests__/hydrate.test.tsx. Dropped a `failures` option (kit has no error codec); follow-up if failed-query transfer is wanted.
 
+Tier: opus at medium
+stage: impl-review - ran (codex fan-out NEEDS_WORK -> re-review SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 844b7e1b01fd1a1f8fc95bbf885e22deb275eca9, f95f75e6163d96740993d91ee925ccbd531020f8
+- Tests: pnpm typecheck && pnpm test, pnpm turbo run test typecheck --filter=@sleekstack/kit --filter=@sleekstack/query --filter=@sleekstack/react
 - PRs:
