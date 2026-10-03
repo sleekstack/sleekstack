@@ -41,9 +41,13 @@ For R6, test with a `fromReact` guest that receives the `useSetAtom` setter as a
 - [ ] Nested reactive components: inner change touches only the inner host; outer change recreates inner subscriptions
 
 ## Done summary
-TBD
+`mount` now provides `Store` (created or `opts.store`, disposed only when created) and a mount `RenderScope` (the mount layer is built into it), renders `Reactive` nodes into `<sleek-reactive style="display: contents">` hosts, subscribes their atoms, re-runs on change (coalesced per tick, latest wins via fiber interrupt) and swaps only that host transactionally; boundary fallbacks apply on re-run, unhandled failures keep the DOM and report through `onError`; dispose/supersede unsubscribes, interrupts and unmounts guests. Tests: packages/ui/src/__tests__/reactive-dom.test.ts (13 cases covering all ACs).
 
+Outside declared Touches (required by review findings): packages/ui/src/reactive.ts (re-run applies captured Boundary handlers; renderer owns run scopes via `ReactiveNode.scope` / `runScopes`; reads retain atoms and record `seen` values; `fallbacks` marker), packages/ui/src/node.ts (internal `seen` / `scope` fields on ReactiveNode), packages/ui/src/__tests__/reactive.test.ts (task-1 test now asserts the renderer, not rerun, closes a superseded run scope).
+
+stage: impl-review - ran (codex: NEEDS_WORK x4 fan-out rounds on moving HEAD, -> SHIP)
+Tier: opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 38bfa937adf8d3f9763dc62954e61a8218efb03b, cb01197df86221212caf422a4c65b9cde23a4269, d93e92413b5c6bf51c4a4347ef4a23b5a9f9037f, 099ad2034b2a0c254b99748d7188a685e9dabde0, e58c76b86205e466b30f31fcb025b56419fd159d, 0960f933f70582c2e9d5cf309c4f80222df20158, a9a5766e4c82898453b083802a5ae64d103687ba
+- Tests: pnpm --filter @sleekstack/ui test, pnpm --filter @sleekstack/ui typecheck, pnpm --filter @sleekstack/analyze test, apps/ui-demo: npx vitest run && npx tsc --noEmit
 - PRs:
