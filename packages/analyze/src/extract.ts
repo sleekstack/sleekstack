@@ -31,6 +31,8 @@ export function libId(sym: ts.Symbol | undefined, checker: ts.TypeChecker): stri
 }
 
 const TAG_CALLS = new Set(['kit/tag#tag', 'effect/Context#GenericTag'])
+/** `class X extends <call>('X')<X, S>() {}`: both spell a Tag class, `Effect.Tag` adding static accessors. */
+const TAG_CLASS_CALLS = new Set(['effect/Context#Tag', 'effect/Effect#Tag'])
 const MODULE_CALLS = new Set(['kit/module#makeModule', 'core/module#makeModule'])
 const ATOM_CALLS = new Set(['kit/atom#atom', 'kit/atom#family'])
 const RUNTIME_CALLS = new Set(['kit/next/runtime#configureRuntime', 'next/runtime#configureRuntime', 'runtime/runtime#configureRuntime'])
@@ -367,9 +369,9 @@ export function extract(project: string, entries?: readonly string[], lenient = 
 
   const classKey = (c: ts.ClassDeclaration): string => {
     const ext = c.heritageClauses?.find((h) => h.token === ts.SyntaxKind.ExtendsKeyword)?.types[0]?.expression
-    // `class X extends Context.Tag('X')<X, S>() {}`: the outer call's callee is the `Context.Tag('X')` call.
+    // `class X extends Context.Tag('X')<X, S>() {}` (or `Effect.Tag`): the outer call's callee is the `Context.Tag('X')` call.
     const inner = ext && ts.isCallExpression(ext) && ts.isCallExpression(ext.expression) ? ext.expression : undefined
-    if (inner && calleeOf(inner) === 'effect/Context#Tag' && inner.arguments[0]) return literal(inner.arguments[0], 'Tag key')
+    if (inner && TAG_CLASS_CALLS.has(calleeOf(inner) ?? '') && inner.arguments[0]) return literal(inner.arguments[0], 'Tag key')
     if (!c.name) return fail(c, 'An anonymous class cannot be a Tag')
     return c.name.text
   }
@@ -590,10 +592,10 @@ export function extract(project: string, entries?: readonly string[], lenient = 
   }
   const actions: ActionDecl[] = []
   const TAG_TYPES = new Set(['kit/tag#Tag', 'effect/Context#Tag', 'effect/Context#TagClass'])
-  /** A `class X extends Context.Tag('X')<X, S>() {}` declaration. */
+  /** A `class X extends Context.Tag('X')<X, S>() {}` (or `Effect.Tag`) declaration. */
   const isTagClass = (d: ts.Declaration | undefined): d is ts.ClassDeclaration => {
     const ext = d && ts.isClassDeclaration(d) ? d.heritageClauses?.find((h) => h.token === ts.SyntaxKind.ExtendsKeyword)?.types[0]?.expression : undefined
-    return !!ext && ts.isCallExpression(ext) && ts.isCallExpression(ext.expression) && calleeOf(ext.expression) === 'effect/Context#Tag'
+    return !!ext && ts.isCallExpression(ext) && ts.isCallExpression(ext.expression) && TAG_CLASS_CALLS.has(calleeOf(ext.expression) ?? '')
   }
   /** A kit `Tag<T>`, an Effect `Tag`, or a Context.Tag class: never an arbitrary class or instance. */
   const isTagType = (t: ts.Type) => {
