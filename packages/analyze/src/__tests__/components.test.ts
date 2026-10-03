@@ -1,7 +1,7 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { analyzeComponents } from '../index'
+import { analyzeComponents, type UiNode } from '../index'
 
 const dir = (name: string) => path.join(__dirname, 'fixtures', name)
 const run = (name: string) => analyzeComponents({ project: path.join(dir(name), 'tsconfig.json') })
@@ -26,6 +26,11 @@ describe('component pass', () => {
     const r = run('ui-clean')
     expect(r.errors).toEqual([])
     expect(r.trees.map((t) => [t.line, t.provides, t.root.kind])).toEqual([[29, ['UserRepo'], 'component']])
+    // Every list member is in the tree at its own line: `Effect.all(ids.map(...))` renders UserCard.
+    const names: string[] = []
+    const walk = (n: UiNode): void => { if (n.kind === 'component') names.push(`${n.name}:${n.line}`); if ('children' in n) n.children.forEach(walk) }
+    walk(r.trees[0]!.root)
+    expect(names).toEqual(expect.arrayContaining(['UserCard:24', 'Avatar:16', 'Stamp:25']))
   })
 
   it('non-ui projects have no trees', () => {

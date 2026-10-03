@@ -41,7 +41,9 @@ export function analyzeComponents(opts: { readonly project: string }): Component
     return out
   }
   const isNodeMember = (m: ts.Type) => libId(m.aliasSymbol, checker) === 'ui/node#Node' || /^ui\/node#(Text|Element|Fragment|Guest)Node$/.test(libId(m.getSymbol(), checker) ?? '')
-  const isNode = (a: ts.Type[] | undefined) => !!a && a.length > 0 && a.every(isNodeMember)
+  /** A `Node`, or an array / tuple of them (what `Effect.all` over rendered components succeeds with). */
+  const isRendered = (m: ts.Type) => isNodeMember(m) || ((checker.isArrayType(m) || checker.isTupleType(m)) && checker.getTypeArguments(m as ts.TypeReference).every(isNodeMember))
+  const isNode = (a: ts.Type[] | undefined) => !!a && a.length > 0 && a.every(isRendered)
   const isNodeEffect = (t: ts.Type) => isNode(effectArgs(t)?.[0])
   /** An Effect component value: an `Effect<Node>` or a function returning one. */
   const isEffectComponent = (t: ts.Type) => isNodeEffect(t) || t.getCallSignatures().some((s) => isNodeEffect(checker.getReturnTypeOfSignature(s)))
@@ -127,18 +129,20 @@ export function analyzeComponents(opts: { readonly project: string }): Component
       if (calleeOf(target) === 'ui/component#fromReact' && target.arguments[0]) return [guest(e, target.arguments[0])]
       return fail(e.expression, `"${text(e.expression)}" is a dynamic component; its declaration cannot be read`)
     }
-    const args = effectArgs(t)
-    if (!args || !isNode(args[0])) return fail(e, `"${text(e)}" does not return Effect<Node, E, R>`)
-    // Unreadable E / R members fail closed at the call, without hiding what its body renders.
-    const own: UiNode[] = [...args[1], ...args[2]].some(isAny) ? [{ kind: 'unresolved', message: `"${text(e)}" has E / R typed any or unknown; its errors and requirements cannot be named`, ...loc(e) }] : []
-    const node: UiNode = { kind: 'component', name: text(e.expression), guest: false, requires: tagNames(e, args[2].filter((m) => !isAny(m)), 'requires'), errors: errorTags(e, args[1].filter((m) => !isAny(m))), children: [], ...loc(e) }
-    if (stack.has(target)) return [node, ...own]
+    if (stack.has(target)) return component(e, text(e.expression), () => [])
     stack.add(target)
     try {
-      return [{ ...node, children: bodyReturns(target).flatMap(build) }, ...own]
+      return component(e, text(e.expression), () => bodyReturns(target).flatMap(build))
     } finally {
       stack.delete(target)
     }
+  }
+  /** A component node carrying `e`'s `E` / `R`; unreadable members fail closed at `e` without hiding its children. */
+  const component = (e: ts.Expression, name: string, children: () => UiNode[]): UiNode[] => {
+    const args = effectArgs(checker.getTypeAtLocation(e))
+    if (!args || !isNode(args[0])) return fail(e, `"${text(e)}" does not return Effect<Node, E, R>`)
+    const own: UiNode[] = [...args[1], ...args[2]].some(isAny) ? [{ kind: 'unresolved', message: `"${text(e)}" has E / R typed any or unknown; its errors and requirements cannot be named`, ...loc(e) }] : []
+    return [{ kind: 'component', name, guest: false, requires: tagNames(e, args[2].filter((m) => !isAny(m)), 'requires'), errors: errorTags(e, args[1].filter((m) => !isAny(m))), children: children(), ...loc(e) }, ...own]
   }
   /** Members of a rendered list: array literals through const bindings, and `.map` callbacks' returns. */
   const list = (expr: ts.Expression): UiNode[] => {
@@ -174,16 +178,42 @@ export function analyzeComponents(opts: { readonly project: string }): Component
   const guest = (call: ts.CallExpression, cmp: ts.Expression): UiNode => {
     const inside: UiNode[] = []
     const found = (n: ts.Node) => inside.push({ kind: 'component', name: text(n), guest: false, requires: [], errors: [], children: [], ...loc(n) })
+    /** Whether a prop value's type holds an Effect component anywhere: nested objects, arrays and tuples included. */
+    const carries = (t: ts.Type, at: ts.Node, seen = new Set<ts.Type>()): boolean => {
+      if (isAny(t)) return fail(at, `Guest prop "${text(at)}" is typed ${checker.typeToString(t)}; whether it carries an Effect component cannot be read`)
+      if (seen.has(t)) return false
+      seen.add(t)
+      if (isEffectComponent(t)) return true
+      if (t.isUnion() || t.isIntersection()) return t.types.some((m) => carries(m, at, seen))
+      if (checker.isArrayType(t) || checker.isTupleType(t)) return checker.getTypeArguments(t as ts.TypeReference).some((m) => carries(m, at, seen))
+      if (!(t.flags & ts.TypeFlags.Object) || t.getCallSignatures().length) return false
+      return checker.getPropertiesOfType(t).some((p) => carries(checker.getTypeOfSymbolAtLocation(p, at), at, seen))
+    }
+    const inspect = (n: ts.Node, t: ts.Type) => {
+      try {
+        if (carries(t, n)) found(n)
+      } catch (err) {
+        if (!(err instanceof Unreadable)) throw err
+        inside.push({ kind: 'unresolved', message: err.message, ...loc(err.node) })
+      }
+    }
     const props = call.arguments[0] && unwrap(call.arguments[0])
-    if (props && ts.isObjectLiteralExpression(props)) {
-      for (const p of props.properties) if (isEffectComponent(checker.getTypeAtLocation(ts.isPropertyAssignment(p) ? p.initializer : p))) found(p)
-    } else if (props && checker.getPropertiesOfType(checker.getTypeAtLocation(props)).some((s) => isEffectComponent(checker.getTypeOfSymbolAtLocation(s, props)))) found(props)
+    if (props && ts.isObjectLiteralExpression(props)) for (const p of props.properties) inspect(p, checker.getTypeAtLocation(ts.isPropertyAssignment(p) ? p.initializer : ts.isSpreadAssignment(p) ? p.expression : p))
+    else if (props) inspect(props, checker.getTypeAtLocation(props))
+    // The React body is scanned when local; a component declared in a library (.d.ts / node_modules) cannot hold app code.
     let body: ts.Node | undefined
-    try {
-      const target = calleeTarget(cmp)
-      body = ts.isCallExpression(target) ? undefined : target
-    } catch {
-      body = undefined // a class or imported React component: its body is React's, read only when local
+    const d = declOf(unwrap(cmp))
+    const external = !!d && (d.getSourceFile().isDeclarationFile || /[\\/]node_modules[\\/]/.test(d.getSourceFile().fileName))
+    if (d && ts.isClassDeclaration(d) && !external) body = d
+    else if (!external) {
+      try {
+        const target = calleeTarget(cmp)
+        if (ts.isCallExpression(target)) fail(cmp, `React component "${text(cmp)}" is computed; its body cannot be read`)
+        body = target
+      } catch (err) {
+        if (!(err instanceof Unreadable)) throw err
+        inside.push({ kind: 'unresolved', message: err.message, ...loc(err.node) })
+      }
     }
     const scan = (n: ts.Node): void => {
       const tagName = ts.isJsxElement(n) ? n.openingElement.tagName : ts.isJsxSelfClosingElement(n) ? n.tagName : undefined
@@ -192,6 +222,7 @@ export function analyzeComponents(opts: { readonly project: string }): Component
       ts.forEachChild(n, scan)
     }
     if (body) ts.forEachChild(body, scan)
+    else if (!external && !inside.some((n) => n.kind === 'unresolved')) inside.push({ kind: 'unresolved', message: `React component "${text(cmp)}" has no readable declaration`, ...loc(cmp) })
     return { kind: 'component', name: text(call.expression), guest: true, requires: [], errors: [], children: inside, ...loc(call) }
   }
 
@@ -205,8 +236,10 @@ export function analyzeComponents(opts: { readonly project: string }): Component
         const sym = checker.getTypeAtLocation(opts).getProperty('layer') ?? fail(opts, 'mount() options have no layer')
         const layer = checker.getTypeOfSymbolAtLocation(sym, opts)
         provides = layerTags(opts, layer).provides
-        const nodes = build(n.arguments[0])
-        root = nodes.length === 1 ? nodes[0]! : { kind: 'component', name: text(n.arguments[0]), guest: false, requires: [], errors: [], children: nodes, ...loc(n.arguments[0]) }
+        // The root carries the app's own E / R: what no node below accounts for is reported here.
+        const app = n.arguments[0]
+        const nodes = component(app, text(app), () => build(app))
+        root = nodes.length === 1 ? nodes[0]! : { kind: 'component', name: text(app), guest: false, requires: [], errors: [], children: nodes, ...loc(app) }
       } catch (err) {
         if (!(err instanceof Unreadable)) throw err
         root = { kind: 'unresolved', message: err.message, ...loc(err.node) }
@@ -232,7 +265,10 @@ function check(n: UiNode, provided: ReadonlySet<string>, caught: ReadonlySet<str
   const at = { file: n.file, line: n.line }
   if (n.kind === 'unresolved') return (out.push({ code: 'Unresolved', message: n.message, ...at }), new Set())
   if (n.kind === 'component' && n.guest) {
-    for (const c of n.children) out.push({ code: 'EffectInsideReact', message: `Effect component "${c.kind === 'component' ? c.name : ''}" is rendered under the React guest "${n.name}"`, file: c.file, line: c.line })
+    for (const c of n.children) {
+      if (c.kind === 'unresolved') check(c, provided, caught, out)
+      else out.push({ code: 'EffectInsideReact', message: `Effect component "${c.kind === 'component' ? c.name : ''}" is rendered under the React guest "${n.name}"`, file: c.file, line: c.line })
+    }
     return new Set()
   }
   const inner = n.kind === 'provide' ? new Set([...provided, ...n.provides]) : provided

@@ -19,3 +19,4 @@ const Timed = () => Effect.map(Clock, (n) => el('b', {}, String(n)))
 
 export const a = (c: Element) => mount(Parent(), { layer: RepoLive, container: c })
 export const b = (c: Element) => mount(Provide(ClockFromDb, Timed()), { layer: RepoLive, container: c }) // @error MissingDependency
+export const root = (c: Element) => mount(Effect.map(Clock, (n) => el('b', {}, String(n))), { layer: RepoLive, container: c }) // @error MissingDependency
