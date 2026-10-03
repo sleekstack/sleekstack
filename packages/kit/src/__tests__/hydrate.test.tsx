@@ -5,8 +5,8 @@ import { describe, expect, it } from 'vitest'
 import { renderToString } from 'react-dom/server'
 import { prerender } from 'react-dom/static'
 import { Hydrate } from '@sleekstack/query'
-import { cachedQuery, layer, tag, type CachedQuery } from '../index'
-import { HydrateQueries, LayerProvider, useQuery } from '../react'
+import { cachedQuery, layer, mutation, tag, type CachedQuery } from '../index'
+import { HydrateQueries, LayerProvider, useMutation, useQuery, useQueryClient } from '../react'
 import { configureRuntime, prefetch } from '../next'
 
 const Api = tag<{ get(id: string): string }>('HydrateApi')
@@ -65,5 +65,18 @@ describe('kit prefetch: Next control flow', () => {
     const redirect = Object.assign(new Error('NEXT_REDIRECT'), { digest: 'NEXT_REDIRECT;replace;/x;307;' })
     const q = cachedQuery({ key: () => ['kit-redirect'], fetch: function* () { return 1 }, serializable: true })
     await expect(prefetch([q(undefined)], { provide: async () => { throw redirect } })).rejects.toBe(redirect)
+  })
+
+  it('a form using useMutation renders idle on the server; mutate during render throws (fn-16 R4)', () => {
+    const save = mutation({ run: function* (title: string) { return title } })
+    const Form = ({ callNow }: { callNow?: boolean }) => {
+      useQueryClient()
+      const { mutate, isPending, data } = useMutation(save)
+      if (callNow) void mutate('x')
+      return <form><button disabled={isPending}>{data ?? 'idle'}</button></form>
+    }
+    expect(renderToString(<LayerProvider provide={[]}><Form /></LayerProvider>)).toContain('idle')
+    expect(() => renderToString(<LayerProvider provide={[]}><Form callNow /></LayerProvider>))
+      .toThrow(expect.objectContaining({ name: 'SleekStackError', code: 'Unknown', cause: expect.objectContaining({ name: 'MutateDuringRender' }) }))
   })
 })

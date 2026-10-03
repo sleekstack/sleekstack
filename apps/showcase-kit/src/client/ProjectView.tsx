@@ -22,8 +22,6 @@ export interface TaskWithComments {
   readonly comments: readonly CommentRecord[]
 }
 
-const noSubscribe = () => () => {}
-
 function CreateTaskForm({ project }: { readonly project: ProjectRecord }) {
   const [title, setTitle] = useState('')
   const [simulateFailure, setSimulateFailure] = useState(false)
@@ -61,9 +59,6 @@ function ProjectBody({ project, tasks }: { readonly project: ProjectRecord; read
   // client one — required explicitly or React throws under SSR.
   const filter = useSyncExternalStore(store.filter.subscribe, store.filter.get, store.filter.get)
   const selectedTaskId = useSyncExternalStore(store.selectedTaskId.subscribe, store.selectedTaskId.get, store.selectedTaskId.get)
-  // ponytail: kit `useMutation` throws in a server render, so the create form mounts after hydration; drop the gate
-  // once useMutation is idle on the server (fn-16 R4).
-  const client = useSyncExternalStore(noSubscribe, () => true, () => false)
 
   const visible = filter === 'all' ? tasks : tasks.filter(({ task }) => task.status === filter)
   const selected = tasks.find(({ task }) => task.id === selectedTaskId)
@@ -89,7 +84,7 @@ function ProjectBody({ project, tasks }: { readonly project: ProjectRecord; read
           </li>
         ))}
       </ul>
-      {client && <CreateTaskForm project={project} />}
+      <CreateTaskForm project={project} />
       {selected && (
         <TaskDetail task={selected.task} comments={selected.comments} onClose={() => store.selectedTaskId.set(null)} />
       )}

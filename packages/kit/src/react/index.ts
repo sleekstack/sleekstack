@@ -126,7 +126,10 @@ export interface MutationHandle<I, T> {
  *
  * @param mutation - A `mutation()` definition.
  * @returns `mutate`, `data`, `error`, `isPending`, `reset`.
- * @throws {@link SleekStackError} with code `Unknown` outside a `LayerProvider` or during a server render;
+ * During a server render it returns the idle handle, and calling `mutate` there throws a
+ * {@link SleekStackError} (code `Unknown`) whose cause is an `Error` named `MutateDuringRender`.
+ *
+ * @throws {@link SleekStackError} with code `Unknown` outside a `LayerProvider`;
  *   `mutate` rejects with code `MissingDependency` when a `yield*`ed Tag is not provided and `Unknown` when `run` throws.
  *
  * @example
@@ -145,11 +148,10 @@ export interface MutationHandle<I, T> {
 export function useMutation<I, T>(mutation: Mutation<I, T>): MutationHandle<I, T> {
   const m = kit(() => coreUseMutation(coreMutation(mutation)))
   const run = m.mutate
-  const mutate = useCallback(async (input: I) => {
-    const exit = await run(input)
+  const mutate = useCallback((input: I) => kit(() => run(input)).then((exit) => {
     if (Exit.isSuccess(exit)) return exit.value as T
     throw normalize(exit.cause)
-  }, [run])
+  }), [run])
   const s = m.state
   return {
     mutate,
@@ -180,8 +182,11 @@ const target = (t: QueryTarget | undefined) => (t === undefined || 'prefix' in t
 /**
  * The query cache of the nearest `LayerProvider`'s query store, e.g. to invalidate after a mutation.
  *
+ * During a server render (no store there) it returns a client whose every call throws, so a component that
+ * only uses it from handlers, like a mutation form, still renders on the server.
+ *
  * @returns `invalidate`, `refetch`, `setData`, `getData`.
- * @throws {@link SleekStackError} with code `Unknown` outside a `LayerProvider` or during a server render.
+ * @throws {@link SleekStackError} with code `Unknown` outside a `LayerProvider`.
  *
  * @example
  * ```tsx
@@ -201,7 +206,14 @@ const target = (t: QueryTarget | undefined) => (t === undefined || 'prefix' in t
  * }
  * ```
  */
+const serverCall = (): never => {
+  throw new SleekStackError('Unknown', 'useQueryClient: the query client was called during a server render.')
+}
+const SERVER_CLIENT: QueryClient = { invalidate: serverCall, refetch: serverCall, setData: serverCall, getData: serverCall }
+
 export function useQueryClient(): QueryClient {
+  // Environment-fixed branch, so hook order never changes within one.
+  if (typeof window === 'undefined') return SERVER_CLIENT
   const q = kit(() => useQueries())
   return {
     invalidate: (t) => q.invalidate(target(t)),
