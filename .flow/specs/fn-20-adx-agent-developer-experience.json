@@ -1,0 +1,27 @@
+{
+  "branch_name": "fn-20-adx-agent-developer-experience",
+  "created_at": "2026-10-03T11:45:43.008277Z",
+  "depends_on_epics": [
+    "fn-16-query-layer-follow-ups-kit-ssr-prefetch",
+    "fn-18-resumable-rendering-spike-for"
+  ],
+  "id": "fn-20-adx-agent-developer-experience",
+  "next_task": 1,
+  "plan_review_status": "unknown",
+  "plan_reviewed_at": null,
+  "spec_path": ".flow/specs/fn-20-adx-agent-developer-experience.md",
+  "status": "open",
+  "title": "ADX: Agent Developer Experience",
+  "tracker": {
+    "baseHashFlow": null,
+    "baseHashTracker": null,
+    "depRelations": [],
+    "id": null,
+    "identifier": null,
+    "lastSyncedAt": null,
+    "mergeBaseFlow": null,
+    "mergeBaseTracker": null,
+    "url": null
+  },
+  "updated_at": "2026-10-03T11:52:49.875566Z"
+}
