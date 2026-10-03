@@ -15,7 +15,7 @@ An Effect-native component is `Component<P, E, R> = (props: P) => Effect<Node, E
 - The mount layer must be fully satisfied (`RIn = never`); `Catch` over `E = never` is uncallable. An uncaught error rejects `mount` with the original tagged error, never a `FiberFailure`.
 - Renderers: a string renderer (SSR and tests) and a minimal DOM renderer that re-mounts the whole tree (a later `mount` on a container wins; superseded handles are no-ops). In the DOM, each guest sits inside a `<sleek-guest style="display: contents">` element. Both renderers reject `on*`, `srcdoc` and `javascript:` attributes.
 - `sleekstack check` runs the component pass only when the nearest package.json lists `@sleekstack/ui`; other projects are checked as before, and `--json` gains a `components` key only for ui projects.
-- No Next.js or React Server Components: a host-first runtime cannot be aliased into React's flight protocol. No per-component Scopes, interruption, fine-grained reactivity or devtools in the MVP.
+- No Next.js or React Server Components: a host-first runtime cannot be aliased into React's flight protocol. No fine-grained reactivity (diffing) or devtools in the MVP. (Amended: host components can hold state through atoms and re-render, see Amendment: reactive host subtrees.)
 - `@sleekstack/ui` is not in the docs API reference while it is a spike.
 - The ui Component is unrelated to the `component` Lifetime.
 
@@ -26,6 +26,18 @@ An Effect-native component is `Component<P, E, R> = (props: P) => Effect<Node, E
 - tsc cannot type a JSX expression's `E` / `R` (`JSX.Element` is `Effect<Node, never, never>`), so the Analyzer reads them from the JSX tree and the component's own return type. `sleekstack check` is the only check for missing dependencies and uncaught errors in JSX; the `el` form keeps tsc's checking.
 - The Analyzer's tree adds JSX elements and fragments (host tags are transparent), `Provider` as `provide` and `Boundary` as `catch`; a `Boundary` fallback's components are siblings, not caught children.
 - Host attributes stay strings (`className` / `htmlFor` map to `class` / `for`); event handlers stay in guests.
+
+## Amendment: reactive host subtrees
+
+A host component holds state in atoms. `useAtomValue(atom)`, `useSetAtom(atom)` and `useAtom(atom)` read and write through the `Store` Tag (an `AtomStore` from `@sleekstack/core`). `mount` creates one store per call, or uses `opts.store`, and provides it as `Store`; it disposes only a store it created. `renderToString` provides a fresh store and serializes once.
+
+- **Automatic mode.** There is no `<Reactive>` boundary. Every JSX function component runs through a small wrapper; if the run read atoms, it returns a `Reactive` node holding those atoms and a `rerun`. Components that read none return their plain node unchanged. React-style ordered hook slots were rejected: they need call-order rules and a renderer-kept identity, the dialect option A rejected.
+- **Re-render the component, not diff.** In the DOM a `Reactive` node renders into `<sleek-reactive style="display: contents">`. On an atom change (coalesced per tick, latest run wins) the renderer re-runs the component and swaps only that host's children in one `replaceChildren`. A parent re-running recreates its children as fresh instances.
+- **Context capture.** The wrapper captures the Effect `Context` at the instance, so a re-run keeps its `Provider` scoping without re-walking from the root. The renderer owns each run's scope: `Provider` layers stay alive while that run is current and are released when a newer run supersedes it.
+- **Boundary handler stack.** A re-run is not inside any `Catch` frame, so the enclosing `Boundary` handlers are kept in the captured context and applied to the re-run. An error no handler catches keeps the current DOM and goes to `onError`. The Analyzer needs no special error root for reactive components.
+- **Lost guest state.** Guest roots inside the swapped subtree are unmounted first; their React state is lost. Guests that must keep state sit outside the reading component (pass them `useSetAtom` setters as props).
+- **`resume` exclusion.** fn-18's `resume` mode never re-runs components on the client; the two modes share no runtime path. A reactive component under `resume` is out of scope and, once fn-18 lands, reported by the Analyzer as `Unresolved` naming `resume`.
+- **Missing store.** A hook with no `Store` in context fails with the core `MissingDependency` naming `Store`. The Analyzer treats `@sleekstack/ui`'s `Store` as provided by every `mount`; a different Tag that merely prints as `Store` is not.
 
 ## Open decisions
 

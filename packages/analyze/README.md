@@ -30,7 +30,7 @@ const { trees, errors } = analyzeComponents({ project: 'tsconfig.json' })
 
 It builds one tree per `mount` call (nodes `component`, `provide`, `catch`, `unresolved`) and walks it once, carrying provided Tags and caught errors downward. Every branch counts as rendered. It reports, with file:line:
 
-- `MissingDependency`: a Component needs a Tag no `Provide` or mount layer supplies.
+- `MissingDependency`: a Component needs a Tag no `Provide` or mount layer supplies. `@sleekstack/ui`'s `Store` (used by the atom hooks) is always provided at `mount`; another Tag that prints as `Store` is shown as `<file>#Store` and is not.
 - `UnhandledError`: a tagged error reaches `mount` without a `Catch`.
 - `EffectInsideReact`: a Component sits under a `fromReact` guest (in its JSX or passed through its props).
 - `Unresolved`: a component or Layer it cannot read (`any`, a dynamically picked component, an unread declaration). It fails closed.
