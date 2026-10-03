@@ -1,9 +1,9 @@
 // @sleekstack/kit/react public barrel. No Effect or core type is reachable from here.
 import { createElement, useCallback, type ReactNode } from 'react'
 import { Exit, Option } from 'effect'
-import { QueryProvider as CoreQueryProvider, useMutation as coreUseMutation, useQueries, useQuery as coreUseQuery } from '@sleekstack/react'
+import { HydrateQueries as CoreHydrateQueries, QueryProvider as CoreQueryProvider, useMutation as coreUseMutation, useQueries, useQuery as coreUseQuery } from '@sleekstack/react'
 import { normalize, type SleekStackError } from '../errors'
-import { coreMutation, coreQuery, type CachedQuery, type Mutation } from '../query'
+import { coreMutation, coreQuery, type CachedQuery, type Dehydrated, type Mutation } from '../query'
 
 export { LayerProvider, useService, useServices, createAppScope, type LayerProviderProps, type AppScopeHandle } from './hooks'
 export { useAtom, useAtomValue, useAtomSet, type SetAtom } from './atoms'
@@ -33,6 +33,27 @@ const kit = <T>(f: () => T): T => {
  */
 export function QueryProvider({ children }: { readonly children?: ReactNode }) {
   return createElement(CoreQueryProvider, null, children)
+}
+
+/**
+ * Seeds the query store with `prefetch`ed state (from `@sleekstack/kit/next`), so the queries below render
+ * with data on first paint. Queries the server read lazily under it are transferred too.
+ *
+ * @throws {@link SleekStackError} with code `Unknown` outside a `LayerProvider`.
+ *
+ * @example
+ * ```tsx
+ * import { prefetch } from '@sleekstack/kit/next'
+ * import { HydrateQueries } from '@sleekstack/kit/react'
+ *
+ * export default async function Page() {
+ *   return <HydrateQueries state={await prefetch([todo('t1')])}><Todo id="t1" /></HydrateQueries>
+ * }
+ * ```
+ */
+export function HydrateQueries({ state, children }: { readonly state: Dehydrated; readonly children?: ReactNode }) {
+  // Called, not rendered, so its throws go through `kit` (its hooks run in this component's order).
+  return kit(() => CoreHydrateQueries({ state: state as never, children }))
 }
 
 /** What {@link useQuery} returns. */
