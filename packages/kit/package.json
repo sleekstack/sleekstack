@@ -16,7 +16,8 @@
     "./react": {
       "types": "./src/react/index.ts",
       "default": "./src/react/index.ts"
-    }
+    },
+    "./llms.md": "./llms.md"
   },
   "scripts": {
     "test": "vitest run",
@@ -44,5 +45,11 @@
   },
   "peerDependencies": {
     "react": ">=19.0.0"
-  }
+  },
+  "files": [
+    "llms.md",
+    "src",
+    "!src/__tests__",
+    "dist-types"
+  ]
 }

@@ -19,9 +19,10 @@
 
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import { initAgents } from './initAgents'
 import { analyze, analyzeComponents, ERROR_CODES, type AnalyzeCode, type AnalyzeError, type ComponentReport } from '@sleekstack/analyze'
 
-const USAGE = 'Usage: sleekstack check [--project <tsconfig>] [--entry <file>...] [--json] [--lenient]\n       sleekstack explain <CODE>'
+const USAGE = 'Usage: sleekstack check [--project <tsconfig>] [--entry <file>...] [--json] [--lenient]\n       sleekstack explain <CODE>\n       sleekstack init-agents [--file <AGENTS.md>]'
 
 interface Io { readonly cwd: string; readonly out: (s: string) => void; readonly err: (s: string) => void }
 const stdio: Io = { cwd: process.cwd(), out: (s) => process.stdout.write(s + '\n'), err: (s) => process.stderr.write(s + '\n') }
@@ -51,6 +52,7 @@ function components(project: string): ComponentReport | undefined {
 
 export function main(argv: readonly string[], io: Io = stdio): number {
   try {
+    if (argv[0] === 'init-agents') return initAgents(argv.slice(1), io)
     if (argv[0] === 'explain') {
       if (argv.length !== 2) return (io.err(USAGE), 2)
       const help = Object.hasOwn(ERROR_CODES, argv[1]!) ? ERROR_CODES[argv[1] as AnalyzeCode] : undefined
