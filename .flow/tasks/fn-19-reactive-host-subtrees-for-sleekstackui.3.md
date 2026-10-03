@@ -30,9 +30,14 @@ The JSX element type is `Effect<Node, never, never>`, so a component's requireme
 - [ ] Existing component-pass tests and the ui-demo fixtures stay green
 
 ## Done summary
-TBD
+The component pass now treats `@sleekstack/ui`'s `Store` as provided by every `mount`. The provided set is seeded with `Store`, and a different Tag that also prints as `Store` is renamed `<file>#Store` so it can't pass for the UI one. `Store` stays in the tree's `requires` arrays. A Provide layer that requires `Store` also checks clean.
 
+Fixture `ui-hooks` covers five cases: a clean hook user, a hook user missing another Tag (MissingDependency), an unhandled tagged error, a same-named app `Store` (MissingDependency), and a Provide layer that requires the UI Store (clean). components.test.ts asserts the tree still lists `Store` and checks the same-named error message.
+
+Tier: opus at medium
+baseline: green via handoff (verified at a9a5766 by fn-19.2)
+stage: impl-review - ran (codex fan-out; NEEDS_WORK x2 (same-name collision, then Store dropped from public requires), SHIP on round 3)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 45f7666c6e7294bcf2a4e00e616a7ac9100616af, 36ba49abf8e721b1e52b34fff40f3866791a69bc, 7bd1b99ad834f138d0e650f2890c1ac9a1fb8fd4, 3141dda1967668f1b7e578103f4e6219398d44b8
+- Tests: pnpm --filter @sleekstack/analyze test, pnpm --filter @sleekstack/ui test, apps/ui-demo: npx vitest run && npx tsc --noEmit
 - PRs:
