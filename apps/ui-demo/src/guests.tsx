@@ -9,6 +9,14 @@ const AvatarView = ({ name }: { name: string }) => (
 )
 export const Avatar = fromReact(AvatarView)
 
+const AddView = ({ onAdd }: { onAdd: () => void }) => (
+  <button type="button" className="add" onClick={onAdd}>
+    Add task
+  </button>
+)
+/** Receives the host's `mutate` as a prop. */
+export const AddButton = fromReact(AddView)
+
 const VoteView = ({ initial }: { initial: number }) => {
   const [votes, setVotes] = useState(initial)
   return (

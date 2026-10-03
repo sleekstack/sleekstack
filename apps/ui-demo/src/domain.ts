@@ -1,4 +1,5 @@
 import { Data, Effect, Layer } from 'effect'
+import { QueryClientLive } from '@sleekstack/query'
 
 export type Status = 'todo' | 'in_progress' | 'done'
 export interface User { readonly id: string; readonly name: string; readonly canEdit: boolean }
@@ -18,6 +19,7 @@ export class TaskRepo extends Effect.Tag('TaskRepo')<TaskRepo, {
   project(id: string): Effect.Effect<Project, ProjectNotFound>
   byProject(id: string): Effect.Effect<ReadonlyArray<Task>, ProjectNotFound>
   get(id: string): Effect.Effect<Task, TaskNotFound>
+  add(projectId: string, title: string): Effect.Effect<Task, ProjectNotFound>
 }>() {}
 
 /** Who is looking at the board; provided per subtree with `<Provider>`. */
@@ -47,14 +49,29 @@ export const UserRepoLive = Layer.succeed(UserRepo, {
   get: (id) => find(users, id, (id) => new UserNotFound({ id })),
 })
 
-export const TaskRepoLive = Layer.succeed(TaskRepo, {
-  project: (id) => find(projects, id, (id) => new ProjectNotFound({ id })),
-  byProject: (id) =>
-    find(projects, id, (id) => new ProjectNotFound({ id })).pipe(Effect.map((p) => tasks.filter((t) => t.projectId === p.id))),
-  get: (id) => find(tasks, id, (id) => new TaskNotFound({ id })),
+/** In memory, fresh per build of the layer (so per mount). */
+export const TaskRepoLive = Layer.sync(TaskRepo, () => {
+  let all = tasks
+  return {
+    project: (id) => find(projects, id, (id) => new ProjectNotFound({ id })),
+    byProject: (id) =>
+      find(projects, id, (id) => new ProjectNotFound({ id })).pipe(Effect.map((p) => all.filter((t) => t.projectId === p.id))),
+    get: (id) => find(all, id, (id) => new TaskNotFound({ id })),
+    add: (projectId, title) =>
+      find(projects, projectId, (id) => new ProjectNotFound({ id })).pipe(
+        Effect.map(() => {
+          const task: Task = { id: `t${all.length + 1}`, projectId, title, status: 'todo', assigneeId: null, votes: 0 }
+          all = [...all, task]
+          return task
+        }),
+      ),
+  }
 })
 
 export const AppLive = Layer.mergeAll(UserRepoLive, TaskRepoLive)
+
+/** `AppLive` plus the scope's QueryClient, built over it so `effectFn` queries see the repos. */
+export const AppWithQueriesLive = (config?: Parameters<typeof QueryClientLive>[0]) => QueryClientLive(config).pipe(Layer.provideMerge(AppLive))
 
 export const ViewerLive = (userId: string) =>
   Layer.effect(Viewer, UserRepo.get(userId).pipe(Effect.map((user) => ({ user })), Effect.orDie)).pipe(Layer.provide(UserRepoLive))

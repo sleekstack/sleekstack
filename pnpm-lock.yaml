@@ -261,6 +261,9 @@ importers:
       '@sleekstack/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@sleekstack/query':
+        specifier: workspace:*
+        version: link:../../packages/query
       '@sleekstack/ui':
         specifier: workspace:*
         version: link:../../packages/ui
