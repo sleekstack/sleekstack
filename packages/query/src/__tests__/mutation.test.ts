@@ -187,12 +187,24 @@ describe('Mutation', () => {
       const p1 = r.mutate(1)
       await tick()
       refetch('fresh')
-      expect(client.getData(q('1'))).toEqual(Option.some('fresh'))
+      expect(client.getData(q('1'))).toEqual(Option.some('fresh+0+1'))
       Effect.runSync(Deferred.fail(gates[0]!, 'x'))
       await p0
       expect(client.getData(q('1'))).toEqual(Option.some('fresh+1'))
       Effect.runSync(Deferred.succeed(gates[1]!, undefined))
       await p1
+      expect(client.getData(q('1'))).toEqual(Option.some('fresh+1'))
+    })
+
+    it('a refetch equal to the optimistic value still becomes the rollback base', async () => {
+      const { q, client, gates, r, refetch } = refetching()
+      const p0 = r.mutate(0)
+      await tick()
+      refetch('base+0')
+      expect(client.getData(q('1'))).toEqual(Option.some('base+0+0'))
+      Effect.runSync(Deferred.fail(gates[0]!, 'x'))
+      await p0
+      expect(client.getData(q('1'))).toEqual(Option.some('base+0'))
     })
 
     it('a failed mutation rolls back to the refetched base', async () => {
