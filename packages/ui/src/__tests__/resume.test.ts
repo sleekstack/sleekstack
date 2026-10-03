@@ -11,7 +11,7 @@ const count = Atom.serializable(Atom.make(0), { key: 'count', schema: Schema.Num
 const inc = defineHandler('inc', () => Effect.flatMap(Step, (n) => Effect.flatMap(Store, (s) => Effect.sync(() => s.update(count, (c) => c + n)))), { preventDefault: true })
 const seen: Array<unknown> = []
 const log = defineHandler('log', (e) => Effect.sync(() => void seen.push(e)), { stopPropagation: true })
-const boom = defineHandler('boom', () => Effect.fail('bad'))
+const boom = defineHandler('boom', () => Effect.flatMap(Store, (s) => Effect.zipRight(Effect.sync(() => s.update(count, (c) => c + 100)), Effect.fail('bad'))))
 
 const spy = vi.fn()
 const Counter = () =>

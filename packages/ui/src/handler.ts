@@ -36,7 +36,7 @@ export const defineHandler = <E = never, R = never>(
 
 // Events that bubble to a delegated container listener; anything else (focus, blur, invalid, media, ...) is rejected.
 const BUBBLING = new Set(
-  'click dblclick auxclick contextmenu mousedown mouseup mousemove mouseover mouseout pointerdown pointerup pointermove pointerover pointerout pointercancel touchstart touchend touchmove touchcancel wheel keydown keyup beforeinput input change submit reset focusin focusout select drag dragstart dragend dragenter dragleave dragover drop copy cut paste compositionstart compositionupdate compositionend'.split(' '),
+  'click dblclick auxclick contextmenu mousedown mouseup mousemove mouseover mouseout pointerdown pointerup pointermove pointerover pointerout pointercancel touchstart touchend touchmove touchcancel wheel keydown keyup beforeinput input change submit reset focusin focusout select drag dragstart dragend dragenter dragleave dragover drop copy cut paste compositionstart compositionupdate compositionend animationstart animationiteration animationend transitionrun transitionstart transitionend transitioncancel'.split(' '),
 )
 /** Throws `UnsupportedEvent` unless `event` is a supported bubbling event. */
 export const checkEvent = (event: string): string => {

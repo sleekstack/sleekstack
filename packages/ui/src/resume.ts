@@ -157,9 +157,14 @@ const activate = async <R, LE>(opts: ResumeOptions<R, LE>): Promise<Resumed> => 
       }
       if (!active) return
       // Forked into the client Scope so `dispose` interrupts a run in flight; suspend turns a sync throw into a defect.
+      // A failed handler leaves bound state (and so the DOM) as it was: restore what it may have written.
+      const before = binds.map(({ atom }) => [atom, store.get(atom)] as const)
       const run = Effect.provide(Effect.suspend(() => h.run(event)), ctx as Context.Context<any>)
       const exit = await Effect.runPromise(Effect.flatMap(Effect.forkIn(run, scope), Fiber.await))
-      if (active && Exit.isFailure(exit)) report(exit.cause)
+      if (active && Exit.isFailure(exit)) {
+        for (const [atom, v] of before) if (store.get(atom) !== v) store.set(atom as any, v)
+        report(exit.cause)
+      }
     })
   }
 
