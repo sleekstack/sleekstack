@@ -1,7 +1,7 @@
 {
   "branch_name": "fn-19-reactive-host-subtrees-for-sleekstackui",
-  "completion_review_status": "unknown",
-  "completion_reviewed_at": null,
+  "completion_review_status": "ship",
+  "completion_reviewed_at": "2026-10-03T13:03:00.506339Z",
   "created_at": "2026-10-03T10:34:50.742068Z",
   "default_impl": null,
   "default_review": null,
@@ -512,17 +512,64 @@
       "task": "fn-19-reactive-host-subtrees-for-sleekstackui.4",
       "timestamp": "2026-10-03T12:56:29.375662Z",
       "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "20d96fd22df29f06618a8bc3e56c61a8d685587d415049b13804f189d2c124e3",
+      "backend": "codex",
+      "base_sha": "aef42fb959f17f1bc8d992560e8957364929bc80",
+      "counter_kind": "plan",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-1c311818411a3caf7455a3e720765c91",
+            "classification": "introduced",
+            "findingId": "finding-1c311818411a3caf7455a3e720765c91",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "ea1b5fef61236da3e9aa4c084d4e03d7044cec8c",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 397909,
+      "output_sha256": "4962085e561ac7d96b891570c4823daad683d880aed3b2e167543e27a3b9850c",
+      "reservation_id": "595bb07837a44440b11096c084ce645b",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-10-03T13:03:00.499432Z",
+      "tool_calls": 26,
+      "verdict": "SHIP"
     }
   ],
   "review_hash_epoch": {
     "impl:fn-19-reactive-host-subtrees-for-sleekstackui.1": 1,
     "impl:fn-19-reactive-host-subtrees-for-sleekstackui.2": 1,
     "impl:fn-19-reactive-host-subtrees-for-sleekstackui.3": 1,
-    "impl:fn-19-reactive-host-subtrees-for-sleekstackui.4": 1
+    "impl:fn-19-reactive-host-subtrees-for-sleekstackui.4": 1,
+    "plan#completion": 1
   },
   "review_pending_rounds": {},
   "review_reservations": {},
   "review_transport_failures": {
+    "completion": 0,
     "impl:fn-19-reactive-host-subtrees-for-sleekstackui.1": 0,
     "impl:fn-19-reactive-host-subtrees-for-sleekstackui.2": 0,
     "impl:fn-19-reactive-host-subtrees-for-sleekstackui.3": 0,
@@ -542,5 +589,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-03T12:56:29.377215Z"
+  "updated_at": "2026-10-03T13:03:00.508339Z"
 }
