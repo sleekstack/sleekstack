@@ -1,0 +1,10 @@
+{
+  "machine": { "node": "v22.20.0", "cpu": "test", "os": "test" },
+  "versions": {},
+  "cases": [
+    { "case": "atoms/write", "library": "sleekstack", "hz": 1000, "mean": 1, "p99": 1, "rme": 1, "samples": 100 },
+    { "case": "atoms/write", "library": "jotai", "hz": 500, "mean": 2, "p99": 2, "rme": 1, "samples": 100 },
+    { "case": "jsx-overhead/non-reactive-1k", "library": "sleekstack", "hz": 100, "mean": 4, "p99": 4, "rme": 1, "samples": 100 },
+    { "case": "jsx-overhead/non-reactive-1k", "library": "direct", "hz": 400, "mean": 2, "p99": 2, "rme": 1, "samples": 100 }
+  ]
+}

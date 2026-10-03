@@ -27,9 +27,8 @@ Spec `.flow/specs/fn-22-benchmark-suite-for-the-ui-renderer-and.md` is authorita
 - [ ] `pnpm --filter docs test` and typecheck pass
 
 ## Done summary
-TBD
-
+publish-results script (only writer of results/published.json, committed from one recorded run); docs generate-benchmarks.mjs renders content/docs/benchmarks.mdx (gitignored) at predev/prebuild/pretest with per-suite tables, machine info, versions, caveats, scenarios link; missing file fails naming the command; 2 docs tests.
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 11cedf9
+- Tests: pnpm --filter docs test, pnpm --filter docs typecheck, pnpm --filter docs build
 - PRs:
