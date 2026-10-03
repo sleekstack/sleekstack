@@ -44,9 +44,14 @@ Memory: server and client must nest providers the same way, or the two outputs d
 - [ ] TBD
 
 ## Done summary
-TBD
+Added `defineHandler`/`on`/`bind`, the `Bind` node, and `renderToString` output with `data-sleek-on/pd/sp-<event>`, `<sleek-bind data-sleek-bind>` and one escaped manifest script `{v:1, events, atoms}`; `mount` renders Bind as static text and ignores `on`. Review fixes: bubbling-event allowlist, attribute-safe id/key grammar, fn-17 Schema codec for serializable atoms (result atoms rejected), guest markup containing `data-sleek-` rejected (inert guests).
 
+Drift: `@sleekstack/core` dep already present (no package.json/lockfile change); `renderToString` already owns a Store (fn-19), Bind reads from it. Bind wraps text in `<sleek-bind>` since text nodes cannot carry attributes — task 2 should subscribe that element's text.
+Tests: packages/ui/src/__tests__/handler.test.ts (all R1 error cases).
+Tier: opus at medium
+
+stage: impl-review - ran (codex: fan-out NEEDS_WORK -> NEEDS_WORK -> SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 871724b7ee64680a87d64af545bfcb5bf7c9e16d, ba0560b8d649ebd758a18e192cd5f58d9e295cb9, 45d9aaef0ac2c470798bcf4ce8d112abb6fa604e
+- Tests: pnpm typecheck && pnpm test, pnpm --filter @sleekstack/ui test
 - PRs:
