@@ -5,9 +5,10 @@
  * Kit Tags map to core Tags; errors reach boundaries as SleekStackError.
  */
 
-import { createElement, useMemo, useRef, type ReactNode } from 'react'
+import { createContext, createElement, useContext, useMemo, useRef, type ReactNode } from 'react'
 import { Effect, Exit } from 'effect'
 import { makeAppScope, type ChildScope } from '@sleekstack/core'
+import { QueryClientLive } from '@sleekstack/query'
 import { closeProvidersOn, LayerProvider as CoreProvider, useService as coreUseService } from '@sleekstack/react'
 import { normalize, toFinalizerError, type FinalizerError } from '../errors'
 import type { Layer, Services } from '../layer'
@@ -106,23 +107,43 @@ export async function createAppScope(
  */
 export function LayerProvider(props: LayerProviderProps): ReactNode {
   const { provide, onFinalizerError, children, appScope } = props
+  const nested = useContext(KitProviderContext)
   // Memoized on the reference so core's sameEntries / StrictMode adopt see a stable array.
+  // A root provider also builds the query client its subtree's kit queries share.
   const lowered = useMemo(() => {
     try {
       validateProvide(provide)
-      return unwrap(provide)
+      const entries = unwrap(provide)
+      return nested ? entries : [...entries, rootQueryClient]
     } catch (e) {
       throw normalize(e)
     }
-  }, [provide])
+  }, [provide, nested])
   const sink = useMemo(
     () => onFinalizerError && ((cause: unknown) => onFinalizerError(toFinalizerError(cause))),
     [onFinalizerError],
   )
-  return createElement(CoreProvider, { provide: lowered, owner: props, ...(sink && { onFinalizerError: sink }), ...(appScope && { appScope: scopes.get(appScope) }) }, children)
+  const core = createElement(CoreProvider, { provide: lowered, owner: props, ...(sink && { onFinalizerError: sink }), ...(appScope && { appScope: scopes.get(appScope) }) }, children)
+  return nested ? core : createElement(KitProviderContext.Provider, { value: true }, core)
 }
 
+/** One Layer value, so StrictMode's repeated memo runs yield equal entries (each scope still builds its own client). */
+const rootQueryClient = QueryClientLive()
+
+/** @internal True under a kit `LayerProvider` (so nested providers share the root's query client). */
+export const KitProviderContext = createContext(false)
+
 const isThenable = (x: unknown) => typeof (x as { then?: unknown } | null)?.then === 'function'
+
+/** @internal Runs `f`, rethrowing suspensions as is and anything else as a {@link SleekStackError}. */
+export const kit = <T>(f: () => T): T => {
+  try {
+    return f()
+  } catch (e) {
+    if (isThenable(e)) throw e
+    throw normalize(e)
+  }
+}
 
 /**
  * The Tag's service from the nearest LayerProvider. Suspends while building; wrap in `<Suspense>`.
@@ -145,12 +166,7 @@ const isThenable = (x: unknown) => typeof (x as { then?: unknown } | null)?.then
  * ```
  */
 export function useService<T>(tag: TagLike<T>): T {
-  try {
-    return coreUseService(coreTag(tag)) as T
-  } catch (e) {
-    if (isThenable(e)) throw e
-    throw normalize(e)
-  }
+  return kit(() => coreUseService(coreTag(tag)) as T)
 }
 
 const isDev = () => (globalThis as { process?: { env?: { NODE_ENV?: string } } }).process?.env?.NODE_ENV !== 'production'
