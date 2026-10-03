@@ -35,9 +35,12 @@ Prove the model end to end (R7) and measure the client runtime (R8's number): a 
 - [ ] TBD
 
 ## Done summary
-TBD
+Resumable counter demo (apps/ui-demo/src/resume/*), a jsdom resume test, and a resume-entry size test. `"sideEffects": false` in packages/ui/package.json lets a normal Vite build (no tree-shaking override) drop the React-importing dom.ts/string.ts from the ui barrel. I checked by hand that every packages/ui/src module has only declarations at the top level, with no import-time side effects. fixtures.test.ts now expects 2 Analyzer trees because the resume entry is a second root.
 
+Sizes (normal build, React absent): resume entry 303835 B min / 78633 B gzip; lazy handler chunk 229 B min / 183 B gzip. Cite these in ADR 0017 (task 5).
+
+stage: impl-review - ran (codex round 1 NEEDS_WORK P1 moduleSideEffects override, round 2 SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 21e1db617213423aea427759fc1c64cd80b8fdd2, b5d2b4bd995b5d6d704a6b218d78c833bfe738b7
+- Tests: pnpm typecheck && pnpm test, pnpm --filter @sleekstack/ui test, pnpm --filter ./apps/ui-demo test
 - PRs:
