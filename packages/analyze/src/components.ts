@@ -15,6 +15,8 @@ import type { AnalyzeError, ComponentReport, ComponentTree, Location, UiNode } f
 
 /** `@sleekstack/ui`'s `Store`, provided by every `mount` (ui/dom.ts) whatever its layer. */
 const UI_STORE = 'Store'
+/** Analyzer code for a handler the resume pass cannot prove resumable (fn-18). */
+export const NON_RESUMABLE_HANDLER = 'NonResumableHandler' as const
 
 export function analyzeComponents(opts: { readonly project: string }): ComponentReport {
   const { root, program, checker } = programOf(opts.project)
@@ -29,11 +31,11 @@ export function analyzeComponents(opts: { readonly project: string }): Component
     throw new Unreadable(n, message, 'Unresolved')
   }
   const calleeOf = (c: ts.CallExpression) => libId(checker.getSymbolAtLocation(c.expression), checker)
-  const declOf = (e: ts.Expression): ts.Declaration | undefined => {
-    let sym = checker.getSymbolAtLocation(e)
+  const aliased = (sym: ts.Symbol | undefined): ts.Declaration | undefined => {
     if (sym && sym.flags & ts.SymbolFlags.Alias) sym = checker.getAliasedSymbol(sym)
     return sym?.valueDeclaration ?? sym?.declarations?.[0]
   }
+  const declOf = (e: ts.Expression) => aliased(checker.getSymbolAtLocation(e))
   const isAny = (t: ts.Type) => !!(t.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown))
   const members = (t: ts.Type | undefined) => (!t || t.flags & ts.TypeFlags.Never ? [] : t.isUnion() ? t.types : [t])
 
@@ -46,7 +48,7 @@ export function analyzeComponents(opts: { readonly project: string }): Component
     }
     return out
   }
-  const isNodeMember = (m: ts.Type) => libId(m.aliasSymbol, checker) === 'ui/node#Node' || /^ui\/node#(Text|Element|Fragment|Guest|Reactive)Node$/.test(libId(m.getSymbol(), checker) ?? '')
+  const isNodeMember = (m: ts.Type) => libId(m.aliasSymbol, checker) === 'ui/node#Node' || /^ui\/node#(Text|Element|Fragment|Guest|Reactive|Bind)Node$/.test(libId(m.getSymbol(), checker) ?? '')
   /** A `Node`, or an array / tuple of them (what `Effect.all` over rendered components succeeds with). */
   const isRendered = (m: ts.Type) => isNodeMember(m) || ((checker.isArrayType(m) || checker.isTupleType(m)) && checker.getTypeArguments(m as ts.TypeReference).every(isNodeMember))
   const isNode = (a: ts.Type[] | undefined) => !!a && a.length > 0 && a.every(isRendered)
@@ -304,7 +306,73 @@ export function analyzeComponents(opts: { readonly project: string }): Component
   }
 
   const trees: ComponentTree[] = []
+  const nonResumable: AnalyzeError[] = []
+  const notResumable = (n: ts.Node, message: string) => nonResumable.push(analyzeError(NON_RESUMABLE_HANDLER, message, loc(n)))
+  /** An `on(node, { event: h })` entry must name a top-level `const h = defineHandler('literal', ...)`. */
+  const checkOn = (call: ts.CallExpression) => {
+    const map = call.arguments[1] && unwrap(call.arguments[1])
+    if (!map || !ts.isObjectLiteralExpression(map)) return map && notResumable(map, `on() handlers "${text(map)}" are not an object literal`)
+    for (const p of map.properties) {
+      const v = ts.isPropertyAssignment(p) ? unwrap(p.initializer) : undefined
+      const d = ts.isShorthandPropertyAssignment(p) ? aliased(checker.getShorthandAssignmentValueSymbol(p)) : v && (ts.isIdentifier(v) || ts.isPropertyAccessExpression(v)) ? declOf(v) : undefined
+      // A top-level `const h = defineHandler(...)` or `export default defineHandler(...)`, possibly imported.
+      const init =
+        d && ts.isVariableDeclaration(d) && d.initializer && ts.isVariableStatement(d.parent.parent) && ts.isSourceFile(d.parent.parent.parent) && ts.getCombinedNodeFlags(d) & ts.NodeFlags.Const
+          ? unwrap(d.initializer)
+          : d && ts.isExportAssignment(d) && ts.isSourceFile(d.parent) ? unwrap(d.expression) : undefined
+      if (!init || !ts.isCallExpression(init) || calleeOf(init) !== 'ui/handler#defineHandler')
+        notResumable(p, `Handler "${text(p)}" is not a reference to a top-level const defineHandler(...)`)
+      else if (!init.arguments[0] || !ts.isStringLiteralLike(unwrap(init.arguments[0])))
+        notResumable(p, `Handler "${text(p)}" has a non-literal id`)
+    }
+  }
+  /** An expression through shorthand properties and `const` bindings to the object literal it names. */
+  const objectOf = (e: ts.Node | undefined): ts.ObjectLiteralExpression | undefined => {
+    if (e && ts.isShorthandPropertyAssignment(e)) {
+      const d = checker.getShorthandAssignmentValueSymbol(e)?.valueDeclaration
+      return d && ts.isVariableDeclaration(d) && ts.getCombinedNodeFlags(d) & ts.NodeFlags.Const ? objectOf(d.initializer) : undefined
+    }
+    const x = e && (ts.isPropertyAssignment(e) ? e.initializer : ts.isExpression(e) ? e : undefined)
+    const u = x && unwrap(x)
+    if (!u) return undefined
+    if (ts.isObjectLiteralExpression(u)) return u
+    const d = ts.isIdentifier(u) ? declOf(u) : undefined
+    return d && ts.isVariableDeclaration(d) && ts.getCombinedNodeFlags(d) & ts.NodeFlags.Const ? objectOf(d.initializer) : undefined
+  }
+  /** A `resume({ layer, handlers })` root: one child per handler carrying the `R` of its loader's `default`. */
+  const resumeRoot = (n: ts.CallExpression): ComponentTree => {
+    const opts = n.arguments[0] && unwrap(n.arguments[0])
+    try {
+      if (!opts) return fail(n, 'resume() needs { layer, handlers }')
+      const sym = checker.getTypeAtLocation(opts).getProperty('layer') ?? fail(opts, 'resume() options have no layer')
+      const provides = layerTags(opts, checker.getTypeOfSymbolAtLocation(sym, opts)).provides
+      // The last `handlers` wins, through `...spread` of readable const objects.
+      const find = (o: ts.ObjectLiteralExpression | undefined): ts.ObjectLiteralElementLike | undefined =>
+        o?.properties.reduce<ts.ObjectLiteralElementLike | undefined>((hit, p) => (ts.isSpreadAssignment(p) ? find(objectOf(p.expression)) ?? hit : p.name?.getText() === 'handlers' ? p : hit), undefined)
+      const hp = find(objectOf(opts))
+      const map = objectOf(hp)
+      const children: UiNode[] = []
+      if (!map) notResumable(hp ?? opts, 'resume() handlers are not a readable object literal')
+      else for (const p of map.properties) {
+        const name = `handler ${p.name?.getText() ?? text(p)}`
+        const loader = p.name ? checker.getTypeAtLocation(p.name) : undefined
+        const ret = loader?.getCallSignatures()[0] && checker.getAwaitedType(checker.getReturnTypeOfSignature(loader.getCallSignatures()[0]!))
+        const def = ret && !isAny(ret) ? ret.getProperty('default') : undefined
+        const run = def && checker.getTypeOfSymbolAtLocation(def, p).getProperty('run')
+        const sig = run && checker.getTypeOfSymbolAtLocation(run, p).getCallSignatures()[0]
+        const args = sig && effectArgs(checker.getReturnTypeOfSignature(sig))
+        if (!args || args[2].some(isAny)) notResumable(p, `Loader "${text(p)}" has no readable default Handler type`)
+        else children.push({ kind: 'component', name, guest: false, requires: args[2].map(tagName), errors: [], children: [], ...loc(p) })
+      }
+      return { provides, root: { kind: 'component', name: 'resume', guest: false, requires: [], errors: [], children, ...loc(n) }, ...loc(n) }
+    } catch (err) {
+      if (!(err instanceof Unreadable)) throw err
+      return { provides: [], root: { kind: 'unresolved', message: err.message, ...loc(err.node) }, ...loc(n) }
+    }
+  }
   const visit = (n: ts.Node): void => {
+    if (ts.isCallExpression(n) && calleeOf(n) === 'ui/handler#on') checkOn(n)
+    if (ts.isCallExpression(n) && calleeOf(n) === 'ui/resume#resume') trees.push(resumeRoot(n))
     if (ts.isCallExpression(n) && calleeOf(n) === 'ui/dom#mount' && n.arguments[0]) {
       let provides: readonly string[] = []
       let root: UiNode
@@ -329,7 +397,7 @@ export function analyzeComponents(opts: { readonly project: string }): Component
     if (!sf.isDeclarationFile && program.getRootFileNames().includes(sf.fileName) && !TEST_FILE.test(path.relative(root, sf.fileName))) visit(sf)
   }
 
-  const errors: AnalyzeError[] = []
+  const errors: AnalyzeError[] = [...nonResumable]
   for (const t of trees) check(t.root, new Set([...t.provides, UI_STORE]), new Set(), errors)
   return { trees, errors: [...new Map(errors.map((e) => [`${e.code}|${e.file}:${e.line}|${e.message}`, e])).values()] }
 }
@@ -357,7 +425,7 @@ function check(n: UiNode, provided: ReadonlySet<string>, caught: ReadonlySet<str
   for (const r of requires) {
     if (provided.has(r) || below.has(`R:${r}`)) continue
     below.add(`R:${r}`)
-    out.push(analyzeError('MissingDependency', `${who} requires "${r}", but no enclosing Provide or mount layer provides it`, at))
+    out.push(analyzeError('MissingDependency', `${who} requires "${r}", but no enclosing Provide or root (mount / resume) layer provides it`, at))
   }
   for (const e of n.kind === 'component' ? n.errors : []) {
     if (caught.has(e) || below.has(`E:${e}`)) continue

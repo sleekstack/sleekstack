@@ -1,6 +1,7 @@
 import type { Atom } from '@sleekstack/core'
 import type { Effect, Scope } from 'effect'
 import type { ComponentType } from 'react'
+import type { Handler } from './handler'
 
 export interface TextNode {
   readonly _tag: 'Text'
@@ -11,6 +12,8 @@ export interface ElementNode {
   readonly tag: string
   readonly attrs: Readonly<Record<string, string>>
   readonly children: ReadonlyArray<Node>
+  /** Event name to handler; rendered as `data-sleek-on-<event>` by `renderToString`, ignored by `mount`. */
+  readonly on?: Readonly<Record<string, Handler<any, any>>>
 }
 export interface FragmentNode {
   readonly _tag: 'Fragment'
@@ -32,7 +35,13 @@ export interface ReactiveNode {
   /** @internal This run's `RenderScope` child; closed by the renderer when the run's DOM is replaced or dropped. */
   readonly scope?: Scope.CloseableScope
 }
-export type Node = TextNode | ElementNode | FragmentNode | GuestNode | ReactiveNode
+/** An atom's current value as text, bound under `key` for resume. */
+export interface BindNode {
+  readonly _tag: 'Bind'
+  readonly atom: Atom.Atom<any>
+  readonly key: string
+}
+export type Node = TextNode | ElementNode | FragmentNode | GuestNode | ReactiveNode | BindNode
 
 const toNode = (c: Node | string): Node => (typeof c === 'string' ? { _tag: 'Text', text: c } : c)
 

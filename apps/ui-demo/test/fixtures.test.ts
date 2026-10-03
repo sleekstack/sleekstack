@@ -30,6 +30,6 @@ describe('one fixture per Analyzer code', { timeout: 60_000 }, () => {
   it('the demo app itself is clean', () => {
     const r = analyzeComponents({ project: path.join(root, 'tsconfig.json') })
     expect(r.errors).toEqual([])
-    expect(r.trees).toHaveLength(1)
+    expect(r.trees).toHaveLength(2) // the mount in main.tsx and the resume in src/resume/entry.ts
   })
 })

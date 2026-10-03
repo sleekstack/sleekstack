@@ -44,9 +44,13 @@ Tests must not read the build-generated `.sleekstack` report. A component spy co
 - [ ] TBD
 
 ## Done summary
-TBD
+`resume` runtime (delegated listeners, lazy handlers in one FIFO queue, bound text, scoped lifecycle). Per the user's decision, `bind`/`resume` accept only serializable value-kind atoms: a new `UnsupportedAtom` tagged error is thrown at bind time, at render (hand-built Bind nodes), and at resume. Every bound atom now seeds through the store hydrate seed, and the plain-atom `set`/unseeded paths are gone. Spec error list updated. Tests: handler.test.ts covers bind/render rejection, resume.test.ts covers resume rejection with the container untouched.
 
+Drift: Bind renders `<sleek-bind data-sleek-bind>`; handlers write through the Store service (layer is `Layer<Exclude<R, Store>>`); resume entry is React-free.
+
+Tier: implementer opus at medium
+stage: impl-review - ran (codex re-review on open receipt, SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 3fb57126bc20ab61e38ce184e1fdc4fe34ff5fa9, 57cf65ee0b8a52ffc9c2ab432d0129b1c3f4be7f, 76b83c29f71e44d2cdae5f272fdac566f00e4259, 602bba39890cc563e872ad93c0d8d0dff8e70eb0, 86fe5d9c77054873de5b5f4319505bba428c2bac, 6ac32dc6fa08a8542d6e1da477bc815a423ddc55
+- Tests: pnpm typecheck, pnpm test
 - PRs:

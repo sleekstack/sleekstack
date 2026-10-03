@@ -75,4 +75,5 @@ Anything else is a `CaptiveDependency`. `request` and `component` never nest.
 - `Unresolved`: Every component and Layer in a mount tree is statically readable (no any, no dynamically picked component). Fix: Type the component or Layer explicitly; Render the component directly instead of picking it at run time.
 - `UnhandledError`: Every tagged error a component can fail with is caught before mount. Fix: Wrap the component in a Catch for the error tag; Handle the error inside the component.
 - `EffectInsideReact`: Effect components are not rendered under a fromReact guest. Fix: Move the Effect component out of the React guest; Convert the guest subtree to Effect components.
+- `NonResumableHandler`: Every on() entry names a top-level const defineHandler("literal-id", ...), and resume loaders import a module whose default export is one. Fix: Hoist the defineHandler call to a top-level const with a string-literal id; Pass that const to on() instead of an inline function or a reassigned variable.
 <!-- generated:errors:end -->

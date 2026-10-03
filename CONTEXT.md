@@ -62,7 +62,7 @@ _Avoid_: Handler, deps array, `effect` (for the inline runner)
 
 **Analyzer**:
 `@sleekstack/analyze`, run as `sleekstack check [--project <tsconfig>] [--entry <file>...] [--json] [--lenient]`. Reads the declarations through the TypeScript checker without executing app code, builds each root's Graph and reports every violation with file:line (exit 0 ok, 1 violations, 2 crash or no roots). Fails closed: a declaration it cannot read is an error. `--entry` limits the roots to the given files. `--lenient` turns an unresolvable `runEffect` Layer into an opaque root (`kind: 'opaque'`) instead of an error; it never excuses a missing Tag or an unresolvable app Layer.
-In a project whose package.json lists `@sleekstack/ui`, `sleekstack check` also runs the component pass (`analyzeComponents`): one tree per `mount` call, reporting `MissingDependency`, `UnhandledError`, `EffectInsideReact` and `Unresolved` (`components` under `--json`).
+In a project whose package.json lists `@sleekstack/ui`, `sleekstack check` also runs the component pass (`analyzeComponents`): one tree per `mount` call, reporting `MissingDependency`, `UnhandledError`, `EffectInsideReact`, `Unresolved` and `NonResumableHandler` (`components` under `--json`). `resume` calls are tree roots too.
 _Avoid_: Linter, compiler plugin
 
 **Request Root**:
@@ -132,6 +132,18 @@ _Avoid_: Shell, root component
 **Guest**:
 A plain React component wrapped by `fromReact`, a `Component<P, never, never>` leaf. React renders it with its own `react-dom`; it receives no Effect context and its subtree is opaque. A Component under a Guest is an `EffectInsideReact` error.
 _Avoid_: Island, embedded React
+
+**Handler** *(ui)*:
+A named Effect program run on a DOM event, declared at module top level as `const h = defineHandler('id', (event) => ...)` and attached with `on(node, { click: h })`. The server emits only its id; `resume` loads its chunk on first use. A handler the Analyzer cannot prove is such a reference is a `NonResumableHandler` error (ADR 0017). Not a Kit Operation.
+_Avoid_: Event listener, callback, action
+
+**Resume**:
+`resume({ container, layer, handlers, atoms })`: makes server-rendered host HTML interactive without running any Component. It seeds its own store from the Manifest, keeps `bind` text in sync and runs Handlers through one queue with `layer`. Distinct from React hydration (Islands), which runs component code, and from atom-store `hydrate`, which only seeds a Snapshot (ADR 0017).
+_Avoid_: Hydrate, rehydrate, boot
+
+**Manifest**:
+The one `<script data-sleek-manifest>` that `renderToString` emits: the delegated event types and each bind key's encoded atom value. Only serializable value-kind atoms enter it; a bad entry fails `resume` with `ManifestDecodeFailed`. Not a Snapshot.
+_Avoid_: Payload, state blob, Snapshot
 
 **Mount**:
 `mount(app, { layer, container, onError? })` (DOM) or `renderToString(app, { layer })` (string): runs a tree with a fully satisfied Layer. A failure in `E` rejects with the original error. Each `mount` call is one Analyzer tree; a later `mount` on the same container wins.
