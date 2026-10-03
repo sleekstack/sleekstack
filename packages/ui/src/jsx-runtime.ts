@@ -1,6 +1,6 @@
-import { Effect, type Layer } from 'effect'
+import { Effect, Layer } from 'effect'
 import { el, fragment, type Node } from './node'
-import { Handlers, instance } from './reactive'
+import { Handlers, instance, RenderScope } from './reactive'
 
 /** What a JSX expression may hold between its tags. */
 export type Child = string | number | boolean | null | undefined | Effect.Effect<Node, any, any> | ReadonlyArray<Child>
@@ -40,7 +40,9 @@ export const Fragment = (props: { children?: Child }): Element =>
 
 /** `<Provider layer={L}>…</Provider>`: JSX form of `Provide`. */
 export const Provider = (props: { layer: Layer.Layer<any, any, never>; children?: Child }): Element =>
-  Effect.provide(Fragment(props), props.layer) as Element
+  Effect.flatMap(RenderScope, (scope) =>
+    scope ? Effect.flatMap(Layer.buildWithScope(props.layer, scope), (ctx) => Effect.provide(Fragment(props), ctx)) : Effect.provide(Fragment(props), props.layer),
+  ) as Element
 
 /** `<Boundary tag="X" fallback={(e: X) => …}>…</Boundary>`: JSX form of `Catch`; handles only that tag. */
 export const Boundary = <E extends { readonly _tag: string }>(props: {

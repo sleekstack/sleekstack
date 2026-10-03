@@ -1,5 +1,5 @@
 import { type Atom, type AtomStore, MissingDependency } from '@sleekstack/core'
-import { Context, Effect, Option } from 'effect'
+import { Context, Effect, Option, type Scope } from 'effect'
 import type { Node } from './node'
 
 /** The mount's atom store. `mount` and `renderToString` provide it. */
@@ -13,6 +13,15 @@ export class Collector extends Context.Reference<Collector>()('@sleekstack/ui/Co
 /** Enclosing `Boundary` handlers, innermost last; captured with an instance's context for its re-runs. */
 export class Handlers extends Context.Reference<Handlers>()('@sleekstack/ui/Handlers', {
   defaultValue: (): ReadonlyArray<{ readonly tag: string; readonly fallback: (error: any) => Effect.Effect<Node, any, any> }> => [],
+}) {}
+
+/**
+ * Lifetime of `Provider` layers. When set (by `mount`), layers are built into it so services captured for a
+ * re-run stay alive until it closes; unset, a `Provider` layer lives only for the render, as before.
+ */
+// ponytail: one scope per mount, so a replaced subtree's layers live until dispose; per-instance scopes if that matters.
+export class RenderScope extends Context.Reference<RenderScope>()('@sleekstack/ui/RenderScope', {
+  defaultValue: (): Scope.Scope | undefined => undefined,
 }) {}
 
 // Typed `never` in E: `Store` is a requirement, so a missing store is unreachable for checked code; at runtime it fails with a tagged error.

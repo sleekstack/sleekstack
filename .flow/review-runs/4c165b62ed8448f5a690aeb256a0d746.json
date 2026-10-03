@@ -1,0 +1,29 @@
+{
+  "backend": "codex",
+  "counter_scope": "impl:fn-19-reactive-host-subtrees-for-sleekstackui.1",
+  "failure_class": "fanout_abandoned",
+  "finalized": {
+    "digest": "not_applicable",
+    "receipt": "not_applicable",
+    "status": "not_applicable"
+  },
+  "metadata": null,
+  "outcome": "transport_failure",
+  "receipt_payload": null,
+  "receipt_target": null,
+  "reservation_id": "4c165b62ed8448f5a690aeb256a0d746",
+  "reset_rounds_on_ship": false,
+  "response": "fan-out dispatched; no finalize landed before this refund-intent journal was replayed",
+  "response_sha256": "6ea4de7239adcef700fcf360528c3918564fc4300515f3a62b9a089c94e74f20",
+  "review_kind": "impl",
+  "review_type": "impl",
+  "reviewed_base_sha": "aef42fb959f17f1bc8d992560e8957364929bc80",
+  "reviewed_head_sha": "1a621eebeee2aa6dec74df6b6311ab4e81fbc28a",
+  "scope": "impl:fn-19-reactive-host-subtrees-for-sleekstackui.1",
+  "spec_id": "fn-19-reactive-host-subtrees-for-sleekstackui",
+  "status_target": null,
+  "superseded_by": null,
+  "task_id": "fn-19-reactive-host-subtrees-for-sleekstackui.1",
+  "timestamp": "2026-10-03T11:35:56.119673Z",
+  "verdict": null
+}
