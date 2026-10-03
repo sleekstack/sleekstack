@@ -8,7 +8,9 @@
   "default_sync": null,
   "depends_on_epics": [],
   "id": "fn-15-effect-native-component-framework-mvp",
-  "impl_review_rounds": {},
+  "impl_review_rounds": {
+    "fn-15-effect-native-component-framework-mvp.1": 0
+  },
   "next_task": 1,
   "plan_review_rounds": 0,
   "plan_review_status": "ship",
@@ -443,15 +445,189 @@
       "task": null,
       "timestamp": "2026-10-02T17:51:32.188488Z",
       "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "f6046197f6fdf54a29522a63dd2a8b116cec4e71318ab68fd1b397fd32b2954f",
+      "backend": "codex",
+      "base_sha": "54fa66bb907943a8f84cf1baa510150501f5c298",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-c1afffcc540b27bc5ef7d835e40ba9ef",
+            "classification": "introduced",
+            "findingId": "finding-c1afffcc540b27bc5ef7d835e40ba9ef",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-1b1d58153382428fb109f81d912e6b35",
+            "classification": "introduced",
+            "findingId": "finding-1b1d58153382428fb109f81d912e6b35",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "52638a8e6bb8f7d1e52a26121f042a8453df0d9e",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1512,
+      "output_sha256": "d1b5113e08a147e4c875cbc4b5f6697c800756ef6e00a9c1e0831b327dc71c46",
+      "reservation_id": "23003f5a73064b90b9746970588a0ec5",
+      "round_consumed": true,
+      "scope": "impl:fn-15-effect-native-component-framework-mvp.1",
+      "superseded_by": null,
+      "task": "fn-15-effect-native-component-framework-mvp.1",
+      "timestamp": "2026-10-03T04:46:08.513091Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "d67a8b0dd6c509f68e64a15ea1450d2431b6db35318aac4a98c39cde0c3fa1a0",
+      "backend": "codex",
+      "base_sha": "54fa66bb907943a8f84cf1baa510150501f5c298",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-c1afffcc540b27bc5ef7d835e40ba9ef",
+            "classification": "introduced",
+            "findingId": "finding-c1afffcc540b27bc5ef7d835e40ba9ef",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-6ab5e2035bbaf106bbe3217afa029716",
+            "classification": "introduced",
+            "findingId": "finding-6ab5e2035bbaf106bbe3217afa029716",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-1b1d58153382428fb109f81d912e6b35",
+            "classification": "introduced",
+            "findingId": "finding-1b1d58153382428fb109f81d912e6b35",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "not_fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "109d88f204f785305fd83bf263cd05cfdbc8656f",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1479,
+      "output_sha256": "b9205d2a42f96570e8f003334f76a25fa61a1d5b26c9e0ab48510cbfd4f5caf6",
+      "reservation_id": "c5f86ad9018f42de9305df8274c4b581",
+      "round_consumed": true,
+      "scope": "impl:fn-15-effect-native-component-framework-mvp.1",
+      "superseded_by": null,
+      "task": "fn-15-effect-native-component-framework-mvp.1",
+      "timestamp": "2026-10-03T04:47:29.200717Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "f87fbdc14943d1e55bd4820c11412f191ee0702f46b19ea936910668a8b3a118",
+      "backend": "codex",
+      "base_sha": "54fa66bb907943a8f84cf1baa510150501f5c298",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-c1afffcc540b27bc5ef7d835e40ba9ef",
+            "classification": "introduced",
+            "findingId": "finding-c1afffcc540b27bc5ef7d835e40ba9ef",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-6ab5e2035bbaf106bbe3217afa029716",
+            "classification": "introduced",
+            "findingId": "finding-6ab5e2035bbaf106bbe3217afa029716",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-1b1d58153382428fb109f81d912e6b35",
+            "classification": "introduced",
+            "findingId": "finding-1b1d58153382428fb109f81d912e6b35",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "4bf5afcd5a7dbc93dd5db65943879eef960f20f3",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 906,
+      "output_sha256": "68f450deb4a2cafd502da0a655a31676d9198e076b2d7ef7437d65dc917beea6",
+      "reservation_id": "d63117f28f2140e680dc6495b0cf0b04",
+      "round_consumed": true,
+      "scope": "impl:fn-15-effect-native-component-framework-mvp.1",
+      "superseded_by": null,
+      "task": "fn-15-effect-native-component-framework-mvp.1",
+      "timestamp": "2026-10-03T04:48:43.219851Z",
+      "verdict": "SHIP"
     }
   ],
   "review_hash_epoch": {
+    "impl:fn-15-effect-native-component-framework-mvp.1": 1,
     "plan": 2,
     "plan#completion": 0
   },
   "review_pending_rounds": {},
   "review_reservations": {},
   "review_transport_failures": {
+    "impl:fn-15-effect-native-component-framework-mvp.1": 0,
     "plan": 0
   },
   "spec_path": ".flow/specs/fn-15-effect-native-component-framework-mvp.md",
@@ -468,5 +644,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-02T17:51:32.191090Z"
+  "updated_at": "2026-10-03T04:48:43.223376Z"
 }

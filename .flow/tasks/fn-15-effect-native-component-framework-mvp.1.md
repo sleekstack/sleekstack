@@ -43,9 +43,11 @@ Create `@sleekstack/ui` with the `Node` tree, the five host primitives and the s
 - [ ] `pnpm --filter @sleekstack/ui test` and `typecheck` pass.
 
 ## Done summary
-TBD
+Added `@sleekstack/ui` with the `Node` tree (`el`, `fragment`), `Provide`, `Catch`, `fromReact` and `renderToString`; the UserCard example renders the spec's exact markups, failures reject with the original error or defect via the shared `runToNode` helper (for task .3), throwing guests render as nothing and report to `onError`/`console.error`. Codex review added a guarded `onError` sink and tag/attribute name validation at serialization. Tests: packages/ui/src/__tests__/string.test.ts.
 
+stage: impl-review - ran (codex, 3 rounds: NEEDS_WORK, NEEDS_WORK, SHIP)
+Tier: session (jev-unavailable(no_key))
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 52638a8e6bb8f7d1e52a26121f042a8453df0d9e, 109d88f204f785305fd83bf263cd05cfdbc8656f, 4bf5afcd5a7dbc93dd5db65943879eef960f20f3
+- Tests: pnpm --filter @sleekstack/ui test && pnpm --filter @sleekstack/ui typecheck, pnpm --filter @sleekstack/analyze test && pnpm --filter sleekstack test
 - PRs:
