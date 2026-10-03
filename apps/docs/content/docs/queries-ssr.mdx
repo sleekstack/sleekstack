@@ -1,0 +1,27 @@
+---
+title: Queries on the server
+description: Prefetch queries on the server and hydrate them on the client.
+---
+
+Query hooks work in a server render. They read data that the server prefetched, and the client store starts with that data, so the first client render does not fetch again.
+
+<include>../../snippets/queries-ssr.tsx</include>
+
+## The parts
+
+- `Hydrate` is in `@sleekstack/query`. `Hydrate.hydratable(family, { value, error? })` gives a query family the `Schema` that encodes its value. Only hydratable queries can be prefetched.
+- `prefetch(queries, options?)` is in `@sleekstack/next`, which depends on `@sleekstack/query`. It runs the fetches through `runEffect` and returns a serializable `Dehydrated` list (`{ key, result, updatedAt }`). Options: `request` and `overrides` Layers, like `runEffect`, and `failures: true` to also send typed failures (encoded with the `error` Schema). By default only successes are sent.
+- `<HydrateQueries state>` is in `@sleekstack/react`. It needs a `LayerProvider` above it. On the server it gives the query hooks below it the prefetched data. On the client it seeds the query store before the first render; seeded entries are fresh until `staleTime`. If a key is already in the store, the entry with the newer `updatedAt` wins.
+
+## Queries that were not prefetched
+
+A server render that reads a query that was not prefetched suspends while the server fetches it. When the fetch finishes, `HydrateQueries` writes the result into a JSON script after its children (keyed by `useId`), and the client seeds it too.
+
+This lazy fetch uses the configured runtime only. It cannot see per-call `request` or `overrides` Layers, because a render has no access to them. **A query that needs request-scoped services must be prefetched** with `prefetch(queries, { request, overrides })`.
+
+A lazy read that is first reached after `HydrateQueries` has rendered its script (behind a deeper suspension) is not transferred. Prefetch it.
+
+## Limits
+
+- The kit has no server prefetch yet: `@sleekstack/kit` has no `prefetch`, `HydrateQueries` or value codec, so kit queries fetch on the client only. This is tracked in spec `fn-16-query-layer-follow-ups-kit-ssr-prefetch`.
+- `useMutation` throws during a server render; see [Queries](/docs/queries).

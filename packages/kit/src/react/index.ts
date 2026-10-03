@@ -24,7 +24,11 @@ const kit = <T>(f: () => T): T => {
  *
  * @example
  * ```tsx
- * <LayerProvider provide={[feature]}><QueryProvider>...</QueryProvider></LayerProvider>
+ * import { LayerProvider, QueryProvider } from '@sleekstack/kit/react'
+ *
+ * export const Feature = ({ children }: { children: React.ReactNode }) => (
+ *   <LayerProvider provide={[]}><QueryProvider>{children}</QueryProvider></LayerProvider>
+ * )
  * ```
  */
 export function QueryProvider({ children }: { readonly children?: ReactNode }) {
@@ -55,7 +59,15 @@ export interface QueryState<T> {
  *
  * @example
  * ```tsx
- * const { data, isPending } = useQuery(todo('t1'))
+ * import { cachedQuery } from '@sleekstack/kit'
+ * import { useQuery } from '@sleekstack/kit/react'
+ *
+ * const todo = cachedQuery({ key: (id: string) => ['todo', id], fetch: function* (id) { return `todo ${id}` } })
+ *
+ * export function Todo() {
+ *   const { data, isPending } = useQuery(todo('t1'))
+ *   return <p>{isPending ? 'Loading' : data}</p>
+ * }
  * ```
  */
 export function useQuery<T>(query: CachedQuery<T>): QueryState<T> {
@@ -86,8 +98,15 @@ export interface MutationHandle<I, T> {
  *
  * @example
  * ```tsx
- * const { mutate, isPending } = useMutation(rename)
- * <button disabled={isPending} onClick={() => mutate({ id: 't1', title: 'New' })}>rename</button>
+ * import { mutation } from '@sleekstack/kit'
+ * import { useMutation } from '@sleekstack/kit/react'
+ *
+ * const rename = mutation({ run: function* (input: { id: string; title: string }) { return input.title } })
+ *
+ * export function Rename() {
+ *   const { mutate, isPending } = useMutation(rename)
+ *   return <button disabled={isPending} onClick={() => mutate({ id: 't1', title: 'New' })}>rename</button>
+ * }
  * ```
  */
 export function useMutation<I, T>(mutation: Mutation<I, T>): MutationHandle<I, T> {
@@ -133,9 +152,20 @@ const target = (t: QueryTarget | undefined) => (t === undefined || 'prefix' in t
  *
  * @example
  * ```tsx
- * const client = useQueryClient()
- * await mutate(input)
- * client.invalidate({ prefix: ['todo'] })
+ * import { mutation } from '@sleekstack/kit'
+ * import { useMutation, useQueryClient } from '@sleekstack/kit/react'
+ *
+ * const rename = mutation({ run: function* (title: string) { return title } })
+ *
+ * export function Rename() {
+ *   const client = useQueryClient()
+ *   const { mutate } = useMutation(rename)
+ *   const onClick = async () => {
+ *     await mutate('New')
+ *     client.invalidate({ prefix: ['todo'] })
+ *   }
+ *   return <button onClick={onClick}>rename</button>
+ * }
  * ```
  */
 export function useQueryClient(): QueryClient {

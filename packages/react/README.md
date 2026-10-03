@@ -8,6 +8,7 @@ The React adapter for [`@sleekstack/core`](../core): a Suspense-native, StrictMo
 | `useService(Tag)` | Reads a service from the nearest provider. Build failures (for example `MissingDependency`) are thrown to the nearest error boundary. |
 | `closeProvidersOn(appScope)` | Closes the providers sharing an external app scope before you close it. |
 | `useAtomValue`, `useAtomSet`, `useAtom`, `useAtomRefresh`, `useAtomSuspense` | Atom hooks (client only; they throw `AtomsClientOnly` during a server render). |
+| `useQuery`, `useQuerySuspense`, `useQueryResult`, `useInfiniteQuery`, `useQueries`, `useMutation`, `QueryProvider`, `HydrateQueries` | Hooks for [`@sleekstack/query`](../query). Query hooks also work in a server render (they read prefetched data); `useMutation` and `useQueries` are client only. See the Queries guide. |
 
 ```tsx
 import { Suspense } from 'react'

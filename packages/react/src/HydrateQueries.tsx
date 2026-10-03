@@ -26,9 +26,8 @@ function LazyState({ id, provider }: { readonly id: string; readonly provider: P
 }
 
 /**
- * Hydrates the query store with server-prefetched state.
+ * Hydrates the query store with server-prefetched state: `state` is the `Dehydrated` value from `prefetch`.
  *
- * @param props.state - The `Dehydrated` state from `prefetch`.
  * @throws `Error` outside a `LayerProvider`.
  *
  * @example

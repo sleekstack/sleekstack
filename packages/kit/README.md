@@ -6,9 +6,9 @@ from any public entry.
 
 | Subpath | Exports |
 | --- | --- |
-| `@sleekstack/kit` | `tag`, `layer`, `withCleanup`, `effect`, `atom`, `module`, `SleekStackError` (+ types `Tag`, `Layer`, `Module`, `FinalizerError`, ...) |
+| `@sleekstack/kit` | `tag`, `layer`, `withCleanup`, `effect`, `atom`, `cachedQuery`, `mutation`, `module`, `SleekStackError` (+ types `Tag`, `Layer`, `Module`, `FinalizerError`, ...) |
 | `@sleekstack/kit/next` | `configureRuntime`, `defineEffect`, `defineQuery`, `effect`, `query`, `fail` (+ `ActionResult`, `OperationOptions`, `RuntimeConfig`) |
-| `@sleekstack/kit/react` | `LayerProvider`, `useService`, `useServices`, `useAtom`, `useAtomValue`, `useAtomSet` |
+| `@sleekstack/kit/react` | `LayerProvider`, `useService`, `useServices`, `useAtom`, `useAtomValue`, `useAtomSet`, `useQuery`, `useMutation`, `useQueryClient`, `QueryProvider` |
 
 Every failure is a `SleekStackError` with a `code` (`MissingDependency`, `DependencyCycle`, `CaptiveDependency`,
 `AmbiguousProvider`, `ModuleCycle`, `DuplicateModule`, `InvalidModule`, `PrivateDependency`, `DuplicateTag`,
@@ -75,6 +75,28 @@ const Next = () => { const [id, set] = useAtom(userId); return <button onClick={
 
 - Readers suspend until the first value; failures reach the error boundary as `SleekStackError` (`MissingDependency`, `AtomCycle`, or `Unknown` for a throw/rejection in `fn`).
 - `useAtomSet` accepts a value or an updater `(prev) => next`. Hooks are client only.
+
+### Cached queries and mutations: `cachedQuery()`, `mutation()`
+
+Client-side cached reads over [`@sleekstack/query`](../query) (a dependency of the kit). Bodies are generators: `yield*` a Tag to resolve it from the nearest `LayerProvider`. `cachedQuery` is not the server-side `query` of `@sleekstack/kit/next`, which caches nothing.
+
+```tsx
+import { cachedQuery, mutation } from '@sleekstack/kit'
+import { useMutation, useQuery, useQueryClient } from '@sleekstack/kit/react'
+
+const rows = cachedQuery({ key: (table: string) => ['rows', table], fetch: function* (table) { return (yield* Db).query(`select * from ${table}`) }, staleTime: 30_000 })
+const addRow = mutation({ run: function* (title: string) { return (yield* Db).query(`insert ${title}`) } })
+
+function Rows() {
+  const { data, isPending } = useQuery(rows('todo'))                        // never suspends on the client
+  const { mutate } = useMutation(addRow)
+  const client = useQueryClient()
+  return <button disabled={isPending} onClick={async () => { await mutate('x'); client.invalidate({ prefix: ['rows'] }) }}>{data?.length}</button>
+}
+```
+
+- Failures are `SleekStackError`: `useQuery` returns `error`, `mutate` rejects. An unserializable key throws code `Unknown`.
+- `useMutation` throws during a server render. The kit has no server prefetch yet, so kit queries fetch on the client (follow-up spec `fn-16-query-layer-follow-ups-kit-ssr-prefetch`).
 
 ## `@sleekstack/kit/next`
 
