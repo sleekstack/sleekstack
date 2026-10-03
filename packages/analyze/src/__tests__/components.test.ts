@@ -33,6 +33,13 @@ describe('component pass', () => {
     expect(names).toEqual(expect.arrayContaining(['UserCard:24', 'Avatar:16', 'Stamp:25']))
   })
 
+  it('ui-hooks: the ui Store stays a requirement in the tree; a same-named app Tag is printed with its file', () => {
+    const r = run('ui-hooks')
+    const reqs = (n: UiNode): string[] => (n.kind === 'unresolved' ? [] : [...(n.kind === 'catch' ? [] : n.requires), ...n.children.flatMap(reqs)])
+    expect(reqs(r.trees[0]!.root)).toContain('Store')
+    expect(r.errors.find((e) => e.line === 22)?.message).toContain('requires "app.ts#Store"')
+  })
+
   it('non-ui projects have no trees', () => {
     expect(run('kit-app')).toEqual({ trees: [], errors: [] })
   })

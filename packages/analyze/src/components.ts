@@ -12,6 +12,9 @@ import ts from 'typescript'
 import { bodyReturns, libId, programOf, TEST_FILE, unwrap, Unreadable } from './extract'
 import type { AnalyzeError, ComponentReport, ComponentTree, Location, UiNode } from './model'
 
+/** `@sleekstack/ui`'s `Store`, provided by every `mount` (ui/dom.ts) whatever its layer. */
+const UI_STORE = 'Store'
+
 export function analyzeComponents(opts: { readonly project: string }): ComponentReport {
   const { root, program, checker } = programOf(opts.project)
   const loc = (n: ts.Node): Location => {
@@ -48,10 +51,14 @@ export function analyzeComponents(opts: { readonly project: string }): Component
   /** An Effect component value: an `Effect<Node>` or a function returning one. */
   const isEffectComponent = (t: ts.Type) => isNodeEffect(t) || t.getCallSignatures().some((s) => isNodeEffect(checker.getReturnTypeOfSignature(s)))
 
-  /** `@sleekstack/ui`'s `Store`: every `mount` provides it (ui/dom.ts), so it is never a requirement. Matched by identity, not printed name. */
-  const isUiStore = (m: ts.Type) => libId(m.getSymbol(), checker) === 'ui/reactive#Store'
+  /** A Tag's name; any Tag printed `Store` other than `@sleekstack/ui`'s (which every `mount` provides) is printed with its file so it cannot pass as it. */
+  const tagName = (m: ts.Type) => {
+    const name = checker.typeToString(m)
+    const sym = m.getSymbol()
+    return name === UI_STORE && libId(sym, checker) !== 'ui/reactive#Store' ? `${sym?.declarations?.[0] ? loc(sym.declarations[0]).file : '?'}#${name}` : name
+  }
   const tagNames = (at: ts.Node, t: ts.Type | ts.Type[] | undefined, what: string) =>
-    (Array.isArray(t) ? t : members(t)).filter((m) => what !== 'requires' || !isUiStore(m)).map((m) => (isAny(m) ? fail(at, `"${text(at)}" ${what} "${checker.typeToString(m)}", which names no Tag`) : checker.typeToString(m)))
+    (Array.isArray(t) ? t : members(t)).map((m) => (isAny(m) ? fail(at, `"${text(at)}" ${what} "${checker.typeToString(m)}", which names no Tag`) : tagName(m)))
   const errorTags = (at: ts.Node, t: ts.Type[]) =>
     t.map((m) => {
       if (isAny(m)) return fail(at, `"${text(at)}" fails with "${checker.typeToString(m)}"; its errors cannot be named`)
@@ -320,7 +327,7 @@ export function analyzeComponents(opts: { readonly project: string }): Component
   }
 
   const errors: AnalyzeError[] = []
-  for (const t of trees) check(t.root, new Set(t.provides), new Set(), errors)
+  for (const t of trees) check(t.root, new Set([...t.provides, UI_STORE]), new Set(), errors)
   return { trees, errors: [...new Map(errors.map((e) => [`${e.code}|${e.file}:${e.line}|${e.message}`, e])).values()] }
 }
 
