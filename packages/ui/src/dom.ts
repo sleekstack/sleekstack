@@ -86,11 +86,21 @@ export const mount = async <E, A, LE = never>(
   let state = states.get(container)
   if (!state) states.set(container, (state = { gen: 0, roots: [] }))
   const gen = ++state.gen
-  const node = await runToNode(app, opts.layer, onError)
   const current = (): boolean => state.gen === gen
-  if (!current()) return { dispose: async () => {} }
+  const noop: Mounted = { dispose: async () => {} }
+  // Re-mount clears the previous generation first, so a pending or rejecting mount orphans nothing.
   teardown(container, state)
-  append(container, build(node, container.ownerDocument, state.roots, onError))
+  const node = await runToNode(app, opts.layer, onError)
+  if (!current()) return noop
+  const roots: Array<Root> = []
+  const tree = build(node, container.ownerDocument, roots, onError)
+  // Guest callbacks (`onError`) may start a newer mount while building.
+  if (!current()) {
+    for (const root of roots) root.unmount()
+    return noop
+  }
+  state.roots = roots
+  append(container, tree)
   return {
     dispose: async () => {
       if (current()) teardown(container, state)

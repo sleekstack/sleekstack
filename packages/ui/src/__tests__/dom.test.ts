@@ -95,6 +95,30 @@ describe('mount', () => {
     expect(onError).toHaveBeenCalledOnce()
   })
 
+  it('a rejecting re-mount still clears the previous mount', async () => {
+    const container = document.createElement('div')
+    await act(async () => void (await mount(app('1'), { layer: UserRepoTest, container })))
+    let err: unknown
+    await act(async () => void (err = await mount(UserCard({ id: '2' }), { layer: UserRepoTest, container }).catch((e) => e)))
+    expect(err).toBeInstanceOf(UserNotFound)
+    expect(container.innerHTML).toBe('')
+  })
+
+  it('a mount superseded from onError during build writes nothing', async () => {
+    const container = document.createElement('div')
+    const Bad = fromReact((): never => {
+      throw new Error('guest')
+    })
+    let next: Promise<Mounted> | undefined
+    const onError = () => void (next ??= mount(app('1'), { layer: repoLayer('B'), container }))
+    await act(async () => {
+      track(await mount(Effect.map(Bad({}), (b) => fragment('stale', b)), { layer: Layer.empty, container, onError }))
+      expect(container.innerHTML).toBe('')
+      track(await next!)
+    })
+    expect(container.innerHTML).toBe(card('B'))
+  })
+
   it('an uncaught UserNotFound rejects with the original instance', async () => {
     const container = document.createElement('div')
     const err = await mount(UserCard({ id: '2' }), { layer: UserRepoTest, container }).catch((e) => e)
