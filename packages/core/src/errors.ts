@@ -84,3 +84,9 @@ export class AtomCycle extends Data.TaggedError('AtomCycle')<{
   readonly path: readonly string[]
   readonly message: string
 }> {}
+
+/** Error code `DuplicateAtomKey`: two distinct serializable atoms built in one store share a key. */
+export class DuplicateAtomKey extends Data.TaggedError('DuplicateAtomKey')<{
+  readonly key: string
+  readonly message: string
+}> {}
