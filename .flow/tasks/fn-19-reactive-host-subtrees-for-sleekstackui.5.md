@@ -30,9 +30,13 @@ ADR numbers 0016 and 0017 are claimed by fn-17 and fn-18. Amend 0015 instead of 
 - [ ] analyze README says `Store` is always provided at `mount`
 
 ## Done summary
-TBD
+ADR 0015 gains an "Amendment: reactive host subtrees" section covering the automatic mode, context capture with renderer-owned run scopes, the Boundary handler stack, lost guest state, the `resume` exclusion and the missing-Store `MissingDependency`. The Consequences line that ruled out host state now points to that amendment. The ui README documents the three hooks, `Store` and `mount`'s `store` option. The analyze README says `Store` is always provided at `mount`. CONTEXT.md gets a ui `Store` term.
 
+Tier: opus at medium
+baseline: green via handoff (verified at 788537d by fn-19.4)
+stage: impl-review - ran (codex route; deterministic triage_skip docs-only -> SHIP)
+GATE_SKIPPED:unittest:docs-only - cumulative diff classified tier-B (no executable paths touched)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: fba302db747e12d25b097c36b212c2b6f52b1c35
+- Tests: pnpm --filter @sleekstack/ui test, GATE_SKIPPED:unittest:docs-only - cumulative diff classified tier-B (no executable paths touched)
 - PRs:
