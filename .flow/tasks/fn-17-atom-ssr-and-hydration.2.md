@@ -46,9 +46,14 @@ Size: M. Request-level server ownership via a request registry, plus server atom
 - [ ] Server provider without a wrapper serves atoms from an inert store (no fiber forked); outside a provider the existing error; existing react tests and typecheck pass
 
 ## Done summary
-TBD
+Added `renderWithAtoms` (string and stream modes) with a per-request registry: server `LayerProvider`s acquire scopes keyed by `useId` via `acquireOnServer`, closed LIFO by `closeRegistry`; `useScopeSource` is the single registry / inert-server / client choice; atom hooks render on the server (`getServerSnapshot`), `AtomsClientOnly` removed. Tests: packages/react/src/__tests__/renderWithAtoms.test.tsx.
 
+Notes: string mode re-renders while a pass opened new scopes (sync layers settle after a macrotask; async opens render the fallback). Outside Touches: query.ts (dropped its AtomsClientOnly import, now plain Error) and package.json (react-dom peer, review finding). hydrate.test.tsx resets Fizz-leaked context values after server renders (the inert store made that test-env leak visible). Docs/ADRs still mention AtomsClientOnly (task .5).
+
+Tier: implementer opus at medium
+
+stage: impl-review - ran (codex fan-out NEEDS_WORK -> fixes -> SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 15cc279299cd4a989a3fb68830826726c2f00795, 4aafcfd0b36a083891cf275d53a38301c182001b
+- Tests: pnpm typecheck && pnpm test
 - PRs:
