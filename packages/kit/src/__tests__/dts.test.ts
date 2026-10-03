@@ -11,8 +11,8 @@ import { describe, expect, it } from 'vitest'
 
 const root = fileURLToPath(new URL('../..', import.meta.url))
 // Any module reference to effect (or effect/*) or to the wrapped packages. Bare words like the kit `effect()` API are fine.
-const FORBIDDEN_TEXT = /['"]effect(\/[^'"]*)?['"]|@sleekstack\/(core|next|react)/
-const FORBIDDEN_FILE = /\/node_modules\/effect\/|\/packages\/(core|next|react)\//
+const FORBIDDEN_TEXT = /['"]effect(\/[^'"]*)?['"]|@sleekstack\/(core|next|react|query)/
+const FORBIDDEN_FILE = /\/node_modules\/effect\/|\/packages\/(core|next|react|query)\//
 
 describe('declaration surface (R7)', () => {
   it('emitted .d.ts files never reference effect or core/next/react', () => {
@@ -21,7 +21,7 @@ describe('declaration surface (R7)', () => {
     execFileSync('pnpm', ['build:types'], { cwd: root, stdio: 'pipe' })
     const files = (readdirSync(out, { recursive: true }) as string[]).filter((f) => f.endsWith('.d.ts'))
     expect(files.length).toBeGreaterThan(0)
-    expect(files).toEqual(expect.arrayContaining(['index.d.ts', path.join('next', 'index.d.ts'), path.join('react', 'index.d.ts')]))
+    expect(files).toEqual(expect.arrayContaining(['index.d.ts', 'query.d.ts', path.join('next', 'index.d.ts'), path.join('react', 'index.d.ts')]))
     for (const f of files) expect(readFileSync(path.join(out, f), 'utf8'), f).not.toMatch(FORBIDDEN_TEXT)
   }, 60_000)
 

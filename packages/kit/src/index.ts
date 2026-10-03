@@ -10,3 +10,4 @@ export { module, validateProvide, type Module, type ModuleConfig, type Imports }
 export { effect, type EffectOptions } from './effect'
 export { SleekStackError, type SleekStackErrorCode, type SleekStackErrorDetails, type FinalizerError } from './errors'
 export { atom, type Atom, type WritableAtom, type Get, type AtomOptions } from './atom'
+export { cachedQuery, mutation, type CachedQuery, type CachedQueryOptions, type Mutation, type MutationOptions, type Body } from './query'
