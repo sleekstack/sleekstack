@@ -252,6 +252,9 @@ importers:
 
   apps/ui-demo:
     dependencies:
+      '@sleekstack/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       '@sleekstack/ui':
         specifier: workspace:*
         version: link:../../packages/ui

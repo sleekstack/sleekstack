@@ -18,3 +18,15 @@ const VoteView = ({ initial }: { initial: number }) => {
   )
 }
 export const Votes = fromReact(VoteView)
+
+const FilterView = ({ options, onPick }: { options: ReadonlyArray<string>; onPick: (value: any) => void }) => (
+  <div className="row filter">
+    {options.map((o) => (
+      <button type="button" key={o} data-value={o} onClick={() => onPick(o)}>
+        {o}
+      </button>
+    ))}
+  </div>
+)
+/** Plain React buttons; each click calls `onPick` with its option. */
+export const FilterBar = fromReact(FilterView)

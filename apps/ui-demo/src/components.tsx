@@ -1,7 +1,8 @@
 /** @jsxImportSource @sleekstack/ui */
 import { Effect } from 'effect'
-import { Boundary, Provider } from '@sleekstack/ui'
-import { Avatar, Votes } from './guests'
+import { Boundary, Provider, useAtomValue, useSetAtom } from '@sleekstack/ui'
+import { Avatar, FilterBar, Votes } from './guests'
+import { filterAtom, selectedAtom } from './state'
 import {
   ProjectNotFound, TaskNotFound, TaskRepo, UserNotFound, UserRepo, Viewer, ViewerLive,
   type Status, type Task,
@@ -62,12 +63,45 @@ export const Board = ({ projectId }: { projectId: string }) =>
     return yield* (
       <section className="board">
         <h2>{project.name}</h2>
-        <div className="columns">
-          {STATUSES.map((s) => (
-            <StatusColumn status={s} tasks={tasks.filter((t) => t.status === s)} />
-          ))}
-        </div>
+        <Columns tasks={tasks} />
       </section>
+    )
+  })
+
+/** Re-runs when the status filter changes. */
+const Columns = ({ tasks }: { tasks: ReadonlyArray<Task> }) =>
+  Effect.gen(function* () {
+    const filter = yield* useAtomValue(filterAtom)
+    return yield* (
+      <div className="columns">
+        {STATUSES.filter((s) => filter === 'all' || filter === s).map((s) => (
+          <StatusColumn status={s} tasks={tasks.filter((t) => t.status === s)} />
+        ))}
+      </div>
+    )
+  })
+
+/** Sets the atoms from guest buttons; reads none, so it never re-runs. */
+const Toolbar = () =>
+  Effect.gen(function* () {
+    const setFilter = yield* useSetAtom(filterAtom)
+    const select = yield* useSetAtom(selectedAtom)
+    return yield* (
+      <nav className="toolbar">
+        <FilterBar options={['all', ...STATUSES]} onPick={setFilter} />
+        <FilterBar options={['t1', 't2', 't3', 'nope']} onPick={select} />
+      </nav>
+    )
+  })
+
+/** Re-runs when the selected task changes. */
+const Selected = () =>
+  Effect.gen(function* () {
+    const id = yield* useAtomValue(selectedAtom)
+    return yield* (
+      <div className="selected">
+        <DetailPanel id={id} />
+      </div>
     )
   })
 
@@ -126,11 +160,12 @@ const Header = () =>
 export const App = ({ viewer }: { viewer: string }) => (
   <Provider layer={ViewerLive(viewer)}>
     <Header />
+    <Toolbar />
     <main>
       <Team />
       <ProjectBoard projectId="p1" />
       <ProjectBoard projectId="missing" />
-      <DetailPanel id="t2" />
+      <Selected />
       <DetailPanel id="nope" />
     </main>
   </Provider>
