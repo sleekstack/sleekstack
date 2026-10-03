@@ -8,7 +8,7 @@
   "priority": null,
   "spec": "fn-18-resumable-rendering-spike-for",
   "spec_path": ".flow/tasks/fn-18-resumable-rendering-spike-for.1.md",
-  "status": "todo",
+  "status": "done",
   "title": "ui: Handler, on, bind, Bind node and server render with manifest",
   "updated_at": "2026-10-03T09:35:48.790230Z"
 }
