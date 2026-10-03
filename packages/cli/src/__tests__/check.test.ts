@@ -31,6 +31,7 @@ describe('sleekstack check', () => {
     const r = run(fixture('none'))
     expect(r.code).toBe(2)
     expect(r.err).toMatch(/No roots[\s\S]*Usage: sleekstack check/)
+    expect(r.err).toContain('No roots: no configureRuntime call found (pass --entry or set "sleekstack.entry" in package.json).\nUsage:')
   })
 
   it('ui project: a component error exits 1 with file:line code; a clean ui-only project exits 0', () => {
