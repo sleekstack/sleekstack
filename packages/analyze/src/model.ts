@@ -109,3 +109,27 @@ export interface Report {
    */
   readonly runtimes: readonly (Location & { readonly kind: RootKind; readonly graph: Graph; readonly errors: readonly AnalyzeError[] })[]
 }
+
+/**
+ * One node of a component tree read from an `@sleekstack/ui` `mount` call. `requires` / `errors` are the
+ * Tag names and error `_tag`s of a component's `Effect<Node, E, R>`; `guest` marks a `fromReact` leaf, whose
+ * children are the Effect components found under it (each one an `EffectInsideReact`).
+ */
+export type UiNode = Location &
+  (
+    | { readonly kind: 'component'; readonly name: string; readonly guest: boolean; readonly requires: readonly string[]; readonly errors: readonly string[]; readonly children: readonly UiNode[] }
+    | { readonly kind: 'provide'; readonly provides: readonly string[]; readonly requires: readonly string[]; readonly children: readonly UiNode[] }
+    | { readonly kind: 'catch'; readonly tag: string; readonly children: readonly UiNode[] }
+    | { readonly kind: 'unresolved'; readonly message: string }
+  )
+
+/** One `mount(app, { layer })` call: the Tags its layer provides and the tree of `app`. */
+export interface ComponentTree extends Location {
+  readonly provides: readonly string[]
+  readonly root: UiNode
+}
+
+export interface ComponentReport {
+  readonly trees: readonly ComponentTree[]
+  readonly errors: readonly AnalyzeError[]
+}
