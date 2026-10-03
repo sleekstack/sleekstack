@@ -41,7 +41,7 @@ Almost all of the entry is Effect. The resume runtime itself is small, and a han
 ## Consequences and known gaps
 
 - Events before `resume` finishes are not replayed (unlike Islands, ADR 0010).
-- Guests are not resumable; they still need React and `fromReact` hydration.
+- Guests are not resumable: their server DOM stays inert under `resume`. Making them interactive would need separate React hydration (for example Islands), which is out of scope.
 - `mount` renders a `Bind` statically: it shows the value but does not subscribe it. Reactive components (ADR 0015) are not resumable and share no runtime path with `resume`.
 - Only value-kind serializable atoms can be bound.
 

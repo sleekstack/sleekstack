@@ -138,7 +138,7 @@ A named Effect program run on a DOM event, declared at module top level as `cons
 _Avoid_: Event listener, callback, action
 
 **Resume**:
-`resume({ container, layer, handlers, atoms })`: makes server-rendered host HTML interactive without running any Component. It seeds its own store from the Manifest, keeps `bind` text in sync and runs Handlers through one queue with `layer`. Distinct from hydration (Islands, `hydrate`), which re-runs code to rebuild state (ADR 0017).
+`resume({ container, layer, handlers, atoms })`: makes server-rendered host HTML interactive without running any Component. It seeds its own store from the Manifest, keeps `bind` text in sync and runs Handlers through one queue with `layer`. Distinct from React hydration (Islands), which runs component code, and from atom-store `hydrate`, which only seeds a Snapshot (ADR 0017).
 _Avoid_: Hydrate, rehydrate, boot
 
 **Manifest**:
