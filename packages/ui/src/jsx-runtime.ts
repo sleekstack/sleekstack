@@ -1,5 +1,6 @@
 import { Effect, type Layer } from 'effect'
 import { el, fragment, type Node } from './node'
+import { Handlers, instance } from './reactive'
 
 /** What a JSX expression may hold between its tags. */
 export type Child = string | number | boolean | null | undefined | Effect.Effect<Node, any, any> | ReadonlyArray<Child>
@@ -28,7 +29,9 @@ const attrs = (props: Props): Record<string, string> =>
 
 export const jsx = (type: string | ((props: any) => Element), props: Props): Element =>
   typeof type === 'function'
-    ? type(props)
+    ? type === Fragment || type === Provider || type === Boundary
+      ? type(props as any)
+      : (instance(type, props) as Element)
     : (Effect.map(renderChildren(props.children), (kids) => el(type, attrs(props), ...kids)) as Element)
 export const jsxs = jsx
 
@@ -45,7 +48,11 @@ export const Boundary = <E extends { readonly _tag: string }>(props: {
   fallback: (error: E) => Element
   children?: Child
 }): Element =>
-  Effect.catchTag(Fragment(props) as Effect.Effect<Node, { _tag: string }>, props.tag, (e) => props.fallback(e as unknown as E)) as Element
+  Effect.catchTag(
+    Effect.flatMap(Handlers, (hs) => Effect.provideService(Fragment(props), Handlers, [...hs, { tag: props.tag, fallback: props.fallback }])) as Effect.Effect<Node, { _tag: string }>,
+    props.tag,
+    (e) => props.fallback(e as unknown as E),
+  ) as Element
 
 export declare namespace JSX {
   type Element = Effect.Effect<Node, never, never>

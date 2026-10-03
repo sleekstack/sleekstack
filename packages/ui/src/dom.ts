@@ -57,6 +57,8 @@ const build = (node: Node, doc: Document, roots: Array<Root>, onError?: OnError)
         for (const c of node.children) append(el, build(c, doc, roots, onError))
         return el
       }
+      case 'Reactive':
+        return build(node.child, doc, roots, onError)
       case 'Guest': {
         // One React root per guest host; `display: contents` keeps the host out of layout.
         const host = doc.createElement('sleek-guest')

@@ -40,7 +40,7 @@ export function analyzeComponents(opts: { readonly project: string }): Component
     }
     return out
   }
-  const isNodeMember = (m: ts.Type) => libId(m.aliasSymbol, checker) === 'ui/node#Node' || /^ui\/node#(Text|Element|Fragment|Guest)Node$/.test(libId(m.getSymbol(), checker) ?? '')
+  const isNodeMember = (m: ts.Type) => libId(m.aliasSymbol, checker) === 'ui/node#Node' || /^ui\/node#(Text|Element|Fragment|Guest|Reactive)Node$/.test(libId(m.getSymbol(), checker) ?? '')
   /** A `Node`, or an array / tuple of them (what `Effect.all` over rendered components succeeds with). */
   const isRendered = (m: ts.Type) => isNodeMember(m) || ((checker.isArrayType(m) || checker.isTupleType(m)) && checker.getTypeArguments(m as ts.TypeReference).every(isNodeMember))
   const isNode = (a: ts.Type[] | undefined) => !!a && a.length > 0 && a.every(isRendered)
