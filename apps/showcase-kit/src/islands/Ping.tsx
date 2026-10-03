@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { pingFromIsland } from './islands.actions'
 
-/** Calls a kit `effect()` Server Action from inside an Island root. */
+/** Calls a kit `runOperation()` Server Action from inside an Island root. */
 export default function Ping() {
   const [pings, setPings] = useState(0)
   const [status, setStatus] = useState('idle')

@@ -17,6 +17,7 @@
     "errors",
     "testing",
     "showcases",
+    "benchmarks",
     "api"
   ]
 }

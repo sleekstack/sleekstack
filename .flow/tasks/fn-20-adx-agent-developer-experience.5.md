@@ -21,9 +21,8 @@ Ship the agent docs with the package and let consumers point their AGENTS.md at 
 - [ ] init-agents idempotent; bad-marker, read-only and CRLF cases tested
 
 ## Done summary
-TBD
-
+packages/kit/llms.md (5.8KB; entry points, patterns, lifetime matrix, vocab, generated error section) + files/exports fields; pack dry-run + size test in kit, drift test in analyze (kit cannot import analyze: rootDir/dep direction). sleekstack init-agents: marker block in AGENTS.md pointing at node_modules/@sleekstack/kit/llms.md; idempotent, atomic, CRLF, bad-marker, read-only, missing-kit tested.
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 37101371e8093cf49ebef961c8c4ee92939ce678
+- Tests: vitest+tsc packages/kit, packages/analyze, packages/cli
 - PRs:

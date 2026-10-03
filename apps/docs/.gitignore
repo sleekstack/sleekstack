@@ -1,3 +1,4 @@
 /content/docs/api/
 /.source/
 next-env.d.ts
+/content/docs/benchmarks.mdx

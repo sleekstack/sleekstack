@@ -1,6 +1,6 @@
 'use server'
 // A 'use server' file may export only literal async functions; defineEffect()/defineQuery() are
-// directly callable, so export a literal async function that calls them (or use effect()/query() inline).
+// directly callable, so export a literal async function that calls them (or use runOperation()/query() inline).
 import { Effect } from 'effect'
 import { layer, module, tag } from '@sleekstack/kit'
 import { configureRuntime, defineEffect, defineQuery, fail } from '@sleekstack/kit/next'

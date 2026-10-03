@@ -62,7 +62,7 @@ Out of scope (brief recommendations 4, 6, 7, 9, 10): MCP server, core-vs-kit def
 ## Quick commands
 
 ```bash
-pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=@sleekstack/cli --filter=@sleekstack/kit
+pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack --filter=@sleekstack/kit
 ```
 
 ## Early proof point

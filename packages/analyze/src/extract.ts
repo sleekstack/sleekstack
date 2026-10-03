@@ -12,8 +12,9 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import ts from 'typescript'
 import { validate, validateAction } from './validate'
+import { analyzeError } from './errorCodes'
 import { checkRoot, RUNTIME_RUN_CALLS, runEffectRoots, type ExtraRoot } from './runtimeRoots'
-import type { ActionDecl, AnalyzeError, Atoms, Edge, Graph, GraphNode, Lifetime, Location, ModuleDecl, ProviderDecl, Report, Shadowing } from './model'
+import type { ActionDecl, AnalyzeCode, AnalyzeError, Atoms, Edge, Graph, GraphNode, Lifetime, Location, ModuleDecl, ProviderDecl, Report, Shadowing } from './model'
 
 /** Which library function a call resolves to, e.g. `kit/layer#layer`, `effect/Context#GenericTag`. */
 export function libId(sym: ts.Symbol | undefined, checker: ts.TypeChecker): string | undefined {
@@ -36,7 +37,7 @@ const TAG_CLASS_CALLS = new Set(['effect/Context#Tag', 'effect/Effect#Tag'])
 const MODULE_CALLS = new Set(['kit/module#makeModule', 'core/module#makeModule'])
 const ATOM_CALLS = new Set(['kit/atom#atom', 'kit/atom#family'])
 const RUNTIME_CALLS = new Set(['kit/next/runtime#configureRuntime', 'next/runtime#configureRuntime', 'runtime/runtime#configureRuntime'])
-const ACTION_CALLS = new Set(['kit/next/action#defineEffect', 'kit/next/action#defineQuery', 'kit/next/action#effect', 'kit/next/action#query'])
+const ACTION_CALLS = new Set(['kit/next/action#defineEffect', 'kit/next/action#defineQuery', 'kit/next/action#runOperation', 'kit/next/action#effect', 'kit/next/action#query'])
 /** Query / mutation definitions: their fetcher (`fetch` / `run`) is read like an action body. */
 const FETCHER_CALLS = new Map([['kit/query#cachedQuery', 'fetch'], ['kit/query#mutation', 'run']])
 /** Plain Layer combinators walked structurally (data-first or as `.pipe` steps). */
@@ -49,7 +50,7 @@ export const unwrap = (e: ts.Expression): ts.Expression => {
 }
 
 export class Unreadable extends Error {
-  constructor(readonly node: ts.Node, message: string, readonly code = 'Unresolvable') {
+  constructor(readonly node: ts.Node, message: string, readonly code: AnalyzeCode = 'Unresolvable') {
     super(message)
   }
 }
@@ -145,9 +146,11 @@ export function extract(project: string, entries?: readonly string[], lenient = 
 
   const loc = (n: ts.Node): Location => {
     const sf = n.getSourceFile()
-    return { file: path.relative(root, sf.fileName), line: sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1 }
+    const start = sf.getLineAndCharacterOfPosition(n.getStart(sf))
+    const end = sf.getLineAndCharacterOfPosition(n.getEnd())
+    return { file: path.relative(root, sf.fileName), line: start.line + 1, column: start.character + 1, endLine: end.line + 1, endColumn: end.character + 1 }
   }
-  const fail = (n: ts.Node, message: string, code?: string): never => {
+  const fail = (n: ts.Node, message: string, code?: AnalyzeCode): never => {
     throw new Unreadable(n, message, code)
   }
   /** Unreadable-declaration errors by the module (or runtime root) whose declaration holds them. */
@@ -155,7 +158,7 @@ export function extract(project: string, entries?: readonly string[], lenient = 
   const report = (e: unknown, owner?: ModuleDecl) => {
     if (e instanceof Unbound) e = new Unreadable(e.source, `A loop variable over "${text(e.source)}" is used outside a list`, 'Computed')
     if (!(e instanceof Unreadable)) throw e
-    const err = { code: e.code, message: e.message, ...loc(e.node) }
+    const err = analyzeError(e.code, e.message, loc(e.node))
     errors.push(err)
     if (owner) owned.set(owner, [...(owned.get(owner) ?? []), err])
   }
@@ -502,7 +505,7 @@ export function extract(project: string, entries?: readonly string[], lenient = 
     if (/[\\/]node_modules[\\/]/.test(sf.fileName)) continue
     const stem = sf.fileName.replace(/(\.d)?\.(ts|tsx|js|jsx|mjs|cjs)$/, '')
     if (/\.(d\.ts|js|jsx)$/.test(sf.fileName) && ['.ts', '.tsx'].some((x) => fs.existsSync(stem + x))) {
-      errors.push({ code: 'EmittedSibling', message: `${path.relative(root, sf.fileName)} is emitted output next to its .ts source; delete it`, file: path.relative(root, sf.fileName), line: 1 })
+      errors.push(analyzeError('EmittedSibling', `${path.relative(root, sf.fileName)} is emitted output next to its .ts source; delete it`, { file: path.relative(root, sf.fileName), line: 1 }))
       continue
     }
     if (!sf.isDeclarationFile && program.getRootFileNames().includes(sf.fileName)) sources.push(sf)
@@ -810,7 +813,7 @@ export function extract(project: string, entries?: readonly string[], lenient = 
   const claimed = new Set(actions.filter((a) => reaches.some((r) => r.has(a.file))))
   for (const a of actions) {
     if (runtimes.length < 2 || claimed.has(a)) continue
-    const e = { code: 'UnownedAction', message: 'No configureRuntime file imports this action, and several runtimes exist; pass --entry to pick its runtime', ...a.loc }
+    const e = analyzeError('UnownedAction', 'No configureRuntime file imports this action, and several runtimes exist; pass --entry to pick its runtime', a.loc)
     errors.push(e)
     extraction.push(e) // owned by no runtime: fails the whole check
   }

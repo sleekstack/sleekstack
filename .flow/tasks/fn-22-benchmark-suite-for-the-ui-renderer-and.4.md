@@ -27,9 +27,8 @@ Spec `.flow/specs/fn-22-benchmark-suite-for-the-ui-renderer-and.md` is authorita
 - [ ] `pnpm test` runs the compare tests and does not run any `*.bench.ts`
 
 ## Done summary
-TBD
-
+compare.ts pure compare() ratio gate (REFERENCE per suite, 50% default tolerance, per-case TOLERANCE, NOISY rme>20), markers NEW/MISSING/NOISY/REGRESSED/IMPROVED, exit 0/1/2, Node-major warning; 9 fixture tests; update-baseline script.
 ## Evidence
-- Commits:
-- Tests:
+- Commits: e06dffe
+- Tests: pnpm --filter bench bench:json, pnpm --filter bench test, pnpm typecheck
 - PRs:

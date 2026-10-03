@@ -53,12 +53,12 @@ The output of `layer(tag, impl, deps?, { lifetime }?)`: `impl` is a value, a cla
 _Avoid_: Provider, factory, binding
 
 **Kit Effect**:
-The output of `effect(fn, deps?, { name, lifetime }?)` from `@sleekstack/kit`: a side effect with no service to expose. `fn(...deps)` runs when its scope opens; the function it returns runs when the scope closes. Graph rules (missing, captive, private) apply to its deps; it appears in the Graph as `effect:<name>`. Not the same as `effect(gen, opts?)` from `@sleekstack/kit/next`, which runs a Kit Operation inline.
+The output of `effect(fn, deps?, { name, lifetime }?)` from `@sleekstack/kit`: a side effect with no service to expose. `fn(...deps)` runs when its scope opens; the function it returns runs when the scope closes. Graph rules (missing, captive, private) apply to its deps; it appears in the Graph as `effect:<name>`. Not to be confused with `runOperation(gen, opts?)` from `@sleekstack/kit/next`, which runs a Kit Operation inline (its old name `effect` is a deprecated alias, ADR 0019).
 _Avoid_: Hook, job, init
 
 **Kit Operation**:
-An action or query from `@sleekstack/kit/next`: `defineEffect(gen, opts?)` / `defineQuery(gen, opts?)`, or `effect(gen, opts?)` / `query(gen, opts?)` run inline. Its deps are the Tags the generator `yield*`s (followed through helper generators), resolved from the Request Scope on demand; there is no deps array. `opts.provide` shadows the Graph for one call; `opts.scope: [Tags]` builds Tags the body never yields (e.g. `RequestContext`) and counts them as edges.
-_Avoid_: Handler, deps array
+An action or query from `@sleekstack/kit/next`: `defineEffect(gen, opts?)` / `defineQuery(gen, opts?)`, or `runOperation(gen, opts?)` / `query(gen, opts?)` run inline. Its deps are the Tags the generator `yield*`s (followed through helper generators), resolved from the Request Scope on demand; there is no deps array. `opts.provide` shadows the Graph for one call; `opts.scope: [Tags]` builds Tags the body never yields (e.g. `RequestContext`) and counts them as edges.
+_Avoid_: Handler, deps array, `effect` (for the inline runner)
 
 **Analyzer**:
 `@sleekstack/analyze`, run as `sleekstack check [--project <tsconfig>] [--entry <file>...] [--json] [--lenient]`. Reads the declarations through the TypeScript checker without executing app code, builds each root's Graph and reports every violation with file:line (exit 0 ok, 1 violations, 2 crash or no roots). Fails closed: a declaration it cannot read is an error. `--entry` limits the roots to the given files. `--lenient` turns an unresolvable `runEffect` Layer into an opaque root (`kind: 'opaque'`) instead of an error; it never excuses a missing Tag or an unresolvable app Layer.
@@ -156,7 +156,7 @@ A server-side Scope created per `runEffect` call (`@sleekstack/runtime`, re-expo
 _Avoid_: Request context, request environment, request runtime
 
 **Action**:
-A server-side operation (Next.js Server Action) declared with `defineEffect()` / `effect()` from `@sleekstack/kit/next`. Runs a generator in a Request Scope on the `@sleekstack/runtime` runtime, through the `@sleekstack/next` preset.
+A server-side operation (Next.js Server Action) declared with `defineEffect()` / `runOperation()` from `@sleekstack/kit/next`. Runs a generator in a Request Scope on the `@sleekstack/runtime` runtime, through the `@sleekstack/next` preset.
 _Avoid_: Mutation, procedure, RPC
 
 **Runtime Package**:

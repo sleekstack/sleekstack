@@ -22,9 +22,8 @@ Measure whether the shipped docs pay off. Manual runner, not CI.
 - [ ] result written into the brief
 
 ## Done summary
-TBD
-
+evals/: fixture, 11 tasks, run.mjs (selfcheck + claude -p runs), README, results/2026-10-03-sonnet.json. Baseline: 11/11 both conditions, ~215k vs 218k mean tokens; ceiling effect recorded in brief section 5.
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 65a428cdcd4786e48e04560a9bf2f6b0547902b5
+- Tests: node evals/run.mjs --selfcheck, node evals/run.mjs
 - PRs:

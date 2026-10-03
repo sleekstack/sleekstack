@@ -6,14 +6,15 @@
   "scripts": {
     "generate:api": "node scripts/generate-api.mjs",
     "check:links": "node scripts/check-links.mjs",
-    "predev": "pnpm generate:api",
+    "predev": "pnpm generate:api && pnpm generate:benchmarks",
     "dev": "next dev",
-    "prebuild": "pnpm generate:api",
+    "prebuild": "pnpm generate:api && pnpm generate:benchmarks",
     "build": "next build && pnpm check:links",
     "start": "next start",
-    "pretest": "pnpm generate:api",
+    "pretest": "pnpm generate:api && pnpm generate:benchmarks",
     "test": "vitest run",
-    "typecheck": "fumadocs-mdx && tsc --noEmit"
+    "typecheck": "fumadocs-mdx && tsc --noEmit",
+    "generate:benchmarks": "node scripts/generate-benchmarks.mjs"
   },
   "dependencies": {
     "fumadocs-core": "15.8.5",
