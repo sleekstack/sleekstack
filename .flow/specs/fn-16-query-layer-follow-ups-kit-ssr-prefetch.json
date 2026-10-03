@@ -1,7 +1,7 @@
 {
   "branch_name": "fn-16-query-layer-follow-ups-kit-ssr-prefetch",
-  "completion_review_status": "unknown",
-  "completion_reviewed_at": null,
+  "completion_review_status": "ship",
+  "completion_reviewed_at": "2026-10-03T16:01:22.698586Z",
   "created_at": "2026-10-03T07:28:37.427223Z",
   "default_impl": null,
   "default_review": null,
@@ -600,6 +600,42 @@
       "task": "fn-16-query-layer-follow-ups-kit-ssr-prefetch.5",
       "timestamp": "2026-10-03T15:56:07.879212Z",
       "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "f418dfc66535cdc0c36aa856f3c83b358375ee7813a68d1695e119c095e4495d",
+      "backend": "codex",
+      "base_sha": "d223ae5a077b0dd1014e6d0fbe0c8b4f52838497",
+      "counter_kind": "plan",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "12aaf278eeedd12a561c0f7f74bce8cd01540a2d",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 461407,
+      "output_sha256": "7846d2ea1adb376c5adf0951daa71130582c395d2a0ffb806d558812141692b7",
+      "reservation_id": "0e37ab64b7ff44fd8df08bcbd26d78b2",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-10-03T16:01:22.690940Z",
+      "tool_calls": 18,
+      "verdict": "SHIP"
     }
   ],
   "review_hash_epoch": {
@@ -607,11 +643,13 @@
     "impl:fn-16-query-layer-follow-ups-kit-ssr-prefetch.2": 1,
     "impl:fn-16-query-layer-follow-ups-kit-ssr-prefetch.3": 1,
     "impl:fn-16-query-layer-follow-ups-kit-ssr-prefetch.4": 1,
-    "impl:fn-16-query-layer-follow-ups-kit-ssr-prefetch.5": 1
+    "impl:fn-16-query-layer-follow-ups-kit-ssr-prefetch.5": 1,
+    "plan#completion": 1
   },
   "review_pending_rounds": {},
   "review_reservations": {},
   "review_transport_failures": {
+    "completion": 0,
     "impl:fn-16-query-layer-follow-ups-kit-ssr-prefetch.1": 0,
     "impl:fn-16-query-layer-follow-ups-kit-ssr-prefetch.2": 0,
     "impl:fn-16-query-layer-follow-ups-kit-ssr-prefetch.3": 0,
@@ -632,5 +670,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-03T15:56:07.881657Z"
+  "updated_at": "2026-10-03T16:01:22.700967Z"
 }
