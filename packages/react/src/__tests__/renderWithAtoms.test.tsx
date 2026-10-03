@@ -138,6 +138,16 @@ describe('renderWithAtoms', () => {
     expect(interrupted).toBe(1)
   })
 
+  it('abort interrupts a provider layer that never finishes opening, and closed resolves', async () => {
+    let interrupted = 0
+    const never = Layer.effect(Db, Effect.never.pipe(Effect.onInterrupt(() => Effect.sync(() => void interrupted++))))
+    const s = renderWithAtoms(<LayerProvider provide={[never]}><Suspense fallback="w"><b /></Suspense></LayerProvider>, { stream: { onError: () => {} } })
+    await sleep(10)
+    s.abort()
+    await s.closed
+    expect(interrupted).toBe(1)
+  })
+
   it('a provider retried after suspension reuses its registry scope', async () => {
     const { useScopeSource } = await import('../managedScope')
     let opened = 0
@@ -184,5 +194,14 @@ describe('server render without renderWithAtoms', () => {
     expect(ran).toBe(0)
     vi.spyOn(console, 'error').mockImplementation(() => {})
     expect(() => renderToString(<View />)).toThrow(/needs a <LayerProvider>/)
+  })
+
+  it('never parks or adopts (no ADOPT_MS timer)', () => {
+    const timers = vi.spyOn(globalThis, 'setTimeout')
+    const n = Atom.make(1)
+    const View = () => <i>{useAtomValue(n)}</i>
+    renderToString(<LayerProvider provide={[]}><View /></LayerProvider>)
+    renderToString(<LayerProvider provide={[]}><View /></LayerProvider>)
+    expect(timers.mock.calls.some(([, ms]) => ms === ADOPT_MS)).toBe(false)
   })
 })

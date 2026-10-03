@@ -59,6 +59,17 @@ describe('serializable atoms', () => {
     expect(() => store.get(b)).toThrow(DuplicateAtomKey)
   })
 
+  it('keeps DuplicateAtomKey after the first atom is evicted idle; the same atom rebuilds fine', async () => {
+    const a = Atom.serializable(Atom.make(1), { key: 'k', schema: Schema.Number })
+    const b = Atom.serializable(Atom.make(2), { key: 'k', schema: Schema.Number })
+    const store = makeAtomStore()
+    store.get(a)
+    await new Promise((r) => setTimeout(r, 0)) // idle node removed
+    expect(store.inspect()).toEqual([])
+    expect(() => store.get(b)).toThrow(DuplicateAtomKey)
+    expect(store.get(a)).toBe(1)
+  })
+
   it('ignores unknown keys, drops failed decodes with a warning, skips failed encodes, ignores non-object snapshots', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const n = Atom.serializable(Atom.make(7), { key: 'n', schema: Schema.Number })

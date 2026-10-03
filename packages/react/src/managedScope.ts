@@ -133,13 +133,16 @@ function create(props: ScopeProps, parent: ProviderState | null, sink: ProviderS
 
   let resolveStart!: () => void
   const started = new Promise<void>((r) => (resolveStart = r))
+  // `close` aborts a still-pending acquisition (e.g. a provider layer that never settles), interrupting its fiber.
+  const abort = new AbortController()
+  const run = <A>(effect: Effect.Effect<A, unknown>) => Effect.runPromise(effect, { signal: abort.signal })
   const opened: Promise<ChildScope> = parent
-    ? started.then(() => parent.scope).then((p) => Effect.runPromise(p.child('component', [...provide])))
+    ? started.then(() => parent.scope).then((p) => run(p.child('component', [...provide])))
     : appScope
-    ? started.then(() => Effect.runPromise(appScope.child('component', [...provide])))
-    : started.then(() => Effect.runPromise(Effect.suspend(() => makeAppScope([...provide], { onFinalizerError: sink })))).then((app) => {
+    ? started.then(() => run(appScope.child('component', [...provide])))
+    : started.then(() => run(Effect.suspend(() => makeAppScope([...provide], { onFinalizerError: sink })))).then((app) => {
         owned.push(app)
-        return Effect.runPromise(app.child('component'))
+        return run(app.child('component'))
       })
   const scope = opened.then((s) => {
     owned.push(s)
@@ -169,6 +172,7 @@ function create(props: ScopeProps, parent: ProviderState | null, sink: ProviderS
   const close = () =>
     (closing ??= (async () => {
       if (!state.started) return
+      abort.abort()
       await scope.catch(() => undefined)
       if (state.atoms) devStores()?.delete(state.atoms)
       for (const child of [...state.children].reverse()) await child()
@@ -252,11 +256,11 @@ export const closeRegistry = (registry: RequestRegistry): Promise<void> =>
   })())
 
 /**
- * Server render without a registry: services keep the client acquisition; atoms read from an inert per-render
- * store (no fiber forked), shadowing the `atoms` the live state would set once its scope opens.
+ * Server render without a registry: a never-started scope (no commit on the server, so nothing opens or needs
+ * closing) built without client adoption or parking; atoms read from an inert per-render store (no fiber forked).
  */
 const inertServerState = (props: ScopeProps, parent: ProviderState | null, sink: ProviderState['onFinalizerError'] | undefined): Owned => {
-  const owned = acquire(props, parent, sink)
+  const owned = create(props, parent, sinkFor(sink, parent), parent ? undefined : props.appScope)
   const state: ProviderState = Object.create(owned.state, { atoms: { value: makeAtomStore({ inert: true, hydrate: seedFor(props) }) } })
   return { ...owned, state }
 }

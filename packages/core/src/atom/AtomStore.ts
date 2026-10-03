@@ -98,14 +98,14 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
   // seeds waiting for their atom's first read, and every key ever seeded (first seed wins)
   const seeds = new Map<string, unknown>()
   const seeded = new Set<string>()
-  // serializable key -> the node built for it
-  const keys = new Map<string, Node>()
+  // serializable key -> the atom first built for it; kept past node eviction until dispose, so keys stay unique per store
+  const keys = new Map<string, Atom<any>>()
 
   const ensure = (atom: Atom<any>): Node => {
     let node = nodes.get(atom)
     if (!node) {
       const key = atom.serializable?.key
-      if (key !== undefined && keys.has(key)) {
+      if (key !== undefined && keys.has(key) && keys.get(key) !== atom) {
         throw new DuplicateAtomKey({ key, message: `Two serializable atoms share the key "${key}"` })
       }
       node = {
@@ -113,7 +113,7 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
         children: new Set(), listeners: new Set(), retains: 0, finalizers: [], removalQueued: false, bucket: undefined,
       }
       nodes.set(atom, node)
-      if (key !== undefined) keys.set(key, node)
+      if (key !== undefined) keys.set(key, atom)
       scheduleRemoval(node)
     }
     return node
@@ -278,7 +278,6 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
   const remove = (node: Node) => {
     if (nodes.get(node.atom) !== node) return
     nodes.delete(node.atom)
-    if (node.atom.serializable) keys.delete(node.atom.serializable.key)
     runFinalizers(node)
     for (const parent of node.deps.keys()) { parent.children.delete(node); scheduleRemoval(parent) }
   }
