@@ -3,7 +3,7 @@ title: Next.js
 description: Runtime management for Effect in Next.js, and Server Actions and queries in kit.
 ---
 
-`@sleekstack/next` is the Next.js preset of `@sleekstack/runtime` (ADR 0013): it re-exports the runtime, which holds one Effect runtime per process and runs Effects on it (`runEffect`); the action/query sugar (`defineEffect`, `effect`, `defineQuery`, `query`) lives in `@sleekstack/kit/next`, which is built on `runEffect`. A request scope is opened for every call. Request-lifetime services are built in that scope and cleaned up when the call ends, so no state leaks between requests.
+`@sleekstack/next` is the Next.js preset of `@sleekstack/runtime` (ADR 0013): it re-exports the runtime, which holds one Effect runtime per process and runs Effects on it (`runEffect`); the action/query sugar (`defineEffect`, `runOperation`, `defineQuery`, `query`) lives in `@sleekstack/kit/next`, which is built on `runEffect`. A request scope is opened for every call. Request-lifetime services are built in that scope and cleaned up when the call ends, so no state leaks between requests.
 
 ## Runtime
 
@@ -15,7 +15,7 @@ Call `configureRuntime({ layer, onError })` once at module load, for example fro
 
 The functions `defineEffect` and `defineQuery` return are plain async functions. To call one from a Client Component, export an async wrapper from a `'use server'` file, as below.
 
-`defineEffect(function* (...args) { ... }, opts?)` declares a generator that `yield*`s the Tags it needs and returns a function; each call runs it, resolving each yielded Tag from the request scope on demand. `effect(gen, opts?)` is the same run, immediately, for a generator written inline. An effect resolves `{ ok: true, data }`, or `{ ok: false, error }` after `fail(message)`. `defineQuery`/`query` are the same for reads: they resolve the plain value, and `fail` rejects. Pass `{ provide }` as the last argument to build extra Layers in that call's request scope, shadowing the runtime graph, and `{ scope: [Tags] }` to build Tags the body never yields (e.g. a request-scoped `RequestContext` that only logs).
+`defineEffect(function* (...args) { ... }, opts?)` declares a generator that `yield*`s the Tags it needs and returns a function; each call runs it, resolving each yielded Tag from the request scope on demand. `runOperation(gen, opts?)` is the same run, immediately, for a generator written inline (`effect` is its deprecated alias until the next release, ADR 0019; kit's `effect()` from `@sleekstack/kit` is the unrelated side-effect Layer). An effect resolves `{ ok: true, data }`, or `{ ok: false, error }` after `fail(message)`. `defineQuery`/`query` are the same for reads: they resolve the plain value, and `fail` rejects. Pass `{ provide }` as the last argument to build extra Layers in that call's request scope, shadowing the runtime graph, and `{ scope: [Tags] }` to build Tags the body never yields (e.g. a request-scoped `RequestContext` that only logs).
 
 <include>../../snippets/kit/next.ts</include>
 
@@ -41,4 +41,4 @@ In development the runtime records request scopes, acquire/release and reported 
 
 ## Migrating from `action`/`query` in `@sleekstack/next`
 
-`action`, `query`, `Operation` and `OperationOptions` were removed from `@sleekstack/next` (ADR 0012). Use kit's `defineEffect`/`effect`/`defineQuery`/`query` from `@sleekstack/kit/next`, or call `runEffect` with your own Effect and Layer.
+`action`, `query`, `Operation` and `OperationOptions` were removed from `@sleekstack/next` (ADR 0012). Use kit's `defineEffect`/`runOperation`/`defineQuery`/`query` from `@sleekstack/kit/next`, or call `runEffect` with your own Effect and Layer.

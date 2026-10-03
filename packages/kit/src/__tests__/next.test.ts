@@ -2,18 +2,18 @@ import { describe, expect, it, vi } from 'vitest'
 import { devEvents } from '@sleekstack/runtime/internal'
 import { Cause, Effect } from 'effect'
 import { layer, module, tag, withCleanup, type FinalizerError } from '../index'
-import { configureRuntime, defineEffect, effect, fail, query as runQuery, type OperationOptions } from '../next'
+import { configureRuntime, defineEffect, runOperation, fail, query as runQuery, type OperationOptions } from '../next'
 import type { AnyTag } from '../tag'
 import type { Services } from '../layer'
 
-// Positional-factory helpers over effect()/query(): each test body is a plain function of its resolved deps.
+// Positional-factory helpers over runOperation()/query(): each test body is a plain function of its resolved deps.
 const body = <const D extends readonly AnyTag[], R>(f: (...deps: Services<D>) => R, deps: D) =>
   function* () {
     const resolved: unknown[] = []
     for (const t of deps) resolved.push(yield* (t as unknown as { [Symbol.iterator](): Generator<never, unknown, unknown> }))
     return yield* Effect.promise(async () => f(...(resolved as never)))
   }
-const action = <const D extends readonly AnyTag[], R>(f: (...deps: Services<D>) => R, deps: D, opts?: OperationOptions) => effect(body(f, deps), opts)
+const action = <const D extends readonly AnyTag[], R>(f: (...deps: Services<D>) => R, deps: D, opts?: OperationOptions) => runOperation(body(f, deps), opts)
 const query = <const D extends readonly AnyTag[], R>(f: (...deps: Services<D>) => R, deps: D, opts?: OperationOptions) => runQuery(body(f, deps), opts)
 
 // One process-global runtime slot (next, by design): the unconfigured case must run first.
@@ -142,7 +142,7 @@ describe('@sleekstack/kit/next', () => {
     expect(errs[0]!.message).toMatch(/cleanup boom/)
   })
 
-  describe('effect', () => {
+  describe('runOperation', () => {
     it('yield*-ing an unprovided Tag rejects MissingDependency', async () => {
       configureRuntime({ provide: [layer(Rq, () => ({ id: 1 }))] })
       const reaches = defineEffect(function* () {
@@ -171,7 +171,7 @@ describe('@sleekstack/kit/next', () => {
       await expect(doubled()).resolves.toEqual({ ok: true, data: 10 })
     })
 
-    it('defineEffect + effect: input flows in, fail() settles {ok:false}', async () => {
+    it('defineEffect + runOperation: input flows in, fail() settles {ok:false}', async () => {
       configureRuntime({ provide: [layer(Rq, () => ({ id: 3 }))] })
       const readPlus = defineEffect(function* (n: number) {
         const rq = yield* Rq

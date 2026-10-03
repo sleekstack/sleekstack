@@ -7,7 +7,7 @@ from any public entry.
 | Subpath | Exports |
 | --- | --- |
 | `@sleekstack/kit` | `tag`, `layer`, `withCleanup`, `effect`, `atom`, `cachedQuery`, `mutation`, `module`, `SleekStackError` (+ types `Tag`, `Layer`, `Module`, `FinalizerError`, ...) |
-| `@sleekstack/kit/next` | `configureRuntime`, `defineEffect`, `defineQuery`, `effect`, `query`, `fail`, `prefetch` (+ `ActionResult`, `OperationOptions`, `RuntimeConfig`, `PrefetchOptions`) |
+| `@sleekstack/kit/next` | `configureRuntime`, `defineEffect`, `defineQuery`, `runOperation`, `query`, `fail`, `prefetch` (`effect`: deprecated alias of `runOperation`) (+ `ActionResult`, `OperationOptions`, `RuntimeConfig`, `PrefetchOptions`) |
 | `@sleekstack/kit/react` | `LayerProvider`, `useService`, `useServices`, `useAtom`, `useAtomValue`, `useAtomSet`, `useQuery`, `useMutation`, `useQueryClient`, `QueryProvider`, `HydrateQueries` |
 
 Every failure is a `SleekStackError` with a `code` (`MissingDependency`, `DependencyCycle`, `CaptiveDependency`,
@@ -114,7 +114,7 @@ const addRowEffect = defineEffect(function* (title: string) {
 
 // A 'use server' file exports literal async functions that call the definitions
 // `{ provide: [Layers] }` shadows the graph for one call; `{ scope: [RequestContext] }` builds Tags the body never yields.
-// (or run a generator inline with effect(gen) / query(gen)):
+// (or run a generator inline with runOperation(gen) / query(gen)):
 export async function listRows() { return listRowsQuery() }
 export async function addRow(title: string) { return addRowEffect(title) }
 ```

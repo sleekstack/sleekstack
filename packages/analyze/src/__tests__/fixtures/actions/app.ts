@@ -1,5 +1,5 @@
 import { layer, module, tag } from '@sleekstack/kit'
-import { configureRuntime, defineEffect, defineQuery, effect, query } from '@sleekstack/kit/next'
+import { configureRuntime, defineEffect, defineQuery, effect, query, runOperation } from '@sleekstack/kit/next'
 
 export const A = tag<string>('A')
 export const B = tag<string>('B')
@@ -26,6 +26,8 @@ export const viaHelper = defineEffect(function* () {
 })
 
 export async function inline(k: string) {
+  await runOperation(function* () { return yield* Hidden }) // @error PrivateDependency
+  // Deprecated alias (ADR 0019): still analyzed.
   await effect(function* () { return yield* Hidden }) // @error PrivateDependency
   await query(function* () { return yield* Loose }) // @error Unresolvable
   return query(function* () { return yield* Tags[k]! }) // @error Unresolvable

@@ -1,7 +1,7 @@
 /**
  * packages/kit/src/next/action.ts
  *
- * `effect`/`query` run once, immediately (`defineEffect`/`defineQuery` are the reusable, directly callable forms): open a request scope Shadowed by
+ * `runOperation`/`query` run once, immediately (`defineEffect`/`defineQuery` are the reusable, directly callable forms): open a request scope Shadowed by
  * `opts.provide`, run the generator (resolving each `yield*` Tag on demand, plus `opts.scope` up front), close the scope, settle. Next's `'use server'` transform only
  * recognizes a literal `async function` export, so call them from inside one. The call runs on next's
  * `runEffect` and its Exit is mapped once to an ActionResult or a rejection.
@@ -16,10 +16,10 @@ import { unwrap, validateProvide, type Module } from '../module'
 import { requestLayer } from './runtime'
 import { coreTag, type AnyTag } from '../tag'
 
-/** What an {@link effect} resolves to: `{ ok: true, data }`, or `{ ok: false, error }` after {@link fail}. */
+/** What an {@link runOperation} resolves to: `{ ok: true, data }`, or `{ ok: false, error }` after {@link fail}. */
 export type ActionResult<T> = { readonly ok: true; readonly data: T } | { readonly ok: false; readonly error: string }
 
-/** Per-operation options for {@link effect} and {@link query}. */
+/** Per-operation options for {@link runOperation} and {@link query}. */
 export interface OperationOptions {
   /**
    * Built in the request scope, Shadowing the runtime graph for this call only. A thunk
@@ -45,10 +45,10 @@ class Failure {
  *
  * @example
  * ```ts
- * import { effect, fail } from '@sleekstack/kit/next'
+ * import { runOperation, fail } from '@sleekstack/kit/next'
  *
  * export async function rename(name: string) {
- *   return effect(function* () {
+ *   return runOperation(function* () {
  *     return name ? name.trim() : fail('Name is required')
  *   })
  * }
@@ -142,7 +142,7 @@ const unwrapQuery = async <R>(r: Promise<ActionResult<R>>): Promise<R> => {
  * Defines a reusable Server Action body: a generator whose `yield*`ed Tags resolve from the request scope. The result is
  * directly callable with the body's own arguments; each call runs in a fresh request scope and
  * settles as an {@link ActionResult}. Expected failures use {@link fail}. A `const` isn't something Next's `'use server'` transform recognizes, so export a
- * literal `async function` that calls it (or use {@link effect} inline).
+ * literal `async function` that calls it (or use {@link runOperation} inline).
  *
  * @example
  * ```ts
@@ -183,11 +183,11 @@ export function defineQuery<A extends readonly unknown[], R>(impl: (...args: A) 
  * @throws {@link SleekStackError} with code `HandlerFailed` when the body throws (other than {@link fail}).
  * @throws {@link SleekStackError} with code `LayerFailed` when a request-scope Layer fails to build, or `Unknown` when the runtime is not configured.
  */
-export function effect<R>(impl: () => Gen<R>, opts: OperationOptions = {}): Promise<ActionResult<Awaited<R>>> {
+export function runOperation<R>(impl: () => Gen<R>, opts: OperationOptions = {}): Promise<ActionResult<Awaited<R>>> {
   return runGen(impl, opts)
 }
 
-/** Runs a generator now like {@link effect}, but resolves the plain value; a {@link fail} rejects with its message. */
+/** Runs a generator now like {@link runOperation}, but resolves the plain value; a {@link fail} rejects with its message. */
 export function query<R>(impl: () => Gen<R>, opts: OperationOptions = {}): Promise<Awaited<R>> {
   return unwrapQuery(runGen(impl, opts))
 }

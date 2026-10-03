@@ -18,3 +18,5 @@
 | [0014](0014-native-query-layer.md) | Queries and mutations are built on native atoms, in `@sleekstack/query` | Accepted |
 | [0015](0015-host-first-component-framework.md) | `@sleekstack/ui` (MVP spike): the Effect program is the host, React components are guests | Proposed |
 | [0016](0016-serializable-atoms-ssr.md) | Atoms render on the server and hydrate from opt-in serializable snapshots | Accepted |
+| [0019](0019-run-operation-rename.md) | `kit/next`'s inline runner is `runOperation`; `effect` means the side-effect Layer only | Accepted |
+| [0019](0019-one-name-one-meaning-run-operation.md) | One public name, one meaning: the `kit/next` inline runner is `runOperation` (`effect` deprecated alias) | Accepted |

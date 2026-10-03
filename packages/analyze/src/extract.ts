@@ -37,7 +37,7 @@ const TAG_CLASS_CALLS = new Set(['effect/Context#Tag', 'effect/Effect#Tag'])
 const MODULE_CALLS = new Set(['kit/module#makeModule', 'core/module#makeModule'])
 const ATOM_CALLS = new Set(['kit/atom#atom', 'kit/atom#family'])
 const RUNTIME_CALLS = new Set(['kit/next/runtime#configureRuntime', 'next/runtime#configureRuntime', 'runtime/runtime#configureRuntime'])
-const ACTION_CALLS = new Set(['kit/next/action#defineEffect', 'kit/next/action#defineQuery', 'kit/next/action#effect', 'kit/next/action#query'])
+const ACTION_CALLS = new Set(['kit/next/action#defineEffect', 'kit/next/action#defineQuery', 'kit/next/action#runOperation', 'kit/next/action#effect', 'kit/next/action#query'])
 /** Query / mutation definitions: their fetcher (`fetch` / `run`) is read like an action body. */
 const FETCHER_CALLS = new Map([['kit/query#cachedQuery', 'fetch'], ['query/query#make', 'fetch'], ['kit/query#mutation', 'run'], ['query/mutation#make', 'run']])
 /** Plain Layer combinators walked structurally (data-first or as `.pipe` steps). */
