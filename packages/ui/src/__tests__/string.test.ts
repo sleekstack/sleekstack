@@ -1,7 +1,7 @@
 import { Cause, Data, Effect, Layer } from 'effect'
 import { createElement } from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import { el, fragment, fromReact, Provide, renderToString } from '../index'
+import { el, fragment, fromReact, type Node, Provide, renderToString } from '../index'
 import { app, UserCard, UserNotFound, UserRepoTest } from './fixtures/user-card'
 
 class Boom extends Data.TaggedError('Boom')<{}> {}
@@ -57,10 +57,12 @@ describe('renderToString', () => {
     expect(spy).toHaveBeenCalled()
     spy.mockRestore()
   })
-  it('rejects hostile tag and attribute names', () => {
-    expect(() => el('img src=x onerror=alert(1)')).toThrow(TypeError)
-    expect(() => el('p', { 'x="y" onmouseover': 'z' })).toThrow(TypeError)
-    expect(() => el('my-el', { 'data-x': 'ok' })).not.toThrow()
+  it.each([
+    ['tag', el('img src=x onerror=alert(1)')],
+    ['attribute', el('p', { 'x="y" onmouseover': 'z' })],
+    ['direct node', { _tag: 'Element', tag: 'p><script', attrs: {}, children: [] } as Node],
+  ])('rejects a hostile %s name', async (_, node) => {
+    await expect(renderToString(Effect.succeed(node), { layer: Layer.empty })).rejects.toThrow(TypeError)
   })
 
   it('a throwing onError never changes the outcome', async () => {

@@ -7,6 +7,13 @@ import type { Node } from './node'
 const ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
 const escape = (s: string): string => s.replace(/[&<>"']/g, (c) => ESCAPES[c]!)
 
+const TAG = /^[a-zA-Z][a-zA-Z0-9-]*$/
+const ATTR = /^[^\s"'<>\/=\x00-\x1f]+$/
+const checkName = (re: RegExp, kind: string, name: string): string => {
+  if (!re.test(name)) throw new TypeError(`Invalid ${kind} name: ${JSON.stringify(name)}`)
+  return name
+}
+
 const serialize = (node: Node, onError?: (cause: Cause.Cause<unknown>) => void): string => {
   switch (node._tag) {
     case 'Text':
@@ -14,8 +21,9 @@ const serialize = (node: Node, onError?: (cause: Cause.Cause<unknown>) => void):
     case 'Fragment':
       return node.children.map((c) => serialize(c, onError)).join('')
     case 'Element': {
+      checkName(TAG, 'tag', node.tag)
       const attrs = Object.entries(node.attrs)
-        .map(([k, v]) => ` ${k}="${escape(v)}"`)
+        .map(([k, v]) => ` ${checkName(ATTR, 'attribute', k)}="${escape(v)}"`)
         .join('')
       return `<${node.tag}${attrs}>${node.children.map((c) => serialize(c, onError)).join('')}</${node.tag}>`
     }
