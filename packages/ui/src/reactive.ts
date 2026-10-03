@@ -24,6 +24,11 @@ export class RenderScope extends Context.Reference<RenderScope>()('@sleekstack/u
   defaultValue: (): Scope.Scope | undefined => undefined,
 }) {}
 
+/** Identity of the running component instance, the same object across its re-runs; `undefined` outside one. */
+export class Instance extends Context.Reference<Instance>()('@sleekstack/ui/Instance', {
+  defaultValue: (): object | undefined => undefined,
+}) {}
+
 // Typed `never` in E: `Store` is a requirement, so a missing store is unreachable for checked code; at runtime it fails with a tagged error.
 const store = (hook: string): Effect.Effect<AtomStore, never, Store> =>
   Effect.flatMap(Effect.serviceOption(Store), (s) =>
@@ -103,11 +108,12 @@ const handled = (run: Effect.Effect<Node, any, any>): Effect.Effect<Node, any, a
  * Under a `RenderScope` the node carries its run's scope: a failed run closes it, otherwise its owner (the DOM renderer) does.
  */
 export const instance = <P>(type: (props: P) => Effect.Effect<Node, any, any>, props: P): Effect.Effect<Node, any, any> => {
+  const id = {}
   const run: Effect.Effect<Node, any, any> = Effect.flatMap(Effect.context<never>(), (ctx) => {
     const body = (own: Scope.CloseableScope | undefined): Effect.Effect<Node, any, any> => {
       const reads = new Map<Atom.Atom<any>, unknown>()
       const scoped = own ? Effect.provideService(type(props), RenderScope, own) : type(props)
-      return Effect.map(Effect.provideService(scoped, Collector, reads), (child): Node =>
+      return Effect.map(Effect.provideService(Effect.provideService(scoped, Collector, reads), Instance, id), (child): Node =>
         reads.size === 0
           ? own
             ? owned(child, own)
