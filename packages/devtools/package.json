@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@sleekstack/core": "workspace:*",
+    "@sleekstack/query": "workspace:*",
     "@sleekstack/react": "workspace:*",
     "effect": "^3.15.0"
   },

@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import { Atom } from '@sleekstack/core'
-import { LayerProvider, useAtomValue } from '@sleekstack/react'
+import { LayerProvider, useAtomValue, useQuery } from '@sleekstack/react'
+import { Query } from '@sleekstack/query'
+import { Effect } from 'effect'
 import { STORES_KEY } from '@sleekstack/react/internal'
 import { SleekStackDevtools, DEVTOOLS_MARKER, graphsOf } from '../index'
 
@@ -16,6 +18,7 @@ describe('SleekStackDevtools', () => {
     render(<SleekStackDevtools />)
     expect(await screen.findByText(/Devtools are off/)).not.toBeNull()
     expect(screen.getByText(/No atoms registered/)).not.toBeNull()
+    expect(screen.getByText(/No queries recorded/)).not.toBeNull()
     expect(document.querySelector(`[data-devtools="${DEVTOOLS_MARKER}"]`)).not.toBeNull()
   })
 
@@ -167,5 +170,16 @@ describe('SleekStackDevtools', () => {
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({ scopes: [], errors: [], live: { scopes: [] } })))
     render(<SleekStackDevtools />)
     expect(await screen.findByText(/Devtools are off/)).not.toBeNull()
+  })
+
+  it('Queries tab lists query entries with state and updatedAt', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('Not Found', { status: 404 })))
+    const todo = Query.make({ key: (id: string) => ['todo', id], fetch: (id) => Effect.succeed(`title ${id}`) })
+    const Todo = () => <span>{useQuery(todo('t1')).data}</span>
+    render(<><LayerProvider provide={[]}><Todo /></LayerProvider><SleekStackDevtools intervalMs={20} /></>)
+    expect(await screen.findByText('title t1')).not.toBeNull()
+    const entry = await screen.findByText(/Success, 1 observers, updated \d{4}-/)
+    expect(entry.textContent).toContain('["todo","t1"]')
+    expect(screen.getByText('added ["todo","t1"]')).not.toBeNull()
   })
 })

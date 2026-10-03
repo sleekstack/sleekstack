@@ -9,7 +9,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { DEVTOOLS_MARKER } from '@sleekstack/devtools'
+import { DEVTOOLS_MARKER, QUERY_DEVTOOLS_MARKER } from '@sleekstack/devtools'
 import { SERVER_ONLY_MARKER } from '../infrastructure/runtime-infra.live'
 
 const nextDir = fileURLToPath(new URL('../../.next', import.meta.url))
@@ -34,5 +34,10 @@ describe.skipIf(!built)('showcase bundle separation (R10)', () => {
   it('client chunks never contain the devtools panel (dev-only)', () => {
     if (process.env.NODE_ENV === 'development') return
     for (const f of jsFiles(path.join(nextDir, 'static', 'chunks'))) expect(readFileSync(f, 'utf8'), f).not.toContain(DEVTOOLS_MARKER)
+  })
+
+  it('client chunks never contain the query devtools (Queries tab, dev-only)', () => {
+    if (process.env.NODE_ENV === 'development') return
+    for (const f of jsFiles(path.join(nextDir, 'static', 'chunks'))) expect(readFileSync(f, 'utf8'), f).not.toContain(QUERY_DEVTOOLS_MARKER)
   })
 })

@@ -302,6 +302,9 @@ importers:
       '@sleekstack/core':
         specifier: workspace:*
         version: link:../core
+      '@sleekstack/query':
+        specifier: workspace:*
+        version: link:../query
       '@sleekstack/react':
         specifier: workspace:*
         version: link:../react
