@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-10-islands-lazy-hydrating-react-islands",
   "spec_path": ".flow/tasks/fn-10-islands-lazy-hydrating-react-islands.2.md",
-  "status": "todo",
+  "status": "done",
   "title": "Islands: idle and interaction triggers with click replay",
   "updated_at": "2026-09-29T11:18:09.698268Z"
 }

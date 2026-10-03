@@ -576,7 +576,7 @@
     "impl:fn-19-reactive-host-subtrees-for-sleekstackui.4": 0
   },
   "spec_path": ".flow/specs/fn-19-reactive-host-subtrees-for-sleekstackui.md",
-  "status": "open",
+  "status": "done",
   "title": "Reactive host subtrees for @sleekstack/ui",
   "tracker": {
     "baseHashFlow": null,
@@ -589,5 +589,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-03T13:03:00.508339Z"
+  "updated_at": "2026-10-03T16:08:41.261691Z"
 }

@@ -11,7 +11,7 @@
   "priority": null,
   "spec": "fn-1-sleekstack-effect-native-di-modules-and",
   "spec_path": ".flow/tasks/fn-1-sleekstack-effect-native-di-modules-and.9.md",
-  "status": "todo",
+  "status": "done",
   "title": "Docs: ADR 0004 hybrid definitions, CONTEXT.md terms, README",
   "updated_at": "2026-09-27T07:28:29.454065Z"
 }

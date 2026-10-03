@@ -11,7 +11,7 @@
   "priority": null,
   "spec": "fn-9-static-build-time-dependency-graph",
   "spec_path": ".flow/tasks/fn-9-static-build-time-dependency-graph.9.md",
-  "status": "todo",
+  "status": "done",
   "title": "Generator layer factories: lazy runtime resolution and analyzer edges",
   "updated_at": "2026-09-29T09:20:06.682913Z"
 }

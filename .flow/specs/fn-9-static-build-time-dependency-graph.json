@@ -892,7 +892,7 @@
     "plan": 0
   },
   "spec_path": ".flow/specs/fn-9-static-build-time-dependency-graph.md",
-  "status": "open",
+  "status": "done",
   "title": "Static build-time dependency graph",
   "tracker": {
     "baseHashFlow": null,
@@ -905,5 +905,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-09-29T12:06:21.836328Z"
+  "updated_at": "2026-10-03T16:08:35.201042Z"
 }

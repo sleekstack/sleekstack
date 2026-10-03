@@ -8,7 +8,7 @@
   "priority": null,
   "spec": "fn-1-sleekstack-effect-native-di-modules-and",
   "spec_path": ".flow/tasks/fn-1-sleekstack-effect-native-di-modules-and.1.md",
-  "status": "todo",
+  "status": "done",
   "title": "Foundation: CI runs tests on default branch + per-package test setup + StrictMode helper",
   "updated_at": "2026-09-27T07:20:25.283239Z"
 }

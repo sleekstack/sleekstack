@@ -8,7 +8,7 @@
   "priority": null,
   "spec": "fn-8-deepen-kit-and-core-seams",
   "spec_path": ".flow/tasks/fn-8-deepen-kit-and-core-seams.3.md",
-  "status": "todo",
+  "status": "done",
   "title": "Share core's provide walk with kit validateProvide",
   "updated_at": "2026-09-28T16:15:53.969132Z"
 }

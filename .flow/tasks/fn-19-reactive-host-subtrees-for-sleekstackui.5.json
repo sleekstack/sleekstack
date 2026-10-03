@@ -11,7 +11,7 @@
   "priority": null,
   "spec": "fn-19-reactive-host-subtrees-for-sleekstackui",
   "spec_path": ".flow/tasks/fn-19-reactive-host-subtrees-for-sleekstackui.5.md",
-  "status": "todo",
+  "status": "done",
   "title": "docs: ADR amendment and READMEs for the hooks and Store",
   "updated_at": "2026-10-03T10:58:15.392110Z"
 }

@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-10-islands-lazy-hydrating-react-islands",
   "spec_path": ".flow/tasks/fn-10-islands-lazy-hydrating-react-islands.6.md",
-  "status": "todo",
+  "status": "done",
   "title": "Docs: islands guide, ADR 0010, CONTEXT.md term, package README",
   "updated_at": "2026-09-29T11:18:09.698364Z"
 }

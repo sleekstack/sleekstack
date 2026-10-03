@@ -794,7 +794,7 @@
     "impl:fn-10-islands-lazy-hydrating-react-islands.6": 0
   },
   "spec_path": ".flow/specs/fn-10-islands-lazy-hydrating-react-islands.md",
-  "status": "open",
+  "status": "done",
   "title": "Islands: lazy-hydrating React islands with Effect state handoff",
   "tracker": {
     "baseHashFlow": null,
@@ -807,5 +807,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-09-29T12:41:05.098960Z"
+  "updated_at": "2026-10-03T16:08:36.017103Z"
 }

@@ -8,7 +8,7 @@
   "priority": null,
   "spec": "fn-10-islands-lazy-hydrating-react-islands",
   "spec_path": ".flow/tasks/fn-10-islands-lazy-hydrating-react-islands.3.md",
-  "status": "todo",
+  "status": "done",
   "title": "react: LayerProvider accepts an externally owned app scope",
   "updated_at": "2026-09-29T11:18:09.698301Z"
 }

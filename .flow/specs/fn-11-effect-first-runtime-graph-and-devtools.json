@@ -894,7 +894,7 @@
     "impl:fn-11-effect-first-runtime-graph-and-devtools.7": 0
   },
   "spec_path": ".flow/specs/fn-11-effect-first-runtime-graph-and-devtools.md",
-  "status": "open",
+  "status": "done",
   "title": "Effect-first runtime, graph and devtools; sugar moves to kit",
   "tracker": {
     "baseHashFlow": null,
@@ -907,5 +907,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-01T09:14:08.587266Z"
+  "updated_at": "2026-10-03T16:08:36.801657Z"
 }

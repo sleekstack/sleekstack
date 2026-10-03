@@ -8,7 +8,7 @@
   "priority": null,
   "spec": "fn-16-query-layer-follow-ups-kit-ssr-prefetch",
   "spec_path": ".flow/tasks/fn-16-query-layer-follow-ups-kit-ssr-prefetch.3.md",
-  "status": "todo",
+  "status": "done",
   "title": "react: useMutation idle on the server; delete the showcase workaround",
   "updated_at": "2026-10-03T11:51:59.804458Z"
 }

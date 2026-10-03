@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-15-effect-native-component-framework-mvp",
   "spec_path": ".flow/tasks/fn-15-effect-native-component-framework-mvp.5.md",
-  "status": "todo",
+  "status": "done",
   "title": "sleekstack check runs the component pass only for ui projects",
   "updated_at": "2026-10-02T17:42:00.522141Z"
 }

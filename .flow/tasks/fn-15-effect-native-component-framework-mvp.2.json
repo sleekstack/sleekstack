@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-15-effect-native-component-framework-mvp",
   "spec_path": ".flow/tasks/fn-15-effect-native-component-framework-mvp.2.md",
-  "status": "todo",
+  "status": "done",
   "title": "ui type tests: missing requirements and Catch narrowing",
   "updated_at": "2026-10-02T17:42:10.987737Z"
 }

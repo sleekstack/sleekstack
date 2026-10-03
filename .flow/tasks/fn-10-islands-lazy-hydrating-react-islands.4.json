@@ -11,7 +11,7 @@
   "priority": null,
   "spec": "fn-10-islands-lazy-hydrating-react-islands",
   "spec_path": ".flow/tasks/fn-10-islands-lazy-hydrating-react-islands.4.md",
-  "status": "todo",
+  "status": "done",
   "title": "Islands: Effect handoff (registry app scope, per-Island provide, refcount, unmount)",
   "updated_at": "2026-09-29T11:18:09.698323Z"
 }

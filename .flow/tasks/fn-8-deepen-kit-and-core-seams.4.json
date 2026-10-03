@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-8-deepen-kit-and-core-seams",
   "spec_path": ".flow/tasks/fn-8-deepen-kit-and-core-seams.4.md",
-  "status": "todo",
+  "status": "done",
   "title": "Typed SleekStackError details per code",
   "updated_at": "2026-09-28T16:16:12.389647Z"
 }
