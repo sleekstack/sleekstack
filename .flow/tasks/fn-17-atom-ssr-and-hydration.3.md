@@ -41,9 +41,13 @@ Size: M. Client seeding, keyed transport and the snapshot component (R3, R4).
 - [ ] Transport lookup exists only in `transport.ts`
 
 ## Done summary
-TBD
+Added `transport.ts` (keyed tag lookup, guarded parse, escaped encode), `LayerProvider` `hydrate`/`snapshotId` props seeding the provider store (also the inert server store), and `<AtomsSnapshot />` (server dehydrates; client re-renders the server text verbatim). Hydration inputs are fixed per scope and part of discarded-render adoption identity. Tests: packages/react/src/__tests__/hydrate.atoms.test.tsx (hydration with no mismatch and zero seeded runs, refresh, derived recompute, decode failure, malformed/non-object transport, keyed roots, unkeyed ambiguity, escaping, outside-provider error) and a managedScope adoption test.
 
+Notes: AtomsSnapshot treats a RegistryContext as "server" (jsdom has window). With renderToPipeableStream, readers still suspended when AtomsSnapshot renders are not in the snapshot (tree order, as spec'd).
+
+Tier: implementer opus at medium
+stage: impl-review - ran (codex fan-out NEEDS_WORK: adoption ignored hydrate/snapshotId, snapshotId could drift, multi-root test not hydrateRoot -> fixed -> SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 96178e5ce5f5019d680e7dccc4131a4d24b45c6f, 6f56ec6b40e74d758d6640448a537331ef8c2ae6
+- Tests: pnpm typecheck && pnpm test
 - PRs:
