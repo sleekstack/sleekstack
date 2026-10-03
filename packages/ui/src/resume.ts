@@ -16,8 +16,12 @@ export interface ResumeOptions<R, LE> {
   readonly container: Element
   readonly layer: Layer.Layer<Exclude<R, Store>, LE, never>
   readonly handlers: Readonly<Record<string, HandlerLoader<R>>>
-  /** Manifest key to its atom. Seeded with `store.set`, so each must be a writable whose write stores the value (`Atom.make(v)`); derived atoms are rejected. */
-  readonly atoms: Readonly<Record<string, Atom.Writable<any, any>>>
+  /**
+   * Manifest key to its atom. A serializable atom (any kind of value atom, derived included) is seeded through the
+   * store's hydrate seed, which bypasses `write`. A plain atom has no seed primitive, so it is seeded with `set` and
+   * must be a state atom whose write stores the value (`Atom.make(v)`); a plain read-only atom is `ManifestDecodeFailed`.
+   */
+  readonly atoms: Readonly<Record<string, Atom.Atom<any>>>
   readonly onError?: (cause: Cause.Cause<unknown>) => void
 }
 
@@ -54,16 +58,17 @@ const readManifest = (container: Element): { events: Array<string>; atoms: Recor
   return m
 }
 
-const decode = (atom: Atom.Atom<any> | undefined, key: string, value: unknown): unknown => {
-  if (!atom || !Atom.isWritable(atom)) throw new ManifestDecodeFailed({ key })
-  const info = atom.serializable
-  if (!info) return value
-  if (info.kind === 'result') throw new ManifestDecodeFailed({ key })
+// Validates one entry strictly (unlike `hydrate`, which drops a bad seed) and returns how to seed it.
+const decode = (atom: Atom.Atom<any> | undefined, key: string, value: unknown) => {
+  const info = atom?.serializable
+  if (!atom || info?.kind === 'result' || (!info && !Atom.isWritable(atom))) throw new ManifestDecodeFailed({ key })
+  if (!info) return { key, atom, value }
   try {
-    return Schema.decodeUnknownSync(info.schema)(value)
+    Schema.decodeUnknownSync(info.schema)(value)
   } catch (cause) {
     throw new ManifestDecodeFailed({ key, cause })
   }
+  return { key, atom, seed: { [info.key]: value } }
 }
 
 const original = (cause: Cause.Cause<unknown>): unknown => {
@@ -86,7 +91,7 @@ const snapshot = (e: Event): HandlerEvent => {
 const activate = async <R, LE>(opts: ResumeOptions<R, LE>): Promise<Resumed> => {
   const { container } = opts
   const m = readManifest(container)
-  const seeds = Object.entries(m.atoms).map(([key, v]) => [key, opts.atoms[key]!, decode(opts.atoms[key], key, v)] as const)
+  const seeds = Object.entries(m.atoms).map(([key, v]) => decode(opts.atoms[key], key, v))
   const binds = [...container.querySelectorAll('[data-sleek-bind]')].map((node) => {
     const key = node.getAttribute('data-sleek-bind')!
     if (!(key in m.atoms)) throw new ManifestInvalid({ reason: `bind key "${key}" missing from manifest` })
@@ -94,9 +99,10 @@ const activate = async <R, LE>(opts: ResumeOptions<R, LE>): Promise<Resumed> => 
   })
 
   const store = makeAtomStore()
-  for (const [key, atom, v] of seeds) {
+  for (const { key, atom, value, seed } of seeds) {
     try {
-      store.set(atom, v)
+      if (seed) store.hydrate(seed)
+      else store.set(atom as Atom.Writable<unknown>, value)
     } catch (cause) {
       await store.dispose()
       throw new ManifestDecodeFailed({ key, cause })
