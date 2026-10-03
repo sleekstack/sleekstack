@@ -148,10 +148,15 @@ export interface MutationHandle<I, T> {
 export function useMutation<I, T>(mutation: Mutation<I, T>): MutationHandle<I, T> {
   const m = kit(() => coreUseMutation(coreMutation(mutation)))
   const run = m.mutate
-  const mutate = useCallback((input: I) => kit(() => run(input)).then((exit) => {
-    if (Exit.isSuccess(exit)) return exit.value as T
-    throw normalize(exit.cause)
-  }), [run])
+  const mutate = useCallback((input: I) => {
+    // Server: the core throws MutateDuringRender synchronously; surface it as a sync SleekStackError.
+    if (typeof window === 'undefined') kit(() => run(input))
+    return (async () => {
+      const exit = await run(input)
+      if (Exit.isSuccess(exit)) return exit.value as T
+      throw normalize(exit.cause)
+    })()
+  }, [run])
   const s = m.state
   return {
     mutate,
@@ -183,7 +188,7 @@ const target = (t: QueryTarget | undefined) => (t === undefined || 'prefix' in t
  * The query cache of the nearest `LayerProvider`'s query store, e.g. to invalidate after a mutation.
  *
  * @returns `invalidate`, `refetch`, `setData`, `getData`.
- * @throws {@link SleekStackError} with code `Unknown` outside a `LayerProvider`.
+ * @throws {@link SleekStackError} with code `Unknown` outside a `LayerProvider` or during a server render.
  *
  * @example
  * ```tsx
