@@ -15,6 +15,7 @@ Query cache visibility in the devtools panel (spec: Devtools; edge case: client-
 ### Approach
 - The server dev buffer (`packages/next/src/runtime.ts:43-74`, 200 cap) is server-only; add a client-side ring buffer with per-kind caps so focus/interval refetches cannot evict other events, gated on the dev flag so nothing ships in production.
 - Emit entry key, state, observers, updatedAt, gc timer; a Queries tab in the panel (`packages/devtools/src/index.tsx`) with an empty state.
+<!-- Updated by plan-sync: fn-12.7 kit hooks are `useQuery`, `useMutation`, `useQueryClient`, `QueryProvider` in @sleekstack/kit/react; the buffer lives in @sleekstack/query so both kit and effect surfaces feed it -->
 - BLOCKED until fn-11.6 (the devtools package) is done: run `flowctl show fn-11-effect-first-runtime-graph-and-devtools.6` first and stop with NEEDS_HUMAN if it is not `done`; extend the bundle test to assert query devtools code is absent from production chunks.
 
 <!-- Updated by plan-sync: fn-12.2 exports modules via packages/query/src/index.ts; add the events export there -->

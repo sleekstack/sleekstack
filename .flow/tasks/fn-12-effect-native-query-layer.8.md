@@ -14,6 +14,7 @@ Read `Query.make` / `Mutation.make` fetchers like action bodies (spec: Analyzer)
 
 ### Approach
 - Reuse `yieldsOf` (`packages/analyze/src/extract.ts:598`) and the `actionOf` root/owner model (`:645`) so a query needing an unprovided Tag is `MissingDependency` at file:line, scoped to reaching runtimes.
+<!-- Updated by plan-sync: fn-12.7 kit facade is `cachedQuery` (packages/kit/src/query.ts, call id `kit/query#cachedQuery`) and `mutation` in @sleekstack/kit, with `fetch`/`run` generator bodies; also recognise them (not only `Query.make`/`Mutation.make`) alongside the ACTION_CALLS-style sets in extract.ts:36 -->
 - Key rule: static when the key is a function returning a tuple literal of literals and parameters; otherwise fail closed with `Computed`. Fixtures per error, fail-closed on imprecise types (`any`, unions), keyed by enclosing instance (`.flow/memory/bug/integration/static-list-evaluation-must-key-object-2026-09-29.md`).
 
 ### Investigation targets
