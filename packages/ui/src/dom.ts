@@ -52,6 +52,17 @@ const closeScope = (scope: Scope.CloseableScope | undefined): void => {
   if (scope) Effect.runFork(Scope.close(scope, Exit.void))
 }
 
+// Closes every run scope a never-built node owns (a discarded re-run result).
+const dropScopes = (node: Node): void => {
+  if (node._tag === 'Reactive') {
+    closeScope(node.scope)
+    dropScopes(node.child)
+  } else if (node._tag === 'Fragment' || node._tag === 'Element') {
+    if (node._tag === 'Fragment') closeScope(runScopes.get(node))
+    node.children.forEach(dropScopes)
+  }
+}
+
 const release = (o: Owner): void => {
   for (const kid of o.kids.splice(0)) kill(kid)
   for (const root of o.roots.splice(0)) root.unmount()
@@ -178,7 +189,7 @@ const rerun = (inst: Instance, env: Env): void => {
   inst.fiber = fiber
   fiber.addObserver((exit) => {
     if (inst.fiber !== fiber || inst.dead || !env.live()) {
-      if (Exit.isSuccess(exit) && exit.value._tag === 'Reactive') closeScope(exit.value.scope)
+      if (Exit.isSuccess(exit)) dropScopes(exit.value)
       return
     }
     inst.fiber = undefined
@@ -201,7 +212,7 @@ const swap = (inst: Instance, node: Node, env: Env): void => {
   const tree = build(own ? own.child : node, { ...env, defect: (e) => errors.push(e) }, content)
   if (errors.length > 0 || inst.dead || !env.live()) {
     release(content)
-    closeScope(own?.scope)
+    dropScopes(node)
     for (const e of errors) reportRenderError(e, env.onError)
     return
   }
@@ -250,6 +261,8 @@ export const mount = async <E, A, LE = never>(
   const noop: Mounted = { dispose: async () => {} }
   // Re-mount clears the previous generation first, so a pending or rejecting mount orphans nothing.
   teardown(container, state).catch((e) => reportRenderError(e, onError))
+  // A finalizer run by that teardown may itself have mounted here.
+  if (!current()) return noop
   const store = opts.store ?? makeAtomStore()
   const scope = Effect.runSync(Scope.make())
   state.close = async () => {

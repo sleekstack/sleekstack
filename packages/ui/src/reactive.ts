@@ -33,13 +33,18 @@ const store = (hook: string): Effect.Effect<AtomStore, never, Store> =>
 /** Reads an atom and registers it as a dependency of the running component instance. */
 export const useAtomValue = <A>(atom: Atom.Atom<A>): Effect.Effect<A, never, Store> =>
   Effect.flatMap(store('useAtomValue'), (s) =>
-    Effect.flatMap(Collector, (c) => {
-      const value = s.get(atom)
-      if (!c || c.has(atom)) return Effect.succeed(value)
-      c.set(atom, value)
-      // Hold the atom for the run's lifetime so it is not dropped (and reset) before the renderer subscribes.
-      return Effect.flatMap(RenderScope, (scope) => (scope ? Effect.as(Scope.addFinalizer(scope, Effect.sync(s.retain(atom))), value) : Effect.succeed(value)))
-    }),
+    Effect.flatMap(Collector, (c) =>
+      Effect.flatMap(RenderScope, (scope) => {
+        const first = c !== undefined && !c.has(atom)
+        // Hold the atom for the run's lifetime so it is not dropped (and reset) before the renderer subscribes.
+        const hold = first && scope ? Effect.flatMap(Effect.sync(() => s.retain(atom)), (release) => Scope.addFinalizer(scope, Effect.sync(release))) : Effect.void
+        return Effect.map(hold, () => {
+          const value = s.get(atom)
+          if (first) c.set(atom, value)
+          return value
+        })
+      }),
+    ),
   )
 
 /** Returns a setter for `atom`; registers nothing. */
@@ -61,6 +66,22 @@ const asFallback = (n: Node): Node => {
   return wrapped
 }
 
+const owned = (child: Node, scope: Scope.CloseableScope): Node => {
+  const wrapped: Node = { _tag: 'Fragment', children: [child] }
+  runScopes.set(wrapped, scope)
+  return wrapped
+}
+
+// Runs a fallback in its own child of `RenderScope`, owned by the renderer like an untracked run.
+const scopedRun = (run: Effect.Effect<Node, any, any>): Effect.Effect<Node, any, any> =>
+  Effect.flatMap(RenderScope, (parent) =>
+    parent
+      ? Effect.flatMap(Scope.fork(parent, ExecutionStrategy.sequential), (own) =>
+          Effect.onExit(Effect.map(Effect.provideService(run, RenderScope, own), (n) => owned(n, own)), (exit) => (Exit.isSuccess(exit) ? Effect.void : Scope.close(own, exit))),
+        )
+      : run,
+  )
+
 type Handler = Context.Tag.Service<Handlers>[number]
 
 // A re-run is outside any `Catch` frame: apply the innermost captured handler whose tag matches; a failing fallback goes to the handlers outside it.
@@ -71,16 +92,11 @@ const withHandlers = (run: Effect.Effect<Node, any, any>, hs: ReadonlyArray<Hand
     (e: any) => {
       let i = hs.length - 1
       while (i >= 0 && hs[i]!.tag !== e._tag) i--
-      return i < 0 ? Effect.fail(e) : Effect.map(withHandlers(Effect.provideService(hs[i]!.fallback(e), Handlers, hs.slice(0, i)), hs.slice(0, i)), asFallback)
+      return i < 0 ? Effect.fail(e) : Effect.map(withHandlers(scopedRun(Effect.provideService(hs[i]!.fallback(e), Handlers, hs.slice(0, i))), hs.slice(0, i)), asFallback)
     },
   )
 const handled = (run: Effect.Effect<Node, any, any>): Effect.Effect<Node, any, any> => Effect.flatMap(Handlers, (hs) => withHandlers(run, hs))
 
-const owned = (child: Node, scope: Scope.CloseableScope): Node => {
-  const wrapped: Node = { _tag: 'Fragment', children: [child] }
-  runScopes.set(wrapped, scope)
-  return wrapped
-}
 
 /**
  * Runs a component as one instance: fresh collector, own scope, captured context; returns a `Reactive` node when it read atoms.

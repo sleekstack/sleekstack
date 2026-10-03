@@ -243,6 +243,13 @@ describe('reactive DOM', () => {
   it('a change between an async first-render read and its subscription re-runs', async () => {
     const a = Atom.make(0)
     const store = makeAtomStore()
+    let held = 0
+    const retain = store.retain
+    vi.spyOn(store, 'retain').mockImplementation((atom) => {
+      held++
+      const release = retain(atom)
+      return () => (held--, release())
+    })
     const C = () => Effect.flatMap(useAtomValue(a), (n) => Effect.as(Effect.sleep(10), el('b', {}, String(n))))
     const container = document.createElement('div')
     await act(async () => {
@@ -253,6 +260,9 @@ describe('reactive DOM', () => {
     })
     await act(async () => void (await new Promise((r) => setTimeout(r, 30))))
     expect(container.textContent).toBe('7')
+    expect(held).toBeGreaterThan(0)
+    await act(() => handles.pop()!.dispose())
+    expect(held).toBe(0)
   })
 
   it('a committed fallback releases the replaced run scope; an untracked run scope goes with its ancestor', async () => {
