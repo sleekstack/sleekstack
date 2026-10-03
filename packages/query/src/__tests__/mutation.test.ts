@@ -167,8 +167,8 @@ describe('Mutation', () => {
   describe('a refetch landing mid-mutation becomes the base', () => {
     const refetching = () => {
       const store = makeAtomStore()
-      let server = 'base'
-      const q = Query.make({ key: (id: string) => ['todo', id], fetch: () => Effect.sync(() => server), staleTime: '1 hour' })
+      let server: string | Error = 'base'
+      const q = Query.make({ key: (id: string) => ['todo', id], fetch: () => (server instanceof Error ? Effect.fail(server) : Effect.succeed(server)), staleTime: '1 hour' })
       const client = Queries.make(store)
       client.setData(q('1'), 'base')
       Query.observe(store, q('1'))
@@ -177,7 +177,7 @@ describe('Mutation', () => {
         run: (i: number) => Deferred.await(gates[i]!),
         onMutate: (i: number) => Mutation.optimistic(q('1'), (p) => `${Option.getOrElse(p, () => '')}+${i}`),
       }))
-      const refetch = (value: string) => { server = value; client.refetch(q('1')) }
+      const refetch = (value: string | Error) => { server = value; client.refetch(q('1')) }
       return { q, client, gates, r, refetch }
     }
 
@@ -194,6 +194,16 @@ describe('Mutation', () => {
       Effect.runSync(Deferred.succeed(gates[1]!, undefined))
       await p1
       expect(client.getData(q('1'))).toEqual(Option.some('fresh+1'))
+    })
+
+    it('a failed refetch is not a new base', async () => {
+      const { q, client, gates, r, refetch } = refetching()
+      const p0 = r.mutate(0)
+      await tick()
+      refetch(new Error('down'))
+      Effect.runSync(Deferred.fail(gates[0]!, 'x'))
+      await p0
+      expect(client.getData(q('1'))).toEqual(Option.some('base'))
     })
 
     it('a refetch equal to the optimistic value still becomes the rollback base', async () => {

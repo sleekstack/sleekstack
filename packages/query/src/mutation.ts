@@ -169,7 +169,7 @@ const build = <I, A, E, R>(store: AtomStore, { options: o }: Mutation<I, A, E, R
 
 // Per-client, per-query log of optimistic writes over the value beneath the oldest one. The cached
 // value is the log folded over that base; a write leaves the log on rollback, and folds into the base
-// once it and every older write have committed. While the log lives, a settled cache result the log did
+// once it and every older write have committed. While the log lives, a settled successful result the log did
 // not write (a refetch or an outside write) becomes the new base and the layers are re-applied over it.
 interface Layer { readonly f: (previous: Option.Option<any>) => any; committed: boolean }
 interface Log { base: Option.Option<unknown>; layers: Array<Layer>; render: () => void; stop: () => void }
@@ -206,7 +206,7 @@ export const optimistic = <A>(
         stop: store
           ? store.subscribe(atom, () => {
               const r = store.get(atom)
-              if (shown === undefined || r === shown || r.waiting) return
+              if (shown === undefined || r === shown || r.waiting || !Result.isSuccess(r)) return
               l.base = client.getData(atom)
               l.render()
             })

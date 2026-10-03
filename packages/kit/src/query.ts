@@ -112,7 +112,7 @@ export const coreMutation = (m: Mutation<any, unknown>) => mutationCores.get(m)!
  *
  * @param options - `key`, `fetch` (a generator; `yield*` Tags), `staleTime`, `gcTime`, `retry`.
  * @returns The family; equal keys return the same query.
- * @throws {@link SleekStackError} with code `Unknown` (from the returned family) when `key(args)` is not serializable.
+ * @throws {@link SleekStackError} with code `InvalidQueryKey` (from the returned family) when `key(args)` is not serializable.
  *
  * @example
  * ```ts
