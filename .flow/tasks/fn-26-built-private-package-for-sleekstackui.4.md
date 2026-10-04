@@ -24,9 +24,14 @@ Automated version of the spike: pack core, query and ui, install in a temp proje
 - [ ] A leaked `workspace:*` fails the test; two `effect` copies are called out in README as unsupported (R4).
 
 ## Done summary
-TBD
+packages/ui/src/__tests__/pack.test.ts builds and packs core, query and ui, installs the tarballs in a temp project (pnpm-workspace.yaml overrides for core/query, allowBuilds esbuild), runs tsc on a JSX component plus a React guest, bundles with esbuild and runs it under jsdom: renderToString, mount and ./query useQuery all verified. Asserts no workspace:* in packed manifests, effect is a peer (not a dependency), one effect copy installed, ui dist/index.js source map ships with sourcesContent. README gains an Installing section: one effect copy only, two copies unsupported; Node-native ESM unsupported. ui gains @types/node devDependency (lockfile updated) for the test's typecheck.
 
+Note: the test runs `pnpm run build` itself in core/query/ui (turbo test only orders ^build), and installs with --prefer-offline, so it needs network on a cold pnpm store (~7s warm).
+
+Gate: pnpm turbo run test typecheck --filter=@sleekstack/ui... -> 8/8 tasks successful; ui 151 tests passed.
+
+stage: impl-review - skipped(config: conductor requested no review)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 71300f55d526a94d2c0f6db468feb7924351705b
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/ui...
 - PRs:
