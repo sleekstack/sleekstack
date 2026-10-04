@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-04T10:43:34.678953Z",
+  "depends_on": [
+    "fn-24-pending-async-boundaries-for.1"
+  ],
+  "id": "fn-24-pending-async-boundaries-for.4",
+  "priority": null,
+  "spec": "fn-24-pending-async-boundaries-for",
+  "spec_path": ".flow/tasks/fn-24-pending-async-boundaries-for.4.md",
+  "status": "todo",
+  "title": "ui query: useSuspenseQuery with shared observer retain, tagged QueryFailed error",
+  "updated_at": "2026-10-04T10:43:34.678953Z"
+}
