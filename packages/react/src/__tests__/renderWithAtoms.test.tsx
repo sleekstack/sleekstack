@@ -16,8 +16,9 @@ const Db = Context.GenericTag<{ name: string }>('SsrDb')
 const Other = Context.GenericTag<{ name: string }>('SsrOther')
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
-const stream = (element: React.ReactNode, options: RenderToPipeableStreamOptions = {}) =>
-  new Promise<{ html: string; closed: Promise<void> }>((resolve, reject) => {
+// `manual`: the caller fires `finish` itself, so a test can assert what happens before the destination finishes.
+const stream = (element: React.ReactNode, options: RenderToPipeableStreamOptions = {}, manual = false) =>
+  new Promise<{ html: string; closed: Promise<void>; finish: () => void }>((resolve, reject) => {
     let html = ''
     const decoder = new TextDecoder()
     // Minimal Node Writable for Fizz's pipe (no @types/node here); emits 'finish' a tick after end, like a socket.
@@ -25,8 +26,9 @@ const stream = (element: React.ReactNode, options: RenderToPipeableStreamOptions
     const sink = {
       write: (chunk: Uint8Array | string) => { html += typeof chunk === 'string' ? chunk : decoder.decode(chunk); return true },
       end: () => {
-        resolve({ html, closed: s.closed })
-        setTimeout(() => { for (const l of listeners.finish ?? []) l() }, 5)
+        const finish = () => { for (const l of listeners.finish ?? []) l() }
+        resolve({ html, closed: s.closed, finish })
+        if (!manual) setTimeout(finish, 5)
       },
       on: (event: string, l: () => void) => ((listeners[event] ??= []).push(l), sink),
       destroy: (e: unknown) => reject(e),
@@ -102,9 +104,10 @@ describe('renderWithAtoms', () => {
     let interrupted = 0
     const forever = Atom.make(Effect.never.pipe(Effect.onInterrupt(() => Effect.sync(() => void interrupted++))))
     const Read = () => <i>{useAtomValue(forever)._tag}</i>
-    const { closed } = await stream(<Opened log={log} name="a"><Opened log={log} name="b"><Opened log={log} name="c"><Read /></Opened></Opened></Opened>)
-    await sleep(1)
+    const { closed, finish } = await stream(<Opened log={log} name="a"><Opened log={log} name="b"><Opened log={log} name="c"><Read /></Opened></Opened></Opened>, {}, true)
+    await sleep(20)
     expect(log).toEqual([]) // output ended, destination not finished yet
+    finish()
     await closed
     expect(log).toEqual(['c', 'b', 'a'])
     expect(interrupted).toBe(1)
