@@ -22,7 +22,7 @@ export function libId(sym: ts.Symbol | undefined, checker: ts.TypeChecker): stri
   if (sym.flags & ts.SymbolFlags.Alias) sym = checker.getAliasedSymbol(sym)
   const file = sym.declarations?.[0]?.getSourceFile().fileName.replace(/\\/g, '/')
   if (!file) return undefined
-  const own = /\/(?:packages|@sleekstack)\/(kit|core|next|runtime|query|ui)\/src\/(.+)\.tsx?$/.exec(file)
+  const own = /\/(?:packages|@sleekstack)\/(kit|core|next|runtime|query|ui)\/(?:src|dist)\/(.+?)(?:\.d)?\.tsx?$/.exec(file)
   if (own) return `${own[1]}/${own[2]}#${sym.name}`
   if (/\/effect\/dist\/dts\/Context\.d\.ts$/.test(file)) return `effect/Context#${sym.name}`
   if (/\/effect\/dist\/dts\/Effect\.d\.ts$/.test(file)) return `effect/Effect#${sym.name}`
