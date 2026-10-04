@@ -4,7 +4,7 @@ import { Component, createElement, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { createRoot, type Root } from 'react-dom/client'
 import { reportRenderError, runToNode } from './component'
-import type { ElementNode, EventBinding, FragmentNode, GuestNode, Node, ReactiveNode } from './node'
+import type { BindNode, ElementNode, EventBinding, FragmentNode, GuestNode, Node, ReactiveNode } from './node'
 import { commitSlots, disposeSlots, dropSlots, DuplicateKey, fallbacks, Frame, makeFrame, RenderScope, type RunFrame, runScopes, Store } from './reactive'
 import { checkAttr, checkTag } from './string'
 
@@ -39,6 +39,8 @@ interface Live {
   readonly root?: Root
   /** An element's event state; shared by every Live of that element across patches. */
   readonly ev?: Events
+  /** A `Bind` node's store subscription and atom hold; released when the node is dropped. */
+  readonly off?: () => void
 }
 // One direct listener per event name reads the current binding, so a patch swaps closures without re-listening.
 interface Events {
@@ -87,6 +89,7 @@ const dropScopes = (node: Node): void => {
 // Releases what a live subtree holds (instances, guest roots); its DOM is the caller's.
 const drop = (l: Live): void => {
   if (l.inst) kill(l.inst)
+  l.off?.()
   if (l.root) l.root.unmount()
   if (l.ev) {
     l.ev.dead = true
@@ -243,8 +246,13 @@ const build = (node: Leaf, key: string | undefined, env: Env, scopes: Array<Scop
     switch (node._tag) {
       case 'Text':
         return { node, dom: env.doc.createTextNode(node.text), kids: [] }
-      case 'Bind':
-        return { node, dom: env.doc.createTextNode(String(env.store.get(node.atom))), kids: [] }
+      case 'Bind': {
+        // Live on its own: the text follows the atom without re-running the enclosing component.
+        const dom = env.doc.createTextNode(String(read(env.store, node.atom)))
+        const release = env.store.retain(node.atom)
+        const unsub = env.store.subscribe(node.atom, () => void (dom.nodeValue = String(read(env.store, node.atom))))
+        return { node, dom, kids: [], off: () => (unsub(), release()) }
+      }
       case 'Element': {
         const el = env.doc.createElement(checkTag(node.tag))
         for (const [k, v] of Object.entries(node.attrs)) {
@@ -297,9 +305,9 @@ const buildAll = (nodes: ReadonlyArray<Node>, env: Env, scopes: Array<Scope.Clos
 const patch = (prev: Live, node: Leaf, key: string | undefined, env: Env, p: Plan): Live => {
   try {
     const keyed = key === undefined ? {} : { key }
-    if (node._tag === 'Text' || node._tag === 'Bind') {
-      const text = node._tag === 'Text' ? node.text : String(env.store.get(node.atom))
-      if (prev.dom.nodeValue !== text) p.ops.push(() => void (prev.dom.nodeValue = text))
+    if (node._tag === 'Bind') return prev
+    if (node._tag === 'Text') {
+      if (prev.dom.nodeValue !== node.text) p.ops.push(() => void (prev.dom.nodeValue = node.text))
       return { node, dom: prev.dom, kids: [] }
     }
     if (node._tag === 'Guest') {
@@ -360,7 +368,8 @@ const adopt = (prev: Live, node: ReactiveNode, key: string | undefined, env: Env
 }
 
 const same = (a: Leaf, b: Leaf): boolean =>
-  a._tag === b._tag && (a._tag === 'Element' ? a.tag === (b as ElementNode).tag : a._tag !== 'Guest' || a.component === (b as GuestNode).component)
+  a._tag === b._tag &&
+  (a._tag === 'Element' ? a.tag === (b as ElementNode).tag : a._tag === 'Bind' ? a.atom === (b as BindNode).atom : a._tag !== 'Guest' || a.component === (b as GuestNode).component)
 
 // Matching: instances by id; others by key and type, else the next unkeyed old sibling by position (a separate pool).
 const patchChildren = (parent: globalThis.Node, old: ReadonlyArray<Live>, nodes: ReadonlyArray<Node>, env: Env, p: Plan): Array<Live> => {

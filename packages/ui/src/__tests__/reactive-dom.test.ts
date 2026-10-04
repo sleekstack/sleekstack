@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { Atom, makeAtomStore } from '@sleekstack/core'
-import { Cause, Context, Data, Deferred, Effect, Layer } from 'effect'
+import { Cause, Context, Data, Deferred, Effect, Layer, Schema } from 'effect'
 import { act, createElement, useEffect, useState } from 'react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { Boundary, el, fromReact, mount, type Mounted, Provider, Store, useAtomValue, useLocal, useSetAtom } from '../index'
@@ -725,5 +725,31 @@ describe('host events', () => {
     expect(interrupted).toBe(2)
     a.click()
     expect(ran).toBe(1)
+  })
+
+  it('a bound atom child follows its atom without re-running the component; drop and swap release it', async () => {
+    const mk = (key: string) => Atom.serializable(Atom.make(1), { key, schema: Schema.Number })
+    const a = mk('a')
+    const b = mk('b')
+    const pick = Atom.make<'a' | 'b' | 'none'>('a')
+    let runs = 0
+    const P = () => Effect.flatMap(useAtomValue(pick), (w) => (runs++, jsx('p', { children: w === 'a' ? a : w === 'b' ? b : null })))
+    const store = counted()
+    const { container } = await go(jsx(P, {}), { store })
+    const text = () => container.querySelector('p')!.textContent
+    expect(text()).toBe('1')
+    store.set(a, 5)
+    expect(text()).toBe('5')
+    expect(runs).toBe(1)
+    store.set(pick, 'b')
+    await tick()
+    expect(text()).toBe('1')
+    expect(subs.get(a)).toBe(0)
+    expect(subs.get(b)).toBe(1)
+    store.set(b, 7)
+    expect(text()).toBe('7')
+    store.set(pick, 'none')
+    await tick()
+    expect(subs.get(b)).toBe(0)
   })
 })
