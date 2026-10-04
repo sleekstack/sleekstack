@@ -10,9 +10,14 @@ class Boom extends Data.TaggedError('Boom')<{}> {}
 describe('renderToString', () => {
   it('renders the UserCard example to exact markup', async () => {
     expect(await renderToString(app('1'), { layer: UserRepoTest })).toBe(
-      '<div class="card"><h2>Ada</h2><span class="avatar">Ada</span></div>',
+      '<div class="card"><h2>Ada</h2><sleek-guest style="display: contents;"><span class="avatar">Ada</span></sleek-guest></div>',
     )
     expect(await renderToString(app('2'), { layer: UserRepoTest })).toBe('<p>Not found</p>')
+  })
+
+  it('separates adjacent text, also across fragments, with a comment marker', async () => {
+    const html = await renderToString(Effect.succeed(el('p', {}, 'a', fragment('b', el('i')), 'c')), { layer: Layer.empty })
+    expect(html).toBe('<p>a<!--sleek-t-->b<i></i>c</p>')
   })
 
   it('rejects an uncaught failure with the original error', async () => {
@@ -34,7 +39,7 @@ describe('renderToString', () => {
   it('renders a fromReact guest with its props inline', async () => {
     const Greet = fromReact(({ who }: { who: string }) => createElement('b', null, `hi ${who}`))
     const tree = Effect.map(Greet({ who: 'Bo' }), (g) => el('div', {}, g))
-    expect(await renderToString(tree, { layer: Layer.empty })).toBe('<div><b>hi Bo</b></div>')
+    expect(await renderToString(tree, { layer: Layer.empty })).toBe('<div><sleek-guest style="display: contents;"><b>hi Bo</b></sleek-guest></div>')
   })
 
   it('escapes text and attribute values', async () => {

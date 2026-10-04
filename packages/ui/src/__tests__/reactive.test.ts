@@ -16,7 +16,7 @@ const Counter = () => Effect.map(useAtomValue(count), (n) => el('b', {}, String(
 
 describe('reactive components', () => {
   it('renders the current atom value with no wrapper element', async () => {
-    expect(await renderToString(jsx(Counter, {}), { layer: Layer.empty })).toBe('<b>3</b>')
+    expect(await renderToString(jsx(Counter, {}), { layer: Layer.empty })).toBe('<sleek-reactive style="display: contents;"><b>3</b></sleek-reactive>')
   })
 
   it('returns a Reactive node only when atoms were read', async () => {
@@ -35,7 +35,7 @@ describe('reactive components', () => {
   it('sees an enclosing Provider layer', async () => {
     const Hi = () => Effect.zipWith(Greeting, useAtom(count), (g, [n]) => el('p', {}, `${g} ${n}`))
     const app = jsx(Provider, { layer: Layer.succeed(Greeting, 'hi'), children: jsx(Hi, {}) })
-    expect(await renderToString(app, { layer: Layer.empty })).toBe('<p>hi 3</p>')
+    expect(await renderToString(app, { layer: Layer.empty })).toBe('<sleek-reactive style="display: contents;"><p>hi 3</p></sleek-reactive>')
   })
 
   it('keeps a scoped Provider layer alive for re-runs; closing a superseded run scope releases it', async () => {
@@ -66,8 +66,8 @@ describe('reactive components', () => {
     expect(await renderToString(Counter(), { layer: Layer.empty })).toBe('<b>3</b>')
   })
 
-  it('rejects a user-built sleek-reactive element', async () => {
-    await expect(renderToString(Effect.succeed(el('sleek-reactive')), { layer: Layer.empty })).rejects.toThrow(TypeError)
+  it.each(['sleek-reactive', 'SLEEK-GUEST'])('rejects a user-built %s element', async (tag) => {
+    await expect(renderToString(Effect.succeed(el(tag)), { layer: Layer.empty })).rejects.toThrow(TypeError)
   })
 
   describe('instance identity', () => {
@@ -176,7 +176,7 @@ describe('reactive components', () => {
     })
 
     it('renderToString renders initial; outside an instance the setter is a no-op', async () => {
-      expect(await renderToString(jsx(Local, { name: 'a' }), { layer: Layer.empty })).toBe('<i>a0</i>')
+      expect(await renderToString(jsx(Local, { name: 'a' }), { layer: Layer.empty })).toBe('<sleek-reactive style="display: contents;"><i>a0</i></sleek-reactive>')
       const [n, set] = await Effect.runPromise(Effect.provideService(useLocal(7), Store, makeAtomStore()))
       expect(n).toBe(7)
       expect(set(1)).toBeUndefined()

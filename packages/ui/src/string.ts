@@ -12,10 +12,14 @@ const escape = (s: string): string => s.replace(/[&<>"']/g, (c) => ESCAPES[c]!)
 
 const TAG = /^[a-zA-Z][a-zA-Z0-9-]*$/
 const ATTR = /^[^\s"'<>\/=\x00-\x1f]+$/
-/** Rejects invalid tag names and the renderer-written `sleek-reactive`. */
+/** Renderer-written host tags; user-built elements may not use them. */
+const RESERVED_TAGS = new Set(['sleek-reactive', 'sleek-guest'])
+/** Separates adjacent text nodes so HTML parsing keeps them apart (hydration maps one `Text` to one DOM text node). */
+export const TEXT_SEPARATOR = '<!--sleek-t-->'
+/** Rejects invalid tag names and the renderer-written `sleek-reactive` / `sleek-guest` hosts. */
 export const checkTag = (name: string): string => checkName(TAG, 'tag', name)
 const checkName = (re: RegExp, kind: string, name: string): string => {
-  if (!re.test(name) || (kind === 'tag' && name.toLowerCase() === 'sleek-reactive')) throw new TypeError(`Invalid ${kind} name: ${JSON.stringify(name)}`)
+  if (!re.test(name) || (kind === 'tag' && RESERVED_TAGS.has(name.toLowerCase()))) throw new TypeError(`Invalid ${kind} name: ${JSON.stringify(name)}`)
   return name
 }
 
@@ -86,6 +90,15 @@ const boundAttrs = (node: ElementNode, c: Collector): string =>
     })
     .join('')
 
+// Same host markup the DOM renderer creates (`dom.ts` build), so server DOM maps one-to-one onto the client tree.
+const HOST_OPEN = (tag: string): string => `<${tag} style="display: contents;">`
+
+const flatten = (nodes: ReadonlyArray<Node>): Array<Node> => nodes.flatMap((n) => (n._tag === 'Fragment' ? flatten(n.children) : [n]))
+const serializeAll = (nodes: ReadonlyArray<Node>, c: Collector): string =>
+  flatten(nodes)
+    .map((n, i, list) => (n._tag === 'Text' && list[i - 1]?._tag === 'Text' ? TEXT_SEPARATOR : '') + serialize(n, c))
+    .join('')
+
 const serialize = (node: Node, c: Collector): string => {
   switch (node._tag) {
     case 'Text':
@@ -101,23 +114,23 @@ const serialize = (node: Node, c: Collector): string => {
       return `<sleek-bind data-sleek-bind="${escape(key)}">${escape(String(value))}</sleek-bind>`
     }
     case 'Fragment':
-      return node.children.map((x) => serialize(x, c)).join('')
+      return serializeAll(node.children, c)
     case 'Element': {
       checkTag(node.tag)
       const attrs = Object.entries(node.attrs)
         .map(([k, v]) => (checkAttr(k, v), ` ${k}="${escape(v)}"`))
         .join('') + boundAttrs(node, c)
       const on = node.on ? handlerAttrs(node.on, c) : ''
-      return `<${node.tag}${attrs}${on}>${node.children.map((x) => serialize(x, c)).join('')}</${node.tag}>`
+      return `<${node.tag}${attrs}${on}>${serializeAll(node.children, c)}</${node.tag}>`
     }
     case 'Reactive':
-      return serialize(node.child, c)
+      return `${HOST_OPEN('sleek-reactive')}${serialize(node.child, c)}</sleek-reactive>`
     case 'Guest':
       try {
         const html = reactRenderToString(createElement(node.component, node.props))
         // Guests stay inert under resume: any `data-sleek-` in their markup is rejected (parser-proof; also rejects such text).
         if (/data-sleek-/i.test(html)) throw new TypeError('A guest rendered a reserved data-sleek-* attribute')
-        return html
+        return `${HOST_OPEN('sleek-guest')}${html}</sleek-guest>`
       } catch (error) {
         reportRenderError(error, c.onError)
         return ''
