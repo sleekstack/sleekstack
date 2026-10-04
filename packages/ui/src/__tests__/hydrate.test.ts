@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { Atom } from '@sleekstack/core'
-import { Effect, Layer, Schema } from 'effect'
+import { Cause, Context, Effect, Layer, Schema } from 'effect'
 import { act } from 'react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { bind, el, HydrateConflict, hydrateMount, mount, type Mounted, renderToString, useAtomValue, useLocal } from '../index'
+import { bind, Boundary, el, HydrateConflict, HydrationMismatch, hydrateMount, mount, type Mounted, renderToString, useAtomValue, useLocal } from '../index'
 import { jsx as rawJsx } from '../jsx-runtime'
 
 const jsx = (type: any, props: any) => rawJsx(type, props)
@@ -93,5 +93,100 @@ describe('hydrateMount', () => {
     const app = () => Effect.succeed(el('p', {}, bind(count, 'n')))
     const { container } = await serverThenHydrate(app)
     expect(container.innerHTML).toBe('<p>3</p>')
+  })
+})
+
+class Greeting extends Context.Tag('Greeting')<Greeting, string>() {}
+class Boom extends Error {
+  readonly _tag = 'Boom'
+}
+
+// Hydrates `server` markup (optionally mutated) with `client`; returns the mismatches reported and a fresh client render.
+const mismatchCase = async (opts: { server: () => any; client: () => any; serverLayer?: Layer.Layer<any>; clientLayer?: Layer.Layer<any>; html?: (h: string) => string; mutate?: (c: Element) => void }) => {
+  const container = document.createElement('div')
+  const html = await renderToString(opts.server(), { layer: opts.serverLayer ?? Layer.empty })
+  container.innerHTML = opts.html ? opts.html(html) : html
+  opts.mutate?.(container)
+  const onError = vi.fn()
+  await act(async () => void handles.push(await hydrateMount(opts.client(), { layer: (opts.clientLayer ?? Layer.empty) as any, container, onError })))
+  const fresh = document.createElement('div')
+  await act(async () => void handles.push(await mount(opts.client(), { layer: (opts.clientLayer ?? Layer.empty) as any, container: fresh, onError: () => {} })))
+  const errors = onError.mock.calls.map(([c]) => Cause.squash(c))
+  return { container, fresh, errors, mismatches: errors.filter((e) => e instanceof HydrationMismatch) }
+}
+
+describe('hydrateMount mismatch', () => {
+  it('a non-deterministic render reports one HydrationMismatch and the DOM equals a client render', async () => {
+    let n = 0
+    const app = () => jsx('div', { children: [jsx('b', { children: 'same' }), jsx('i', { children: `t${n++}` })] })
+    const { container, fresh, mismatches } = await mismatchCase({ server: app, client: app })
+    expect(mismatches).toHaveLength(1)
+    expect(mismatches[0]).toMatchObject({ _tag: 'HydrationMismatch', expected: 'Text', found: '#text' })
+    expect(container.innerHTML).toBe(fresh.innerHTML.replace('t2', 't1'))
+  })
+
+  it('a differing client Layer is a mismatch only when the output differs', async () => {
+    const App = () => Effect.map(Greeting, (g) => el('p', {}, g))
+    const same = await mismatchCase({ server: () => jsx(App, {}), client: () => jsx(App, {}), serverLayer: Layer.succeed(Greeting, 'hi'), clientLayer: Layer.succeed(Greeting, 'hi') })
+    expect(same.errors).toEqual([])
+    const differ = await mismatchCase({ server: () => jsx(App, {}), client: () => jsx(App, {}), serverLayer: Layer.succeed(Greeting, 'hi'), clientLayer: Layer.succeed(Greeting, 'bye') })
+    expect(differ.mismatches).toHaveLength(1)
+    expect(differ.container.innerHTML).toBe(differ.fresh.innerHTML)
+  })
+
+  it('a Boundary fallback rendered on the server is replaced by the content that succeeds on the client', async () => {
+    const tree = (fail: boolean) => () =>
+      jsx(Boundary, { tag: 'Boom', fallback: () => Effect.succeed(el('em', {}, 'caught')), children: fail ? Effect.fail(new Boom()) : Effect.succeed(el('p', {}, 'ok')) })
+    const { container, fresh, mismatches } = await mismatchCase({ server: tree(true), client: tree(false) })
+    expect(mismatches).toHaveLength(1)
+    expect(container.innerHTML).toBe(fresh.innerHTML)
+    expect(container.textContent).toBe('ok')
+  })
+
+  it('browser-mutated DOM: a replaced node and an injected extra node each report once', async () => {
+    const app = () => jsx('ul', { children: [jsx('li', { children: 'a' }), jsx('li', { children: 'b' })] })
+    const { container, fresh, mismatches } = await mismatchCase({
+      server: app,
+      client: app,
+      mutate: (c) => {
+        c.querySelector('li')!.replaceWith(document.createElement('span'))
+        c.querySelector('ul')!.append(document.createElement('ins'), document.createElement('ins'))
+      },
+    })
+    expect(mismatches.map((m) => [m.expected, m.found])).toEqual([
+      ['<li>', 'SPAN'],
+      ['nothing', 'INS'],
+    ])
+    expect(container.innerHTML).toBe(fresh.innerHTML)
+  })
+
+  it('a resume manifest script is ignored without a report', async () => {
+    const app = () => jsx('p', { children: 'x' })
+    const { container, errors } = await mismatchCase({ server: app, client: app, html: (h) => `${h}<script type="application/json" data-sleek-manifest>{}</script>` })
+    expect(errors).toEqual([])
+    expect(container.innerHTML).toBe('<p>x</p>')
+  })
+
+  // Documented non-goal: the parser inserts <tbody>, so the walk sees a mismatch and recovers.
+  it('parser-normalised DOM is not adopted: it reports and recovers to a client render', async () => {
+    const app = () => jsx('table', { children: jsx('tr', { children: jsx('td', { children: 'c' }) }) })
+    const { container, fresh, mismatches } = await mismatchCase({ server: app, client: app })
+    expect(mismatches.length).toBeGreaterThan(0)
+    expect(container.innerHTML).toBe(fresh.innerHTML)
+  })
+
+  it('a renderer defect during the walk falls back to a full client render of the container', async () => {
+    const container = document.createElement('div')
+    container.innerHTML = await renderToString(jsx('div', { children: [jsx('b', { children: 'ok' }), jsx('i', { children: 'x' })] }), { layer: Layer.empty })
+    const server = [...container.querySelectorAll('b')]
+    const onError = vi.fn()
+    // An invalid attribute name makes `checkAttr` throw while adopting the client tree.
+    const client = () => Effect.succeed(el('div', {}, el('b', {}, 'ok'), el('i', { 'bad name': 'v' }, 'x')))
+    await act(async () => void handles.push(await hydrateMount(client(), { layer: Layer.empty, container, onError })))
+    expect(onError).toHaveBeenCalled()
+    expect(container.querySelector('b')).not.toBe(server[0])
+    const fresh = document.createElement('div')
+    await act(async () => void handles.push(await mount(client(), { layer: Layer.empty, container: fresh, onError: () => {} })))
+    expect(container.innerHTML).toBe(fresh.innerHTML)
   })
 })

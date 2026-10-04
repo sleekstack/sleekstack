@@ -1,8 +1,8 @@
-import { Data, type Cause, type Effect, type Layer, type Scope } from 'effect'
+import { Cause, Data, type Effect, type Layer, type Scope } from 'effect'
 import type { AtomStore } from '@sleekstack/core'
 import { createRoot } from 'react-dom/client'
 import { reportRenderError } from './component'
-import { build, type Env, type Events, flat, type Instance, keysOf, type Leaf, listen, type Live, type Mounted, owned, renderGuest, start, watch } from './dom'
+import { build, mount, type Env, type Events, flat, type Instance, keysOf, type Leaf, listen, type Live, type Mounted, owned, renderGuest, start, watch } from './dom'
 import type { Node } from './node'
 import type { Store } from './reactive'
 import { checkAttr, checkTag, TEXT_SEPARATOR } from './string'
@@ -13,9 +13,25 @@ export class HydrateConflict extends Data.TaggedError('HydrateConflict')<{ reado
 const SEPARATOR = TEXT_SEPARATOR.slice(4, -3)
 const isSeparator = (d: ChildNode): boolean => d.nodeType === 8 && (d as Comment).data === SEPARATOR
 
-// ponytail: a mismatch replaces just that node with a fresh build and reports a defect; fn-25.3 owns the real policy.
+/**
+ * Server DOM that does not match the first client render (tag, text, instance or guest host, or extra server nodes).
+ * Reported through `onError` once per replaced subtree; the subtree is rebuilt so the DOM equals a client render.
+ * Parser-normalised markup (an inserted `<tbody>`, an auto-closed `<p>`) is not supported and surfaces as a mismatch.
+ */
+export class HydrationMismatch extends Data.TaggedError('HydrationMismatch')<{ readonly expected: string; readonly found: string }> {}
+
+const report = (env: Env, expected: string, found: ChildNode | undefined): void => {
+  const cause = Cause.fail(new HydrationMismatch({ expected, found: found ? found.nodeName : 'nothing' }))
+  if (!env.onError) return console.error(cause)
+  try {
+    env.onError(cause)
+  } catch (sinkError) {
+    console.error(sinkError)
+  }
+}
+
 const mismatch = (n: Leaf, key: string | undefined, dom: ChildNode | undefined, parent: globalThis.Node, env: Env, scopes: Array<Scope.CloseableScope>): Live | null => {
-  env.defect(new Error(`Hydration mismatch: expected ${n._tag === 'Element' ? `<${n.tag}>` : n._tag}, found ${dom ? dom.nodeName : 'nothing'}`))
+  report(env, n._tag === 'Element' ? `<${n.tag}>` : n._tag, dom)
   const l = build(n, key, env, scopes)
   if (l) parent.insertBefore(l.dom, dom ?? null)
   dom?.remove()
@@ -94,9 +110,14 @@ const adoptAll = (nodes: ReadonlyArray<Node>, parent: globalThis.Node, env: Env,
     lives.push(l)
     dom = l.dom.nextSibling ?? undefined
   })
-  // ponytail: extra server nodes are dropped silently; fn-25.3 reports them as a mismatch.
+  // Extra server nodes go, reported once; a resume manifest is ignored silently (hydration and resume are exclusive).
+  let reported = false
   while (dom) {
     const next = dom.nextSibling ?? undefined
+    if (!reported && !(dom.nodeType === 1 && (dom as Element).matches('script[data-sleek-manifest]'))) {
+      report(env, 'nothing', dom)
+      reported = true
+    }
     dom.remove()
     dom = next
   }
@@ -114,5 +135,10 @@ export const hydrateMount = async <E, A, LE = never>(
   opts: { layer: Layer.Layer<Exclude<A, Store>, LE, never>; container: Element; onError?: (cause: Cause.Cause<unknown>) => void; store?: AtomStore },
 ): Promise<Mounted> => {
   if (owned(opts.container)) throw new HydrateConflict({ container: opts.container })
-  return start(app, opts, (container, node, env, scopes) => adoptAll([node], container, env, scopes))
+  let broken = false
+  const h = await start(app, opts, (container, node, env, scopes) => adoptAll([node], container, { ...env, defect: (e) => ((broken = true), env.defect(e)) }, scopes))
+  if (!broken) return h
+  // A renderer defect mid-walk leaves the adopted tree untrustworthy: fall back to a full client render.
+  await h.dispose()
+  return mount(app, opts)
 }
