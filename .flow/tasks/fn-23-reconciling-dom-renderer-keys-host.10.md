@@ -1,0 +1,41 @@
+---
+satisfies: [R9]
+---
+# fn-23-reconciling-dom-renderer-keys-host.10 ui-demo: use key, host onClick and useLocal; demo stays analyzer-clean
+
+Touches: apps/ui-demo/src/components.tsx, apps/ui-demo/test/app.test.ts, apps/ui-demo/test/fixtures.test.ts, apps/ui-demo/test/fixtures/**
+
+## Description
+The proving ground (spec R9): real use of all three features, and keys on the existing lists so `MissingKey` stays quiet.
+
+**Size:** M
+**Files:** `apps/ui-demo/src/components.tsx`, `apps/ui-demo/test/app.test.ts`, `apps/ui-demo/test/fixtures.test.ts`, `apps/ui-demo/test/fixtures/`
+**Touches:** [apps/ui-demo/src/**, apps/ui-demo/test/**]
+
+### Approach
+- Add `key` to the three `.map`s in `components.tsx` (`StatusColumn`'s `TaskCard`s, `Columns`' columns, `Team`'s `<li>`s).
+- Add a screen with an `<input>` (filter/sort) and a keyed list that reorders, a host `onClick` button, and a `useLocal` toggle (for example a collapsible column header).
+- Extend the jsdom test in the style of test 4 ('a filter click re-renders only the columns'): reorder keeps node identity and the input's focus; `Votes` (stateful guest) keeps its count across a re-run; rename the test title that says 'swaps'.
+- Add one fixture per new code under `test/fixtures/` (`conditional-slot`, `missing-key`, `event-closure`) and to the `it.each` in `fixtures.test.ts`; the 'demo app itself is clean' test (`errors == []`, `trees.length == 2`) must still pass.
+- fn-21's query-driven list with a guest mutation (task .11) must keep working.
+
+### Investigation targets
+**Required**:
+- `apps/ui-demo/src/components.tsx:46-106,139-172`, `apps/ui-demo/src/guests.tsx`, `apps/ui-demo/src/state.ts`
+- `apps/ui-demo/test/app.test.ts:36-69`, `apps/ui-demo/test/fixtures.test.ts:22-28`
+
+### Acceptance
+- [ ] jsdom test: keyed reorder keeps DOM node identity and the input's focus; host `onClick` and `useLocal` toggle work; the guest keeps its state across a parent re-run.
+- [ ] `fixtures.test.ts` passes with the three new fixtures and the clean-demo assertion.
+- [ ] `pnpm --filter ui-demo test` passes.
+
+## Acceptance
+- [ ] TBD
+
+## Done summary
+TBD
+
+## Evidence
+- Commits:
+- Tests:
+- PRs:

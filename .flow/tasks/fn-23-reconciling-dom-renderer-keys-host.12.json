@@ -1,0 +1,17 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-03T20:21:30.252834Z",
+  "depends_on": [
+    "fn-23-reconciling-dom-renderer-keys-host.10",
+    "fn-23-reconciling-dom-renderer-keys-host.11"
+  ],
+  "id": "fn-23-reconciling-dom-renderer-keys-host.12",
+  "priority": null,
+  "spec": "fn-23-reconciling-dom-renderer-keys-host",
+  "spec_path": ".flow/tasks/fn-23-reconciling-dom-renderer-keys-host.12.md",
+  "status": "todo",
+  "title": "docs: ADR 0015 amendment, README, CONTEXT, errors page and Analyzer docs",
+  "updated_at": "2026-10-03T20:21:30.252834Z"
+}

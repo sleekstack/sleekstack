@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-03T20:21:30.252725Z",
+  "depends_on": [
+    "fn-23-reconciling-dom-renderer-keys-host.5"
+  ],
+  "id": "fn-23-reconciling-dom-renderer-keys-host.6",
+  "priority": null,
+  "spec": "fn-23-reconciling-dom-renderer-keys-host",
+  "spec_path": ".flow/tasks/fn-23-reconciling-dom-renderer-keys-host.6.md",
+  "status": "todo",
+  "title": "ui dom: React guests keep their root across parent re-runs",
+  "updated_at": "2026-10-03T20:21:30.252725Z"
+}
