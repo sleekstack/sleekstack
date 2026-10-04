@@ -125,11 +125,12 @@ export interface Report {
 /**
  * One node of a component tree read from an `@sleekstack/ui` `mount` call. `requires` / `errors` are the
  * Tag names and error `_tag`s of a component's `Effect<Node, E, R>`; `guest` marks a `fromReact` leaf, whose
- * children are the Effect components found under it (each one an `EffectInsideReact`).
+ * children are the Effect components found under it (each one an `EffectInsideReact`); `closure` marks a host
+ * `onXxx` event closure, whose errors no enclosing `Catch` handles.
  */
 export type UiNode = Location &
   (
-    | { readonly kind: 'component'; readonly name: string; readonly guest: boolean; readonly requires: readonly string[]; readonly errors: readonly string[]; readonly children: readonly UiNode[] }
+    | { readonly kind: 'component'; readonly name: string; readonly guest: boolean; readonly closure?: boolean; readonly requires: readonly string[]; readonly errors: readonly string[]; readonly children: readonly UiNode[] }
     | { readonly kind: 'provide'; readonly provides: readonly string[]; readonly requires: readonly string[]; readonly children: readonly UiNode[] }
     | { readonly kind: 'catch'; readonly tag: string; readonly children: readonly UiNode[] }
     | { readonly kind: 'unresolved'; readonly message: string }

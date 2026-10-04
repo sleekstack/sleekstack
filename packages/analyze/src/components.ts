@@ -179,7 +179,7 @@ export function analyzeComponents(opts: { readonly project: string }): Component
     const kids = (ts.isJsxSelfClosingElement(e) ? [] : e.children).flatMap((c) => (ts.isJsxText(c) ? [] : ts.isJsxExpression(c) ? (c.expression ? embedded(c.expression) : []) : build(c)))
     if (!open) return kids
     const tag = open.tagName
-    if (ts.isIdentifier(tag) && /^[a-z]/.test(tag.text)) return kids
+    if (ts.isIdentifier(tag) && /^[a-z]/.test(tag.text)) return [...open.attributes.properties.flatMap(closure), ...kids]
     const id = libId(checker.getSymbolAtLocation(tag), checker)
     if (id === 'ui/jsx-runtime#Fragment') return kids
     if (id === 'ui/jsx-runtime#Provider') {
@@ -215,6 +215,23 @@ export function analyzeComponents(opts: { readonly project: string }): Component
       return component(e, text(tag), () => [...bodyReturns(target).flatMap(build), ...kids], type)
     } finally {
       stack.delete(target)
+    }
+  }
+  /** A host `onXxx` closure: a node carrying its `R` and its `E`, which no enclosing `Catch` can handle. */
+  const closure = (p: ts.JsxAttributeLike): UiNode[] => {
+    const v = ts.isJsxAttribute(p) && /^on[A-Z]/.test(p.name.getText()) && p.initializer && ts.isJsxExpression(p.initializer) ? p.initializer.expression : undefined
+    if (!v) return []
+    try {
+      const t = checker.getTypeAtLocation(v)
+      if (isAny(t)) return fail(v, `Event closure "${text(v)}" is typed ${checker.typeToString(t)}; its errors and requirements cannot be named`)
+      const sigs = t.getCallSignatures()
+      if (!sigs.length) return []
+      const args = sigs.length === 1 ? effectArgs(checker.getReturnTypeOfSignature(sigs[0]!)) : undefined
+      if (!args || [...args[1], ...args[2]].some(isAny)) return fail(v, `Event closure "${text(v)}" does not return a readable Effect`)
+      return [{ kind: 'component', name: `${text(v)} closure`, guest: false, closure: true, requires: tagNames(v, args[2], 'requires'), errors: errorTags(v, args[1]), children: [], ...loc(v) }]
+    } catch (err) {
+      if (!(err instanceof Unreadable)) throw err
+      return [{ kind: 'unresolved', message: err.message, ...loc(err.node) }]
     }
   }
   const propType = (p: ts.ObjectLiteralElementLike) => checker.getTypeAtLocation(ts.isPropertyAssignment(p) ? p.initializer : ts.isSpreadAssignment(p) ? p.expression : p)
@@ -483,7 +500,7 @@ function check(n: UiNode, provided: ReadonlySet<string>, caught: ReadonlySet<str
     out.push(analyzeError('MissingDependency', `${who} requires "${r}", but no enclosing Provide or root (mount / resume) layer provides it`, at))
   }
   for (const e of n.kind === 'component' ? n.errors : []) {
-    if (caught.has(e) || below.has(`E:${e}`)) continue
+    if ((!(n.kind === 'component' && n.closure) && caught.has(e)) || below.has(`E:${e}`)) continue
     below.add(`E:${e}`)
     out.push(analyzeError('UnhandledError', `${who} can fail with "${e}", but no enclosing Catch handles it`, at))
   }
