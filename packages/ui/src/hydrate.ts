@@ -29,20 +29,27 @@ type Payload = { atoms: Record<string, unknown>; queries?: DehydratedState }
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
 
-// Reads and removes the container's state script. Missing: nothing to seed. Malformed: reported, nothing seeded.
+// Reads and removes the container's state scripts (a stream writes one per flush), merged in order. Missing: nothing
+// to seed. Malformed: reported and skipped.
 const readPayload = (container: Element, onError?: (cause: Cause.Cause<unknown>) => void): Payload | undefined => {
-  const script = [...container.children].find((c) => c.matches('script[data-sleek-hydrate]'))
-  if (!script) return undefined
-  script.remove()
-  try {
-    const p: unknown = JSON.parse(script.textContent ?? '')
-    if (!isRecord(p) || p.v !== 1 || !isRecord(p.atoms)) throw new Error('not a v1 payload')
-    if (p.queries !== undefined && !(isRecord(p.queries) && Array.isArray(p.queries.queries) && Array.isArray(p.queries.mutations))) throw new Error('queries is not a DehydratedState')
-    return p as Payload
-  } catch (error) {
-    sink(Cause.fail(new HydratePayloadInvalid({ reason: error instanceof Error ? error.message : String(error) })), onError)
-    return undefined
+  const scripts = [...container.children].filter((c) => c.matches('script[data-sleek-hydrate]'))
+  let out: Payload | undefined
+  for (const script of scripts) {
+    script.remove()
+    try {
+      const p: unknown = JSON.parse(script.textContent ?? '')
+      if (!isRecord(p) || p.v !== 1 || !isRecord(p.atoms)) throw new Error('not a v1 payload')
+      if (p.queries !== undefined && !(isRecord(p.queries) && Array.isArray(p.queries.queries) && Array.isArray(p.queries.mutations))) throw new Error('queries is not a DehydratedState')
+      const q = (p as Payload).queries
+      out = {
+        atoms: Object.assign(Object.create(null), out?.atoms, p.atoms),
+        queries: out?.queries && q ? { queries: [...out.queries.queries, ...q.queries], mutations: [...out.queries.mutations, ...q.mutations] } : (q ?? out?.queries),
+      }
+    } catch (error) {
+      sink(Cause.fail(new HydratePayloadInvalid({ reason: error instanceof Error ? error.message : String(error) })), onError)
+    }
   }
+  return out
 }
 
 const sink = (cause: Cause.Cause<unknown>, onError?: (cause: Cause.Cause<unknown>) => void): void => {

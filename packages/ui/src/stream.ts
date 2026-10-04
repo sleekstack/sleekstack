@@ -1,9 +1,11 @@
-import { type Cause, Effect, Exit, Fiber, Layer, Scope } from 'effect'
-import { type AtomStore, makeAtomStore } from '@sleekstack/core'
+import { type Cause, Context, Effect, Exit, Fiber, Layer, Option, Scope } from 'effect'
+import { type AtomStore, dehydrate, makeAtomStore } from '@sleekstack/core'
+import { QueryClientTag } from '@sleekstack/query'
+import { dehydrate as dehydrateQueries, type QueryClient } from '@tanstack/query-core'
 import { nodeOrThrow, reportRenderError } from './component'
 import type { Node, ReactiveNode } from './node'
 import { disposeSlots, Frame, makeFrame, RenderScope, Store } from './reactive'
-import { type Around, checkId, type Collector, escape, scriptJson, serialize, serializeAll } from './string'
+import { type Around, checkId, type Collector, escape, payload, scriptJson, serialize, serializeAll } from './string'
 
 // Swap runtime, emitted once in the shell: replaces `<!--sleek-p:ID-->fallback<!--/sleek-p-->` with the chunk's template.
 const SWAP =
@@ -34,7 +36,9 @@ const changed = (store: AtomStore, node: ReactiveNode): Promise<void> =>
  * Streaming SSR: the shell flushes first, each unresolved `Pending` as a `<!--sleek-p:ID-->` placeholder around its
  * fallback; each resolved boundary follows as a `<template data-sleek-b="ID">` chunk and a swap call. A failure before
  * the shell flushes errors the stream with the original error. The store, scopes and fibers live until the last
- * boundary settles and are disposed on completion, error or cancel. No resume manifest is emitted.
+ * boundary settles and are disposed on completion, error or cancel. The shell and each chunk carry a `data-sleek-hydrate`
+ * script with the atom and query state changed since the previous one (`hydrateMount` merges them in order).
+ * No resume manifest is emitted.
  */
 export const renderToStream = <E, A, LE = never>(app: Effect.Effect<Node, E, A>, opts: StreamOptions<Exclude<A, Store>, LE>): ReadableStream<Uint8Array> => {
   const prefix = checkId('idPrefix', opts.idPrefix ?? 'sleek-')
@@ -59,6 +63,24 @@ export const renderToStream = <E, A, LE = never>(app: Effect.Effect<Node, E, A>,
   const waiting: Array<Promise<void>> = []
   const c: Collector = { store, onError: opts.onError, handlers: new Map(), events: new Set(), atoms: new Map() }
   let emit: (html: string) => void = () => {}
+  let client: QueryClient | undefined
+  // State sent so far: atom key -> encoded JSON, query hash -> dataUpdatedAt. One Collector spans the stream.
+  const sentAtoms = new Map<string, string>()
+  const sentQueries = new Map<string, number>()
+  const state = (): string => {
+    const atoms = Object.fromEntries(
+      Object.entries(dehydrate(store)).filter(([k, v]) => {
+        const json = JSON.stringify(v)
+        return sentAtoms.get(k) !== json && (sentAtoms.set(k, json), true)
+      }),
+    )
+    const all = client ? dehydrateQueries(client) : undefined
+    const queries = all && {
+      ...all,
+      queries: all.queries.filter((q) => sentQueries.get(q.queryHash) !== q.state.dataUpdatedAt && (sentQueries.set(q.queryHash, q.state.dataUpdatedAt), true)),
+    }
+    return payload(atoms, queries)
+  }
 
   // Placeholder now; the chunk when the boundary's content resolves. A failure streams the nearest `Boundary` fallback
   // (the re-run carries the instance's handlers); unhandled, the Pending fallback stays and `onError` gets it.
@@ -78,7 +100,7 @@ export const renderToStream = <E, A, LE = never>(app: Effect.Effect<Node, E, A>,
       if (r._tag === 'Reactive' && r.pending && !r.pending.frame) return settle(r)
       // Content renders in the placeholder's text context, so swapped text keeps the separators renderToString writes.
       const html = serializeAll([r._tag === 'Reactive' ? r.child : r], c, around)
-      emit(`<template data-sleek-b="${id}">${html}</template><script${nonce}>__sleekSwap(${scriptJson(id)})</script>`)
+      emit(`${state()}<template data-sleek-b="${id}">${html}</template><script${nonce}>__sleekSwap(${scriptJson(id)})</script>`)
     }
     waiting.push(settle(node))
     return `<!--sleek-p:${id}-->${serialize(node.child, c)}<!--/sleek-p-->`
@@ -86,7 +108,10 @@ export const renderToStream = <E, A, LE = never>(app: Effect.Effect<Node, E, A>,
 
   return new ReadableStream<Uint8Array>({
     async start(controller) {
-      const run = Effect.flatMap(Layer.buildWithScope(opts.layer, scope), (ctx) => Effect.provide(app, ctx)).pipe(
+      const run = Effect.flatMap(Layer.buildWithScope(opts.layer, scope), (ctx) => {
+        client = Option.getOrUndefined(Context.getOption(ctx, QueryClientTag))
+        return Effect.provide(app, ctx)
+      }).pipe(
         Effect.provideService(Store, store),
         Effect.provideService(Frame, frame),
         Effect.provideService(RenderScope, scope),
@@ -97,6 +122,7 @@ export const renderToStream = <E, A, LE = never>(app: Effect.Effect<Node, E, A>,
       let html: string
       try {
         html = serialize(nodeOrThrow(exit, opts.onError), c)
+        html += state()
       } catch (error) {
         await dispose()
         throw error

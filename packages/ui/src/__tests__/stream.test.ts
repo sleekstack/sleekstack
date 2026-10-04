@@ -194,3 +194,49 @@ describe('renderToStream errors and cancel (R2, R4)', () => {
     expect(errors).toEqual([])
   })
 })
+
+describe('renderToStream per-boundary state (R3)', () => {
+  it('each chunk carries its new atom and query state; hydrating the streamed DOM does not refetch', async () => {
+    const { Atom, makeAtomStore } = await import('@sleekstack/core')
+    const { Schema } = await import('effect')
+    const { QueryClientTag } = await import('@sleekstack/query')
+    const { QueryClient } = await import('@tanstack/query-core')
+    const { act } = await import('react')
+    const { hydrateMount, Store, useAtomValue } = await import('../index')
+    const { useSuspenseQuery } = await import('../query')
+    ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
+    const count = Atom.serializable(Atom.make(0), { key: 'count', schema: Schema.Number })
+    let calls = 0
+    const queryFn = async () => (calls++, 'srv')
+    const Q = () =>
+      Effect.flatMap(useSuspenseQuery({ queryKey: ['q'], queryFn, staleTime: 60_000 }), (data) =>
+        Effect.flatMap(useAtomValue(count), (n) => jsx('b', { children: `${data}:${n}` })),
+      )
+    const Set7 = () => Effect.flatMap(Store, (s) => Effect.flatMap(Effect.promise(() => Promise.resolve()), () => (s.set(count, 7), jsx(Q, {}))))
+    const app = () => jsx('div', { children: jsx(Pending, { fallback: jsx('i', { children: 'wait' }), children: jsx(Set7, {}) }) })
+
+    const html = await new Response(renderToStream(app(), { layer: Layer.succeed(QueryClientTag, new QueryClient()) })).text()
+    // The shell's payload carries the atom set before flush; the chunk carries only what is new since: the query.
+    const [shell, chunk] = html.split('</div>')
+    expect(shell).not.toContain('data-sleek-hydrate')
+    const payloads = [...chunk!.matchAll(/data-sleek-hydrate>([^<]*)</g)].map((m) => JSON.parse(m[1]!))
+    expect(payloads.map((p) => [p.atoms, p.queries?.queries.map((q: any) => q.queryHash)])).toEqual([[{ count: 7 }, undefined], [{}, ['["q"]']]])
+    expect(chunk!.indexOf('data-sleek-hydrate', chunk!.indexOf('"count"'))).toBeLessThan(chunk!.indexOf('<template'))
+    expect(calls).toBe(1)
+
+    const container = document.createElement('div')
+    document.body.replaceChildren(container)
+    container.innerHTML = html
+    for (const s of [...container.querySelectorAll('script:not([type])')]) (s.remove(), new Function(s.textContent!)())
+    const store = makeAtomStore()
+    const errors: Array<unknown> = []
+    let h: any
+    await act(async () => void (h = await hydrateMount(app(), { layer: Layer.succeed(QueryClientTag, new QueryClient()), container, store, onError: (c) => errors.push(c) })))
+    await act(() => new Promise((r) => setTimeout(r, 0)))
+    expect(errors).toEqual([])
+    expect(container.querySelector('b')!.textContent).toBe('srv:7')
+    expect(store.get(count)).toBe(7)
+    expect(calls).toBe(1)
+    await act(async () => void (await h.dispose()))
+  })
+})

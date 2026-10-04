@@ -70,7 +70,7 @@ const manifest = (c: Collector): string =>
  * Hydration state (`data-sleek-hydrate`, distinct from the resume manifest): core `dehydrate` atoms and TanStack
  * `DehydratedState` queries. Omitted when both are empty.
  */
-const payload = (atoms: Record<string, unknown>, queries: DehydratedState | undefined): string => {
+export const payload = (atoms: Record<string, unknown>, queries: DehydratedState | undefined): string => {
   const q = queries && (queries.queries.length > 0 || queries.mutations.length > 0) ? queries : undefined
   if (Object.keys(atoms).length === 0 && !q) return ''
   return `<script type="application/json" data-sleek-hydrate>${scriptJson({ v: 1, atoms, ...(q ? { queries: q } : {}) })}</script>`
