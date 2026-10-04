@@ -1,0 +1,18 @@
+---
+title: Working with coding agents
+description: Point an AI coding agent at SleekStack's bundled guide and let sleekstack check and explain keep it honest.
+---
+
+`@sleekstack/kit` ships `llms.md`, a short agent guide: entry points, patterns, lifetime rules and every analyzer error code with its fix. It is generated from the analyzer's error table, so it cannot drift from what `sleekstack check` reports.
+
+## Point an agent at it
+
+Run `npx sleekstack init-agents` (or `npx sleekstack init-agents --file docs/AGENTS.md`) to write or refresh a marked block in `AGENTS.md`. The block tells the agent to read `node_modules/@sleekstack/kit/llms.md` before changing SleekStack code and to run `npx sleekstack check` afterwards. Re-running it only rewrites the block between the `sleekstack:agents` markers; the rest of the file is untouched. It exits 2 if `@sleekstack/kit` is not installed.
+
+## Check and explain
+
+`npx sleekstack check` exits 0 when clean, 1 on violations and 2 on a usage error. Each error prints `file:line CODE: message`, then indented `fix:` lines (most likely first) and a `docs:` line. `--json` carries the same `fix` and `docs` fields. `sleekstack explain <CODE>` prints a code's rule, fixes and docs path, and exits 2 for an unknown code. See [Errors](/docs/errors) for the full list.
+
+## One name, one meaning
+
+The inline runner in `@sleekstack/kit/next` is `runOperation`. The old `effect` export there is a deprecated alias for one release; `effect` from `@sleekstack/kit` (the side-effect Layer, see [Side effects](/docs/side-effects)) keeps its name.

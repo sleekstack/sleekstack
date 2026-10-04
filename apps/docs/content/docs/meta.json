@@ -16,6 +16,7 @@
     "side-effects",
     "errors",
     "testing",
+    "agents",
     "showcases",
     "benchmarks",
     "api"
