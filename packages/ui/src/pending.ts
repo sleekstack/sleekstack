@@ -1,7 +1,7 @@
-import { Cause, Effect, Exit, Fiber, Scope } from 'effect'
+import { Cause, Context, Effect, Exit, Fiber, Scope } from 'effect'
 import { type Child, Fragment } from './jsx-runtime'
 import type { Node } from './node'
-import { Collector, Frame, makeFrame, owned, pendingOf, RenderScope, type RunFrame, scopedRun, type Slots, useLocal } from './reactive'
+import { Collector, Frame, makeFrame, owned, pendingOf, Reads, RenderScope, type RunFrame, scopedRun, type Slots, useLocal } from './reactive'
 
 /**
  * Resolved content: moved into the slot by the content fiber, emitted as is by later runs; its node owns the content scope.
@@ -34,6 +34,16 @@ const contentSlots = (f: RunFrame): Slots => {
   return s
 }
 
+/**
+ * On during `hydrateMount`'s first run: a Pending resolves its content inline (the server awaited it), no fallback.
+ * A mutable cell, not a value: re-runs capture their context, and must see it off once the adopt is done.
+ */
+export class Hydrating extends Context.Reference<Hydrating>()('@sleekstack/ui/Hydrating', { defaultValue: (): { on: boolean } => ({ on: false }) }) {}
+
+/** Seam for late-arriving server boundaries (fn-27); a no-op while the server awaits every Pending. Internal only. */
+export type AdoptLateBoundary = (container: Element) => void
+export const adoptLateBoundary: AdoptLateBoundary = () => {}
+
 const closeScope = (scope: Scope.CloseableScope) => Effect.runFork(Scope.close(scope, Exit.void))
 
 /**
@@ -44,12 +54,14 @@ const closeScope = (scope: Scope.CloseableScope) => Effect.runFork(Scope.close(s
 export const Pending = (props: { fallback: Child; children?: Child }): Effect.Effect<Node, never, never> =>
   Effect.flatMap(RenderScope, (rs) =>
     // No `RenderScope` (renderToString): content runs inline and is awaited; the fallback is never emitted.
-    rs ? live(props) : Effect.map(Fragment({ children: props.children }), (n) => (pendingOf.set(n, { fallback: props.fallback, content: props.children }), n)),
+    // Hydrating: the server emitted no instance host for a Pending, so its reads are kept off the instance (a scratch
+    // collector); the content slot is still allocated, so later re-runs line up.
+    rs ? Effect.flatMap(Hydrating, (h) => (h.on ? Effect.provideService(live(props), Collector, new Reads(props)) : live(props))) : Effect.map(Fragment({ children: props.children }), (n) => (pendingOf.set(n, { fallback: props.fallback, content: props.children }), n)),
   ) as Effect.Effect<Node, never, never>
 
 const live = (props: { fallback: Child; children?: Child }) =>
   Effect.flatMap(useLocal<Content | undefined>(undefined), ([content, set]) =>
-    Effect.flatMap(Frame, (frame) => {
+    Effect.flatMap(Effect.zip(Frame, Hydrating), ([frame, hydrating]) => {
       const f = frame!
       const slots = contentSlots(f)
       const info = { fallback: props.fallback, content: props.children }
@@ -66,6 +78,7 @@ const live = (props: { fallback: Child; children?: Child }) =>
         // ponytail: one closer per fork until the Pending is disposed; prune on commit if forks get frequent.
         slots.releases.push(() => (forks.get(slots) === fork && forks.delete(slots), closeScope(scope)))
         const cframe = makeFrame(slots, `${f.id}/content`)
+        let resolved: Content | undefined
         const run = Fragment({ children: props.children }).pipe(
           Effect.provideService(Collector, undefined),
           Effect.provideService(Frame, cframe),
@@ -74,12 +87,14 @@ const live = (props: { fallback: Child; children?: Child }) =>
             Effect.sync(() => {
               fork.done = true
               const latest = forks.get(slots) === fork
-              if (latest && Exit.isSuccess(exit)) return set({ node: owned(exit.value, scope), frame: cframe, props })
+              if (latest && Exit.isSuccess(exit)) return set((resolved = { node: owned(exit.value, scope), frame: cframe, props }))
               closeScope(scope)
               if (latest && Exit.isFailure(exit) && !Cause.isInterruptedOnly(exit.cause)) set((c) => ({ ...c, props, cause: exit.cause }))
             }),
           ),
         )
+        // Hydrating: the server markup holds the resolved content, so it is awaited here and emitted on the first run.
+        if (hydrating.on) return Effect.flatMap(Effect.exit(run), (exit) => (Exit.isFailure(exit) ? Effect.failCause(exit.cause) : emit(resolved, info, props)))
         return Effect.flatMap(Effect.forkDaemon(run), (fiber) =>
           Effect.flatMap(Scope.addFinalizer(scope, Fiber.interruptFork(fiber)), () => emit(content, info, props)),
         )

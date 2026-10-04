@@ -5,6 +5,7 @@ import { flushSync } from 'react-dom'
 import { createRoot, type Root } from 'react-dom/client'
 import { reportRenderError, runToNode } from './component'
 import type { BindNode, ElementNode, EventBinding, FragmentNode, GuestNode, Node, ReactiveNode } from './node'
+import { Hydrating } from './pending'
 import { closeNow, commitSlots, disposeSlots, dropSlots, DuplicateKey, fallbacks, Frame, makeFrame, MountScope, RenderScope, type RunFrame, runScopes, Store } from './reactive'
 import { checkAttr, checkTag } from './string'
 
@@ -675,7 +676,8 @@ export const start = async <E, A, LE = never>(
       if (!opts.store) await store.dispose()
     }
   }
-  const provided = app.pipe(Effect.provideService(Store, store), Effect.provideService(RenderScope, scope), Effect.provideService(MountScope, scope), Effect.provideService(Frame, frame)) as Effect.Effect<Node, E, Exclude<A, Store>>
+  const hydrating = { on: !!adoptWith }
+  const provided = app.pipe(Effect.provideService(Store, store), Effect.provideService(RenderScope, scope), Effect.provideService(MountScope, scope), Effect.provideService(Frame, frame), Effect.provideService(Hydrating, hydrating)) as Effect.Effect<Node, E, Exclude<A, Store>>
   let node: Node
   try {
     // The mount layer lives in the mount scope: re-runs reuse its services after the first render.
@@ -684,6 +686,8 @@ export const start = async <E, A, LE = never>(
     // Cleanup failures are reported; the render failure stays the rejection.
     if (current()) await teardown(container, state).catch((e) => reportRenderError(e, onError))
     throw error
+  } finally {
+    hydrating.on = false
   }
   if (!current()) return noop
   const env: Env = { doc: container.ownerDocument, store, onError, live: current, defect: (e) => reportRenderError(e, onError), duplicate: once(onError) }

@@ -3,7 +3,7 @@ import { Atom, makeAtomStore } from '@sleekstack/core'
 import { Cause, Context, Effect, Layer, Schema } from 'effect'
 import { act, createElement, useState } from 'react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { bind, Boundary, el, fromReact, HydrateConflict, HydrationMismatch, hydrateMount, mount, type Mounted, renderToString, Store, useAtomValue, useLocal } from '../index'
+import { bind, Boundary, el, Pending, fromReact, HydrateConflict, HydrationMismatch, hydrateMount, mount, type Mounted, renderToString, Store, useAtomValue, useLocal } from '../index'
 import { jsx as rawJsx } from '../jsx-runtime'
 import { useQuery } from '../query'
 import { QueryClientTag } from '@sleekstack/query'
@@ -312,6 +312,27 @@ describe('hydrateMount keyed lists, form values, whitespace', () => {
       expect(container.querySelector('sleek-guest')!.textContent).toBe('ok')
       expect(mismatches(onError)).toHaveLength(1)
     })
+  })
+})
+
+describe('hydrateMount Pending (R2)', () => {
+  it('a server-rendered Pending adopts its content with no fallback and no mismatch; later re-runs fork as usual', async () => {
+    const Slow = (p: { v: number }) => Effect.zipRight(Effect.sleep('5 millis'), jsx('b', { children: `v${p.v}` }))
+    const App = () =>
+      Effect.flatMap(useLocal(0), ([v, set]) =>
+        jsx('div', { children: [jsx('button', { onClick: () => set(v + 1), children: '+' }), jsx(Pending, { fallback: jsx('i', { children: 'wait' }), children: jsx(Slow, { v }) })] }),
+      )
+    const { container, before } = await serverThenHydrate(() => jsx(App, {}))
+    expect(container.querySelector('i')).toBeNull()
+    expect(all(container)).toEqual(before)
+    expect(container.querySelector('b')!.textContent).toBe('v0')
+    // After hydration a parent re-run forks again: the old content stays (no fallback) until the new one resolves.
+    await act(async () => container.querySelector('button')!.click())
+    expect(container.querySelector('b')!.textContent).toBe('v0')
+    expect(container.querySelector('i')).toBeNull()
+    await act(() => new Promise((r) => setTimeout(r, 30)))
+    expect(container.querySelector('b')!.textContent).toBe('v1')
+    expect(container.querySelector('i')).toBeNull()
   })
 })
 
