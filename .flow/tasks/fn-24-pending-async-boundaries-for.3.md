@@ -27,9 +27,12 @@ Under `renderToString` there is no RenderScope, so Pending must run its content 
 - [ ] A failing child rejects with its typed error; `useQuery` components behave as before.
 
 ## Done summary
-TBD
+Pending takes a no-RenderScope branch (renderToString): content runs inline and is awaited, the fallback is never emitted, and the `{fallback, content}` pair rides on the node via pendingOf for fn-27. Non-Pending output unchanged; a failing child rejects with its typed error (tests in string.test.ts).
 
+baseline: green via handoff (f901277)
+stage: impl-review - skipped(config: REVIEW_MODE=none)
+Tier: implementer: opus at medium (project routing block)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 40a67274dce7c3cefaf4090a78d35c164d5d03b6
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/ui...
 - PRs:
