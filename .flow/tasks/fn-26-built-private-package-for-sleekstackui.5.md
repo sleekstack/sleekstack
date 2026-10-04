@@ -24,9 +24,12 @@ ui-demo already imports through public entry points; once exports point at dist 
 - [ ] A root `tsc` run leaves no untracked files (R6).
 
 ## Done summary
-TBD
+ui-demo resolves @sleekstack/ui to packages/ui/dist (no ui-demo change needed; its 18 tests pass on the built package). Root tsconfig.json gains noEmit, so a root `tsc` leaves no untracked files (it still reports type errors since it has no include; check only). apps/playground gets tsconfig.json (extends base, noEmit, include src) and a `typecheck` script; enabling it surfaced a Vite 8 break in bundle.test.ts (`RollupOutput` no longer exported), fixed by deriving the output type from `build`'s return type. No stray emitted files existed in this worktree to delete.
 
+Gate: pnpm turbo run test typecheck -> Tasks: 37 successful, 37 total; pnpm build then git status clean.
+
+stage: impl-review - skipped(config: conductor requested no review)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: d8aa2e46a63f350d4875fc19ab2d564700064395
+- Tests: pnpm turbo run test typecheck, pnpm build && git status --short
 - PRs:
