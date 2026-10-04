@@ -25,9 +25,12 @@ Early proof point. Decides the ESM strategy: plain `tsc` with `moduleResolution:
 - [ ] Packing both and installing them with overrides into a scratch Vite project bundles a `mount` hello-world.
 
 ## Done summary
-TBD
+core and ui build with plain `tsc -p tsconfig.build.json` to `dist/` (ESM JS, .d.ts, source maps with inline sources, noEmitOnError; tests excluded); both packages gain `type: module`, `files: ["dist"]` and a `build` script. Spike result: plain tsc holds, no bundler needed.
 
+Spike (scratchpad script, not committed): packed core, ui and query; rewrote core/ui manifests in the extracted tarball to point main/types/exports at dist (the real manifests still point at src; task .3 owns that); installed into a scratch Vite 7 project with pnpm 11 overrides in pnpm-workspace.yaml (pnpm 11 ignores `pnpm.overrides` in package.json, and esbuild needs `allowBuilds`). `vite build` bundled a `mount(jsx('h1'), { layer: Layer.empty, container })` hello-world: 676 modules, 604.8 kB / 191.8 kB gzip (no tree-shaking work yet). One effect copy. Vite resolves extensionless output; Node-native `import('@sleekstack/ui')` fails with ERR_MODULE_NOT_FOUND, as expected (out of scope). query was packed as TS source, and Vite bundled it as-is. No `workspace:*` leaked after pack.
+
+stage: impl-review - skipped(config: conductor requested no review)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: eac2e44779a410db40e989a726afd99d191a7482
+- Tests: pnpm --filter @sleekstack/core --filter @sleekstack/ui build, pnpm turbo run test typecheck --filter=...@sleekstack/core, scratch Vite tarball install + vite build
 - PRs:
