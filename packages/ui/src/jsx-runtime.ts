@@ -81,6 +81,10 @@ export declare namespace JSX {
   interface ElementChildrenAttribute {
     children: {}
   }
+  /** `key` is accepted on every element and component; the renderer reads it, components never see it. */
+  interface IntrinsicAttributes {
+    key?: string | number
+  }
   interface IntrinsicElements {
     [tag: string]: Props
   }
