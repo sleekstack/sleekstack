@@ -6,11 +6,11 @@ import { QueryClientTag } from '@sleekstack/query'
 import { dehydrate as dehydrateQueries, type DehydratedState } from '@tanstack/query-core'
 import { reportRenderError, runToNode } from './component'
 import { checkEvent, DuplicateBindKey, DuplicateHandler, type Handler, valueInfo } from './handler'
-import type { ElementNode, Node } from './node'
+import type { ElementNode, Node, ReactiveNode } from './node'
 import { Frame, makeFrame, Store } from './reactive'
 
 const ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
-const escape = (s: string): string => s.replace(/[&<>"']/g, (c) => ESCAPES[c]!)
+export const escape = (s: string): string => s.replace(/[&<>"']/g, (c) => ESCAPES[c]!)
 
 const TAG = /^[a-zA-Z][a-zA-Z0-9-]*$/
 const ATTR = /^[^\s"'<>\/=\x00-\x1f]+$/
@@ -36,17 +36,19 @@ export const checkAttr = (name: string, value: string): void => {
 }
 
 // Per-render resume state: handler ids, event types, bound atoms by key.
-interface Collector {
+export interface Collector {
   store: AtomStore
   onError?: (cause: Cause.Cause<unknown>) => void
   handlers: Map<string, Handler<any, any>>
   events: Set<string>
   atoms: Map<string, { atom: Atom.Atom<any>; value: unknown }> // value is encoded
+  /** Set by `renderToStream`: emits an unresolved `Pending` instance as a placeholder. */
+  boundary?: (node: ReactiveNode) => string | undefined
 }
 
 const JSON_ESCAPES = /[<>&\u2028\u2029]/g
 /** JSON safe inside a `<script>`: `<`, `>`, `&`, U+2028 and U+2029 become `\uXXXX`. */
-const scriptJson = (value: unknown): string =>
+export const scriptJson = (value: unknown): string =>
   JSON.stringify(value).replace(JSON_ESCAPES, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`)
 
 const manifest = (c: Collector): string =>
@@ -70,7 +72,7 @@ const payload = (atoms: Record<string, unknown>, queries: DehydratedState | unde
 
 // Handler ids and bind keys must survive an HTML attribute round trip unchanged.
 const ID = /^[A-Za-z0-9_.:/-]+$/
-const checkId = (kind: string, id: string): string => {
+export const checkId = (kind: string, id: string): string => {
   if (!ID.test(id)) throw new TypeError(`Invalid ${kind}: ${JSON.stringify(id)}`)
   return id
 }
@@ -114,7 +116,7 @@ const serializeAll = (nodes: ReadonlyArray<Node>, c: Collector): string =>
     .map((n, i, list) => (isText(n) && isText(list[i - 1]) ? TEXT_SEPARATOR : '') + serialize(n, c))
     .join('')
 
-const serialize = (node: Node, c: Collector): string => {
+export const serialize = (node: Node, c: Collector): string => {
   switch (node._tag) {
     case 'Text':
       return escape(node.text)
@@ -139,6 +141,10 @@ const serialize = (node: Node, c: Collector): string => {
       return `<${node.tag}${attrs}${on}>${serializeAll(node.children, c)}</${node.tag}>`
     }
     case 'Reactive':
+      if (node.pending && c.boundary) {
+        const placeholder = c.boundary(node)
+        if (placeholder !== undefined) return placeholder
+      }
       return `${HOST_OPEN('sleek-reactive')}${serialize(node.child, c)}</sleek-reactive>`
     case 'Guest':
       try {

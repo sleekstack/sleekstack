@@ -35,8 +35,10 @@ export const runToNode = async <E, A, LE>(
   app: Effect.Effect<Node, E, A>,
   layer: Layer.Layer<A, LE, never>,
   onError?: (cause: Cause.Cause<unknown>) => void,
-): Promise<Node> => {
-  const exit = await Effect.runPromiseExit(Effect.provide(app, layer))
+): Promise<Node> => nodeOrThrow(await Effect.runPromiseExit(Effect.provide(app, layer)), onError)
+
+/** A render exit's node, or its original failure / defect thrown (never a `FiberFailure`); `onError` gets the cause. */
+export const nodeOrThrow = (exit: Exit.Exit<Node, unknown>, onError?: (cause: Cause.Cause<unknown>) => void): Node => {
   if (Exit.isSuccess(exit)) return exit.value
   if (onError) safeReport(exit.cause, onError)
   const failure = Cause.failureOption(exit.cause)
