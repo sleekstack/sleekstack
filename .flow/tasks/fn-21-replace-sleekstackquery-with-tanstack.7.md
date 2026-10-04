@@ -30,9 +30,8 @@ Guest React state is lost when the reading component's subtree is swapped; keep 
 - [ ] `pnpm --filter @sleekstack/ui test` and `typecheck` pass
 
 ## Done summary
-TBD
-
+useMutation per component instance (Instance reference in reactive.ts), idle/no-subscribe on server render, dispose unsubscribes; tests in query-mutation.test.ts.
 ## Evidence
-- Commits:
-- Tests:
+- Commits: d10dc51
+- Tests: pnpm --filter @sleekstack/ui test, pnpm --filter @sleekstack/ui typecheck
 - PRs:

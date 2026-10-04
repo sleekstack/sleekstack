@@ -3,36 +3,20 @@ title: Queries on the server
 description: Prefetch queries on the server and hydrate them on the client.
 ---
 
-Query hooks work in a server render. They read data that the server prefetched, and the client store starts with that data, so the first client render does not fetch again.
+Prefetch on the server with `prefetchQueries`, then hand TanStack's dehydrated state to `HydrationBoundary`. The client's first render reads that data and does not fetch again until it is stale.
 
 <include>../../snippets/queries-ssr.tsx</include>
 
 ## The parts
 
-- `Hydrate` is in `@sleekstack/query`. `Hydrate.hydratable(family, { value, error? })` gives a query family the `Schema` that encodes its value. Only hydratable queries can be prefetched.
-- `prefetch(queries, options?)` is in `@sleekstack/next`, which depends on `@sleekstack/query`. It runs the fetches through `runEffect` and returns a serializable `Dehydrated` list (`{ key, result, updatedAt }`). Options: `request` and `overrides` Layers, like `runEffect`, and `failures: true` to also send typed failures (encoded with the `error` Schema). By default only successes are sent.
-- `<HydrateQueries state>` is in `@sleekstack/react`. It needs a `LayerProvider` above it. On the server it gives the query hooks below it the prefetched data. On the client it seeds the query store before the first render; seeded entries are fresh until `staleTime`. If a key is already in the store, the entry with the newer `updatedAt` wins.
+- `prefetchQueries(queries, options?)` is in `@sleekstack/next`. It runs through `runEffect` (options: `request` and `overrides` Layers, as for `runEffect`), prefetches each `queryOptions` on the scope's `QueryClient` and returns `dehydrate(client)`. The run must provide `QueryClientTag`, usually by merging `QueryClientLive()` into `request`, so every request gets a fresh client.
+- `HydrationBoundary` is TanStack's, from `@tanstack/react-query`. It needs a `QueryProvider` (or any `QueryClientProvider`) above it.
+- An `effectFn` query prefetched this way sees the request scope's services, including `request` and `overrides`.
 
 ## Queries that were not prefetched
 
-A server render that reads a query that was not prefetched suspends while the server fetches it. When the fetch finishes, `HydrateQueries` writes the result into a JSON script after its children (keyed by `useId`), and the client seeds it too.
-
-This lazy fetch uses the configured runtime only. It cannot see per-call `request` or `overrides` Layers, because a render has no access to them. **A query that needs request-scoped services must be prefetched** with `prefetch(queries, { request, overrides })`.
-
-A lazy read that is first reached after `HydrateQueries` has rendered its script (behind a deeper suspension) is not transferred. Prefetch it.
-
-## kit
-
-The kit has the same flow without Effect types: `prefetch(queries, { provide? })` from `@sleekstack/kit/next`, `<HydrateQueries state>` from `@sleekstack/kit/react`, and a `serializable` option on `cachedQuery`.
-
-<include>../../snippets/kit/queries-ssr.tsx</include>
-
-- `serializable: true` sends the value as is, so it must be JSON-safe. Otherwise pass a `QueryCodec`, a plain `{ encode, decode }` pair. A `decode` that throws on the client raises `SleekStackError` with code `QueryDecodeFailed`, naming the query.
-- `prefetch` rejects with `SleekStackError` (code `Unknown`) naming the query when one has no `serializable`, and before `configureRuntime`.
-- A query whose fetch fails on the server is not sent. The client fetches it again.
-- Importing `@sleekstack/kit/next` on the server registers the kit request scope as the server runner, replacing the one `@sleekstack/next` registers. A server render that reads an un-prefetched query with no runner throws `NoServerRunner`.
-- The lazy read rule above applies: an un-prefetched kit query read on the server sees the configured runtime only, never a per-call `provide`. **A query that needs per-call services must be prefetched** with `prefetch(queries, { provide })`.
+TanStack does not fetch during a server render: an un-prefetched `useQuery` renders `pending` on the server and fetches on the client. **Prefetch anything the first paint needs.**
 
 ## Mutations in a server render
 
-`useMutation` (core and kit) returns the idle result in a server render, so a form that uses it renders on the server. Calling `mutate` during a render throws an `Error` named `MutateDuringRender`; in kit it is a `SleekStackError` (code `Unknown`) whose `cause` is that error. Other hooks keep their client-only guard: kit `useQueryClient` still throws in a server render, which is why the create form in `apps/showcase-kit` mounts after hydration.
+TanStack's `useMutation` is idle on the server. `@sleekstack/ui`'s `useMutation` is also idle under `renderToString`, and its `useQuery` renders cached data without fetching.

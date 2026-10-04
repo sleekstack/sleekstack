@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@sleekstack/core": "workspace:*",
+    "@tanstack/query-core": "^5.104.1",
     "effect": "^3.15.0"
   },
   "devDependencies": {

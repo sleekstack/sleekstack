@@ -10,7 +10,7 @@
  * component scope (project, task detail) before the new ones acquire.
  * The remount also discards the old query store, so the cached board is reset
  * rather than invalidated: the refreshed page prefetches the board under the
- * demo overrides and `<HydrateQueries>` seeds the new store with it. This is
+ * demo overrides and `<HydrationBoundary>` seeds the new store with it. This is
  * a navigation, not a mutation; board mutations never refresh the router.
  */
 import { useRouter } from 'next/navigation'

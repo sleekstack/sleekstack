@@ -19,7 +19,7 @@ The functions `defineEffect` and `defineQuery` return are plain async functions.
 
 <include>../../snippets/kit/next.ts</include>
 
-`prefetch(queries, { provide? })` loads `serializable` cached queries in a server component for `<HydrateQueries>`; importing `@sleekstack/kit/next` also makes it the server runner for lazy reads. See [Queries on the server](/docs/queries-ssr#kit).
+kit cached queries fetch on the client only. To prefetch on the server, use TanStack options with `prefetchQueries` from `@sleekstack/next`; see [Queries on the server](/docs/queries-ssr).
 
 ## Running Effects (Effect)
 

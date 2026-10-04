@@ -32,9 +32,12 @@ The spec's R-IDs in `.flow/specs/fn-21-replace-sleekstackquery-with-tanstack.md`
 - [ ] The old engine's exports and tests are untouched and still pass; `pnpm --filter @sleekstack/query test` and `typecheck` pass
 
 ## Done summary
-TBD
+Added the TanStack bridge to @sleekstack/query (packages/query/src/client.ts): QueryClientTag, scoped QueryClientLive (mount on build; unmount and clear on close; a throwing config thunk fails the layer with the original error, so the layer type is Layer<QueryClientTag, unknown>) and effectFn (works as queryFn (ctx) or mutationFn (vars, ctx), runs with the layer's captured context, abort via runPromiseExit's signal, a pre-aborted signal never starts the effect, rejects with original failure or defect). Old engine untouched. Tests are in packages/query/src/__tests__/client.test.ts.
 
+Note for downstream: the old "no DOM access" test bans addEventListener in packages/query/src, which is why abort goes through Effect's own signal option.
+
+stage: impl-review - ran (codex fan-out NEEDS_WORK, then SHIP after one fix round)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 9b67cf77fcb0b499801bfa0feef2c58b4cefd2b2, 50476a3097c5965fe61904b7d18edda74bba0794
+- Tests: pnpm --filter @sleekstack/query test, pnpm --filter @sleekstack/query typecheck
 - PRs:

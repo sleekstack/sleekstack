@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 import { mount, renderToString } from '@sleekstack/ui'
 import { act } from 'react'
-import { expect, it } from 'vitest'
+import { expect, it, vi } from 'vitest'
 import { App } from '../src/components'
-import { AppLive } from '../src/domain'
+import { AppWithQueriesLive } from '../src/domain'
+
+const AppLive = AppWithQueriesLive({ defaultOptions: { queries: { retry: false } } })
 
 const view = (viewer: string) => renderToString(App({ viewer }), { layer: AppLive })
 
@@ -17,6 +19,7 @@ it('renders the board for Ada, with every failure caught by its Boundary', async
   expect(html).toContain('No project &quot;missing&quot;') // ProjectNotFound
   expect(html).toContain('No task &quot;nope&quot;') // TaskNotFound
   expect(html).toContain('Ada can edit this task')
+  expect(html).toContain('Loading backlog') // renderToString starts no fetch
 })
 
 it('scopes the Viewer per mount: Grace reads only', async () => {
@@ -65,5 +68,23 @@ it('a filter click re-renders only the columns; a task pick swaps the detail', a
   await tick()
   expect(detail().querySelector('h2')!.textContent).toBe('Pick a package name')
   expect(container.querySelector('header')).toBe(header)
+  await act(() => m.dispose())
+})
+
+it('the backlog loads through useQuery; a guest-triggered mutation updates it, siblings keep their nodes', async () => {
+  ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
+  const container = document.createElement('div')
+  let m!: Awaited<ReturnType<typeof mount>>
+  await act(async () => void (m = await mount(App({ viewer: 'u1' }), { layer: AppLive, container })))
+  const items = () => [...container.querySelectorAll('.backlog li')].map((li) => li.textContent)
+  await vi.waitFor(() => expect(items()).toEqual(['Document Boundary']))
+  const header = container.querySelector('header')
+  const board = container.querySelector('.board')
+  const add = container.querySelector<HTMLButtonElement>('button.add')!
+
+  await act(async () => add.click())
+  await vi.waitFor(() => expect(items()).toEqual(['Document Boundary', 'New task']))
+  expect(container.querySelector('header')).toBe(header)
+  expect(container.querySelector('.board')).toBe(board)
   await act(() => m.dispose())
 })

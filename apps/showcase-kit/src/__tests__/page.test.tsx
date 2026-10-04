@@ -1,8 +1,7 @@
 /**
  * apps/showcase-kit/src/__tests__/page.test.tsx
  *
- * fn-16 R3: a failed board prefetch renders the client-fetch fallback (a placeholder, then the client fetch)
- * instead of crashing the page. The prefetched path is covered by e2e/smoke.spec.ts against `next start`.
+ * The page renders a placeholder on the server, then the client fetches the board (the kit has no prefetch).
  */
 import { expect, it, vi } from 'vitest'
 import { renderToString } from 'react-dom/server'
@@ -16,14 +15,8 @@ const actions = vi.hoisted(() => ({
   addComment: vi.fn(),
 }))
 vi.mock('../server/board.actions', () => actions)
-vi.mock('@sleekstack/kit/next', async (orig) => ({
-  ...(await orig<object>()),
-  prefetch: vi.fn(async () => {
-    throw new Error('prefetch down')
-  }),
-}))
 
-it('a failed prefetch renders the placeholder, then the client fetches the board', async () => {
+it('renders the placeholder, then the client fetches the board', async () => {
   const { default: HomePage } = await import('../../app/page')
   const page = await HomePage()
   expect(renderToString(page)).toContain('Loading board…')

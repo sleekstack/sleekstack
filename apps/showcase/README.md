@@ -81,12 +81,12 @@ DTO(read) -fromDto(dto) [Effect, needs services]-> Model -create-> Draft -toDto-
 
 ## Queries and mutations
 
-The query cache owns the board's client reads; the server only prefetches. `app/page.tsx` calls `prefetchApp([board()])`
-(`prefetch` with the same request scope and demo overrides as `runApp`) and `providers.tsx` seeds the store through
-`<HydrateQueries>`. Every query that needs request-scoped services must be prefetched this way: a lazy server read runs on the
-configured runtime only. Create, move and comment are `Mutation.make` definitions (`board-query.ts`): each resolves its
-Draft through `toDto`, writes optimistically with `Mutation.optimistic` (rolled back when the action returns `{ ok: false }`,
-e.g. "Simulate failure"), and invalidates the board on success. No mutation calls `router.refresh()`. The demo toggle still
-does: it remounts the app `LayerProvider`, so the query store is reset and rehydrated from the demo-mode prefetch.
+The TanStack query cache owns the board's client reads; the server only prefetches. `app/page.tsx` calls
+`prefetchApp([boardOptions])` (`prefetchQueries` with the same request scope and demo overrides as `runApp`) and `providers.tsx`
+hydrates the client through `<HydrationBoundary>` under `QueryProvider`. Create, move and comment are mutation specs
+(`board-query.ts`) run by `useBoardMutation`: each resolves its Draft through `toDto`, writes optimistically in `onMutate`
+(rolled back in `onError` when the action returns `{ ok: false }`, e.g. "Simulate failure"), and invalidates the board on
+settle. No mutation calls `router.refresh()`. The demo toggle still does: it remounts the app `LayerProvider`, so the query
+client is disposed and rehydrated from the demo-mode prefetch.
 - `resolveDraft` (`src/lib/contracts.ts`): resolves a Draft through Effect (validate, then run the Effect `toDto`, failing with `DraftInvalid`). The board mutations (`board-query.ts`) run it before handing the wire body to the Server Action, so a component never builds the wire body.
 - Tests: `src/models/task.test.ts` (`fromDto`, `toDto`, defaults invariant) and `src/application/board-view.test.ts` (`resolveDraft`, `loadBoard` + `BoardModel.fromDto`); `src/__tests__/board.test.tsx` (optimistic create with rollback, refetch on success, optimistic move).

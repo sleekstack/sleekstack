@@ -11,6 +11,4 @@ export { useAtomValue, useAtomSet, useAtom, useAtomRefresh, useAtomSuspense } fr
 export { AtomsSnapshot } from './AtomsSnapshot'
 export { renderWithAtoms } from './renderWithAtoms'
 export type { RenderWithAtomsStream } from './renderWithAtoms'
-export { HydrateQueries } from './HydrateQueries'
-export { useQuery, useQuerySuspense, useQueryResult, useInfiniteQuery, useQueries, useMutation, QueryProvider } from './query'
-export type { UseQuery, UseMutation } from './query'
+export { QueryProvider } from './query'

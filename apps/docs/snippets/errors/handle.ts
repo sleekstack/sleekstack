@@ -16,9 +16,6 @@ const hints: Record<SleekStackErrorCode, string> = {
   LayerFailed: 'see details.cause for the factory error',
   CleanupFailed: 'see details.tag for the failed cleanup',
   HandlerFailed: 'the action handler threw',
-  QueryDecodeFailed: "fix the query's serializable decode, or the server data it got",
-  NoServerRunner: 'import @sleekstack/kit/next on the server, or prefetch the query',
-  InvalidQueryKey: 'make every key value JSON-safe (no functions, BigInt, symbols or cycles)',
   Unknown: 'see error.cause',
 }
 

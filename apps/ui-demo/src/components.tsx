@@ -1,7 +1,9 @@
 /** @jsxImportSource @sleekstack/ui */
 import { Effect } from 'effect'
 import { Boundary, Provider, useAtomValue, useSetAtom } from '@sleekstack/ui'
-import { Avatar, FilterBar, Votes } from './guests'
+import { useMutation, useQuery } from '@sleekstack/ui/query'
+import { effectFn, QueryClientTag } from '@sleekstack/query'
+import { AddButton, Avatar, FilterBar, Votes } from './guests'
 import { filterAtom, selectedAtom } from './state'
 import {
   ProjectNotFound, TaskNotFound, TaskRepo, UserNotFound, UserRepo, Viewer, ViewerLive,
@@ -145,6 +147,41 @@ export const Team = () =>
     )
   })
 
+const backlogKey = (projectId: string) => ['tasks', projectId]
+
+/** Reads the project's tasks through the query cache; re-runs when the query result changes. */
+const BacklogList = ({ projectId }: { projectId: string }) =>
+  Effect.gen(function* () {
+    const q = yield* useQuery({ queryKey: backlogKey(projectId), queryFn: effectFn(TaskRepo.byProject(projectId)) })
+    if (q.isPending) return yield* <p className="muted">Loading backlog</p>
+    return yield* (
+      <ul className="backlog">
+        {(q.data ?? []).map((t) => (
+          <li>{t.title}</li>
+        ))}
+      </ul>
+    )
+  })
+
+/** Hands `mutate` to a React guest; re-runs only on its own mutation's status. */
+const AddTask = ({ projectId }: { projectId: string }) =>
+  Effect.gen(function* () {
+    const client = yield* QueryClientTag
+    const add = yield* useMutation({
+      mutationFn: (title: string, ctx) => effectFn(TaskRepo.add(projectId, title))(title, ctx),
+      onSuccess: () => client.invalidateQueries({ queryKey: backlogKey(projectId) }),
+    })
+    return yield* <AddButton onAdd={() => add.mutate('New task')} />
+  })
+
+export const Backlog = ({ projectId }: { projectId: string }) => (
+  <section className="backlog-panel">
+    <h2>Backlog</h2>
+    <AddTask projectId={projectId} />
+    <BacklogList projectId={projectId} />
+  </section>
+)
+
 const Header = () =>
   Effect.gen(function* () {
     const { user: viewer } = yield* Viewer
@@ -167,6 +204,7 @@ export const App = ({ viewer }: { viewer: string }) => (
       <ProjectBoard projectId="missing" />
       <Selected />
       <DetailPanel id="nope" />
+      <Backlog projectId="p2" />
     </main>
   </Provider>
 )

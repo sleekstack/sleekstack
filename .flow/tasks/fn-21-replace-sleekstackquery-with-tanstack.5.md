@@ -27,9 +27,13 @@ Parity only; no new panel features.
 - [ ] `pnpm --filter @sleekstack/devtools test` and `typecheck` pass
 
 ## Done summary
-TBD
+Devtools queries panel now reads the scope client's TanStack QueryCache via useService(QueryClientTag): rows from getAll(), lifecycle events (added/fetching/success/failure/removed) from subscribe; nothing in production; empty state when no LayerProvider or no QueryClientTag; other errors rethrown. QueryEvents import dropped.
 
+Follow-up: showcase DevtoolsMount sits in a sibling LayerProvider without QueryClientLive, so its panel shows the empty state until it is mounted under the app provider (showcase task).
+
+stage: impl-review - ran (codex fan-out NEEDS_WORK -> re-review SHIP)
+Tier: opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 179b034b4e21cea1c8b435d0d2833350d3c33a3e, 278471e6db71cf478046d1e54fcf980ab5fe1919
+- Tests: pnpm --filter @sleekstack/devtools test, pnpm --filter @sleekstack/devtools typecheck
 - PRs:

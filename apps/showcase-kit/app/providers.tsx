@@ -9,23 +9,23 @@
  * scope beneath it. `provide` picks the real or mock client `Clock` — the
  * same `demoMode` value the server used to pick `demo.server.ts`'s
  * `MockClockDef`, so both sides shadow together with no separate API.
- * `<HydrateQueries>` seeds the query cache with the page's prefetch, if any.
  */
 import React from 'react'
-import type { Dehydrated } from '@sleekstack/kit'
-import { HydrateQueries, LayerProvider } from '@sleekstack/kit/react'
+import { LayerProvider } from '@sleekstack/kit/react'
 import { MockClientClockLayer, RealClientClockLayer } from '../src/client/component-services'
 import { OptimisticScope } from '../src/client/board-query'
 
-export function Providers({ demoMode, state, children }: {
+export function Providers({ demoMode, children }: {
   readonly demoMode: boolean
-  readonly state?: Dehydrated
   readonly children: React.ReactNode
 }) {
   return (
     <React.StrictMode>
       <LayerProvider key={String(demoMode)} provide={[demoMode ? MockClientClockLayer : RealClientClockLayer]}>
-        <OptimisticScope>{state ? <HydrateQueries state={state}>{children}</HydrateQueries> : children}</OptimisticScope>
+        {/* kit queries suspend on the root's query client while its scope builds; a root suspension with no boundary never resumes */}
+        <React.Suspense fallback={<p>Loading board…</p>}>
+          <OptimisticScope>{children}</OptimisticScope>
+        </React.Suspense>
       </LayerProvider>
     </React.StrictMode>
   )

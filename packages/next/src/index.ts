@@ -15,5 +15,5 @@ export {
   type RuntimeConfig,
 } from '@sleekstack/runtime'
 export { isNextControlFlow, runEffect } from './runtime'
-export { prefetch } from './query'
+export { prefetchQueries } from './query'
 export { prefetchAtoms } from './atoms'

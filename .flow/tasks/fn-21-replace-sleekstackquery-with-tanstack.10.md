@@ -28,9 +28,8 @@ The docs API reference is generated; do not hand-edit generated output.
 - [ ] `pnpm --filter docs test` (the docs app's test script) passes
 
 ## Done summary
-TBD
-
+Queries, queries-ssr and tanstack-query guides rewritten for QueryClientLive/QueryProvider/effectFn/prefetchQueries/HydrationBoundary, kit and ui hooks; snippets compile; kit SSR snippet removed; stale HydrateQueries/Hydrate mentions fixed in nextjs/atoms/showcases/kit-vs-effect. Root README only lists the package name, unchanged.
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 3b1292f
+- Tests: pnpm --filter docs test, pnpm --filter docs typecheck
 - PRs:

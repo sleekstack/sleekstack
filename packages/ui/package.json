@@ -17,6 +17,10 @@
     "./jsx-dev-runtime": {
       "types": "./src/jsx-dev-runtime.ts",
       "default": "./src/jsx-dev-runtime.ts"
+    },
+    "./query": {
+      "types": "./src/query.ts",
+      "default": "./src/query.ts"
     }
   },
   "scripts": {
@@ -25,13 +29,16 @@
   },
   "peerDependencies": {
     "react": ">=19.0.0",
-    "react-dom": ">=19.0.0"
+    "react-dom": ">=19.0.0",
+    "@tanstack/query-core": "^5.104.1"
   },
   "dependencies": {
     "@sleekstack/core": "workspace:*",
+    "@sleekstack/query": "workspace:*",
     "effect": "^3.15.0"
   },
   "devDependencies": {
+    "@tanstack/query-core": "^5.104.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "jsdom": "^29.1.1",

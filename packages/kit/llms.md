@@ -5,8 +5,8 @@ Effect-free dependency injection for TypeScript apps (React, Next.js). Validate 
 ## Entry points
 
 - `@sleekstack/kit`: `tag`, `layer`, `withCleanup`, `effect` (side-effect Layer), `module`, `atom`, `cachedQuery`, `mutation`, `SleekStackError`.
-- `@sleekstack/kit/next`: `configureRuntime`, `defineEffect`, `defineQuery`, `runOperation`, `query`, `fail`, `prefetch`. (`effect` here is a deprecated alias of `runOperation`; do not use it.)
-- `@sleekstack/kit/react`: `LayerProvider`, `useService`, `useServices`, `useAtom`, `useAtomValue`, `useAtomSet`, `useQuery`, `useMutation`, `useQueryClient`, `QueryProvider`, `HydrateQueries`.
+- `@sleekstack/kit/next`: `configureRuntime`, `defineEffect`, `defineQuery`, `runOperation`, `query`, `fail`. (`effect` here is a deprecated alias of `runOperation`; do not use it.)
+- `@sleekstack/kit/react`: `LayerProvider`, `useService`, `useServices`, `useAtom`, `useAtomValue`, `useAtomSet`, `useQuery`, `useMutation`, `useQueryClient`, `QueryProvider`.
 
 ## Patterns
 

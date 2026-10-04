@@ -7,12 +7,12 @@ from any public entry.
 | Subpath | Exports |
 | --- | --- |
 | `@sleekstack/kit` | `tag`, `layer`, `withCleanup`, `effect`, `atom`, `cachedQuery`, `mutation`, `module`, `SleekStackError` (+ types `Tag`, `Layer`, `Module`, `FinalizerError`, ...) |
-| `@sleekstack/kit/next` | `configureRuntime`, `defineEffect`, `defineQuery`, `runOperation`, `query`, `fail`, `prefetch` (`effect`: deprecated alias of `runOperation`) (+ `ActionResult`, `OperationOptions`, `RuntimeConfig`, `PrefetchOptions`) |
-| `@sleekstack/kit/react` | `LayerProvider`, `useService`, `useServices`, `useAtom`, `useAtomValue`, `useAtomSet`, `useQuery`, `useMutation`, `useQueryClient`, `QueryProvider`, `HydrateQueries` |
+| `@sleekstack/kit/next` | `configureRuntime`, `defineEffect`, `defineQuery`, `runOperation`, `query`, `fail` (`effect`: deprecated alias of `runOperation`) (+ `ActionResult`, `OperationOptions`, `RuntimeConfig`) |
+| `@sleekstack/kit/react` | `LayerProvider`, `useService`, `useServices`, `useAtom`, `useAtomValue`, `useAtomSet`, `useQuery`, `useMutation`, `useQueryClient`, `QueryProvider` |
 
 Every failure is a `SleekStackError` with a `code` (`MissingDependency`, `DependencyCycle`, `CaptiveDependency`,
 `AmbiguousProvider`, `ModuleCycle`, `DuplicateModule`, `InvalidModule`, `PrivateDependency`, `DuplicateTag`,
-`InvalidTag`, `LayerFailed`, `CleanupFailed`, `HandlerFailed`, `AtomCycle`, `InvalidQueryKey`, `QueryDecodeFailed`, `NoServerRunner`, `Unknown`) and `details`.
+`InvalidTag`, `LayerFailed`, `CleanupFailed`, `HandlerFailed`, `AtomCycle`, `Unknown`) and `details`.
 
 ## `@sleekstack/kit`
 
@@ -78,7 +78,7 @@ const Next = () => { const [id, set] = useAtom(userId); return <button onClick={
 
 ### Cached queries and mutations: `cachedQuery()`, `mutation()`
 
-Client-side cached reads over [`@sleekstack/query`](../query) (a dependency of the kit). Bodies are generators: `yield*` a Tag to resolve it from the nearest `LayerProvider`. `cachedQuery` is not the server-side `query` of `@sleekstack/kit/next`, which caches nothing.
+Client-side cached reads on TanStack Query, through [`@sleekstack/query`](../query) (a dependency of the kit). Bodies are generators: `yield*` a Tag to resolve it from the nearest `LayerProvider`. `cachedQuery` is not the server-side `query` of `@sleekstack/kit/next`, which caches nothing.
 
 ```tsx
 import { cachedQuery, mutation } from '@sleekstack/kit'
@@ -95,9 +95,9 @@ function Rows() {
 }
 ```
 
-- Failures are `SleekStackError`: `useQuery` returns `error`, `mutate` rejects. An unserializable key throws code `InvalidQueryKey`.
+- Failures are `SleekStackError`: `useQuery` returns `error`, `mutate` rejects. A key TanStack cannot hash throws `SleekStackError`.
 - `useMutation` returns the idle handle during a server render; `mutate` there throws (cause: `MutateDuringRender`).
-- Server prefetch: give the query `serializable` (`true`, or a `{ encode, decode }` codec), call `prefetch([q])` from `@sleekstack/kit/next` in a server component and pass the result to `<HydrateQueries state>`. Codes: `QueryDecodeFailed`, `NoServerRunner`. See the docs page "Queries on the server".
+- No server prefetch: kit queries fetch on the client. Nested `LayerProvider`s share the root's query client; `QueryProvider` starts a new one.
 
 ## `@sleekstack/kit/next`
 

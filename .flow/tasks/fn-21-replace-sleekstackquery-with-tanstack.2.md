@@ -30,9 +30,13 @@ Hydration now uses TanStack's own `dehydrate` / `HydrationBoundary`; this task a
 - [ ] `pnpm --filter @sleekstack/react test` and `typecheck` pass
 
 ## Done summary
-TBD
+Replaced @sleekstack/react's own query hooks with QueryProvider, which feeds @tanstack/react-query's QueryClientProvider from QueryClientTag in the LayerProvider scope; useQuery/useMutation/HydrateQueries (and hydrate.test.tsx) removed, @tanstack/react-query added as peer + dev dep. query.test.tsx covers per-root clients, clear on root unmount, and removed exports.
 
+Follow-ups: context.ts QueryStoreContext is now dead (outside Touches); kit/showcase/docs/devtools still import the removed hooks (tasks .4/.5/.9/.10).
+
+Tier: IMPLEMENTER opus at medium
+stage: impl-review - ran (codex fan-out, 3 draws SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 9f8bf9564a1843f46686a2acfa0a69e91e37876b, c5392c47863462f9bfcb65cd268a0cb9a780fde6
+- Tests: pnpm --filter @sleekstack/react test, pnpm --filter @sleekstack/react typecheck
 - PRs:

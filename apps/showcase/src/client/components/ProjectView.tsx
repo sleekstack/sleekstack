@@ -11,8 +11,9 @@
  * (optimistic, rolled back on the "Simulate failure" control's rejection, R5).
  */
 import { Suspense, useMemo, useSyncExternalStore, useState } from 'react'
-import { LayerProvider, useMutation, useService } from '@sleekstack/react'
-import { createTaskMutation, failureOf, isPendingId } from '../services/board-query'
+import { LayerProvider, useService } from '@sleekstack/react'
+import { createTaskMutation, isPendingId } from '../services/board-query'
+import { useBoardMutation } from '../services/useBoardMutation'
 import type { ProjectRecord } from '../../domain/tags'
 import { ProjectFilterStore, makeProjectFilterStoreLayer, type TaskStatusFilter } from '../services/component-services'
 import { TaskDetail } from './TaskDetail'
@@ -34,14 +35,14 @@ function ProjectBody({ project, tasks }: { readonly project: ProjectRecord; read
   const newTaskCtx = useMemo(() => ({ projectId: project.id }), [project.id])
   const form = useDraftForm(NewTaskDraft, newTaskCtx)
   const [createError, setCreateError] = useState<string | null>(null)
-  const { mutate, isPending: pending } = useMutation(createTaskMutation)
+  const { mutate, isPending: pending } = useBoardMutation(createTaskMutation)
 
   const visible = filter === 'all' ? tasks : tasks.filter(({ task }) => task.status === filter)
   const selected = tasks.find(({ task }) => task.id === selectedTaskId)
 
   const submitCreate = form.handleSubmit((draft) => {
     form.reset() // the task shows optimistically, so the form is free for the next one
-    void mutate({ draft, src: newTaskCtx }).then((exit) => setCreateError(failureOf(exit)))
+    mutate({ draft, src: newTaskCtx }, { onSuccess: () => setCreateError(null), onError: (e) => setCreateError(e.message) })
   }, () => setCreateError(null))
 
   return (

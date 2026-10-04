@@ -8,11 +8,595 @@
   "default_sync": null,
   "depends_on_epics": [],
   "id": "fn-21-replace-sleekstackquery-with-tanstack",
-  "impl_review_rounds": {},
+  "impl_review_rounds": {
+    "fn-21-replace-sleekstackquery-with-tanstack.1": 0,
+    "fn-21-replace-sleekstackquery-with-tanstack.2": 0,
+    "fn-21-replace-sleekstackquery-with-tanstack.3": 0,
+    "fn-21-replace-sleekstackquery-with-tanstack.4": 0,
+    "fn-21-replace-sleekstackquery-with-tanstack.5": 0,
+    "fn-21-replace-sleekstackquery-with-tanstack.6": 0,
+    "fn-21-replace-sleekstackquery-with-tanstack.7": 1
+  },
   "next_task": 1,
   "plan_review_rounds": 0,
   "plan_review_status": "unknown",
   "plan_reviewed_at": null,
+  "review_attempts": [
+    {
+      "artifact_sha256": "782d18250d4eecdd422b21947041be53ae6066124a7a87873223383e2e7ece0c",
+      "backend": "codex",
+      "base_sha": "16b3f889038f4946ebdb889a3dee026c569ccb1f",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-da227189cba23a736b65951b5ee9c536",
+            "classification": "introduced",
+            "findingId": "finding-da227189cba23a736b65951b5ee9c536",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-1fea4b47554e36daa00bdc2232a82cc5",
+            "classification": "introduced",
+            "findingId": "finding-1fea4b47554e36daa00bdc2232a82cc5",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-0eebe101b3e3d00c0ba95676fa237e5d",
+            "classification": "introduced",
+            "findingId": "finding-0eebe101b3e3d00c0ba95676fa237e5d",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-6444891cc55f4ceb67e0213ba48c75cb",
+            "classification": "introduced",
+            "findingId": "finding-6444891cc55f4ceb67e0213ba48c75cb",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "9b67cf77fcb0b499801bfa0feef2c58b4cefd2b2",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 3152,
+      "output_sha256": "9717027dba2cfd28e40518ec08c6f8f400176eb886cb11238a2663fc42ff0521",
+      "reservation_id": "c0fb9ad64f0b48aea7b4bc222a26bf8c",
+      "round_consumed": true,
+      "scope": "impl:fn-21-replace-sleekstackquery-with-tanstack.1",
+      "superseded_by": null,
+      "task": "fn-21-replace-sleekstackquery-with-tanstack.1",
+      "timestamp": "2026-10-03T16:37:59.284132Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "1d0e6af414de4eb3220f4b8ff5536ddbf9005341bb542904f5d547b7d59c5221",
+      "backend": "codex",
+      "base_sha": "16b3f889038f4946ebdb889a3dee026c569ccb1f",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-da227189cba23a736b65951b5ee9c536",
+            "classification": "introduced",
+            "findingId": "finding-da227189cba23a736b65951b5ee9c536",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-1fea4b47554e36daa00bdc2232a82cc5",
+            "classification": "introduced",
+            "findingId": "finding-1fea4b47554e36daa00bdc2232a82cc5",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-0eebe101b3e3d00c0ba95676fa237e5d",
+            "classification": "introduced",
+            "findingId": "finding-0eebe101b3e3d00c0ba95676fa237e5d",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-6444891cc55f4ceb67e0213ba48c75cb",
+            "classification": "introduced",
+            "findingId": "finding-6444891cc55f4ceb67e0213ba48c75cb",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "50476a3097c5965fe61904b7d18edda74bba0794",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 705,
+      "output_sha256": "e74b50aa3331e4a8b93c933a8c99e73e488f2f82f2439d7e07389b7ee864b7e8",
+      "reservation_id": "14e946512b7f417bacc58916bebec535",
+      "round_consumed": true,
+      "scope": "impl:fn-21-replace-sleekstackquery-with-tanstack.1",
+      "superseded_by": null,
+      "task": "fn-21-replace-sleekstackquery-with-tanstack.1",
+      "timestamp": "2026-10-03T16:39:40.819516Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "eb41b78602744ec184d6af490dd16f8e10ce77eaaaa03ffb5fcf9069f9e4b20f",
+      "backend": "codex",
+      "base_sha": "e348457a555e95e4630dbfc380c8f697c93107a4",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "9f8bf9564a1843f46686a2acfa0a69e91e37876b",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 158,
+      "output_sha256": "6ff70da3d83706800ca3cabc6ba62603ba0485fcf5259d27f1be54ce68686975",
+      "reservation_id": "67a61075ae8f4b55b0b05002df748a00",
+      "round_consumed": true,
+      "scope": "impl:fn-21-replace-sleekstackquery-with-tanstack.2",
+      "superseded_by": null,
+      "task": "fn-21-replace-sleekstackquery-with-tanstack.2",
+      "timestamp": "2026-10-03T16:45:30.533014Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "a71ff6b95bcf234d67ad4fc20a8c22305d18bc041ee0b4a52e9a9305d9c466a9",
+      "backend": "codex",
+      "base_sha": "e8ba01da2aab5906719477dca046dc5b8bf6ceb8",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "f2a3746a8948082bf381bbba5e4e5e03acf5e27f",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 158,
+      "output_sha256": "6ff70da3d83706800ca3cabc6ba62603ba0485fcf5259d27f1be54ce68686975",
+      "reservation_id": "7e8e70fe286b4fef86f32770e6401de2",
+      "round_consumed": true,
+      "scope": "impl:fn-21-replace-sleekstackquery-with-tanstack.3",
+      "superseded_by": null,
+      "task": "fn-21-replace-sleekstackquery-with-tanstack.3",
+      "timestamp": "2026-10-03T16:49:42.040067Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "49000c78175277583ebcd773cebae359e2c107f590ee0951b7ac66837f6d650b",
+      "backend": "codex",
+      "base_sha": "d45529ea9645bf408f8ef2c555c4e13275153cc4",
+      "counter_kind": "impl",
+      "failure_class": "head_moved",
+      "finalized": {
+        "digest": "not_applicable",
+        "receipt": "not_applicable",
+        "status": "not_applicable"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "f17f83dda495583deef974be1fc546110da9fc24",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "outcome": "transport_failure",
+      "output_bytes": 65,
+      "output_sha256": "e5a1b2a43808b99ea9a4371d2fa760c3a13e9db86f036641833e32bd30d6e2db",
+      "reservation_id": "6f5872be36194988add5dcf2a05ae9e1",
+      "round_consumed": false,
+      "scope": "impl:fn-21-replace-sleekstackquery-with-tanstack.4",
+      "superseded_by": null,
+      "task": "fn-21-replace-sleekstackquery-with-tanstack.4",
+      "timestamp": "2026-10-03T16:59:50.059220Z",
+      "verdict": null
+    },
+    {
+      "artifact_sha256": "e3ab67661160b953d83d22c025bdc4a939614608bdb1f2e863855ee6dc45f253",
+      "backend": "codex",
+      "base_sha": "d45529ea9645bf408f8ef2c555c4e13275153cc4",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-6a41f696c134d4de5242ad2f5bdabe93",
+            "classification": "introduced",
+            "findingId": "finding-6a41f696c134d4de5242ad2f5bdabe93",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-e0996bdb5d537100f9e634e921cc1294",
+            "classification": "introduced",
+            "findingId": "finding-e0996bdb5d537100f9e634e921cc1294",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-3a5c0cbde93996c86bc2ada60badb637",
+            "classification": "introduced",
+            "findingId": "finding-3a5c0cbde93996c86bc2ada60badb637",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "bb307dbc007647b94edbd59baeac0816d10ce182",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 2667,
+      "output_sha256": "da6a1b0323310f6908e366073c9f0ba23435f1626c2a820a840155977a2a61cb",
+      "reservation_id": "bba3bae74e2e47cf849254620083551e",
+      "round_consumed": true,
+      "scope": "impl:fn-21-replace-sleekstackquery-with-tanstack.4",
+      "superseded_by": null,
+      "task": "fn-21-replace-sleekstackquery-with-tanstack.4",
+      "timestamp": "2026-10-03T17:04:52.421781Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "86baeb59045573b823d064412d4735dbe263ba96b5f93d038eb9ac0a8c5129d9",
+      "backend": "codex",
+      "base_sha": "d45529ea9645bf408f8ef2c555c4e13275153cc4",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-6a41f696c134d4de5242ad2f5bdabe93",
+            "classification": "introduced",
+            "findingId": "finding-6a41f696c134d4de5242ad2f5bdabe93",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-e0996bdb5d537100f9e634e921cc1294",
+            "classification": "introduced",
+            "findingId": "finding-e0996bdb5d537100f9e634e921cc1294",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-3a5c0cbde93996c86bc2ada60badb637",
+            "classification": "introduced",
+            "findingId": "finding-3a5c0cbde93996c86bc2ada60badb637",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "042211bd1f42aa7eb54aa4412678c85fa4985c1f",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 758,
+      "output_sha256": "9fd63404b44fb0c87994c5a2fbb9c6384921856a8b698c9fac4359242cba80d8",
+      "reservation_id": "37c83aaba4a44113b058ef88686ac3bf",
+      "round_consumed": true,
+      "scope": "impl:fn-21-replace-sleekstackquery-with-tanstack.4",
+      "superseded_by": null,
+      "task": "fn-21-replace-sleekstackquery-with-tanstack.4",
+      "timestamp": "2026-10-03T17:07:15.171477Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "d24a1a94357f7ad98a9654c614def0fe5027ce23f75d3540d7f0c33574ecddff",
+      "backend": "codex",
+      "base_sha": "78819bdaf5b1ede6a115a193e3e2c3986e67229a",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-1a464cf3db192ac47f2778b678609c9a",
+            "classification": "introduced",
+            "findingId": "finding-1a464cf3db192ac47f2778b678609c9a",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-590c1e649df6b81afaeab3fafa682d5e",
+            "classification": "introduced",
+            "findingId": "finding-590c1e649df6b81afaeab3fafa682d5e",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "179b034b4e21cea1c8b435d0d2833350d3c33a3e",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1646,
+      "output_sha256": "f4a1f86d2dc041ffd6e8664331b69671e791048f322984e82e0b32f8a7fd9aba",
+      "reservation_id": "536e91be212d4def92239edda4affd8e",
+      "round_consumed": true,
+      "scope": "impl:fn-21-replace-sleekstackquery-with-tanstack.5",
+      "superseded_by": null,
+      "task": "fn-21-replace-sleekstackquery-with-tanstack.5",
+      "timestamp": "2026-10-03T17:12:20.555294Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "256f25ee078eae0ce850b09e381eaf5645e5e8c3717e69d2016f5f4cb5f17bd1",
+      "backend": "codex",
+      "base_sha": "78819bdaf5b1ede6a115a193e3e2c3986e67229a",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-1a464cf3db192ac47f2778b678609c9a",
+            "classification": "introduced",
+            "findingId": "finding-1a464cf3db192ac47f2778b678609c9a",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-590c1e649df6b81afaeab3fafa682d5e",
+            "classification": "introduced",
+            "findingId": "finding-590c1e649df6b81afaeab3fafa682d5e",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "278471e6db71cf478046d1e54fcf980ab5fe1919",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 636,
+      "output_sha256": "b1e26e0fb8331aa140fb236fe31f87978b587a5215703bab5c40ae0e399513ab",
+      "reservation_id": "7358f8971f974da4878add28e3fd64cb",
+      "round_consumed": true,
+      "scope": "impl:fn-21-replace-sleekstackquery-with-tanstack.5",
+      "superseded_by": null,
+      "task": "fn-21-replace-sleekstackquery-with-tanstack.5",
+      "timestamp": "2026-10-03T17:13:41.826207Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "57c0f9b301f8b317ee6428f0c9f47a57a33ed35e729f7be4c3d1ca02abc0cc48",
+      "backend": "codex",
+      "base_sha": "b07f78b1542f7c430e40c7e79846f17967ed426c",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-e024a4ee33adac579832549bd3d5cb16",
+            "classification": "introduced",
+            "findingId": "finding-e024a4ee33adac579832549bd3d5cb16",
+            "firstSeenThisRound": true,
+            "severity": "P3",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "66985c6935f132e6944fc926eb627c76759f56d5",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 839,
+      "output_sha256": "76b6ae64441ffabcc15227654d984649b8c6c205c501414040300231295c394f",
+      "reservation_id": "8902ee923b8d49418f7f6aa89a41d5bc",
+      "round_consumed": true,
+      "scope": "impl:fn-21-replace-sleekstackquery-with-tanstack.6",
+      "superseded_by": null,
+      "task": "fn-21-replace-sleekstackquery-with-tanstack.6",
+      "timestamp": "2026-10-03T17:21:25.525584Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "342ba6e5fb40bb421e058efc072c01175dbed84e6f1a23645e21ad5f90955cfb",
+      "backend": "codex",
+      "base_sha": "b07f78b1542f7c430e40c7e79846f17967ed426c",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-e024a4ee33adac579832549bd3d5cb16",
+            "classification": "introduced",
+            "findingId": "finding-e024a4ee33adac579832549bd3d5cb16",
+            "firstSeenThisRound": false,
+            "severity": "P3",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "ff41f2b594f11a1b83f5dfb4363190113ed5c054",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 780,
+      "output_sha256": "e84bf472883f2167739bf2552005cb15c4a99b2919fff4dbc25baad63fef505e",
+      "reservation_id": "e51aeae165f0433ca55c15d9c1a32d3d",
+      "round_consumed": true,
+      "scope": "impl:fn-21-replace-sleekstackquery-with-tanstack.6",
+      "superseded_by": null,
+      "task": "fn-21-replace-sleekstackquery-with-tanstack.6",
+      "timestamp": "2026-10-03T17:22:34.407735Z",
+      "verdict": "SHIP"
+    }
+  ],
+  "review_hash_epoch": {
+    "impl:fn-21-replace-sleekstackquery-with-tanstack.1": 1,
+    "impl:fn-21-replace-sleekstackquery-with-tanstack.2": 1,
+    "impl:fn-21-replace-sleekstackquery-with-tanstack.3": 1,
+    "impl:fn-21-replace-sleekstackquery-with-tanstack.4": 1,
+    "impl:fn-21-replace-sleekstackquery-with-tanstack.5": 1,
+    "impl:fn-21-replace-sleekstackquery-with-tanstack.6": 1
+  },
+  "review_pending_rounds": {
+    "impl:fn-21-replace-sleekstackquery-with-tanstack.7": 1
+  },
+  "review_reservations": {
+    "b78f2266d74b45cb83e922db60e4ed36": {
+      "artifact_sha256": "62cd5cdd6d3efbcb2a2c1e890159755ac9ec6e6e795c23eb6c9b57f987342a71",
+      "counter_scope": "impl:fn-21-replace-sleekstackquery-with-tanstack.7",
+      "epoch": 0,
+      "exclusive": true,
+      "forced": false,
+      "review_type": "impl"
+    }
+  },
+  "review_transport_failures": {
+    "impl:fn-21-replace-sleekstackquery-with-tanstack.1": 0,
+    "impl:fn-21-replace-sleekstackquery-with-tanstack.2": 0,
+    "impl:fn-21-replace-sleekstackquery-with-tanstack.3": 0,
+    "impl:fn-21-replace-sleekstackquery-with-tanstack.4": 0,
+    "impl:fn-21-replace-sleekstackquery-with-tanstack.5": 0,
+    "impl:fn-21-replace-sleekstackquery-with-tanstack.6": 0
+  },
   "spec_path": ".flow/specs/fn-21-replace-sleekstackquery-with-tanstack.md",
   "status": "open",
   "title": "Replace @sleekstack/query with TanStack Query core",
@@ -27,5 +611,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-03T15:45:28.875845Z"
+  "updated_at": "2026-10-03T17:32:32.557719Z"
 }

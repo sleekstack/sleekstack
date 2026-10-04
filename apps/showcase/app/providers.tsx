@@ -6,21 +6,26 @@
  * remounts the whole subtree when the demo-mode cookie flips, releasing every
  * open component scope beneath it. Demo mode shadows services on the server
  * only (delivery/demo-mode.ts); the client has no ambient services to swap.
- * `<HydrateQueries>` seeds the app store's query cache with the page's prefetch.
+ * The layer's `QueryClientLive` backs `QueryProvider`; `<HydrationBoundary>` seeds it with the page's prefetch.
  */
 import React from 'react'
-import { HydrateQueries, LayerProvider } from '@sleekstack/react'
-import type { Hydrate } from '@sleekstack/query'
+import { HydrationBoundary, type DehydratedState } from '@tanstack/react-query'
+import { LayerProvider, QueryProvider } from '@sleekstack/react'
+import { QueryClientLive } from '@sleekstack/query'
 
-export function Providers({ demoMode, state = [], children }: {
+const provide = [QueryClientLive()]
+
+export function Providers({ demoMode, state, children }: {
   readonly demoMode: boolean
-  readonly state?: Hydrate.Dehydrated
+  readonly state?: DehydratedState
   readonly children: React.ReactNode
 }) {
   return (
     <React.StrictMode>
-      <LayerProvider key={String(demoMode)} provide={[]}>
-        <HydrateQueries state={state}>{children}</HydrateQueries>
+      <LayerProvider key={String(demoMode)} provide={provide}>
+        <QueryProvider>
+          <HydrationBoundary state={state}>{children}</HydrationBoundary>
+        </QueryProvider>
       </LayerProvider>
     </React.StrictMode>
   )
