@@ -1,8 +1,8 @@
 import { Cause, Data, type Effect, type Layer, type Scope } from 'effect'
 import type { AtomStore } from '@sleekstack/core'
-import { createRoot } from 'react-dom/client'
+import { hydrateRoot } from 'react-dom/client'
 import { reportRenderError } from './component'
-import { build, mount, type Env, type Events, flat, type Instance, keysOf, type Leaf, listen, type Live, type Mounted, owned, renderGuest, start, watch } from './dom'
+import { build, mount, type Env, type Events, flat, guestElement, type Instance, keysOf, type Leaf, listen, type Live, type Mounted, owned, start, watch } from './dom'
 import type { Node } from './node'
 import type { Store } from './reactive'
 import { checkAttr, checkTag, TEXT_SEPARATOR } from './string'
@@ -20,8 +20,8 @@ const isSeparator = (d: ChildNode): boolean => d.nodeType === 8 && (d as Comment
  */
 export class HydrationMismatch extends Data.TaggedError('HydrationMismatch')<{ readonly expected: string; readonly found: string }> {}
 
-const report = (env: Env, expected: string, found: ChildNode | undefined): void => {
-  const cause = Cause.fail(new HydrationMismatch({ expected, found: found ? found.nodeName : 'nothing' }))
+const report = (env: Env, expected: string, found: ChildNode | string | undefined): void => {
+  const cause = Cause.fail(new HydrationMismatch({ expected, found: typeof found === 'string' ? found : found ? found.nodeName : 'nothing' }))
   if (!env.onError) return console.error(cause)
   try {
     env.onError(cause)
@@ -85,10 +85,13 @@ const adoptOne = (n: Leaf, key: string | undefined, dom: ChildNode | undefined, 
       }
       case 'Guest': {
         if (dom?.nodeName !== 'SLEEK-GUEST') return mismatch(n, key, dom, parent, env, scopes)
-        // ponytail: the host is kept but React re-renders its content; fn-25.5 switches to `hydrateRoot`.
+        // React adopts the server markup; content it cannot match it re-renders and reports here.
         const host = dom as HTMLElement
-        const root = createRoot(host, { onCaughtError: () => {}, onUncaughtError: (error) => reportRenderError(error, env.onError) })
-        renderGuest(root, n, env)
+        const root = hydrateRoot(host, guestElement(n, env), {
+          onCaughtError: () => {},
+          onUncaughtError: (error) => reportRenderError(error, env.onError),
+          onRecoverableError: (error) => report(env, `guest ${n.component.displayName ?? n.component.name}`, `React: ${error instanceof Error ? error.message : String(error)}`),
+        })
         return { node: n, dom: host, kids: [], root, ...keyed }
       }
     }

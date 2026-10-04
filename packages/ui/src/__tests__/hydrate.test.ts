@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { Atom, makeAtomStore } from '@sleekstack/core'
 import { Cause, Context, Effect, Layer, Schema } from 'effect'
-import { act } from 'react'
+import { act, createElement, useState } from 'react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { bind, Boundary, el, HydrateConflict, HydrationMismatch, hydrateMount, mount, type Mounted, renderToString, useAtomValue, useLocal } from '../index'
+import { bind, Boundary, el, fromReact, HydrateConflict, HydrationMismatch, hydrateMount, mount, type Mounted, renderToString, useAtomValue, useLocal } from '../index'
 import { jsx as rawJsx } from '../jsx-runtime'
 
 const jsx = (type: any, props: any) => rawJsx(type, props)
@@ -253,5 +253,61 @@ describe('hydrateMount keyed lists, form values, whitespace', () => {
     // The empty text is the only node created (it serializes to nothing).
     expect(all(container).filter((n) => !before.includes(n))).toHaveLength(1)
     expect([...p.childNodes].every((n) => n.nodeType === 3)).toBe(true)
+  })
+
+  describe('guests', () => {
+    const mismatches = (onError: ReturnType<typeof vi.fn>) =>
+      onError.mock.calls.map(([c]) => Cause.squash(c as Cause.Cause<unknown>)).filter((e) => e instanceof HydrationMismatch)
+
+    it('a guest adopts its server markup and keeps React state across parent re-runs (R6)', async () => {
+      const n = Atom.make(0)
+      const Counter = fromReact((p: { n: number }) => {
+        const [c, setC] = useState(0)
+        return createElement('button', { onClick: () => setC(c + 1) }, `${c}/${p.n}`)
+      })
+      const App = () => Effect.flatMap(useAtomValue(n), (v) => Effect.map(jsx(Counter, { n: v }), (g) => el('div', {}, g)))
+      const container = document.createElement('div')
+      container.innerHTML = await renderToString(jsx(App, {}), { layer: Layer.empty })
+      const button = container.querySelector('button')!
+      const onError = vi.fn()
+      const store = makeAtomStore()
+      await act(async () => void handles.push(await hydrateMount(jsx(App, {}), { layer: Layer.empty, container, onError, store })))
+      expect(container.querySelector('button')).toBe(button)
+      await act(async () => button.click())
+      await act(async () => store.set(n, 1))
+      await act(tick)
+      expect(container.querySelector('button')).toBe(button)
+      expect(button.textContent).toBe('1/1')
+      expect(onError).not.toHaveBeenCalled()
+    })
+
+    it('guest markup React cannot match is re-rendered and reported to onError', async () => {
+      let side = 'server'
+      const G = fromReact(() => createElement('b', {}, side))
+      const app = () => Effect.map(jsx(G, {}), (g) => el('div', {}, g))
+      const container = document.createElement('div')
+      container.innerHTML = await renderToString(app(), { layer: Layer.empty })
+      side = 'client'
+      const onError = vi.fn()
+      await act(async () => void handles.push(await hydrateMount(app(), { layer: Layer.empty, container, onError })))
+      expect(container.textContent).toBe('client')
+      expect(mismatches(onError).length).toBeGreaterThan(0)
+    })
+
+    it('a guest that threw on the server (rendered nothing) is a mismatch and is built on the client', async () => {
+      let fail = true
+      const G = fromReact(() => {
+        if (fail) throw new Error('server only')
+        return createElement('b', {}, 'ok')
+      })
+      const app = () => Effect.map(jsx(G, {}), (g) => el('div', {}, g))
+      const container = document.createElement('div')
+      container.innerHTML = await renderToString(app(), { layer: Layer.empty })
+      fail = false
+      const onError = vi.fn()
+      await act(async () => void handles.push(await hydrateMount(app(), { layer: Layer.empty, container, onError })))
+      expect(container.querySelector('sleek-guest')!.textContent).toBe('ok')
+      expect(mismatches(onError)).toHaveLength(1)
+    })
   })
 })

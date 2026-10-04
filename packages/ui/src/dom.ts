@@ -283,10 +283,9 @@ const relisten = (el: Element, ev: Events, next: Readonly<Record<string, EventBi
 }
 
 // The boundary keeps its identity across renders, so a failed guest stays empty until unmounted.
-export const renderGuest = (root: Root, node: GuestNode, env: Env): void => {
-  const report = (error: unknown) => reportRenderError(error, env.onError)
-  flushSync(() => root.render(createElement(GuestBoundary, { report }, createElement(node.component, node.props))))
-}
+export const guestElement = (node: GuestNode, env: Env): ReactNode =>
+  createElement(GuestBoundary, { report: (error: unknown) => reportRenderError(error, env.onError) }, createElement(node.component, node.props))
+export const renderGuest = (root: Root, node: GuestNode, env: Env): void => flushSync(() => root.render(guestElement(node, env)))
 
 export const build = (node: Leaf, key: string | undefined, env: Env, scopes: Array<Scope.CloseableScope>): Live | null => {
   try {
