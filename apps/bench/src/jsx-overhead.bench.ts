@@ -20,9 +20,12 @@ const cases = {
 for (const [name, make] of Object.entries(cases)) {
   const wrapped = make(jsx)
   const plain = make(direct)
+  // fn-25 hydration markers (wrappers, text separators) only exist on the `jsx` path; compare the markup without them.
+  const bare = (body: () => Promise<unknown>) => async () =>
+    String(await body()).replace(/<\/?sleek-(?:reactive|guest)[^>]*>|<!--sleek-t-->/g, '')
   await check(name, [
-    ['sleekstack', wrapped],
-    ['direct', plain],
+    ['sleekstack', bare(wrapped)],
+    ['direct', bare(plain)],
   ])
   describe(name, () => {
     bench('sleekstack', async () => void (await wrapped()))
