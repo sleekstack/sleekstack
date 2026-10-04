@@ -37,9 +37,16 @@ Touches: packages/ui/src/reactive.ts, packages/ui/src/index.ts, packages/ui/src/
 - [ ] TBD
 
 ## Done summary
-TBD
+Added `useLocal(initial)` (ordered slots stored as writable atoms, each held with `store.retain`), the `SlotMismatch` and `DuplicateKey` tagged errors, and the slot lifecycle hooks `commitSlots(frame)` and `dropSlots(frame)`. `Frame` is now a `RunFrame` object (`ordinals`, `owner` slots, `id`, `cursor`, lazy `seen`/`pending`). Each instance's slots live in its parent's `owner.kids` registry under the instance id, so they survive re-runs of both the instance and its parent. Root instances fall back to slots kept in the instance's closure.
 
+For the DOM tasks: commit or drop the frame a run created. Tests make that frame with `makeFrame(prevOwner)`. A keyed sibling still bumps the positional ordinal (behaviour from task .2), so the ids of unkeyed siblings after it shift.
+
+Tier: session (jev-unavailable(no_key)); routing block pins implementer opus at medium
+baseline: green via handoff (verified at 90b13f5 by fn-23-reconciling-dom-renderer-keys-host.2)
+Bench: the first compare run flagged render-dom/update-1-of-1k (1.374 against a 0.460 baseline). A single re-run gave 0.429, which is OK. jsx-overhead stayed in tolerance on both runs.
+
+stage: impl-review - skipped(config: REVIEW_MODE=none)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: afb96a1e3eb207f536d74d585ed509c93453d733
+- Tests: pnpm --filter @sleekstack/ui test, pnpm --filter @sleekstack/ui typecheck, pnpm --filter bench bench:json && pnpm --filter bench compare
 - PRs:
