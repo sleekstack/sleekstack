@@ -33,9 +33,14 @@ The proving ground (spec R9): real use of all three features, and keys on the ex
 - [ ] TBD
 
 ## Done summary
-TBD
+Keyed all four mapped lists in ui-demo's components.tsx. Added a Triage screen inside Board: a search input, a sort button and a collapse toggle (useLocal state, host onClick/onInput), with keyed rows that each carry a Votes guest. A jsdom test covers reorder node identity, input focus, guest state and the toggle. Added the conditional-slot, missing-key and event-closure fixtures (event-closure reports UnhandledError). The 'swaps' test title is renamed. Demo is analyzer-clean.
 
+Follow-up (outside Touches): `pnpm --filter ui-demo typecheck` fails with TS2322 on `key` passed to components (components.tsx:54, :81). The cause is that the `JSX` namespace in packages/ui/src/jsx-runtime.ts lacks `interface IntrinsicAttributes { key?: string | number }`.
+
+baseline: red (pnpm --filter ui-demo test: 4 MissingKey, expected per conductor)
+stage: impl-review - skipped(config: REVIEW_MODE=none)
+Tier: session (jev-unavailable(no_key)); routing block pins implementer opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: c1d9860111684fa0ce0a9b7d595b5fc526d1e7a3
+- Tests: pnpm --filter ui-demo test
 - PRs:
