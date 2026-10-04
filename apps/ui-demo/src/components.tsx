@@ -1,12 +1,11 @@
 /** @jsxImportSource @sleekstack/ui */
 import { Effect } from 'effect'
 import { Boundary, Provider, useAtomValue, useLocal, useSetAtom } from '@sleekstack/ui'
-import { useMutation, useQuery } from '@sleekstack/ui/query'
-import { effectFn, QueryClientTag } from '@sleekstack/query'
+import { useAddTask, useBacklog } from './backlog'
 import { AddButton, Avatar, FilterBar, Votes } from './guests'
 import { filterAtom, selectedAtom } from './state'
 import {
-  ProjectNotFound, TaskNotFound, TaskRepo, UserNotFound, UserRepo, Viewer, ViewerLive,
+  ProjectNotFound, TASK_IDS, TaskNotFound, TaskRepo, UserNotFound, UserRepo, Viewer, ViewerLive, MISSING_TASK,
   type Status, type Task,
 } from './domain'
 
@@ -125,7 +124,7 @@ const Toolbar = () =>
     return yield* (
       <nav className="toolbar">
         <FilterBar options={['all', ...STATUSES]} onPick={setFilter} />
-        <FilterBar options={['t1', 't2', 't3', 'nope']} onPick={select} />
+        <FilterBar options={[...TASK_IDS, MISSING_TASK]} onPick={select} />
       </nav>
     )
   })
@@ -181,12 +180,10 @@ export const Team = () =>
     )
   })
 
-const backlogKey = (projectId: string) => ['tasks', projectId]
-
 /** Reads the project's tasks through the query cache; re-runs when the query result changes. */
 const BacklogList = ({ projectId }: { projectId: string }) =>
   Effect.gen(function* () {
-    const q = yield* useQuery({ queryKey: backlogKey(projectId), queryFn: effectFn(TaskRepo.byProject(projectId)) })
+    const q = yield* useBacklog(projectId)
     if (q.isPending) return yield* <p className="muted">Loading backlog</p>
     return yield* (
       <ul className="backlog">
@@ -200,11 +197,7 @@ const BacklogList = ({ projectId }: { projectId: string }) =>
 /** Hands `mutate` to a React guest; re-runs only on its own mutation's status. */
 const AddTask = ({ projectId }: { projectId: string }) =>
   Effect.gen(function* () {
-    const client = yield* QueryClientTag
-    const add = yield* useMutation({
-      mutationFn: (title: string, ctx) => effectFn(TaskRepo.add(projectId, title))(title, ctx),
-      onSuccess: () => client.invalidateQueries({ queryKey: backlogKey(projectId) }),
-    })
+    const add = yield* useAddTask(projectId)
     return yield* <AddButton onAdd={() => add.mutate('New task')} />
   })
 
@@ -237,7 +230,7 @@ export const App = ({ viewer }: { viewer: string }) => (
       <ProjectBoard projectId="p1" />
       <ProjectBoard projectId="missing" />
       <Selected />
-      <DetailPanel id="nope" />
+      <DetailPanel id={MISSING_TASK} />
       <Backlog projectId="p2" />
     </main>
   </Provider>

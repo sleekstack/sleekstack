@@ -39,6 +39,11 @@ const tasks: ReadonlyArray<Task> = [
   { id: 't5', projectId: 'p2', title: 'Document Boundary', status: 'todo', assigneeId: 'u2', votes: 2 },
 ]
 
+/** Ids of the seeded tasks, for UI that offers them as choices. */
+export const TASK_IDS: ReadonlyArray<string> = tasks.map((t) => t.id)
+/** An id no repo holds: the demo uses it to show the `TaskNotFound` Boundary. */
+export const MISSING_TASK = 'nope'
+
 const find = <A extends { id: string }, E>(xs: ReadonlyArray<A>, id: string, fail: (id: string) => E): Effect.Effect<A, E> => {
   const hit = xs.find((x) => x.id === id)
   return hit ? Effect.succeed(hit) : Effect.fail(fail(id))
