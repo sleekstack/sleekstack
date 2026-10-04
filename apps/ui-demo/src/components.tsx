@@ -1,11 +1,11 @@
 /** @jsxImportSource @sleekstack/ui */
 import { Effect } from 'effect'
-import { Boundary, Provider, useAtomValue, useLocal, useSetAtom } from '@sleekstack/ui'
+import { Boundary, useAtomValue, useLocal, useSetAtom } from '@sleekstack/ui'
 import { useAddTask, useBacklog } from './backlog'
 import { AddButton, Avatar, FilterBar, Votes } from './guests'
 import { filterAtom, selectedAtom } from './state'
 import {
-  ProjectNotFound, TASK_IDS, TaskNotFound, TaskRepo, UserNotFound, UserRepo, Viewer, ViewerLive, MISSING_TASK,
+  MISSING_TASK, ProjectNotFound, TaskNotFound, TaskRepo, UserNotFound, UserRepo, Viewer,
   type Status, type Task,
 } from './domain'
 
@@ -116,21 +116,22 @@ const Triage = ({ tasks }: { tasks: ReadonlyArray<Task> }) =>
     )
   })
 
-/** Sets the atoms from guest buttons; reads none, so it never re-runs. */
-const Toolbar = () =>
+/** Sets the atoms from guest buttons; reads none, so it never re-runs. Needs TaskRepo. */
+export const Toolbar = () =>
   Effect.gen(function* () {
     const setFilter = yield* useSetAtom(filterAtom)
     const select = yield* useSetAtom(selectedAtom)
+    const ids = yield* TaskRepo.ids()
     return yield* (
       <nav className="toolbar">
         <FilterBar options={['all', ...STATUSES]} onPick={setFilter} />
-        <FilterBar options={[...TASK_IDS, MISSING_TASK]} onPick={select} />
+        <FilterBar options={[...ids, MISSING_TASK]} onPick={select} />
       </nav>
     )
   })
 
 /** Re-runs when the selected task changes. */
-const Selected = () =>
+export const Selected = () =>
   Effect.gen(function* () {
     const id = yield* useAtomValue(selectedAtom)
     return yield* (
@@ -209,7 +210,7 @@ export const Backlog = ({ projectId }: { projectId: string }) => (
   </section>
 )
 
-const Header = () =>
+export const Header = () =>
   Effect.gen(function* () {
     const { user: viewer } = yield* Viewer
     return yield* (
@@ -219,19 +220,3 @@ const Header = () =>
       </header>
     )
   })
-
-/** The whole page, viewed as `viewer`: one `Provider` scopes the Viewer for every component under it. */
-export const App = ({ viewer }: { viewer: string }) => (
-  <Provider layer={ViewerLive(viewer)}>
-    <Header />
-    <Toolbar />
-    <main>
-      <Team />
-      <ProjectBoard projectId="p1" />
-      <ProjectBoard projectId="missing" />
-      <Selected />
-      <DetailPanel id={MISSING_TASK} />
-      <Backlog projectId="p2" />
-    </main>
-  </Provider>
-)
