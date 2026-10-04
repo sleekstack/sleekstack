@@ -33,9 +33,11 @@ Matched guests keep their React root and host element; only props are re-rendere
 - [ ] TBD
 
 ## Done summary
-TBD
+A matched guest now keeps its React root and host element. It matches when the component and key are the same, or by position in the unkeyed pool. On commit only its props re-render, through `flushSync` (`renderGuest` in dom.ts). It unmounts when removed or when its component or key changes. GuestBoundary stays sticky. The README remount caveat is gone. New test: "a matched guest keeps its React state..."; the existing plan-failure test asserts guest effect cleanup.
 
+stage: impl-review - skipped(config: REVIEW_MODE=none)
+Tier: session (jev-unavailable(no_key)); routing block pins implementer opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: a0fb9c8403a2f01865f9722ec7f56e8e98532adb
+- Tests: pnpm --filter @sleekstack/ui test, pnpm --filter @sleekstack/ui typecheck, pnpm --filter bench bench:json && pnpm --filter bench compare
 - PRs:
