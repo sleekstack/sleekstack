@@ -239,7 +239,7 @@
     "impl:fn-20-adx-agent-developer-experience.3": 0
   },
   "spec_path": ".flow/specs/fn-20-adx-agent-developer-experience.md",
-  "status": "open",
+  "status": "done",
   "title": "ADX: Agent Developer Experience",
   "tracker": {
     "baseHashFlow": null,
@@ -252,5 +252,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-03T16:29:23.294771Z"
+  "updated_at": "2026-10-04T05:21:09.343352Z"
 }

@@ -8,7 +8,7 @@ import { Atom, type AtomStore } from '@sleekstack/core'
 import { QueryClientTag } from '@sleekstack/query'
 import { type MutateOptions, MutationObserver, type MutationObserverOptions, type MutationObserverResult, type QueryClient, type QueryKey, QueryObserver, type QueryObserverOptions, type QueryObserverResult } from '@tanstack/query-core'
 import { Effect, Scope } from 'effect'
-import { Instance, RenderScope, Store, useAtomValue } from './reactive'
+import { Collector, RenderScope, Store, useAtomValue } from './reactive'
 
 type Entry = { observer: QueryObserver<any, any, any, any, any>; atom: Atom.Writable<any, any>; refs: number; unsubscribe: () => void }
 
@@ -82,7 +82,7 @@ export const useMutation = <TData = unknown, TError = Error, TVariables = void, 
   Effect.gen(function* () {
     const client = yield* QueryClientTag
     const scope = yield* RenderScope
-    const id = yield* Instance
+    const id = (yield* Collector)?.id
     type Result = UseMutationResult<TData, TError, TVariables, TContext>
     const withMutate = (observer: MutationObserver<TData, TError, TVariables, TContext>, result: MutationObserverResult<TData, TError, TVariables, TContext>): Result => ({
       ...result,

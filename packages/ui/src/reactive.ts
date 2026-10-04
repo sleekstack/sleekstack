@@ -5,9 +5,14 @@ import type { Node } from './node'
 /** The mount's atom store. `mount` and `renderToString` provide it. */
 export class Store extends Effect.Tag('Store')<Store, AtomStore>() {}
 
-/** Atoms read by the component instance that is running; `undefined` outside a wrapped instance. */
+/** Atoms read by one run of a component instance; `id` is the instance's identity, the same object across its re-runs. */
+export class Reads extends Map<Atom.Atom<any>, unknown> {
+  constructor(readonly id: object) { super() }
+}
+
+/** The reads of the component run in progress; `undefined` outside a wrapped instance. */
 export class Collector extends Context.Reference<Collector>()('@sleekstack/ui/Collector', {
-  defaultValue: (): Map<Atom.Atom<any>, unknown> | undefined => undefined,
+  defaultValue: (): Reads | undefined => undefined,
 }) {}
 
 /** Enclosing `Boundary` handlers, innermost last; captured with an instance's context for its re-runs. */
@@ -22,11 +27,6 @@ export class Handlers extends Context.Reference<Handlers>()('@sleekstack/ui/Hand
  */
 export class RenderScope extends Context.Reference<RenderScope>()('@sleekstack/ui/RenderScope', {
   defaultValue: (): Scope.Scope | undefined => undefined,
-}) {}
-
-/** Identity of the running component instance (its slots), the same object across its re-runs and adoptions; `undefined` outside one. */
-export class Instance extends Context.Reference<Instance>()('@sleekstack/ui/Instance', {
-  defaultValue: (): object | undefined => undefined,
 }) {}
 
 /** Local-state slots of one instance id, kept in its parent's registry (`kids`) across re-runs of both. */
@@ -227,8 +227,8 @@ export const instance = <P>(type: (props: P) => Effect.Effect<Node, any, any>, p
     } else slots = rootSlots ??= { atoms: [], releases: [], done: false }
     const frame = makeFrame(slots, self)
     const body = (own: Scope.CloseableScope | undefined): Effect.Effect<Node, any, any> => {
-      const reads = new Map<Atom.Atom<any>, unknown>()
-      let inner = Context.add(Context.add(Context.add(ctx, Collector, reads), Instance, slots), Frame, frame)
+      const reads = new Reads(slots)
+      let inner = Context.add(Context.add(ctx, Collector, reads), Frame, frame)
       if (own) inner = Context.add(inner, RenderScope, own)
       const checked = Effect.flatMap(Effect.provide(type(props), inner), (child) => {
         if (slots.done && frame.cursor !== slots.atoms.length) return Effect.fail(new SlotMismatch({ id: self, expected: slots.atoms.length, actual: frame.cursor }))

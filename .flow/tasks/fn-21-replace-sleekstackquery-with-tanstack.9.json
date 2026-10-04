@@ -12,7 +12,7 @@
   "priority": null,
   "spec": "fn-21-replace-sleekstackquery-with-tanstack",
   "spec_path": ".flow/tasks/fn-21-replace-sleekstackquery-with-tanstack.9.md",
-  "status": "todo",
+  "status": "done",
   "title": "showcase: migrate the board query layer to TanStack",
   "updated_at": "2026-10-03T15:46:36.282703Z"
 }
