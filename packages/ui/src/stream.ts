@@ -3,7 +3,7 @@ import { type AtomStore, makeAtomStore } from '@sleekstack/core'
 import { nodeOrThrow, reportRenderError } from './component'
 import type { Node, ReactiveNode } from './node'
 import { disposeSlots, Frame, makeFrame, RenderScope, Store } from './reactive'
-import { checkId, type Collector, escape, scriptJson, serialize } from './string'
+import { type Around, checkId, type Collector, escape, scriptJson, serialize, serializeAll } from './string'
 
 // Swap runtime, emitted once in the shell: replaces `<!--sleek-p:ID-->fallback<!--/sleek-p-->` with the chunk's template.
 const SWAP =
@@ -59,7 +59,7 @@ export const renderToStream = <E, A, LE = never>(app: Effect.Effect<Node, E, A>,
   let emit: (html: string) => void = () => {}
 
   // Placeholder now; the chunk when the boundary's content resolves (a failed one keeps its fallback and reports).
-  c.boundary = (node) => {
+  c.boundary = (node, around: Around) => {
     if (node.pending?.frame) return undefined
     const id = `${prefix}${next++}`
     const settle = async (n: ReactiveNode): Promise<void> => {
@@ -70,7 +70,8 @@ export const renderToStream = <E, A, LE = never>(app: Effect.Effect<Node, E, A>,
       if (Exit.isFailure(exit)) return void reportRenderError(exit.cause, opts.onError)
       const r = exit.value
       if (r._tag === 'Reactive' && r.pending && !r.pending.frame) return settle(r)
-      const html = serialize(r._tag === 'Reactive' ? r.child : r, c)
+      // Content renders in the placeholder's text context, so swapped text keeps the separators renderToString writes.
+      const html = serializeAll([r._tag === 'Reactive' ? r.child : r], c, around)
       emit(`<template data-sleek-b="${id}">${html}</template><script${nonce}>__sleekSwap(${scriptJson(id)})</script>`)
     }
     waiting.push(settle(node))

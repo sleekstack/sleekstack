@@ -43,8 +43,14 @@ export interface Collector {
   events: Set<string>
   atoms: Map<string, { atom: Atom.Atom<any>; value: unknown }> // value is encoded
   /** Set by `renderToStream`: emits an unresolved `Pending` instance as a placeholder. */
-  boundary?: (node: ReactiveNode) => string | undefined
+  boundary?: (node: ReactiveNode, around: Around) => string | undefined
 }
+/** Whether a node's previous / next sibling is `Text` (a boundary's swapped content needs the separators renderToString writes). */
+export interface Around {
+  readonly before: boolean
+  readonly after: boolean
+}
+const NO_TEXT: Around = { before: false, after: false }
 
 const JSON_ESCAPES = /[<>&\u2028\u2029]/g
 /** JSON safe inside a `<script>`: `<`, `>`, `&`, U+2028 and U+2029 become `\uXXXX`. */
@@ -111,12 +117,18 @@ const HOST_OPEN = (tag: string): string => `<${tag} style="display: contents;">`
 const isText = (n: Node | undefined): boolean => n?._tag === 'Text' || (n?._tag === 'Bind' && !!n.plain)
 
 const flatten = (nodes: ReadonlyArray<Node>): Array<Node> => nodes.flatMap((n) => (n._tag === 'Fragment' ? flatten(n.children) : [n]))
-const serializeAll = (nodes: ReadonlyArray<Node>, c: Collector): string =>
+/** Children markup; `edge` is the text context around the list itself (a streamed boundary's content). */
+export const serializeAll = (nodes: ReadonlyArray<Node>, c: Collector, edge: Around = NO_TEXT): string =>
   flatten(nodes)
-    .map((n, i, list) => (isText(n) && isText(list[i - 1]) ? TEXT_SEPARATOR : '') + serialize(n, c))
+    .map((n, i, list) => {
+      const before = i === 0 ? edge.before : isText(list[i - 1])
+      const after = i === list.length - 1 ? edge.after : isText(list[i + 1])
+      if (!isText(n)) return serialize(n, c, { before, after })
+      return (before ? TEXT_SEPARATOR : '') + serialize(n, c) + (after && i === list.length - 1 ? TEXT_SEPARATOR : '')
+    })
     .join('')
 
-export const serialize = (node: Node, c: Collector): string => {
+export const serialize = (node: Node, c: Collector, around: Around = NO_TEXT): string => {
   switch (node._tag) {
     case 'Text':
       return escape(node.text)
@@ -142,7 +154,7 @@ export const serialize = (node: Node, c: Collector): string => {
     }
     case 'Reactive':
       if (node.pending && c.boundary) {
-        const placeholder = c.boundary(node)
+        const placeholder = c.boundary(node, around)
         if (placeholder !== undefined) return placeholder
       }
       return `${HOST_OPEN('sleek-reactive')}${serialize(node.child, c)}</sleek-reactive>`
