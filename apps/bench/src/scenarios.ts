@@ -336,3 +336,18 @@ export const rowLabel = (i: number) => `Item ${i}`
 const Row = ({ jsx, i, label }: { jsx: Jsx; i: number; label: (i: number) => string }) => jsx('li', { className: 'row', children: label(i) })
 export const sleekTree = (jsx: Jsx, first?: () => unknown, { keyed = false, ids = rowIds, label = rowLabel }: TreeOptions = {}) =>
   jsx('ul', { children: ids.map((i) => (i === 0 && first ? jsx(first, {}) : jsx(Row, keyed ? { jsx, i, label, key: i } : { jsx, i, label }))) })
+
+/**
+ * Data-shaped keyed list: each row takes an item object, never a fresh closure, so a row whose item is the same object has
+ * unchanged props. `runs` counts row-component executions (reset by the caller); it is outside measurement's reach.
+ */
+export interface Item {
+  readonly id: number
+  readonly label: string
+}
+export const baseItems: ReadonlyArray<Item> = rowIds.map((i) => ({ id: i, label: rowLabel(i) }))
+/** Item list after write `n`: row 500 is a new object, every other item keeps its identity. */
+export const itemsAfter = (n: number): ReadonlyArray<Item> => baseItems.map((it) => (it.id === 500 ? { id: 500, label: `Item 500 #${n}` } : it))
+export const dataRuns = { sleekstack: 0, react: 0 }
+const DataRow = ({ jsx, item }: { jsx: Jsx; item: Item }) => (dataRuns.sleekstack++, jsx('li', { className: 'row', children: item.label }))
+export const sleekDataTree = (jsx: Jsx, items: ReadonlyArray<Item>) => jsx('ul', { children: items.map((item) => jsx(DataRow, { jsx, item, key: item.id })) })

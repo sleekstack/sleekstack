@@ -10,7 +10,7 @@ import { createElement as h, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { createRoot } from 'react-dom/client'
 import { bench, describe } from 'vitest'
-import { check, ROWS, rowIds, rowLabel, sleekTree, type TreeOptions } from './scenarios'
+import { check, dataRuns, itemsAfter, ROWS, rowIds, rowLabel, sleekDataTree, sleekTree, type Item, type TreeOptions } from './scenarios'
 
 const gc = (globalThis as { gc?: () => void }).gc
 const opts = { setup: () => gc?.() }
@@ -122,6 +122,31 @@ const reactKeyed = (step: Step) => {
   return { container, run: () => (flushSync(() => set(++n)), container.textContent) }
 }
 
+// ---- keyed data list: rows take an item object (no fresh closure), one item object changes per write ----
+
+const sleekKeyedData = async () => {
+  const container = document.createElement('div')
+  const store = makeAtomStore()
+  const state = Atom.make(0)
+  const List = () => Effect.flatMap(useAtomValue(state), (n) => sleekDataTree(jsx, itemsAfter(n)))
+  await mount(jsx(List as any, {}), { layer: Layer.empty, container, store })
+  let n = 0
+  return { container, run: async () => (store.set(state, ++n), await tick(), container.textContent) }
+}
+const ReactDataRow = ({ item }: { item: Item }) => (dataRuns.react++, h('li', { className: 'row' }, item.label))
+const reactKeyedData = () => {
+  const container = document.createElement('div')
+  let set!: (n: number) => void
+  const List = () => {
+    const [n, s] = useState(0)
+    set = s
+    return h('ul', null, itemsAfter(n).map((item) => h(ReactDataRow, { key: item.id, item })))
+  }
+  flushSync(() => createRoot(container).render(h(List)))
+  let n = 0
+  return { container, run: () => (flushSync(() => set(++n)), container.textContent) }
+}
+
 const sleekU = await sleekUpdate()
 const reactU = reactUpdate()
 await check('render-dom/update-1-of-1k', [
@@ -139,11 +164,25 @@ await check('render-dom/keyed-update-1-of-1k', [
   ['react', keyedUpdate.react.run],
 ])
 
+const keyedData = { sleekstack: await sleekKeyedData(), react: reactKeyedData() }
+await check('render-dom/keyed-update-data-1-of-1k', [
+  ['sleekstack', keyedData.sleekstack.run],
+  ['react', keyedData.react.run],
+])
+// Row-component executions per update, counted outside measurement.
+for (const lib of ['sleekstack', 'react'] as const) {
+  dataRuns[lib] = 0
+  await keyedData[lib].run()
+  await settle()
+  console.log(`render-dom/keyed-update-data-1-of-1k component runs per update (${lib}):`, dataRuns[lib])
+}
+
 const nodeSwaps: Record<string, Record<string, number>> = {}
 for (const [name, u] of [
   ['render-dom/update-1-of-1k', { sleekstack: sleekU, react: reactU }],
   ['render-dom/keyed-reorder-1k', keyedReorder],
   ['render-dom/keyed-update-1-of-1k', keyedUpdate],
+  ['render-dom/keyed-update-data-1-of-1k', keyedData],
 ] as const) {
   nodeSwaps[name] = { sleekstack: await swaps(u.sleekstack), react: await swaps(u.react) }
   console.log(`${name} node swaps per update:`, nodeSwaps[name])
@@ -170,4 +209,9 @@ describe('render-dom/keyed-reorder-1k', () => {
 describe('render-dom/keyed-update-1-of-1k', () => {
   bench('sleekstack', async () => void (await keyedUpdate.sleekstack.run()), opts)
   bench('react', () => void keyedUpdate.react.run(), opts)
+})
+
+describe('render-dom/keyed-update-data-1-of-1k', () => {
+  bench('sleekstack', async () => void (await keyedData.sleekstack.run()), opts)
+  bench('react', () => void keyedData.react.run(), opts)
 })
