@@ -24,9 +24,12 @@ Records Pending decisions and limits: keep-previous default, no timeout on rende
 - [ ] `pnpm turbo run test typecheck --filter=docs` green.
 
 ## Done summary
-TBD
+Documented Pending and useSuspenseQuery as built: ADR 0015 amendment (keep-previous, error routing incl. Boundary-replaces-old-content, nested re-run never shows fallback, renderToString awaits with no fallback/timeout, fallback must not suspend, QueryFailed with no runtime client error, analyzer id ui/pending#Pending), README rows + Async paragraph, CONTEXT Pending term, queries.mdx and errors.mdx.
 
+baseline: green via handoff (verified at a346439 by fn-24.6)
+stage: impl-review - skipped(config: REVIEW_MODE=none)
+Tier: implementer: opus at medium (project routing block)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 4012904f7c8015d5df1a82c1abdd7495d0412ce9
+- Tests: pnpm turbo run test typecheck --filter=docs --filter=@sleekstack/ui...
 - PRs:
