@@ -6,8 +6,8 @@
  */
 import { Atom, type AtomStore } from '@sleekstack/core'
 import { QueryClientTag } from '@sleekstack/query'
-import { type MutateOptions, MutationObserver, type MutationObserverOptions, type MutationObserverResult, type QueryClient, type QueryKey, QueryObserver, type QueryObserverOptions, type QueryObserverResult } from '@tanstack/query-core'
-import { Effect, Scope } from 'effect'
+import { type DefaultedQueryObserverOptions, type MutateOptions, MutationObserver, type MutationObserverOptions, type MutationObserverResult, type QueryClient, type QueryKey, QueryObserver, type QueryObserverOptions, type QueryObserverResult } from '@tanstack/query-core'
+import { Data, Effect, Scope } from 'effect'
 import { Collector, RenderScope, Store, useAtomValue } from './reactive'
 
 type Entry = { observer: QueryObserver<any, any, any, any, any>; atom: Atom.Writable<any, any>; refs: number; unsubscribe: () => void }
@@ -36,28 +36,65 @@ export const useQuery = <TQueryFnData = unknown, TError = Error, TData = TQueryF
     const scope = yield* RenderScope
     const defaulted = client.defaultQueryOptions(options as QueryObserverOptions<any, any, any, any, any>)
     if (!scope) return new QueryObserver(client, defaulted).getOptimisticResult(defaulted) as QueryObserverResult<TData, TError>
+    const e = yield* retain(client, store, scope, defaulted)
+    return (yield* useAtomValue(e.atom)) as QueryObserverResult<TData, TError>
+  })
+
+// Shares one observer per store and query hash; the run scope's finalizer drops it when the last user closes.
+const retain = (client: QueryClient, store: AtomStore, scope: Scope.Scope, defaulted: DefaultedQueryObserverOptions<any, any, any, any, any>) =>
+  Effect.gen(function* () {
     let registry = registries.get(store)
     if (!registry) registries.set(store, (registry = new Map()))
+    const reg = registry
     const hash = defaulted.queryHash
-    let entry = registry.get(hash)
-    if (entry) entry.observer.setOptions(defaulted)
+    let e = reg.get(hash)
+    if (e) e.observer.setOptions(defaulted)
     else {
       const observer = new QueryObserver(client, defaulted)
-      entry = { observer, atom: Atom.make<unknown>(observer.getOptimisticResult(defaulted)), refs: 0, unsubscribe: () => {} }
-      registry.set(hash, entry)
+      e = { observer, atom: Atom.make<unknown>(observer.getOptimisticResult(defaulted)), refs: 0, unsubscribe: () => {} }
+      reg.set(hash, e)
     }
-    const e = entry
-    const reg = registry
-    if (e.refs++ === 0) e.unsubscribe = e.observer.subscribe((result) => store.set(e.atom, result))
+    const entry = e
+    if (entry.refs++ === 0) entry.unsubscribe = entry.observer.subscribe((result) => store.set(entry.atom, result))
     yield* Scope.addFinalizer(
       scope,
       Effect.sync(() => {
-        if (--e.refs > 0) return
-        e.unsubscribe()
+        if (--entry.refs > 0) return
+        entry.unsubscribe()
         reg.delete(hash)
       }),
     )
-    return (yield* useAtomValue(e.atom)) as QueryObserverResult<TData, TError>
+    return entry
+  })
+
+/** A failed `useSuspenseQuery` fetch; `cause` is TanStack's error. Tagged so a `Boundary` can match it. */
+export class QueryFailed extends Data.TaggedError('QueryFailed')<{ readonly cause: unknown }> {}
+
+/** `useSuspenseQuery` options: `useQuery`'s without `select`; `enabled: false` is rejected (a disabled query never resolves). */
+export type UseSuspenseQueryOptions<TQueryFnData, TError, TQueryKey extends QueryKey> = Omit<UseQueryOptions<TQueryFnData, TError, TQueryFnData, TQueryKey>, 'enabled' | 'select'> & {
+  enabled?: true
+}
+
+/**
+ * Waits for a query's data (`fetchQuery`, so fresh cached data within `staleTime` returns at once) and fails with
+ * `QueryFailed`. Under a run scope it retains the shared observer like `useQuery`, and an interrupt cancels the fetch;
+ * without one (server render) it awaits and returns the data without subscribing.
+ */
+export const useSuspenseQuery = <TQueryFnData = unknown, TError = Error, TQueryKey extends QueryKey = QueryKey>(
+  options: UseSuspenseQueryOptions<TQueryFnData, TError, TQueryKey>,
+): Effect.Effect<TQueryFnData, QueryFailed, QueryClientTag | Store> =>
+  Effect.gen(function* () {
+    const client = yield* QueryClientTag
+    const scope = yield* RenderScope
+    const defaulted = client.defaultQueryOptions(options as QueryObserverOptions<any, any, any, any, any>)
+    if (scope) yield* retain(client, yield* Store, scope, defaulted)
+    return yield* Effect.tryPromise({
+      try: (signal) => {
+        signal.addEventListener('abort', () => void client.cancelQueries({ queryKey: defaulted.queryKey, exact: true }))
+        return client.fetchQuery(defaulted as any) as Promise<TQueryFnData>
+      },
+      catch: (cause) => new QueryFailed({ cause }),
+    })
   })
 
 /** `useMutation` result: TanStack's result plus `mutateAsync`; `mutate` swallows the rejection (the error is in the result), `mutateAsync` keeps it. */
