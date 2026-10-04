@@ -51,6 +51,11 @@ export interface ReactiveNode {
   readonly frame?: RunFrame
   /** @internal Instance identity, `<fnId>#<ordinal>` or `<fnId>:key:<key>`; set by `instance`. */
   readonly id: string
+  /**
+   * @internal Set on a `Pending` instance: its `fallback` and `content` children as written. `frame` is set when `child`
+   * is resolved content; that content's slots commit with it, and its scopes belong to the `Pending` until committed.
+   */
+  readonly pending?: { readonly fallback: unknown; readonly content: unknown; readonly frame?: RunFrame }
 }
 /** An atom's current value as text, bound under the atom's serializable key for resume. */
 export interface BindNode {

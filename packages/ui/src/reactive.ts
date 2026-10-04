@@ -1,6 +1,6 @@
 import { Atom, type AtomStore, MissingDependency } from '@sleekstack/core'
 import { Context, Data, Effect, ExecutionStrategy, Exit, Option, Scope } from 'effect'
-import type { Node } from './node'
+import type { Node, ReactiveNode } from './node'
 
 /** The mount's atom store. `mount` and `renderToString` provide it. */
 export class Store extends Effect.Tag('Store')<Store, AtomStore>() {
@@ -228,14 +228,14 @@ const asFallback = (n: Node): Node => {
   return wrapped
 }
 
-const owned = (child: Node, scope: Scope.CloseableScope): Node => {
-  const wrapped: Node = {_tag: 'Fragment', children: [child]}
+export const owned = (child: Node, scope: Scope.CloseableScope): Node => {
+  const wrapped: Node = { _tag: 'Fragment', children: [child] }
   runScopes.set(wrapped, scope)
   return wrapped
 }
 
 // Runs a fallback in its own child of `RenderScope`, owned by the renderer like an untracked run.
-const scopedRun = (run: Effect.Effect<Node, any, any>): Effect.Effect<Node, any, any> =>
+export const scopedRun = (run: Effect.Effect<Node, any, any>): Effect.Effect<Node, any, any> =>
   Effect.flatMap(RenderScope, (parent) =>
     parent
       ? Effect.flatMap(Scope.fork(parent, ExecutionStrategy.sequential), (own) =>
@@ -257,6 +257,9 @@ const withHandlers = (run: Effect.Effect<Node, any, any>, hs: ReadonlyArray<Hand
       return i < 0 ? Effect.fail(e) : Effect.map(withHandlers(scopedRun(Effect.provideService(hs[i]!.fallback(e), Handlers, hs.slice(0, i))), hs.slice(0, i)), asFallback)
     },
   )
+/** What a `Pending` body emitted, keyed by its output; `instance` copies it onto the node as `pending`. */
+export const pendingOf = new WeakMap<Node, NonNullable<ReactiveNode['pending']>>()
+
 const handled = (run: Effect.Effect<Node, any, any>): Effect.Effect<Node, any, any> => Effect.flatMap(Handlers, (hs) => withHandlers(run, hs))
 
 
@@ -521,6 +524,7 @@ export const instance = <P>(type: (props: P) => Effect.Effect<Node, any, any>, p
             id: self,
             frame,
             ...(key !== undefined && {key}),
+            ...(pendingOf.has(child) && {pending: pendingOf.get(child)!}),
           }
         // Remembered for the next parent run when the row's scope will still be there (unused, or lent to the mount) and it did not call a handler while rendering.
         slots.memo = parentFrame && own && !slots.called && reusable(own) ? {

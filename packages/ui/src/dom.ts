@@ -97,7 +97,8 @@ const dropScopes = (node: Node): void => {
     if (installed.has(node)) return
     closeScope(node.scope)
     if (node.frame) dropSlots(node.frame)
-    dropScopes(node.child)
+    // Resolved Pending content stays owned by its Pending until committed; a dropped run never closes it.
+    if (!node.pending?.frame) dropScopes(node.child)
   } else if (node._tag === 'Fragment' || node._tag === 'Element') {
     if (node._tag === 'Fragment') closeScope(runScopes.get(node))
     node.children.forEach(dropScopes)
@@ -412,6 +413,8 @@ const patch = (prev: Live, node: Leaf, key: string | undefined, env: Env, p: Pla
 // A matched instance adopts the parent's fresh run: its subtree is planned now; rerun, subscriptions, scope and frame
 // switch on commit, interrupting its own in-flight re-run. A dropped plan leaves it as is (the caller drops the node).
 const adopt = (prev: Live, node: ReactiveNode, key: string | undefined, env: Env, p: Plan): Live => {
+  // The same node again (stored Pending content re-emitted): already committed, nothing to switch.
+  if (prev.node === node) return prev
   const inst = prev.inst!
   const sub: Plan = { ...p, scopes: [] }
   const lives = patchChildren(inst.host, inst.lives, [node.child], env, sub)
@@ -419,8 +422,7 @@ const adopt = (prev: Live, node: ReactiveNode, key: string | undefined, env: Env
     if (inst.fiber) Effect.runFork(Fiber.interrupt(inst.fiber))
     inst.fiber = undefined
     inst.lives = lives
-    closeExcept(inst.scopes.splice(0), sub.scopes)
-    inst.scopes = sub.scopes
+    replaceScopes(inst, sub.scopes)
     unwatch(inst)
     const previous = inst.scope
     inst.rerun = node.rerun
@@ -430,9 +432,20 @@ const adopt = (prev: Live, node: ReactiveNode, key: string | undefined, env: Env
     installed.add(node)
     watch(inst, node, env)
     if (previous !== node.scope) closeScope(previous)
-    if (node.frame) commitSlots(node.frame)
+    committed(node)
   })
   return { node, dom: prev.dom, kids: [], inst, ...(key === undefined ? {} : { key }) }
+}
+
+// A run's DOM committed: its slots, and those of the Pending content it shows, become permanent.
+const committed = (node: ReactiveNode): void => {
+  if (node.frame) commitSlots(node.frame)
+  if (node.pending?.frame) commitSlots(node.pending.frame)
+}
+// Closes the untracked scopes a commit replaced; one still in the new set (re-emitted content) stays open.
+const replaceScopes = (inst: Instance, next: Array<Scope.CloseableScope>): void => {
+  closeExcept(inst.scopes.splice(0), next)
+  inst.scopes = next
 }
 
 const same = (a: Leaf, b: Leaf): boolean =>
@@ -589,8 +602,7 @@ const swap = (inst: Instance, node: Node, env: Env): void => {
   }
   commit(p)
   inst.lives = lives
-  closeExcept(inst.scopes.splice(0), p.scopes)
-  inst.scopes = p.scopes
+  replaceScopes(inst, p.scopes)
   const previous = inst.scope
   if (own) {
     unwatch(inst)
@@ -600,7 +612,7 @@ const swap = (inst: Instance, node: Node, env: Env): void => {
     inst.node = own
     installed.add(own)
     watch(inst, own, env)
-    if (own.frame) commitSlots(own.frame)
+    committed(own)
   } else {
     // A fallback keeps the subscriptions (the next change retries); either way the replaced run's scope goes.
     if (!fallbacks.has(node)) unwatch(inst)
