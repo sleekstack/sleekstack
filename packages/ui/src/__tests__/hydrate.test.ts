@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { Atom } from '@sleekstack/core'
+import { Atom, makeAtomStore } from '@sleekstack/core'
 import { Cause, Context, Effect, Layer, Schema } from 'effect'
 import { act } from 'react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -188,5 +188,70 @@ describe('hydrateMount mismatch', () => {
     const fresh = document.createElement('div')
     await act(async () => void handles.push(await mount(client(), { layer: Layer.empty, container: fresh, onError: () => {} })))
     expect(container.innerHTML).toBe(fresh.innerHTML)
+  })
+})
+
+describe('hydrateMount keyed lists, form values, whitespace', () => {
+  const keyed = (tag: string, key: string, ...children: Array<any>): any => ({ ...(el(tag, {}, ...children) as any), key })
+
+  it('keyed elements and keyed components keep server node identity, and a later reorder moves them', async () => {
+    const order = Atom.make(['a', 'b', 'c'])
+    const Item = (p: { id: string }) => Effect.succeed(el('b', {}, p.id))
+    const App = () =>
+      Effect.flatMap(useAtomValue(order), (ks) => jsx('div', { children: [Effect.succeed(el('ul', {}, ...ks.map((k) => keyed('li', k, k)))), ...ks.map((k) => jsx(Item, { id: k, key: k }))] }))
+    const container = document.createElement('div')
+    container.innerHTML = await renderToString(jsx(App, {}), { layer: Layer.empty })
+    const before = all(container).filter((n) => n.nodeType !== 8)
+    const lis = [...container.querySelectorAll('li')]
+    const items = [...container.querySelectorAll('b')]
+    const store = makeAtomStore()
+    const onError = vi.fn()
+    await act(async () => void handles.push(await hydrateMount(jsx(App, {}), { layer: Layer.empty, container, onError, store })))
+    expect(onError).not.toHaveBeenCalled()
+    expect(all(container)).toEqual(before)
+
+    await act(async () => store.set(order, ['c', 'a', 'b']))
+    await act(tick)
+    expect([...container.querySelectorAll('li')]).toEqual([lis[2], lis[0], lis[1]])
+    expect([...container.querySelectorAll('b')]).toEqual([items[2], items[0], items[1]])
+  })
+
+  it('a duplicate key reports DuplicateKey as in mount and the walk still adopts', async () => {
+    const app = () => Effect.succeed(el('ul', {}, keyed('li', 'd', '1'), keyed('li', 'd', '2')))
+    const container = document.createElement('div')
+    container.innerHTML = await renderToString(app(), { layer: Layer.empty })
+    const before = all(container)
+    const onError = vi.fn()
+    await act(async () => void handles.push(await hydrateMount(app(), { layer: Layer.empty, container, onError })))
+    expect(onError.mock.calls.map(([c]) => Cause.squash(c))).toEqual([expect.objectContaining({ _tag: 'DuplicateKey', key: 'd' })])
+    expect(all(container)).toEqual(before)
+  })
+
+  it('a value typed into an input before hydrate, and its focus, survive', async () => {
+    const app = () => Effect.succeed(el('form', {}, el('input', { value: 'server' }), el('textarea', {})))
+    const container = document.createElement('div')
+    document.body.append(container)
+    container.innerHTML = await renderToString(app(), { layer: Layer.empty })
+    const input = container.querySelector('input')!
+    input.value = 'typed'
+    input.focus()
+    const onError = vi.fn()
+    await act(async () => void handles.push(await hydrateMount(app(), { layer: Layer.empty, container, onError })))
+    expect(onError).not.toHaveBeenCalled()
+    expect(container.querySelector('input')).toBe(input)
+    expect(input.value).toBe('typed')
+    expect(document.activeElement).toBe(input)
+    container.remove()
+  })
+
+  it('adjacent text, whitespace-only text and empty text adopt without creating nodes', async () => {
+    const name = Atom.make('')
+    const App = () => Effect.flatMap(useAtomValue(name), (n) => jsx('p', { children: ['  ', 'a', ' ', n, 'b', '\n'] }))
+    const { container, before } = await serverThenHydrate(() => jsx(App, {}))
+    const p = container.querySelector('p')!
+    expect(p.textContent).toBe('  a b\n')
+    // The empty text is the only node created (it serializes to nothing).
+    expect(all(container).filter((n) => !before.includes(n))).toHaveLength(1)
+    expect([...p.childNodes].every((n) => n.nodeType === 3)).toBe(true)
   })
 })

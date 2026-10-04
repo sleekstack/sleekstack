@@ -55,8 +55,8 @@ const adoptOne = (n: Leaf, key: string | undefined, dom: ChildNode | undefined, 
           d.replaceWith(inner)
           d = inner
         }
-        // An empty string serializes to no node at all.
-        if (text === '' && d?.nodeType !== 3) {
+        // An empty string serializes to no node at all (the parser never makes an empty text node).
+        if (text === '' && !(d?.nodeType === 3 && d.nodeValue === '')) {
           const t = env.doc.createTextNode('')
           parent.insertBefore(t, d ?? null)
           return { node: n, dom: t, kids: [] }
