@@ -16,7 +16,7 @@ const expected = (name: string) =>
 const sorted = <T extends { file: string; line: number }>(xs: T[]) => xs.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line)
 
 describe('component pass', () => {
-  it.each(['ui-missing', 'ui-unhandled', 'ui-react', 'ui-unresolved', 'ui-hooks', 'ui-resumable', 'ui-query'])('%s: code and file:line', (name) => {
+  it.each(['ui-missing', 'ui-unhandled', 'ui-react', 'ui-unresolved', 'ui-hooks', 'ui-resumable', 'ui-query', 'ui-slots', 'ui-keys'])('%s: code and file:line', (name) => {
     const want = expected(name)
     expect(want.length).toBeGreaterThan(0)
     expect(sorted(located(name))).toEqual(want)

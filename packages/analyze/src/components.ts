@@ -370,7 +370,62 @@ export function analyzeComponents(opts: { readonly project: string }): Component
       return { provides: [], root: { kind: 'unresolved', message: err.message, ...loc(err.node) }, ...loc(n) }
     }
   }
+  const rules: AnalyzeError[] = []
+  /** `useLocal` must be a statement-level `yield*` in a component's `Effect.gen` body, before any `return`; anything else fails closed. */
+  const checkSlot = (call: ts.CallExpression) => {
+    const bad = (why: string) => rules.push(analyzeError('ConditionalSlot', `useLocal "${text(call)}" ${why}; slots must run in the same order on every run`, loc(call)))
+    let n: ts.Node = call.parent
+    while (ts.isParenthesizedExpression(n)) n = n.parent
+    if (!ts.isYieldExpression(n) || !n.asteriskToken) return bad('is not a plain yield* in an Effect.gen body')
+    n = n.parent
+    if (ts.isVariableDeclaration(n) && n.parent.parent && ts.isVariableStatement(n.parent.parent)) n = n.parent.parent
+    else if (!ts.isExpressionStatement(n)) return bad('is not called as its own statement (inside a condition, loop or expression)')
+    const stmt = n as ts.Statement
+    const block = stmt.parent
+    const fn = block.parent
+    if (!ts.isBlock(block) || !fn || !ts.isFunctionExpression(fn) || !fn.asteriskToken || fn.body !== block) return bad('is inside a condition, loop or nested block')
+    const gen = fn.parent
+    if (!ts.isCallExpression(gen) || calleeOf(gen) !== 'effect/Effect#gen' || !isNodeEffect(checker.getTypeAtLocation(gen))) return bad('is not in a component\'s Effect.gen body (a helper or nested function)')
+    let returned = false
+    const scan = (x: ts.Node): void => {
+      if (ts.isFunctionLike(x)) return
+      if (ts.isReturnStatement(x)) returned = true
+      ts.forEachChild(x, scan)
+    }
+    for (const s of block.statements) {
+      if (s === stmt) break
+      scan(s)
+    }
+    if (returned) bad('runs after an earlier return')
+  }
+  /** Each element a child-position `.map` / `.flatMap` / `Array.from` callback returns carries a `key`. */
+  const checkKeys = (call: ts.CallExpression) => {
+    const callee = call.expression
+    if (!ts.isPropertyAccessExpression(callee)) return
+    const from = callee.getText() === 'Array.from'
+    if (!from && (!['map', 'flatMap'].includes(callee.name.text) || calleeOf(call))) return
+    const cb = call.arguments[from ? 1 : 0] && unwrap(call.arguments[from ? 1 : 0]!)
+    if (!cb || !(ts.isArrowFunction(cb) || ts.isFunctionExpression(cb))) return
+    // Child position: through branches, arrays and spreads up to JSX children or an Effect.all argument.
+    let p: ts.Node = call
+    while (ts.isParenthesizedExpression(p.parent) || ts.isConditionalExpression(p.parent) || ts.isBinaryExpression(p.parent) || ts.isArrayLiteralExpression(p.parent) || ts.isSpreadElement(p.parent)) p = p.parent
+    const child = (ts.isJsxExpression(p.parent) && !ts.isJsxAttribute(p.parent.parent)) || (ts.isCallExpression(p.parent) && p.parent.expression !== p && calleeOf(p.parent) === 'effect/Effect#all')
+    if (!child) return
+    const flat = !from && callee.name.text === 'flatMap'
+    const check = (x: ts.Expression): void => {
+      const e = unwrap(x)
+      if (ts.isConditionalExpression(e)) return (check(e.whenTrue), check(e.whenFalse))
+      if (ts.isBinaryExpression(e) && [ts.SyntaxKind.AmpersandAmpersandToken, ts.SyntaxKind.BarBarToken, ts.SyntaxKind.QuestionQuestionToken].includes(e.operatorToken.kind)) return (check(e.left), check(e.right))
+      if (flat && ts.isArrayLiteralExpression(e)) return e.elements.forEach((m) => check(ts.isSpreadElement(m) ? m.expression : m))
+      const open = ts.isJsxElement(e) ? e.openingElement : ts.isJsxSelfClosingElement(e) ? e : undefined
+      if (ts.isJsxFragment(e) || (open && !open.attributes.properties.some((a) => ts.isJsxAttribute(a) && a.name.getText() === 'key')))
+        rules.push(analyzeError('MissingKey', `"${text(e)}" is rendered by "${text(callee)}" without a key prop`, loc(e)))
+    }
+    bodyReturns(cb).forEach(check)
+  }
   const visit = (n: ts.Node): void => {
+    if (ts.isCallExpression(n) && calleeOf(n) === 'ui/reactive#useLocal') checkSlot(n)
+    if (ts.isCallExpression(n)) checkKeys(n)
     if (ts.isCallExpression(n) && calleeOf(n) === 'ui/handler#on') checkOn(n)
     if (ts.isCallExpression(n) && calleeOf(n) === 'ui/resume#resume') trees.push(resumeRoot(n))
     if (ts.isCallExpression(n) && calleeOf(n) === 'ui/dom#mount' && n.arguments[0]) {
@@ -397,7 +452,7 @@ export function analyzeComponents(opts: { readonly project: string }): Component
     if (!sf.isDeclarationFile && program.getRootFileNames().includes(sf.fileName) && !TEST_FILE.test(path.relative(root, sf.fileName))) visit(sf)
   }
 
-  const errors: AnalyzeError[] = [...nonResumable]
+  const errors: AnalyzeError[] = [...nonResumable, ...rules]
   for (const t of trees) check(t.root, new Set([...t.provides, UI_STORE]), new Set(), errors)
   return { trees, errors: [...new Map(errors.map((e) => [`${e.code}|${e.file}:${e.line}|${e.message}`, e])).values()] }
 }
