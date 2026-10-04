@@ -1,11 +1,11 @@
-import type { Atom } from '@sleekstack/core'
+import { Atom } from '@sleekstack/core'
 import { type Context, Effect, Layer } from 'effect'
 import { bind, type Handler, isHandler, on } from './handler'
 import { el, type ElementNode, type EventBinding, fragment, type Node } from './node'
 import { Handlers, instance, RenderScope } from './reactive'
 
-/** What a JSX expression may hold between its tags. */
-export type Child = string | number | boolean | null | undefined | Effect.Effect<Node, any, any> | ReadonlyArray<Child>
+/** What a JSX expression may hold between its tags. A serializable atom renders its current value as text and, under `renderToString`, is bound for `resume`. */
+export type Child = string | number | boolean | null | undefined | Effect.Effect<Node, any, any> | Atom.Serializable<Atom.Atom<any>> | ReadonlyArray<Child>
 
 /** Every JSX expression is an `Effect<Node>`. Its requirements and errors are read from the tree by `sleekstack check`, not by tsc. */
 type Element = Effect.Effect<Node, never, never>
@@ -16,7 +16,9 @@ const rendered = (c: Child): Array<Effect.Effect<Node | string, any, any>> =>
     ? c.flatMap(rendered)
     : c == null || typeof c === 'boolean'
       ? []
-      : [Effect.isEffect(c) ? c : Effect.succeed(String(c))]
+      : Atom.isAtom(c)
+        ? [Effect.sync(() => bind(c))]
+        : [Effect.isEffect(c) ? c : Effect.succeed(String(c))]
 
 const renderChildren = (c: Child) => Effect.all(rendered(c)) as Effect.Effect<Array<Node | string>>
 
@@ -57,7 +59,7 @@ export const jsx = (type: string | ((props: any) => Element), props: Props, key?
   const k = key ?? props.key
   const ks = k == null ? undefined : String(k)
   return typeof type === 'function'
-    ? type === Fragment || type === Provider || type === Boundary || type === Bind
+    ? type === Fragment || type === Provider || type === Boundary
       ? type(props as any)
       : (instance(type, props, ks) as Element)
     : (element(type, props, ks) as Element)
@@ -66,9 +68,6 @@ export const jsxs = jsx
 
 export const Fragment = (props: { children?: Child }): Element =>
   Effect.map(renderChildren(props.children), (kids) => fragment(...kids)) as Element
-
-/** `<Bind atom={a} />`: JSX form of `bind`; the atom's current value as text, resumable under its serializable key. */
-export const Bind = (props: { atom: Atom.Atom<any> }): Element => Effect.sync(() => bind(props.atom))
 
 /** `<Provider layer={L}>…</Provider>`: JSX form of `Provide`. */
 export const Provider = (props: { layer: Layer.Layer<any, any, never>; children?: Child }): Element =>

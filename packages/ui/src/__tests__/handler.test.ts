@@ -4,7 +4,7 @@ import { Effect, Layer, Schema } from 'effect'
 import { createElement } from 'react'
 import { describe, expect, it } from 'vitest'
 import { jsx } from '../jsx-runtime'
-import { bind, Bind, defineHandler, fromReact, DuplicateBindKey, DuplicateHandler, el, fragment, mount, on, renderToString, UnsupportedAtom, UnsupportedEvent } from '../index'
+import { bind, defineHandler, fromReact, DuplicateBindKey, DuplicateHandler, el, fragment, mount, on, renderToString, UnsupportedAtom, UnsupportedEvent } from '../index'
 
 const count = Atom.serializable(Atom.make(3), { key: 'count', schema: Schema.Number })
 const inc = defineHandler('inc', () => Effect.void, { preventDefault: true, stopPropagation: true })
@@ -83,8 +83,8 @@ describe('resumable server render', () => {
     await m.dispose()
   })
 
-  it('JSX: a defineHandler value on onXxx and <Bind atom> render the same HTML as on() and bind()', async () => {
-    const viaJsx = await renderToString(jsx('div', { children: [jsx('button', { onClick: inc, onKeyDown: log, children: 'add' }), jsx(Bind, { atom: count })] }), { layer: Layer.empty })
+  it('JSX: a defineHandler value on onXxx and an atom child render the same HTML as on() and bind()', async () => {
+    const viaJsx = await renderToString(jsx('div', { children: [jsx('button', { onClick: inc, onKeyDown: log, children: 'add' }), count] }), { layer: Layer.empty })
     const viaNodes = await render(el('div', {}, on(el('button', {}, 'add'), { click: inc, keydown: log }), bind(count)))
     expect(viaJsx).toBe(viaNodes)
     expect(viaJsx).toContain('data-sleek-on-keydown="log"')
