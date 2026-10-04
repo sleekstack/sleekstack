@@ -3,7 +3,8 @@ import { Atom } from '@sleekstack/core'
 import { Effect, Layer, Schema } from 'effect'
 import { createElement } from 'react'
 import { describe, expect, it } from 'vitest'
-import { bind, defineHandler, fromReact, DuplicateBindKey, DuplicateHandler, el, fragment, mount, on, renderToString, UnsupportedAtom, UnsupportedEvent } from '../index'
+import { jsx } from '../jsx-runtime'
+import { bind, Bind, defineHandler, fromReact, DuplicateBindKey, DuplicateHandler, el, fragment, mount, on, renderToString, UnsupportedAtom, UnsupportedEvent } from '../index'
 
 const count = Atom.serializable(Atom.make(3), { key: 'count', schema: Schema.Number })
 const inc = defineHandler('inc', () => Effect.void, { preventDefault: true, stopPropagation: true })
@@ -80,5 +81,18 @@ describe('resumable server render', () => {
     const m = await mount(Effect.succeed(fragment(on(el('button', {}, 'add'), { click: inc }), bind(count))), { layer: Layer.empty, container })
     expect(container.innerHTML).toBe('<button>add</button>3')
     await m.dispose()
+  })
+
+  it('JSX: a defineHandler value on onXxx and <Bind atom> render the same HTML as on() and bind()', async () => {
+    const viaJsx = await renderToString(jsx('div', { children: [jsx('button', { onClick: inc, onKeyDown: log, children: 'add' }), jsx(Bind, { atom: count })] }), { layer: Layer.empty })
+    const viaNodes = await render(el('div', {}, on(el('button', {}, 'add'), { click: inc, keydown: log }), bind(count)))
+    expect(viaJsx).toBe(viaNodes)
+    expect(viaJsx).toContain('data-sleek-on-keydown="log"')
+  })
+
+  it('JSX: an onXxx closure stays an event closure, and a bad event name still throws', async () => {
+    const closure = await renderToString(jsx('button', { onClick: () => Effect.void, children: 'x' }), { layer: Layer.empty })
+    expect(closure).toBe('<button>x</button>')
+    await expect(renderToString(jsx('button', { onFocus: inc }), { layer: Layer.empty })).rejects.toBeInstanceOf(UnsupportedEvent)
   })
 })

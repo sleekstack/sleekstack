@@ -1,4 +1,6 @@
+import type { Atom } from '@sleekstack/core'
 import { type Context, Effect, Layer } from 'effect'
+import { bind, type Handler, isHandler, on } from './handler'
 import { el, type ElementNode, type EventBinding, fragment, type Node } from './node'
 import { Handlers, instance, RenderScope } from './reactive'
 
@@ -23,12 +25,18 @@ const RENAME: Record<string, string> = { className: 'class', htmlFor: 'for' }
 const attrs = (props: Props): Record<string, string> =>
   Object.fromEntries(
     Object.entries(props).flatMap(([k, v]) =>
-      k === 'children' || k === 'key' || isEvent(k, v) || v == null || v === false ? [] : [[RENAME[k] ?? k, v === true ? '' : String(v)]],
+      k === 'children' || k === 'key' || isEvent(k, v) || isHandlerProp(k, v) || v == null || v === false ? [] : [[RENAME[k] ?? k, v === true ? '' : String(v)]],
     ),
   )
 
 // A function-valued `onXxx` prop is an event closure, not an attribute; non-function `on*` still reaches `checkAttr`.
 const isEvent = (k: string, v: unknown): v is EventBinding['run'] => typeof v === 'function' && /^on[A-Z]/.test(k)
+// A `defineHandler` value on `onXxx` is a resumable handler: it goes to the node's `on`, which `renderToString` emits as `data-sleek-on-<event>`.
+const isHandlerProp = (k: string, v: unknown): v is Handler<any, any> => /^on[A-Z]/.test(k) && isHandler(v)
+const handlers = (props: Props): Record<string, Handler<any, any>> | undefined => {
+  const entries = Object.entries(props).flatMap(([k, v]) => (isHandlerProp(k, v) ? [[k.slice(2).toLowerCase(), v] as const] : []))
+  return entries.length ? Object.fromEntries(entries) : undefined
+}
 const events = (props: Props, context: Context.Context<any>): Record<string, EventBinding> | undefined => {
   const entries = Object.entries(props).flatMap(([k, v]) => (isEvent(k, v) ? [[k.slice(2).toLowerCase(), { run: v, context }]] : []))
   return entries.length ? Object.fromEntries(entries) : undefined
@@ -37,7 +45,9 @@ const events = (props: Props, context: Context.Context<any>): Record<string, Eve
 const element = (type: string, props: Props, key: string | undefined): Effect.Effect<Node, any, any> =>
   Effect.flatMap(Effect.context<any>(), (ctx) =>
     Effect.map(renderChildren(props.children), (kids) => {
-      const node = el(type, attrs(props), ...kids) as ElementNode
+      const base = el(type, attrs(props), ...kids) as ElementNode
+      const hs = handlers(props)
+      const node = (hs ? on(base, hs) : base) as ElementNode
       const evs = events(props, ctx)
       return { ...node, ...(evs && { events: evs }), ...(key !== undefined && { key }) }
     }),
@@ -47,7 +57,7 @@ export const jsx = (type: string | ((props: any) => Element), props: Props, key?
   const k = key ?? props.key
   const ks = k == null ? undefined : String(k)
   return typeof type === 'function'
-    ? type === Fragment || type === Provider || type === Boundary
+    ? type === Fragment || type === Provider || type === Boundary || type === Bind
       ? type(props as any)
       : (instance(type, props, ks) as Element)
     : (element(type, props, ks) as Element)
@@ -56,6 +66,9 @@ export const jsxs = jsx
 
 export const Fragment = (props: { children?: Child }): Element =>
   Effect.map(renderChildren(props.children), (kids) => fragment(...kids)) as Element
+
+/** `<Bind atom={a} />`: JSX form of `bind`; the atom's current value as text, resumable under its serializable key. */
+export const Bind = (props: { atom: Atom.Atom<any> }): Element => Effect.sync(() => bind(props.atom))
 
 /** `<Provider layer={L}>…</Provider>`: JSX form of `Provide`. */
 export const Provider = (props: { layer: Layer.Layer<any, any, never>; children?: Child }): Element =>

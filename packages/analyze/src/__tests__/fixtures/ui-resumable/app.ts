@@ -32,7 +32,7 @@ export const run = (container: Element) =>
   resume({
     container,
     layer: RepoLive,
-    atoms: {},
+    atoms: [],
     handlers: {
       ok: () => Promise.resolve({ default: ok }),
       db: () => Promise.resolve({ default: needsDb }), // @error MissingDependency

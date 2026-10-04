@@ -325,23 +325,33 @@ export function analyzeComponents(opts: { readonly project: string }): Component
   const trees: ComponentTree[] = []
   const nonResumable: AnalyzeError[] = []
   const notResumable = (n: ts.Node, message: string) => nonResumable.push(analyzeError(NON_RESUMABLE_HANDLER, message, loc(n)))
+  /** A handler reference at `at` (declared by `d`) must be a top-level `const h = defineHandler('literal', ...)`. */
+  const checkHandlerRef = (at: ts.Node, d: ts.Declaration | undefined) => {
+    // A top-level `const h = defineHandler(...)` or `export default defineHandler(...)`, possibly imported.
+    const init =
+      d && ts.isVariableDeclaration(d) && d.initializer && ts.isVariableStatement(d.parent.parent) && ts.isSourceFile(d.parent.parent.parent) && ts.getCombinedNodeFlags(d) & ts.NodeFlags.Const
+        ? unwrap(d.initializer)
+        : d && ts.isExportAssignment(d) && ts.isSourceFile(d.parent) ? unwrap(d.expression) : undefined
+    if (!init || !ts.isCallExpression(init) || calleeOf(init) !== 'ui/handler#defineHandler')
+      notResumable(at, `Handler "${text(at)}" is not a reference to a top-level const defineHandler(...)`)
+    else if (!init.arguments[0] || !ts.isStringLiteralLike(unwrap(init.arguments[0])))
+      notResumable(at, `Handler "${text(at)}" has a non-literal id`)
+  }
   /** An `on(node, { event: h })` entry must name a top-level `const h = defineHandler('literal', ...)`. */
   const checkOn = (call: ts.CallExpression) => {
     const map = call.arguments[1] && unwrap(call.arguments[1])
     if (!map || !ts.isObjectLiteralExpression(map)) return map && notResumable(map, `on() handlers "${text(map)}" are not an object literal`)
     for (const p of map.properties) {
       const v = ts.isPropertyAssignment(p) ? unwrap(p.initializer) : undefined
-      const d = ts.isShorthandPropertyAssignment(p) ? aliased(checker.getShorthandAssignmentValueSymbol(p)) : v && (ts.isIdentifier(v) || ts.isPropertyAccessExpression(v)) ? declOf(v) : undefined
-      // A top-level `const h = defineHandler(...)` or `export default defineHandler(...)`, possibly imported.
-      const init =
-        d && ts.isVariableDeclaration(d) && d.initializer && ts.isVariableStatement(d.parent.parent) && ts.isSourceFile(d.parent.parent.parent) && ts.getCombinedNodeFlags(d) & ts.NodeFlags.Const
-          ? unwrap(d.initializer)
-          : d && ts.isExportAssignment(d) && ts.isSourceFile(d.parent) ? unwrap(d.expression) : undefined
-      if (!init || !ts.isCallExpression(init) || calleeOf(init) !== 'ui/handler#defineHandler')
-        notResumable(p, `Handler "${text(p)}" is not a reference to a top-level const defineHandler(...)`)
-      else if (!init.arguments[0] || !ts.isStringLiteralLike(unwrap(init.arguments[0])))
-        notResumable(p, `Handler "${text(p)}" has a non-literal id`)
+      checkHandlerRef(p, ts.isShorthandPropertyAssignment(p) ? aliased(checker.getShorthandAssignmentValueSymbol(p)) : v && (ts.isIdentifier(v) || ts.isPropertyAccessExpression(v)) ? declOf(v) : undefined)
     }
+  }
+  /** A JSX `onXxx={h}` whose value is a `Handler` (not a closure) is a resumable handler: same rule as `on()`. */
+  const checkJsxHandler = (attr: ts.JsxAttribute) => {
+    const init = attr.initializer
+    const v = init && ts.isJsxExpression(init) && init.expression ? unwrap(init.expression) : undefined
+    if (!v || !/^on[A-Z]/.test(attr.name.getText()) || libId(checker.getTypeAtLocation(v).getSymbol(), checker) !== 'ui/handler#Handler') return
+    checkHandlerRef(attr, ts.isIdentifier(v) || ts.isPropertyAccessExpression(v) ? declOf(v) : undefined)
   }
   /** An expression through shorthand properties and `const` bindings to the object literal it names. */
   const objectOf = (e: ts.Node | undefined): ts.ObjectLiteralExpression | undefined => {
@@ -444,6 +454,7 @@ export function analyzeComponents(opts: { readonly project: string }): Component
     if (ts.isCallExpression(n) && calleeOf(n) === 'ui/reactive#useLocal') checkSlot(n)
     if (ts.isCallExpression(n)) checkKeys(n)
     if (ts.isCallExpression(n) && calleeOf(n) === 'ui/handler#on') checkOn(n)
+    if (ts.isJsxAttribute(n)) checkJsxHandler(n)
     if (ts.isCallExpression(n) && calleeOf(n) === 'ui/resume#resume') trees.push(resumeRoot(n))
     if (ts.isCallExpression(n) && calleeOf(n) === 'ui/dom#mount' && n.arguments[0]) {
       let provides: readonly string[] = []
