@@ -1,5 +1,4 @@
 /** @jsxImportSource @sleekstack/ui */
-import { Bind } from '@sleekstack/ui'
 import { countAtom } from './count'
 import increment from './increment'
 
@@ -7,8 +6,6 @@ import increment from './increment'
 export const Counter = () => (
   <div className="counter">
     <button onClick={increment}>+1</button>
-    <output>
-      <Bind atom={countAtom} />
-    </output>
+    <output>{countAtom}</output>
   </div>
 )
