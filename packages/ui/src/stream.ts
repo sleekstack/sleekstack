@@ -44,10 +44,12 @@ export const renderToStream = <E, A, LE = never>(app: Effect.Effect<Node, E, A>,
   const scope = Effect.runSync(Scope.make())
   const frame = makeFrame()
   let shell: Fiber.RuntimeFiber<Node, unknown> | undefined
+  const reruns = new Set<Fiber.RuntimeFiber<Node>>()
   let disposed: Promise<void> | undefined
   const dispose = () =>
     (disposed ??= (async () => {
       if (shell) await Effect.runPromise(Fiber.interrupt(shell))
+      await Effect.runPromise(Fiber.interruptAll(reruns))
       disposeSlots(frame.owner)
       await Effect.runPromise(Scope.close(scope, Exit.void))
       await store.dispose()
@@ -58,14 +60,18 @@ export const renderToStream = <E, A, LE = never>(app: Effect.Effect<Node, E, A>,
   const c: Collector = { store, onError: opts.onError, handlers: new Map(), events: new Set(), atoms: new Map() }
   let emit: (html: string) => void = () => {}
 
-  // Placeholder now; the chunk when the boundary's content resolves (a failed one keeps its fallback and reports).
+  // Placeholder now; the chunk when the boundary's content resolves. A failure streams the nearest `Boundary` fallback
+  // (the re-run carries the instance's handlers); unhandled, the Pending fallback stays and `onError` gets it.
   c.boundary = (node, around: Around) => {
     if (node.pending?.frame) return undefined
     const id = `${prefix}${next++}`
     const settle = async (n: ReactiveNode): Promise<void> => {
       await changed(store, n)
       if (disposed) return
-      const exit = await Effect.runPromiseExit(n.rerun)
+      const fiber = Effect.runFork(n.rerun)
+      reruns.add(fiber)
+      const exit = await Effect.runPromise(Fiber.await(fiber))
+      reruns.delete(fiber)
       if (disposed) return
       if (Exit.isFailure(exit)) return void reportRenderError(exit.cause, opts.onError)
       const r = exit.value

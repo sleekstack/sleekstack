@@ -1,7 +1,10 @@
 // @vitest-environment jsdom
-import { Effect, Layer } from 'effect'
+import { QueryClientLive } from '@sleekstack/query'
+import type { QueryClient } from '@tanstack/query-core'
+import { type Cause, Data, Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
-import { el, fragment, Pending, renderToStream, renderToString } from '../index'
+import { Boundary, el, fragment, Pending, renderToStream, renderToString } from '../index'
+import { useQuery, useQueryClient } from '../query'
 import { jsx as rawJsx } from '../jsx-runtime'
 import { normalize } from './helpers/normalize'
 
@@ -136,5 +139,58 @@ describe('renderToStream boundaries (R2, R5)', () => {
     const scripts = [...html.matchAll(/<script\b[^>]*>/g)].map((m) => m[0])
     expect(scripts.length).toBeGreaterThanOrEqual(2)
     for (const s of scripts) expect(s).toContain('nonce="n0&quot;"')
+  })
+})
+
+class Boom extends Data.TaggedError('Boom')<{}> {}
+const failing = (g: { promise: Promise<void> }) => () => Effect.flatMap(Effect.promise(() => g.promise), () => Effect.fail(new Boom()))
+const drain = async (reader: ReadableStreamDefaultReader<Uint8Array>) => {
+  let out = ''
+  for (let r = await reader.read(); !r.done; r = await reader.read()) out += decoder.decode(r.value)
+  return out
+}
+
+describe('renderToStream errors and cancel (R2, R4)', () => {
+  it('a boundary failing after flush streams the nearest Boundary fallback', async () => {
+    const g = gate()
+    const app = jsx(Boundary, { tag: 'Boom', fallback: () => jsx('p', { children: 'caught' }), children: jsx(Pending, { fallback: 'wait', children: jsx(failing(g), {}) }) })
+    const errors: Array<Cause.Cause<unknown>> = []
+    const reader = renderToStream(app, { layer, onError: (c) => errors.push(c) }).getReader()
+    const first = decoder.decode((await reader.read()).value)
+    expect(first).toContain('<!--sleek-p:sleek-0-->wait<!--/sleek-p-->')
+    g.open()
+    const rest = await drain(reader)
+    expect(rest).toContain('<template data-sleek-b="sleek-0"><p>caught</p></template>')
+    expect(apply(first + rest)).toBe('<p>caught</p>')
+    expect(errors).toEqual([])
+  })
+
+  it('an unhandled failure after flush keeps the Pending fallback and reports once to onError', async () => {
+    const g = gate()
+    const errors: Array<Cause.Cause<unknown>> = []
+    const reader = renderToStream(jsx(Pending, { fallback: 'wait', children: jsx(failing(g), {}) }), { layer, onError: (c) => errors.push(c) }).getReader()
+    const first = decoder.decode((await reader.read()).value)
+    g.open()
+    const rest = await drain(reader)
+    expect(rest).not.toContain('<template')
+    expect(normalize(apply(first + rest))).toContain('wait')
+    expect(errors).toHaveLength(1)
+  })
+
+  it('cancel interrupts pending content, closes its scope (observer retain count 0) and drops late errors', async () => {
+    const g = gate()
+    let client: QueryClient | undefined
+    const observers = () => client?.getQueryCache().find({ queryKey: ['s'] })?.getObserversCount() ?? 0
+    const Q = () =>
+      Effect.flatMap(useQueryClient(), (c) => ((client = c), Effect.flatMap(useQuery({ queryKey: ['s'], queryFn: async () => 'q', retry: false }), () => Effect.flatMap(Effect.promise(() => g.promise), () => Effect.fail(new Boom())))))
+    const errors: Array<Cause.Cause<unknown>> = []
+    const reader = renderToStream(jsx(Pending, { fallback: 'wait', children: jsx(Q, {}) }), { layer: QueryClientLive(), onError: (c) => errors.push(c) }).getReader()
+    await reader.read()
+    expect(observers()).toBe(1)
+    await reader.cancel()
+    expect(observers()).toBe(0)
+    g.open()
+    await new Promise((r) => setTimeout(r, 10))
+    expect(errors).toEqual([])
   })
 })
