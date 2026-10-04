@@ -193,6 +193,45 @@ const withHandlers = (run: Effect.Effect<Node, any, any>, hs: ReadonlyArray<Hand
 const handled = (run: Effect.Effect<Node, any, any>): Effect.Effect<Node, any, any> => Effect.flatMap(Handlers, (hs) => withHandlers(run, hs))
 
 
+
+interface LazyScope extends Scope.CloseableScope {
+  /** Closes without a fiber when nothing ever used the scope; false when it was used (close it normally). */
+  closeIfIdle(): boolean
+}
+const lazies = new WeakSet<object>()
+
+/** A scope that forks `parent` on first use. Used after it closed, it behaves like a closed scope: finalizers run at once. */
+const lazyScope = (parent: Scope.Scope): Scope.CloseableScope => {
+  let inner: Scope.CloseableScope | undefined
+  let closed = false
+  const real = (): Scope.CloseableScope => {
+    if (inner) return inner
+    inner = Effect.runSync(Scope.fork(parent, ExecutionStrategy.sequential))
+    if (closed) Effect.runSync(Scope.close(inner, Exit.void))
+    return inner
+  }
+  const self = {
+    [Scope.ScopeTypeId]: Scope.ScopeTypeId,
+    [Scope.CloseableScopeTypeId]: Scope.CloseableScopeTypeId,
+    strategy: ExecutionStrategy.sequential,
+    fork: (strategy: ExecutionStrategy.ExecutionStrategy) => Effect.suspend(() => (real() as any).fork(strategy) as Effect.Effect<Scope.CloseableScope>),
+    addFinalizer: (finalizer: Scope.Scope.Finalizer) => Effect.suspend(() => (real() as any).addFinalizer(finalizer) as Effect.Effect<void>),
+    close: (exit: Exit.Exit<unknown, unknown>) => {
+      closed = true
+      return inner ? Scope.close(inner, exit) : Effect.void
+    },
+    closeIfIdle: () => {
+      if (inner) return false
+      closed = true
+      return true
+    },
+  } as unknown as LazyScope
+  lazies.add(self)
+  return self
+}
+/** Closes `scope` without a fiber when it is a lazy scope nothing used; true when that handled it. */
+export const closeIdle = (scope: Scope.CloseableScope): boolean => lazies.has(scope) && (scope as LazyScope).closeIfIdle()
+
 /**
  * Runs a component as one instance: fresh collector, own scope, captured context; returns a `Reactive` node when it read atoms.
  * Under a `RenderScope` the node carries its run's scope: a failed run closes it, otherwise its owner (the DOM renderer) does.
@@ -244,12 +283,11 @@ export const instance = <P>(type: (props: P) => Effect.Effect<Node, any, any>, p
       )
     }
     const parent = Context.get(ctx, RenderScope)
-    return parent
-      ? Effect.flatMap(Scope.fork(parent, ExecutionStrategy.sequential), (own) =>
-          // A failed or interrupted run produces no node for the renderer to drop: its pending child slots go here too.
-          Effect.onExit(body(own), (exit) => (Exit.isSuccess(exit) ? Effect.void : Effect.zipRight(Effect.sync(() => dropSlots(frame)), Scope.close(own, exit)))),
-        )
-      : body(undefined)
+    if (!parent) return body(undefined)
+    // The run's scope forks `parent` only when something uses it (a Provider, a retained atom, ...); most rows never do.
+    const own = lazyScope(parent)
+    // A failed or interrupted run produces no node for the renderer to drop: its pending child slots go here too.
+    return Effect.onExit(body(own), (exit) => (Exit.isSuccess(exit) ? Effect.void : Effect.zipRight(Effect.sync(() => dropSlots(frame)), Scope.close(own, exit))))
   })
   return run
 }

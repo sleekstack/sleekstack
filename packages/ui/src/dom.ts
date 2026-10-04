@@ -5,7 +5,7 @@ import { flushSync } from 'react-dom'
 import { createRoot, type Root } from 'react-dom/client'
 import { reportRenderError, runToNode } from './component'
 import type { BindNode, ElementNode, EventBinding, FragmentNode, GuestNode, Node, ReactiveNode } from './node'
-import { commitSlots, disposeSlots, dropSlots, DuplicateKey, fallbacks, Frame, makeFrame, RenderScope, type RunFrame, runScopes, Store } from './reactive'
+import { closeIdle, commitSlots, disposeSlots, dropSlots, DuplicateKey, fallbacks, Frame, makeFrame, RenderScope, type RunFrame, runScopes, Store } from './reactive'
 import { checkAttr, checkTag } from './string'
 
 export interface Mounted {
@@ -71,7 +71,7 @@ interface Instance extends Owner {
 }
 
 const closeScope = (scope: Scope.CloseableScope | undefined): void => {
-  if (scope) Effect.runFork(Scope.close(scope, Exit.void))
+  if (scope && !closeIdle(scope)) Effect.runFork(Scope.close(scope, Exit.void))
 }
 
 // Closes every run scope and drops the pending slots a never-built node owns (a discarded re-run result).
