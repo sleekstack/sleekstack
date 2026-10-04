@@ -1,5 +1,5 @@
-import { type Atom, type AtomStore, MissingDependency } from '@sleekstack/core'
-import { Context, Effect, ExecutionStrategy, Exit, Option, Scope } from 'effect'
+import { Atom, type AtomStore, MissingDependency } from '@sleekstack/core'
+import { Context, Data, Effect, ExecutionStrategy, Exit, Option, Scope } from 'effect'
 import type { Node } from './node'
 
 /** The mount's atom store. `mount` and `renderToString` provide it. */
@@ -29,10 +29,62 @@ export class Instance extends Context.Reference<Instance>()('@sleekstack/ui/Inst
   defaultValue: (): object | undefined => undefined,
 }) {}
 
-/** Per-run ordinal counter of the running instance, by component function; a fresh one per run. `undefined` at the root. */
+/** Local-state slots of one instance id, kept in its parent's registry (`kids`) across re-runs of both. */
+export interface Slots {
+  readonly atoms: Array<Atom.Writable<any>>
+  readonly releases: Array<() => void>
+  /** Slot count fixed by a finished run; later runs must match it. */
+  done: boolean
+  kids?: Map<string, Slots>
+}
+
+/** One run of an instance: ordinals by component function, its own slots and cursor, and what its children did. `undefined` at the root. */
+export interface RunFrame {
+  readonly ordinals: Map<Function, number>
+  readonly owner: Slots
+  readonly id: string
+  cursor: number
+  /** Child ids that ran in this run. */
+  seen?: Set<string>
+  /** Child slots created by this run; disposed if the run is dropped. */
+  pending?: Array<readonly [string, Slots]>
+}
+
 export class Frame extends Context.Reference<Frame>()('@sleekstack/ui/Frame', {
-  defaultValue: (): Map<Function, number> | undefined => undefined,
+  defaultValue: (): RunFrame | undefined => undefined,
 }) {}
+
+export const makeFrame = (owner: Slots = { atoms: [], releases: [], done: false }, id = ''): RunFrame => ({ ordinals: new Map(), owner, id, cursor: 0 })
+
+/** A run called a different number of `useLocal`s than the instance's previous run. */
+export class SlotMismatch extends Data.TaggedError('SlotMismatch')<{ readonly id: string; readonly expected: number; readonly actual: number }> {}
+/** Two siblings share one key. */
+export class DuplicateKey extends Data.TaggedError('DuplicateKey')<{ readonly key: string }> {}
+
+const disposeSlots = (s: Slots): void => {
+  for (const r of s.releases) r()
+  s.kids?.forEach(disposeSlots)
+}
+
+/** The run's result committed: its pending slots become permanent; slots of child ids it did not run are disposed. */
+export const commitSlots = (frame: RunFrame): void => {
+  frame.pending = undefined
+  frame.owner.kids?.forEach((s, id) => {
+    if (!frame.seen?.has(id)) {
+      disposeSlots(s)
+      frame.owner.kids!.delete(id)
+    }
+  })
+}
+
+/** The run was dropped: dispose the slots it created; earlier slots stay. */
+export const dropSlots = (frame: RunFrame): void => {
+  for (const [id, s] of frame.pending ?? []) {
+    disposeSlots(s)
+    frame.owner.kids?.delete(id)
+  }
+  frame.pending = undefined
+}
 
 const fnIds = new WeakMap<Function, string>()
 let nextFn = 0
@@ -63,6 +115,27 @@ export const useAtomValue = <A>(atom: Atom.Atom<A>): Effect.Effect<A, never, Sto
         })
       }),
     ),
+  )
+
+/** Instance-local state: slot *n* is the *n*-th call of the run. Outside an instance, `initial` and a no-op setter. */
+export const useLocal = <A>(initial: A): Effect.Effect<readonly [A, (next: A | ((previous: A) => A)) => void], never, Store> =>
+  Effect.flatMap(Collector, (c) =>
+    c === undefined
+      ? Effect.succeed([initial, () => {}] as const)
+      : Effect.flatMap(store('useLocal'), (s) =>
+          Effect.flatMap(Frame, (f) => {
+            const slots = f!.owner
+            const i = f!.cursor++
+            if (i >= slots.atoms.length) {
+              if (slots.done) return Effect.fail(new SlotMismatch({ id: f!.id, expected: slots.atoms.length, actual: i + 1 })) as unknown as Effect.Effect<never>
+              const a = Atom.writable<A, A>(() => initial, (ctx, v) => ctx.setSelf(v))
+              slots.atoms.push(a)
+              slots.releases.push(s.retain(a))
+            }
+            const atom = slots.atoms[i] as Atom.Writable<A>
+            return Effect.map(useAtomValue(atom), (value) => [value, (next: A | ((previous: A) => A)) => (typeof next === 'function' ? s.update(atom, next as (p: A) => A) : s.set(atom, next))] as const)
+          }),
+        ),
   )
 
 /** Returns a setter for `atom`; registers nothing. */
@@ -124,20 +197,40 @@ export const instance = <P>(type: (props: P) => Effect.Effect<Node, any, any>, p
   const inst = {}
   // Fixed on the first run from the parent's frame; `rerun` reuses it and never bumps the parent's ordinals.
   let id: string | undefined
+  // Slots of an instance with no parent frame (the root).
+  let rootSlots: Slots | undefined
   const run: Effect.Effect<Node, any, any> = Effect.flatMap(Effect.context<never>(), (ctx) => {
     if (id === undefined) {
       const frame = Context.get(ctx, Frame)
       // ponytail: no frame above the first instance, so root-level siblings of one type share `#0`; mount/renderToString can provide a root Frame when that matters.
-      const ordinal = frame?.get(type) ?? 0
-      frame?.set(type, ordinal + 1)
+      const ordinal = frame?.ordinals.get(type) ?? 0
+      frame?.ordinals.set(type, ordinal + 1)
       id = key === undefined ? `${fnId(type)}#${ordinal}` : `${fnId(type)}:key:${key}`
     }
     const self = id
+    const parentFrame = Context.get(ctx, Frame)
+    let slots: Slots
+    if (parentFrame) {
+      ;(parentFrame.seen ??= new Set()).add(self)
+      const kids = (parentFrame.owner.kids ??= new Map())
+      let found = kids.get(self)
+      if (found === undefined) {
+        kids.set(self, (found = { atoms: [], releases: [], done: false }))
+        ;(parentFrame.pending ??= []).push([self, found])
+      }
+      slots = found
+    } else slots = rootSlots ??= { atoms: [], releases: [], done: false }
     const body = (own: Scope.CloseableScope | undefined): Effect.Effect<Node, any, any> => {
       const reads = new Map<Atom.Atom<any>, unknown>()
-      let inner = Context.add(Context.add(Context.add(ctx, Collector, reads), Instance, inst), Frame, new Map())
+      let inner = Context.add(Context.add(Context.add(ctx, Collector, reads), Instance, inst), Frame, makeFrame(slots, self))
       if (own) inner = Context.add(inner, RenderScope, own)
-      return Effect.map(Effect.provide(type(props), inner), (child): Node =>
+      const frame = Context.get(inner, Frame)!
+      const checked = Effect.flatMap(Effect.provide(type(props), inner), (child) => {
+        if (slots.done && frame.cursor !== slots.atoms.length) return Effect.fail(new SlotMismatch({ id: self, expected: slots.atoms.length, actual: frame.cursor }))
+        slots.done = true
+        return Effect.succeed(child)
+      })
+      return Effect.map(checked, (child): Node =>
         reads.size === 0 && key === undefined
           ? own
             ? owned(child, own)

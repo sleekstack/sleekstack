@@ -1,6 +1,6 @@
 import { Context, Effect, Layer } from 'effect'
 import { expectTypeOf } from 'vitest'
-import { type Component, el, fromReact, type Node, Provide, renderToString } from '../index'
+import { type Component, el, fromReact, type Node, Provide, renderToString, type Store, useLocal } from '../index'
 
 class A extends Context.Tag('A')<A, { readonly a: string }>() {}
 class B extends Context.Tag('B')<B, { readonly b: string }>() {}
@@ -30,3 +30,5 @@ void renderToString(NeedsAB({}), { layer: layerABC })
 const Guest = fromReact((_: { n: number }) => null)
 expectTypeOf(Guest).toEqualTypeOf<Component<{ n: number }, never, never>>()
 expectTypeOf(Guest).toExtend<Component<{ n: number }, Error, A | B>>()
+
+expectTypeOf(useLocal(0)).toEqualTypeOf<Effect.Effect<readonly [number, (next: number | ((previous: number) => number)) => void], never, Store>>()
