@@ -1,7 +1,7 @@
 import { Cause, Context, Data, Effect, Layer } from 'effect'
 import { createElement } from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import { el, fragment, fromReact, type Node, Provide, renderToString } from '../index'
+import { el, fragment, fromReact, type Node, Pending, Provide, renderToString } from '../index'
 import { jsx } from '../jsx-runtime'
 import { app, UserCard, UserNotFound, UserRepoTest } from './fixtures/user-card'
 
@@ -105,5 +105,17 @@ describe('renderToString', () => {
       const tree = jsx('ul', { children: [jsx('li', { onClick: run, children: 'a' }, 'x')] })
       expect(await renderToString(Effect.map(tree, (n) => ({ ...n, id: 'i' }) as any), { layer: Layer.empty })).toBe('<ul><li>a</li></ul>')
     })
+  })
+
+  it('Pending awaits its content and emits no fallback markup', async () => {
+    const Slow = () => Effect.as(Effect.sleep('5 millis'), el('p', {}, 'loaded'))
+    const tree = jsx(Pending, { fallback: el('i', {}, 'wait'), children: jsx(Slow, {}) })
+    expect(await renderToString(tree, { layer: Layer.empty })).toBe('<p>loaded</p>')
+  })
+
+  it('a failing Pending child rejects with its typed error', async () => {
+    const boom = new Boom()
+    const tree = jsx(Pending, { fallback: el('i', {}, 'wait'), children: Effect.fail(boom) })
+    await expect(renderToString(tree, { layer: Layer.empty })).rejects.toBe(boom)
   })
 })

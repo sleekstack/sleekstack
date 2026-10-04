@@ -42,6 +42,12 @@ const closeScope = (scope: Scope.CloseableScope) => Effect.runFork(Scope.close(s
  * until the replacement resolves.
  */
 export const Pending = (props: { fallback: Child; children?: Child }): Effect.Effect<Node, never, never> =>
+  Effect.flatMap(RenderScope, (rs) =>
+    // No `RenderScope` (renderToString): content runs inline and is awaited; the fallback is never emitted.
+    rs ? live(props) : Effect.map(Fragment({ children: props.children }), (n) => (pendingOf.set(n, { fallback: props.fallback, content: props.children }), n)),
+  ) as Effect.Effect<Node, never, never>
+
+const live = (props: { fallback: Child; children?: Child }) =>
   Effect.flatMap(useLocal<Content | undefined>(undefined), ([content, set]) =>
     Effect.flatMap(Frame, (frame) => {
       const f = frame!
@@ -82,7 +88,7 @@ export const Pending = (props: { fallback: Child; children?: Child }): Effect.Ef
       if (content?.cause && content.props === props) return Effect.failCause(content.cause)
       return emit(content, info, props)
     }),
-  ) as Effect.Effect<Node, never, never>
+  )
 
 // Resolved content (current or previous) stays on screen; only a Pending with none yet shows the fallback.
 const emit = (content: Content | undefined, info: { fallback: Child; content: Child }, props: { fallback: Child }): Effect.Effect<Node, any, any> =>
