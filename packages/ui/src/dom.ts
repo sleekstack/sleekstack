@@ -4,8 +4,8 @@ import { Component, createElement, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { createRoot, type Root } from 'react-dom/client'
 import { reportRenderError, runToNode } from './component'
-import type { Node, ReactiveNode } from './node'
-import { fallbacks, RenderScope, runScopes, Store } from './reactive'
+import type { ElementNode, FragmentNode, Node, ReactiveNode } from './node'
+import { commitSlots, DuplicateKey, fallbacks, Frame, makeFrame, RenderScope, runScopes, Store } from './reactive'
 import { checkAttr, checkTag } from './string'
 
 export interface Mounted {
@@ -28,10 +28,19 @@ class GuestBoundary extends Component<{ report: (error: unknown) => void; childr
   }
 }
 
-// Guest roots and reactive instances created inside one subtree; released together when it goes.
+// What one rendered node left on screen: its single DOM node and what a patch needs. Fragments are flattened away.
+interface Live {
+  readonly node: Exclude<Node, FragmentNode>
+  readonly dom: ChildNode
+  readonly kids: ReadonlyArray<Live>
+  /** Effective key: absent when unkeyed or a later duplicate. */
+  readonly key?: string
+  readonly inst?: Instance
+  readonly root?: Root
+}
+// The live children of a host (an instance's or the mount's) and the run scopes of its untracked components.
 interface Owner {
-  roots: Array<Root>
-  kids: Array<Instance>
+  lives: Array<Live>
   scopes: Array<Scope.CloseableScope>
 }
 interface Instance extends Owner {
@@ -47,7 +56,6 @@ interface Instance extends Owner {
   // Scope of the run whose DOM is committed; closed when that DOM is replaced or dropped.
   scope: Scope.CloseableScope | undefined
 }
-const owner = (): Owner => ({ roots: [], kids: [], scopes: [] })
 
 const closeScope = (scope: Scope.CloseableScope | undefined): void => {
   if (scope) Effect.runFork(Scope.close(scope, Exit.void))
@@ -64,9 +72,14 @@ const dropScopes = (node: Node): void => {
   }
 }
 
+// Releases what a live subtree holds (instances, guest roots); its DOM is the caller's.
+const drop = (l: Live): void => {
+  if (l.inst) kill(l.inst)
+  if (l.root) l.root.unmount()
+  l.kids.forEach(drop)
+}
 const release = (o: Owner): void => {
-  for (const kid of o.kids.splice(0)) kill(kid)
-  for (const root of o.roots.splice(0)) root.unmount()
+  o.lives.splice(0).forEach(drop)
   for (const scope of o.scopes.splice(0)) closeScope(scope)
 }
 const kill = (i: Instance): void => {
@@ -98,46 +111,100 @@ const teardown = (container: Element, state: ContainerState): Promise<void> => {
   return close()
 }
 
-// Renderer state for one mount. `defect` receives renderer failures (reported on first render; a re-run swap collects them).
+// Renderer state for one patch. `defect` receives renderer failures (reported on first render; a re-run patch collects them).
 interface Env {
   doc: Document
   store: AtomStore
   onError?: OnError
   live: () => boolean
   defect: (error: unknown) => void
+  /** Reports `DuplicateKey`; once per patch. */
+  duplicate: (key: string) => void
 }
 
-const build = (node: Node, env: Env, o: Owner): globalThis.Node | null => {
+const once = (onError?: OnError) => {
+  let reported = false
+  return (key: string): void => {
+    if (!reported) safeReport(Cause.fail(new DuplicateKey({ key })), onError)
+    reported = true
+  }
+}
+
+// Plan output: deferred infallible DOM ops, fresh lives (released if the plan is dropped), old lives to release on commit.
+interface Plan {
+  readonly ops: Array<() => void>
+  readonly created: Array<Live>
+  readonly dropped: Array<Live>
+  readonly scopes: Array<Scope.CloseableScope>
+}
+const plan = (): Plan => ({ ops: [], created: [], dropped: [], scopes: [] })
+const abort = (p: Plan): void => {
+  p.created.forEach(drop)
+  p.scopes.forEach(closeScope)
+}
+const commit = (p: Plan): void => {
+  for (const op of p.ops) op()
+  p.dropped.forEach(drop)
+}
+
+type Leaf = Exclude<Node, FragmentNode>
+const flat = (nodes: ReadonlyArray<Node>, scopes: Array<Scope.CloseableScope>, out: Array<Leaf> = []): Array<Leaf> => {
+  for (const n of nodes) {
+    if (n._tag !== 'Fragment') out.push(n)
+    else {
+      const scope = runScopes.get(n)
+      if (scope) scopes.push(scope)
+      flat(n.children, scopes, out)
+    }
+  }
+  return out
+}
+// A repeated key reports `DuplicateKey` and the later sibling is unkeyed.
+const keysOf = (nodes: ReadonlyArray<Leaf>, env: Env): Array<string | undefined> => {
+  const seen = new Set<string>()
+  return nodes.map((n) => {
+    const k = n._tag === 'Element' || n._tag === 'Reactive' || n._tag === 'Guest' ? n.key : undefined
+    if (k === undefined) return undefined
+    if (seen.has(k)) return env.duplicate(k), undefined
+    seen.add(k)
+    return k
+  })
+}
+
+const FORM = new Set(['INPUT', 'TEXTAREA', 'SELECT'])
+// `value` / `checked` of form controls are live state: assigned as properties, only when they differ.
+const setProp = (el: Element, k: string, v: string | undefined): void => {
+  const f = el as HTMLInputElement
+  if (k === 'value' && f.value !== (v ?? '')) f.value = v ?? ''
+  if (k === 'checked' && f.checked !== (v !== undefined)) f.checked = v !== undefined
+}
+
+const build = (node: Leaf, key: string | undefined, env: Env, scopes: Array<Scope.CloseableScope>): Live | null => {
   try {
+    const keyed = key === undefined ? {} : { key }
     switch (node._tag) {
       case 'Text':
-        return env.doc.createTextNode(node.text)
+        return { node, dom: env.doc.createTextNode(node.text), kids: [] }
       case 'Bind':
-        return env.doc.createTextNode(String(env.store.get(node.atom)))
-      case 'Fragment': {
-        const scope = runScopes.get(node)
-        if (scope) o.scopes.push(scope)
-        const frag = env.doc.createDocumentFragment()
-        for (const c of node.children) append(frag, build(c, env, o))
-        return frag
-      }
+        return { node, dom: env.doc.createTextNode(String(env.store.get(node.atom))), kids: [] }
       case 'Element': {
         const el = env.doc.createElement(checkTag(node.tag))
         for (const [k, v] of Object.entries(node.attrs)) {
           checkAttr(k, v)
           el.setAttribute(k, v)
         }
-        for (const c of node.children) append(el, build(c, env, o))
-        return el
+        const kids = buildAll(node.children, env, scopes, el)
+        // After the options, so a `<select>` value finds its option.
+        if (FORM.has(el.tagName)) for (const k of ['value', 'checked']) if (Object.hasOwn(node.attrs, k)) setProp(el, k, node.attrs[k])
+        return { node, dom: el, kids, ...keyed }
       }
       case 'Reactive': {
         const host = env.doc.createElement('sleek-reactive')
         host.style.display = 'contents'
-        const inst: Instance = { ...owner(), host, rerun: node.rerun, unsubs: [], fiber: undefined, queued: -1, epoch: 0, dead: false, scope: node.scope }
-        o.kids.push(inst)
-        append(host, build(node.child, env, inst))
+        const inst: Instance = { lives: [], scopes: [], host, rerun: node.rerun, unsubs: [], fiber: undefined, queued: -1, epoch: 0, dead: false, scope: node.scope }
+        inst.lives = buildAll([node.child], env, inst.scopes, host)
         watch(inst, node, env)
-        return host
+        return { node, dom: host, kids: [], inst, ...keyed }
       }
       case 'Guest': {
         // One React root per guest host; `display: contents` keeps the host out of layout.
@@ -145,9 +212,9 @@ const build = (node: Node, env: Env, o: Owner): globalThis.Node | null => {
         host.style.display = 'contents'
         const report = (error: unknown) => reportRenderError(error, env.onError)
         const root = createRoot(host, { onCaughtError: () => {}, onUncaughtError: report })
-        o.roots.push(root)
+        const live: Live = { node, dom: host, kids: [], root, ...keyed }
         flushSync(() => root.render(createElement(GuestBoundary, { report }, createElement(node.component, node.props))))
-        return host
+        return live
       }
     }
   } catch (error) {
@@ -155,11 +222,109 @@ const build = (node: Node, env: Env, o: Owner): globalThis.Node | null => {
     return null
   }
 }
-
-const append = (parent: globalThis.Node, child: globalThis.Node | null): void => {
-  if (child) parent.appendChild(child)
+const buildAll = (nodes: ReadonlyArray<Node>, env: Env, scopes: Array<Scope.CloseableScope>, parent: globalThis.Node): Array<Live> => {
+  const list = flat(nodes, scopes)
+  const keys = keysOf(list, env)
+  return list.flatMap((n, i) => {
+    const l = build(n, keys[i], env, scopes)
+    if (!l) return []
+    parent.appendChild(l.dom)
+    return [l]
+  })
 }
 
+// Plan phase for one element or text node matched in place: validates, reads the DOM, queues ops; mutates nothing.
+const patch = (prev: Live, node: Leaf, key: string | undefined, env: Env, p: Plan): Live => {
+  try {
+    const keyed = key === undefined ? {} : { key }
+    if (node._tag === 'Text' || node._tag === 'Bind') {
+      const text = node._tag === 'Text' ? node.text : String(env.store.get(node.atom))
+      if (prev.dom.nodeValue !== text) p.ops.push(() => void (prev.dom.nodeValue = text))
+      return { node, dom: prev.dom, kids: [] }
+    }
+    const el = prev.dom as Element
+    const old = (prev.node as ElementNode).attrs
+    const next = (node as ElementNode).attrs
+    const changed: Array<readonly [string, string | undefined]> = []
+    for (const [k, v] of Object.entries(next))
+      if (!Object.hasOwn(old, k) || old[k] !== v) {
+        checkAttr(k, v)
+        changed.push([k, v])
+      }
+    for (const k of Object.keys(old)) if (!Object.hasOwn(next, k)) changed.push([k, undefined])
+    if (changed.length > 0) p.ops.push(() => changed.forEach(([k, v]) => (v === undefined ? el.removeAttribute(k) : el.setAttribute(k, v))))
+    const kids = patchChildren(el, prev.kids, (node as ElementNode).children, env, p)
+    const props = FORM.has(el.tagName) ? changed.filter(([k]) => k === 'value' || k === 'checked') : []
+    if (props.length > 0) p.ops.push(() => props.forEach(([k, v]) => setProp(el, k, v)))
+    return { node, dom: el, kids, ...keyed }
+  } catch (error) {
+    env.defect(error)
+    return prev
+  }
+}
+
+const same = (a: Leaf, b: Leaf): boolean => a._tag === b._tag && (a._tag !== 'Element' || a.tag === (b as ElementNode).tag)
+
+// Matching: key and type, else the next unkeyed old sibling by position (a separate pool). Instances and guests are rebuilt for now.
+const patchChildren = (parent: globalThis.Node, old: ReadonlyArray<Live>, nodes: ReadonlyArray<Node>, env: Env, p: Plan): Array<Live> => {
+  const list = flat(nodes, p.scopes)
+  const keys = keysOf(list, env)
+  const byKey = new Map<string, Live>()
+  const pool: Array<Live> = []
+  const gone: Array<Live> = []
+  for (const l of old) {
+    if (l.inst || l.root) gone.push(l)
+    else if (l.key !== undefined) byKey.set(l.key, l)
+    else pool.push(l)
+  }
+  let next = 0
+  const lives = list.flatMap((n, i) => {
+    const k = keys[i]
+    let prev: Live | undefined
+    if (n._tag !== 'Reactive' && n._tag !== 'Guest') {
+      if (k === undefined) prev = pool[next++]
+      else {
+        prev = byKey.get(k)
+        byKey.delete(k)
+      }
+    }
+    if (prev && same(prev.node, n)) return [patch(prev, n, k, env, p)]
+    if (prev) gone.push(prev)
+    const l = build(n, k, env, p.scopes)
+    if (!l) return []
+    p.created.push(l)
+    return [l]
+  })
+  gone.push(...byKey.values(), ...pool.slice(next))
+  p.dropped.push(...gone)
+  p.ops.push(() => place(parent, gone, lives))
+  return lives
+}
+
+// Apply: removes what went, then inserts or moves only nodes out of order (in-place runs stay); a displaced focus is restored.
+const place = (parent: globalThis.Node, gone: ReadonlyArray<Live>, lives: ReadonlyArray<Live>): void => {
+  for (const l of gone) l.dom.remove()
+  const doc = parent.ownerDocument ?? (parent as Document)
+  const focused = doc.activeElement as HTMLInputElement | null
+  const sel = focused && parent.contains(focused) ? selection(focused) : undefined
+  let cur = parent.firstChild
+  for (const l of lives) {
+    if (l.dom === cur) cur = cur.nextSibling
+    else parent.insertBefore(l.dom, cur)
+  }
+  if (sel && doc.activeElement !== focused && focused!.isConnected) {
+    focused!.focus()
+    if (sel[0] !== null) focused!.setSelectionRange(sel[0], sel[1])
+  }
+}
+// `selectionStart` throws on inputs without a selection (checkbox).
+const selection = (el: HTMLInputElement): readonly [number | null, number | null] => {
+  try {
+    return [el.selectionStart ?? null, el.selectionEnd ?? null]
+  } catch {
+    return [null, null]
+  }
+}
 // A value that moved between the run's read and this subscription (an async run, a guest commit) re-runs at once.
 const watch = (inst: Instance, node: ReactiveNode, env: Env): void => {
   if (inst.dead) return
@@ -207,23 +372,23 @@ const unwatch = (inst: Instance): void => {
   for (const u of inst.unsubs.splice(0)) u()
 }
 
-// Transactional: build the new subtree aside; on a renderer defect or a supersede mid-build keep the old DOM.
+// Two-phase: plan the patch against the live tree aside; on a renderer defect or a supersede mid-plan keep the old DOM.
 // A handled-error fallback is built as content and keeps the component's own subscriptions, so the next change retries.
 const swap = (inst: Instance, node: Node, env: Env): void => {
   const errors: Array<unknown> = []
-  const content = owner()
+  const p = plan()
   const own = !fallbacks.has(node) && node._tag === 'Reactive' ? node : undefined
-  const tree = build(own ? own.child : node, { ...env, defect: (e) => errors.push(e) }, content)
+  const lives = patchChildren(inst.host, inst.lives, [own ? own.child : node], { ...env, defect: (e) => errors.push(e), duplicate: once(env.onError) }, p)
   if (errors.length > 0 || inst.dead || !env.live()) {
-    release(content)
+    abort(p)
     dropScopes(node)
     for (const e of errors) reportRenderError(e, env.onError)
     return
   }
-  release(inst)
-  inst.roots = content.roots
-  inst.kids = content.kids
-  inst.scopes = content.scopes
+  commit(p)
+  inst.lives = lives
+  inst.scopes.splice(0).forEach(closeScope)
+  inst.scopes = p.scopes
   const previous = inst.scope
   if (own) {
     unwatch(inst)
@@ -235,7 +400,6 @@ const swap = (inst: Instance, node: Node, env: Env): void => {
     if (!fallbacks.has(node)) unwatch(inst)
     inst.scope = undefined
   }
-  inst.host.replaceChildren(...(tree ? [tree] : []))
   if (inst.scope !== previous) closeScope(previous)
 }
 
@@ -259,7 +423,7 @@ export const mount = async <E, A, LE = never>(
 ): Promise<Mounted> => {
   const { container, onError } = opts
   let state = states.get(container)
-  if (!state) states.set(container, (state = { gen: 0, top: owner(), close: closed }))
+  if (!state) states.set(container, (state = { gen: 0, top: { lives: [], scopes: [] }, close: closed }))
   const gen = ++state.gen
   const current = (): boolean => state.gen === gen
   const noop: Mounted = { dispose: async () => {} }
@@ -269,14 +433,18 @@ export const mount = async <E, A, LE = never>(
   if (!current()) return noop
   const store = opts.store ?? makeAtomStore()
   const scope = Effect.runSync(Scope.make())
+  // Root frame: root-level instances get unique ids, and their slots go with the mount.
+  const frame = makeFrame()
   state.close = async () => {
     try {
+      frame.seen = undefined
+      commitSlots(frame)
       await Effect.runPromise(Scope.close(scope, Exit.void))
     } finally {
       if (!opts.store) await store.dispose()
     }
   }
-  const provided = app.pipe(Effect.provideService(Store, store), Effect.provideService(RenderScope, scope)) as Effect.Effect<Node, E, Exclude<A, Store>>
+  const provided = app.pipe(Effect.provideService(Store, store), Effect.provideService(RenderScope, scope), Effect.provideService(Frame, frame)) as Effect.Effect<Node, E, Exclude<A, Store>>
   let node: Node
   try {
     // The mount layer lives in the mount scope: re-runs reuse its services after the first render.
@@ -287,16 +455,17 @@ export const mount = async <E, A, LE = never>(
     throw error
   }
   if (!current()) return noop
-  const top = owner()
-  const env: Env = { doc: container.ownerDocument, store, onError, live: current, defect: (e) => reportRenderError(e, onError) }
-  const tree = build(node, env, top)
+  const p = plan()
+  const env: Env = { doc: container.ownerDocument, store, onError, live: current, defect: (e) => reportRenderError(e, onError), duplicate: once(onError) }
+  const lives = patchChildren(container, [], [node], env, p)
   // Guest callbacks (`onError`) may start a newer mount while building.
   if (!current()) {
-    release(top)
+    abort(p)
     return noop
   }
-  state.top = top
-  append(container, tree)
+  commit(p)
+  commitSlots(frame)
+  state.top = { lives, scopes: p.scopes }
   return {
     dispose: async () => {
       if (current()) await teardown(container, state)

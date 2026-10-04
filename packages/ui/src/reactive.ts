@@ -201,11 +201,13 @@ export const instance = <P>(type: (props: P) => Effect.Effect<Node, any, any>, p
   let rootSlots: Slots | undefined
   const run: Effect.Effect<Node, any, any> = Effect.flatMap(Effect.context<never>(), (ctx) => {
     if (id === undefined) {
-      const frame = Context.get(ctx, Frame)
-      // ponytail: no frame above the first instance, so root-level siblings of one type share `#0`; mount/renderToString can provide a root Frame when that matters.
-      const ordinal = frame?.ordinals.get(type) ?? 0
-      frame?.ordinals.set(type, ordinal + 1)
-      id = key === undefined ? `${fnId(type)}#${ordinal}` : `${fnId(type)}:key:${key}`
+      if (key === undefined) {
+        // Keyed calls take no ordinal: unkeyed siblings keep their ids when a keyed one comes or goes.
+        const frame = Context.get(ctx, Frame)
+        const ordinal = frame?.ordinals.get(type) ?? 0
+        frame?.ordinals.set(type, ordinal + 1)
+        id = `${fnId(type)}#${ordinal}`
+      } else id = `${fnId(type)}:key:${key}`
     }
     const self = id
     const parentFrame = Context.get(ctx, Frame)

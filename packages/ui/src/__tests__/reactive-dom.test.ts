@@ -1,10 +1,13 @@
 // @vitest-environment jsdom
 import { Atom, makeAtomStore } from '@sleekstack/core'
-import { Context, Data, Deferred, Effect, Layer } from 'effect'
-import { act, createElement } from 'react'
+import { Cause, Context, Data, Deferred, Effect, Layer } from 'effect'
+import { act, createElement, useEffect } from 'react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { Boundary, el, fromReact, mount, type Mounted, Provider, Store, useAtomValue, useSetAtom } from '../index'
-import { jsx as rawJsx } from '../jsx-runtime'
+import { Boundary, el, fromReact, mount, type Mounted, Provider, Store, useAtomValue, useLocal, useSetAtom } from '../index'
+import type { Node } from '../node'
+import { Fragment, jsx as rawJsx } from '../jsx-runtime'
+
+const useEffectLog = (log: (e: string) => void) => useEffect(() => (log('mount'), () => log('unmount')), [])
 
 const jsx = (type: any, props: any) => rawJsx(type, props)
 const tick = () => act(async () => void (await new Promise((r) => setTimeout(r, 0))))
@@ -147,7 +150,8 @@ describe('reactive DOM', () => {
     expect(container.querySelector('span')).toBe(span)
     store.set(outer, 'o2')
     await tick()
-    expect(container.querySelector('span')).not.toBe(span)
+    // Patched in place: the span survives the outer re-run (R1).
+    expect(container.querySelector('span')).toBe(span)
     store.set(inner, 'i3')
     await tick()
     expect(container.textContent).toBe('o2i3')
@@ -304,5 +308,181 @@ describe('reactive DOM', () => {
     store.set(f, 1)
     await tick()
     expect(container.textContent).toBe('outer')
+  })
+})
+
+describe('reconciler', () => {
+  const keyed = (tag: string, key: string, ...children: Array<Node | string>): Node => ({ ...(el(tag, {}, ...children) as any), key })
+  // A component whose output follows atom `a`.
+  const view = <A,>(a: Atom.Writable<A>, render: (v: A) => Node) => jsx(() => Effect.map(useAtomValue(a), render), {})
+
+  it('a text or attribute change keeps the DOM nodes; a tag change replaces', async () => {
+    const a = Atom.make(0)
+    const { container, store } = await go(view(a, (n) => el('div', { title: `t${n}` }, n === 2 ? el('i', {}, 'x') : el('b', {}, `v${n}`))))
+    const div = container.querySelector('div')!
+    const b = container.querySelector('b')!
+    const text = b.firstChild
+    store.set(a, 1)
+    await tick()
+    expect(container.querySelector('div')).toBe(div)
+    expect(div.getAttribute('title')).toBe('t1')
+    expect(container.querySelector('b')).toBe(b)
+    expect(b.firstChild).toBe(text)
+    expect(text!.nodeValue).toBe('v1')
+    store.set(a, 2)
+    await tick()
+    expect(container.querySelector('b')).toBeNull()
+    expect(div.innerHTML).toBe('<i>x</i>')
+  })
+
+  it('a focused input keeps focus and typed value when a sibling changes', async () => {
+    const a = Atom.make(0)
+    const { container, store } = await go(view(a, (n) => el('form', {}, el('p', {}, String(n)), el('input', { value: 'start' }))))
+    document.body.appendChild(container)
+    const input = container.querySelector('input')!
+    input.focus()
+    input.value = 'typed'
+    store.set(a, 1)
+    await tick()
+    expect(container.querySelector('p')!.textContent).toBe('1')
+    expect(document.activeElement).toBe(input)
+    expect(input.value).toBe('typed')
+    container.remove()
+  })
+
+  it('a select value is set after its options', async () => {
+    const a = Atom.make('b')
+    const { container, store } = await go(view(a, (v) => el('select', { value: v }, ...['a', 'b', 'c'].map((o) => el('option', { value: o }, o)))))
+    const select = container.querySelector('select')!
+    expect(select.value).toBe('b')
+    store.set(a, 'c')
+    await tick()
+    expect(container.querySelector('select')).toBe(select)
+    expect(select.value).toBe('c')
+  })
+
+  it('a plan failure leaves the live DOM byte-identical and leaks no guest root or scope', async () => {
+    const a = Atom.make(0)
+    const log: Array<string> = []
+    const mounted = vi.fn()
+    const G = fromReact(() => {
+      useEffectLog(mounted)
+      return createElement('span', {}, 'g')
+    })
+    const layer = Layer.scoped(Greeting, Effect.acquireRelease(Effect.succeed('hi'), () => Effect.sync(() => log.push('released'))))
+    const Hi = () => Effect.map(Greeting, (g) => el('i', {}, g))
+    // n === 1: a new guest and a Provider scope are planned before the bad tag later in the same list.
+    const C = () =>
+      Effect.flatMap(useAtomValue(a), (n) =>
+        n === 1
+          ? Effect.map(Effect.all([jsx(G, {}), jsx(Provider, { layer, children: jsx(Hi, {}) })]), ([g, p]) => el('div', {}, el('b', {}, 'changed'), g, p, el('bad tag')))
+          : Effect.succeed(el('div', {}, el('b', {}, String(n)))),
+      )
+    const onError = vi.fn()
+    const { container, store } = await go(jsx(C, {}), { onError })
+    const before = container.innerHTML
+    const b = container.querySelector('b')
+    store.set(a, 1)
+    await tick()
+    expect(container.innerHTML).toBe(before)
+    expect(container.querySelector('b')).toBe(b)
+    expect(onError).toHaveBeenCalledOnce()
+    expect(mounted.mock.calls.map((c) => c[0])).toEqual(['mount', 'unmount'])
+    expect(log).toEqual(['released'])
+  })
+
+  it('a run superseded during the plan is dropped with its scopes closed', async () => {
+    const a = Atom.make(0)
+    const log: Array<string> = []
+    const container = document.createElement('div')
+    const layer = Layer.scoped(Greeting, Effect.acquireRelease(Effect.succeed('hi'), () => Effect.sync(() => log.push('released'))))
+    const Hi = () => Effect.map(Greeting, (g) => el('i', {}, g))
+    // Rendering this guest mounts something else into the same container mid-plan.
+    const Hijack = fromReact(() => {
+      void mount(Effect.succeed(el('p', {}, 'new')), { layer: Layer.empty, container }).then((h) => handles.push(h))
+      return null
+    })
+    const C = () => Effect.flatMap(useAtomValue(a), (n) => (n === 1 ? jsx(Provider, { layer, children: Effect.zipWith(jsx(Hi, {}), jsx(Hijack, {}), (h, g) => el('div', {}, h, g)) }) : Effect.succeed(el('b', {}, 'old'))))
+    const store = makeAtomStore()
+    await act(async () => void handles.push(await mount(jsx(C, {}), { layer: Layer.empty, container, store })))
+    store.set(a, 1)
+    await tick()
+    await tick()
+    expect(container.innerHTML).toBe('<p>new</p>')
+    expect(log).toEqual(['released'])
+  })
+
+  it('keyed reorder keeps every node; insert and remove touch only the difference', async () => {
+    const order = Atom.make(['a', 'b', 'c'])
+    const { container, store } = await go(view(order, (ks) => el('ul', {}, ...ks.map((k) => keyed('li', k, k)))))
+    const nodes = () => Object.fromEntries([...container.querySelectorAll('li')].map((li) => [li.textContent, li]))
+    const first = nodes()
+    store.set(order, ['c', 'a', 'b'])
+    await tick()
+    expect(container.querySelector('ul')!.textContent).toBe('cab')
+    expect(nodes()).toEqual(first)
+    for (const k of ['a', 'b', 'c']) expect(nodes()[k]).toBe(first[k])
+    store.set(order, ['c', 'x', 'b'])
+    await tick()
+    const after = nodes()
+    expect(container.querySelector('ul')!.textContent).toBe('cxb')
+    expect(after.c).toBe(first.c)
+    expect(after.b).toBe(first.b)
+    expect(first.a!.isConnected).toBe(false)
+  })
+
+  it('mixed keyed/unkeyed use separate pools; a duplicate key reports once and the later one is unkeyed', async () => {
+    const step = Atom.make(0)
+    const onError = vi.fn()
+    const { container, store } = await go(
+      view(step, (n) => el('div', {}, ...(n === 0 ? [el('p', {}, 'u'), keyed('i', 'k', 'k')] : [keyed('i', 'k', 'k'), el('p', {}, 'u'), keyed('i', 'd', '1'), keyed('i', 'd', '2')]))),
+      { onError },
+    )
+    const p = container.querySelector('p')
+    const i = container.querySelector('i')
+    store.set(step, 1)
+    await tick()
+    expect(container.querySelector('div')!.innerHTML).toBe('<i>k</i><p>u</p><i>1</i><i>2</i>')
+    expect(container.querySelector('p')).toBe(p)
+    expect(container.querySelector('i')).toBe(i)
+    expect(onError).toHaveBeenCalledOnce()
+    expect(Cause.squash(onError.mock.calls[0]![0])).toMatchObject({ _tag: 'DuplicateKey', key: 'd' })
+  })
+
+  it('two same-type root components have their own slots, released on dispose', async () => {
+    const store = makeAtomStore()
+    let held = 0
+    const retain = store.retain
+    vi.spyOn(store, 'retain').mockImplementation((atom) => {
+      held++
+      const release = retain(atom)
+      return () => (held--, release())
+    })
+    const sets: Array<(n: number) => void> = []
+    const C = () => Effect.map(useLocal(0), ([n, set]) => (sets.push(set), el('b', {}, String(n))))
+    const { container, handle } = await go(jsx(Fragment, { children: [jsx(C, {}), jsx(C, {})] }), { store })
+    sets[0]!(5)
+    await tick()
+    expect(container.textContent).toBe('50')
+    expect(held).toBeGreaterThan(0)
+    await act(() => handle.dispose())
+    expect(held).toBe(0)
+  })
+
+  it('an unkeyed sibling keeps its local state when a keyed one of the same type comes or goes', async () => {
+    const show = Atom.make(false)
+    let setU: ((n: number) => void) | undefined
+    const C = (p: { tag: string }) => Effect.map(useLocal(0), ([n, set]) => (p.tag === 'u' && (setU = set), el('b', {}, `${p.tag}${n}`)))
+    const P = () => Effect.flatMap(useAtomValue(show), (s) => jsx('div', { children: [s ? jsx(C, { tag: 'k', key: 'k' }) : null, jsx(C, { tag: 'u' })] }))
+    const { container, store } = await go(jsx(P, {}))
+    setU!(7)
+    await tick()
+    expect(container.textContent).toBe('u7')
+    store.set(show, true)
+    await tick()
+    expect(container.textContent).toBe('k0u7')
+    store.set(show, false)
+    await tick()
+    expect(container.textContent).toBe('u7')
   })
 })
