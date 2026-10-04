@@ -31,9 +31,12 @@ Finalization in one task (spec R11): amend, don't create a new ADR.
 - [ ] TBD
 
 ## Done summary
-TBD
+Docs for the reconciling renderer as built in .1-.11: ADR 0015 gains "Amendment: reconciling renderer" (identity, keyed instances, reconciliation, useLocal, event closures, MissingKey, known limits, accepted bench cost render-string 1.742 -> ~2.41, jsx-overhead 3.135 -> 3.318 / 2.647 -> 3.131) and marks the superseded lines; ui README, CONTEXT (Reconciler, Live tree, Key, Local state; Store/Component/Handler/code list), errors.mdx (ConditionalSlot, MissingKey, closure UnhandledError, DuplicateKey/SlotMismatch in the ui runtime table), testing.mdx and analyze README updated.
 
+baseline: green via handoff (verified at 86359fb)
+stage: impl-review - skipped(config: REVIEW_MODE=none)
+Tier: session (jev-unavailable(no_key)); routing block pins implementer opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 31da03754a7a91caa105b348ee61a89012f8012b
+- Tests: pnpm --filter @sleekstack/analyze test, pnpm --filter docs test, pnpm --filter @sleekstack/ui typecheck
 - PRs:
