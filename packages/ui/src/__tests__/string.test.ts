@@ -1,7 +1,8 @@
-import { Cause, Data, Effect, Layer } from 'effect'
+import { Cause, Context, Data, Effect, Layer } from 'effect'
 import { createElement } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { el, fragment, fromReact, type Node, Provide, renderToString } from '../index'
+import { jsx } from '../jsx-runtime'
 import { app, UserCard, UserNotFound, UserRepoTest } from './fixtures/user-card'
 
 class Boom extends Data.TaggedError('Boom')<{}> {}
@@ -78,5 +79,31 @@ describe('renderToString', () => {
     const tree = Effect.map(Bad({}), (b) => fragment('a', b))
     expect(await renderToString(tree, { layer: Layer.empty, onError })).toBe('a')
     spy.mockRestore()
+  })
+
+  describe('JSX events and keys', () => {
+    class Tag extends Context.Tag('Tag')<Tag, string>() {}
+    const run = () => Effect.void
+
+    it('diverts a function onClick into events with the captured context, never an attribute', async () => {
+      const node = (await Effect.runPromise(Effect.provideService(jsx('button', { onClick: run, children: 'go' }), Tag, 't'))) as any
+      expect(node.attrs).toEqual({})
+      expect(node.events.click.run).toBe(run)
+      expect(Context.get(node.events.click.context, Tag)).toBe('t')
+    })
+
+    it('still rejects a non-function on* prop', async () => {
+      await expect(renderToString(jsx('a', { onClick: 'x()' }), { layer: Layer.empty })).rejects.toThrow('Unsafe attribute')
+    })
+
+    it('carries key on elements, not attrs; unkeyed nodes have no key', async () => {
+      expect(await Effect.runPromise(jsx('p', { id: 'a' }, 'k1'))).toEqual({ ...el('p', { id: 'a' }), key: 'k1' })
+      expect(await Effect.runPromise(jsx('p', {}))).toEqual(el('p'))
+    })
+
+    it('renderToString ignores events, key and id', async () => {
+      const tree = jsx('ul', { children: [jsx('li', { onClick: run, children: 'a' }, 'x')] })
+      expect(await renderToString(Effect.map(tree, (n) => ({ ...n, id: 'i' }) as any), { layer: Layer.empty })).toBe('<ul><li>a</li></ul>')
+    })
   })
 })

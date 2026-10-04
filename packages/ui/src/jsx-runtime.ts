@@ -1,5 +1,5 @@
-import { Effect, Layer } from 'effect'
-import { el, fragment, type Node } from './node'
+import { type Context, Effect, Layer } from 'effect'
+import { el, type ElementNode, type EventBinding, fragment, type Node } from './node'
 import { Handlers, instance, RenderScope } from './reactive'
 
 /** What a JSX expression may hold between its tags. */
@@ -23,16 +23,35 @@ const RENAME: Record<string, string> = { className: 'class', htmlFor: 'for' }
 const attrs = (props: Props): Record<string, string> =>
   Object.fromEntries(
     Object.entries(props).flatMap(([k, v]) =>
-      k === 'children' || k === 'key' || v == null || v === false ? [] : [[RENAME[k] ?? k, v === true ? '' : String(v)]],
+      k === 'children' || k === 'key' || isEvent(k, v) || v == null || v === false ? [] : [[RENAME[k] ?? k, v === true ? '' : String(v)]],
     ),
   )
 
-export const jsx = (type: string | ((props: any) => Element), props: Props): Element =>
-  typeof type === 'function'
+// A function-valued `onXxx` prop is an event closure, not an attribute; non-function `on*` still reaches `checkAttr`.
+const isEvent = (k: string, v: unknown): v is EventBinding['run'] => typeof v === 'function' && /^on[A-Z]/.test(k)
+const events = (props: Props, context: Context.Context<any>): Record<string, EventBinding> | undefined => {
+  const entries = Object.entries(props).flatMap(([k, v]) => (isEvent(k, v) ? [[k.slice(2).toLowerCase(), { run: v, context }]] : []))
+  return entries.length ? Object.fromEntries(entries) : undefined
+}
+
+const element = (type: string, props: Props, key: string | undefined): Effect.Effect<Node, any, any> =>
+  Effect.flatMap(Effect.context<any>(), (ctx) =>
+    Effect.map(renderChildren(props.children), (kids) => {
+      const node = el(type, attrs(props), ...kids) as ElementNode
+      const evs = events(props, ctx)
+      return { ...node, ...(evs && { events: evs }), ...(key !== undefined && { key }) }
+    }),
+  )
+
+// ponytail: the component `key` reaches `instance` in the next task (reactive.ts consumes it); elements carry it now.
+export const jsx = (type: string | ((props: any) => Element), props: Props, key?: string | number): Element => {
+  const k = key ?? props.key
+  return typeof type === 'function'
     ? type === Fragment || type === Provider || type === Boundary
       ? type(props as any)
       : (instance(type, props) as Element)
-    : (Effect.map(renderChildren(props.children), (kids) => el(type, attrs(props), ...kids)) as Element)
+    : (element(type, props, k == null ? undefined : String(k)) as Element)
+}
 export const jsxs = jsx
 
 export const Fragment = (props: { children?: Child }): Element =>

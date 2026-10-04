@@ -35,9 +35,15 @@ Types and JSX plumbing only, no DOM work, so the Analyzer and DOM tasks can buil
 - [ ] TBD
 
 ## Done summary
-TBD
+Added `EventBinding`, `events`/`key` on ElementNode, `key` on Guest/Reactive nodes, and optional `id` on ReactiveNode; JSX diverts function `onXxx` props into `events` with `Effect.context()` captured in the element's Effect and carries `key` (3rd jsx arg or props.key) onto elements; tests in string.test.ts.
 
+Deviations: `ReactiveNode.id` is optional (reactive.ts, outside Touches, builds Reactive nodes without it; the next task makes it required). Component `key` is not yet passed to `instance`, whose 2-arg signature lives in reactive.ts (next task).
+
+Tier: session (jev-unavailable(no_key)); routing block pins implementer opus at medium
+Sandbox: git add/commit was refused by the worktree-isolation hook, so the changes sit uncommitted in the worktree for the conductor to commit.
+
+stage: impl-review - skipped(config: REVIEW_MODE=none)
 ## Evidence
 - Commits:
-- Tests:
+- Tests: pnpm --filter @sleekstack/ui test, pnpm --filter @sleekstack/ui typecheck
 - PRs:

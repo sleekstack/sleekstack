@@ -1,5 +1,5 @@
 export { el, fragment } from './node'
-export type { BindNode, ElementNode, FragmentNode, GuestNode, Node, ReactiveNode, TextNode } from './node'
+export type { BindNode, ElementNode, EventBinding, FragmentNode, GuestNode, Node, ReactiveNode, TextNode } from './node'
 export { Catch, fromReact, Provide } from './component'
 export type { Component } from './component'
 export { mount } from './dom'
