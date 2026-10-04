@@ -5,4 +5,4 @@ import increment from './increment'
 
 /** A resumable counter: server-rendered, then interactive without re-running. */
 export const Counter = () =>
-  Effect.succeed(el('div', { class: 'counter' }, on(el('button', {}, '+1'), { click: increment }), el('output', {}, bind(countAtom, 'count'))))
+  Effect.succeed(el('div', { class: 'counter' }, on(el('button', {}, '+1'), { click: increment }), el('output', {}, bind(countAtom))))

@@ -15,5 +15,5 @@ const handlers = {
   touch() { return Promise.resolve({ default: touch }) },
   dflt: () => import('./handlers'),
 }
-const opts = { layer: RepoLive, atoms: {}, handlers }
+const opts = { layer: RepoLive, atoms: [], handlers }
 export const run = (container: Element) => resume({ container, ...opts })

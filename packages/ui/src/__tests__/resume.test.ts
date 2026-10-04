@@ -3,7 +3,7 @@ import { Atom } from '@sleekstack/core'
 import { Context, Effect, Layer, Schema } from 'effect'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  bind, defineHandler, el, fragment, ManifestDecodeFailed, ManifestInvalid, on, renderToString, resume, type Resumed, Store,
+  bind, defineHandler, DuplicateBindKey, el, fragment, ManifestDecodeFailed, ManifestInvalid, on, renderToString, resume, type Resumed, Store,
 } from '../index'
 
 class Step extends Context.Tag('Step')<Step, number>() {}
@@ -19,8 +19,8 @@ const Counter = () =>
     spy()
     return fragment(
       on(el('button', { id: 'b' }, 'add'), { click: inc }),
-      el('p', {}, bind(count, 'n')),
-      bind(count, 'n'),
+      el('p', {}, bind(count)),
+      bind(count),
       on(el('div', { id: 'outer' }, on(el('input', { id: 'in', value: 'x' }), { click: log }), el('span', { id: 'sp' })), { click: log }),
       on(el('i', { id: 'boom' }), { click: boom }),
     )
@@ -46,7 +46,7 @@ const loaders = (extra: Record<string, () => Promise<any>> = {}) => ({
   ...extra,
 })
 const start = async (container: Element, handlers: Record<string, () => Promise<any>> = loaders(), onError = vi.fn()) => {
-  const h = await resume({ container, layer: Layer.succeed(Step, 1), handlers, atoms: { n: count }, onError })
+  const h = await resume({ container, layer: Layer.succeed(Step, 1), handlers, atoms: [count], onError })
   handles.push(h)
   return h
 }
@@ -120,7 +120,7 @@ describe('resume', () => {
     const c = await setup(html)
     const before = c.innerHTML
     const n = Atom.serializable(Atom.make(0), { key: 'n', schema: Schema.Number })
-    const p = resume({ container: c, layer: Layer.empty, handlers: {}, atoms: { n } })
+    const p = resume({ container: c, layer: Layer.empty, handlers: {}, atoms: [n] })
     await expect(p).rejects.toBeInstanceOf(error)
     if (error === ManifestDecodeFailed) await expect(p).rejects.toMatchObject({ key: 'n' })
     expect(c.innerHTML).toBe(before)
@@ -128,21 +128,27 @@ describe('resume', () => {
 
   it('seeds a read-only serializable atom without calling write; rejects a non-serializable atom', async () => {
     const big = Atom.serializable(Atom.make(() => 1n), { key: 'big', schema: Schema.BigInt })
-    const html = '<sleek-bind data-sleek-bind="b">7</sleek-bind><script type="application/json" data-sleek-manifest>{"v":1,"events":[],"atoms":{"b":"7"}}</script>'
+    const html = '<sleek-bind data-sleek-bind="big">7</sleek-bind><script type="application/json" data-sleek-manifest>{"v":1,"events":[],"atoms":{"big":"7"}}</script>'
     const c = await setup(html)
-    const h = await resume({ container: c, layer: Layer.empty, handlers: {}, atoms: { b: big } })
+    const h = await resume({ container: c, layer: Layer.empty, handlers: {}, atoms: [big] })
     handles.push(h)
     expect(c.querySelector('sleek-bind')!.textContent).toBe('7')
     const c2 = await setup(html)
     const before = c2.innerHTML
-    await expect(resume({ container: c2, layer: Layer.empty, handlers: {}, atoms: { b: Atom.make(1) } })).rejects.toMatchObject({ _tag: 'UnsupportedAtom', key: 'b' })
+    await expect(resume({ container: c2, layer: Layer.empty, handlers: {}, atoms: [Atom.make(1)] })).rejects.toMatchObject({ _tag: 'UnsupportedAtom' })
     expect(c2.innerHTML).toBe(before)
+  })
+
+  it('rejects two different atoms that share a serializable key', async () => {
+    const c = await setup()
+    const twin = Atom.serializable(Atom.make(1), { key: 'count', schema: Schema.Number })
+    await expect(resume({ container: c, layer: Layer.empty, handlers: {}, atoms: [count, twin] })).rejects.toBeInstanceOf(DuplicateBindKey)
   })
 
   it('rejects with the original layer error and can be retried', async () => {
     const c = await setup()
     const err = new Error('layer')
-    await expect(resume({ container: c, layer: Layer.fail(err), handlers: {}, atoms: { n: count } })).rejects.toBe(err)
+    await expect(resume({ container: c, layer: Layer.fail(err), handlers: {}, atoms: [count] })).rejects.toBe(err)
     await start(c)
   })
 
@@ -177,7 +183,7 @@ describe('resume', () => {
     const c = await setup()
     const gate = defer()
     const h1 = await start(c, loaders({ inc: async () => (await gate.promise, { default: inc }) }))
-    expect(await resume({ container: c, layer: Layer.empty, handlers: {}, atoms: {} })).toBe(h1)
+    expect(await resume({ container: c, layer: Layer.empty, handlers: {}, atoms: [] })).toBe(h1)
     click(c, '#b')
     await h1.dispose()
     gate.resolve()

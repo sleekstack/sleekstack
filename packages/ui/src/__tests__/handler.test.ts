@@ -12,19 +12,19 @@ const render = (tree: ReturnType<typeof el>) => renderToString(Effect.succeed(tr
 
 describe('resumable server render', () => {
   it('emits handler, flag and bind attributes plus one manifest', async () => {
-    const tree = fragment(on(el('button', { type: 'button' }, 'add'), { click: inc, keydown: log }), bind(count, 'n'), on(el('a'), { click: inc }), bind(count, 'n'))
+    const tree = fragment(on(el('button', { type: 'button' }, 'add'), { click: inc, keydown: log }), bind(count), on(el('a'), { click: inc }), bind(count))
     expect(await render(tree)).toBe(
       '<button type="button" data-sleek-on-click="inc" data-sleek-pd-click data-sleek-sp-click data-sleek-on-keydown="log">add</button>' +
-        '<sleek-bind data-sleek-bind="n">3</sleek-bind>' +
+        '<sleek-bind data-sleek-bind="count">3</sleek-bind>' +
         '<a data-sleek-on-click="inc" data-sleek-pd-click data-sleek-sp-click></a>' +
-        '<sleek-bind data-sleek-bind="n">3</sleek-bind>' +
-        '<script type="application/json" data-sleek-manifest>{"v":1,"events":["click","keydown"],"atoms":{"n":3}}</script>',
+        '<sleek-bind data-sleek-bind="count">3</sleek-bind>' +
+        '<script type="application/json" data-sleek-manifest>{"v":1,"events":["click","keydown"],"atoms":{"count":3}}</script>',
     )
   })
 
   it('keeps manifest values inert in the script', async () => {
     const text = Atom.serializable(Atom.make('</script><b>&\u2028\u2029'), { key: 't', schema: Schema.String })
-    const html = await render(bind(text, 't'))
+    const html = await render(bind(text))
     const script = html.slice(html.indexOf('<script'))
     expect(script).toBe(
       '<script type="application/json" data-sleek-manifest>{"v":1,"events":[],"atoms":{"t":"\\u003c/script\\u003e\\u003cb\\u003e\\u0026\\u2028\\u2029"}}</script>',
@@ -35,7 +35,7 @@ describe('resumable server render', () => {
 
   it.each([
     ['DuplicateHandler', fragment(on(el('a'), { click: inc }), on(el('b'), { click: defineHandler('inc', () => Effect.void) })), DuplicateHandler],
-    ['DuplicateBindKey', fragment(bind(count, 'n'), bind(Atom.serializable(Atom.make(1), { key: 'one', schema: Schema.Number }), 'n')), DuplicateBindKey],
+    ['DuplicateBindKey', fragment(bind(count), bind(Atom.serializable(Atom.make(1), { key: 'count', schema: Schema.Number }))), DuplicateBindKey],
     ['UnsupportedEvent on a raw node', { _tag: 'Element', tag: 'a', attrs: {}, children: [], on: { focus: inc } } as const, UnsupportedEvent],
   ])('rejects %s', async (_, tree, error) => {
     await expect(render(tree)).rejects.toBeInstanceOf(error)
@@ -48,16 +48,16 @@ describe('resumable server render', () => {
 
   it('encodes serializable atoms through their schema; bind and render reject non-value atoms', async () => {
     const big = Atom.serializable(Atom.make(5n), { key: 'big', schema: Schema.BigInt })
-    expect(await render(bind(big, 'b'))).toContain('"atoms":{"b":"5"}')
+    expect(await render(bind(big))).toContain('"atoms":{"big":"5"}')
     const res = Atom.serializable.result(Atom.make(Effect.succeed(1)), { key: 'r', schema: Schema.Number })
-    expect(() => bind(res, 'r')).toThrow(UnsupportedAtom)
-    expect(() => bind(Atom.make(1), 'p')).toThrow(UnsupportedAtom)
-    await expect(render({ _tag: 'Bind', atom: Atom.make(1), key: 'p' })).rejects.toBeInstanceOf(UnsupportedAtom)
+    expect(() => bind(res)).toThrow(UnsupportedAtom)
+    expect(() => bind(Atom.make(1))).toThrow(UnsupportedAtom)
+    await expect(render({ _tag: 'Bind', atom: Atom.make(1) })).rejects.toBeInstanceOf(UnsupportedAtom)
   })
 
   it('rejects handler ids and bind keys that do not round-trip through an attribute', async () => {
     await expect(render(on(el('a'), { click: defineHandler('a\rb', () => Effect.void) }))).rejects.toThrow('Invalid handler id')
-    await expect(render(bind(count, 'a\u0000'))).rejects.toThrow('Invalid bind key')
+    await expect(render(bind(Atom.serializable(Atom.make(0), { key: 'a\u0000', schema: Schema.Number })))).rejects.toThrow('Invalid bind key')
   })
 
   it('a guest cannot forge data-sleek-* attributes', async () => {
@@ -77,7 +77,7 @@ describe('resumable server render', () => {
 
   it('mount renders Bind as static text and ignores on', async () => {
     const container = document.createElement('div')
-    const m = await mount(Effect.succeed(fragment(on(el('button', {}, 'add'), { click: inc }), bind(count, 'n'))), { layer: Layer.empty, container })
+    const m = await mount(Effect.succeed(fragment(on(el('button', {}, 'add'), { click: inc }), bind(count))), { layer: Layer.empty, container })
     expect(container.innerHTML).toBe('<button>add</button>3')
     await m.dispose()
   })

@@ -52,14 +52,14 @@ export const on = (node: Node, events: Record<string, Handler<any, any>>): Node 
 }
 
 /** Throws `UnsupportedAtom` unless `atom` is a serializable value-kind atom; returns its wire info. */
-export const valueInfo = (atom: Atom.Atom<any>, key: string): NonNullable<Atom.Atom<any>['serializable']> => {
+export const valueInfo = (atom: Atom.Atom<any>): NonNullable<Atom.Atom<any>['serializable']> => {
   const info = atom.serializable
-  if (info?.kind !== 'value') throw new UnsupportedAtom({ key })
+  if (info?.kind !== 'value') throw new UnsupportedAtom({ key: info?.key ?? '(not serializable)' })
   return info
 }
 
-/** Renders a serializable value-kind `atom`'s current value as text, bound under `key` for resume. */
-export const bind = <A>(atom: Atom.Atom<A>, key: string): Node => {
-  valueInfo(atom, key)
-  return { _tag: 'Bind', atom, key }
+/** Renders a serializable value-kind `atom`'s current value as text, bound under the atom's own serializable key for resume. */
+export const bind = <A>(atom: Atom.Atom<A>): Node => {
+  valueInfo(atom)
+  return { _tag: 'Bind', atom }
 }
