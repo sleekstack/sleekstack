@@ -32,9 +32,13 @@ Host `onXxx` closures run in the renderer (spec Architecture: Events; Edge Cases
 - [ ] TBD
 
 ## Done summary
-TBD
+Host `onXxx` closures now run in the DOM renderer: one direct listener per element and event reading the current binding from shared `Events` state on the element's Live; patches swap bindings without re-listening and remove listeners for dropped props; fibers run with the captured context, are interrupted on element removal/instance kill/dispose, and every failure kind goes to `onError`. Tests: 5 new in reactive-dom.test.ts "host events" (red before, green after).
 
+Bench: all OK; render-string/list-1k ratio 2.492 (baseline 1.742).
+Tier: session (jev-unavailable(no_key)); routing block pins implementer opus at medium
+
+stage: impl-review - skipped(config: REVIEW_MODE=none)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 78ac97fbe29b9acfffcdcb14d87aa9f99ca91f5a
+- Tests: pnpm --filter @sleekstack/ui test, pnpm --filter @sleekstack/ui typecheck, pnpm --filter bench bench:json && pnpm --filter bench compare, baseline: green via handoff (b05de42)
 - PRs:
