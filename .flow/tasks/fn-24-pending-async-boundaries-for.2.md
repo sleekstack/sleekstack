@@ -30,9 +30,17 @@ Lifecycle on top of task 1: re-runs keep the previous resolved subtree live unti
 - [ ] Nested Pending, keyed Pending and key-change tests pass.
 
 ## Done summary
-TBD
+Pending now routes a failed content fork through the instance's handler path: the cause is stored in the slot and raised on the slot-set re-run, so the nearest Boundary renders its fallback, or onError gets it with the fallback (or previous content on a re-run) left on screen. A newer fork interrupts and closes an unfinished older one (latest wins), and disposing the Pending retires the fork in the same tick so a late completion writes nothing. dom.ts and reactive.ts needed no change: kill already closes the content scope via disposeSlots, and keep-previous/commit-time release already held from fn-24.1.
 
+Tests (packages/ui/src/__tests__/pending.test.ts): R2 keep-previous with query observer count, R1 Boundary / onError / failed re-run, R3 unmount and supersede (interrupt, scope closed, observers 0, stale gate ignored), nested innermost-wins, nested instance awaiting in its own re-run without the fallback, keyed key-change. The four new-behavior tests were confirmed red against the fn-24.1 pending.ts.
+
+Limit: with a matching Boundary, a failed re-run shows the Boundary fallback (error path unchanged); only the no-Boundary case keeps the old content.
+Follow-up kept: one scope closer per fork accumulates in the content slots until dispose.
+
+baseline: green via handoff (verified at f44c401 by fn-24.1)
+stage: impl-review - skipped(config: REVIEW_MODE=none)
+Tier: implementer: opus at medium (project routing block)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 3bf5b554539652867cc016f7c2a51d60121ea6ea
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/ui... --filter=@sleekstack/analyze --filter=ui-demo
 - PRs:
