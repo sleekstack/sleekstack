@@ -47,3 +47,31 @@ No framework server integration (router and Vite specs), no resume work.
 <!-- scope: both -->
 
 Depends on fn-24, fn-25 and fn-26 (stable output).
+
+
+## Planning decisions
+<!-- scope: technical -->
+
+- Signature is `renderToStream(app, { layer, nonce, idPrefix, onError })`, mirroring `renderToString`'s `layer` option.
+- The stream emits no resume manifest. One Collector spans the stream; each chunk carries only the state changed since the previous chunk.
+- The store, scopes and fibers live until the last boundary resolves and are disposed on completion, error or cancel.
+- Chunk HTML sits in a template container; the swap runtime is emitted once in the shell; every inline script carries the nonce. A stream-end marker lets the client report unresolved placeholders.
+- Post-flush errors stream the nearest Boundary fallback, else keep the Pending fallback and report to `onError`.
+- fn-27 owns the late-boundary adoption hook that fn-25 leaves as a seam.
+
+
+## Early proof point
+
+Task fn-27-streaming-ssr-for-sleekstackui.1 validates the core approach (shell-first streaming with one swapped boundary equals renderToString). If it fails, re-evaluate the chunk protocol and store lifetime before fn-27.2+
+
+## Requirement coverage
+
+| Req | Description | Task(s) | Gap justification |
+| --- | --- | --- | --- |
+| R1 | The first chunk contains the shell and fallbacks without waiting for any pending boundary. Errors: a render defect before flush rejects. | fn-27-streaming-ssr-for-sleekstackui.1 | — |
+| R2 | Resolved boundaries stream in completion order, and after the swap runs in jsdom the DOM equals `renderToString` output once placeholder ids and swap scripts are normalised out. Errors: a boundary failing after flush streams its fallback. | fn-27-streaming-ssr-for-sleekstackui.2, fn-27-streaming-ssr-for-sleekstackui.3 | — |
+| R3 | A client that hydrates mid-stream ends in the same DOM as a fully loaded hydrate, with no refetch for boundary state. Errors: a missing boundary chunk leaves the fallback and reports. | fn-27-streaming-ssr-for-sleekstackui.4, fn-27-streaming-ssr-for-sleekstackui.5 | — |
+| R4 | Cancelling the stream interrupts pending fibers and closes scopes, retain counts back to zero. Errors: none. | fn-27-streaming-ssr-for-sleekstackui.3 | — |
+| R5 | `nonce` appears on every inline script; two streams on one page do not collide ids. | fn-27-streaming-ssr-for-sleekstackui.2, fn-27-streaming-ssr-for-sleekstackui.6 | — |
+| R6 | ADR records the protocol; README documents it. | fn-27-streaming-ssr-for-sleekstackui.6 | — |
+

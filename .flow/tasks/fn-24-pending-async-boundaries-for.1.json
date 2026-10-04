@@ -1,0 +1,14 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-04T10:43:34.678725Z",
+  "depends_on": [],
+  "id": "fn-24-pending-async-boundaries-for.1",
+  "priority": null,
+  "spec": "fn-24-pending-async-boundaries-for",
+  "spec_path": ".flow/tasks/fn-24-pending-async-boundaries-for.1.md",
+  "status": "todo",
+  "title": "ui: Pending core (instance + slot handle + content scope), first run shows fallback then content",
+  "updated_at": "2026-10-04T10:43:34.678725Z"
+}

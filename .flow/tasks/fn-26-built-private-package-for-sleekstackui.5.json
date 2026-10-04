@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-04T10:43:36.426482Z",
+  "depends_on": [
+    "fn-26-built-private-package-for-sleekstackui.3"
+  ],
+  "id": "fn-26-built-private-package-for-sleekstackui.5",
+  "priority": null,
+  "spec": "fn-26-built-private-package-for-sleekstackui",
+  "spec_path": ".flow/tasks/fn-26-built-private-package-for-sleekstackui.5.md",
+  "status": "todo",
+  "title": "ui-demo on built packages; playground stops emitting build output",
+  "updated_at": "2026-10-04T10:43:36.426482Z"
+}

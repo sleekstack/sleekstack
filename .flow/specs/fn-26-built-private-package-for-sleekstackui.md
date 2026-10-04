@@ -47,3 +47,30 @@ No npm publish, no changesets, no docs site change.
 <!-- scope: both -->
 
 After fn-25 so the budget covers hydration. The size-budget ADR moved here from the hydration spec.
+
+
+## Planning decisions
+<!-- scope: technical -->
+
+- Plain `tsc` with bundler module resolution; consumers are bundler users (Vite, esbuild). Node-native ESM import of the output is out of scope and documented. If the spike shows a bundler consumer cannot resolve the output, the spec is replanned around a bundler.
+- `typecheck` and `test` gain `^build` ordering in turbo; core's dependents are re-verified.
+- The tarball test wires core and query with overrides, since packing rewrites `workspace:*` to a version.
+- `effect` and `@tanstack/query-core` are peers across ui, core and query.
+- The size budget is asserted in a test and recorded in an ADR; the playground stray emit is fixed at the root tsconfig.
+
+
+## Early proof point
+
+Task fn-26-built-private-package-for-sleekstackui.1 validates the core approach (tsc output packs and bundles in a consumer). If it fails, re-evaluate the tooling (a bundler) before fn-26.2+
+
+## Requirement coverage
+
+| Req | Description | Task(s) | Gap justification |
+| --- | --- | --- | --- |
+| R1 | `pnpm build` emits `dist` with ESM, types and maps for ui, core and query. Errors: a build with a type error fails the task. | fn-26-built-private-package-for-sleekstackui.1, fn-26-built-private-package-for-sleekstackui.2, fn-26-built-private-package-for-sleekstackui.3 | — |
+| R2 | Packing all three and installing the tarballs in a temp project typechecks a JSX component and runs `mount` and `renderToString` in jsdom. Errors: a leaked `workspace:*` in a packed manifest fails the test. | fn-26-built-private-package-for-sleekstackui.1, fn-26-built-private-package-for-sleekstackui.4 | — |
+| R3 | ui-demo consumes the built package through public entry points. Errors: none. | fn-26-built-private-package-for-sleekstackui.5 | — |
+| R4 | `effect` is a peer in the packed manifest and a consumer with one `effect` copy works. Errors: two `effect` copies are called out in the README as unsupported. | fn-26-built-private-package-for-sleekstackui.2, fn-26-built-private-package-for-sleekstackui.3, fn-26-built-private-package-for-sleekstackui.4 | — |
+| R5 | The package stays `private: true`; an ADR records the publish gate and the measured size budget with the method. Errors: none. | fn-26-built-private-package-for-sleekstackui.6 | — |
+| R6 | The playground no longer emits build residue. | fn-26-built-private-package-for-sleekstackui.5 | — |
+

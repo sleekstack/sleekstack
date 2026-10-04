@@ -1,0 +1,20 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-04T10:43:35.549783Z",
+  "depends_on": [
+    "fn-25-hydration-for-sleekstackui.3",
+    "fn-25-hydration-for-sleekstackui.4",
+    "fn-25-hydration-for-sleekstackui.5",
+    "fn-25-hydration-for-sleekstackui.6",
+    "fn-25-hydration-for-sleekstackui.7"
+  ],
+  "id": "fn-25-hydration-for-sleekstackui.8",
+  "priority": null,
+  "spec": "fn-25-hydration-for-sleekstackui",
+  "spec_path": ".flow/tasks/fn-25-hydration-for-sleekstackui.8.md",
+  "status": "todo",
+  "title": "ui-demo hydrate test, ADR 0015 amendment, CONTEXT, README",
+  "updated_at": "2026-10-04T10:43:35.549783Z"
+}

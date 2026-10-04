@@ -1,0 +1,17 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-04T10:43:37.300474Z",
+  "depends_on": [
+    "fn-27-streaming-ssr-for-sleekstackui.3",
+    "fn-27-streaming-ssr-for-sleekstackui.5"
+  ],
+  "id": "fn-27-streaming-ssr-for-sleekstackui.6",
+  "priority": null,
+  "spec": "fn-27-streaming-ssr-for-sleekstackui",
+  "spec_path": ".flow/tasks/fn-27-streaming-ssr-for-sleekstackui.6.md",
+  "status": "todo",
+  "title": "ui-demo stream route, multi-stream collision test, protocol ADR, README",
+  "updated_at": "2026-10-04T10:43:37.300474Z"
+}
