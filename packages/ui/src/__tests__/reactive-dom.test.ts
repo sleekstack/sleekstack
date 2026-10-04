@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { Atom, makeAtomStore } from '@sleekstack/core'
 import { Cause, Context, Data, Deferred, Effect, Layer } from 'effect'
-import { act, createElement, useEffect } from 'react'
+import { act, createElement, useEffect, useState } from 'react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { Boundary, el, fromReact, mount, type Mounted, Provider, Store, useAtomValue, useLocal, useSetAtom } from '../index'
 import type { Node } from '../node'
@@ -478,6 +478,60 @@ describe('reconciler', () => {
     await tick()
     expect(container.querySelector('select')).toBe(select)
     expect(select.value).toBe('c')
+  })
+
+  it('a matched guest keeps its React state and gets new props; removal, component or key change unmounts it; a failed guest stays empty', async () => {
+    const mode = Atom.make<{ n: number; show: boolean; other: boolean; key: string }>({ n: 0, show: true, other: false, key: 'a' })
+    const log: Array<string> = []
+    const Counter = fromReact((p: { n: number }) => {
+      const [c, setC] = useState(0)
+      useEffectLog((e) => log.push(e))
+      return createElement('button', { onClick: () => setC(c + 1) }, `${c}/${p.n}`)
+    })
+    const Other = fromReact(() => createElement('i', {}, 'other'))
+    const C = () =>
+      Effect.flatMap(useAtomValue(mode), (m) => {
+        const g = m.other ? jsx(Other, {}) : jsx(Counter, { n: m.n, key: m.key })
+        return m.show ? Effect.map(g, (g) => el('div', {}, g)) : Effect.succeed(el('div', {}))
+      })
+    const { container, store } = await go(jsx(C, {}))
+    const host = container.querySelector('sleek-guest')
+    await act(async () => container.querySelector('button')!.click())
+    store.set(mode, { n: 1, show: true, other: false, key: 'a' })
+    await tick()
+    expect(container.textContent).toBe('1/1')
+    expect(container.querySelector('sleek-guest')).toBe(host)
+    expect(log).toEqual(['mount'])
+    store.set(mode, { n: 1, show: true, other: false, key: 'b' })
+    await tick()
+    expect(container.textContent).toBe('0/1')
+    // The replacement mounts in the plan, before the old root unmounts on commit.
+    expect(log).toEqual(['mount', 'mount', 'unmount'])
+    store.set(mode, { n: 1, show: true, other: true, key: 'b' })
+    await tick()
+    expect(container.textContent).toBe('other')
+    store.set(mode, { n: 1, show: true, other: false, key: 'b' })
+    await tick()
+    store.set(mode, { n: 1, show: false, other: false, key: 'b' })
+    await tick()
+    expect(container.textContent).toBe('')
+    expect(log).toEqual(['mount', 'mount', 'unmount', 'unmount', 'mount', 'unmount'])
+
+    const n = Atom.make(0)
+    const Thrower = fromReact((p: { n: number }) => {
+      if (p.n === 1) throw new Error('guest')
+      return createElement('s', {}, String(p.n))
+    })
+    const onError = vi.fn()
+    const R = () => Effect.flatMap(useAtomValue(n), (v) => jsx(Thrower, { n: v }))
+    const r = await go(jsx(R, {}), { onError })
+    r.store.set(n, 1)
+    await tick()
+    expect(r.container.textContent).toBe('')
+    expect(onError).toHaveBeenCalledOnce()
+    r.store.set(n, 2)
+    await tick()
+    expect(r.container.textContent).toBe('')
   })
 
   it('a plan failure leaves the live DOM byte-identical and leaks no guest root or scope', async () => {

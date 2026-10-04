@@ -4,7 +4,7 @@ import { Component, createElement, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { createRoot, type Root } from 'react-dom/client'
 import { reportRenderError, runToNode } from './component'
-import type { ElementNode, FragmentNode, Node, ReactiveNode } from './node'
+import type { ElementNode, FragmentNode, GuestNode, Node, ReactiveNode } from './node'
 import { commitSlots, disposeSlots, dropSlots, DuplicateKey, fallbacks, Frame, makeFrame, RenderScope, type RunFrame, runScopes, Store } from './reactive'
 import { checkAttr, checkTag } from './string'
 
@@ -186,6 +186,12 @@ const setProp = (el: Element, k: string, v: string | undefined): void => {
   if (k === 'checked' && f.checked !== (v !== undefined)) f.checked = v !== undefined
 }
 
+// The boundary keeps its identity across renders, so a failed guest stays empty until unmounted.
+const renderGuest = (root: Root, node: GuestNode, env: Env): void => {
+  const report = (error: unknown) => reportRenderError(error, env.onError)
+  flushSync(() => root.render(createElement(GuestBoundary, { report }, createElement(node.component, node.props))))
+}
+
 const build = (node: Leaf, key: string | undefined, env: Env, scopes: Array<Scope.CloseableScope>): Live | null => {
   try {
     const keyed = key === undefined ? {} : { key }
@@ -217,10 +223,9 @@ const build = (node: Leaf, key: string | undefined, env: Env, scopes: Array<Scop
         // One React root per guest host; `display: contents` keeps the host out of layout.
         const host = env.doc.createElement('sleek-guest')
         host.style.display = 'contents'
-        const report = (error: unknown) => reportRenderError(error, env.onError)
-        const root = createRoot(host, { onCaughtError: () => {}, onUncaughtError: report })
+        const root = createRoot(host, { onCaughtError: () => {}, onUncaughtError: (error) => reportRenderError(error, env.onError) })
         const live: Live = { node, dom: host, kids: [], root, ...keyed }
-        flushSync(() => root.render(createElement(GuestBoundary, { report }, createElement(node.component, node.props))))
+        renderGuest(root, node, env)
         return live
       }
     }
@@ -248,6 +253,12 @@ const patch = (prev: Live, node: Leaf, key: string | undefined, env: Env, p: Pla
       const text = node._tag === 'Text' ? node.text : String(env.store.get(node.atom))
       if (prev.dom.nodeValue !== text) p.ops.push(() => void (prev.dom.nodeValue = text))
       return { node, dom: prev.dom, kids: [] }
+    }
+    if (node._tag === 'Guest') {
+      // Same component: the root and its React state stay; only the props re-render on commit.
+      const root = prev.root!
+      p.ops.push(() => renderGuest(root, node, env))
+      return { node, dom: prev.dom, kids: [], root, ...keyed }
     }
     const el = prev.dom as Element
     const old = (prev.node as ElementNode).attrs
@@ -294,10 +305,10 @@ const adopt = (prev: Live, node: ReactiveNode, key: string | undefined, env: Env
   return { node, dom: prev.dom, kids: [], inst, ...(key === undefined ? {} : { key }) }
 }
 
-const same = (a: Leaf, b: Leaf): boolean => a._tag === b._tag && (a._tag !== 'Element' || a.tag === (b as ElementNode).tag)
+const same = (a: Leaf, b: Leaf): boolean =>
+  a._tag === b._tag && (a._tag === 'Element' ? a.tag === (b as ElementNode).tag : a._tag !== 'Guest' || a.component === (b as GuestNode).component)
 
 // Matching: instances by id; others by key and type, else the next unkeyed old sibling by position (a separate pool).
-// Guests are rebuilt for now.
 const patchChildren = (parent: globalThis.Node, old: ReadonlyArray<Live>, nodes: ReadonlyArray<Node>, env: Env, p: Plan): Array<Live> => {
   const list = flat(nodes, p.scopes)
   const keys = keysOf(list, env)
@@ -310,8 +321,7 @@ const patchChildren = (parent: globalThis.Node, old: ReadonlyArray<Live>, nodes:
     if (l.inst) {
       const id = (l.node as ReactiveNode).id
       byId.set(id, [...(byId.get(id) ?? []), l])
-    } else if (l.root) gone.push(l)
-    else if (l.key !== undefined) byKey.set(l.key, l)
+    } else if (l.key !== undefined) byKey.set(l.key, l)
     else pool.push(l)
   }
   let next = 0
@@ -321,12 +331,10 @@ const patchChildren = (parent: globalThis.Node, old: ReadonlyArray<Live>, nodes:
     if (n._tag === 'Reactive') {
       const m = byId.get(n.id)?.shift()
       if (m) return [adopt(m, n, k, env, p)]
-    } else if (n._tag !== 'Guest') {
-      if (k === undefined) prev = pool[next++]
-      else {
-        prev = byKey.get(k)
-        byKey.delete(k)
-      }
+    } else if (k === undefined) prev = pool[next++]
+    else {
+      prev = byKey.get(k)
+      byKey.delete(k)
     }
     if (prev && same(prev.node, n)) return [patch(prev, n, k, env, p)]
     if (prev) gone.push(prev)
