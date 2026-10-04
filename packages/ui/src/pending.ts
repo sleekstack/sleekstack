@@ -1,17 +1,26 @@
-import { Effect, Exit, Fiber, Scope } from 'effect'
+import { Cause, Effect, Exit, Fiber, Scope } from 'effect'
 import { type Child, Fragment } from './jsx-runtime'
 import type { Node } from './node'
 import { Collector, Frame, makeFrame, owned, pendingOf, RenderScope, type RunFrame, scopedRun, type Slots, useLocal } from './reactive'
 
-/** Resolved content: moved into the slot by the content fiber, emitted as is by later runs; its node owns the content scope. */
+/**
+ * Resolved content: moved into the slot by the content fiber, emitted as is by later runs; its node owns the content scope.
+ * `cause` is a failed fork, raised once by the slot-set re-run (nearest `Boundary`, else `onError`); the previous content stays.
+ */
 interface Content {
-  readonly node: Node
-  readonly frame: RunFrame
+  readonly node?: Node
+  readonly frame?: RunFrame
   readonly props: object
+  readonly cause?: Cause.Cause<unknown>
 }
 
-// The props object a content fiber was last forked for, per content slot tree.
-const forkedFor = new WeakMap<Slots, object>()
+// The latest fork per content slot tree; an older or disposed fork writes nothing.
+interface Fork {
+  readonly props: object
+  readonly scope: Scope.CloseableScope
+  done: boolean
+}
+const forks = new WeakMap<Slots, Fork>()
 
 // Content slots live under the Pending's own slots, so they survive its re-runs and go when it is disposed.
 const contentSlots = (f: RunFrame): Slots => {
@@ -40,33 +49,43 @@ export const Pending = (props: { fallback: Child; children?: Child }): Effect.Ef
       const info = { fallback: props.fallback, content: props.children }
       // Discriminator: the instance's own `rerun` (fired by the slot set) passes the same props object, so stored content
       // for these props is emitted without forking; a fresh run (first mount, parent re-run) has new props and forks.
-      if (content?.props !== props && forkedFor.get(slots) !== props) {
-        forkedFor.set(slots, props)
+      if (content?.props !== props && forks.get(slots)?.props !== props) {
+        // Supersede: latest wins, so an unfinished older fork is interrupted with its scope.
+        const prev = forks.get(slots)
+        if (prev && !prev.done) closeScope(prev.scope)
         const scope = Effect.runSync(Scope.make())
+        const fork: Fork = { props, scope, done: false }
+        forks.set(slots, fork)
+        // Dispose (unmount, key change) closes the scope, interrupting the fiber, and retires the fork in the same tick.
         // ponytail: one closer per fork until the Pending is disposed; prune on commit if forks get frequent.
-        slots.releases.push(() => closeScope(scope))
+        slots.releases.push(() => (forks.get(slots) === fork && forks.delete(slots), closeScope(scope)))
         const cframe = makeFrame(slots, `${f.id}/content`)
         const run = Fragment({ children: props.children }).pipe(
           Effect.provideService(Collector, undefined),
           Effect.provideService(Frame, cframe),
           Effect.provideService(RenderScope, scope),
           Effect.onExit((exit) =>
-            Exit.isSuccess(exit) && forkedFor.get(slots) === props
-              ? Effect.sync(() => set({ node: owned(exit.value, scope), frame: cframe, props }))
-              : // ponytail: a failure is dropped here; the error path routes it (fn-24.2).
-                Effect.sync(() => closeScope(scope)),
+            Effect.sync(() => {
+              fork.done = true
+              const latest = forks.get(slots) === fork
+              if (latest && Exit.isSuccess(exit)) return set({ node: owned(exit.value, scope), frame: cframe, props })
+              closeScope(scope)
+              if (latest && Exit.isFailure(exit) && !Cause.isInterruptedOnly(exit.cause)) set((c) => ({ ...c, props, cause: exit.cause }))
+            }),
           ),
         )
         return Effect.flatMap(Effect.forkDaemon(run), (fiber) =>
           Effect.flatMap(Scope.addFinalizer(scope, Fiber.interruptFork(fiber)), () => emit(content, info, props)),
         )
       }
+      // The slot-set re-run of a failed fork raises its cause through the instance's handlers.
+      if (content?.cause && content.props === props) return Effect.failCause(content.cause)
       return emit(content, info, props)
     }),
   ) as Effect.Effect<Node, never, never>
 
 // Resolved content (current or previous) stays on screen; only a Pending with none yet shows the fallback.
 const emit = (content: Content | undefined, info: { fallback: Child; content: Child }, props: { fallback: Child }): Effect.Effect<Node, any, any> =>
-  content
-    ? Effect.sync(() => (pendingOf.set(content.node, { ...info, frame: content.frame }), content.node))
+  content?.node
+    ? Effect.sync(() => (pendingOf.set(content.node!, { ...info, frame: content.frame }), content.node!))
     : Effect.map(scopedRun(Fragment({ children: props.fallback })), (n) => (pendingOf.set(n, info), n))
