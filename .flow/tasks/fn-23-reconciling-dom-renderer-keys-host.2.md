@@ -41,9 +41,15 @@ fn-21 added `useQuery` / `useMutation` to ui with a ref-counted observer registr
 - [ ] TBD
 
 ## Done summary
-TBD
+Run-time instance identity: a `Frame` Context.Reference counts per-function ordinals per run; `instance(type, props, key?)` assigns `<fnId>#<ordinal>` or `<fnId>:key:<key>` on first run (rerun reuses it, never bumps parent counters). Keyed components always return a Reactive node; `jsx` passes the key; `ReactiveNode.id` is now required. Instance context is built with one `Effect.provide` (replacing three `provideService`), which keeps jsx-overhead in tolerance (non-reactive 2.694 vs 3.135 baseline; one-reactive 2.056 vs 2.647).
 
+Note: no Frame exists above the first instance, so root-level siblings of one type share `#0` (marked ponytail in reactive.ts); mount/renderToString could provide a root Frame if later tasks need it. node.ts was edited (outside declared Touches) per the conductor's carry-over note.
+
+Tests: reactive.test.ts "instance identity" block (stable ids + positional shift, rerun id/ordinals, keyed non-reading Reactive).
+
+Tier: session (jev-unavailable(no_key)); routing block pins implementer opus at medium
+stage: impl-review - skipped(config: REVIEW_MODE=none)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 6764ac618471588768f379c678dd7b93db8ddf32
+- Tests: pnpm --filter @sleekstack/ui test, pnpm --filter @sleekstack/ui typecheck, pnpm --filter bench bench:json && pnpm --filter bench compare
 - PRs:
