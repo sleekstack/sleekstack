@@ -13,7 +13,7 @@ it('resumes the server-rendered counter without component calls; a click loads t
   document.body.append(container)
   component.mockClear()
   const load = vi.fn(async () => ({ default: increment }))
-  const h = await resume({ container, layer: Layer.empty, handlers: { increment: load }, atoms: { count: countAtom } })
+  const h = await resume({ container, layer: Layer.empty, handlers: { increment: load }, atoms: [countAtom] })
   expect(load).not.toHaveBeenCalled()
   const out = container.querySelector('output')!
   expect(out.textContent).toBe('0')

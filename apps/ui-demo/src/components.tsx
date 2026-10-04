@@ -1,12 +1,11 @@
 /** @jsxImportSource @sleekstack/ui */
 import { Effect } from 'effect'
-import { Boundary, Provider, useAtomValue, useLocal, useSetAtom } from '@sleekstack/ui'
-import { useMutation, useQuery } from '@sleekstack/ui/query'
-import { effectFn, QueryClientTag } from '@sleekstack/query'
+import { Boundary, useAtomValue, useLocal, useSetAtom } from '@sleekstack/ui'
+import { useAddTask, useBacklog } from './backlog'
 import { AddButton, Avatar, FilterBar, Votes } from './guests'
 import { filterAtom, selectedAtom } from './state'
 import {
-  ProjectNotFound, TaskNotFound, TaskRepo, UserNotFound, UserRepo, Viewer, ViewerLive,
+  MISSING_TASK, ProjectNotFound, TaskNotFound, TaskRepo, UserNotFound, UserRepo, Viewer,
   type Status, type Task,
 } from './domain'
 
@@ -117,21 +116,22 @@ const Triage = ({ tasks }: { tasks: ReadonlyArray<Task> }) =>
     )
   })
 
-/** Sets the atoms from guest buttons; reads none, so it never re-runs. */
-const Toolbar = () =>
+/** Sets the atoms from guest buttons; reads none, so it never re-runs. Needs TaskRepo. */
+export const Toolbar = () =>
   Effect.gen(function* () {
     const setFilter = yield* useSetAtom(filterAtom)
     const select = yield* useSetAtom(selectedAtom)
+    const ids = yield* TaskRepo.ids()
     return yield* (
       <nav className="toolbar">
         <FilterBar options={['all', ...STATUSES]} onPick={setFilter} />
-        <FilterBar options={['t1', 't2', 't3', 'nope']} onPick={select} />
+        <FilterBar options={[...ids, MISSING_TASK]} onPick={select} />
       </nav>
     )
   })
 
 /** Re-runs when the selected task changes. */
-const Selected = () =>
+export const Selected = () =>
   Effect.gen(function* () {
     const id = yield* useAtomValue(selectedAtom)
     return yield* (
@@ -181,12 +181,10 @@ export const Team = () =>
     )
   })
 
-const backlogKey = (projectId: string) => ['tasks', projectId]
-
 /** Reads the project's tasks through the query cache; re-runs when the query result changes. */
 const BacklogList = ({ projectId }: { projectId: string }) =>
   Effect.gen(function* () {
-    const q = yield* useQuery({ queryKey: backlogKey(projectId), queryFn: effectFn(TaskRepo.byProject(projectId)) })
+    const q = yield* useBacklog(projectId)
     if (q.isPending) return yield* <p className="muted">Loading backlog</p>
     return yield* (
       <ul className="backlog">
@@ -200,11 +198,7 @@ const BacklogList = ({ projectId }: { projectId: string }) =>
 /** Hands `mutate` to a React guest; re-runs only on its own mutation's status. */
 const AddTask = ({ projectId }: { projectId: string }) =>
   Effect.gen(function* () {
-    const client = yield* QueryClientTag
-    const add = yield* useMutation({
-      mutationFn: (title: string, ctx) => effectFn(TaskRepo.add(projectId, title))(title, ctx),
-      onSuccess: () => client.invalidateQueries({ queryKey: backlogKey(projectId) }),
-    })
+    const add = yield* useAddTask(projectId)
     return yield* <AddButton onAdd={() => add.mutate('New task')} />
   })
 
@@ -216,7 +210,7 @@ export const Backlog = ({ projectId }: { projectId: string }) => (
   </section>
 )
 
-const Header = () =>
+export const Header = () =>
   Effect.gen(function* () {
     const { user: viewer } = yield* Viewer
     return yield* (
@@ -226,19 +220,3 @@ const Header = () =>
       </header>
     )
   })
-
-/** The whole page, viewed as `viewer`: one `Provider` scopes the Viewer for every component under it. */
-export const App = ({ viewer }: { viewer: string }) => (
-  <Provider layer={ViewerLive(viewer)}>
-    <Header />
-    <Toolbar />
-    <main>
-      <Team />
-      <ProjectBoard projectId="p1" />
-      <ProjectBoard projectId="missing" />
-      <Selected />
-      <DetailPanel id="nope" />
-      <Backlog projectId="p2" />
-    </main>
-  </Provider>
-)

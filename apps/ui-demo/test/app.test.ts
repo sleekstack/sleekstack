@@ -2,8 +2,8 @@
 import { mount, renderToString } from '@sleekstack/ui'
 import { act } from 'react'
 import { expect, it, vi } from 'vitest'
-import { App } from '../src/components'
-import { AppWithQueriesLive } from '../src/domain'
+import { App } from '../src/app'
+import { AppWithQueriesLive } from '../src/infrastructure'
 
 const AppLive = AppWithQueriesLive({ defaultOptions: { queries: { retry: false } } })
 

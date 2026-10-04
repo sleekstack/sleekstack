@@ -60,8 +60,8 @@ const checkId = (kind: string, id: string): string => {
 }
 
 // fn-17's codec; render rechecks the value kind for Bind nodes not built by `bind`.
-const encode = (atom: Atom.Atom<any>, key: string, value: unknown): unknown =>
-  Schema.encodeSync(valueInfo(atom, key).schema)(value)
+const encode = (atom: Atom.Atom<any>, value: unknown): unknown =>
+  Schema.encodeSync(valueInfo(atom).schema)(value)
 
 const handlerAttrs = (on: Readonly<Record<string, Handler<any, any>>>, c: Collector): string =>
   Object.entries(on)
@@ -82,12 +82,13 @@ const serialize = (node: Node, c: Collector): string => {
     case 'Text':
       return escape(node.text)
     case 'Bind': {
-      const seen = c.atoms.get(node.key)
-      if (seen && seen.atom !== node.atom) throw new DuplicateBindKey({ key: node.key })
-      checkId('bind key', node.key)
+      const { key } = valueInfo(node.atom)
+      const seen = c.atoms.get(key)
+      if (seen && seen.atom !== node.atom) throw new DuplicateBindKey({ key })
+      checkId('bind key', key)
       const value = c.store.get(node.atom)
-      if (!seen) c.atoms.set(node.key, { atom: node.atom, value: encode(node.atom, node.key, value) })
-      return `<sleek-bind data-sleek-bind="${escape(node.key)}">${escape(String(value))}</sleek-bind>`
+      if (!seen) c.atoms.set(key, { atom: node.atom, value: encode(node.atom, value) })
+      return `<sleek-bind data-sleek-bind="${escape(key)}">${escape(String(value))}</sleek-bind>`
     }
     case 'Fragment':
       return node.children.map((x) => serialize(x, c)).join('')

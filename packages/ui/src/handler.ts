@@ -34,6 +34,10 @@ export const defineHandler = <E = never, R = never>(
   opts: HandlerOptions = {},
 ): Handler<E, R> => ({ id, run, opts })
 
+/** True for a value built by `defineHandler`. */
+export const isHandler = (v: unknown): v is Handler<any, any> =>
+  typeof v === 'object' && v !== null && typeof (v as Handler).id === 'string' && typeof (v as Handler).run === 'function' && typeof (v as Handler).opts === 'object'
+
 // Events that never bubble, so a delegated container listener cannot see them. Any other lowercase event name is accepted.
 const NON_BUBBLING = new Set(
   'focus blur load unload error scroll scrollend mouseenter mouseleave pointerenter pointerleave invalid abort cancel close toggle beforetoggle loadstart loadeddata loadedmetadata loadend progress canplay canplaythrough durationchange emptied ended pause play playing ratechange seeked seeking stalled suspend timeupdate volumechange waiting resize'.split(' '),
@@ -52,14 +56,14 @@ export const on = (node: Node, events: Record<string, Handler<any, any>>): Node 
 }
 
 /** Throws `UnsupportedAtom` unless `atom` is a serializable value-kind atom; returns its wire info. */
-export const valueInfo = (atom: Atom.Atom<any>, key: string): NonNullable<Atom.Atom<any>['serializable']> => {
+export const valueInfo = (atom: Atom.Atom<any>): NonNullable<Atom.Atom<any>['serializable']> => {
   const info = atom.serializable
-  if (info?.kind !== 'value') throw new UnsupportedAtom({ key })
+  if (info?.kind !== 'value') throw new UnsupportedAtom({ key: info?.key ?? '(not serializable)' })
   return info
 }
 
-/** Renders a serializable value-kind `atom`'s current value as text, bound under `key` for resume. */
-export const bind = <A>(atom: Atom.Atom<A>, key: string): Node => {
-  valueInfo(atom, key)
-  return { _tag: 'Bind', atom, key }
+/** Renders a serializable value-kind `atom`'s current value as text, bound under the atom's own serializable key for resume. */
+export const bind = <A>(atom: Atom.Atom<A>): Node => {
+  valueInfo(atom)
+  return { _tag: 'Bind', atom }
 }

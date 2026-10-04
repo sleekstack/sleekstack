@@ -50,11 +50,10 @@ export interface ReactiveNode {
   /** @internal Instance identity, `<fnId>#<ordinal>` or `<fnId>:key:<key>`; set by `instance`. */
   readonly id: string
 }
-/** An atom's current value as text, bound under `key` for resume. */
+/** An atom's current value as text, bound under the atom's serializable key for resume. */
 export interface BindNode {
   readonly _tag: 'Bind'
   readonly atom: Atom.Atom<any>
-  readonly key: string
 }
 export type Node = TextNode | ElementNode | FragmentNode | GuestNode | ReactiveNode | BindNode
 

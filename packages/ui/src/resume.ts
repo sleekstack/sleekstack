@@ -1,6 +1,6 @@
 import { type Atom, makeAtomStore } from '@sleekstack/core'
 import { Cause, Context, Data, Effect, Exit, Fiber, Layer, Option, Schema, Scope } from 'effect'
-import { type Handler, type HandlerEvent, valueInfo } from './handler'
+import { DuplicateBindKey, type Handler, type HandlerEvent, valueInfo } from './handler'
 import { Store } from './reactive'
 
 export class ManifestInvalid extends Data.TaggedError('ManifestInvalid')<{ readonly reason: string }> {}
@@ -16,8 +16,8 @@ export interface ResumeOptions<R, LE> {
   readonly container: Element
   readonly layer: Layer.Layer<Exclude<R, Store>, LE, never>
   readonly handlers: Readonly<Record<string, HandlerLoader<R>>>
-  /** Manifest key to its serializable value-kind atom (else `UnsupportedAtom`), seeded through the store's hydrate seed. */
-  readonly atoms: Readonly<Record<string, Atom.Atom<any>>>
+  /** The serializable value-kind atoms the page binds (else `UnsupportedAtom`), matched to the manifest by their serializable key and seeded through the store's hydrate seed. */
+  readonly atoms: ReadonlyArray<Atom.Atom<any>>
   readonly onError?: (cause: Cause.Cause<unknown>) => void
 }
 
@@ -58,7 +58,7 @@ const readManifest = (container: Element): { events: Array<string>; atoms: Recor
 type Seed = { readonly key: string; readonly seed: Record<string, unknown> }
 const decode = (atom: Atom.Atom<any> | undefined, key: string, value: unknown): Seed => {
   if (!atom) throw new ManifestDecodeFailed({ key })
-  const info = valueInfo(atom, key)
+  const info = valueInfo(atom)
   try {
     Schema.decodeUnknownSync(info.schema)(value)
   } catch (cause) {
@@ -87,11 +87,17 @@ const snapshot = (e: Event): HandlerEvent => {
 const activate = async <R, LE>(opts: ResumeOptions<R, LE>): Promise<Resumed> => {
   const { container } = opts
   const m = readManifest(container)
-  const seeds = Object.entries(m.atoms).map(([key, v]) => decode(opts.atoms[key], key, v))
+  const byKey: Record<string, Atom.Atom<any>> = {}
+  for (const atom of opts.atoms) {
+    const { key } = valueInfo(atom)
+    if (byKey[key] && byKey[key] !== atom) throw new DuplicateBindKey({ key })
+    byKey[key] = atom
+  }
+  const seeds = Object.entries(m.atoms).map(([key, v]) => decode(byKey[key], key, v))
   const binds = [...container.querySelectorAll('[data-sleek-bind]')].map((node) => {
     const key = node.getAttribute('data-sleek-bind')!
     if (!(key in m.atoms)) throw new ManifestInvalid({ reason: `bind key "${key}" missing from manifest` })
-    return { node, atom: opts.atoms[key]! }
+    return { node, atom: byKey[key]! }
   })
 
   const store = makeAtomStore()
