@@ -38,9 +38,15 @@ The core of the spec: replace the `replaceChildren` swap with a plan/apply recon
 - [ ] TBD
 
 ## Done summary
-TBD
+The DOM renderer now reconciles through a `Live` tree with a plan/apply patch (dom.ts): elements and text patch in place, fragments are flattened, keyed and unkeyed children use separate pools, `DuplicateKey` reports once per patch, and form-control `value`/`checked` are set as properties only when the node's value changed. Carry-overs: `mount`/`renderToString` provide a root `Frame` (root slots disposed with the mount), and keyed calls no longer consume the unkeyed ordinal (reactive.ts).
 
+Behavior change: the old `nested` test asserted the outer `<span>` was replaced on an outer re-run. It now asserts the span survives (R1).
+Out of scope, as planned: `Reactive` instances and guests are always rebuilt (tasks .5/.6). Slot commit for non-root re-runs is not wired, because the instance's run frame is not exposed to the renderer.
+Bench: one run, every case OK (jsx-overhead 3.152 / 3.227, render-dom mount 1.666, update-1-of-1k 0.425, atoms/diamond 0.223). No re-run was needed.
+
+Tier: session (jev-unavailable(no_key)); routing block pins implementer opus at medium
+stage: impl-review - skipped(config: REVIEW_MODE=none)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 88e767ea1f10e94712d08c87e7c6b38904ae3b29
+- Tests: pnpm --filter @sleekstack/ui test && pnpm --filter @sleekstack/ui typecheck, pnpm --filter bench bench:json && pnpm --filter bench compare, baseline: green via handoff (verified at ce8c65c by fn-23-reconciling-dom-renderer-keys-host.3)
 - PRs:
