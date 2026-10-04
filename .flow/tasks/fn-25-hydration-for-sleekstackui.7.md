@@ -24,9 +24,15 @@ Decision: server `renderToString` awaits Pending (fn-24), so while hydrating a P
 - [ ] The seam is exported only internally.
 
 ## Done summary
-TBD
+While hydrating, Pending awaits its content inline, the same way the server does, and emits it on the first adopt. It shows no fallback and causes no mismatch. A mutable `Hydrating` cell (pending.ts), provided in dom.ts `start` and switched off after the first run, drives this, so captured re-run contexts fork as usual. While hydrating, Pending's reads go to a scratch collector, so the client also emits no instance host, which matches the server markup. The content slot is still allocated. The internal seam `adoptLateBoundary` (a no-op) is left in pending.ts for fn-27 and is not exported from index.
 
+Known ceiling: the first parent re-run after hydration turns the Pending into a reactive instance, which rebuilds its DOM once. It keeps showing the stored content, not the fallback. Follow-up: have the server emit a host for Pending (string.ts) if node identity matters there.
+
+Test: hydrate.test.ts "hydrateMount Pending (R2)". It failed with HydrationMismatch before the fix.
+baseline: green via handoff (verified at 6d2619b by fn-25.6)
+Tier: implementer: opus at medium (project routing block)
+stage: impl-review - skipped(config: REVIEW_MODE=none)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: fb8f53f0bb78767c4184b27f3a50c93b279dbef1
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/ui...
 - PRs:
