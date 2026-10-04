@@ -5,7 +5,7 @@ import { flushSync } from 'react-dom'
 import { createRoot, type Root } from 'react-dom/client'
 import { reportRenderError, runToNode } from './component'
 import type { BindNode, ElementNode, EventBinding, FragmentNode, GuestNode, Node, ReactiveNode } from './node'
-import { Hydrating } from './pending'
+import { Hydrating, type HydratingCell } from './pending'
 import { closeNow, commitSlots, disposeSlots, dropSlots, DuplicateKey, fallbacks, Frame, makeFrame, MountScope, RenderScope, type RunFrame, runScopes, Store } from './reactive'
 import { checkAttr, checkTag } from './string'
 
@@ -651,6 +651,7 @@ export const start = async <E, A, LE = never>(
   app: Effect.Effect<Node, E, A>,
   opts: { layer: Layer.Layer<Exclude<A, Store>, LE, never>; container: Element; onError?: OnError; store?: AtomStore },
   adoptWith?: Adopt,
+  hydrating: HydratingCell = { on: !!adoptWith },
 ): Promise<Mounted> => {
   const { container, onError } = opts
   let state = states.get(container)
@@ -676,7 +677,6 @@ export const start = async <E, A, LE = never>(
       if (!opts.store) await store.dispose()
     }
   }
-  const hydrating = { on: !!adoptWith }
   const provided = app.pipe(Effect.provideService(Store, store), Effect.provideService(RenderScope, scope), Effect.provideService(MountScope, scope), Effect.provideService(Frame, frame), Effect.provideService(Hydrating, hydrating)) as Effect.Effect<Node, E, Exclude<A, Store>>
   let node: Node
   try {

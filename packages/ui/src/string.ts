@@ -70,10 +70,12 @@ const manifest = (c: Collector): string =>
  * Hydration state (`data-sleek-hydrate`, distinct from the resume manifest): core `dehydrate` atoms and TanStack
  * `DehydratedState` queries. Omitted when both are empty.
  */
-export const payload = (atoms: Record<string, unknown>, queries: DehydratedState | undefined): string => {
+// `b` (streams only): boundary id -> path, so a client hydrating mid-stream finds the Pendings still on their fallback.
+export const payload = (atoms: Record<string, unknown>, queries: DehydratedState | undefined, b: Record<string, string> = {}): string => {
   const q = queries && (queries.queries.length > 0 || queries.mutations.length > 0) ? queries : undefined
-  if (Object.keys(atoms).length === 0 && !q) return ''
-  return `<script type="application/json" data-sleek-hydrate>${scriptJson({ v: 1, atoms, ...(q ? { queries: q } : {}) })}</script>`
+  const hasB = Object.keys(b).length > 0
+  if (Object.keys(atoms).length === 0 && !q && !hasB) return ''
+  return `<script type="application/json" data-sleek-hydrate>${scriptJson({ v: 1, atoms, ...(q ? { queries: q } : {}), ...(hasB ? { b } : {}) })}</script>`
 }
 
 // Handler ids and bind keys must survive an HTML attribute round trip unchanged.

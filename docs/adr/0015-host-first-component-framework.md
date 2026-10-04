@@ -92,4 +92,4 @@ Known limits:
 
 - The first parent re-run after hydration turns a `Pending` into a reactive instance and rebuilds its DOM once (it keeps the content, not the fallback). Removing this needs a server-side host for `Pending`.
 - Parser-normalised markup (an implied `tbody`) reports a mismatch and recovers by replacing the subtree.
-- `adoptLateBoundary` in `pending.ts` is an internal, unexported no-op left for streamed boundaries (fn-27).
+- Streamed boundaries (fn-27): a Pending whose placeholder is still on screen hydrates its fallback; `hydrateMount` adopts its content when the chunk lands (the `adoptLateBoundary` seam is gone).

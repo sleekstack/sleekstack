@@ -12,7 +12,9 @@ const SWAP =
   "self.__sleekSwap=function(i){var t=document.querySelector('template[data-sleek-b=\"'+i+'\"]'),w=document.createTreeWalker(document,128),n;" +
   "while((n=w.nextNode())&&n.data!=='sleek-p:'+i);if(!n||!t)return;var p=n.parentNode,d=0,x=n.nextSibling;" +
   "while(x){var y=x.nextSibling;if(x.nodeType===8){if(x.data.indexOf('sleek-p:')===0)d++;else if(x.data==='/sleek-p'){if(!d){p.removeChild(x);break}d--}}p.removeChild(x);x=y}" +
-  'p.replaceChild(t.content,n);t.remove()}'
+  'p.replaceChild(t.content,n);t.remove()};' +
+  // Stream end with boundaries that never got a chunk: kept for a client that hydrates later (`hydrateMount` reports them).
+  'self.__sleekEnd=function(m){(self.__sleekGone=self.__sleekGone||[]).push.apply(self.__sleekGone,m)}'
 
 export interface StreamOptions<A, LE> {
   readonly layer: Layer.Layer<A, LE, never>
@@ -67,6 +69,11 @@ export const renderToStream = <E, A, LE = never>(app: Effect.Effect<Node, E, A>,
   // State sent so far: atom key -> encoded JSON, query hash -> dataUpdatedAt. One Collector spans the stream.
   const sentAtoms = new Map<string, string>()
   const sentQueries = new Map<string, number>()
+  // Boundary paths: Pendings numbered per enclosing boundary in serialize order (`hydrateMount` numbers them alike).
+  let parent = ''
+  const counts = new Map<string, number>()
+  let paths: Record<string, string> = {}
+  const unsent = new Set<string>()
   const state = (): string => {
     const atoms = Object.fromEntries(
       Object.entries(dehydrate(store)).filter(([k, v]) => {
@@ -79,14 +86,22 @@ export const renderToStream = <E, A, LE = never>(app: Effect.Effect<Node, E, A>,
       ...all,
       queries: all.queries.filter((q) => sentQueries.get(q.queryHash) !== q.state.dataUpdatedAt && (sentQueries.set(q.queryHash, q.state.dataUpdatedAt), true)),
     }
-    return payload(atoms, queries)
+    const b = paths
+    paths = {}
+    // The nonce goes on the data script too, so every script in the stream carries it.
+    return payload(atoms, queries, b).replace('<script ', `<script${nonce} `)
   }
 
   // Placeholder now; the chunk when the boundary's content resolves. A failure streams the nearest `Boundary` fallback
   // (the re-run carries the instance's handlers); unhandled, the Pending fallback stays and `onError` gets it.
   c.boundary = (node, around: Around) => {
+    const n = counts.get(parent) ?? 0
+    counts.set(parent, n + 1)
     if (node.pending?.frame) return undefined
+    const path = parent ? `${parent}.${n}` : String(n)
     const id = `${prefix}${next++}`
+    paths[id] = path
+    unsent.add(id)
     const settle = async (n: ReactiveNode): Promise<void> => {
       await changed(store, n)
       if (disposed) return
@@ -99,7 +114,15 @@ export const renderToStream = <E, A, LE = never>(app: Effect.Effect<Node, E, A>,
       const r = exit.value
       if (r._tag === 'Reactive' && r.pending && !r.pending.frame) return settle(r)
       // Content renders in the placeholder's text context, so swapped text keeps the separators renderToString writes.
-      const html = serializeAll([r._tag === 'Reactive' ? r.child : r], c, around)
+      const outer = parent
+      parent = path
+      let html: string
+      try {
+        html = serializeAll([r._tag === 'Reactive' ? r.child : r], c, around)
+      } finally {
+        parent = outer
+      }
+      unsent.delete(id)
       emit(`${state()}<template data-sleek-b="${id}">${html}</template><script${nonce}>__sleekSwap(${scriptJson(id)})</script>`)
     }
     waiting.push(settle(node))
@@ -138,6 +161,7 @@ export const renderToStream = <E, A, LE = never>(app: Effect.Effect<Node, E, A>,
       void (async () => {
         for (let i = 0; i < waiting.length; i++) await waiting[i]!.catch(() => {})
         if (disposed) return
+        if (unsent.size > 0) controller.enqueue(encoder.encode(`<script${nonce}>__sleekEnd(${scriptJson([...unsent])})</script>`))
         await dispose()
         controller.close()
       })()

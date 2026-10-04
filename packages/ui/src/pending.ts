@@ -38,11 +38,32 @@ const contentSlots = (f: RunFrame): Slots => {
  * On during `hydrateMount`'s first run: a Pending resolves its content inline (the server awaited it), no fallback.
  * A mutable cell, not a value: re-runs capture their context, and must see it off once the adopt is done.
  */
-export class Hydrating extends Context.Reference<Hydrating>()('@sleekstack/ui/Hydrating', { defaultValue: (): { on: boolean } => ({ on: false }) }) {}
+export class Hydrating extends Context.Reference<Hydrating>()('@sleekstack/ui/Hydrating', { defaultValue: (): HydratingCell => ({ on: false }) }) {}
 
-/** Seam for late-arriving server boundaries (fn-27); a no-op while the server awaits every Pending. Internal only. */
-export type AdoptLateBoundary = (container: Element) => void
-export const adoptLateBoundary: AdoptLateBoundary = () => {}
+/**
+ * Hydration of a stream: `late` maps a boundary path to the id of a placeholder still on screen; such a Pending emits
+ * its fallback and registers in `deferred`, keyed by the fallback node, so `hydrateMount` adopts the content when the
+ * chunk lands. `counts` numbers Pendings per parent path in run order, as the stream numbers them in serialize order.
+ */
+export interface HydratingCell {
+  on: boolean
+  late?: Map<string, string>
+  counts?: Map<string, number>
+  deferred?: WeakMap<Node, Late>
+}
+/** A boundary whose chunk had not arrived: `land` runs `before` (seeding the chunk's state), then the content, hydrating; no node when superseded. */
+export interface Late {
+  readonly id: string
+  readonly land: (before: Effect.Effect<void, never, any>) => Promise<Exit.Exit<Node | undefined, unknown>>
+}
+// The path of the enclosing Pending's content, `0.1`-style; '' at the top.
+class BoundaryPath extends Context.Reference<BoundaryPath>()('@sleekstack/ui/BoundaryPath', { defaultValue: () => '' }) {}
+
+const numbered = (counts: Map<string, number>, parent: string): string => {
+  const n = counts.get(parent) ?? 0
+  counts.set(parent, n + 1)
+  return parent ? `${parent}.${n}` : String(n)
+}
 
 const closeScope = (scope: Scope.CloseableScope) => Effect.runFork(Scope.close(scope, Exit.void))
 
@@ -61,7 +82,7 @@ export const Pending = (props: { fallback: Child; children?: Child }): Effect.Ef
 
 const live = (props: { fallback: Child; children?: Child }) =>
   Effect.flatMap(useLocal<Content | undefined>(undefined), ([content, set]) =>
-    Effect.flatMap(Effect.zip(Frame, Hydrating), ([frame, hydrating]) => {
+    Effect.flatMap(Effect.all([Frame, Hydrating, BoundaryPath, Effect.context<never>()]), ([frame, hydrating, parent, ctx]) => {
       const f = frame!
       const slots = contentSlots(f)
       const info = { fallback: props.fallback, content: props.children }
@@ -79,10 +100,12 @@ const live = (props: { fallback: Child; children?: Child }) =>
         slots.releases.push(() => (forks.get(slots) === fork && forks.delete(slots), closeScope(scope)))
         const cframe = makeFrame(slots, `${f.id}/content`)
         let resolved: Content | undefined
+        const path = hydrating.on && hydrating.counts ? numbered(hydrating.counts, parent) : ''
         const run = Fragment({ children: props.children }).pipe(
           Effect.provideService(Collector, undefined),
           Effect.provideService(Frame, cframe),
           Effect.provideService(RenderScope, scope),
+          Effect.provideService(BoundaryPath, path),
           Effect.onExit((exit) =>
             Effect.sync(() => {
               fork.done = true
@@ -93,6 +116,18 @@ const live = (props: { fallback: Child; children?: Child }) =>
             }),
           ),
         )
+        // Hydrating a late boundary: the fallback is on screen; the content runs when its chunk lands, hydrating again.
+        const id = hydrating.on ? hydrating.late?.get(path) : undefined
+        if (id !== undefined)
+          return Effect.map(emit(undefined, info, props), (n) => {
+            const land = (before: Effect.Effect<void, never, any>) => {
+              const cell = { ...hydrating, on: true }
+              const go = Effect.zipRight(before, run).pipe(Effect.provideService(Hydrating, cell), Effect.provide(ctx)) as Effect.Effect<unknown>
+              return Effect.runPromise(Effect.exit(go)).then((exit) => ((cell.on = false), Exit.map(exit, () => resolved?.node)))
+            }
+            hydrating.deferred!.set(n, { id, land })
+            return n
+          })
         // Hydrating: the server markup holds the resolved content, so it is awaited here and emitted on the first run.
         if (hydrating.on) return Effect.flatMap(Effect.exit(run), (exit) => (Exit.isFailure(exit) ? Effect.failCause(exit.cause) : emit(resolved, info, props)))
         return Effect.flatMap(Effect.forkDaemon(run), (fiber) =>
