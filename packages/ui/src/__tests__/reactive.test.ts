@@ -2,11 +2,11 @@ import { Atom, makeAtomStore, MissingDependency } from '@sleekstack/core'
 import { Context, Data, Effect, Exit, Layer, Scope } from 'effect'
 import { describe, expect, it } from 'vitest'
 import { el, Provider, renderToString, Store, useAtom, useAtomValue } from '../index'
-import { jsx as rawJsx } from '../jsx-runtime'
+import { Fragment, jsx as rawJsx } from '../jsx-runtime'
 import { RenderScope } from '../reactive'
 
 // `jsx` as compiled JSX calls it: component types are checked by `sleekstack check`, not tsc.
-const jsx = (type: any, props: any) => rawJsx(type, props)
+const jsx = (type: any, props: any, key?: string | number) => rawJsx(type, props, key)
 
 const count = Atom.make(3)
 class Greeting extends Context.Tag('Greeting')<Greeting, string>() {}
@@ -68,5 +68,37 @@ describe('reactive components', () => {
 
   it('rejects a user-built sleek-reactive element', async () => {
     await expect(renderToString(Effect.succeed(el('sleek-reactive')), { layer: Layer.empty })).rejects.toThrow(TypeError)
+  })
+
+  describe('instance identity', () => {
+    const store = makeAtomStore()
+    const run = (e: Effect.Effect<any, any, any>) => Effect.runPromise(Effect.provideService(e, Store, store) as Effect.Effect<any>)
+    const A = () => Effect.map(useAtomValue(count), (n) => el('i', {}, String(n)))
+    const ids = (n: any): Array<string> => (n._tag === 'Reactive' ? [n.id, ...ids(n.child)] : (n.children ?? []).flatMap((c: any) => (typeof c === 'string' ? [] : ids(c))))
+    const Parent = ({ cond }: { cond: boolean }) => jsx(Fragment, { children: [cond && jsx(A, {}), jsx(A, {}), jsx(A, {}, 'k')] })
+
+    it('ids are stable across runs; ordinal counts every call (positional shift)', async () => {
+      const on = ids(await run(jsx(Parent, { cond: true })))
+      expect(ids(await run(jsx(Parent, { cond: true })))).toEqual(on)
+      const off = ids(await run(jsx(Parent, { cond: false })))
+      const fn = on[0]!.split('#')[0]
+      expect(on).toEqual([`${fn}#0`, `${fn}#1`, `${fn}:key:k`])
+      expect(off).toEqual([`${fn}#0`, `${fn}:key:k`])
+    })
+
+    it('a self rerun keeps its id and leaves parent ordinals alone', async () => {
+      const node: any = await run(jsx(Parent, { cond: true }, 'p'))
+      const first = node.child.children[0]
+      const again: any = await Effect.runPromise(first.rerun)
+      expect(again.id).toBe(first.id)
+      await Effect.runPromise(first.rerun)
+      expect(ids(await Effect.runPromise(node.rerun))).toEqual(ids(node))
+    })
+
+    it('a keyed component that reads no atoms is still a Reactive node', async () => {
+      const node: any = await run(jsx(() => Effect.succeed(el('p')), {}, 7))
+      expect(node).toMatchObject({ _tag: 'Reactive', atoms: [], seen: [], key: '7' })
+      expect(node.id).toMatch(/:key:7$/)
+    })
   })
 })

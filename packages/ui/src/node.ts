@@ -44,8 +44,8 @@ export interface ReactiveNode {
   /** @internal This run's `RenderScope` child; closed by the renderer when the run's DOM is replaced or dropped. */
   readonly scope?: Scope.CloseableScope
   readonly key?: string
-  /** @internal Instance identity; set by `reactive.ts` (next task), optional until then. */
-  readonly id?: string
+  /** @internal Instance identity, `<fnId>#<ordinal>` or `<fnId>:key:<key>`; set by `instance`. */
+  readonly id: string
 }
 /** An atom's current value as text, bound under `key` for resume. */
 export interface BindNode {

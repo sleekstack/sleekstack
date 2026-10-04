@@ -43,14 +43,14 @@ const element = (type: string, props: Props, key: string | undefined): Effect.Ef
     }),
   )
 
-// ponytail: the component `key` reaches `instance` in the next task (reactive.ts consumes it); elements carry it now.
 export const jsx = (type: string | ((props: any) => Element), props: Props, key?: string | number): Element => {
   const k = key ?? props.key
+  const ks = k == null ? undefined : String(k)
   return typeof type === 'function'
     ? type === Fragment || type === Provider || type === Boundary
       ? type(props as any)
-      : (instance(type, props) as Element)
-    : (element(type, props, k == null ? undefined : String(k)) as Element)
+      : (instance(type, props, ks) as Element)
+    : (element(type, props, ks) as Element)
 }
 export const jsxs = jsx
 

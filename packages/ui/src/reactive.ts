@@ -29,6 +29,19 @@ export class Instance extends Context.Reference<Instance>()('@sleekstack/ui/Inst
   defaultValue: (): object | undefined => undefined,
 }) {}
 
+/** Per-run ordinal counter of the running instance, by component function; a fresh one per run. `undefined` at the root. */
+export class Frame extends Context.Reference<Frame>()('@sleekstack/ui/Frame', {
+  defaultValue: (): Map<Function, number> | undefined => undefined,
+}) {}
+
+const fnIds = new WeakMap<Function, string>()
+let nextFn = 0
+const fnId = (f: Function): string => {
+  let id = fnIds.get(f)
+  if (id === undefined) fnIds.set(f, (id = String(nextFn++)))
+  return id
+}
+
 // Typed `never` in E: `Store` is a requirement, so a missing store is unreachable for checked code; at runtime it fails with a tagged error.
 const store = (hook: string): Effect.Effect<AtomStore, never, Store> =>
   Effect.flatMap(Effect.serviceOption(Store), (s) =>
@@ -107,27 +120,37 @@ const handled = (run: Effect.Effect<Node, any, any>): Effect.Effect<Node, any, a
  * Runs a component as one instance: fresh collector, own scope, captured context; returns a `Reactive` node when it read atoms.
  * Under a `RenderScope` the node carries its run's scope: a failed run closes it, otherwise its owner (the DOM renderer) does.
  */
-export const instance = <P>(type: (props: P) => Effect.Effect<Node, any, any>, props: P): Effect.Effect<Node, any, any> => {
-  const id = {}
+export const instance = <P>(type: (props: P) => Effect.Effect<Node, any, any>, props: P, key?: string): Effect.Effect<Node, any, any> => {
+  const inst = {}
+  // Fixed on the first run from the parent's frame; `rerun` reuses it and never bumps the parent's ordinals.
+  let id: string | undefined
   const run: Effect.Effect<Node, any, any> = Effect.flatMap(Effect.context<never>(), (ctx) => {
+    if (id === undefined) {
+      const frame = Context.get(ctx, Frame)
+      // ponytail: no frame above the first instance, so root-level siblings of one type share `#0`; mount/renderToString can provide a root Frame when that matters.
+      const ordinal = frame?.get(type) ?? 0
+      frame?.set(type, ordinal + 1)
+      id = key === undefined ? `${fnId(type)}#${ordinal}` : `${fnId(type)}:key:${key}`
+    }
+    const self = id
     const body = (own: Scope.CloseableScope | undefined): Effect.Effect<Node, any, any> => {
       const reads = new Map<Atom.Atom<any>, unknown>()
-      const scoped = own ? Effect.provideService(type(props), RenderScope, own) : type(props)
-      return Effect.map(Effect.provideService(Effect.provideService(scoped, Collector, reads), Instance, id), (child): Node =>
-        reads.size === 0
+      let inner = Context.add(Context.add(Context.add(ctx, Collector, reads), Instance, inst), Frame, new Map())
+      if (own) inner = Context.add(inner, RenderScope, own)
+      return Effect.map(Effect.provide(type(props), inner), (child): Node =>
+        reads.size === 0 && key === undefined
           ? own
             ? owned(child, own)
             : child
-          : { _tag: 'Reactive', atoms: [...reads.keys()], seen: [...reads.values()], child, scope: own, rerun: Effect.provide(handled(run), ctx) as Effect.Effect<Node> },
+          : { _tag: 'Reactive', atoms: [...reads.keys()], seen: [...reads.values()], child, scope: own, rerun: Effect.provide(handled(run), ctx) as Effect.Effect<Node>, id: self, ...(key !== undefined && { key }) },
       )
     }
-    return Effect.flatMap(RenderScope, (parent) =>
-      parent
-        ? Effect.flatMap(Scope.fork(parent, ExecutionStrategy.sequential), (own) =>
-            Effect.onExit(body(own), (exit) => (Exit.isSuccess(exit) ? Effect.void : Scope.close(own, exit))),
-          )
-        : body(undefined),
-    )
+    const parent = Context.get(ctx, RenderScope)
+    return parent
+      ? Effect.flatMap(Scope.fork(parent, ExecutionStrategy.sequential), (own) =>
+          Effect.onExit(body(own), (exit) => (Exit.isSuccess(exit) ? Effect.void : Scope.close(own, exit))),
+        )
+      : body(undefined)
   })
   return run
 }
