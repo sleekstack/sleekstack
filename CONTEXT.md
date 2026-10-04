@@ -139,7 +139,11 @@ _Avoid_: Event listener, callback, action
 
 **Resume**:
 `resume({ container, layer, handlers, atoms })`: makes server-rendered host HTML interactive without running any Component. It seeds its own store from the Manifest, keeps `bind` text in sync and runs Handlers through one queue with `layer`. Distinct from React hydration (Islands), which runs component code, and from atom-store `hydrate`, which only seeds a Snapshot (ADR 0017).
-_Avoid_: Hydrate, rehydrate, boot
+_Avoid_: rehydrate, boot. Not Hydrate: `hydrateMount` runs components and adopts the server DOM (see Hydrate Mount).
+
+**Hydrate Mount**:
+`hydrateMount(app, { layer, container, onError?, store? })`: runs a host tree once on the client against `renderToString` output and adopts the server DOM instead of rebuilding it. Seeds state from the `<script data-sleek-hydrate>` payload. Distinct from Resume (no component runs) and from atom-store `hydrate` (seeds a Snapshot only). ADR 0015.
+_Avoid_: rehydrate, revive
 
 **Manifest**:
 The one `<script data-sleek-manifest>` that `renderToString` emits: the delegated event types and each bind key's encoded atom value. Only serializable value-kind atoms enter it; a bad entry fails `resume` with `ManifestDecodeFailed`. Not a Snapshot.

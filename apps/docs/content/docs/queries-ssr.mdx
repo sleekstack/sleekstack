@@ -19,4 +19,4 @@ TanStack does not fetch during a server render: an un-prefetched `useQuery` rend
 
 ## Mutations in a server render
 
-TanStack's `useMutation` is idle on the server. `@sleekstack/ui`'s `useMutation` is also idle under `renderToString`, and its `useQuery` renders cached data without fetching.
+TanStack's `useMutation` is idle on the server. `@sleekstack/ui`'s `useMutation` is also idle under `renderToString`, and its `useQuery` renders cached data without fetching. Its `renderToString` writes the query cache into the `data-sleek-hydrate` script and `hydrateMount` seeds the client QueryClient from it; a query skips the refetch on hydrate only when its `staleTime` is above 0.

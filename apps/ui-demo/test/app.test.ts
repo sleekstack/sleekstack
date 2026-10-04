@@ -15,10 +15,10 @@ it('renders the board for Ada, with every failure caught by its Boundary', async
   expect(html).toContain('Wire the mount layer')
   expect(html).toContain('<em class="you">you</em>') // Ada is the assignee of t1 and the viewer
   expect(html).toContain('Unassigned')
-  expect(html).toContain('Unknown user ghost') // UserNotFound inside a card
-  expect(html).toContain('No project &quot;missing&quot;') // ProjectNotFound
-  expect(html).toContain('No task &quot;nope&quot;') // TaskNotFound
-  expect(html).toContain('Ada can edit this task')
+  expect(html).toContain('Unknown user <!--sleek-t-->ghost') // UserNotFound inside a card; text separator from renderToString
+  expect(html).toContain('No project &quot;<!--sleek-t-->missing<!--sleek-t-->&quot;') // ProjectNotFound
+  expect(html).toContain('No task &quot;<!--sleek-t-->nope<!--sleek-t-->&quot;') // TaskNotFound
+  expect(html).toContain('Ada<!--sleek-t--> can edit this task')
   expect(html).toContain('<li>Document Boundary</li>') // renderToString awaits Pending content
   expect(html).not.toContain('Loading backlog')
 })

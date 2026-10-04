@@ -24,3 +24,5 @@ On the server, `renderWithAtoms` in `@sleekstack/react` owns the request: each `
 - A snapshot holds what was built when `AtomsSnapshot` rendered (tree order); late-arriving streamed atoms are not transferred.
 - Query hydration (ADR 0014) stays separate: `HydrateQueries` keeps its own `Dehydrated` format and `updatedAt` merge rule, and atom snapshots use their own tag. Under the wrapper, `HydrateQueries` seeds the provider's registry-acquired store on the server.
 - The kit has no serializable atoms yet, so kit atom values render on the server but are not transferred.
+
+Note (fn-25): `@sleekstack/ui` host trees use the same core `dehydrate` / seed path: `renderToString` writes it to a `<script data-sleek-hydrate>` and `hydrateMount` seeds the store before the first run (ADR 0015, Amendment: hydration).
