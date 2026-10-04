@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-20-adx-agent-developer-experience",
   "spec_path": ".flow/tasks/fn-20-adx-agent-developer-experience.6.md",
-  "status": "todo",
+  "status": "done",
   "title": "evals: agent task suite, runner and baseline with/without bundled docs",
   "updated_at": "2026-10-03T11:52:49.239972Z"
 }
