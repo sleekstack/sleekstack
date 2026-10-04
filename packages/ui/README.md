@@ -12,6 +12,8 @@ Effect-native component framework (MVP). The Effect program is the host; plain R
 | `useAtomValue(atom)` | Read an atom and re-render this component when it changes (`Effect<A, never, Store>`) |
 | `useSetAtom(atom)` | A setter `(value) => void` for a writable atom; hand it to a guest as a prop |
 | `useAtom(atom)` | `[value, set]`; reads like `useAtomValue` |
+| `<Pending fallback>` | Shows `fallback` while its children wait on an async Effect; a re-run keeps the previous content until the new one resolves |
+| `useSuspenseQuery(options)` (`@sleekstack/ui/query`) | Waits on a query under `Pending`: `Effect<T, QueryFailed, QueryClientTag \| Store>`; re-runs on result change, returns held data without refetching |
 | `useLocal(initial)` | `[value, set]` local state in an ordered slot of this instance; kept across re-runs, released when the instance is removed. Call it only at the top of the component body (`ConditionalSlot`) |
 | `key` prop | Identity among siblings for elements and components; a keyed component keeps its instance and state when moved. Lists rendered with `.map` need one (`MissingKey`) |
 | `onXxx={(event) => effect}` | Event closure on a host element: runs in the DOM with the context captured at the element; `E` must be `never`, failures go to `onError`. Ignored by `renderToString` and `resume` |
@@ -24,6 +26,8 @@ Effect-native component framework (MVP). The Effect program is the host; plain R
 JSX: put `/** @jsxImportSource @sleekstack/ui */` at the top of a host file and every JSX expression is an `Effect<Node>`. Host components are functions of props returning JSX (or `Effect.gen` that ends in `return yield* (<jsx/>)`); `<Provider layer>` and `<Boundary tag fallback>` are the JSX forms of `Provide` and `Catch`. tsc cannot type a JSX expression's `E` / `R`, so `sleekstack check` reads them from the tree. Keep React guests in files without the pragma. Host attributes are strings, except a function-valued `onXxx` prop, which is an event closure.
 
 State: a host component that reads an atom with `useAtomValue` / `useAtom` re-runs when it changes (inside `<sleek-reactive style="display: contents">`), and the result is reconciled against the live DOM: elements patch in place, child instances keep their ids, local state and subscriptions, and focus and input values survive. The re-run keeps its captured `Provider` layers and `Boundary` handlers; an uncaught re-run error keeps the old DOM and goes to `onError`. A guest matched across a re-run (same React component, same key or position) keeps its React root and state and receives the new props; it unmounts when removed or when its component or key changes. A hook with no `Store` fails with `MissingDependency` naming `Store`.
+
+Async: `<Pending fallback>` shows `fallback` until its content resolves, then keeps that content on later re-runs until the new run resolves (latest run wins; unmount interrupts). `useSuspenseQuery` fails with the tagged `QueryFailed { cause }`. A content error renders the matching `Boundary` fallback (replacing old content); with no match it goes to `onError` and the old content or fallback stays. A nested instance that re-runs on its own never shows the fallback. `renderToString` awaits Pending content with no fallback and no timeout. The fallback must not suspend.
 
 A throwing guest renders as nothing; its cause goes to `onError` or `console.error`.
 

@@ -157,6 +157,10 @@ _Avoid_: Context provider, LayerProvider
 `Catch(tag, fallback, children)`: renders `fallback` for one tagged error and removes only that tag from `E`.
 _Avoid_: Error boundary, try
 
+**Pending**:
+`<Pending fallback>{children}</Pending>`: an instance that renders `fallback` while its children wait on an async Effect (such as `useSuspenseQuery`), then the children. A re-run keeps the previous content until the new content resolves; `renderToString` awaits the content and never emits the fallback. A content error goes to the enclosing `Boundary` (ADR 0015).
+_Avoid_: Suspense, loading provider, provider
+
 **Store** *(ui)*:
 The `Store` Tag over core's `AtomStore`, one per `mount`. A host component that reads an atom through `useAtomValue` / `useAtom` re-runs when it changes; the Reconciler patches its subtree and matched guests keep their React state (ADR 0015).
 _Avoid_: State, signal

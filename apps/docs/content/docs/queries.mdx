@@ -36,7 +36,8 @@ Provide `QueryClientLive()` in a `LayerProvider` and wrap the tree in `QueryProv
 
 - `useQuery` shares one `QueryObserver` per key across components (ref-counted) and re-runs the component when its result changes.
 - `useMutation` keeps one `MutationObserver` per component instance. `mutate` swallows the rejection (the error is in the result); `mutateAsync` rejects with the original error.
-- Under `renderToString` neither hook subscribes or fetches: a prefetched query renders its data, any other renders `pending`, and `useMutation` is idle.
+- `useSuspenseQuery` waits on the query inside `<Pending fallback>` and returns its data. It fails with the tagged `QueryFailed { cause }` (catch it with `<Boundary tag={QueryFailed}>`), shares the observer with `useQuery`, re-runs when the result changes and returns held data without refetching. A re-run keeps the previous content on screen; under `renderToString` it fetches and is awaited, with no fallback and no timeout.
+- Under `renderToString` `useQuery` and `useMutation` do not subscribe or fetch: a prefetched query renders its data, any other renders `pending`, and `useMutation` is idle.
 
 ## Build-time checks
 
@@ -48,6 +49,6 @@ The `@sleekstack/devtools` Queries tab reads the scope client's `QueryCache`. Ta
 
 ## Limits
 
-- Effect-typed query errors are gone: `error` is untyped.
+- Effect-typed query errors are gone: `error` is untyped (`useSuspenseQuery` wraps it in `QueryFailed`).
 - An optimistic write is only a value in the cache. An item it adds (for example a new task with a temporary id) is not on the server until the refetch replaces it; the showcases do not let users select such an item.
 - Server rendering with prefetch is in [Queries on the server](/docs/queries-ssr).

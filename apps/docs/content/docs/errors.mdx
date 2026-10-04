@@ -49,6 +49,8 @@ Reported by `sleekstack check` (with file:line) for projects whose package.json 
 | `MissingKey` | A `.map` / `.flatMap` / `Array.from` callback in child position returns an element, component or fragment without a `key` prop. |
 | `NonResumableHandler` | An `on(node, { event: h })` entry or a `resume` handler map is not provably a reference to a top-level `const h = defineHandler('literal-id', ...)` (a non-literal id, an inline function, an unreadable loader or handlers object). |
 
+A `<Pending>` is transparent to these checks: its content's `E` and `R` belong to the enclosing tree. At run time a failed Pending content renders the matching `Boundary` fallback (on a re-run too, replacing old content); with no match it goes to `onError` and the old content stays. `useSuspenseQuery` fails with `QueryFailed { cause }`.
+
 ### Resumable runtime errors
 
 Raised by `@sleekstack/ui` at render or `resume` time as tagged errors (`Data.TaggedError`), not by `sleekstack check`:

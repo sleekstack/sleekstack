@@ -60,6 +60,18 @@ Known limits:
 
 Cost: assigning identity allocates on the string path too. With `baseline.json` refreshed on purpose, `render-string/list-1k` rose from 1.742 to about 2.41 against React, and `jsx-overhead` from 3.135 to 3.318 (non-reactive) and 2.647 to 3.131 (one reactive). This is accepted; skipping identity on the string path is a possible follow-up.
 
+## Amendment: Pending boundaries
+
+`<Pending fallback>` (from `@sleekstack/ui` and the jsx-runtime) shows `fallback` while its content waits on an async Effect, then swaps in the content. It is an instance (id, key, slots): its content runs in its own fiber, scope and frame, and the resolved node is kept in a slot. `useSuspenseQuery(options)` from `@sleekstack/ui/query` is the async read to put under it.
+
+- **Keep previous.** A re-run of a Pending whose content suspends again keeps the previous content on screen until the new content resolves; the fallback shows only on the first run. A newer run interrupts and closes an unfinished older one (latest wins); removing the Pending interrupts its fiber, closes its scope and drops any late result.
+- **Errors.** A failed content run goes through the instance's Boundary handlers. With a matching `Boundary`, its fallback renders, replacing old content on a re-run too. With no matching `Boundary`, the error goes to `onError` and the Pending fallback (first run) or the old content (re-run) stays.
+- **Innermost wins.** Nested Pendings each show their own fallback for their own content. A nested instance that re-runs on its own (an atom or query change) with new suspending content never shows a fallback: its old DOM stays until the run resolves.
+- **`useSuspenseQuery`.** Its type is `Effect<T, QueryFailed, QueryClientTag | Store>`: a failed fetch is the tagged `QueryFailed { cause }`. There is no runtime missing-client error; a missing `QueryClientTag` is a compile-time requirement (and a `MissingDependency` from the Analyzer). It shares the query's observer with `useQuery`, re-runs the component when the shared result changes, and returns held data without refetching. Interrupting it cancels the fetch.
+- **String renderer.** `renderToString` awaits Pending content inline and never emits the fallback. There is no timeout: a content Effect that never settles keeps `renderToString` pending. A failure rejects with its typed error, unless a `Boundary` catches it.
+- **Fallback must not suspend.** The fallback is rendered as-is; it is not awaited, and it is not itself under the Pending.
+- **Analyzer.** It identifies Pending as `ui/pending#Pending` (the jsx-runtime re-exports it) and treats it as transparent: the content's `E` and `R` flow to the enclosing tree.
+
 ## Open decisions
 
 - The package name (`@sleekstack/ui` is a working name; the analyzer's library matcher keys on it).
