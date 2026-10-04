@@ -20,6 +20,7 @@ Effect-native component framework (MVP). The Effect program is the host; plain R
 | `DuplicateKey`, `SlotMismatch` | Runtime errors: two siblings share a key; a re-run used a different number of `useLocal` slots |
 | `Store` | Tag over core's `AtomStore`; provided by `mount` and `renderToString` |
 | `renderToString(app, { layer, onError })` | String renderer; rejects with the original failure or defect. Provides a fresh `Store`, renders reactive components once and appends the `data-sleek-hydrate` state script |
+| `renderToStream(app, { layer, nonce, idPrefix, onError })` | Streaming renderer (`ReadableStream<Uint8Array>`): the shell flushes with `Pending` fallbacks, each boundary's content follows as a chunk swapped in place. See Streaming SSR |
 | `mount(app, { layer, container, onError, store? })` | DOM renderer; provides `store` (or a new one it disposes) as `Store`; resolves to `Mounted` once the tree and every guest root are committed. A later `mount` on the same container wins |
 | `hydrateMount(app, { layer, container, onError, store? })` | Runs the app once against `renderToString` HTML and adopts the server DOM; seeds atoms and the query cache from the `data-sleek-hydrate` script (no refetch needs `staleTime > 0`). Falls back to a full `mount` on a renderer defect |
 | `HydrateConflict`, `HydrationMismatch`, `HydratePayloadInvalid` | Hydrate errors: container already mounted or hydrated; a server node did not match (replaced, reported to `onError`); a malformed state script (client initial values used). A missing script is not an error |
@@ -39,6 +40,12 @@ In the DOM, each guest renders inside a `<sleek-guest style="display: contents">
 Limits: ordinal identity is positional, so conditional siblings of one component shift each other's state (use `key`); an instance that turns from reactive to plain on a parent re-run is replaced; keyed moves have no LIS, so a swap moves the rows between; a guest boundary stays in its fallback after a throw.
 
 `sleekstack check` runs the component pass when a project's package.json lists `@sleekstack/ui` (see [`@sleekstack/analyze`](../analyze/README.md)). A runnable demo with one fixture per error code is in [`apps/ui-demo`](../../apps/ui-demo). Design: ADR 0015.
+
+## Streaming SSR
+
+`renderToStream` returns the shell first: the tree with each waiting `Pending` as `<!--sleek-p:ID-->fallback<!--/sleek-p-->`, plus one inline runtime script and the `data-sleek-hydrate` payload (with a `b` map from boundary id to path). Each resolved boundary follows as `<template data-sleek-b="ID">…</template><script>__sleekSwap("ID")</script>`, which replaces the placeholder. Boundaries that never resolve are listed in a final `__sleekEnd([ids])`; `hydrateMount` reports each as `BoundaryChunkMissing` and keeps the fallback. `hydrateMount` can run before the stream ends: it adopts each chunk as it lands. A tree with nothing pending streams exactly the `renderToString` output.
+
+Pass `nonce` for a strict CSP; every inline script carries it. Ids are `<idPrefix><n>` (default `sleek-`). The runtime is page-global and a later shell replaces it, so give each stream on one page a distinct `idPrefix`, and hydrate at most one. A streamed page hydrates; it does not `resume`. Protocol: ADR 0023.
 
 ## Installing
 

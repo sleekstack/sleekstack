@@ -162,7 +162,7 @@ _Avoid_: Context provider, LayerProvider
 _Avoid_: Error boundary, try
 
 **Pending**:
-`<Pending fallback>{children}</Pending>`: an instance that renders `fallback` while its children wait on an async Effect (such as `useSuspenseQuery`), then the children. A re-run keeps the previous content until the new content resolves; `renderToString` awaits the content and never emits the fallback. A content error goes to the enclosing `Boundary` (ADR 0015).
+`<Pending fallback>{children}</Pending>`: an instance that renders `fallback` while its children wait on an async Effect (such as `useSuspenseQuery`), then the children. A re-run keeps the previous content until the new content resolves; `renderToString` awaits the content and never emits the fallback. `renderToStream` emits the fallback in the shell and the content later as a chunk (ADR 0023). A content error goes to the enclosing `Boundary` (ADR 0015).
 _Avoid_: Suspense, loading provider, provider
 
 **Store** *(ui)*:
