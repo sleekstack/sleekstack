@@ -4,7 +4,7 @@ import { Component, createElement, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { createRoot, type Root } from 'react-dom/client'
 import { reportRenderError, runToNode } from './component'
-import type { ElementNode, FragmentNode, GuestNode, Node, ReactiveNode } from './node'
+import type { ElementNode, EventBinding, FragmentNode, GuestNode, Node, ReactiveNode } from './node'
 import { commitSlots, disposeSlots, dropSlots, DuplicateKey, fallbacks, Frame, makeFrame, RenderScope, type RunFrame, runScopes, Store } from './reactive'
 import { checkAttr, checkTag } from './string'
 
@@ -37,6 +37,15 @@ interface Live {
   readonly key?: string
   readonly inst?: Instance
   readonly root?: Root
+  /** An element's event state; shared by every Live of that element across patches. */
+  readonly ev?: Events
+}
+// One direct listener per event name reads the current binding, so a patch swaps closures without re-listening.
+interface Events {
+  bindings: Readonly<Record<string, EventBinding>>
+  readonly listeners: Map<string, (event: Event) => void>
+  readonly fibers: Set<Fiber.RuntimeFiber<void, unknown>>
+  dead: boolean
 }
 // The live children of a host (an instance's or the mount's) and the run scopes of its untracked components.
 interface Owner {
@@ -79,6 +88,11 @@ const dropScopes = (node: Node): void => {
 const drop = (l: Live): void => {
   if (l.inst) kill(l.inst)
   if (l.root) l.root.unmount()
+  if (l.ev) {
+    l.ev.dead = true
+    for (const f of l.ev.fibers) Effect.runFork(Fiber.interrupt(f))
+    l.ev.fibers.clear()
+  }
   l.kids.forEach(drop)
 }
 const release = (o: Owner): void => {
@@ -186,6 +200,37 @@ const setProp = (el: Element, k: string, v: string | undefined): void => {
   if (k === 'checked' && f.checked !== (v !== undefined)) f.checked = v !== undefined
 }
 
+// Sync throw, non-Effect return, failure or defect go to `onError`; fibers end with the element.
+const dispatch = (ev: Events, name: string, event: Event, onError?: OnError): void => {
+  const b = ev.bindings[name]
+  if (!b || ev.dead) return
+  let fiber: Fiber.RuntimeFiber<void, unknown>
+  try {
+    const eff = b.run(event)
+    if (!Effect.isEffect(eff)) throw new TypeError(`on${name} handler did not return an Effect`)
+    fiber = Effect.runFork(Effect.provide(eff, b.context))
+  } catch (error) {
+    return reportRenderError(error, onError)
+  }
+  ev.fibers.add(fiber)
+  fiber.addObserver((exit) => {
+    ev.fibers.delete(fiber)
+    if (Exit.isFailure(exit) && !Cause.isInterruptedOnly(exit.cause)) safeReport(exit.cause, onError)
+  })
+}
+const listen = (el: Element, ev: Events, names: Iterable<string>, onError?: OnError): void => {
+  for (const name of names) {
+    const f = (event: Event) => dispatch(ev, name, event, onError)
+    ev.listeners.set(name, f)
+    el.addEventListener(name, f)
+  }
+}
+const relisten = (el: Element, ev: Events, next: Readonly<Record<string, EventBinding>>, onError?: OnError): void => {
+  for (const [name, f] of ev.listeners) if (!Object.hasOwn(next, name)) (el.removeEventListener(name, f), ev.listeners.delete(name))
+  ev.bindings = next
+  listen(el, ev, Object.keys(next).filter((n) => !ev.listeners.has(n)), onError)
+}
+
 // The boundary keeps its identity across renders, so a failed guest stays empty until unmounted.
 const renderGuest = (root: Root, node: GuestNode, env: Env): void => {
   const report = (error: unknown) => reportRenderError(error, env.onError)
@@ -209,7 +254,10 @@ const build = (node: Leaf, key: string | undefined, env: Env, scopes: Array<Scop
         const kids = buildAll(node.children, env, scopes, el)
         // After the options, so a `<select>` value finds its option.
         if (FORM.has(el.tagName)) for (const k of ['value', 'checked']) if (Object.hasOwn(node.attrs, k)) setProp(el, k, node.attrs[k])
-        return { node, dom: el, kids, ...keyed }
+        if (!node.events) return { node, dom: el, kids, ...keyed }
+        const ev: Events = { bindings: node.events, listeners: new Map(), fibers: new Set(), dead: false }
+        listen(el, ev, Object.keys(node.events), env.onError)
+        return { node, dom: el, kids, ev, ...keyed }
       }
       case 'Reactive': {
         const host = env.doc.createElement('sleek-reactive')
@@ -274,7 +322,13 @@ const patch = (prev: Live, node: Leaf, key: string | undefined, env: Env, p: Pla
     const kids = patchChildren(el, prev.kids, (node as ElementNode).children, env, p)
     const props = FORM.has(el.tagName) ? changed.filter(([k]) => k === 'value' || k === 'checked') : []
     if (props.length > 0) p.ops.push(() => props.forEach(([k, v]) => setProp(el, k, v)))
-    return { node, dom: el, kids, ...keyed }
+    const events = (node as ElementNode).events ?? {}
+    let ev = prev.ev
+    if (ev || Object.keys(events).length > 0) {
+      const e = (ev ??= { bindings: {}, listeners: new Map(), fibers: new Set(), dead: false })
+      p.ops.push(() => relisten(el, e, events, env.onError))
+    }
+    return { node, dom: el, kids, ...(ev && { ev }), ...keyed }
   } catch (error) {
     env.defect(error)
     return prev

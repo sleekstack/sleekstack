@@ -659,3 +659,71 @@ describe('reconciler', () => {
     expect(container.textContent).toBe('u7')
   })
 })
+
+describe('host events', () => {
+  const click = (c: Element, sel = 'button') => c.querySelector(sel)!.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+
+  it('a closure sees Provider layers above the element, including inside an atom-free component', async () => {
+    const seen: Array<string> = []
+    const Btn = () => jsx('button', { onClick: () => Effect.map(Greeting, (g) => void seen.push(g)) })
+    const Mid = () => jsx(Provider, { layer: Layer.succeed(Greeting, 'inner'), children: jsx(Btn, {}) })
+    const { container } = await go(jsx(Provider, { layer: Layer.succeed(Greeting, 'outer'), children: jsx('div', { children: [jsx(Btn, {}), jsx(Mid, {})] }) }))
+    for (const b of container.querySelectorAll('button')) b.click()
+    expect(seen).toEqual(['outer', 'inner'])
+  })
+
+  it('a sync preventDefault runs before the listener returns; a non-bubbling event works', async () => {
+    let entered = 0
+    const { container } = await go(jsx('div', { children: [jsx('button', { onClick: (e: Event) => Effect.sync(() => e.preventDefault()) }), jsx('i', { onMouseenter: () => Effect.sync(() => entered++) })] }))
+    expect(click(container)).toBe(false)
+    container.querySelector('i')!.dispatchEvent(new MouseEvent('mouseenter', { bubbles: false }))
+    expect(entered).toBe(1)
+  })
+
+  it('one listener across patches; the closure swaps; removing the prop removes the listener', async () => {
+    const n = Atom.make(0)
+    const log: Array<number> = []
+    const add = vi.spyOn(HTMLElement.prototype, 'addEventListener')
+    const P = () => Effect.flatMap(useAtomValue(n), (v) => jsx('button', v < 3 ? { onClick: () => Effect.sync(() => log.push(v)) } : {}))
+    const { container, store } = await go(jsx(P, {}))
+    for (const v of [1, 2]) {
+      store.set(n, v)
+      await tick()
+    }
+    click(container)
+    expect(add.mock.calls.filter(([t]) => t === 'click')).toHaveLength(1)
+    store.set(n, 3)
+    await tick()
+    click(container)
+    expect(log).toEqual([2])
+    add.mockRestore()
+  })
+
+  it('failure, defect, sync throw and non-Effect return reach onError', async () => {
+    const errors: Array<Cause.Cause<unknown>> = []
+    const handlers = [() => Effect.fail(new Boom()), () => Effect.die('d'), () => { throw new Error('t') }, () => 42]
+    const { container } = await go(jsx('div', { children: handlers.map((h) => jsx('button', { onClick: h })) }), { onError: (c) => errors.push(c) })
+    for (const b of container.querySelectorAll('button')) b.click()
+    expect(errors).toHaveLength(4)
+  })
+
+  it('in-flight fibers are interrupted on removal and dispose; no closure runs after dispose', async () => {
+    const show = Atom.make(true)
+    let interrupted = 0
+    let ran = 0
+    const slow = () => Effect.onInterrupt(Effect.never, () => Effect.sync(() => interrupted++))
+    const P = () => Effect.flatMap(useAtomValue(show), (s) => jsx('div', { children: [s ? jsx('button', { onClick: slow }) : null, jsx('a', { onClick: () => Effect.sync(() => ran++).pipe(Effect.zipRight(slow())) })] }))
+    const { container, store, handle } = await go(jsx(P, {}))
+    click(container)
+    store.set(show, false)
+    await tick()
+    expect(interrupted).toBe(1)
+    const a = container.querySelector('a')!
+    a.click()
+    await act(() => handle.dispose())
+    await tick()
+    expect(interrupted).toBe(2)
+    a.click()
+    expect(ran).toBe(1)
+  })
+})
