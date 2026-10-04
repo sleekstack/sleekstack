@@ -23,9 +23,10 @@ Pre-flush errors reject; post-flush errors stream the nearest Boundary fallback,
 - [ ] Cancelling interrupts pending fibers, closes scopes, retain counts 0 (R4).
 
 ## Done summary
-TBD
+Post-flush failures: the Pending instance's re-run carries its captured handlers, so a failure caught by an enclosing Boundary streams that fallback as the chunk; unhandled, no chunk is sent, the Pending fallback stays and onError gets one report. cancel() now also interrupts in-flight boundary re-run fibers (tracked set) before disposing slots/scope/store; late errors after cancel are dropped (disposed guard) and query observer retain count goes to 0. Most of this behavior already existed from .1; the three new tests in stream.test.ts pin it (they pass with or without the re-run interruption, which covers a re-run racing cancel).
 
+stage: impl-review - skipped(config: no review requested by conductor)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 7310099925579008b97be7305e3bb57e3a2c8e59
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/ui... --filter=ui-demo
 - PRs:
