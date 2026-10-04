@@ -3,8 +3,11 @@ import { Atom, makeAtomStore } from '@sleekstack/core'
 import { Cause, Context, Effect, Layer, Schema } from 'effect'
 import { act, createElement, useState } from 'react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { bind, Boundary, el, fromReact, HydrateConflict, HydrationMismatch, hydrateMount, mount, type Mounted, renderToString, useAtomValue, useLocal } from '../index'
+import { bind, Boundary, el, fromReact, HydrateConflict, HydrationMismatch, hydrateMount, mount, type Mounted, renderToString, Store, useAtomValue, useLocal } from '../index'
 import { jsx as rawJsx } from '../jsx-runtime'
+import { useQuery } from '../query'
+import { QueryClientTag } from '@sleekstack/query'
+import { QueryClient } from '@tanstack/query-core'
 
 const jsx = (type: any, props: any) => rawJsx(type, props)
 const tick = () => new Promise((r) => setTimeout(r, 0))
@@ -309,5 +312,60 @@ describe('hydrateMount keyed lists, form values, whitespace', () => {
       expect(container.querySelector('sleek-guest')!.textContent).toBe('ok')
       expect(mismatches(onError)).toHaveLength(1)
     })
+  })
+})
+
+describe('hydrateMount state payload (R5)', () => {
+  const count = Atom.serializable(Atom.make(0), { key: 'count', schema: Schema.Number })
+  const Show = () => Effect.flatMap(useAtomValue(count), (n) => jsx('b', { children: `n=${n}` }))
+  const SetOnServer = () => Effect.flatMap(Store, (s) => (s.set(count, 7), jsx(Show, {})))
+
+  it('server atom state is the client initial value, each component runs once, given store seeded too', async () => {
+    const container = document.createElement('div')
+    container.innerHTML = await renderToString(jsx(SetOnServer, {}), { layer: Layer.empty })
+    expect(container.innerHTML).toContain('data-sleek-hydrate')
+    expect(container.innerHTML).not.toContain('data-sleek-manifest')
+    const store = makeAtomStore()
+    const onError = vi.fn()
+    let runs = 0
+    const App = () => (runs++, jsx(Show, {}))
+    await act(async () => void handles.push(await hydrateMount(jsx(App, {}), { layer: Layer.empty, container, onError, store })))
+    expect(onError).not.toHaveBeenCalled()
+    expect(runs).toBe(1)
+    expect(store.get(count)).toBe(7)
+    expect(container.textContent).toBe('n=7')
+    expect(container.querySelector('script')).toBeNull()
+  })
+
+  it('server query state is the client initial value with no refetch', async () => {
+    let calls = 0
+    const queryFn = async () => (calls++, 'srv')
+    const Q = () => Effect.map(useQuery({ queryKey: ['q'], queryFn, staleTime: 60_000 }), (r) => el('b', {}, `${r.status}:${r.data ?? ''}`))
+    const server = new QueryClient()
+    await server.prefetchQuery({ queryKey: ['q'], queryFn })
+    const container = document.createElement('div')
+    container.innerHTML = await renderToString(jsx(Q, {}), { layer: Layer.succeed(QueryClientTag, server) })
+    expect(calls).toBe(1)
+    const onError = vi.fn()
+    await act(async () => void handles.push(await hydrateMount(jsx(Q, {}), { layer: Layer.succeed(QueryClientTag, new QueryClient()), container, onError })))
+    await act(tick)
+    expect(onError).not.toHaveBeenCalled()
+    expect(container.querySelector('b')!.textContent).toBe('success:srv')
+    expect(calls).toBe(1)
+  })
+
+  it.each([
+    ['missing', '', 0],
+    ['malformed JSON', '<script type="application/json" data-sleek-hydrate>{nope</script>', 1],
+    ['wrong shape', '<script type="application/json" data-sleek-hydrate>{"v":2}</script>', 1],
+  ])('%s payload falls back to client initial values', async (_, script, reports) => {
+    const container = document.createElement('div')
+    container.innerHTML = '<sleek-reactive style="display: contents;"><b>n=7</b></sleek-reactive>' + script
+    const onError = vi.fn()
+    await act(async () => void handles.push(await hydrateMount(jsx(Show, {}), { layer: Layer.empty, container, onError })))
+    const tags = onError.mock.calls.map(([c]) => (Cause.failureOption(c) as any).value?._tag)
+    expect(tags.filter((t) => t === 'HydratePayloadInvalid')).toHaveLength(reports)
+    expect(container.querySelector('b')!.textContent).toBe('n=0')
+    expect(container.querySelector('script')).toBeNull()
   })
 })

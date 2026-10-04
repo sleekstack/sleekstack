@@ -1,7 +1,9 @@
-import { type Cause, Effect, type Layer, Schema } from 'effect'
+import { type Cause, Effect, type Layer, Option, Schema } from 'effect'
 import { createElement } from 'react'
 import { renderToString as reactRenderToString } from 'react-dom/server'
-import { type Atom, type AtomStore, makeAtomStore } from '@sleekstack/core'
+import { type Atom, type AtomStore, dehydrate, makeAtomStore } from '@sleekstack/core'
+import { QueryClientTag } from '@sleekstack/query'
+import { dehydrate as dehydrateQueries, type DehydratedState } from '@tanstack/query-core'
 import { reportRenderError, runToNode } from './component'
 import { checkEvent, DuplicateBindKey, DuplicateHandler, type Handler, valueInfo } from './handler'
 import type { ElementNode, Node } from './node'
@@ -55,6 +57,16 @@ const manifest = (c: Collector): string =>
         events: [...c.events],
         atoms: Object.fromEntries([...c.atoms].map(([k, { value }]) => [k, value])),
       })}</script>`
+
+/**
+ * Hydration state (`data-sleek-hydrate`, distinct from the resume manifest): core `dehydrate` atoms and TanStack
+ * `DehydratedState` queries. Omitted when both are empty.
+ */
+const payload = (atoms: Record<string, unknown>, queries: DehydratedState | undefined): string => {
+  const q = queries && (queries.queries.length > 0 || queries.mutations.length > 0) ? queries : undefined
+  if (Object.keys(atoms).length === 0 && !q) return ''
+  return `<script type="application/json" data-sleek-hydrate>${scriptJson({ v: 1, atoms, ...(q ? { queries: q } : {}) })}</script>`
+}
 
 // Handler ids and bind keys must survive an HTML attribute round trip unchanged.
 const ID = /^[A-Za-z0-9_.:/-]+$/
@@ -141,19 +153,24 @@ const serialize = (node: Node, c: Collector): string => {
 /**
  * String renderer (SSR and tests). Rejection contract matches `mount`. Provides a fresh `Store`, disposed afterwards.
  * Handlers (`on`) and `bind` nodes emit `data-sleek-*` attributes and one trailing manifest script; rejects with
- * `DuplicateHandler`, `DuplicateBindKey` or `UnsupportedEvent`.
+ * `DuplicateHandler`, `DuplicateBindKey` or `UnsupportedEvent`. Serializable atom state and the layer's QueryClient
+ * cache go into a trailing `data-sleek-hydrate` script that `hydrateMount` seeds from.
  */
 export const renderToString = async <E, A, LE = never>(
   app: Effect.Effect<Node, E, A>,
   opts: { layer: Layer.Layer<Exclude<A, Store>, LE, never>; onError?: (cause: Cause.Cause<unknown>) => void },
 ): Promise<string> => {
-  const store = makeAtomStore()
+  // Idle nodes stay until dispose, so `dehydrate` sees every atom the render built.
+  const store = makeAtomStore({ scheduleTask: () => {} })
   try {
-    const withStore = app.pipe(Effect.provideService(Store, store), Effect.provideService(Frame, makeFrame())) as Effect.Effect<Node, E, Exclude<A, Store>>
+    let queries: DehydratedState | undefined
+    // The scope's QueryClient (when the layer provides one) is dehydrated after the render's fetches settled.
+    const captured = Effect.tap(app, () => Effect.map(Effect.serviceOption(QueryClientTag), (c) => void (queries = Option.isSome(c) ? dehydrateQueries(c.value) : undefined)))
+    const withStore = captured.pipe(Effect.provideService(Store, store), Effect.provideService(Frame, makeFrame())) as Effect.Effect<Node, E, Exclude<A, Store>>
     const node = await runToNode(withStore, opts.layer, opts.onError)
     const c: Collector = { store, onError: opts.onError, handlers: new Map(), events: new Set(), atoms: new Map() }
     const html = serialize(node, c)
-    return html + manifest(c)
+    return html + manifest(c) + payload(dehydrate(store), queries)
   } finally {
     await store.dispose()
   }

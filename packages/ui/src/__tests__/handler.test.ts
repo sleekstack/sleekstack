@@ -19,14 +19,15 @@ describe('resumable server render', () => {
         '<sleek-bind data-sleek-bind="count">3</sleek-bind>' +
         '<a data-sleek-on-click="inc" data-sleek-pd-click data-sleek-sp-click></a>' +
         '<sleek-bind data-sleek-bind="count">3</sleek-bind>' +
-        '<script type="application/json" data-sleek-manifest>{"v":1,"events":["click","keydown"],"atoms":{"count":3}}</script>',
+        '<script type="application/json" data-sleek-manifest>{"v":1,"events":["click","keydown"],"atoms":{"count":3}}</script>' +
+        '<script type="application/json" data-sleek-hydrate>{"v":1,"atoms":{"count":3}}</script>',
     )
   })
 
   it('keeps manifest values inert in the script', async () => {
     const text = Atom.serializable(Atom.make('</script><b>&\u2028\u2029'), { key: 't', schema: Schema.String })
     const html = await render(bind(text))
-    const script = html.slice(html.indexOf('<script'))
+    const script = html.slice(html.indexOf('<script'), html.indexOf('<script', html.indexOf('<script') + 1))
     expect(script).toBe(
       '<script type="application/json" data-sleek-manifest>{"v":1,"events":[],"atoms":{"t":"\\u003c/script\\u003e\\u003cb\\u003e\\u0026\\u2028\\u2029"}}</script>',
     )

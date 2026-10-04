@@ -14,6 +14,10 @@ type Entry = { observer: QueryObserver<any, any, any, any, any>; atom: Atom.Writ
 
 const registries = new WeakMap<AtomStore, Map<string, Entry>>()
 
+// Server render: read the result through a throwaway atom so the component is a `Reactive` instance on the server
+// too, matching the client's markup for hydration.
+const serverRead = <A>(value: A): Effect.Effect<A, never, Store> => useAtomValue(Atom.make(value))
+
 /** The scope's `QueryClient`. */
 export const useQueryClient = (): Effect.Effect<QueryClient, never, QueryClientTag> => QueryClientTag
 
@@ -35,7 +39,7 @@ export const useQuery = <TQueryFnData = unknown, TError = Error, TData = TQueryF
     const store = yield* Store
     const scope = yield* RenderScope
     const defaulted = client.defaultQueryOptions(options as QueryObserverOptions<any, any, any, any, any>)
-    if (!scope) return new QueryObserver(client, defaulted).getOptimisticResult(defaulted) as QueryObserverResult<TData, TError>
+    if (!scope) return (yield* serverRead(new QueryObserver(client, defaulted).getOptimisticResult(defaulted))) as QueryObserverResult<TData, TError>
     const e = yield* retain(client, store, scope, defaulted)
     return (yield* useAtomValue(e.atom)) as QueryObserverResult<TData, TError>
   })
@@ -92,13 +96,14 @@ export const useSuspenseQuery = <TQueryFnData = unknown, TError = Error, TQueryK
       const result = (yield* useAtomValue((yield* retain(client, yield* Store, scope, defaulted)).atom)) as QueryObserverResult<TQueryFnData, TError>
       if (result.data !== undefined) return result.status === 'error' ? yield* Effect.fail(new QueryFailed({ cause: result.error })) : result.data
     }
-    return yield* Effect.tryPromise({
+    const data = yield* Effect.tryPromise({
       try: (signal) => {
         signal.addEventListener('abort', () => void client.cancelQueries({ queryKey: defaulted.queryKey, exact: true }))
         return client.fetchQuery(defaulted as any) as Promise<TQueryFnData>
       },
       catch: (cause) => new QueryFailed({ cause }),
     })
+    return scope ? data : yield* serverRead(data)
   })
 
 /** `useMutation` result: TanStack's result plus `mutateAsync`; `mutate` swallows the rejection (the error is in the result), `mutateAsync` keeps it. */
@@ -132,7 +137,8 @@ export const useMutation = <TData = unknown, TError = Error, TVariables = void, 
     })
     if (!scope || !id) {
       const observer = new MutationObserver<TData, TError, TVariables, TContext>(client, options)
-      return withMutate(observer, observer.getCurrentResult())
+      const idle = withMutate(observer, observer.getCurrentResult())
+      return scope ? idle : yield* serverRead(idle)
     }
     const store = yield* Store
     const index = calls.get(scope) ?? 0

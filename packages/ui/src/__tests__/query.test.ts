@@ -167,6 +167,6 @@ describe('useSuspenseQuery', () => {
   })
 
   it('awaits under renderToString without a loading state', async () => {
-    expect(await renderToString(jsx(Data('r', async () => 'server'), {}), { layer: QueryClientLive() } as any)).toBe('<b>server</b>')
+    expect(await renderToString(jsx(Data('r', async () => 'server'), {}), { layer: QueryClientLive() } as any)).toMatch(/^<sleek-reactive style="display: contents;"><b>server<\/b><\/sleek-reactive><script type="application\/json" data-sleek-hydrate>/)
   })
 })

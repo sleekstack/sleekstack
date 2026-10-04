@@ -1,10 +1,12 @@
-import { Cause, Data, type Effect, type Layer, type Scope } from 'effect'
-import type { AtomStore } from '@sleekstack/core'
+import { Cause, Data, Effect, type Layer, Option, type Scope } from 'effect'
+import { type AtomStore, hydrate } from '@sleekstack/core'
+import { QueryClientTag } from '@sleekstack/query'
+import { type DehydratedState, hydrate as hydrateQueries } from '@tanstack/query-core'
 import { hydrateRoot } from 'react-dom/client'
 import { reportRenderError } from './component'
 import { build, mount, type Env, type Events, flat, guestElement, type Instance, keysOf, type Leaf, listen, type Live, type Mounted, owned, start, watch } from './dom'
 import type { Node } from './node'
-import type { Store } from './reactive'
+import { Store } from './reactive'
 import { checkAttr, checkTag, TEXT_SEPARATOR } from './string'
 
 /** `hydrateMount` on a container that a `mount` or `hydrateMount` already rendered into. */
@@ -20,14 +22,50 @@ const isSeparator = (d: ChildNode): boolean => d.nodeType === 8 && (d as Comment
  */
 export class HydrationMismatch extends Data.TaggedError('HydrationMismatch')<{ readonly expected: string; readonly found: string }> {}
 
-const report = (env: Env, expected: string, found: ChildNode | string | undefined): void => {
-  const cause = Cause.fail(new HydrationMismatch({ expected, found: typeof found === 'string' ? found : found ? found.nodeName : 'nothing' }))
-  if (!env.onError) return console.error(cause)
+/** The `data-sleek-hydrate` state script is not valid JSON or not a v1 payload; hydration falls back to client initial values. */
+export class HydratePayloadInvalid extends Data.TaggedError('HydratePayloadInvalid')<{ readonly reason: string }> {}
+
+type Payload = { atoms: Record<string, unknown>; queries?: DehydratedState }
+
+const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
+
+// Reads and removes the container's state script. Missing: nothing to seed. Malformed: reported, nothing seeded.
+const readPayload = (container: Element, onError?: (cause: Cause.Cause<unknown>) => void): Payload | undefined => {
+  const script = [...container.children].find((c) => c.matches('script[data-sleek-hydrate]'))
+  if (!script) return undefined
+  script.remove()
   try {
-    env.onError(cause)
+    const p: unknown = JSON.parse(script.textContent ?? '')
+    if (!isRecord(p) || p.v !== 1 || !isRecord(p.atoms)) throw new Error('not a v1 payload')
+    if (p.queries !== undefined && !(isRecord(p.queries) && Array.isArray(p.queries.queries) && Array.isArray(p.queries.mutations))) throw new Error('queries is not a DehydratedState')
+    return p as Payload
+  } catch (error) {
+    sink(Cause.fail(new HydratePayloadInvalid({ reason: error instanceof Error ? error.message : String(error) })), onError)
+    return undefined
+  }
+}
+
+const sink = (cause: Cause.Cause<unknown>, onError?: (cause: Cause.Cause<unknown>) => void): void => {
+  if (!onError) return console.error(cause)
+  try {
+    onError(cause)
   } catch (sinkError) {
     console.error(sinkError)
   }
+}
+
+// Seeds the store and the scope's QueryClient before the app's first run, so each component runs once with server state.
+const seeded = <E, A>(app: Effect.Effect<Node, E, A>, p: Payload): Effect.Effect<Node, E, A | Store> =>
+  Effect.flatMap(Store, (store) =>
+    Effect.flatMap(Effect.serviceOption(QueryClientTag), (client) => {
+      hydrate(store, p.atoms)
+      if (p.queries && Option.isSome(client)) hydrateQueries(client.value, p.queries)
+      return app
+    }),
+  )
+
+const report = (env: Env, expected: string, found: ChildNode | string | undefined): void => {
+  sink(Cause.fail(new HydrationMismatch({ expected, found: typeof found === 'string' ? found : found ? found.nodeName : 'nothing' })), env.onError)
 }
 
 const mismatch = (n: Leaf, key: string | undefined, dom: ChildNode | undefined, parent: globalThis.Node, env: Env, scopes: Array<Scope.CloseableScope>): Live | null => {
@@ -131,13 +169,17 @@ const adoptAll = (nodes: ReadonlyArray<Node>, parent: globalThis.Node, env: Env,
  * Hydrates server markup from `renderToString` in `container`: runs the app once and adopts the existing DOM
  * (listeners, `useLocal` slots and subscriptions attach; matching nodes are kept). Same options, `onError` and
  * dispose as `mount`; a later `mount` on the container replaces it. Rejects with `HydrateConflict` when the container
- * was already mounted or hydrated.
+ * was already mounted or hydrated. The `data-sleek-hydrate` state script seeds the store (also a given `opts.store`)
+ * and the layer's QueryClient before the first run; a malformed one is reported as `HydratePayloadInvalid` and the
+ * app starts from client initial values.
  */
 export const hydrateMount = async <E, A, LE = never>(
   app: Effect.Effect<Node, E, A>,
   opts: { layer: Layer.Layer<Exclude<A, Store>, LE, never>; container: Element; onError?: (cause: Cause.Cause<unknown>) => void; store?: AtomStore },
 ): Promise<Mounted> => {
   if (owned(opts.container)) throw new HydrateConflict({ container: opts.container })
+  const p = readPayload(opts.container, opts.onError)
+  if (p) app = seeded(app, p) as typeof app
   let broken = false
   const h = await start(app, opts, (container, node, env, scopes) => adoptAll([node], container, { ...env, defect: (e) => ((broken = true), env.defect(e)) }, scopes))
   if (!broken) return h
