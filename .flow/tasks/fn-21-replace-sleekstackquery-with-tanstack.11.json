@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-21-replace-sleekstackquery-with-tanstack",
   "spec_path": ".flow/tasks/fn-21-replace-sleekstackquery-with-tanstack.11.md",
-  "status": "todo",
+  "status": "done",
   "title": "ui-demo: query-driven list with a mutation from a guest",
   "updated_at": "2026-10-03T15:46:36.282752Z"
 }
