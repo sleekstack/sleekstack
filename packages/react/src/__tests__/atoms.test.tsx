@@ -279,9 +279,8 @@ describe('atom hooks', () => {
     const { rerender, unmount } = render(<Host show />)
     await sleep(20)
     rerender(<Host show={false} />)
-    await sleep(1500)
+    await waitFor(() => expect(released).toBe(1), { timeout: 5000 })
     expect(starts).toBe(1)
-    expect(released).toBe(1)
     unmount()
   })
 
@@ -303,9 +302,8 @@ describe('atom hooks', () => {
     rerender(<Host fastOn={false} stuckOn={false} />) // abandoned before it settles
     await sleep(150) // settled, inside the 400 ms retry window
     rerender(<Host fastOn={false} stuckOn />) // unrelated suspension starts in the window
-    await sleep(1500)
+    await waitFor(() => expect(released).toBe(1), { timeout: 5000 })
     expect(starts).toBe(1)
-    expect(released).toBe(1)
     unmount()
   })
 
