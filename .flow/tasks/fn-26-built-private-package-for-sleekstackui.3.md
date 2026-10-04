@@ -24,9 +24,12 @@ Points ui `main`/`types`/`exports` at dist for `.`, `./jsx-runtime`, `./jsx-dev-
 - [ ] `effect` is a peer in ui's manifest (R4).
 
 ## Done summary
-TBD
+ui main/types/exports point at dist for ., ./jsx-runtime, ./jsx-dev-runtime, ./query (types before default); effect is a peer (^3.15.0, same range as core/query, compatible with ui-demo ^3.21.2) plus devDependency. Emitted dist/jsx-runtime.d.ts carries the JSX namespace. No analyzer/docs changes needed: the .2 libId regex and entry-points dist->src mapping are package-generic.
 
+Gate: pnpm turbo run test typecheck build --filter=...@sleekstack/ui --force (dist deleted first) -> Tasks: 13 successful, 13 total.
+
+stage: impl-review - skipped(config: conductor requested no review)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 20eb3e38c0eb096061b59516bffbef407ef17da2
+- Tests: pnpm turbo run test typecheck build --filter=...@sleekstack/ui --force
 - PRs:
