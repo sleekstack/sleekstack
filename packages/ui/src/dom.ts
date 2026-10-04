@@ -29,7 +29,7 @@ class GuestBoundary extends Component<{ report: (error: unknown) => void; childr
 }
 
 // What one rendered node left on screen: its single DOM node and what a patch needs. Fragments are flattened away.
-interface Live {
+export interface Live {
   readonly node: Exclude<Node, FragmentNode>
   readonly dom: ChildNode
   readonly kids: ReadonlyArray<Live>
@@ -49,7 +49,7 @@ interface BoundAttrs {
   off: () => void
 }
 // One direct listener per event name reads the current binding, so a patch swaps closures without re-listening.
-interface Events {
+export interface Events {
   bindings: Readonly<Record<string, EventBinding>>
   readonly listeners: Map<string, (event: Event) => void>
   readonly fibers: Set<Fiber.RuntimeFiber<void, unknown>>
@@ -60,7 +60,7 @@ interface Owner {
   lives: Array<Live>
   scopes: Array<Scope.CloseableScope>
 }
-interface Instance extends Owner {
+export interface Instance extends Owner {
   host: HTMLElement
   rerun: Effect.Effect<Node>
   unsubs: Array<() => void>
@@ -118,7 +118,7 @@ const drop = (l: Live): void => {
   }
   l.kids.forEach(drop)
 }
-const release = (o: Owner): void => {
+export const release = (o: Owner): void => {
   o.lives.splice(0).forEach(drop)
   for (const scope of o.scopes.splice(0)) closeScope(scope)
 }
@@ -153,7 +153,7 @@ const teardown = (container: Element, state: ContainerState): Promise<void> => {
 }
 
 // Renderer state for one patch. `defect` receives renderer failures (reported on first render; a re-run patch collects them).
-interface Env {
+export interface Env {
   doc: Document
   store: AtomStore
   onError?: OnError
@@ -191,8 +191,8 @@ const commit = (p: Plan): void => {
   for (const f of p.after) f()
 }
 
-type Leaf = Exclude<Node, FragmentNode>
-const flat = (nodes: ReadonlyArray<Node>, scopes: Array<Scope.CloseableScope>, out: Array<Leaf> = []): Array<Leaf> => {
+export type Leaf = Exclude<Node, FragmentNode>
+export const flat = (nodes: ReadonlyArray<Node>, scopes: Array<Scope.CloseableScope>, out: Array<Leaf> = []): Array<Leaf> => {
   for (const n of nodes) {
     if (n._tag !== 'Fragment') out.push(n)
     else {
@@ -204,7 +204,7 @@ const flat = (nodes: ReadonlyArray<Node>, scopes: Array<Scope.CloseableScope>, o
   return out
 }
 // A repeated key reports `DuplicateKey` and the later sibling is unkeyed.
-const keysOf = (nodes: ReadonlyArray<Leaf>, env: Env): Array<string | undefined> => {
+export const keysOf = (nodes: ReadonlyArray<Leaf>, env: Env): Array<string | undefined> => {
   const seen = new Set<string>()
   return nodes.map((n) => {
     const k = n._tag === 'Element' || n._tag === 'Reactive' || n._tag === 'Guest' ? n.key : undefined
@@ -269,7 +269,7 @@ const dispatch = (ev: Events, name: string, event: Event, onError?: OnError): vo
     if (Exit.isFailure(exit) && !Cause.isInterruptedOnly(exit.cause)) safeReport(exit.cause, onError)
   })
 }
-const listen = (el: Element, ev: Events, names: Iterable<string>, onError?: OnError): void => {
+export const listen = (el: Element, ev: Events, names: Iterable<string>, onError?: OnError): void => {
   for (const name of names) {
     const f = (event: Event) => dispatch(ev, name, event, onError)
     ev.listeners.set(name, f)
@@ -283,12 +283,12 @@ const relisten = (el: Element, ev: Events, next: Readonly<Record<string, EventBi
 }
 
 // The boundary keeps its identity across renders, so a failed guest stays empty until unmounted.
-const renderGuest = (root: Root, node: GuestNode, env: Env): void => {
+export const renderGuest = (root: Root, node: GuestNode, env: Env): void => {
   const report = (error: unknown) => reportRenderError(error, env.onError)
   flushSync(() => root.render(createElement(GuestBoundary, { report }, createElement(node.component, node.props))))
 }
 
-const build = (node: Leaf, key: string | undefined, env: Env, scopes: Array<Scope.CloseableScope>): Live | null => {
+export const build = (node: Leaf, key: string | undefined, env: Env, scopes: Array<Scope.CloseableScope>): Live | null => {
   try {
     const keyed = key === undefined ? {} : { key }
     switch (node._tag) {
@@ -541,7 +541,7 @@ const selection = (el: HTMLInputElement): readonly [number | null, number | null
   }
 }
 // A value that moved between the run's read and this subscription (an async run, a guest commit) re-runs at once.
-const watch = (inst: Instance, node: ReactiveNode, env: Env): void => {
+export const watch = (inst: Instance, node: ReactiveNode, env: Env): void => {
   if (inst.dead) return
   // Changes in one tick (a store batch, or several atoms) coalesce into one re-run.
   const epoch = inst.epoch
@@ -635,9 +635,22 @@ const safeReport = (cause: Cause.Cause<unknown>, onError?: OnError): void => {
  * A later `mount` on the same container wins; each handle disposes only its own generation.
  * Provides `Store` (`opts.store`, or a store it creates and disposes) and re-renders components that read atoms.
  */
-export const mount = async <E, A, LE = never>(
+export const mount = <E, A, LE = never>(
   app: Effect.Effect<Node, E, A>,
   opts: { layer: Layer.Layer<Exclude<A, Store>, LE, never>; container: Element; onError?: OnError; store?: AtomStore },
+): Promise<Mounted> => start(app, opts)
+
+/** Builds the first lives into `container` from the first run's node; mutates the DOM directly (no plan). */
+export type Adopt = (container: Element, node: Node, env: Env, scopes: Array<Scope.CloseableScope>) => Array<Live>
+
+/** Whether `container` already carries renderer state (a mount or hydrate, live or disposed). */
+export const owned = (container: Element): boolean => states.has(container)
+
+// Shared by `mount` and `hydrateMount`: with `adopt`, the existing DOM is kept and walked instead of torn down and patched.
+export const start = async <E, A, LE = never>(
+  app: Effect.Effect<Node, E, A>,
+  opts: { layer: Layer.Layer<Exclude<A, Store>, LE, never>; container: Element; onError?: OnError; store?: AtomStore },
+  adoptWith?: Adopt,
 ): Promise<Mounted> => {
   const { container, onError } = opts
   let state = states.get(container)
@@ -646,7 +659,8 @@ export const mount = async <E, A, LE = never>(
   const current = (): boolean => state.gen === gen
   const noop: Mounted = { dispose: async () => {} }
   // Re-mount clears the previous generation first, so a pending or rejecting mount orphans nothing.
-  teardown(container, state).catch((e) => reportRenderError(e, onError))
+  // Hydration owns a fresh container (the caller rejects an owned one), so there is nothing to tear down.
+  if (!adoptWith) teardown(container, state).catch((e) => reportRenderError(e, onError))
   // A finalizer run by that teardown may itself have mounted here.
   if (!current()) return noop
   const store = opts.store ?? makeAtomStore()
@@ -673,8 +687,19 @@ export const mount = async <E, A, LE = never>(
     throw error
   }
   if (!current()) return noop
-  const p = plan()
   const env: Env = { doc: container.ownerDocument, store, onError, live: current, defect: (e) => reportRenderError(e, onError), duplicate: once(onError) }
+  if (adoptWith) {
+    const top: Owner = { lives: [], scopes: [] }
+    top.lives = adoptWith(container, node, env, top.scopes)
+    if (!current()) {
+      release(top)
+      return noop
+    }
+    commitSlots(frame)
+    state.top = top
+    return { dispose: async () => void (current() && (await teardown(container, state))) }
+  }
+  const p = plan()
   const lives = patchChildren(container, [], [node], env, p)
   // Guest callbacks (`onError`) may start a newer mount while building.
   if (!current()) {
