@@ -24,9 +24,12 @@ Measure on built output after hydration landed and record the budget.
 - [ ] ADR states the publish gate; package stays private (R5).
 
 ## Done summary
-TBD
+apps/ui-demo/test/size.test.ts measures three entries (src/size/mount.tsx, src/size/hydrate.tsx, src/resume/entry.ts) with the ADR 0017 method plus NODE_ENV=production, on dist and on source (aliased): mount 192,781 B gzip (limit 203,000), hydrating app 213,941 (225,000), resume 78,637 (83,000); source vs dist differ by <=3 B. Mount-only bundle verified free of resume and query. ADR 0020 records method, numbers, limits and the publish gate (showcase ported on built packages; pack + size tests green; release process ADR); ui stays private. README Installing section notes the gate. Finding: mount/hydrateMount ship React DOM even without guests (dom.ts static import); lazy guest path deferred. fixtures.test tree count 2 -> 3 (new size entry is an analyzer tree root).
 
+Gates: pnpm turbo run test typecheck build (dist cleaned) 42/42; flowctl validate --all Valid; bench compare all OK.
+
+stage: impl-review - skipped(config: conductor requested no review)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: bbb09aa54a8fdb4b9bd14663fd4394048ef74946
+- Tests: pnpm turbo run test typecheck build, flowctl validate --all, apps/bench: pnpm bench:json && pnpm compare
 - PRs:
