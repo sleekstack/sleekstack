@@ -31,9 +31,11 @@ const { trees, errors } = analyzeComponents({ project: 'tsconfig.json' })
 It builds one tree per `mount` call (nodes `component`, `provide`, `catch`, `unresolved`) and walks it once, carrying provided Tags and caught errors downward. Every branch counts as rendered. It reports, with file:line:
 
 - `MissingDependency`: a Component needs a Tag no `Provide` or mount layer supplies. `@sleekstack/ui`'s `Store` (used by the atom hooks) is always provided at `mount`; another Tag that prints as `Store` is shown as `<file>#Store` and is not.
-- `UnhandledError`: a tagged error reaches `mount` without a `Catch`.
+- `UnhandledError`: a tagged error reaches `mount` without a `Catch`, or a host event closure (`onXxx`) has a non-`never` `E` (even under a matching `Boundary`). Closures are component nodes with `closure: true`; their `R` is checked like any component's and an unreadable closure type is `Unresolved`.
 - `EffectInsideReact`: a Component sits under a `fromReact` guest (in its JSX or passed through its props).
 - `Unresolved`: a component or Layer it cannot read (`any`, a dynamically picked component, an unread declaration). It fails closed.
+- `ConditionalSlot`: a `useLocal` call that is not a top-level statement of the component's `Effect.gen` body before any return.
+- `MissingKey`: a `.map` / `.flatMap` / `Array.from` callback in child position returning unkeyed JSX or a fragment.
 - `NonResumableHandler`: an `on()` handler that is not a reference to a top-level `const h = defineHandler('literal', ...)`, or a `resume` handler map it cannot read. Each `resume` call is a tree root whose handlers are checked against its layer.
 
-`sleekstack check` runs it only when the nearest package.json lists `@sleekstack/ui` (any dependency field) and adds a `components` key to `--json`; other projects are unchanged. [`apps/ui-demo`](../../apps/ui-demo) has one fixture per code.
+`sleekstack check` runs it only when the nearest package.json lists `@sleekstack/ui` (any dependency field) and adds a `components` key to `--json`; other projects are unchanged. [`apps/ui-demo`](../../apps/ui-demo) has one fixture per code in `apps/ui-demo/fixtures/`.
