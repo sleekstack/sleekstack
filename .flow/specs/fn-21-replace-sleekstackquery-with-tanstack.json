@@ -598,7 +598,7 @@
     "impl:fn-21-replace-sleekstackquery-with-tanstack.6": 0
   },
   "spec_path": ".flow/specs/fn-21-replace-sleekstackquery-with-tanstack.md",
-  "status": "open",
+  "status": "done",
   "title": "Replace @sleekstack/query with TanStack Query core",
   "tracker": {
     "baseHashFlow": null,
@@ -611,5 +611,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-03T17:32:32.557719Z"
+  "updated_at": "2026-10-04T05:16:20.805090Z"
 }

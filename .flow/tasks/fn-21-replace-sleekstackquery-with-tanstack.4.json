@@ -11,7 +11,7 @@
   "priority": null,
   "spec": "fn-21-replace-sleekstackquery-with-tanstack",
   "spec_path": ".flow/tasks/fn-21-replace-sleekstackquery-with-tanstack.4.md",
-  "status": "todo",
+  "status": "done",
   "title": "kit: re-express cachedQuery and mutation over the new pieces",
   "updated_at": "2026-10-03T15:46:36.282581Z"
 }

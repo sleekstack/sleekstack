@@ -8,7 +8,7 @@
   "priority": null,
   "spec": "fn-20-adx-agent-developer-experience",
   "spec_path": ".flow/tasks/fn-20-adx-agent-developer-experience.2.md",
-  "status": "todo",
+  "status": "done",
   "title": "analyze: closed AnalyzeCode union, error table (rule, fix, docs), column fields",
   "updated_at": "2026-10-03T11:52:49.239871Z"
 }
