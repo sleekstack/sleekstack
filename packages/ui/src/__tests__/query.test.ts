@@ -142,6 +142,30 @@ describe('useSuspenseQuery', () => {
     expect(observers('a')).toBe(0)
   })
 
+  it('invalidation re-runs with new data, keeps the old data meanwhile, never loops, and releases the observer', async () => {
+    let n = 0
+    let resolve: ((v: string) => void) | undefined
+    const fn = counting(() => (n++ === 0 ? Promise.resolve('v0') : new Promise<string>((r) => (resolve = r))))
+    const show = Atom.make(true)
+    const D = () => Effect.map(useSuspenseQuery({ queryKey: ['inv'], queryFn: fn.queryFn, retry: false, staleTime: 0 }), (d) => el('b', {}, d))
+    const Gate = () => Effect.flatMap(useAtomValue(show), (on) =>
+      on ? jsx(Pending, { fallback: Effect.succeed(el('i', {}, 'loading')), children: jsx(D, {}) }) : Effect.succeed(el('p', {}, 'off')))
+    const { container, store } = await go(jsx('div', { children: [jsx(Grab, {}), jsx(Gate, {})] }))
+    await tick()
+    expect(container.querySelector('b')!.textContent).toBe('v0')
+    await act(async () => void client!.invalidateQueries({ queryKey: ['inv'] }))
+    await tick()
+    expect(container.querySelector('b')!.textContent).toBe('v0')
+    resolve!('v1')
+    await tick()
+    await tick()
+    expect(container.querySelector('b')!.textContent).toBe('v1')
+    expect(fn.calls).toBe(2)
+    store.set(show, false)
+    await tick()
+    expect(observers('inv')).toBe(0)
+  })
+
   it('awaits under renderToString without a loading state', async () => {
     expect(await renderToString(jsx(Data('r', async () => 'server'), {}), { layer: QueryClientLive() } as any)).toBe('<b>server</b>')
   })

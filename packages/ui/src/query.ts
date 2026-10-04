@@ -87,7 +87,11 @@ export const useSuspenseQuery = <TQueryFnData = unknown, TError = Error, TQueryK
     const client = yield* QueryClientTag
     const scope = yield* RenderScope
     const defaulted = client.defaultQueryOptions(options as QueryObserverOptions<any, any, any, any, any>)
-    if (scope) yield* retain(client, yield* Store, scope, defaulted)
+    if (scope) {
+      // Reading the atom re-runs on every observer result; held data short-circuits so a re-run never refetches.
+      const result = (yield* useAtomValue((yield* retain(client, yield* Store, scope, defaulted)).atom)) as QueryObserverResult<TQueryFnData, TError>
+      if (result.data !== undefined) return result.status === 'error' ? yield* Effect.fail(new QueryFailed({ cause: result.error })) : result.data
+    }
     return yield* Effect.tryPromise({
       try: (signal) => {
         signal.addEventListener('abort', () => void client.cancelQueries({ queryKey: defaulted.queryKey, exact: true }))
