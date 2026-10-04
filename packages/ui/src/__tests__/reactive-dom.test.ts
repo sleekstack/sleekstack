@@ -782,12 +782,44 @@ describe('keyed instance reuse', () => {
     expect(runs()).toBe(4)
   })
 
-  it('re-runs every row when a prop is a new function', async () => {
+  it('re-runs every row when a prop is a new function that is not an event handler', async () => {
     const list = mk([1, 2, 3])
-    const { store, items, runs } = await setup(list, (item) => ({ item, onPick: () => item.id }))
+    const { store, items, runs } = await setup(list, (item) => ({ item, format: () => item.id }))
     store.set(items, [...list])
     await tick()
     expect(runs()).toBe(6)
+  })
+
+  it('skips rows that take a fresh inline on* handler, and a click reaches the newest closure', async () => {
+    const list = mk([1, 2])
+    const items = Atom.make(list)
+    const stamp = Atom.make(0)
+    const picks: Array<string> = []
+    let runs = 0
+    const Row = ({ item, onPick }: { item: Item; onPick: () => Effect.Effect<void> }) => (runs++, jsx('li', { onClick: onPick, children: item.label }))
+    const List = () =>
+      Effect.flatMap(useAtomValue(items), (l) =>
+        Effect.flatMap(useAtomValue(stamp), (st) => jsx('ul', { children: l.map((item) => jsx(Row, { item, onPick: () => Effect.sync(() => void picks.push(`${item.id}@${st}`)), key: item.id })) })),
+      )
+    const { container, store } = await go(jsx(List, {}))
+    expect(runs).toBe(2)
+    store.set(stamp, 1)
+    await tick()
+    expect(runs).toBe(2)
+    await act(async () => container.querySelectorAll('li')[1]!.dispatchEvent(new Event('click', { bubbles: true })))
+    expect(picks).toEqual(['2@1'])
+  })
+
+  it('does not remember a row that called its handler while rendering', async () => {
+    const list = mk([1, 2])
+    const items = Atom.make(list)
+    let runs = 0
+    const Row = ({ item, onFormat }: { item: Item; onFormat: () => string }) => (runs++, jsx('li', { children: onFormat() + item.label }))
+    const List = () => Effect.flatMap(useAtomValue(items), (l) => jsx('ul', { children: l.map((item) => jsx(Row, { item, onFormat: () => 'x', key: item.id })) }))
+    const { store } = await go(jsx(List, {}))
+    store.set(items, [...list])
+    await tick()
+    expect(runs).toBe(4)
   })
 
   it('does not see an item mutated in place', async () => {

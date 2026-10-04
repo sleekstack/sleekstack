@@ -28,7 +28,7 @@ A first draft proposed a `<For each by>` primitive. A symposium (three models, t
 - **B. A compile-time transform proving rows pure.** Rejected: the Analyzer only reads trees and reports; it does not emit code, and the data benchmark needs no purity proof.
 - **C. Cheaper `instance()`.** Rejected: every attempt was within noise or slower; the floor stays at 1,000 runs.
 - **D. Prop-compare bailout inside `instance()`** (chosen).
-- **E. Function-prop trampolines** (a stable wrapper per function prop, compared only if called during the run). Not built: a handler forwarded to a child, or called from a deferred render, breaks the "called during the run" classification silently. It can return as its own ADR if a benchmark shows inline handlers are what blocks the win.
+- **E. Function-prop trampolines for every function prop.** Not built: a function forwarded to a child or called from a deferred render breaks a "called during the run" classification silently. Narrowed and built as a later amendment for `on[A-Z]` props only, see Decision, Handlers.
 
 ## Decision
 
@@ -43,12 +43,14 @@ A miss runs `instance()` as today and stores the new entry. The entry is publish
 
 `patchChildren` in `dom.ts` skips `adopt` for a matched `Reactive` whose node is the same object as the live one; key validation and placement (reorder) still run. A skipped id is already in `seen`, so `commitSlots` keeps its `useLocal` slots. A key that leaves the list is not seen: its instance is removed, its slots disposed and its entry dropped through the existing path.
 
+**Handlers (amendment).** The first run of a keyed instance replaces each `on[A-Z]` function prop with a stable wrapper kept on the slot record; every parent run points the wrapper at the newest closure, so a fresh inline `onPick={() => pick(item.id, tab)}` does not change the props and a click, even on a skipped row, calls the newest closure. A wrapper called while its row's run is in flight (including nested child runs) marks the row: it is not remembered, because its output may depend on the handler. Only function-valued props named `on` + capital on keyed components are wrapped; `defineHandler` values are objects and are untouched; other function props still miss by identity.
+
 Not affected: unkeyed components (as today), `renderToString` (no previous run, every row renders), `resume` (never runs components, ADR 0017).
 
 ## Consequences
 
 - **Behavior change for every keyed list.** A row is not re-run when its props are `Object.is`-equal, so an item mutated in place is no longer seen. A change is a new object or a new primitive. A test locks it: in-place mutation does not refresh the row. There is no opt-out flag and no dev-mode sampler; both were considered and left out.
-- **Inline handler props defeat the skip.** `onPick={() => pick(item.id)}` is a new function each run, so a row that takes one never skips. Module-level or stable functions hit. This is the main limit on the win, and the reason trampolines (option E) may return.
+- **Inline `on*` handlers no longer defeat the skip** (amendment above). Other inline function props (`format={() => ...}`) still miss; a function a row calls while rendering must be a prop whose identity is compared. Measured: `keyed-update-handler-1-of-1k` 12.0ms and 1,000 runs before the wrapper, about 1.2ms and 1 run after (React about 3.5ms).
 - **The older benchmark does not improve.** `render-dom/keyed-update-1-of-1k` passes a fresh `label` closure that the row calls at render; every row correctly misses. It stays as the worst-case control.
 - **Rows that read atoms or build a `Provider` miss** (scope forked); they keep their own atom-driven updates (`update-1-of-1k`, ratio about 0.43).
 - One extra pass over the children per update (id, props compare). Reorder still goes through `place` (no LIS, ADR 0015).
@@ -58,5 +60,4 @@ Not affected: unkeyed components (as today), `renderToString` (no previous run, 
 ## Open decisions
 
 - Whether `Provider`/`Boundary` also bump a generation that rows compare, besides the service compare. One seat of three wanted it; the service compare should already catch a rebuilt `Provider`. Decide with a Provider-rebuild test.
-- Whether a convention (`onXxx` function props) is excluded from the props compare, with the latest closure kept reachable. Only if the benchmark shows handlers are the blocker.
 - Leasing the scope of a row that uses atoms so it can skip too.

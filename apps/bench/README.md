@@ -6,7 +6,7 @@ Benchmarks for the `@sleekstack/ui` renderer and the `@sleekstack/core` atoms, w
 | --- | --- | --- |
 | `src/atoms.bench.ts` | create, read, write, derived read, subscribe/notify (1/100/1000 subscribers), batched write, diamond graph | jotai |
 | `src/render-string.bench.ts` | `renderToString` of a 1k-row list | React `react-dom/server` |
-| `src/render-dom.bench.ts` | first mount (jsdom), one-row reactive update, keyed-list reorder (rows 1 and 998 swapped) and keyed one-of-1000 relabel (a fresh closure per row), the same with data rows (item objects; also logs component runs per update), each with its node-swap count (nodes added or removed per update) | React `createRoot` + `flushSync` |
+| `src/render-dom.bench.ts` | first mount (jsdom), one-row reactive update, keyed-list reorder (rows 1 and 998 swapped) and keyed one-of-1000 relabel (a fresh closure per row), the same with data rows (item objects, and with an inline `onPick` per row; both log component runs per update), each with its node-swap count (nodes added or removed per update) | React `createRoot` + `flushSync` |
 | `src/jsx-overhead.bench.ts` | the component instance wrapper in `jsx()` against direct component calls | `direct` |
 
 Every library runs the same workload from `src/scenarios.ts`. Each case runs once before measurement and fails the suite, naming library and case, if the libraries' final states differ.

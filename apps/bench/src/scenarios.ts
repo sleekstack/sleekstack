@@ -351,3 +351,11 @@ export const itemsAfter = (n: number): ReadonlyArray<Item> => baseItems.map((it)
 export const dataRuns = { sleekstack: 0, react: 0 }
 const DataRow = ({ jsx, item }: { jsx: Jsx; item: Item }) => (dataRuns.sleekstack++, jsx('li', { className: 'row', children: item.label }))
 export const sleekDataTree = (jsx: Jsx, items: ReadonlyArray<Item>) => jsx('ul', { children: items.map((item) => jsx(DataRow, { jsx, item, key: item.id })) })
+
+/** Like the data list, but each row also takes an inline `onPick` closure over its item (a new function on every parent run). */
+export const dataHandlerRuns = { sleekstack: 0, react: 0 }
+export const pickLog: Array<number> = []
+const HandlerRow = ({ jsx, item, onPick }: { jsx: Jsx; item: Item; onPick: () => unknown }) =>
+  (dataHandlerRuns.sleekstack++, jsx('li', { className: 'row', onClick: onPick, children: item.label }))
+export const sleekHandlerTree = (jsx: Jsx, items: ReadonlyArray<Item>, effectSync: (f: () => void) => unknown) =>
+  jsx('ul', { children: items.map((item) => jsx(HandlerRow, { jsx, item, onPick: () => effectSync(() => void pickLog.push(item.id)), key: item.id })) })

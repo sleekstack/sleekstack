@@ -38,6 +38,11 @@ export interface Slots {
   kids?: Map<string, Slots>
   /** Last committed run of a keyed instance that read no atom and never used its scope, for reuse when its props and context match. */
   memo?: Memo
+  /** Stable stand-ins for a keyed instance's `on[A-Z]` function props, each forwarding to the newest closure. */
+  handlers?: Map<string, { current: Function; readonly fn: Function }>
+  /** A run is in flight / a handler was called while it was. */
+  running?: boolean
+  called?: boolean
 }
 interface Memo {
   readonly props: object
@@ -76,6 +81,7 @@ export const disposeSlots = (s: Slots): void => {
   s.kids?.forEach(disposeSlots)
   s.kids = undefined
   s.memo = undefined
+  s.handlers = undefined
 }
 
 /** The run's result committed: its pending slots become permanent; slots of child ids it did not run are disposed. */
@@ -264,6 +270,36 @@ const sameServices = (a: Context.Context<never>, b: Context.Context<never>): boo
   return n === 0
 }
 
+
+const HANDLER_PROP = /^on[A-Z]/
+/**
+ * A keyed instance's `on[A-Z]` function props are replaced by stable wrappers that call the newest closure, so a fresh
+ * inline handler per parent run does not change the props. A wrapper called while the row runs marks the row (`called`):
+ * its output may depend on the handler, so it is not remembered.
+ */
+const stableHandlers = <P extends object>(slots: Slots, props: P): P => {
+  let out: Record<string, unknown> | undefined
+  const src = props as Record<string, unknown>
+  for (const k of Object.keys(src)) {
+    const v = src[k]
+    if (typeof v !== 'function' || !HANDLER_PROP.test(k)) continue
+    let h = slots.handlers?.get(k)
+    if (!h) {
+      const w: { current: Function; readonly fn: Function } = {
+        current: v,
+        fn: (...args: Array<unknown>) => {
+          if (slots.running) slots.called = true
+          return w.current(...args)
+        },
+      }
+      ;(slots.handlers ??= new Map()).set(k, (h = w))
+    }
+    h.current = v
+    ;(out ??= { ...src })[k] = h.fn
+  }
+  return (out ?? props) as P
+}
+
 /**
  * Runs a component as one instance: fresh collector, own scope, captured context; returns a `Reactive` node when it read atoms.
  * Under a `RenderScope` the node carries its run's scope: a failed run closes it, otherwise its owner (the DOM renderer) does.
@@ -273,7 +309,10 @@ export const instance = <P>(type: (props: P) => Effect.Effect<Node, any, any>, p
   let id: string | undefined
   // Slots of an instance with no parent frame (the root).
   let rootSlots: Slots | undefined
+  // The props a run gives `type`: the call's own on the first run, with keyed handlers made stable; re-runs reuse them.
+  let effProps: P = props
   const run: Effect.Effect<Node, any, any> = Effect.flatMap(Effect.context<never>(), (ctx) => {
+    const first = id === undefined
     if (id === undefined) {
       if (key === undefined) {
         // Keyed calls take no ordinal: unkeyed siblings keep their ids when a keyed one comes or goes.
@@ -295,25 +334,29 @@ export const instance = <P>(type: (props: P) => Effect.Effect<Node, any, any>, p
         ;(parentFrame.pending ??= []).push([self, found])
       }
       slots = found
+      if (first && key !== undefined) effProps = stableHandlers(slots, props as object) as P
       // Unchanged props and services, and a scope nothing used: the last run's node stands (nothing it read can have changed).
       const m = slots.memo
-      if (m && key !== undefined && isIdle((m.node as { scope?: Scope.Scope }).scope) && sameProps(m.props, props as object) && sameServices(m.ctx, ctx)) return Effect.succeed(m.node)
+      if (m && key !== undefined && isIdle((m.node as { scope?: Scope.Scope }).scope) && sameProps(m.props, effProps as object) && sameServices(m.ctx, ctx)) return Effect.succeed(m.node)
     } else slots = rootSlots ??= { atoms: [], releases: [], done: false }
     const frame = makeFrame(slots, self)
     const body = (own: Scope.CloseableScope | undefined): Effect.Effect<Node, any, any> => {
       const reads = new Reads(slots)
+      slots.running = true
+      slots.called = false
       let inner = Context.add(Context.add(ctx, Collector, reads), Frame, frame)
       if (own) inner = Context.add(inner, RenderScope, own)
-      const checked = Effect.flatMap(Effect.provide(type(props), inner), (child) => {
+      const checked = Effect.flatMap(Effect.provide(type(effProps), inner), (child) => {
         if (slots.done && frame.cursor !== slots.atoms.length) return Effect.fail(new SlotMismatch({ id: self, expected: slots.atoms.length, actual: frame.cursor }))
         slots.done = true
+        slots.running = false
         return Effect.succeed(child)
       })
       return Effect.map(checked, (child): Node => {
         if (reads.size === 0 && key === undefined) return own ? owned(child, own) : child
         const node: Node = { _tag: 'Reactive', atoms: [...reads.keys()], seen: [...reads.values()], child, scope: own, rerun: Effect.provide(handled(run), ctx) as Effect.Effect<Node>, id: self, frame, ...(key !== undefined && { key }) }
         // Remembered for the next parent run only when nothing the row did can change without it re-running: no atom read, scope unused.
-        slots.memo = parentFrame && key !== undefined && reads.size === 0 && isIdle(own) ? { props: props as object, ctx, node } : undefined
+        slots.memo = parentFrame && key !== undefined && reads.size === 0 && !slots.called && isIdle(own) ? { props: effProps as object, ctx, node } : undefined
         return node
       })
     }

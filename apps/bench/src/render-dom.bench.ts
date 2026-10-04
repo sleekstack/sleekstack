@@ -10,7 +10,7 @@ import { createElement as h, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { createRoot } from 'react-dom/client'
 import { bench, describe } from 'vitest'
-import { check, dataRuns, itemsAfter, ROWS, rowIds, rowLabel, sleekDataTree, sleekTree, type Item, type TreeOptions } from './scenarios'
+import { check, dataHandlerRuns, dataRuns, itemsAfter, ROWS, rowIds, rowLabel, sleekDataTree, sleekHandlerTree, sleekTree, type Item, type TreeOptions } from './scenarios'
 
 const gc = (globalThis as { gc?: () => void }).gc
 const opts = { setup: () => gc?.() }
@@ -147,6 +147,29 @@ const reactKeyedData = () => {
   return { container, run: () => (flushSync(() => set(++n)), container.textContent) }
 }
 
+const sleekKeyedHandler = async () => {
+  const container = document.createElement('div')
+  const store = makeAtomStore()
+  const state = Atom.make(0)
+  const List = () => Effect.flatMap(useAtomValue(state), (n) => sleekHandlerTree(jsx, itemsAfter(n), Effect.sync))
+  await mount(jsx(List as any, {}), { layer: Layer.empty, container, store })
+  let n = 0
+  return { container, run: async () => (store.set(state, ++n), await tick(), container.textContent) }
+}
+const ReactHandlerRow = ({ item, onPick }: { item: Item; onPick: () => void }) => (dataHandlerRuns.react++, h('li', { className: 'row', onClick: onPick }, item.label))
+const reactKeyedHandler = () => {
+  const container = document.createElement('div')
+  let set!: (n: number) => void
+  const List = () => {
+    const [n, s] = useState(0)
+    set = s
+    return h('ul', null, itemsAfter(n).map((item) => h(ReactHandlerRow, { key: item.id, item, onPick: () => void 0 })))
+  }
+  flushSync(() => createRoot(container).render(h(List)))
+  let n = 0
+  return { container, run: () => (flushSync(() => set(++n)), container.textContent) }
+}
+
 const sleekU = await sleekUpdate()
 const reactU = reactUpdate()
 await check('render-dom/update-1-of-1k', [
@@ -175,6 +198,18 @@ for (const lib of ['sleekstack', 'react'] as const) {
   await keyedData[lib].run()
   await settle()
   console.log(`render-dom/keyed-update-data-1-of-1k component runs per update (${lib}):`, dataRuns[lib])
+}
+
+const keyedHandler = { sleekstack: await sleekKeyedHandler(), react: reactKeyedHandler() }
+await check('render-dom/keyed-update-handler-1-of-1k', [
+  ['sleekstack', keyedHandler.sleekstack.run],
+  ['react', keyedHandler.react.run],
+])
+for (const lib of ['sleekstack', 'react'] as const) {
+  dataHandlerRuns[lib] = 0
+  await keyedHandler[lib].run()
+  await settle()
+  console.log(`render-dom/keyed-update-handler-1-of-1k component runs per update (${lib}):`, dataHandlerRuns[lib])
 }
 
 const nodeSwaps: Record<string, Record<string, number>> = {}
@@ -214,4 +249,9 @@ describe('render-dom/keyed-update-1-of-1k', () => {
 describe('render-dom/keyed-update-data-1-of-1k', () => {
   bench('sleekstack', async () => void (await keyedData.sleekstack.run()), opts)
   bench('react', () => void keyedData.react.run(), opts)
+})
+
+describe('render-dom/keyed-update-handler-1-of-1k', () => {
+  bench('sleekstack', async () => void (await keyedHandler.sleekstack.run()), opts)
+  bench('react', () => void keyedHandler.react.run(), opts)
 })
