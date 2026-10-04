@@ -1,0 +1,14 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-03T20:21:30.252470Z",
+  "depends_on": [],
+  "id": "fn-23-reconciling-dom-renderer-keys-host.1",
+  "priority": null,
+  "spec": "fn-23-reconciling-dom-renderer-keys-host",
+  "spec_path": ".flow/tasks/fn-23-reconciling-dom-renderer-keys-host.1.md",
+  "status": "done",
+  "title": "ui: Node key/events fields, JSX event + key plumbing, string renderer ignores them",
+  "updated_at": "2026-10-03T20:21:30.252470Z"
+}

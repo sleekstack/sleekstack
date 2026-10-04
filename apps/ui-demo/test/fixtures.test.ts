@@ -21,6 +21,9 @@ describe('one fixture per Analyzer code', { timeout: 60_000 }, () => {
     ['effect-inside-react', 'EffectInsideReact'],
     ['jsx-missing-dependency', 'MissingDependency'],
     ['unresolved', 'Unresolved'],
+    ['conditional-slot', 'ConditionalSlot'],
+    ['missing-key', 'MissingKey'],
+    ['event-closure', 'UnhandledError'],
   ])('%s reports %s', (name, code) => {
     const { errors } = analyzeComponents({ project: path.join(fixture(name), 'tsconfig.json') })
     expect(errors.map(({ code, file, line }) => ({ code, file: path.basename(file), line }))).toEqual(expected(name))

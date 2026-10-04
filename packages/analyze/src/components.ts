@@ -179,7 +179,7 @@ export function analyzeComponents(opts: { readonly project: string }): Component
     const kids = (ts.isJsxSelfClosingElement(e) ? [] : e.children).flatMap((c) => (ts.isJsxText(c) ? [] : ts.isJsxExpression(c) ? (c.expression ? embedded(c.expression) : []) : build(c)))
     if (!open) return kids
     const tag = open.tagName
-    if (ts.isIdentifier(tag) && /^[a-z]/.test(tag.text)) return kids
+    if (ts.isIdentifier(tag) && /^[a-z]/.test(tag.text)) return [...open.attributes.properties.flatMap(closure), ...kids]
     const id = libId(checker.getSymbolAtLocation(tag), checker)
     if (id === 'ui/jsx-runtime#Fragment') return kids
     if (id === 'ui/jsx-runtime#Provider') {
@@ -215,6 +215,23 @@ export function analyzeComponents(opts: { readonly project: string }): Component
       return component(e, text(tag), () => [...bodyReturns(target).flatMap(build), ...kids], type)
     } finally {
       stack.delete(target)
+    }
+  }
+  /** A host `onXxx` closure: a node carrying its `R` and its `E`, which no enclosing `Catch` can handle. */
+  const closure = (p: ts.JsxAttributeLike): UiNode[] => {
+    const v = ts.isJsxAttribute(p) && /^on[A-Z]/.test(p.name.getText()) && p.initializer && ts.isJsxExpression(p.initializer) ? p.initializer.expression : undefined
+    if (!v) return []
+    try {
+      const t = checker.getTypeAtLocation(v)
+      if (isAny(t)) return fail(v, `Event closure "${text(v)}" is typed ${checker.typeToString(t)}; its errors and requirements cannot be named`)
+      const sigs = t.getCallSignatures()
+      if (!sigs.length) return []
+      const args = sigs.length === 1 ? effectArgs(checker.getReturnTypeOfSignature(sigs[0]!)) : undefined
+      if (!args || [...args[1], ...args[2]].some(isAny)) return fail(v, `Event closure "${text(v)}" does not return a readable Effect`)
+      return [{ kind: 'component', name: `${text(v)} closure`, guest: false, closure: true, requires: tagNames(v, args[2], 'requires'), errors: errorTags(v, args[1]), children: [], ...loc(v) }]
+    } catch (err) {
+      if (!(err instanceof Unreadable)) throw err
+      return [{ kind: 'unresolved', message: err.message, ...loc(err.node) }]
     }
   }
   const propType = (p: ts.ObjectLiteralElementLike) => checker.getTypeAtLocation(ts.isPropertyAssignment(p) ? p.initializer : ts.isSpreadAssignment(p) ? p.expression : p)
@@ -370,7 +387,62 @@ export function analyzeComponents(opts: { readonly project: string }): Component
       return { provides: [], root: { kind: 'unresolved', message: err.message, ...loc(err.node) }, ...loc(n) }
     }
   }
+  const rules: AnalyzeError[] = []
+  /** `useLocal` must be a statement-level `yield*` in a component's `Effect.gen` body, before any `return`; anything else fails closed. */
+  const checkSlot = (call: ts.CallExpression) => {
+    const bad = (why: string) => rules.push(analyzeError('ConditionalSlot', `useLocal "${text(call)}" ${why}; slots must run in the same order on every run`, loc(call)))
+    let n: ts.Node = call.parent
+    while (ts.isParenthesizedExpression(n)) n = n.parent
+    if (!ts.isYieldExpression(n) || !n.asteriskToken) return bad('is not a plain yield* in an Effect.gen body')
+    n = n.parent
+    if (ts.isVariableDeclaration(n) && n.parent.parent && ts.isVariableStatement(n.parent.parent)) n = n.parent.parent
+    else if (!ts.isExpressionStatement(n)) return bad('is not called as its own statement (inside a condition, loop or expression)')
+    const stmt = n as ts.Statement
+    const block = stmt.parent
+    const fn = block.parent
+    if (!ts.isBlock(block) || !fn || !ts.isFunctionExpression(fn) || !fn.asteriskToken || fn.body !== block) return bad('is inside a condition, loop or nested block')
+    const gen = fn.parent
+    if (!ts.isCallExpression(gen) || calleeOf(gen) !== 'effect/Effect#gen' || !isNodeEffect(checker.getTypeAtLocation(gen))) return bad('is not in a component\'s Effect.gen body (a helper or nested function)')
+    let returned = false
+    const scan = (x: ts.Node): void => {
+      if (ts.isFunctionLike(x)) return
+      if (ts.isReturnStatement(x)) returned = true
+      ts.forEachChild(x, scan)
+    }
+    for (const s of block.statements) {
+      if (s === stmt) break
+      scan(s)
+    }
+    if (returned) bad('runs after an earlier return')
+  }
+  /** Each element a child-position `.map` / `.flatMap` / `Array.from` callback returns carries a `key`. */
+  const checkKeys = (call: ts.CallExpression) => {
+    const callee = call.expression
+    if (!ts.isPropertyAccessExpression(callee)) return
+    const from = callee.getText() === 'Array.from'
+    if (!from && (!['map', 'flatMap'].includes(callee.name.text) || calleeOf(call))) return
+    const cb = call.arguments[from ? 1 : 0] && unwrap(call.arguments[from ? 1 : 0]!)
+    if (!cb || !(ts.isArrowFunction(cb) || ts.isFunctionExpression(cb))) return
+    // Child position: through branches, arrays and spreads up to JSX children or an Effect.all argument.
+    let p: ts.Node = call
+    while (ts.isParenthesizedExpression(p.parent) || ts.isConditionalExpression(p.parent) || ts.isBinaryExpression(p.parent) || ts.isArrayLiteralExpression(p.parent) || ts.isSpreadElement(p.parent)) p = p.parent
+    const child = (ts.isJsxExpression(p.parent) && !ts.isJsxAttribute(p.parent.parent)) || (ts.isCallExpression(p.parent) && p.parent.expression !== p && calleeOf(p.parent) === 'effect/Effect#all')
+    if (!child) return
+    const flat = !from && callee.name.text === 'flatMap'
+    const check = (x: ts.Expression): void => {
+      const e = unwrap(x)
+      if (ts.isConditionalExpression(e)) return (check(e.whenTrue), check(e.whenFalse))
+      if (ts.isBinaryExpression(e) && [ts.SyntaxKind.AmpersandAmpersandToken, ts.SyntaxKind.BarBarToken, ts.SyntaxKind.QuestionQuestionToken].includes(e.operatorToken.kind)) return (check(e.left), check(e.right))
+      if (flat && ts.isArrayLiteralExpression(e)) return e.elements.forEach((m) => check(ts.isSpreadElement(m) ? m.expression : m))
+      const open = ts.isJsxElement(e) ? e.openingElement : ts.isJsxSelfClosingElement(e) ? e : undefined
+      if (ts.isJsxFragment(e) || (open && !open.attributes.properties.some((a) => ts.isJsxAttribute(a) && a.name.getText() === 'key')))
+        rules.push(analyzeError('MissingKey', `"${text(e)}" is rendered by "${text(callee)}" without a key prop`, loc(e)))
+    }
+    bodyReturns(cb).forEach(check)
+  }
   const visit = (n: ts.Node): void => {
+    if (ts.isCallExpression(n) && calleeOf(n) === 'ui/reactive#useLocal') checkSlot(n)
+    if (ts.isCallExpression(n)) checkKeys(n)
     if (ts.isCallExpression(n) && calleeOf(n) === 'ui/handler#on') checkOn(n)
     if (ts.isCallExpression(n) && calleeOf(n) === 'ui/resume#resume') trees.push(resumeRoot(n))
     if (ts.isCallExpression(n) && calleeOf(n) === 'ui/dom#mount' && n.arguments[0]) {
@@ -397,7 +469,7 @@ export function analyzeComponents(opts: { readonly project: string }): Component
     if (!sf.isDeclarationFile && program.getRootFileNames().includes(sf.fileName) && !TEST_FILE.test(path.relative(root, sf.fileName))) visit(sf)
   }
 
-  const errors: AnalyzeError[] = [...nonResumable]
+  const errors: AnalyzeError[] = [...nonResumable, ...rules]
   for (const t of trees) check(t.root, new Set([...t.provides, UI_STORE]), new Set(), errors)
   return { trees, errors: [...new Map(errors.map((e) => [`${e.code}|${e.file}:${e.line}|${e.message}`, e])).values()] }
 }
@@ -428,7 +500,7 @@ function check(n: UiNode, provided: ReadonlySet<string>, caught: ReadonlySet<str
     out.push(analyzeError('MissingDependency', `${who} requires "${r}", but no enclosing Provide or root (mount / resume) layer provides it`, at))
   }
   for (const e of n.kind === 'component' ? n.errors : []) {
-    if (caught.has(e) || below.has(`E:${e}`)) continue
+    if ((!(n.kind === 'component' && n.closure) && caught.has(e)) || below.has(`E:${e}`)) continue
     below.add(`E:${e}`)
     out.push(analyzeError('UnhandledError', `${who} can fail with "${e}", but no enclosing Catch handles it`, at))
   }

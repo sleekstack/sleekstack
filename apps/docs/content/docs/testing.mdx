@@ -16,6 +16,6 @@ Two techniques cover most tests:
 
 A declaration the analyzer cannot read (`any`, a widened `Layer<any>[]`, a non-literal Tag key) is an error, not a skip. Loops, conditionals and computed lists are fine when their types are precise; they are over-approximated. `--lenient` turns an unresolvable `runEffect` Layer into an opaque root (exit 0) instead; an unresolvable app Layer and a missing Tag still fail. Run it as a `prebuild` script and as a CI step before the tests (ADR 0010).
 
-When the project's package.json lists `@sleekstack/ui` (in any dependency field), `sleekstack check` also runs the component pass: each `mount` call is a root, and `MissingDependency`, `UnhandledError`, `EffectInsideReact` and `Unresolved` are reported with file:line (see [Errors](/docs/errors)). `--json` then adds a `components` key. Projects without `@sleekstack/ui` are checked exactly as before.
+When the project's package.json lists `@sleekstack/ui` (in any dependency field), `sleekstack check` also runs the component pass: each `mount` call is a root, and `MissingDependency`, `UnhandledError`, `EffectInsideReact`, `Unresolved`, `NonResumableHandler`, `ConditionalSlot` and `MissingKey` are reported with file:line (see [Errors](/docs/errors)). `--json` then adds a `components` key. Projects without `@sleekstack/ui` are checked exactly as before.
 
 The Next.js runtime is one slot per process, so configure it once in a setup file and keep tests that need an unconfigured runtime first in their file.

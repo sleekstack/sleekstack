@@ -42,9 +42,11 @@ Reported by `sleekstack check` (with file:line) for projects whose package.json 
 | Code | Triggered when |
 | --- | --- |
 | `MissingDependency` | A component needs a Tag that no `Provide` or mount layer supplies. |
-| `UnhandledError` | A tagged error in a component's `E` reaches `mount` without a matching `Catch`. |
+| `UnhandledError` | A tagged error in a component's `E` reaches `mount` without a matching `Catch`, or an event closure (`onXxx`) has any error in `E` (closures must handle their errors, even under a matching `Boundary`). |
 | `EffectInsideReact` | An Effect component is placed under a `fromReact` guest, in its JSX or through its props. |
 | `Unresolved` | The analyzer cannot read a component or Layer (`any`, a dynamically picked component). It fails closed: never a skip. |
+| `ConditionalSlot` | A `useLocal` call is not a top-level statement of the component's `Effect.gen` body before any return (inside a condition, loop, nested or helper function). |
+| `MissingKey` | A `.map` / `.flatMap` / `Array.from` callback in child position returns an element, component or fragment without a `key` prop. |
 | `NonResumableHandler` | An `on(node, { event: h })` entry or a `resume` handler map is not provably a reference to a top-level `const h = defineHandler('literal-id', ...)` (a non-literal id, an inline function, an unreadable loader or handlers object). |
 
 ### Resumable runtime errors
@@ -57,6 +59,8 @@ Raised by `@sleekstack/ui` at render or `resume` time as tagged errors (`Data.Ta
 | `ManifestInvalid` | The container has no manifest, more than one, or a malformed one. |
 | `ManifestDecodeFailed` | A bound atom's value fails to decode. `resume` rejects (a wrong seed would render a wrong page); the error names the atom key. |
 | `DuplicateHandler`, `DuplicateBindKey` | Two different handlers share an id, or two different atoms share a bind key, in one render. |
+| `DuplicateKey` | Two siblings share one `key` prop. Reported to `onError` once per patch; carries the `key`. |
+| `SlotMismatch` | A component re-run called `useLocal` a different number of times than its first run. Carries the instance id and both counts. |
 | `UnknownHandler`, `HandlerIdMismatch`, `UnsupportedEvent` | A handler id is missing from the `handlers` map, differs from its chunk's declared id, or names a non-bubbling event. |
 
 ## Kit checks

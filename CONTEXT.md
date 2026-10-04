@@ -62,7 +62,7 @@ _Avoid_: Handler, deps array, `effect` (for the inline runner)
 
 **Analyzer**:
 `@sleekstack/analyze`, run as `sleekstack check [--project <tsconfig>] [--entry <file>...] [--json] [--lenient]`. Reads the declarations through the TypeScript checker without executing app code, builds each root's Graph and reports every violation with file:line (exit 0 ok, 1 violations, 2 crash or no roots). Fails closed: a declaration it cannot read is an error. `--entry` limits the roots to the given files. `--lenient` turns an unresolvable `runEffect` Layer into an opaque root (`kind: 'opaque'`) instead of an error; it never excuses a missing Tag or an unresolvable app Layer.
-In a project whose package.json lists `@sleekstack/ui`, `sleekstack check` also runs the component pass (`analyzeComponents`): one tree per `mount` call, reporting `MissingDependency`, `UnhandledError`, `EffectInsideReact`, `Unresolved` and `NonResumableHandler` (`components` under `--json`). `resume` calls are tree roots too.
+In a project whose package.json lists `@sleekstack/ui`, `sleekstack check` also runs the component pass (`analyzeComponents`): one tree per `mount` call, reporting `MissingDependency`, `UnhandledError`, `EffectInsideReact`, `Unresolved`, `NonResumableHandler`, `ConditionalSlot` and `MissingKey` (`components` under `--json`). `resume` calls are tree roots too.
 _Avoid_: Linter, compiler plugin
 
 **Request Root**:
@@ -122,7 +122,7 @@ _Avoid_: Payload, atom state
 ### UI framework concepts (`@sleekstack/ui`, MVP)
 
 **Component** *(ui)*:
-A function `(props: P) => Effect<Node, E, R>`: `R` is the Tags it needs, `E` its tagged errors, `Node` a small renderable tree (text, element, fragment, guest). Unrelated to the `component` Lifetime.
+A function `(props: P) => Effect<Node, E, R>`: `R` is the Tags it needs, `E` its tagged errors, `Node` a small renderable tree (text, element, fragment, guest, reactive). Each call is an instance with a run-time id (per-function id plus ordinal, or key), so its local state and subscriptions survive re-runs. Unrelated to the `component` Lifetime.
 _Avoid_: Effect component, view, widget
 
 **Host**:
@@ -134,7 +134,7 @@ A plain React component wrapped by `fromReact`, a `Component<P, never, never>` l
 _Avoid_: Island, embedded React
 
 **Handler** *(ui)*:
-A named Effect program run on a DOM event, declared at module top level as `const h = defineHandler('id', (event) => ...)` and attached with `on(node, { click: h })`. The server emits only its id; `resume` loads its chunk on first use. A handler the Analyzer cannot prove is such a reference is a `NonResumableHandler` error (ADR 0017). Not a Kit Operation.
+A named Effect program run on a DOM event, declared at module top level as `const h = defineHandler('id', (event) => ...)` and attached with `on(node, { click: h })`. The server emits only its id; `resume` loads its chunk on first use. A handler the Analyzer cannot prove is such a reference is a `NonResumableHandler` error (ADR 0017). Used only for `resume`; client-rendered trees use event closures (a function `onXxx` prop run with the element's context). Not a Kit Operation.
 _Avoid_: Event listener, callback, action
 
 **Resume**:
@@ -158,8 +158,24 @@ _Avoid_: Context provider, LayerProvider
 _Avoid_: Error boundary, try
 
 **Store** *(ui)*:
-The `Store` Tag over core's `AtomStore`, one per `mount`. A host component that reads an atom through `useAtomValue` / `useAtom` re-runs when it changes; only its subtree is swapped and guests inside lose their React state (ADR 0015).
+The `Store` Tag over core's `AtomStore`, one per `mount`. A host component that reads an atom through `useAtomValue` / `useAtom` re-runs when it changes; the Reconciler patches its subtree and matched guests keep their React state (ADR 0015).
 _Avoid_: State, signal
+
+**Reconciler**:
+The DOM renderer's patch step: it matches a new run's Node tree against the Live tree (keyed and unkeyed pools), patches elements in place, adopts matched instances and guests and removes the rest.
+_Avoid_: Diff, virtual DOM
+
+**Live tree**:
+The renderer's record of what is mounted: DOM nodes, instances with their run scope and slots, guest roots and event bindings. The Reconciler patches it.
+_Avoid_: Fiber tree, shadow tree
+
+**Key** *(ui)*:
+The `key` prop on an element or component: its identity among siblings, so it is matched across re-runs and moves. Two siblings with one key raise `DuplicateKey`.
+_Avoid_: "key" alone where it could mean a Tag key or a bind key; say "key prop"
+
+**Local state**:
+`useLocal(initial)`: an ordered slot of one instance, held as a writable atom in the Store. Kept across re-runs, released when the instance is removed; must be a top-level call (`ConditionalSlot`), and a slot count change is `SlotMismatch`.
+_Avoid_: Hook state, useState
 
 ### Next.js integration concepts
 

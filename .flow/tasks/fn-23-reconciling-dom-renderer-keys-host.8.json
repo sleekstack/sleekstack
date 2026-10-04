@@ -1,0 +1,17 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-03T20:21:30.252761Z",
+  "depends_on": [
+    "fn-23-reconciling-dom-renderer-keys-host.1",
+    "fn-23-reconciling-dom-renderer-keys-host.3"
+  ],
+  "id": "fn-23-reconciling-dom-renderer-keys-host.8",
+  "priority": null,
+  "spec": "fn-23-reconciling-dom-renderer-keys-host",
+  "spec_path": ".flow/tasks/fn-23-reconciling-dom-renderer-keys-host.8.md",
+  "status": "done",
+  "title": "analyze: ConditionalSlot and MissingKey rules, error table and llms.md",
+  "updated_at": "2026-10-03T20:21:30.252761Z"
+}

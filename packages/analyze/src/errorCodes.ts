@@ -26,6 +26,8 @@ export type AnalyzeCode =
   | 'UnhandledError'
   | 'EffectInsideReact'
   | 'NonResumableHandler'
+  | 'ConditionalSlot'
+  | 'MissingKey'
 
 export interface ErrorHelp {
   /** What the analyzer checks. */
@@ -124,6 +126,16 @@ export const ERROR_CODES: Readonly<Record<AnalyzeCode, ErrorHelp>> = {
   NonResumableHandler: {
     rule: 'Every on() entry names a top-level const defineHandler("literal-id", ...), and resume loaders import a module whose default export is one.',
     fix: ['Hoist the defineHandler call to a top-level const with a string-literal id', 'Pass that const to on() instead of an inline function or a reassigned variable'],
+    docs: UI,
+  },
+  ConditionalSlot: {
+    rule: 'useLocal is called at the top level of a component\'s Effect.gen body: not inside a condition, loop, nested or helper function, or after an early return.',
+    fix: ['Move the useLocal call to the top of the component body, before any conditional return', 'Keep the local state in the component and pass it to the helper as an argument'],
+    docs: UI,
+  },
+  MissingKey: {
+    rule: 'Every element or component a .map / .flatMap / Array.from callback renders as children carries a key prop.',
+    fix: ['Add a key prop unique among the siblings, such as the item\'s id', 'Wrap a returned fragment in an element that carries the key'],
     docs: UI,
   },
 }

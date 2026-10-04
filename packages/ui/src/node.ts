@@ -1,7 +1,8 @@
 import type { Atom } from '@sleekstack/core'
-import type { Effect, Scope } from 'effect'
+import type { Context, Effect, Scope } from 'effect'
 import type { ComponentType } from 'react'
 import type { Handler } from './handler'
+import type { RunFrame } from './reactive'
 
 export interface TextNode {
   readonly _tag: 'Text'
@@ -14,6 +15,14 @@ export interface ElementNode {
   readonly children: ReadonlyArray<Node>
   /** Event name to handler; rendered as `data-sleek-on-<event>` by `renderToString`, ignored by `mount`. */
   readonly on?: Readonly<Record<string, Handler<any, any>>>
+  /** Event name to closure binding, from function-valued `onXxx` JSX props; ignored by `renderToString`. */
+  readonly events?: Readonly<Record<string, EventBinding>>
+  readonly key?: string
+}
+/** A JSX event closure and the context captured while its element's JSX Effect ran. */
+export interface EventBinding {
+  readonly run: (event: Event) => Effect.Effect<void, never, any>
+  readonly context: Context.Context<any>
 }
 export interface FragmentNode {
   readonly _tag: 'Fragment'
@@ -23,6 +32,7 @@ export interface GuestNode {
   readonly _tag: 'Guest'
   readonly component: ComponentType<any>
   readonly props: object
+  readonly key?: string
 }
 /** A component instance that read atoms: `child` is its last render, `rerun` renders it again in its captured context. */
 export interface ReactiveNode {
@@ -34,6 +44,11 @@ export interface ReactiveNode {
   readonly seen?: ReadonlyArray<unknown>
   /** @internal This run's `RenderScope` child; closed by the renderer when the run's DOM is replaced or dropped. */
   readonly scope?: Scope.CloseableScope
+  readonly key?: string
+  /** @internal This run's frame; the renderer commits or drops its pending child slots, and a kill disposes its slots. */
+  readonly frame?: RunFrame
+  /** @internal Instance identity, `<fnId>#<ordinal>` or `<fnId>:key:<key>`; set by `instance`. */
+  readonly id: string
 }
 /** An atom's current value as text, bound under `key` for resume. */
 export interface BindNode {

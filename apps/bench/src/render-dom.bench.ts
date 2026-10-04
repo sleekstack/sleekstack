@@ -10,13 +10,14 @@ import { createElement as h, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { createRoot } from 'react-dom/client'
 import { bench, describe } from 'vitest'
-import { check, rowIds, sleekTree } from './scenarios'
+import { check, ROWS, rowIds, rowLabel, sleekTree, type TreeOptions } from './scenarios'
 
 const gc = (globalThis as { gc?: () => void }).gc
 const opts = { setup: () => gc?.() }
 
-const Row = ({ i }: { i: number }) => h('li', { className: 'row' }, `Item ${i}`)
-const reactTree = (first?: () => unknown) => h('ul', null, rowIds.map((i) => (i === 0 && first ? h(first as any, { key: i }) : h(Row, { key: i, i }))))
+const Row = ({ i, label }: { i: number; label: (i: number) => string }) => h('li', { className: 'row' }, label(i))
+const reactTree = (first?: () => unknown, { ids = rowIds, label = rowLabel }: TreeOptions = {}) =>
+  h('ul', null, ids.map((i) => (i === 0 && first ? h(first as any, { key: i }) : h(Row, { key: i, i, label }))))
 
 // ---- first mount (+ unmount, so every iteration starts from an empty container) ----
 
@@ -81,17 +82,75 @@ const swaps = async (u: { container: Element; run: () => unknown }) => {
   obs.disconnect()
   return count
 }
+// ---- keyed list: one state write re-renders the whole keyed list; the reconciler should touch only what changed ----
+
+/** Keyed-list state per write count `n`. */
+type Step = (n: number) => TreeOptions
+const SWAP_A = 1
+const SWAP_B = ROWS - 2
+/** Swaps rows 1 and 998 on odd writes, restores on even ones. */
+const reorder: Step = (n) => {
+  if (n % 2 === 0) return {}
+  const ids = [...rowIds]
+  ;[ids[SWAP_A], ids[SWAP_B]] = [ids[SWAP_B]!, ids[SWAP_A]!]
+  return { ids }
+}
+/** Relabels row 500 only. */
+const relabel: Step = (n) => ({ label: (i) => (i === 500 ? `Item ${i} #${n}` : rowLabel(i)) })
+
+// A whole-list re-render commits after Effect's scheduler yields to a macrotask, so this case's time includes one timer turn.
+const tick = () => new Promise((r) => setTimeout(r, 0))
+const sleekKeyed = async (step: Step) => {
+  const container = document.createElement('div')
+  const store = makeAtomStore()
+  const state = Atom.make(0)
+  const List = () => Effect.flatMap(useAtomValue(state), (n) => sleekTree(jsx, undefined, { keyed: true, ...step(n) }))
+  await mount(jsx(List as any, {}), { layer: Layer.empty, container, store })
+  let n = 0
+  return { container, run: async () => (store.set(state, ++n), await tick(), container.textContent) }
+}
+const reactKeyed = (step: Step) => {
+  const container = document.createElement('div')
+  let set!: (n: number) => void
+  const List = () => {
+    const [n, s] = useState(0)
+    set = s
+    return reactTree(undefined, step(n))
+  }
+  flushSync(() => createRoot(container).render(h(List)))
+  let n = 0
+  return { container, run: () => (flushSync(() => set(++n)), container.textContent) }
+}
+
 const sleekU = await sleekUpdate()
 const reactU = reactUpdate()
 await check('render-dom/update-1-of-1k', [
   ['sleekstack', sleekU.run],
   ['react', reactU.run],
 ])
-const nodeSwaps = { sleekstack: await swaps(sleekU), react: await swaps(reactU) }
-console.log('render-dom/update-1-of-1k node swaps per update:', nodeSwaps)
+const keyedReorder = { sleekstack: await sleekKeyed(reorder), react: reactKeyed(reorder) }
+const keyedUpdate = { sleekstack: await sleekKeyed(relabel), react: reactKeyed(relabel) }
+await check('render-dom/keyed-reorder-1k', [
+  ['sleekstack', keyedReorder.sleekstack.run],
+  ['react', keyedReorder.react.run],
+])
+await check('render-dom/keyed-update-1-of-1k', [
+  ['sleekstack', keyedUpdate.sleekstack.run],
+  ['react', keyedUpdate.react.run],
+])
+
+const nodeSwaps: Record<string, Record<string, number>> = {}
+for (const [name, u] of [
+  ['render-dom/update-1-of-1k', { sleekstack: sleekU, react: reactU }],
+  ['render-dom/keyed-reorder-1k', keyedReorder],
+  ['render-dom/keyed-update-1-of-1k', keyedUpdate],
+] as const) {
+  nodeSwaps[name] = { sleekstack: await swaps(u.sleekstack), react: await swaps(u.react) }
+  console.log(`${name} node swaps per update:`, nodeSwaps[name])
+}
 const results = resolve(import.meta.dirname, '../results')
 mkdirSync(results, { recursive: true })
-writeFileSync(resolve(results, 'swaps.json'), JSON.stringify({ 'render-dom/update-1-of-1k': nodeSwaps }, null, 2))
+writeFileSync(resolve(results, 'swaps.json'), JSON.stringify(nodeSwaps, null, 2))
 
 describe('render-dom/mount-1k', () => {
   bench('sleekstack', async () => void (await sleekMount()), opts)
@@ -101,4 +160,14 @@ describe('render-dom/mount-1k', () => {
 describe('render-dom/update-1-of-1k', () => {
   bench('sleekstack', async () => void (await sleekU.run()), opts)
   bench('react', () => void reactU.run(), opts)
+})
+
+describe('render-dom/keyed-reorder-1k', () => {
+  bench('sleekstack', async () => void (await keyedReorder.sleekstack.run()), opts)
+  bench('react', () => void keyedReorder.react.run(), opts)
+})
+
+describe('render-dom/keyed-update-1-of-1k', () => {
+  bench('sleekstack', async () => void (await keyedUpdate.sleekstack.run()), opts)
+  bench('react', () => void keyedUpdate.react.run(), opts)
 })

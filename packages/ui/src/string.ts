@@ -5,7 +5,7 @@ import { type Atom, type AtomStore, makeAtomStore } from '@sleekstack/core'
 import { reportRenderError, runToNode } from './component'
 import { checkEvent, DuplicateBindKey, DuplicateHandler, type Handler, valueInfo } from './handler'
 import type { Node } from './node'
-import { Store } from './reactive'
+import { Frame, makeFrame, Store } from './reactive'
 
 const ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
 const escape = (s: string): string => s.replace(/[&<>"']/g, (c) => ESCAPES[c]!)
@@ -125,7 +125,7 @@ export const renderToString = async <E, A, LE = never>(
 ): Promise<string> => {
   const store = makeAtomStore()
   try {
-    const withStore = Effect.provideService(app, Store, store) as Effect.Effect<Node, E, Exclude<A, Store>>
+    const withStore = app.pipe(Effect.provideService(Store, store), Effect.provideService(Frame, makeFrame())) as Effect.Effect<Node, E, Exclude<A, Store>>
     const node = await runToNode(withStore, opts.layer, opts.onError)
     const c: Collector = { store, onError: opts.onError, handlers: new Map(), events: new Set(), atoms: new Map() }
     const html = serialize(node, c)

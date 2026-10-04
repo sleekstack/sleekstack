@@ -1,6 +1,6 @@
 /** @jsxImportSource @sleekstack/ui */
 import { Effect } from 'effect'
-import { Boundary, Provider, useAtomValue, useSetAtom } from '@sleekstack/ui'
+import { Boundary, Provider, useAtomValue, useLocal, useSetAtom } from '@sleekstack/ui'
 import { useMutation, useQuery } from '@sleekstack/ui/query'
 import { effectFn, QueryClientTag } from '@sleekstack/query'
 import { AddButton, Avatar, FilterBar, Votes } from './guests'
@@ -51,7 +51,7 @@ export const StatusColumn = ({ status, tasks }: { status: Status; tasks: Readonl
       {LABEL[status]} <small>{tasks.length}</small>
     </h3>
     {tasks.map((t) => (
-      <TaskCard task={t} />
+      <TaskCard key={t.id} task={t} />
     ))}
     {tasks.length === 0 && <p className="muted">Nothing here</p>}
   </section>
@@ -66,6 +66,7 @@ export const Board = ({ projectId }: { projectId: string }) =>
       <section className="board">
         <h2>{project.name}</h2>
         <Columns tasks={tasks} />
+        <Triage tasks={tasks} />
       </section>
     )
   })
@@ -77,9 +78,42 @@ const Columns = ({ tasks }: { tasks: ReadonlyArray<Task> }) =>
     return yield* (
       <div className="columns">
         {STATUSES.filter((s) => filter === 'all' || filter === s).map((s) => (
-          <StatusColumn status={s} tasks={tasks.filter((t) => t.status === s)} />
+          <StatusColumn key={s} status={s} tasks={tasks.filter((t) => t.status === s)} />
         ))}
       </div>
+    )
+  })
+
+/** Instance-local search, sort order and collapse; the keyed rows keep their nodes and guests when they reorder. */
+const Triage = ({ tasks }: { tasks: ReadonlyArray<Task> }) =>
+  Effect.gen(function* () {
+    const [query, setQuery] = yield* useLocal('')
+    const [desc, setDesc] = yield* useLocal(false)
+    const [open, setOpen] = yield* useLocal(true)
+    const shown = tasks
+      .filter((t) => t.title.toLowerCase().includes(query.toLowerCase()))
+      .sort((a, b) => (desc ? -1 : 1) * a.title.localeCompare(b.title))
+    return yield* (
+      <section className="triage">
+        <h3>
+          <button type="button" className="collapse" onClick={() => Effect.sync(() => setOpen((o) => !o))}>
+            {open ? 'Hide' : 'Show'} triage
+          </button>
+        </h3>
+        <input className="search" placeholder="Search" onInput={(e: Event) => Effect.sync(() => setQuery((e.target as HTMLInputElement).value))} />
+        <button type="button" className="sort" onClick={() => Effect.sync(() => setDesc((d) => !d))}>
+          {desc ? 'Z-A' : 'A-Z'}
+        </button>
+        {open && (
+          <ul className="triage-list">
+            {shown.map((t) => (
+              <li key={t.id} data-id={t.id}>
+                {t.title} <Votes initial={t.votes} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     )
   })
 
@@ -139,7 +173,7 @@ export const Team = () =>
     return yield* (
       <ul className="team">
         {users.map((u) => (
-          <li>
+          <li key={u.id}>
             <Avatar name={u.name} /> {u.name}
           </li>
         ))}
@@ -157,7 +191,7 @@ const BacklogList = ({ projectId }: { projectId: string }) =>
     return yield* (
       <ul className="backlog">
         {(q.data ?? []).map((t) => (
-          <li>{t.title}</li>
+          <li key={t.id}>{t.title}</li>
         ))}
       </ul>
     )
