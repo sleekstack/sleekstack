@@ -16,3 +16,7 @@ The `kit/next` inline runner is renamed `runOperation`. `effect` stays exported 
 
 - One public name, one meaning. `sleekstack check` output for existing apps is unchanged.
 - The alias is removed in the next release; callers switch the import name only.
+
+## Rejected
+
+Renaming kit's side-effect `effect()` instead. It is the main-entry API and appears as `effect:<name>` in the analyzer graph, so renaming it would change graph ids users already see.
