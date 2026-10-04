@@ -34,9 +34,14 @@ Nested reactive instances survive their parent's re-run (spec Architecture: Matc
 - [ ] TBD
 
 ## Done summary
-TBD
+Matched `Reactive` nodes adopt their live instance by id (rerun, subscriptions, run scope, run frame switch on commit; in-flight re-run interrupted; old scope closes after commit). Reactive nodes now carry their run `frame` (node.ts, reactive.ts carry-over): commit runs `commitSlots`, dropped/failed runs `dropSlots`, kill `disposeSlots` (now idempotent and resetting). `Instance` identity is now the instance's slots so `useMutation` observers survive adoption. Tests: nested rewrite, in-flight adopt + kill, dropped re-run/kill slots, useQuery/useMutation retain across adopt and release on kill.
 
+Out-of-Touches edits: packages/ui/src/node.ts (`frame` field type) and reactive.ts `Instance` value changed from a per-closure object to the slots (needed for the useMutation AC).
+Bench: run 1 and 2 showed render-string/list-1k REGRESSED (2.85 vs 1.74) from an onExit wrapper on every run; moved slot-drop into the existing RenderScope onExit, run 3 all OK (2.50).
+
+stage: impl-review - skipped(config: REVIEW_MODE=none)
+Tier: session (jev-unavailable(no_key)); routing block pins implementer opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 6e37d99dbb875453cfa8fa938dae778c20326665
+- Tests: pnpm --filter @sleekstack/ui test, pnpm --filter @sleekstack/ui typecheck, pnpm --filter bench bench:json && pnpm --filter bench compare
 - PRs:
