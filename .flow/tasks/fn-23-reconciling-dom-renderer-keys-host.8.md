@@ -35,9 +35,13 @@ Two standalone per-call component-pass rules (spec API Contracts: new Analyzer c
 - [ ] TBD
 
 ## Done summary
-TBD
+Added the ConditionalSlot rule (useLocal must be a statement-level yield* in a component's Effect.gen body, before any return; anything else fails closed) and the MissingKey rule (child-position .map/.flatMap/Array.from callbacks returning unkeyed JSX or fragments) as standalone per-call rules in packages/analyze/src/components.ts. Both codes are in ERROR_CODES with the UI docs anchor, kit llms.md is regenerated, and the new ui-slots and ui-keys fixtures cover them.
 
+Known downstream: ui-demo "the demo app itself is clean" now fails with 4 MissingKey in apps/ui-demo/src/components.tsx (lines ending 54, 80, 144, 160; the spec expected 3). fn-23.10 adds the keys. ui-keys mounts nothing because a ui-JSX component root reads as "does not return Effect<Node>" (Unresolved); that is a separate tree-reader gap, not part of this task.
+
+stage: impl-review - skipped(config: REVIEW_MODE=none)
+Tier: session (jev-unavailable(no_key)); routing block pins implementer opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 355dd03c462c8f4162943253decfe9033c6c5a36
+- Tests: pnpm --filter @sleekstack/analyze test && pnpm --filter @sleekstack/analyze typecheck, pnpm --filter @sleekstack/ui test, pnpm --filter ui-demo test (red: 4 MissingKey, expected until fn-23.10)
 - PRs:
