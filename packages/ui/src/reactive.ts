@@ -24,7 +24,7 @@ export class RenderScope extends Context.Reference<RenderScope>()('@sleekstack/u
   defaultValue: (): Scope.Scope | undefined => undefined,
 }) {}
 
-/** Identity of the running component instance, the same object across its re-runs; `undefined` outside one. */
+/** Identity of the running component instance (its slots), the same object across its re-runs and adoptions; `undefined` outside one. */
 export class Instance extends Context.Reference<Instance>()('@sleekstack/ui/Instance', {
   defaultValue: (): object | undefined => undefined,
 }) {}
@@ -61,9 +61,13 @@ export class SlotMismatch extends Data.TaggedError('SlotMismatch')<{ readonly id
 /** Two siblings share one key. */
 export class DuplicateKey extends Data.TaggedError('DuplicateKey')<{ readonly key: string }> {}
 
-const disposeSlots = (s: Slots): void => {
-  for (const r of s.releases) r()
+/** Releases a slot tree and resets it, so a disposed instance id starts fresh; idempotent. */
+export const disposeSlots = (s: Slots): void => {
+  for (const r of s.releases.splice(0)) r()
+  s.atoms.length = 0
+  s.done = false
   s.kids?.forEach(disposeSlots)
+  s.kids = undefined
 }
 
 /** The run's result committed: its pending slots become permanent; slots of child ids it did not run are disposed. */
@@ -194,7 +198,6 @@ const handled = (run: Effect.Effect<Node, any, any>): Effect.Effect<Node, any, a
  * Under a `RenderScope` the node carries its run's scope: a failed run closes it, otherwise its owner (the DOM renderer) does.
  */
 export const instance = <P>(type: (props: P) => Effect.Effect<Node, any, any>, props: P, key?: string): Effect.Effect<Node, any, any> => {
-  const inst = {}
   // Fixed on the first run from the parent's frame; `rerun` reuses it and never bumps the parent's ordinals.
   let id: string | undefined
   // Slots of an instance with no parent frame (the root).
@@ -222,11 +225,11 @@ export const instance = <P>(type: (props: P) => Effect.Effect<Node, any, any>, p
       }
       slots = found
     } else slots = rootSlots ??= { atoms: [], releases: [], done: false }
+    const frame = makeFrame(slots, self)
     const body = (own: Scope.CloseableScope | undefined): Effect.Effect<Node, any, any> => {
       const reads = new Map<Atom.Atom<any>, unknown>()
-      let inner = Context.add(Context.add(Context.add(ctx, Collector, reads), Instance, inst), Frame, makeFrame(slots, self))
+      let inner = Context.add(Context.add(Context.add(ctx, Collector, reads), Instance, slots), Frame, frame)
       if (own) inner = Context.add(inner, RenderScope, own)
-      const frame = Context.get(inner, Frame)!
       const checked = Effect.flatMap(Effect.provide(type(props), inner), (child) => {
         if (slots.done && frame.cursor !== slots.atoms.length) return Effect.fail(new SlotMismatch({ id: self, expected: slots.atoms.length, actual: frame.cursor }))
         slots.done = true
@@ -237,13 +240,14 @@ export const instance = <P>(type: (props: P) => Effect.Effect<Node, any, any>, p
           ? own
             ? owned(child, own)
             : child
-          : { _tag: 'Reactive', atoms: [...reads.keys()], seen: [...reads.values()], child, scope: own, rerun: Effect.provide(handled(run), ctx) as Effect.Effect<Node>, id: self, ...(key !== undefined && { key }) },
+          : { _tag: 'Reactive', atoms: [...reads.keys()], seen: [...reads.values()], child, scope: own, rerun: Effect.provide(handled(run), ctx) as Effect.Effect<Node>, id: self, frame, ...(key !== undefined && { key }) },
       )
     }
     const parent = Context.get(ctx, RenderScope)
     return parent
       ? Effect.flatMap(Scope.fork(parent, ExecutionStrategy.sequential), (own) =>
-          Effect.onExit(body(own), (exit) => (Exit.isSuccess(exit) ? Effect.void : Scope.close(own, exit))),
+          // A failed or interrupted run produces no node for the renderer to drop: its pending child slots go here too.
+          Effect.onExit(body(own), (exit) => (Exit.isSuccess(exit) ? Effect.void : Effect.zipRight(Effect.sync(() => dropSlots(frame)), Scope.close(own, exit)))),
         )
       : body(undefined)
   })

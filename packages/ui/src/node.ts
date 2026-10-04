@@ -2,6 +2,7 @@ import type { Atom } from '@sleekstack/core'
 import type { Context, Effect, Scope } from 'effect'
 import type { ComponentType } from 'react'
 import type { Handler } from './handler'
+import type { RunFrame } from './reactive'
 
 export interface TextNode {
   readonly _tag: 'Text'
@@ -44,6 +45,8 @@ export interface ReactiveNode {
   /** @internal This run's `RenderScope` child; closed by the renderer when the run's DOM is replaced or dropped. */
   readonly scope?: Scope.CloseableScope
   readonly key?: string
+  /** @internal This run's frame; the renderer commits or drops its pending child slots, and a kill disposes its slots. */
+  readonly frame?: RunFrame
   /** @internal Instance identity, `<fnId>#<ordinal>` or `<fnId>:key:<key>`; set by `instance`. */
   readonly id: string
 }

@@ -6,11 +6,27 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { Boundary, el, fromReact, mount, type Mounted, Provider, Store, useAtomValue, useLocal, useSetAtom } from '../index'
 import type { Node } from '../node'
 import { Fragment, jsx as rawJsx } from '../jsx-runtime'
+import { useMutation, useQuery, useQueryClient } from '../query'
+import { QueryClientLive } from '@sleekstack/query'
+import type { QueryClient } from '@tanstack/query-core'
 
 const useEffectLog = (log: (e: string) => void) => useEffect(() => (log('mount'), () => log('unmount')), [])
 
 const jsx = (type: any, props: any) => rawJsx(type, props)
 const tick = () => act(async () => void (await new Promise((r) => setTimeout(r, 0))))
+
+// Active store subscriptions per atom, for stores made by `counted`.
+const subs = new Map<unknown, number>()
+const counted = () => {
+  const store = makeAtomStore()
+  const subscribe = store.subscribe
+  vi.spyOn(store, 'subscribe').mockImplementation((atom, f) => {
+    subs.set(atom, (subs.get(atom) ?? 0) + 1)
+    const off = subscribe(atom, f)
+    return () => (subs.set(atom, subs.get(atom)! - 1), off())
+  })
+  return store
+}
 
 let handles: Array<Mounted> = []
 beforeAll(() => {
@@ -137,24 +153,127 @@ describe('reactive DOM', () => {
     expect(disposed).toHaveBeenCalled()
   })
 
-  it('nested: inner change touches only the inner host; outer change recreates inner subscriptions', async () => {
+  it('nested: an outer change adopts the inner instance; no double re-run, no leaked subscription', async () => {
     const outer = Atom.make('o1')
     const inner = Atom.make('i1')
-    const Inner = () => Effect.map(useAtomValue(inner), (v) => el('em', {}, v))
+    let innerRuns = 0
+    const Inner = () => Effect.map(useAtomValue(inner), (v) => (innerRuns++, el('em', {}, v)))
     const Outer = () => Effect.flatMap(useAtomValue(outer), (v) => Effect.map(jsx(Inner, {}), (i) => el('div', {}, el('span', {}, v), i)))
-    const { container, store } = await go(jsx(Outer, {}))
+    const { container, store } = await go(jsx(Outer, {}), { store: counted() })
     const span = container.querySelector('span')
+    const em = container.querySelector('em')
     store.set(inner, 'i2')
     await tick()
     expect(container.querySelector('em')!.textContent).toBe('i2')
     expect(container.querySelector('span')).toBe(span)
+    innerRuns = 0
     store.set(outer, 'o2')
     await tick()
-    // Patched in place: the span survives the outer re-run (R1).
     expect(container.querySelector('span')).toBe(span)
+    expect(container.querySelector('em')).toBe(em)
+    expect(innerRuns).toBe(1)
+    expect(subs.get(inner)).toBe(1)
     store.set(inner, 'i3')
     await tick()
     expect(container.textContent).toBe('o2i3')
+    expect(innerRuns).toBe(2)
+  })
+
+  it('a matched instance with an in-flight re-run adopts and the latest run wins; a removed instance is fully killed', async () => {
+    const outer = Atom.make(0)
+    const inner = Atom.make(0)
+    const gate = Effect.runSync(Deferred.make<void>())
+    const log: Array<string> = []
+    const layer = Layer.scoped(Greeting, Effect.acquireRelease(Effect.succeed('g'), () => Effect.sync(() => log.push('released'))))
+    let blocked = false
+    const Inner = () =>
+      Effect.flatMap(useAtomValue(inner), (n) =>
+        (n === 1 && !blocked && (blocked = true) ? Deferred.await(gate).pipe(Effect.onInterrupt(() => Effect.sync(() => log.push('interrupted')))) : Effect.void).pipe(Effect.as(el('em', {}, String(n)))),
+      )
+    const Outer = () => Effect.flatMap(useAtomValue(outer), (o) => (o < 2 ? Effect.map(jsx(Provider, { layer, children: jsx(Inner, {}) }), (i) => el('div', {}, String(o), i)) : Effect.succeed(el('div', {}, 'gone'))))
+    const { container, store } = await go(jsx(Outer, {}), { store: counted() })
+    const em = container.querySelector('em')
+    store.set(inner, 1) // in flight, blocked on the gate
+    await tick()
+    store.set(outer, 1) // the parent's run reads inner = 1 without blocking and adopts
+    await tick()
+    expect(container.textContent).toBe('11')
+    expect(log).toContain('interrupted')
+    expect(container.querySelector('em')).toBe(em)
+    expect(subs.get(inner)).toBe(1)
+    const released = log.filter((l) => l === 'released').length
+    store.set(outer, 2)
+    await tick()
+    expect(container.textContent).toBe('gone')
+    expect(subs.get(inner) ?? 0).toBe(0)
+    expect(log.filter((l) => l === 'released').length).toBe(released + 1)
+    store.set(inner, 5)
+    await tick()
+    expect(container.textContent).toBe('gone')
+  })
+
+  it('a dropped re-run disposes only its pending slots; a killed instance disposes all its slots', async () => {
+    const show = Atom.make(1)
+    const fail = Atom.make(false)
+    const store = makeAtomStore()
+    let held = 0
+    const retain = store.retain
+    vi.spyOn(store, 'retain').mockImplementation((atom) => {
+      held++
+      const release = retain(atom)
+      return () => (held--, release())
+    })
+    const L = () => Effect.map(useLocal(0), ([n]) => el('b', {}, String(n)))
+    const P = () =>
+      Effect.flatMap(useAtomValue(show), (s) =>
+        Effect.flatMap(useAtomValue(fail), (f) =>
+          Effect.flatMap(Effect.all([s >= 1 ? jsx(L, { key: 'a' }) : Effect.succeed(null), s >= 2 ? jsx(L, { key: 'b' }) : Effect.succeed(null)]), (kids) =>
+            f ? Effect.die('boom') : Effect.succeed(el('div', {}, ...kids.filter((k): k is Node => k !== null))),
+          ),
+        ),
+      )
+    const onError = vi.fn()
+    await go(jsx(P, {}), { store, onError })
+    // P's slots plus L(a)'s one slot; useAtomValue holds are run-scoped and released with the run.
+    const base = held
+    store.set(fail, true)
+    store.set(show, 2)
+    await tick()
+    expect(onError).toHaveBeenCalled()
+    expect(held).toBe(base)
+    store.set(fail, false)
+    await tick()
+    expect(held).toBe(base + 2)
+    store.set(show, 0)
+    await tick()
+    expect(held).toBe(base - 2)
+  })
+
+  it('a useQuery / useMutation observer keeps its retain across an adopt and is released on kill', async () => {
+    const outer = Atom.make(0)
+    let client: QueryClient | undefined
+    let mutate: (() => void) | undefined
+    const Q = () =>
+      Effect.zipWith(useQuery({ queryKey: ['adopt'], queryFn: async () => 'v' }), useMutation({ mutationFn: async () => 1 }), (q, m) => ((mutate = m.mutate), el('b', {}, `${q.status}:${m.status}`)))
+    const Outer = () =>
+      Effect.flatMap(useAtomValue(outer), (o) =>
+        Effect.flatMap(useQueryClient(), (c) => ((client = c), o < 2 ? Effect.map(jsx(Q, {}), (q) => el('div', {}, String(o), q)) : Effect.succeed(el('div', {}, 'gone')))),
+      )
+    const { container, store } = await go(jsx(Outer, {}), { layer: QueryClientLive() as any })
+    await tick()
+    mutate!()
+    await tick()
+    expect(container.textContent).toBe('0success:success')
+    const observers = () => client!.getQueryCache().find({ queryKey: ['adopt'] })!.getObserversCount()
+    expect(observers()).toBe(1)
+    store.set(outer, 1)
+    await tick()
+    expect(container.textContent).toBe('1success:success')
+    expect(observers()).toBe(1)
+    store.set(outer, 2)
+    await tick()
+    expect(container.textContent).toBe('gone')
+    expect(observers()).toBe(0)
   })
 
   it('a renderer defect on re-run keeps the old DOM and reports; a run that reads no atoms unsubscribes', async () => {

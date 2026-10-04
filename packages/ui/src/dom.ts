@@ -5,7 +5,7 @@ import { flushSync } from 'react-dom'
 import { createRoot, type Root } from 'react-dom/client'
 import { reportRenderError, runToNode } from './component'
 import type { ElementNode, FragmentNode, Node, ReactiveNode } from './node'
-import { commitSlots, DuplicateKey, fallbacks, Frame, makeFrame, RenderScope, runScopes, Store } from './reactive'
+import { commitSlots, disposeSlots, dropSlots, DuplicateKey, fallbacks, Frame, makeFrame, RenderScope, type RunFrame, runScopes, Store } from './reactive'
 import { checkAttr, checkTag } from './string'
 
 export interface Mounted {
@@ -55,16 +55,19 @@ interface Instance extends Owner {
   dead: boolean
   // Scope of the run whose DOM is committed; closed when that DOM is replaced or dropped.
   scope: Scope.CloseableScope | undefined
+  // Frame of the committed run: its slots are the instance's own.
+  frame: RunFrame | undefined
 }
 
 const closeScope = (scope: Scope.CloseableScope | undefined): void => {
   if (scope) Effect.runFork(Scope.close(scope, Exit.void))
 }
 
-// Closes every run scope a never-built node owns (a discarded re-run result).
+// Closes every run scope and drops the pending slots a never-built node owns (a discarded re-run result).
 const dropScopes = (node: Node): void => {
   if (node._tag === 'Reactive') {
     closeScope(node.scope)
+    if (node.frame) dropSlots(node.frame)
     dropScopes(node.child)
   } else if (node._tag === 'Fragment' || node._tag === 'Element') {
     if (node._tag === 'Fragment') closeScope(runScopes.get(node))
@@ -90,6 +93,7 @@ const kill = (i: Instance): void => {
   release(i)
   closeScope(i.scope)
   i.scope = undefined
+  if (i.frame) disposeSlots(i.frame.owner)
 }
 
 // Per-container generation token: a mount whose generation moved before it resolved writes nothing.
@@ -130,14 +134,16 @@ const once = (onError?: OnError) => {
   }
 }
 
-// Plan output: deferred infallible DOM ops, fresh lives (released if the plan is dropped), old lives to release on commit.
+// Plan output: deferred infallible DOM ops, fresh lives (released if the plan is dropped), old lives to release on commit,
+// and adoptions applied after them.
 interface Plan {
   readonly ops: Array<() => void>
+  readonly after: Array<() => void>
   readonly created: Array<Live>
   readonly dropped: Array<Live>
   readonly scopes: Array<Scope.CloseableScope>
 }
-const plan = (): Plan => ({ ops: [], created: [], dropped: [], scopes: [] })
+const plan = (): Plan => ({ ops: [], after: [], created: [], dropped: [], scopes: [] })
 const abort = (p: Plan): void => {
   p.created.forEach(drop)
   p.scopes.forEach(closeScope)
@@ -145,6 +151,7 @@ const abort = (p: Plan): void => {
 const commit = (p: Plan): void => {
   for (const op of p.ops) op()
   p.dropped.forEach(drop)
+  for (const f of p.after) f()
 }
 
 type Leaf = Exclude<Node, FragmentNode>
@@ -201,7 +208,7 @@ const build = (node: Leaf, key: string | undefined, env: Env, scopes: Array<Scop
       case 'Reactive': {
         const host = env.doc.createElement('sleek-reactive')
         host.style.display = 'contents'
-        const inst: Instance = { lives: [], scopes: [], host, rerun: node.rerun, unsubs: [], fiber: undefined, queued: -1, epoch: 0, dead: false, scope: node.scope }
+        const inst: Instance = { lives: [], scopes: [], host, rerun: node.rerun, unsubs: [], fiber: undefined, queued: -1, epoch: 0, dead: false, scope: node.scope, frame: node.frame }
         inst.lives = buildAll([node.child], env, inst.scopes, host)
         watch(inst, node, env)
         return { node, dom: host, kids: [], inst, ...keyed }
@@ -263,17 +270,47 @@ const patch = (prev: Live, node: Leaf, key: string | undefined, env: Env, p: Pla
   }
 }
 
+// A matched instance adopts the parent's fresh run: its subtree is planned now; rerun, subscriptions, scope and frame
+// switch on commit, interrupting its own in-flight re-run. A dropped plan leaves it as is (the caller drops the node).
+const adopt = (prev: Live, node: ReactiveNode, key: string | undefined, env: Env, p: Plan): Live => {
+  const inst = prev.inst!
+  const sub: Plan = { ...p, scopes: [] }
+  const lives = patchChildren(inst.host, inst.lives, [node.child], env, sub)
+  p.after.push(() => {
+    if (inst.fiber) Effect.runFork(Fiber.interrupt(inst.fiber))
+    inst.fiber = undefined
+    inst.lives = lives
+    inst.scopes.splice(0).forEach(closeScope)
+    inst.scopes = sub.scopes
+    unwatch(inst)
+    const previous = inst.scope
+    inst.rerun = node.rerun
+    inst.scope = node.scope
+    inst.frame = node.frame
+    watch(inst, node, env)
+    closeScope(previous)
+    if (node.frame) commitSlots(node.frame)
+  })
+  return { node, dom: prev.dom, kids: [], inst, ...(key === undefined ? {} : { key }) }
+}
+
 const same = (a: Leaf, b: Leaf): boolean => a._tag === b._tag && (a._tag !== 'Element' || a.tag === (b as ElementNode).tag)
 
-// Matching: key and type, else the next unkeyed old sibling by position (a separate pool). Instances and guests are rebuilt for now.
+// Matching: instances by id; others by key and type, else the next unkeyed old sibling by position (a separate pool).
+// Guests are rebuilt for now.
 const patchChildren = (parent: globalThis.Node, old: ReadonlyArray<Live>, nodes: ReadonlyArray<Node>, env: Env, p: Plan): Array<Live> => {
   const list = flat(nodes, p.scopes)
   const keys = keysOf(list, env)
   const byKey = new Map<string, Live>()
   const pool: Array<Live> = []
   const gone: Array<Live> = []
+  // ponytail: ids are unique per parent frame; ids repeated across flattened untracked siblings match in order.
+  const byId = new Map<string, Array<Live>>()
   for (const l of old) {
-    if (l.inst || l.root) gone.push(l)
+    if (l.inst) {
+      const id = (l.node as ReactiveNode).id
+      byId.set(id, [...(byId.get(id) ?? []), l])
+    } else if (l.root) gone.push(l)
     else if (l.key !== undefined) byKey.set(l.key, l)
     else pool.push(l)
   }
@@ -281,7 +318,10 @@ const patchChildren = (parent: globalThis.Node, old: ReadonlyArray<Live>, nodes:
   const lives = list.flatMap((n, i) => {
     const k = keys[i]
     let prev: Live | undefined
-    if (n._tag !== 'Reactive' && n._tag !== 'Guest') {
+    if (n._tag === 'Reactive') {
+      const m = byId.get(n.id)?.shift()
+      if (m) return [adopt(m, n, k, env, p)]
+    } else if (n._tag !== 'Guest') {
       if (k === undefined) prev = pool[next++]
       else {
         prev = byKey.get(k)
@@ -295,7 +335,7 @@ const patchChildren = (parent: globalThis.Node, old: ReadonlyArray<Live>, nodes:
     p.created.push(l)
     return [l]
   })
-  gone.push(...byKey.values(), ...pool.slice(next))
+  gone.push(...byKey.values(), ...pool.slice(next), ...[...byId.values()].flat())
   p.dropped.push(...gone)
   p.ops.push(() => place(parent, gone, lives))
   return lives
@@ -394,7 +434,9 @@ const swap = (inst: Instance, node: Node, env: Env): void => {
     unwatch(inst)
     inst.rerun = own.rerun
     inst.scope = own.scope
+    inst.frame = own.frame
     watch(inst, own, env)
+    if (own.frame) commitSlots(own.frame)
   } else {
     // A fallback keeps the subscriptions (the next change retries); either way the replaced run's scope goes.
     if (!fallbacks.has(node)) unwatch(inst)
