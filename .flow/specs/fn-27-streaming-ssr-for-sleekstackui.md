@@ -1,35 +1,36 @@
 ## Goal & Context
 <!-- scope: business -->
 
-`renderToString` waits for the whole tree. With `Pending` and hydration in place, streaming SSR sends the shell first and fills pending boundaries as they resolve, improving time to first byte.
+`renderToString` waits for the whole tree. With `Pending` (fn-24) and hydration (fn-25), streaming SSR sends the shell first and fills pending boundaries as they resolve.
 
 ## Architecture & Data Models
 <!-- scope: technical -->
 
-- `renderToStream(node)` returns a Web `ReadableStream<string>` (stdlib; no Node-only API).
-- Shell renders with each unresolved `Pending` boundary emitted as a placeholder with an id; when it resolves, a chunk carries the HTML and a tiny inline swap script.
-- Hydration (previous spec) must accept out-of-order boundaries: a boundary resolved after hydration starts hydrates when its content arrives (open question: mismatch handling during the gap; decide in task 1).
-- Errors before the shell flush produce a real error response path; after flush, the boundary's error fallback is streamed.
-- Store snapshot is appended after the last chunk or per boundary (open question).
+- `renderToStream(node, options?)` returns a Web `ReadableStream<Uint8Array>` (usable directly in `new Response`); built on stdlib only.
+- The shell renders each unresolved `Pending` boundary as a placeholder carrying a unique id, using the `{ fallback, content }` shape fn-24 exposes. Each resolved boundary streams a chunk with its HTML and a small swap script. Script nonce comes from `options.nonce`.
+- **Per-boundary state.** Each boundary's chunk carries its own dehydrated atom and query state (fn-25 format) so the client `Pending` does not rerun its content or refetch. The resume manifest, if used, is emitted once after the last chunk.
+- **Hydration of late boundaries.** fn-25's hook: hydration skips boundaries whose content has not arrived and adopts each one when its chunk lands; the final DOM equals a fully-loaded hydrate.
+- Errors before the shell flushes reject the stream with the typed error; errors after flush stream that boundary's error fallback.
+- Ids are unique across several streams on one page (id prefix option).
 
 ## API Contracts
 <!-- scope: technical -->
 
-`renderToStream(node, options?): ReadableStream<string>`; `renderToString` unchanged.
+`renderToStream(node, options?: { nonce?: string; idPrefix?: string; onError? }): ReadableStream<Uint8Array>`; `renderToString` unchanged.
 
 ## Edge Cases & Constraints
 <!-- scope: technical -->
 
-Client abort cancels pending fibers; nested boundaries resolve inner-first or outer-first consistently; duplicate ids impossible across multiple streams on one page; CSP-safe script option.
+Client abort cancels pending fibers; nested boundaries resolve in completion order and an inner boundary's chunk waits for its parent's placeholder; no inline script when `nonce` forbids it is not supported (documented).
 
 ## Acceptance Criteria
 <!-- scope: both -->
 
-- **R1:** The first chunk contains the shell and fallbacks without waiting for any pending boundary.
-- **R2:** Resolved boundaries stream in completion order and the final DOM equals `renderToString` output after the swap runs in jsdom.
-- **R3:** A client that hydrates mid-stream ends in the same DOM as a fully-loaded hydrate.
-- **R4:** Cancelling the stream interrupts pending fibers and closes scopes.
-- **R5:** An error inside a boundary after flush renders its fallback; an error before flush rejects.
+- **R1:** The first chunk contains the shell and fallbacks without waiting for any pending boundary. Errors: a render defect before flush rejects.
+- **R2:** Resolved boundaries stream in completion order, and after the swap runs in jsdom the DOM equals `renderToString` output once placeholder ids and swap scripts are normalised out. Errors: a boundary failing after flush streams its fallback.
+- **R3:** A client that hydrates mid-stream ends in the same DOM as a fully loaded hydrate, with no refetch for boundary state. Errors: a missing boundary chunk leaves the fallback and reports.
+- **R4:** Cancelling the stream interrupts pending fibers and closes scopes, retain counts back to zero. Errors: none.
+- **R5:** `nonce` appears on every inline script; two streams on one page do not collide ids.
 - **R6:** ADR records the protocol; README documents it.
 
 ## Quick commands
@@ -40,9 +41,9 @@ Client abort cancels pending fibers; nested boundaries resolve inner-first or ou
 ## Boundaries
 <!-- scope: business -->
 
-No framework server integration (that is the router/Vite specs); no resume.
+No framework server integration (router and Vite specs), no resume work.
 
 ## Decision Context
 <!-- scope: both -->
 
-Depends on Pending and hydration; deliberately after the built package so the output format is stable.
+Depends on fn-24, fn-25 and fn-26 (stable output).

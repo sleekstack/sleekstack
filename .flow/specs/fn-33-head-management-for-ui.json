@@ -1,16 +1,16 @@
 {
-  "branch_name": "fn-25-hydration-for-sleekstackui",
-  "created_at": "2026-10-04T09:15:11.248866Z",
+  "branch_name": "fn-33-head-management-for-ui",
+  "created_at": "2026-10-04T10:31:55.393239Z",
   "depends_on_epics": [
-    "fn-24-pending-async-boundaries-for"
+    "fn-27-streaming-ssr-for-sleekstackui"
   ],
-  "id": "fn-25-hydration-for-sleekstackui",
+  "id": "fn-33-head-management-for-ui",
   "next_task": 1,
   "plan_review_status": "unknown",
   "plan_reviewed_at": null,
-  "spec_path": ".flow/specs/fn-25-hydration-for-sleekstackui.md",
+  "spec_path": ".flow/specs/fn-33-head-management-for-ui.md",
   "status": "open",
-  "title": "Hydration for @sleekstack/ui",
+  "title": "Head management for ui",
   "tracker": {
     "baseHashFlow": null,
     "baseHashTracker": null,
@@ -22,5 +22,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-04T10:32:00.541228Z"
+  "updated_at": "2026-10-04T10:32:03.024847Z"
 }
