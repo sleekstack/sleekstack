@@ -21,4 +21,4 @@
 | [0018](0018-tanstack-query-over-native-query-layer.md) | Queries use TanStack Query; `@sleekstack/query` is a thin bridge | Accepted |
 | [0019](0019-run-operation-rename.md) | `kit/next`'s inline runner is `runOperation`; `effect` means the side-effect Layer only | Accepted |
 | [0017](0017-resumable-host-first-components.md) | `@sleekstack/ui` (spike): host HTML resumes through named handlers and bound atoms without re-running components | Proposed |
-| [0020](0020-keyed-instances-skip-unchanged-runs.md) | A keyed instance whose props and context are unchanged is not re-run | Proposed |
+| [0020](0020-keyed-instances-skip-unchanged-runs.md) | A keyed instance whose props and context are unchanged is not re-run | Accepted |

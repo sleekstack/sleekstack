@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed. Amends ADR 0015 (keyed instances, reconciliation).
+Accepted. Amends ADR 0015 (keyed instances, reconciliation).
 
 ## Context
 
