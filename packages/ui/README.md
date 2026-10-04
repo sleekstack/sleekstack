@@ -41,4 +41,4 @@ Limits: ordinal identity is positional, so conditional siblings of one component
 
 ## Installing
 
-`effect` is a peer dependency of `@sleekstack/ui`, `@sleekstack/core` and `@sleekstack/query`. Install exactly one copy of `effect` in the app; two copies (for example a nested `effect` under one package) are unsupported, since Context tags and Effect values from different copies do not match. The built output targets bundlers (Vite, esbuild); importing it from Node-native ESM is unsupported.
+`effect` is a peer dependency of `@sleekstack/ui`, `@sleekstack/core` and `@sleekstack/query`. Install exactly one copy of `effect` in the app; two copies (for example a nested `effect` under one package) are unsupported, since Context tags and Effect values from different copies do not match. The built output targets bundlers (Vite, esbuild); importing it from Node-native ESM is unsupported. The package stays `private: true` until the publish gate in ADR 0022 holds; that ADR also records the size budget (`mount` hello-world about 193 kB gzip, React DOM included).
