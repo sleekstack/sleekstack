@@ -36,6 +36,13 @@ export interface Slots {
   /** Slot count fixed by a finished run; later runs must match it. */
   done: boolean
   kids?: Map<string, Slots>
+  /** Last committed run of a keyed instance that read no atom and never used its scope, for reuse when its props and context match. */
+  memo?: Memo
+}
+interface Memo {
+  readonly props: object
+  readonly ctx: Context.Context<never>
+  readonly node: Node
 }
 
 /** One run of an instance: ordinals by component function, its own slots and cursor, and what its children did. `undefined` at the root. */
@@ -68,6 +75,7 @@ export const disposeSlots = (s: Slots): void => {
   s.done = false
   s.kids?.forEach(disposeSlots)
   s.kids = undefined
+  s.memo = undefined
 }
 
 /** The run's result committed: its pending slots become permanent; slots of child ids it did not run are disposed. */
@@ -197,6 +205,8 @@ const handled = (run: Effect.Effect<Node, any, any>): Effect.Effect<Node, any, a
 interface LazyScope extends Scope.CloseableScope {
   /** Closes without a fiber when nothing ever used the scope; false when it was used (close it normally). */
   closeIfIdle(): boolean
+  /** Never forked its parent and not closed. */
+  isIdle(): boolean
 }
 const lazies = new WeakSet<object>()
 
@@ -225,12 +235,34 @@ const lazyScope = (parent: Scope.Scope): Scope.CloseableScope => {
       closed = true
       return true
     },
+    isIdle: () => !inner && !closed,
   } as unknown as LazyScope
   lazies.add(self)
   return self
 }
 /** Closes `scope` without a fiber when it is a lazy scope nothing used; true when that handled it. */
 export const closeIdle = (scope: Scope.CloseableScope): boolean => lazies.has(scope) && (scope as LazyScope).closeIfIdle()
+const isIdle = (scope: Scope.Scope | undefined): boolean => scope !== undefined && lazies.has(scope) && (scope as LazyScope).isIdle()
+
+// Per-run services: rebuilt for every parent run, so they never decide whether a child's inputs changed.
+const PER_RUN = new Set<string>([Collector.key, Frame.key, RenderScope.key])
+const sameProps = (a: object, b: object): boolean => {
+  if (a === b) return true
+  const ka = Object.keys(a)
+  if (ka.length !== Object.keys(b).length) return false
+  for (const k of ka) if (!Object.hasOwn(b, k) || !Object.is((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k])) return false
+  return true
+}
+const sameServices = (a: Context.Context<never>, b: Context.Context<never>): boolean => {
+  let n = 0
+  for (const [k, v] of a.unsafeMap) {
+    if (PER_RUN.has(k)) continue
+    n++
+    if (!b.unsafeMap.has(k) || !Object.is(b.unsafeMap.get(k), v)) return false
+  }
+  for (const k of b.unsafeMap.keys()) if (!PER_RUN.has(k)) n--
+  return n === 0
+}
 
 /**
  * Runs a component as one instance: fresh collector, own scope, captured context; returns a `Reactive` node when it read atoms.
@@ -263,6 +295,9 @@ export const instance = <P>(type: (props: P) => Effect.Effect<Node, any, any>, p
         ;(parentFrame.pending ??= []).push([self, found])
       }
       slots = found
+      // Unchanged props and services, and a scope nothing used: the last run's node stands (nothing it read can have changed).
+      const m = slots.memo
+      if (m && key !== undefined && isIdle((m.node as { scope?: Scope.Scope }).scope) && sameProps(m.props, props as object) && sameServices(m.ctx, ctx)) return Effect.succeed(m.node)
     } else slots = rootSlots ??= { atoms: [], releases: [], done: false }
     const frame = makeFrame(slots, self)
     const body = (own: Scope.CloseableScope | undefined): Effect.Effect<Node, any, any> => {
@@ -274,13 +309,13 @@ export const instance = <P>(type: (props: P) => Effect.Effect<Node, any, any>, p
         slots.done = true
         return Effect.succeed(child)
       })
-      return Effect.map(checked, (child): Node =>
-        reads.size === 0 && key === undefined
-          ? own
-            ? owned(child, own)
-            : child
-          : { _tag: 'Reactive', atoms: [...reads.keys()], seen: [...reads.values()], child, scope: own, rerun: Effect.provide(handled(run), ctx) as Effect.Effect<Node>, id: self, frame, ...(key !== undefined && { key }) },
-      )
+      return Effect.map(checked, (child): Node => {
+        if (reads.size === 0 && key === undefined) return own ? owned(child, own) : child
+        const node: Node = { _tag: 'Reactive', atoms: [...reads.keys()], seen: [...reads.values()], child, scope: own, rerun: Effect.provide(handled(run), ctx) as Effect.Effect<Node>, id: self, frame, ...(key !== undefined && { key }) }
+        // Remembered for the next parent run only when nothing the row did can change without it re-running: no atom read, scope unused.
+        slots.memo = parentFrame && key !== undefined && reads.size === 0 && isIdle(own) ? { props: props as object, ctx, node } : undefined
+        return node
+      })
     }
     const parent = Context.get(ctx, RenderScope)
     if (!parent) return body(undefined)

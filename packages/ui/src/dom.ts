@@ -393,7 +393,8 @@ const patchChildren = (parent: globalThis.Node, old: ReadonlyArray<Live>, nodes:
     let prev: Live | undefined
     if (n._tag === 'Reactive') {
       const m = byId.get(n.id)?.shift()
-      if (m) return [adopt(m, n, k, env, p)]
+      // The same node as the live one: a row that was not re-run (ADR 0020); nothing to adopt.
+      if (m) return [m.node === n ? m : adopt(m, n, k, env, p)]
     } else if (k === undefined) prev = pool[next++]
     else {
       prev = byKey.get(k)

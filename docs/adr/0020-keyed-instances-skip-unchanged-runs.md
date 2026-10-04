@@ -52,7 +52,8 @@ Not affected: unkeyed components (as today), `renderToString` (no previous run, 
 - **The older benchmark does not improve.** `render-dom/keyed-update-1-of-1k` passes a fresh `label` closure that the row calls at render; every row correctly misses. It stays as the worst-case control.
 - **Rows that read atoms or build a `Provider` miss** (scope forked); they keep their own atom-driven updates (`update-1-of-1k`, ratio about 0.43).
 - One extra pass over the children per update (id, props compare). Reorder still goes through `place` (no LIS, ADR 0015).
-- The estimate (about 1.2ms) rests on a hand-built prototype. Revisit: after the bailout lands, `keyed-update-data-1-of-1k` should show 1 component run (not 1,000) and a mean near the prototype; if it does not, the cost is not where this ADR says and the bailout is reverted.
+- **Measured with the implementation** (jsdom, same process as React, three runs): `keyed-update-data-1-of-1k` went from 11.13ms to 1.1–1.2ms, 1 row component run per update instead of 1,000, about 0.35 of React's mean (React about 3.2ms). The closure-label benchmark (every row misses) went from about 11.0ms to about 11.25ms: the miss path costs about 2% more (props and service compare, one memo object per row). `keyed-reorder-1k` rose to IMPROVED in the compare gate (its rows keep one module-level `label`).
+- The estimate (about 1.2ms) rested on a hand-built prototype; the implementation reproduced it. Revisit if real lists commonly pass inline handlers: those rows never skip (see option E).
 
 ## Open decisions
 
