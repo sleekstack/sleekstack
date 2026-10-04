@@ -323,8 +323,16 @@ export const rowIds = range(ROWS)
 /** A JSX-runtime-shaped factory, so one tree definition serves SleekStack (`jsx`) and the direct-call reference. */
 type Jsx = (type: any, props: any) => any
 
-/** The list tree, SleekStack side: `<ul>` of `Row` components; `Row` 0 may be swapped for a reactive row. */
-export const sleekTree = (jsx: Jsx, first?: () => unknown) => {
-  const Row = ({ i }: { i: number }) => jsx('li', { className: 'row', children: `Item ${i}` })
-  return jsx('ul', { children: rowIds.map((i) => (i === 0 && first ? jsx(first, {}) : jsx(Row, { i }))) })
+/** List variants: `keyed` adds `key` per row (the row id), `ids` sets row order, `label` sets row text. */
+export interface TreeOptions {
+  keyed?: boolean
+  ids?: ReadonlyArray<number>
+  label?: (i: number) => string
 }
+export const rowLabel = (i: number) => `Item ${i}`
+
+/** The list tree, SleekStack side: `<ul>` of `Row` components; `Row` 0 may be swapped for a reactive row. */
+// Module-level so the component type is stable across re-renders and the reconciler can reuse rows.
+const Row = ({ jsx, i, label }: { jsx: Jsx; i: number; label: (i: number) => string }) => jsx('li', { className: 'row', children: label(i) })
+export const sleekTree = (jsx: Jsx, first?: () => unknown, { keyed = false, ids = rowIds, label = rowLabel }: TreeOptions = {}) =>
+  jsx('ul', { children: ids.map((i) => (i === 0 && first ? jsx(first, {}) : jsx(Row, keyed ? { jsx, i, label, key: i } : { jsx, i, label }))) })
