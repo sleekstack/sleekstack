@@ -38,3 +38,7 @@ In the DOM, each guest renders inside a `<sleek-guest style="display: contents">
 Limits: ordinal identity is positional, so conditional siblings of one component shift each other's state (use `key`); an instance that turns from reactive to plain on a parent re-run is replaced; keyed moves have no LIS, so a swap moves the rows between; a guest boundary stays in its fallback after a throw.
 
 `sleekstack check` runs the component pass when a project's package.json lists `@sleekstack/ui` (see [`@sleekstack/analyze`](../analyze/README.md)). A runnable demo with one fixture per error code is in [`apps/ui-demo`](../../apps/ui-demo). Design: ADR 0015.
+
+## Installing
+
+`effect` is a peer dependency of `@sleekstack/ui`, `@sleekstack/core` and `@sleekstack/query`. Install exactly one copy of `effect` in the app; two copies (for example a nested `effect` under one package) are unsupported, since Context tags and Effect values from different copies do not match. The built output targets bundlers (Vite, esbuild); importing it from Node-native ESM is unsupported.

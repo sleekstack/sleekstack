@@ -630,6 +630,9 @@ importers:
       '@tanstack/query-core':
         specifier: ^5.104.1
         version: 5.104.1
+      '@types/node':
+        specifier: ^22.20.1
+        version: 22.20.1
       '@types/react':
         specifier: ^19.2.17
         version: 19.2.17
