@@ -33,9 +33,12 @@ Host `onXxx` closures contribute to the component tree: their `R` is checked lik
 - [ ] TBD
 
 ## Done summary
-TBD
+Host `onXxx` closures inside mount trees become closure-marked component nodes: their R gives `MissingDependency`, their E gives `UnhandledError` even under a matching Boundary, and an any-typed or non-Effect closure gives `Unresolved`. The ui-closures fixture covers every AC. No new codes. JSX-rooted components mounted as `mount(<App />)` resolved without any components.ts fix.
 
+baseline: green via handoff (analyzer 38/38 and typecheck verified at 522c998 by fn-23-reconciling-dom-renderer-keys-host.8)
+stage: impl-review - skipped(config: REVIEW_MODE=none)
+Tier: session (jev-unavailable(no_key)); routing block pins implementer opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: d26b44b1d8fdd879776d54b6ec66922a7a2eafce
+- Tests: pnpm --filter @sleekstack/analyze test, pnpm --filter @sleekstack/analyze typecheck, pnpm --filter @sleekstack/ui test
 - PRs:
