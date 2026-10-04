@@ -8,7 +8,7 @@
   "priority": null,
   "spec": "fn-23-reconciling-dom-renderer-keys-host",
   "spec_path": ".flow/tasks/fn-23-reconciling-dom-renderer-keys-host.1.md",
-  "status": "todo",
+  "status": "done",
   "title": "ui: Node key/events fields, JSX event + key plumbing, string renderer ignores them",
   "updated_at": "2026-10-03T20:21:30.252470Z"
 }

@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-23-reconciling-dom-renderer-keys-host",
   "spec_path": ".flow/tasks/fn-23-reconciling-dom-renderer-keys-host.11.md",
-  "status": "todo",
+  "status": "done",
   "title": "bench: keyed-reorder and one-of-1000 update cases, keep the gate green",
   "updated_at": "2026-10-03T20:21:30.252817Z"
 }

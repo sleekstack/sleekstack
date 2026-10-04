@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-23-reconciling-dom-renderer-keys-host",
   "spec_path": ".flow/tasks/fn-23-reconciling-dom-renderer-keys-host.4.md",
-  "status": "todo",
+  "status": "done",
   "title": "ui dom: Live tree and two-phase patch for elements, text, fragments, keys and form controls",
   "updated_at": "2026-10-03T20:21:30.252688Z"
 }

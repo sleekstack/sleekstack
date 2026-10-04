@@ -11,7 +11,7 @@
   "priority": null,
   "spec": "fn-23-reconciling-dom-renderer-keys-host",
   "spec_path": ".flow/tasks/fn-23-reconciling-dom-renderer-keys-host.12.md",
-  "status": "todo",
+  "status": "done",
   "title": "docs: ADR 0015 amendment, README, CONTEXT, errors page and Analyzer docs",
   "updated_at": "2026-10-03T20:21:30.252834Z"
 }

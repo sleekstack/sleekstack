@@ -11,7 +11,7 @@
   "priority": null,
   "spec": "fn-23-reconciling-dom-renderer-keys-host",
   "spec_path": ".flow/tasks/fn-23-reconciling-dom-renderer-keys-host.9.md",
-  "status": "todo",
+  "status": "done",
   "title": "analyze: event-closure requirements and errors in the component tree",
   "updated_at": "2026-10-03T20:21:30.252779Z"
 }

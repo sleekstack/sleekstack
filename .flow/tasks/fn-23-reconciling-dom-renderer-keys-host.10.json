@@ -12,7 +12,7 @@
   "priority": null,
   "spec": "fn-23-reconciling-dom-renderer-keys-host",
   "spec_path": ".flow/tasks/fn-23-reconciling-dom-renderer-keys-host.10.md",
-  "status": "todo",
+  "status": "done",
   "title": "ui-demo: use key, host onClick and useLocal; demo stays analyzer-clean",
   "updated_at": "2026-10-03T20:21:30.252798Z"
 }

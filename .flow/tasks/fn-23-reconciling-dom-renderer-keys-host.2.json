@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-23-reconciling-dom-renderer-keys-host",
   "spec_path": ".flow/tasks/fn-23-reconciling-dom-renderer-keys-host.2.md",
-  "status": "todo",
+  "status": "done",
   "title": "ui: run-time instance identity (frame, ids, ordinals) and keyed components as instances",
   "updated_at": "2026-10-03T20:21:30.252633Z"
 }

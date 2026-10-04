@@ -7,7 +7,7 @@
   "plan_review_status": "unknown",
   "plan_reviewed_at": null,
   "spec_path": ".flow/specs/fn-23-reconciling-dom-renderer-keys-host.md",
-  "status": "open",
+  "status": "done",
   "title": "Reconciling DOM renderer, keys, host events and useLocal for @sleekstack/ui",
   "tracker": {
     "baseHashFlow": null,
@@ -20,5 +20,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-03T20:21:45.011351Z"
+  "updated_at": "2026-10-04T08:40:03.382384Z"
 }
