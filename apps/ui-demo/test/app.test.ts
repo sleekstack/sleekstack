@@ -36,7 +36,7 @@ it('mounts into the DOM and guests render', async () => {
   await m.dispose()
 })
 
-it('a filter click re-renders only the columns; a task pick swaps the detail', async () => {
+it('a filter click re-renders only the columns; a task pick replaces the detail', async () => {
   ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
   const tick = () => act(async () => void (await new Promise((r) => setTimeout(r, 0))))
   const container = document.createElement('div')
@@ -87,4 +87,45 @@ it('the backlog loads through useQuery; a guest-triggered mutation updates it, s
   expect(container.querySelector('header')).toBe(header)
   expect(container.querySelector('.board')).toBe(board)
   await act(() => m.dispose())
+})
+
+it('triage: keyed rows reorder in place, the input keeps focus, guests keep state, host onClick and useLocal toggle', async () => {
+  ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
+  const tick = () => act(async () => void (await new Promise((r) => setTimeout(r, 0))))
+  const container = document.createElement('div')
+  document.body.append(container)
+  let m!: Awaited<ReturnType<typeof mount>>
+  await act(async () => void (m = await mount(App({ viewer: 'u1' }), { layer: AppLive, container })))
+  const rows = () => [...container.querySelectorAll<HTMLLIElement>('.triage-list li')]
+  const ids = () => rows().map((li) => li.dataset.id)
+  const row = (id: string) => container.querySelector<HTMLLIElement>(`.triage-list li[data-id="${id}"]`)!
+  expect(ids()).toEqual(['t3', 't4', 't1', 't2'])
+  const t3 = row('t3')
+  await act(async () => t3.querySelector<HTMLButtonElement>('button.vote')!.click())
+  expect(t3.querySelector('button.vote')!.textContent).toBe('▲ 1')
+
+  const input = container.querySelector<HTMLInputElement>('input.search')!
+  input.focus()
+  await act(async () => container.querySelector<HTMLButtonElement>('button.sort')!.click())
+  await tick()
+  expect(ids()).toEqual(['t2', 't1', 't4', 't3'])
+  expect(row('t3')).toBe(t3) // same node, moved
+  expect(t3.querySelector('button.vote')!.textContent).toBe('▲ 1') // the guest kept its count
+  expect(document.activeElement).toBe(input)
+
+  input.value = 'w'
+  await act(async () => void input.dispatchEvent(new Event('input')))
+  await tick()
+  expect(ids()).toEqual(['t2', 't1', 't4']) // Write, Wire, Review
+  expect(container.querySelector('input.search')).toBe(input)
+  expect(document.activeElement).toBe(input)
+
+  await act(async () => container.querySelector<HTMLButtonElement>('button.collapse')!.click())
+  await tick()
+  expect(container.querySelector('.triage-list')).toBeNull()
+  await act(async () => container.querySelector<HTMLButtonElement>('button.collapse')!.click())
+  await tick()
+  expect(ids()).toEqual(['t2', 't1', 't4'])
+  await act(() => m.dispose())
+  container.remove()
 })
