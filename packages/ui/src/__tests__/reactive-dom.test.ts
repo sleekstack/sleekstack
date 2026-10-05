@@ -1144,3 +1144,17 @@ describe('eager host elements', () => {
     expect(new Set([...container.querySelectorAll('li')])).toEqual(new Set(lis))
   })
 })
+
+describe('lazy element children', () => {
+  it('keeps the order of text, atoms and component children, with none, one or several components', async () => {
+    const A = () => jsx('u', { children: 'A' })
+    const B = () => jsx('s', { children: 'B' })
+    const at = Atom.make('@')
+    const none = await renderToString(jsx('p', { children: ['a', 1, null, false, 'b'] }), { layer: Layer.empty })
+    const one = await renderToString(jsx('p', { children: ['a', jsx(A, {}), 'b'] }), { layer: Layer.empty })
+    const many = await renderToString(jsx('p', { children: ['x', jsx(A, {}), 'y', at, jsx(B, {}), 'z'] }), { layer: Layer.empty })
+    expect(none).toBe('<p>a1b</p>')
+    expect(one).toBe('<p>a<u>A</u>b</p>')
+    expect(many).toBe('<p>x<u>A</u>y@<s>B</s>z</p>')
+  })
+})

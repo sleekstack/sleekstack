@@ -11,16 +11,31 @@ export type Child = string | number | boolean | null | undefined | Effect.Effect
 type Element = Effect.Effect<Node, never, never>
 type Props = Record<string, unknown> & { children?: Child }
 
-const rendered = (c: Child): Array<Effect.Effect<Node | string, any, any>> =>
-  Array.isArray(c)
-    ? c.flatMap(rendered)
-    : c == null || typeof c === 'boolean'
-      ? []
-      : Atom.isAtom(c)
-        ? [Effect.sync(() => (c.serializable?.kind === 'value' ? bind(c) : ({ _tag: 'Bind', atom: c, plain: true }) as Node))]
-        : [Effect.isEffect(c) ? c : Effect.succeed(String(c))]
+type Part = Effect.Effect<Node | string, any, any> | string
 
-const renderChildren = (c: Child) => Effect.all(rendered(c)) as Effect.Effect<Array<Node | string>>
+// Children in order: text stays a string, an atom becomes a bind, an Effect is kept to be run.
+const parts = (c: Child, out: Array<Part>): Array<Part> => {
+  if (Array.isArray(c)) for (const x of c) parts(x, out)
+  else if (c == null || typeof c === 'boolean') return out
+  else if (Atom.isAtom(c)) out.push(Effect.sync(() => (c.serializable?.kind === 'value' ? bind(c) : ({ _tag: 'Bind', atom: c, plain: true }) as Node)))
+  else out.push(Effect.isEffect(c) ? c : String(c))
+  return out
+}
+
+// Only the Effects among the children are run (none: nothing to run; one: no `Effect.all`).
+const renderChildren = (c: Child): Effect.Effect<Array<Node | string>, any, any> => {
+  const ps = parts(c, [])
+  let n = 0
+  let last = -1
+  for (let i = 0; i < ps.length; i++) if (typeof ps[i] !== 'string') (n++, (last = i))
+  if (n === 0) return Effect.succeed(ps as Array<string>)
+  if (n === 1) return Effect.flatMap(ps[last] as Effect.Effect<Node | string, any, any>, (k) => Effect.succeed(ps.map((p, i) => (i === last ? k : (p as string)))))
+  const run = ps.filter((p): p is Effect.Effect<Node | string, any, any> => typeof p !== 'string')
+  return Effect.flatMap(Effect.all(run), (ks) => {
+    let j = 0
+    return Effect.succeed(ps.map((p) => (typeof p === 'string' ? p : ks[j++]!)))
+  })
+}
 
 // Attributes are strings in the Node tree: `className` / `htmlFor` map to `class` / `for`, `true` is an empty value, nullish and `false` are dropped.
 const RENAME: Record<string, string> = { className: 'class', htmlFor: 'for' }
@@ -49,17 +64,24 @@ const events = (props: Props, context: Context.Context<any>): Record<string, Eve
   return entries.length ? Object.fromEntries(entries) : undefined
 }
 
-const element = (type: string, props: Props, key: string | undefined): Effect.Effect<Node, any, any> =>
-  Effect.flatMap(Effect.context<any>(), (ctx) =>
-    Effect.map(renderChildren(props.children), (kids) => {
-      const base = el(type, attrs(props), ...kids) as ElementNode
-      const hs = handlers(props)
-      const node = (hs ? on(base, hs) : base) as ElementNode
-      const evs = events(props, ctx)
-      const bd = bound(props)
-      return { ...node, ...(evs && { events: evs }), ...(bd && { bound: bd }), ...(key !== undefined && { key }) }
-    }),
-  )
+const element = (type: string, props: Props, key: string | undefined): Effect.Effect<Node, any, any> => {
+  const build = (kids: Array<Node | string>, ctx: Context.Context<any> | undefined): Node => {
+    const base = el(type, attrs(props), ...kids) as ElementNode
+    const hs = handlers(props)
+    const node = (hs ? on(base, hs) : base) as ElementNode
+    const evs = ctx && events(props, ctx)
+    const bd = bound(props)
+    return { ...node, ...(evs && { events: evs }), ...(bd && { bound: bd }), ...(key !== undefined && { key }) }
+  }
+  // The context is only captured for event closures.
+  return hasEvent(props)
+    ? Effect.flatMap(Effect.context<any>(), (ctx) => Effect.flatMap(renderChildren(props.children), (kids) => Effect.succeed(build(kids, ctx))))
+    : Effect.flatMap(renderChildren(props.children), (kids) => Effect.succeed(build(kids, undefined)))
+}
+const hasEvent = (props: Props): boolean => {
+  for (const k in props) if (isEvent(k, props[k])) return true
+  return false
+}
 
 // Plain host tree: primitive attributes and text, nested plain host elements. Its output is its props, so it is built (and compared) synchronously.
 const isPrim = (v: unknown): boolean => v == null || typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean'
@@ -134,7 +156,7 @@ const tagHost = (e: Effect.Effect<Node, any, any>, type: string, props: Props, k
 export const jsxs = jsx
 
 export const Fragment = (props: { children?: Child }): Element =>
-  Effect.map(renderChildren(props.children), (kids) => fragment(...kids)) as Element
+  Effect.flatMap(renderChildren(props.children), (kids) => Effect.succeed(fragment(...kids))) as Element
 
 /** `<Provider layer={L}>…</Provider>`: JSX form of `Provide`. */
 export const Provider = (props: { layer: Layer.Layer<any, any, never>; children?: Child }): Element =>
