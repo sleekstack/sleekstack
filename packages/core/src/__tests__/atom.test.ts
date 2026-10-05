@@ -339,3 +339,67 @@ describe('derived atoms: cached build context', () => {
     expect(store.get(pick)).toBe(3)
   })
 })
+
+describe('value atoms: direct notify of a leaf write', () => {
+  it('notifies every listener once per change, and not for an equal write', () => {
+    const store = makeAtomStore()
+    const a = Atom.make(0)
+    const seen: number[] = []
+    store.subscribe(a, () => seen.push(store.get(a)))
+    store.subscribe(a, () => seen.push(-store.get(a)))
+    store.set(a, 1)
+    store.set(a, 1)
+    expect(seen).toEqual([1, -1])
+  })
+
+  it('a listener that writes again is notified for the nested write', () => {
+    const store = makeAtomStore()
+    const a = Atom.make(0)
+    const seen: number[] = []
+    store.subscribe(a, () => {
+      seen.push(store.get(a))
+      if (store.get(a) < 3) store.set(a, store.get(a) + 1)
+    })
+    store.set(a, 1)
+    expect(store.get(a)).toBe(3)
+    expect(seen).toContain(3)
+  })
+
+  it('a throwing listener propagates, leaves the store usable, and sees the new value on the next write', () => {
+    const store = makeAtomStore()
+    const a = Atom.make(0)
+    let boom = true
+    const seen: number[] = []
+    store.subscribe(a, () => { seen.push(store.get(a)); if (boom) throw new Error('boom') })
+    expect(() => store.set(a, 1)).toThrow('boom')
+    boom = false
+    store.set(a, 2)
+    expect(seen).toEqual([1, 2])
+    expect(store.get(a)).toBe(2)
+  })
+
+  it('a listener added or removed between writes is honoured (snapshot is dropped)', () => {
+    const store = makeAtomStore()
+    const a = Atom.make(0)
+    const calls: string[] = []
+    const off1 = store.subscribe(a, () => calls.push('one'))
+    store.set(a, 1)
+    const off2 = store.subscribe(a, () => calls.push('two'))
+    store.set(a, 2)
+    off1()
+    store.set(a, 3)
+    off2()
+    store.set(a, 4)
+    expect(calls).toEqual(['one', 'one', 'two', 'two'])
+  })
+
+  it('a dependent atom still recomputes and notifies', () => {
+    const store = makeAtomStore()
+    const a = Atom.make(1)
+    const d = Atom.make((get) => get(a) * 2)
+    const seen: number[] = []
+    store.subscribe(d, () => seen.push(store.get(d)))
+    store.set(a, 2)
+    expect(seen).toEqual([4])
+  })
+})

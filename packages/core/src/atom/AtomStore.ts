@@ -74,6 +74,8 @@ interface Node {
   deps: Map<Node, number>
   readonly children: Set<Node>
   readonly listeners: Set<() => void>
+  /** Snapshot of `listeners` for a notify round; dropped on subscribe/unsubscribe. */
+  lsnap?: Array<() => void>
   retains: number
   finalizers: Array<() => void>
   removalQueued: boolean
@@ -176,7 +178,7 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
         try { pull(node) } catch { /* listeners re-read and see the error */ }
         if (node.version === node.notified && node.state === 'valid') continue
         node.notified = node.version
-        for (const l of [...node.listeners]) l()
+        for (const l of (node.lsnap ??= [...node.listeners])) l()
       }
     }
   }
@@ -195,6 +197,13 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
     if (!changed) return
     node.value = value
     node.version++
+    // A leaf with listeners and no resource, written outside a batch with nothing queued: notify directly, no queue round.
+    if (node.children.size === 0 && node.finalizers.length === 0 && batchDepth === 0 && pending.length === 0) {
+      if (node.listeners.size === 0) return
+      node.notified = node.version
+      for (const l of (node.lsnap ??= [...node.listeners])) l()
+      return
+    }
     // `flush` only pulls a node something listens to or built a resource for.
     if (node.listeners.size > 0 || node.finalizers.length > 0) enqueue(node)
     markChildren(node)
@@ -381,11 +390,12 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
     const node = ensure(atom)
     const l = () => listener()
     node.listeners.add(l)
+    node.lsnap = undefined
     cancelRemoval(node)
     try { pull(node) } catch { /* surfaced on read */ }
     node.notified = node.version
     if (opts?.immediate) l()
-    return () => { node.listeners.delete(l); scheduleRemoval(node) }
+    return () => { node.listeners.delete(l); node.lsnap = undefined; scheduleRemoval(node) }
   }
 
   const refresh = <A>(atom: Atom<A>) => {
