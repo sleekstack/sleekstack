@@ -83,6 +83,8 @@ const swaps = async (u: { container: Element; run: () => unknown }) => {
   return count
 }
 // ---- keyed list: one state write re-renders the whole keyed list; the reconciler should touch only what changed ----
+// `keyed-update-render-callback-1-of-1k` is the worst case: every row is passed a fresh `label` function that it calls while rendering,
+// so no row can be skipped (ADR 0020). `keyed-update-data` and `keyed-update-handler` are the cases rows skip.
 
 /** Keyed-list state per write count `n`. */
 type Step = (n: number) => TreeOptions
@@ -182,7 +184,7 @@ await check('render-dom/keyed-reorder-1k', [
   ['sleekstack', keyedReorder.sleekstack.run],
   ['react', keyedReorder.react.run],
 ])
-await check('render-dom/keyed-update-1-of-1k', [
+await check('render-dom/keyed-update-render-callback-1-of-1k', [
   ['sleekstack', keyedUpdate.sleekstack.run],
   ['react', keyedUpdate.react.run],
 ])
@@ -216,7 +218,7 @@ const nodeSwaps: Record<string, Record<string, number>> = {}
 for (const [name, u] of [
   ['render-dom/update-1-of-1k', { sleekstack: sleekU, react: reactU }],
   ['render-dom/keyed-reorder-1k', keyedReorder],
-  ['render-dom/keyed-update-1-of-1k', keyedUpdate],
+  ['render-dom/keyed-update-render-callback-1-of-1k', keyedUpdate],
   ['render-dom/keyed-update-data-1-of-1k', keyedData],
 ] as const) {
   nodeSwaps[name] = { sleekstack: await swaps(u.sleekstack), react: await swaps(u.react) }
@@ -241,7 +243,7 @@ describe('render-dom/keyed-reorder-1k', () => {
   bench('react', () => void keyedReorder.react.run(), opts)
 })
 
-describe('render-dom/keyed-update-1-of-1k', () => {
+describe('render-dom/keyed-update-render-callback-1-of-1k', () => {
   bench('sleekstack', async () => void (await keyedUpdate.sleekstack.run()), opts)
   bench('react', () => void keyedUpdate.react.run(), opts)
 })
