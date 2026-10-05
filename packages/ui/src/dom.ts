@@ -5,7 +5,7 @@ import { flushSync } from 'react-dom'
 import { createRoot, type Root } from 'react-dom/client'
 import { reportRenderError, runToNode } from './component'
 import type { BindNode, ElementNode, EventBinding, FragmentNode, GuestNode, Node, ReactiveNode } from './node'
-import { closeIdle, commitSlots, disposeSlots, dropSlots, DuplicateKey, fallbacks, Frame, makeFrame, RenderScope, type RunFrame, runScopes, Store } from './reactive'
+import { closeNow, commitSlots, disposeSlots, dropSlots, DuplicateKey, fallbacks, Frame, makeFrame, MountScope, RenderScope, type RunFrame, runScopes, Store } from './reactive'
 import { checkAttr, checkTag } from './string'
 
 export interface Mounted {
@@ -68,15 +68,27 @@ interface Instance extends Owner {
   scope: Scope.CloseableScope | undefined
   // Frame of the committed run: its slots are the instance's own.
   frame: RunFrame | undefined
+  // The node whose run is committed; a parent that returns this same node did not re-run the instance.
+  node: ReactiveNode
 }
 
 const closeScope = (scope: Scope.CloseableScope | undefined): void => {
-  if (scope && !closeIdle(scope)) Effect.runFork(Scope.close(scope, Exit.void))
+  if (scope) closeNow(scope)
 }
+// Replaces a list of run scopes: closes the old ones except those the new list keeps (a reused row's scopes are in both).
+const closeExcept = (old: ReadonlyArray<Scope.CloseableScope>, keep: ReadonlyArray<Scope.CloseableScope>): void => {
+  if (old.length === 0) return
+  if (keep.length === 0) return old.forEach(closeScope)
+  const kept = new Set(keep)
+  for (const s of old) if (!kept.has(s)) closeScope(s)
+}
+// Reactive nodes currently installed in the DOM: a discarded result that merely contains one (a reused row) must not close it.
+const installed = new WeakSet<ReactiveNode>()
 
 // Closes every run scope and drops the pending slots a never-built node owns (a discarded re-run result).
 const dropScopes = (node: Node): void => {
   if (node._tag === 'Reactive') {
+    if (installed.has(node)) return
     closeScope(node.scope)
     if (node.frame) dropSlots(node.frame)
     dropScopes(node.child)
@@ -270,7 +282,8 @@ const build = (node: Leaf, key: string | undefined, env: Env, scopes: Array<Scop
       case 'Reactive': {
         const host = env.doc.createElement('sleek-reactive')
         host.style.display = 'contents'
-        const inst: Instance = { lives: [], scopes: [], host, rerun: node.rerun, unsubs: [], fiber: undefined, queued: -1, epoch: 0, dead: false, scope: node.scope, frame: node.frame }
+        const inst: Instance = { lives: [], scopes: [], host, rerun: node.rerun, unsubs: [], fiber: undefined, queued: -1, epoch: 0, dead: false, scope: node.scope, frame: node.frame, node }
+        installed.add(node)
         inst.lives = buildAll([node.child], env, inst.scopes, host)
         watch(inst, node, env)
         return { node, dom: host, kids: [], inst, ...keyed }
@@ -303,6 +316,8 @@ const buildAll = (nodes: ReadonlyArray<Node>, env: Env, scopes: Array<Scope.Clos
 
 // Plan phase for one element or text node matched in place: validates, reads the DOM, queues ops; mutates nothing.
 const patch = (prev: Live, node: Leaf, key: string | undefined, env: Env, p: Plan): Live => {
+  // The same node as the live one (a reused subtree): nodes are immutable, so there is nothing to patch.
+  if (prev.node === node) return prev
   try {
     const keyed = key === undefined ? {} : { key }
     if (node._tag === 'Bind') return prev
@@ -353,15 +368,17 @@ const adopt = (prev: Live, node: ReactiveNode, key: string | undefined, env: Env
     if (inst.fiber) Effect.runFork(Fiber.interrupt(inst.fiber))
     inst.fiber = undefined
     inst.lives = lives
-    inst.scopes.splice(0).forEach(closeScope)
+    closeExcept(inst.scopes.splice(0), sub.scopes)
     inst.scopes = sub.scopes
     unwatch(inst)
     const previous = inst.scope
     inst.rerun = node.rerun
     inst.scope = node.scope
     inst.frame = node.frame
+    inst.node = node
+    installed.add(node)
     watch(inst, node, env)
-    closeScope(previous)
+    if (previous !== node.scope) closeScope(previous)
     if (node.frame) commitSlots(node.frame)
   })
   return { node, dom: prev.dom, kids: [], inst, ...(key === undefined ? {} : { key }) }
@@ -394,7 +411,7 @@ const patchChildren = (parent: globalThis.Node, old: ReadonlyArray<Live>, nodes:
     if (n._tag === 'Reactive') {
       const m = byId.get(n.id)?.shift()
       // The same node as the live one: a row that was not re-run (ADR 0020); nothing to adopt.
-      if (m) return [m.node === n ? m : adopt(m, n, k, env, p)]
+      if (m) return [m.inst!.node === n ? m : adopt(m, n, k, env, p)]
     } else if (k === undefined) prev = pool[next++]
     else {
       prev = byKey.get(k)
@@ -499,7 +516,7 @@ const swap = (inst: Instance, node: Node, env: Env): void => {
   }
   commit(p)
   inst.lives = lives
-  inst.scopes.splice(0).forEach(closeScope)
+  closeExcept(inst.scopes.splice(0), p.scopes)
   inst.scopes = p.scopes
   const previous = inst.scope
   if (own) {
@@ -507,6 +524,8 @@ const swap = (inst: Instance, node: Node, env: Env): void => {
     inst.rerun = own.rerun
     inst.scope = own.scope
     inst.frame = own.frame
+    inst.node = own
+    installed.add(own)
     watch(inst, own, env)
     if (own.frame) commitSlots(own.frame)
   } else {
@@ -558,7 +577,7 @@ export const mount = async <E, A, LE = never>(
       if (!opts.store) await store.dispose()
     }
   }
-  const provided = app.pipe(Effect.provideService(Store, store), Effect.provideService(RenderScope, scope), Effect.provideService(Frame, frame)) as Effect.Effect<Node, E, Exclude<A, Store>>
+  const provided = app.pipe(Effect.provideService(Store, store), Effect.provideService(RenderScope, scope), Effect.provideService(MountScope, scope), Effect.provideService(Frame, frame)) as Effect.Effect<Node, E, Exclude<A, Store>>
   let node: Node
   try {
     // The mount layer lives in the mount scope: re-runs reuse its services after the first render.

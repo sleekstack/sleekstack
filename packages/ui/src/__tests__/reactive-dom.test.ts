@@ -171,12 +171,12 @@ describe('reactive DOM', () => {
     await tick()
     expect(container.querySelector('span')).toBe(span)
     expect(container.querySelector('em')).toBe(em)
-    expect(innerRuns).toBe(1)
+    expect(innerRuns).toBe(0) // the inner reads an atom: only that atom re-runs it
     expect(subs.get(inner)).toBe(1)
     store.set(inner, 'i3')
     await tick()
     expect(container.textContent).toBe('o2i3')
-    expect(innerRuns).toBe(2)
+    expect(innerRuns).toBe(1)
   })
 
   it('a matched instance with an in-flight re-run adopts and the latest run wins; a removed instance is fully killed', async () => {
@@ -195,10 +195,13 @@ describe('reactive DOM', () => {
     const em = container.querySelector('em')
     store.set(inner, 1) // in flight, blocked on the gate
     await tick()
-    store.set(outer, 1) // the parent's run reads inner = 1 without blocking and adopts
+    store.set(outer, 1) // the parent re-runs; the inner's own in-flight re-run is not its business
+    await tick()
+    expect(container.textContent).toBe('10')
+    expect(log).not.toContain('interrupted')
+    Effect.runSync(Deferred.succeed(gate, undefined))
     await tick()
     expect(container.textContent).toBe('11')
-    expect(log).toContain('interrupted')
     expect(container.querySelector('em')).toBe(em)
     expect(subs.get(inner)).toBe(1)
     const released = log.filter((l) => l === 'released').length
@@ -780,6 +783,31 @@ describe('keyed instance reuse', () => {
     await tick()
     expect(rowsText(container)).toEqual(['L1', 'changed', 'L3'])
     expect(runs()).toBe(4)
+  })
+
+  it('a row that reads an atom skips parent re-runs, still follows its atom, and drops its subscription and hold when removed', async () => {
+    const list = mk([1, 2])
+    const items = Atom.make(list)
+    const tint = Atom.make('a')
+    let runs = 0
+    const Row = ({ item }: { item: Item }) => Effect.flatMap(useAtomValue(tint), (t) => (runs++, jsx('li', { children: item.label + t })))
+    const List = () => Effect.flatMap(useAtomValue(items), (l) => jsx('ul', { children: l.map((item) => jsx(Row, { item, key: item.id })) }))
+    const { container, store } = await go(jsx(List, {}), { store: counted() })
+    expect(runs).toBe(2)
+    store.set(items, [...list])
+    await tick()
+    expect(runs).toBe(2)
+    expect(subs.get(tint)).toBe(2)
+    store.set(tint, 'b')
+    await tick()
+    expect(rowsText(container)).toEqual(['L1b', 'L2b'])
+    store.set(items, [list[0]!])
+    await tick()
+    expect(rowsText(container)).toEqual(['L1b'])
+    expect(subs.get(tint)).toBe(1)
+    store.set(items, [])
+    await tick()
+    expect(subs.get(tint)).toBe(0)
   })
 
   it('re-runs every row when a prop is a new function that is not an event handler', async () => {

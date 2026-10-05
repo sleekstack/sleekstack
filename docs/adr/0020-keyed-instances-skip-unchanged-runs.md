@@ -36,7 +36,7 @@ A first draft proposed a `<For each by>` primitive. A symposium (three models, t
 
 1. **Props.** Every prop other than `key` is `Object.is`-equal to the entry's. A new function, a new object or a new `children` is a miss.
 2. **Context.** The Effect context is service-for-service equal to the entry's, ignoring `Collector`, `Frame` and `RenderScope`. Those three are rebuilt on every parent run (`reactive.ts`, `inner`), so comparing the context object itself would always miss. Layer-built services and `Handlers` are context entries, so a rebuilt `Provider` or `Boundary` changes them and misses.
-3. **Scope idle.** The entry's run scope was never forked (`lazyScope` unused: no atom retain, no `Provider` built in it, no fallback). The reused scope is replaced by a new `lazyScope` of the current parent run's scope and the node's `rerun` is re-provided with the current context. A row whose scope forked is a child of the parent run scope that the parent's swap closes, so it misses.
+3. **Scope reusable.** The entry's run scope is either unused (`lazyScope` never forked) or *lent*: forked from the `MountScope` instead of the parent run scope, so the parent's swap does not close it. A scope that was forked from the parent run scope (a `Provider` built in it, a `useQuery` finalizer, a fallback) is not reusable and misses.
 4. **No pending work of its own.** The instance has no in-flight or queued re-run, and the atoms its last run read are unchanged.
 
 A miss runs `instance()` as today and stores the new entry. The entry is published only when the parent run commits.
@@ -45,14 +45,17 @@ A miss runs `instance()` as today and stores the new entry. The entry is publish
 
 **Handlers (amendment).** The first run of a keyed instance replaces each `on[A-Z]` function prop with a stable wrapper kept on the slot record; every parent run points the wrapper at the newest closure, so a fresh inline `onPick={() => pick(item.id, tab)}` does not change the props and a click, even on a skipped row, calls the newest closure. A wrapper called while its row's run is in flight (including nested child runs) marks the row: it is not remembered, because its output may depend on the handler. Only function-valued props named `on` + capital on keyed components are wrapped; `defineHandler` values are objects and are untouched; other function props still miss by identity.
 
-Not affected: unkeyed components (as today), `renderToString` (no previous run, every row renders), `resume` (never runs components, ADR 0017).
+**Scope lending (amendment).** A keyed run's scope, and any run's scope the first time it reads an atom (`useAtomValue` calls `lend` before retaining), is lent to the `MountScope`. The renderer already closes run scopes explicitly (replace, remove, dispose), and a failed run closes its own and drops the scopes its children lent. A rerun the renderer starts for a changed atom bypasses the memo (it would return the stale node and re-queue forever). The same rule covers unkeyed components that read atoms: they return their last node when props and services are equal, so an outer atom change no longer re-runs an inner component that reads its own atoms.
+
+Not affected: `renderToString` (no previous run, every row renders), `resume` (never runs components, ADR 0017).
 
 ## Consequences
 
 - **Behavior change for every keyed list.** A row is not re-run when its props are `Object.is`-equal, so an item mutated in place is no longer seen. A change is a new object or a new primitive. A test locks it: in-place mutation does not refresh the row. There is no opt-out flag and no dev-mode sampler; both were considered and left out.
 - **Inline `on*` handlers no longer defeat the skip** (amendment above). Other inline function props (`format={() => ...}`) still miss; a function a row calls while rendering must be a prop whose identity is compared. Measured: `keyed-update-handler-1-of-1k` 12.0ms and 1,000 runs before the wrapper, about 1.2ms and 1 run after (React about 3.5ms).
 - **Render-time function props always re-run the row.** `render-dom/keyed-update-render-callback-1-of-1k` (renamed from `keyed-update-1-of-1k`) passes a fresh `label` function that each row calls while rendering; every row correctly misses, because the row's output depends on what the function returns. It stays as the documented worst case. The same holds for any list whose rows take a formatter or render prop; rows that take data plus `on*` handlers are the fast path.
-- **Rows that read atoms or build a `Provider` miss** (scope forked); they keep their own atom-driven updates (`update-1-of-1k`, ratio about 0.43).
+- **Rows that read atoms skip too** (scope lent). `keyed-update-atom-1-of-1k`: 1 run and about 1.2ms instead of 1,000 runs and about 18ms (React about 3.0ms). Rows that build a `Provider` or call `useQuery` still miss (their scope forks the parent run scope).
+- **Behavior change for unkeyed components.** An unkeyed component that reads atoms is no longer re-run by its parent when its props and services are equal; it re-runs when an atom it read changes.
 - One extra pass over the children per update (id, props compare). Reorder still goes through `place` (no LIS, ADR 0015).
 - **Measured with the implementation** (jsdom, same process as React, three runs): `keyed-update-data-1-of-1k` went from 11.13ms to 1.1–1.2ms, 1 row component run per update instead of 1,000, about 0.35 of React's mean (React about 3.2ms). The closure-label benchmark (every row misses) went from about 11.0ms to about 11.25ms: the miss path costs about 2% more (props and service compare, one memo object per row). `keyed-reorder-1k` rose to IMPROVED in the compare gate (its rows keep one module-level `label`).
 - The estimate (about 1.2ms) rested on a hand-built prototype; the implementation reproduced it. Revisit if real lists commonly pass inline handlers: those rows never skip (see option E).
@@ -60,4 +63,4 @@ Not affected: unkeyed components (as today), `renderToString` (no previous run, 
 ## Open decisions
 
 - Whether `Provider`/`Boundary` also bump a generation that rows compare, besides the service compare. One seat of three wanted it; the service compare should already catch a rebuilt `Provider`. Decide with a Provider-rebuild test.
-- Leasing the scope of a row that uses atoms so it can skip too.
+- Leasing `Provider`/`useQuery` scopes so those rows can skip.
