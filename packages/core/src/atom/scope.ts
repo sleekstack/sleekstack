@@ -26,7 +26,10 @@ import { makeAtomStore, type AtomStore, type AtomStoreOptions } from './AtomStor
  * const store = atomStoreFor(app)
  * ```
  */
-export const atomStoreFor = (scope: ChildScope, options: Omit<AtomStoreOptions, 'context' | 'wrapBuild'> = {}): AtomStore => {
+export const atomStoreFor = (
+  scope: ChildScope,
+  options: Omit<AtomStoreOptions, 'context' | 'wrapBuild'> = {},
+): AtomStore => {
   const store = makeAtomStore({
     ...options,
     context: scope.context,
@@ -48,6 +51,11 @@ export const atomStoreFor = (scope: ChildScope, options: Omit<AtomStoreOptions, 
       return Effect.catchAllCause(effect, (cause) => Effect.failCause(mapCause(cause)))
     },
   })
-  Effect.runSync(Scope.addFinalizer(scope.scope, Effect.promise(() => store.dispose())))
+  Effect.runSync(
+    Scope.addFinalizer(
+      scope.scope,
+      Effect.promise(() => store.dispose()),
+    ),
+  )
   return store
 }

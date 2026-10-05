@@ -100,5 +100,7 @@ export const makeDraftEditorLayer = (taskId: string) =>
 export const makeBrokenDraftEditorLayer = (taskId: string) =>
   Layer.effect(
     DraftEditor,
-    Effect.sleep(10).pipe(Effect.andThen(() => Effect.fail(new Error(`DraftEditor acquisition failed for task ${taskId} (simulated)`)))),
+    Effect.sleep(10).pipe(
+      Effect.andThen(() => Effect.fail(new Error(`DraftEditor acquisition failed for task ${taskId} (simulated)`))),
+    ),
   )

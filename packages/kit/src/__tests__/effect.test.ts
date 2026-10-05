@@ -4,7 +4,9 @@ import { effect, layer, module, tag } from '../index'
 import { toFinalizerError } from '../errors'
 import { boot } from './helpers'
 
-interface Log { lines: string[] }
+interface Log {
+  lines: string[]
+}
 const Log = tag<Log>('Log')
 const log = () => layer(Log, () => ({ lines: [] }))
 
@@ -13,7 +15,17 @@ describe('effect', () => {
     const lg = log()
     const app = module({
       name: 'App',
-      provide: [lg, effect((l) => { l.lines.push('start'); return () => void l.lines.push('stop') }, [Log], { name: 'job' })],
+      provide: [
+        lg,
+        effect(
+          (l) => {
+            l.lines.push('start')
+            return () => void l.lines.push('stop')
+          },
+          [Log],
+          { name: 'job' },
+        ),
+      ],
     })
     const { get, scope } = await boot(app)
     expect(get<Log>(Log).lines).toEqual(['start'])
@@ -28,13 +40,40 @@ describe('effect', () => {
   })
 
   it('a setup throw is LayerFailed naming the effect', async () => {
-    const e = await boot(module({ name: 'App', provide: [effect(() => { throw new Error('nope') }, [], { name: 'warmup' })] })).catch((x) => x)
+    const e = await boot(
+      module({
+        name: 'App',
+        provide: [
+          effect(
+            () => {
+              throw new Error('nope')
+            },
+            [],
+            { name: 'warmup' },
+          ),
+        ],
+      }),
+    ).catch((x) => x)
     expect(e).toMatchObject({ code: 'LayerFailed', details: { tag: 'effect:warmup' } })
   })
 
   it('a cleanup throw reaches onFinalizerError with the effect as tag', async () => {
     const sink = vi.fn()
-    const { scope } = await boot(module({ name: 'App', provide: [effect(() => () => { throw new Error('bye') }, [], { name: 'sub' })] }), sink)
+    const { scope } = await boot(
+      module({
+        name: 'App',
+        provide: [
+          effect(
+            () => () => {
+              throw new Error('bye')
+            },
+            [],
+            { name: 'sub' },
+          ),
+        ],
+      }),
+      sink,
+    )
     scope.dispose()
     await vi.waitFor(() => expect(sink).toHaveBeenCalledOnce())
     expect(toFinalizerError(sink.mock.calls[0]![0])).toEqual({ message: 'bye', tag: 'effect:sub' })

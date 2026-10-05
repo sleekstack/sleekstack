@@ -43,7 +43,11 @@ const trace = <T extends CoreModule | Entry>(x: T): T => {
   if (e._tag === 'Module') {
     const m = x as unknown as CoreModule
     const imports = m.imports
-    out = { ...m, entries: m.entries.map(trace), imports: typeof imports === 'function' ? () => imports().map(trace) : imports.map(trace) }
+    out = {
+      ...m,
+      entries: m.entries.map(trace),
+      imports: typeof imports === 'function' ? () => imports().map(trace) : imports.map(trace),
+    }
   } else if (e._tag === 'DeclaredLayer' && defKeys.has(x)) {
     const d = x as unknown as { layer: Layer.Layer<any, any, any> }
     out = { ...d, layer: traceService([defKeys.get(x)!], d.layer) }
@@ -52,17 +56,22 @@ const trace = <T extends CoreModule | Entry>(x: T): T => {
   return out as T
 }
 
-const traceAll = (provide: readonly (CoreModule | Entry)[]): readonly (CoreModule | Entry)[] => (devEnabled() ? provide.map(trace) : provide)
+const traceAll = (provide: readonly (CoreModule | Entry)[]): readonly (CoreModule | Entry)[] =>
+  devEnabled() ? provide.map(trace) : provide
 
 /** Close a scope as an Effect that fails with the aggregated cause, so the owner's close reports it. */
 const closeOrFail = (close: Effect.Effect<Exit.Exit<void, unknown>>): Effect.Effect<void> =>
-  Effect.flatMap(close, (exit) => (Exit.isFailure(exit) ? Effect.failCause(exit.cause as Cause.Cause<never>) : Effect.void))
+  Effect.flatMap(close, (exit) =>
+    Exit.isFailure(exit) ? Effect.failCause(exit.cause as Cause.Cause<never>) : Effect.void,
+  )
 
 /** @internal The runtime Layer: a core app scope over `provide`. */
 const appLayer = (provide: readonly (CoreModule | Entry)[]): RuntimeLayerConfig['layer'] =>
   Layer.scoped(
     AppScopeTag,
-    Effect.acquireRelease(makeAppScope(traceAll(provide), { onFinalizerError: reportFinalizerFailure }), (app) => closeOrFail(app.close)),
+    Effect.acquireRelease(makeAppScope(traceAll(provide), { onFinalizerError: reportFinalizerFailure }), (app) =>
+      closeOrFail(app.close),
+    ),
   ) as unknown as RuntimeLayerConfig['layer']
 
 /** @internal The per-call request scope as a Layer: child-boundary `provide` shadows the runtime graph for this call only. */

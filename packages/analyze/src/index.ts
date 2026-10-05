@@ -17,8 +17,11 @@ export { ERROR_CODES } from './errorCodes'
  * `runtimes` to the `configureRuntime` / `runEffect` calls in those files (test files are then not skipped).
  * `lenient` turns an unresolvable runEffect layer into an opaque root instead of an error.
  */
-export const analyze = (opts: { readonly project: string; readonly entries?: readonly string[]; readonly lenient?: boolean }): Report =>
-  extract(opts.project, opts.entries, opts.lenient)
+export const analyze = (opts: {
+  readonly project: string
+  readonly entries?: readonly string[]
+  readonly lenient?: boolean
+}): Report => extract(opts.project, opts.entries, opts.lenient)
 
 /** The `@sleekstack/ui` component pass: one tree per `mount` call and its MissingDependency / UnhandledError / EffectInsideReact / Unresolved errors. */
 export { analyzeComponents } from './components'

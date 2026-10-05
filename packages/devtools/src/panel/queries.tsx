@@ -14,7 +14,13 @@ import { useService } from '@sleekstack/react'
 export const QUERY_DEVTOOLS_MARKER = 'sleekstack-devtools-queries-4b7e'
 
 type Client = typeof QueryClientTag.Service
-type Row = { readonly key: string; readonly state: string; readonly observers: number; readonly updatedAt: number; readonly gcTime: number }
+type Row = {
+  readonly key: string
+  readonly state: string
+  readonly observers: number
+  readonly updatedAt: number
+  readonly gcTime: number
+}
 
 declare const process: { readonly env: { readonly NODE_ENV?: string } }
 // direct `process.env.NODE_ENV` so bundlers fold it; no `process` at all (unbundled browser) counts as production
@@ -24,13 +30,16 @@ const SHOWN = 20
 /** TanStack `updated` actions in the panel's lifecycle vocabulary; observer bookkeeping is not listed. */
 const LIFECYCLE: Partial<Record<string, string>> = { fetch: 'fetching', success: 'success', error: 'failure' }
 const rowsOf = (client: Client): Row[] =>
-  client.getQueryCache().getAll().map((q) => ({
-    key: q.queryHash,
-    state: q.state.status,
-    observers: q.getObserversCount(),
-    updatedAt: q.state.dataUpdatedAt,
-    gcTime: q.gcTime,
-  }))
+  client
+    .getQueryCache()
+    .getAll()
+    .map((q) => ({
+      key: q.queryHash,
+      state: q.state.status,
+      observers: q.getObserversCount(),
+      updatedAt: q.state.dataUpdatedAt,
+      gcTime: q.gcTime,
+    }))
 
 const time = (ms: number) => (ms === 0 ? 'never' : new Date(ms).toISOString())
 const gc = (ms: number) => (Number.isFinite(ms) ? `${ms}ms` : 'kept')
@@ -43,7 +52,12 @@ function Entries({ client }: { readonly client: Client }) {
     setRows(rowsOf(client))
     return client.getQueryCache().subscribe((e) => {
       setRows(rowsOf(client))
-      const kind = e.type === 'updated' ? LIFECYCLE[e.action.type] : e.type === 'added' || e.type === 'removed' ? e.type : undefined
+      const kind =
+        e.type === 'updated'
+          ? LIFECYCLE[e.action.type]
+          : e.type === 'added' || e.type === 'removed'
+            ? e.type
+            : undefined
       if (kind) setEvents((prev) => [...prev, `${kind} ${e.query.queryHash}`].slice(-SHOWN))
     })
   }, [client])
@@ -52,10 +66,16 @@ function Entries({ client }: { readonly client: Client }) {
     <>
       <ul aria-label="query entries">
         {rows.map((r) => (
-          <li key={r.key}><code>{r.key}</code>: {r.state}, {r.observers} observers, updated {time(r.updatedAt)}, gc {gc(r.gcTime)}</li>
+          <li key={r.key}>
+            <code>{r.key}</code>: {r.state}, {r.observers} observers, updated {time(r.updatedAt)}, gc {gc(r.gcTime)}
+          </li>
         ))}
       </ul>
-      <ul aria-label="query events">{events.map((e, i) => <li key={i}>{e}</li>)}</ul>
+      <ul aria-label="query events">
+        {events.map((e, i) => (
+          <li key={i}>{e}</li>
+        ))}
+      </ul>
     </>
   )
 }
@@ -65,7 +85,8 @@ const ScopeEntries = () => <Entries client={useService(QueryClientTag)} />
 const TAG = QueryClientTag.key
 /** `useService`'s errors for no `LayerProvider` above, or no `QueryClientTag` in its scope. */
 const noClient = (e: unknown): boolean =>
-  (e instanceof MissingDependency && e.tag === TAG) || (e instanceof Error && e.message.startsWith(`Service "${TAG}" is not provided: no <LayerProvider>`))
+  (e instanceof MissingDependency && e.tag === TAG) ||
+  (e instanceof Error && e.message.startsWith(`Service "${TAG}" is not provided: no <LayerProvider>`))
 
 /** Shows the empty state when no client is in scope; any other error is rethrown to the app's boundary. */
 class NoClient extends Component<{ readonly children: ReactNode }, { readonly error: unknown }> {
@@ -84,7 +105,11 @@ export function QueriesSection(_: { readonly intervalMs?: number }) {
   return (
     <section aria-label="queries" data-devtools-queries={QUERY_DEVTOOLS_MARKER}>
       <h3>Queries</h3>
-      <NoClient><Suspense fallback={empty}><ScopeEntries /></Suspense></NoClient>
+      <NoClient>
+        <Suspense fallback={empty}>
+          <ScopeEntries />
+        </Suspense>
+      </NoClient>
     </section>
   )
 }

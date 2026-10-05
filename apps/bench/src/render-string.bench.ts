@@ -8,7 +8,12 @@ import { check, rowIds } from './scenarios'
 import { sleekTree } from './scenarios'
 
 const Row = ({ i }: { i: number }) => h('li', { className: 'row' }, `Item ${i}`)
-const reactTree = () => h('ul', null, rowIds.map((i) => h(Row, { key: i, i })))
+const reactTree = () =>
+  h(
+    'ul',
+    null,
+    rowIds.map((i) => h(Row, { key: i, i })),
+  )
 
 const sleekstack = () => renderToString(sleekTree(jsx), { layer: Layer.empty })
 const react = () => reactRenderToString(reactTree())

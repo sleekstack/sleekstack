@@ -10,7 +10,9 @@ afterEach(cleanup)
 
 class Boundary extends Component<{ children: ReactNode }, { error?: unknown }> {
   state: { error?: unknown } = {}
-  static getDerivedStateFromError(error: unknown) { return { error } }
+  static getDerivedStateFromError(error: unknown) {
+    return { error }
+  }
   render() {
     const e = this.state.error as SleekStackError | undefined
     return e ? <div data-testid="err">{`${e instanceof SleekStackError}:${e.code}`}</div> : this.props.children
@@ -24,18 +26,35 @@ function Show({ t }: { t: typeof A }) {
   return <div data-testid="v">{useService(t)}</div>
 }
 
-const tree = (provide: Parameters<typeof LayerProvider>[0]['provide'], child: ReactNode, onFinalizerError?: (e: FinalizerError) => void) => (
+const tree = (
+  provide: Parameters<typeof LayerProvider>[0]['provide'],
+  child: ReactNode,
+  onFinalizerError?: (e: FinalizerError) => void,
+) => (
   <Boundary>
     <Suspense fallback="loading">
-      <LayerProvider provide={provide} {...(onFinalizerError && { onFinalizerError })}>{child}</LayerProvider>
+      <LayerProvider provide={provide} {...(onFinalizerError && { onFinalizerError })}>
+        {child}
+      </LayerProvider>
     </Suspense>
   </Boundary>
 )
 
 describe('@sleekstack/kit/react', () => {
   it('StrictMode: 1 acquire / 1 release for a component Layer', async () => {
-    const acquire = vi.fn(), release = vi.fn()
-    const provide = [layer(A, () => { acquire(); return withCleanup('a', release) }, [], { lifetime: 'component' })]
+    const acquire = vi.fn(),
+      release = vi.fn()
+    const provide = [
+      layer(
+        A,
+        () => {
+          acquire()
+          return withCleanup('a', release)
+        },
+        [],
+        { lifetime: 'component' },
+      ),
+    ]
     const r = renderStrict(tree(provide, <Show t={A} />))
     await screen.findByText('a')
     r.unmount()
@@ -59,7 +78,15 @@ describe('@sleekstack/kit/react', () => {
   })
 
   it.each([
-    ['failing Layer', [layer(A, () => { throw new Error('boom') })], 'LayerFailed'],
+    [
+      'failing Layer',
+      [
+        layer(A, () => {
+          throw new Error('boom')
+        }),
+      ],
+      'LayerFailed',
+    ],
     ['duplicate Tag', [layer(A, 'x'), layer(tag<string>('A'), 'y')], 'DuplicateTag'],
   ] as const)('%s reaches the boundary as SleekStackError', async (_, provide, code) => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -69,7 +96,16 @@ describe('@sleekstack/kit/react', () => {
   })
 
   it('child provider with the same key shadows the parent', async () => {
-    renderStrict(tree([layer(A, 'parent')], <LayerProvider provide={[layer(A, 'child')]}><Suspense fallback="l"><Show t={A} /></Suspense></LayerProvider>))
+    renderStrict(
+      tree(
+        [layer(A, 'parent')],
+        <LayerProvider provide={[layer(A, 'child')]}>
+          <Suspense fallback="l">
+            <Show t={A} />
+          </Suspense>
+        </LayerProvider>,
+      ),
+    )
     await screen.findByText('child')
   })
 
@@ -82,7 +118,17 @@ describe('@sleekstack/kit/react', () => {
 
   it('onFinalizerError receives a plain FinalizerError', async () => {
     const seen: FinalizerError[] = []
-    const provide = [layer(A, () => withCleanup('a', () => { throw new Error('cleanup broke') }), [], { lifetime: 'component' })]
+    const provide = [
+      layer(
+        A,
+        () =>
+          withCleanup('a', () => {
+            throw new Error('cleanup broke')
+          }),
+        [],
+        { lifetime: 'component' },
+      ),
+    ]
     const r = renderStrict(tree(provide, <Show t={A} />, (e) => seen.push(e)))
     await screen.findByText('a')
     await act(async () => r.unmount())

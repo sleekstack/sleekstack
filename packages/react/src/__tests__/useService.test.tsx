@@ -50,7 +50,7 @@ describe('useService — REACT-03: returns synchronously after first resolution 
         <Suspense fallback={<div data-testid="loading">loading</div>}>
           <TrackingConsumer />
         </Suspense>
-      </LayerProvider>
+      </LayerProvider>,
     )
 
     // Wait for resolution
@@ -67,7 +67,7 @@ describe('useService — REACT-03: returns synchronously after first resolution 
         <Suspense fallback={<div data-testid="loading">loading</div>}>
           <TrackingConsumer />
         </Suspense>
-      </LayerProvider>
+      </LayerProvider>,
     )
 
     await waitFor(() => {
@@ -163,7 +163,11 @@ describe('useService — R9 status cache and errors', () => {
       return { error }
     }
     render() {
-      return this.state.error !== undefined ? <div data-testid={this.props.id}>{String((this.state.error as Error).message ?? this.state.error)}</div> : this.props.children
+      return this.state.error !== undefined ? (
+        <div data-testid={this.props.id}>{String((this.state.error as Error).message ?? this.state.error)}</div>
+      ) : (
+        this.props.children
+      )
     }
   }
 
@@ -231,7 +235,11 @@ describe('useService — R9 status cache and errors', () => {
         </Boundary>
       </LayerProvider>,
     )
-    await waitFor(() => expect(screen.getByTestId('caught-Y').textContent).toMatch(/"useService" requires "AbsentService", which is not provided/))
+    await waitFor(() =>
+      expect(screen.getByTestId('caught-Y').textContent).toMatch(
+        /"useService" requires "AbsentService", which is not provided/,
+      ),
+    )
     spy.mockRestore()
   })
 })

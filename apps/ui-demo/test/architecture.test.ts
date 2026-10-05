@@ -10,7 +10,10 @@ import { expect, it } from 'vitest'
 //   components      the UI; never touches infrastructure
 //   app, main       composition roots: wire UI to infrastructure
 //   resume/*        the resumable counter: no React, no components, no domain
-interface Rule { readonly local: ReadonlyArray<string>; readonly packages: ReadonlyArray<string> }
+interface Rule {
+  readonly local: ReadonlyArray<string>
+  readonly packages: ReadonlyArray<string>
+}
 const rules: Record<string, Rule> = {
   domain: { local: [], packages: ['effect'] },
   infrastructure: { local: ['domain'], packages: ['effect', '@sleekstack/query'] },
@@ -28,8 +31,17 @@ const rules: Record<string, Rule> = {
 
 const src = path.join(__dirname, '..', 'src')
 const files = (dir: string): string[] =>
-  fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? files(path.join(dir, e.name)) : /\.tsx?$/.test(e.name) ? [path.join(dir, e.name)] : []))
-const moduleOf = (file: string) => path.relative(src, file).replace(/\.tsx?$/, '').split(path.sep).join('/')
+  fs
+    .readdirSync(dir, { withFileTypes: true })
+    .flatMap((e) =>
+      e.isDirectory() ? files(path.join(dir, e.name)) : /\.tsx?$/.test(e.name) ? [path.join(dir, e.name)] : [],
+    )
+const moduleOf = (file: string) =>
+  path
+    .relative(src, file)
+    .replace(/\.tsx?$/, '')
+    .split(path.sep)
+    .join('/')
 
 const IMPORT = /(?:\bfrom\s*|\bimport\s*\(?\s*)['"]([^'"]+)['"]/g
 const importsOf = (file: string): string[] => [...fs.readFileSync(file, 'utf8').matchAll(IMPORT)].map((m) => m[1]!)
@@ -47,7 +59,10 @@ it('modules import only what their layer allows', () => {
     if (!rule) continue
     for (const spec of importsOf(file)) {
       if (spec.startsWith('.')) {
-        const target = path.relative(src, path.resolve(path.dirname(file), spec)).split(path.sep).join('/')
+        const target = path
+          .relative(src, path.resolve(path.dirname(file), spec))
+          .split(path.sep)
+          .join('/')
         if (!rule.local.includes(target)) violations.push(`${mod} must not import ./${target}`)
       } else if (!allowedPackage(spec, rule.packages) && !spec.startsWith('node:')) {
         violations.push(`${mod} must not import "${spec}"`)

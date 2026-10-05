@@ -41,7 +41,8 @@ const moduleInfo = (x: unknown): ModuleInfo | undefined =>
 
 const coreModuleOf = (m: unknown, owner: string): CoreModule => {
   const info = moduleInfo(m)
-  if (!info) throw new SleekStackError('InvalidModule', `module("${owner}") imports a non-module value`, { name: owner })
+  if (!info)
+    throw new SleekStackError('InvalidModule', `module("${owner}") imports a non-module value`, { name: owner })
   return info.core
 }
 
@@ -88,17 +89,26 @@ function makeModule(config: ModuleConfig): Module {
   try {
     const name = config?.name
     const provide = config.provide ?? []
-    if (!Array.isArray(provide)) throw new SleekStackError('InvalidModule', `module("${name}"): 'provide' must be an array`, { name })
-    const entries = orderByDeps(provide.map((l, i) => {
-      const info = layerInfo(l)
-      if (!info) throw new SleekStackError('InvalidModule', `module("${name}"): provide ${i} is not a layer()`, { name })
-      return info
-    })).map((i) => i.def)
+    if (!Array.isArray(provide))
+      throw new SleekStackError('InvalidModule', `module("${name}"): 'provide' must be an array`, { name })
+    const entries = orderByDeps(
+      provide.map((l, i) => {
+        const info = layerInfo(l)
+        if (!info)
+          throw new SleekStackError('InvalidModule', `module("${name}"): provide ${i} is not a layer()`, { name })
+        return info
+      }),
+    ).map((i) => i.def)
     const imports = config.imports ?? []
     const core = coreModule({
       name,
       entries,
-      imports: typeof imports === 'function' ? () => imports().map((m) => coreModuleOf(m, name)) : Array.isArray(imports) ? imports.map((m) => coreModuleOf(m, name)) : (imports as never),
+      imports:
+        typeof imports === 'function'
+          ? () => imports().map((m) => coreModuleOf(m, name))
+          : Array.isArray(imports)
+            ? imports.map((m) => coreModuleOf(m, name))
+            : (imports as never),
       ...(config.exports !== undefined && { exports: config.exports.map(coreTag) }),
     })
     const m = Object.freeze({ name }) as Module
@@ -135,7 +145,9 @@ export function validateProvide(items: readonly (Layer<any> | Module)[]): void {
     const prev = byKey.get(c.key)
     if (prev === undefined) byKey.set(c.key, c)
     else if (prev !== c) {
-      throw new SleekStackError('DuplicateTag', `Two distinct Tags share the key "${c.key}" in one provide set`, { tag: c.key })
+      throw new SleekStackError('DuplicateTag', `Two distinct Tags share the key "${c.key}" in one provide set`, {
+        tag: c.key,
+      })
     }
   }
   const walk = (x: Layer<any> | Module): void => {

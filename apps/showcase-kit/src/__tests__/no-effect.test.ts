@@ -11,7 +11,8 @@ import { expect, it } from 'vitest'
 const root = fileURLToPath(new URL('../..', import.meta.url))
 const walk = (dir: string): string[] =>
   readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
-    e.isDirectory() ? walk(join(dir, e.name)) : /\.tsx?$/.test(e.name) ? [join(dir, e.name)] : [])
+    e.isDirectory() ? walk(join(dir, e.name)) : /\.tsx?$/.test(e.name) ? [join(dir, e.name)] : [],
+  )
 const FORBIDDEN = /from\s+['"](effect(\/[^'"]*)?|@sleekstack\/(core|next|react)(\/[^'"]*)?)['"]/
 
 it('no app file imports effect or @sleekstack/(core|next|react)', () => {

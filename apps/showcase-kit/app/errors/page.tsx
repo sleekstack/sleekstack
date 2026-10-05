@@ -9,7 +9,9 @@ import { buildTimeResults, errorCases, runCase } from '../../src/errors/cases.se
 import { readReport } from '../../src/server/report.server'
 
 export default async function ErrorsPage() {
-  const results: { id: string; code: string; message: string; at: string }[] = buildTimeResults(readReport().graphErrors)
+  const results: { id: string; code: string; message: string; at: string }[] = buildTimeResults(
+    readReport().graphErrors,
+  )
   for (const c of errorCases) results.push({ id: c.id, ...(await runCase(c)), at: 'runtime' })
   return (
     <main>

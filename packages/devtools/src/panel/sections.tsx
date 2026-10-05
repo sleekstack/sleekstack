@@ -21,7 +21,9 @@ export function ServiceEvents({ events }: { readonly events: readonly DevEvent[]
   return (
     <section aria-label="services">
       <h3>Service acquire/release</h3>
-      {lifecycle.length === 0 ? <p>No service events recorded.</p> : (
+      {lifecycle.length === 0 ? (
+        <p>No service events recorded.</p>
+      ) : (
         <ul>
           {lifecycle.map((e, i) => (
             <li key={`${e.at}-${i}`}>
@@ -35,11 +37,19 @@ export function ServiceEvents({ events }: { readonly events: readonly DevEvent[]
 }
 
 /** Recent errors, each with its scope and whether that scope is still open. */
-export function ScopedErrors({ errors, live }: { readonly errors: readonly DevEvent[]; readonly live: readonly string[] }) {
+export function ScopedErrors({
+  errors,
+  live,
+}: {
+  readonly errors: readonly DevEvent[]
+  readonly live: readonly string[]
+}) {
   return (
     <section aria-label="errors">
       <h3>Errors</h3>
-      {errors.length === 0 ? <p>No errors recorded.</p> : (
+      {errors.length === 0 ? (
+        <p>No errors recorded.</p>
+      ) : (
         <ul>
           {errors.slice(-10).map((e, i) => (
             <li key={`${e.at}-${i}`}>

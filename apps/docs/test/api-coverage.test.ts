@@ -8,12 +8,21 @@ import { resolveEntryPoints } from '../scripts/entry-points.mjs'
 const apiDir = join(dirname(fileURLToPath(import.meta.url)), '../content/docs/api')
 
 function exportSymbols(file: string) {
-  const program = ts.createProgram([file], { module: ts.ModuleKind.ESNext, moduleResolution: ts.ModuleResolutionKind.Bundler, jsx: ts.JsxEmit.ReactJSX, strict: true, skipLibCheck: true, noEmit: true })
+  const program = ts.createProgram([file], {
+    module: ts.ModuleKind.ESNext,
+    moduleResolution: ts.ModuleResolutionKind.Bundler,
+    jsx: ts.JsxEmit.ReactJSX,
+    strict: true,
+    skipLibCheck: true,
+    noEmit: true,
+  })
   const checker = program.getTypeChecker()
   const moduleSymbol = checker.getSymbolAtLocation(program.getSourceFile(file)!)!
   // `@internal` exports are adapter plumbing, excluded from the reference like TypeDoc's excludeInternal.
   const internal = (s: ts.Symbol) =>
-    (s.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(s) : s).getJsDocTags(checker).some((t) => t.name === 'internal') ||
+    (s.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(s) : s)
+      .getJsDocTags(checker)
+      .some((t) => t.name === 'internal') ||
     (s.declarations ?? []).some((d) => ts.isExportSpecifier(d) && ts.getJSDocDeprecatedTag(d.parent.parent)) // a deprecated alias (kit/next `effect`) stays out of the reference
   return { checker, symbols: checker.getExportsOfModule(moduleSymbol).filter((s) => !internal(s)) }
 }
@@ -27,7 +36,9 @@ export function undocumented(file: string): string[] {
     .filter((s) => {
       const target = s.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(s) : s
       // `export * as X` carries its summary on the export declaration; the aliased module has none.
-      const nsDoc = (s.declarations ?? []).filter(ts.isNamespaceExport).flatMap((d) => ts.getJSDocCommentsAndTags(d.parent))
+      const nsDoc = (s.declarations ?? [])
+        .filter(ts.isNamespaceExport)
+        .flatMap((d) => ts.getJSDocCommentsAndTags(d.parent))
       return ts.displayPartsToString(target.getDocumentationComment(checker)).trim() === '' && nsDoc.length === 0
     })
     .map((s) => s.name)

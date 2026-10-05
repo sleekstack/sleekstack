@@ -80,4 +80,8 @@ export const match = <A, E, X, Y, Z>(
     readonly onFailure: (result: Failure<A, E>) => Z
   },
 ): X | Y | Z =>
-  self._tag === 'Initial' ? cases.onInitial(self) : self._tag === 'Success' ? cases.onSuccess(self) : cases.onFailure(self)
+  self._tag === 'Initial'
+    ? cases.onInitial(self)
+    : self._tag === 'Success'
+      ? cases.onSuccess(self)
+      : cases.onFailure(self)

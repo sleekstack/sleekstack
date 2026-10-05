@@ -37,8 +37,17 @@ export class DraftInvalid extends Data.TaggedError('DraftInvalid')<{ readonly me
 }
 
 /** Resolves a Draft to its wire body: validate against the schema, then run `toDto`. Fails with `DraftInvalid`. */
-export const resolveDraft = <D, Dto, Src, P, R>(spec: DraftSpec<D, Dto, Src, P, R>, draft: D, src: Src): Effect.Effect<Dto, DraftInvalid, R> =>
-  Schema.decodeUnknown(Schema.suspend(() => spec.schema(src)), { errors: 'all' })(draft).pipe(
-    Effect.mapError((e) => new DraftInvalid({ messages: ParseResult.ArrayFormatter.formatErrorSync(e).map((i) => i.message) })),
+export const resolveDraft = <D, Dto, Src, P, R>(
+  spec: DraftSpec<D, Dto, Src, P, R>,
+  draft: D,
+  src: Src,
+): Effect.Effect<Dto, DraftInvalid, R> =>
+  Schema.decodeUnknown(
+    Schema.suspend(() => spec.schema(src)),
+    { errors: 'all' },
+  )(draft).pipe(
+    Effect.mapError(
+      (e) => new DraftInvalid({ messages: ParseResult.ArrayFormatter.formatErrorSync(e).map((i) => i.message) }),
+    ),
     Effect.flatMap((parsed) => spec.toDto(parsed, src)),
   )

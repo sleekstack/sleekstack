@@ -5,7 +5,12 @@ import { resolve } from 'node:path'
 import { type CaseResult, InputError, readResults, type Results } from './results'
 
 /** Reference library per suite (the part of the case name before `/`). */
-export const REFERENCE: Record<string, string> = { atoms: 'jotai', 'render-string': 'react', 'render-dom': 'react', 'jsx-overhead': 'direct' }
+export const REFERENCE: Record<string, string> = {
+  atoms: 'jotai',
+  'render-string': 'react',
+  'render-dom': 'react',
+  'jsx-overhead': 'direct',
+}
 /** Allowed ratio growth over the baseline, as a fraction. */
 export const DEFAULT_TOLERANCE = 0.5
 /** Per-case overrides of {@link DEFAULT_TOLERANCE}. */
@@ -47,10 +52,20 @@ export const compare = (latest: Results, baseline: Results): Report => {
   for (const [name, { ratio, noisy }] of now) {
     const b = base.get(name)?.ratio
     const tol = TOLERANCE[name] ?? DEFAULT_TOLERANCE
-    const status: Status = b === undefined ? 'NEW' : noisy ? 'NOISY' : ratio > b * (1 + tol) ? 'REGRESSED' : ratio < b / (1 + tol) ? 'IMPROVED' : 'OK'
+    const status: Status =
+      b === undefined
+        ? 'NEW'
+        : noisy
+          ? 'NOISY'
+          : ratio > b * (1 + tol)
+            ? 'REGRESSED'
+            : ratio < b / (1 + tol)
+              ? 'IMPROVED'
+              : 'OK'
     rows.push({ case: name, status, baseline: b, ratio })
   }
-  for (const [name, { ratio }] of base) if (!now.has(name)) rows.push({ case: name, status: 'MISSING', baseline: ratio })
+  for (const [name, { ratio }] of base)
+    if (!now.has(name)) rows.push({ case: name, status: 'MISSING', baseline: ratio })
   const warnings: Array<string> = []
   const major = (v: string) => v.replace(/^v/, '').split('.')[0]
   if (major(latest.machine.node) !== major(baseline.machine.node))
@@ -70,7 +85,10 @@ export const compare = (latest: Results, baseline: Results): Report => {
 if (import.meta.url === pathToFileURL(process.argv[1]!).href) {
   const root = resolve(import.meta.dirname, '..')
   try {
-    const report = compare(readResults(resolve(root, 'results/latest.json')), readResults(resolve(root, 'baseline.json')))
+    const report = compare(
+      readResults(resolve(root, 'results/latest.json')),
+      readResults(resolve(root, 'baseline.json')),
+    )
     console.log(report.markdown)
     for (const w of report.warnings) console.error(`::warning::${w}`)
     process.exit(report.failed ? 1 : 0)

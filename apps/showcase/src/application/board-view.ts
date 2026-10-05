@@ -14,7 +14,9 @@ export const loadBoard: Effect.Effect<BoardDto, never, BoardStoreService> = Effe
   const store = yield* BoardStore
   return yield* Effect.forEach(yield* store.projects(), (project) =>
     Effect.flatMap(store.tasksOf(project.id), (tasks) =>
-      Effect.forEach(tasks, (task) => Effect.map(Effect.orDie(store.commentsOf(task.id)), (comments) => ({ task, comments }))),
+      Effect.forEach(tasks, (task) =>
+        Effect.map(Effect.orDie(store.commentsOf(task.id)), (comments) => ({ task, comments })),
+      ),
     ).pipe(Effect.map((tasks) => ({ project, tasks }))),
   )
 })

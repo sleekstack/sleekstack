@@ -10,7 +10,12 @@ const DateSchema = Schema.Date // Date <-> ISO string: proves encode/decode run
 const counting = () => {
   const runs = { n: 0 }
   const atom = Atom.serializable.result(
-    Atom.make(Effect.sync(() => { runs.n++; return new Date(0) })),
+    Atom.make(
+      Effect.sync(() => {
+        runs.n++
+        return new Date(0)
+      }),
+    ),
     { key: 'when', schema: DateSchema },
   )
   return { runs, atom }
@@ -18,10 +23,16 @@ const counting = () => {
 
 describe('serializable atoms', () => {
   it('round trips value, writable, result and derived-Effect atoms', () => {
-    const value = Atom.serializable(Atom.make((_get) => new Date(5)), { key: 'v', schema: DateSchema })
+    const value = Atom.serializable(
+      Atom.make((_get) => new Date(5)),
+      { key: 'v', schema: DateSchema },
+    )
     const writable = Atom.serializable(Atom.make(1), { key: 'w', schema: Schema.Number })
     const result = Atom.serializable.result(Atom.make(Effect.succeed('r')), { key: 'r', schema: Schema.String })
-    const derived = Atom.serializable.result(Atom.make((get) => Effect.succeed(get(writable) + 1)), { key: 'd', schema: Schema.Number })
+    const derived = Atom.serializable.result(
+      Atom.make((get) => Effect.succeed(get(writable) + 1)),
+      { key: 'd', schema: Schema.Number },
+    )
     const server = makeAtomStore()
     server.set(writable, 41)
     for (const a of [value, result, derived]) server.get(a as Atom.Atom<unknown>)
@@ -82,7 +93,21 @@ describe('serializable atoms', () => {
     expect(dehydrate(store)).toEqual({ n: 7 })
     expect(warn).toHaveBeenCalledTimes(2)
 
-    for (const s of [null, 'x', [1], new Date(0), new Proxy({}, { ownKeys: () => { throw new Error('boom') } })]) expect(() => hydrate(store, s as never)).not.toThrow()
+    for (const s of [
+      null,
+      'x',
+      [1],
+      new Date(0),
+      new Proxy(
+        {},
+        {
+          ownKeys: () => {
+            throw new Error('boom')
+          },
+        },
+      ),
+    ])
+      expect(() => hydrate(store, s as never)).not.toThrow()
     expect(warn).toHaveBeenCalledTimes(7)
     warn.mockRestore()
   })
@@ -122,7 +147,15 @@ describe('serializable atoms', () => {
 
   it('inert store: forks nothing, unseeded result stays Initial, seeds apply, sync atoms compute', () => {
     const { runs, atom } = counting()
-    const other = Atom.serializable.result(Atom.make(Effect.sync(() => { runs.n++; return 1 })), { key: 'o', schema: Schema.Number })
+    const other = Atom.serializable.result(
+      Atom.make(
+        Effect.sync(() => {
+          runs.n++
+          return 1
+        }),
+      ),
+      { key: 'o', schema: Schema.Number },
+    )
     const sync = Atom.make(() => 3)
     const store = makeAtomStore({ inert: true, hydrate: { o: 2 } })
     expect(Result.isInitial(store.get(atom))).toBe(true)

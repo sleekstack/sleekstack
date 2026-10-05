@@ -1,6 +1,8 @@
 import { layer, module, tag } from '@sleekstack/kit'
 
-interface Mailer { send(to: string): void }
+interface Mailer {
+  send(to: string): void
+}
 const Mailer = tag<Mailer>('Mailer')
 
 const MailModule = module({ name: 'mail', provide: [layer(Mailer, { send: () => {} })], exports: [Mailer] })

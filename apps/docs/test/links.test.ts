@@ -42,7 +42,12 @@ describe('relative links', () => {
 describe('API anchor rewrite', () => {
   it('targets the symbol heading the link names, even when TypeDoc’s anchor exists elsewhere', () => {
     const raw = [
-      '### build()', '#### module', 'x', '### Module', '#### module', '### module()',
+      '### build()',
+      '#### module',
+      'x',
+      '### Module',
+      '#### module',
+      '### module()',
       '[`Module`](#module) [module](#module-2) [build](#build) [x](index.md#module-1)',
     ].join('\n\n')
     expect(rewriteAnchors(raw, '/docs/api/core').split('\n\n').at(-1)).toBe(

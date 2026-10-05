@@ -33,8 +33,12 @@ const counting = (result: () => Promise<string>) => {
   const fn = { calls: 0, queryFn: () => (fn.calls++, result()) }
   return fn
 }
-const Show = (key: string, queryFn: () => Promise<string>, tagName = 'b') => () =>
-  Effect.map(useQuery({ queryKey: [key], queryFn, retry: false, staleTime: 0 }), (r) => el(tagName, {}, `${r.status}:${r.data ?? ''}`))
+const Show =
+  (key: string, queryFn: () => Promise<string>, tagName = 'b') =>
+  () =>
+    Effect.map(useQuery({ queryKey: [key], queryFn, retry: false, staleTime: 0 }), (r) =>
+      el(tagName, {}, `${r.status}:${r.data ?? ''}`),
+    )
 
 describe('useQuery', () => {
   it('renders pending then the resolved result; re-renders only readers of that query', async () => {
@@ -51,7 +55,12 @@ describe('useQuery', () => {
   })
 
   it('a rejected queryFn renders status error', async () => {
-    const { container } = await go(jsx(Show('e', () => Promise.reject(new Error('no'))), {}))
+    const { container } = await go(
+      jsx(
+        Show('e', () => Promise.reject(new Error('no'))),
+        {},
+      ),
+    )
     await tick()
     expect(container.textContent).toBe('error:')
   })
@@ -59,7 +68,12 @@ describe('useQuery', () => {
   it('an unrelated atom change re-runs without refetching under staleTime 0', async () => {
     const fn = counting(async () => 'v')
     const a = Atom.make(0)
-    const C = () => Effect.zipWith(useAtomValue(a), useQuery({ queryKey: ['u'], queryFn: fn.queryFn, retry: false, staleTime: 0 }), (n, r) => el('b', {}, `${n}:${r.data ?? ''}`))
+    const C = () =>
+      Effect.zipWith(
+        useAtomValue(a),
+        useQuery({ queryKey: ['u'], queryFn: fn.queryFn, retry: false, staleTime: 0 }),
+        (n, r) => el('b', {}, `${n}:${r.data ?? ''}`),
+      )
     const { container, store } = await go(jsx(C, {}))
     await tick()
     store.set(a, 1)
@@ -75,13 +89,24 @@ describe('useQuery', () => {
     const show = Atom.make(true)
     let client: QueryClient | undefined
     const Grab = () => Effect.map(useQueryClient(), (c) => ((client = c), el('s', {}, '')))
-    const Gate = () => Effect.flatMap(useAtomValue(show), (on) => (on ? jsx('div', { children: [jsx(Grab, {}), jsx(Show('k', fn.queryFn), {}), jsx(Show('k', fn.queryFn, 'u'), {})] }) : Effect.succeed(el('p', {}, 'off'))))
+    const Gate = () =>
+      Effect.flatMap(useAtomValue(show), (on) =>
+        on
+          ? jsx('div', {
+              children: [jsx(Grab, {}), jsx(Show('k', fn.queryFn), {}), jsx(Show('k', fn.queryFn, 'u'), {})],
+            })
+          : Effect.succeed(el('p', {}, 'off')),
+      )
     const { container, store } = await go(jsx(Gate, {}))
     await tick()
     expect(container.querySelector('b')!.textContent).toBe('success:s')
     expect(container.querySelector('u')!.textContent).toBe('success:s')
     expect(fn.calls).toBe(1)
-    const observers = () => client!.getQueryCache().find({ queryKey: ['k'] })!.getObserversCount()
+    const observers = () =>
+      client!
+        .getQueryCache()
+        .find({ queryKey: ['k'] })!
+        .getObserversCount()
     expect(observers()).toBe(1)
     store.set(show, false)
     await tick()
@@ -99,13 +124,27 @@ describe('useSuspenseQuery', () => {
     Effect.map(useSuspenseQuery({ queryKey: [key], queryFn, retry: false }), (d) => el('b', {}, d))
   let client: QueryClient | undefined
   const Grab = () => Effect.map(useQueryClient(), (c) => ((client = c), el('s', {}, '')))
-  const observers = (key: string) => client!.getQueryCache().find({ queryKey: [key] })?.getObserversCount() ?? 0
+  const observers = (key: string) =>
+    client!
+      .getQueryCache()
+      .find({ queryKey: [key] })
+      ?.getObserversCount() ?? 0
 
   it('resolves under Pending, retains the observer, releases it on unmount', async () => {
     let resolve!: (v: string) => void
     const show = Atom.make(true)
-    const Gate = () => Effect.flatMap(useAtomValue(show), (on) =>
-      on ? jsx(Pending, { fallback: Effect.succeed(el('i', {}, 'loading')), children: jsx(Data('s', () => new Promise((r) => (resolve = r))), {}) }) : Effect.succeed(el('p', {}, 'off')))
+    const Gate = () =>
+      Effect.flatMap(useAtomValue(show), (on) =>
+        on
+          ? jsx(Pending, {
+              fallback: Effect.succeed(el('i', {}, 'loading')),
+              children: jsx(
+                Data('s', () => new Promise((r) => (resolve = r))),
+                {},
+              ),
+            })
+          : Effect.succeed(el('p', {}, 'off')),
+      )
     const { container, store } = await go(jsx('div', { children: [jsx(Grab, {}), jsx(Gate, {})] }))
     expect(container.textContent).toBe('loading')
     expect(observers('s')).toBe(1)
@@ -122,7 +161,10 @@ describe('useSuspenseQuery', () => {
     const tree = jsx(Boundary, {
       tag: 'QueryFailed',
       fallback: (e: QueryFailed) => Effect.succeed(el('p', {}, `caught:${(e.cause as Error).message}`)),
-      children: jsx(Data('f', () => Promise.reject(new Error('no'))), {}),
+      children: jsx(
+        Data('f', () => Promise.reject(new Error('no'))),
+        {},
+      ),
     })
     const { container } = await go(tree)
     expect(container.textContent).toBe('caught:no')
@@ -131,9 +173,16 @@ describe('useSuspenseQuery', () => {
   it('unmounting while in flight aborts the fetch and drops the observer', async () => {
     let aborted = false
     const show = Atom.make(true)
-    const fn = ({ signal }: { signal: AbortSignal }) => (signal.addEventListener('abort', () => void (aborted = true)), new Promise<string>(() => {}))
-    const Gate = () => Effect.flatMap(useAtomValue(show), (on) =>
-      on ? jsx(Pending, { fallback: Effect.succeed(el('i', {}, 'loading')), children: jsx(Data('a', fn), {}) }) : Effect.succeed(el('p', {}, 'off')))
+    const fn = ({ signal }: { signal: AbortSignal }) => (
+      signal.addEventListener('abort', () => void (aborted = true)),
+      new Promise<string>(() => {})
+    )
+    const Gate = () =>
+      Effect.flatMap(useAtomValue(show), (on) =>
+        on
+          ? jsx(Pending, { fallback: Effect.succeed(el('i', {}, 'loading')), children: jsx(Data('a', fn), {}) })
+          : Effect.succeed(el('p', {}, 'off')),
+      )
     const { store } = await go(jsx('div', { children: [jsx(Grab, {}), jsx(Gate, {})] }))
     expect(observers('a')).toBe(1)
     store.set(show, false)
@@ -147,9 +196,16 @@ describe('useSuspenseQuery', () => {
     let resolve: ((v: string) => void) | undefined
     const fn = counting(() => (n++ === 0 ? Promise.resolve('v0') : new Promise<string>((r) => (resolve = r))))
     const show = Atom.make(true)
-    const D = () => Effect.map(useSuspenseQuery({ queryKey: ['inv'], queryFn: fn.queryFn, retry: false, staleTime: 0 }), (d) => el('b', {}, d))
-    const Gate = () => Effect.flatMap(useAtomValue(show), (on) =>
-      on ? jsx(Pending, { fallback: Effect.succeed(el('i', {}, 'loading')), children: jsx(D, {}) }) : Effect.succeed(el('p', {}, 'off')))
+    const D = () =>
+      Effect.map(useSuspenseQuery({ queryKey: ['inv'], queryFn: fn.queryFn, retry: false, staleTime: 0 }), (d) =>
+        el('b', {}, d),
+      )
+    const Gate = () =>
+      Effect.flatMap(useAtomValue(show), (on) =>
+        on
+          ? jsx(Pending, { fallback: Effect.succeed(el('i', {}, 'loading')), children: jsx(D, {}) })
+          : Effect.succeed(el('p', {}, 'off')),
+      )
     const { container, store } = await go(jsx('div', { children: [jsx(Grab, {}), jsx(Gate, {})] }))
     await tick()
     expect(container.querySelector('b')!.textContent).toBe('v0')
@@ -167,6 +223,14 @@ describe('useSuspenseQuery', () => {
   })
 
   it('awaits under renderToString without a loading state', async () => {
-    expect(await renderToString(jsx(Data('r', async () => 'server'), {}), { layer: QueryClientLive() } as any)).toBe('<b>server</b>')
+    expect(
+      await renderToString(
+        jsx(
+          Data('r', async () => 'server'),
+          {},
+        ),
+        { layer: QueryClientLive() } as any,
+      ),
+    ).toBe('<b>server</b>')
   })
 })

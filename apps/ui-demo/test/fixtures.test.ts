@@ -7,11 +7,18 @@ const root = path.join(__dirname, '..')
 const fixture = (name: string) => path.join(root, 'fixtures', name)
 /** The `// @error Code` markers of a fixture, as `{ code, file, line }`. */
 const expected = (name: string) =>
-  fs.readdirSync(fixture(name)).filter((f) => /\.tsx?$/.test(f)).flatMap((file) =>
-    fs.readFileSync(path.join(fixture(name), file), 'utf8').split('\n').flatMap((l, i) => {
-      const m = /\/\/ @error (\w+)/.exec(l)
-      return m ? [{ code: m[1]!, file, line: i + 1 }] : []
-    }))
+  fs
+    .readdirSync(fixture(name))
+    .filter((f) => /\.tsx?$/.test(f))
+    .flatMap((file) =>
+      fs
+        .readFileSync(path.join(fixture(name), file), 'utf8')
+        .split('\n')
+        .flatMap((l, i) => {
+          const m = /\/\/ @error (\w+)/.exec(l)
+          return m ? [{ code: m[1]!, file, line: i + 1 }] : []
+        }),
+    )
 
 // Each case builds a full TypeScript program; that exceeds vitest's 5s default on a CI runner.
 describe('one fixture per Analyzer code', { timeout: 60_000 }, () => {

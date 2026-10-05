@@ -41,7 +41,9 @@ describe('compare', () => {
   })
 
   it('reports a case missing from the baseline as NEW without failing', () => {
-    const r = latest((r) => r.cases.push({ ...sleek(r, 'atoms/write'), case: 'atoms/new' }, { ...r.cases[1]!, case: 'atoms/new' }))
+    const r = latest((r) =>
+      r.cases.push({ ...sleek(r, 'atoms/write'), case: 'atoms/new' }, { ...r.cases[1]!, case: 'atoms/new' }),
+    )
     expect(status(r, 'atoms/new')).toBe('NEW')
     expect(compare(r, baseline).failed).toBe(false)
   })
@@ -59,7 +61,10 @@ describe('compare', () => {
   })
 
   it('warns, without failing, on a different Node major', () => {
-    const report = compare(latest((r) => void (r.machine.node = 'v24.1.0')), baseline)
+    const report = compare(
+      latest((r) => void (r.machine.node = 'v24.1.0')),
+      baseline,
+    )
     expect(report.failed).toBe(false)
     expect(report.warnings[0]).toContain('v22.20.0')
   })
@@ -67,7 +72,9 @@ describe('compare', () => {
   it('rejects malformed JSON and a schema mismatch naming the file', () => {
     expect(() => readResults(fixture('malformed.json'))).toThrow(InputError)
     expect(() => readResults(fixture('malformed.json'))).toThrow(/malformed\.json: malformed JSON/)
-    expect(() => parseResults(readFileSync(fixture('wrong-schema.json'), 'utf8'), 'x.json')).toThrow('x.json: does not match the results schema')
+    expect(() => parseResults(readFileSync(fixture('wrong-schema.json'), 'utf8'), 'x.json')).toThrow(
+      'x.json: does not match the results schema',
+    )
     expect(() => readResults(fixture('absent.json'))).toThrow(/absent\.json: missing/)
   })
 })

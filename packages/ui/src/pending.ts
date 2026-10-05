@@ -1,7 +1,18 @@
 import { Cause, Effect, Exit, Fiber, Scope } from 'effect'
 import { type Child, Fragment } from './jsx-runtime'
 import type { Node } from './node'
-import { Collector, Frame, makeFrame, owned, pendingOf, RenderScope, type RunFrame, scopedRun, type Slots, useLocal } from './reactive'
+import {
+  Collector,
+  Frame,
+  makeFrame,
+  owned,
+  pendingOf,
+  RenderScope,
+  type RunFrame,
+  scopedRun,
+  type Slots,
+  useLocal,
+} from './reactive'
 
 /**
  * Resolved content: moved into the slot by the content fiber, emitted as is by later runs; its node owns the content scope.
@@ -44,7 +55,12 @@ const closeScope = (scope: Scope.CloseableScope) => Effect.runFork(Scope.close(s
 export const Pending = (props: { fallback: Child; children?: Child }): Effect.Effect<Node, never, never> =>
   Effect.flatMap(RenderScope, (rs) =>
     // No `RenderScope` (renderToString): content runs inline and is awaited; the fallback is never emitted.
-    rs ? live(props) : Effect.map(Fragment({ children: props.children }), (n) => (pendingOf.set(n, { fallback: props.fallback, content: props.children }), n)),
+    rs
+      ? live(props)
+      : Effect.map(
+          Fragment({ children: props.children }),
+          (n) => (pendingOf.set(n, { fallback: props.fallback, content: props.children }), n),
+        ),
   ) as Effect.Effect<Node, never, never>
 
 const live = (props: { fallback: Child; children?: Child }) =>
@@ -76,7 +92,8 @@ const live = (props: { fallback: Child; children?: Child }) =>
               const latest = forks.get(slots) === fork
               if (latest && Exit.isSuccess(exit)) return set({ node: owned(exit.value, scope), frame: cframe, props })
               closeScope(scope)
-              if (latest && Exit.isFailure(exit) && !Cause.isInterruptedOnly(exit.cause)) set((c) => ({ ...c, props, cause: exit.cause }))
+              if (latest && Exit.isFailure(exit) && !Cause.isInterruptedOnly(exit.cause))
+                set((c) => ({ ...c, props, cause: exit.cause }))
             }),
           ),
         )
@@ -91,7 +108,11 @@ const live = (props: { fallback: Child; children?: Child }) =>
   )
 
 // Resolved content (current or previous) stays on screen; only a Pending with none yet shows the fallback.
-const emit = (content: Content | undefined, info: { fallback: Child; content: Child }, props: { fallback: Child }): Effect.Effect<Node, any, any> =>
+const emit = (
+  content: Content | undefined,
+  info: { fallback: Child; content: Child },
+  props: { fallback: Child },
+): Effect.Effect<Node, any, any> =>
   content?.node
     ? Effect.sync(() => (pendingOf.set(content.node!, { ...info, frame: content.frame }), content.node!))
     : Effect.map(scopedRun(Fragment({ children: props.fallback })), (n) => (pendingOf.set(n, info), n))

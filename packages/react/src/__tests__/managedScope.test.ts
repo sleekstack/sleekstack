@@ -7,7 +7,10 @@ import type { ChildScope } from '@sleekstack/core'
 
 const flush = () => new Promise<void>((r) => queueMicrotask(r))
 const noSink = () => {}
-const props = (provide: ScopeProps['provide'], label = 'a'): ScopeProps => ({ provide, children: React.createElement('div', { id: label }) })
+const props = (provide: ScopeProps['provide'], label = 'a'): ScopeProps => ({
+  provide,
+  children: React.createElement('div', { id: label }),
+})
 
 afterEach(() => void vi.useRealTimers())
 
@@ -83,9 +86,13 @@ describe('managedScope', () => {
     const order: string[] = []
     const App = Context.GenericTag<object>('MsApp')
     const Comp = Context.GenericTag<object>('MsComp')
-    const fin = (name: string) => Effect.acquireRelease(Effect.succeed({}), () => Effect.sync(() => void order.push(name)))
+    const fin = (name: string) =>
+      Effect.acquireRelease(Effect.succeed({}), () => Effect.sync(() => void order.push(name)))
     const owned = acquire(
-      props([service(App, { lifetime: 'app' }, () => fin('app')), service(Comp, { lifetime: 'component' }, () => fin('component'))]),
+      props([
+        service(App, { lifetime: 'app' }, () => fin('app')),
+        service(Comp, { lifetime: 'component' }, () => fin('component')),
+      ]),
       null,
       noSink,
     )

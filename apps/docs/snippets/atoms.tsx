@@ -3,7 +3,9 @@ import { Suspense } from 'react'
 import { atom, layer, tag } from '@sleekstack/kit'
 import { LayerProvider, useAtom, useAtomValue } from '@sleekstack/kit/react'
 
-interface Api { user(id: number): Promise<string> }
+interface Api {
+  user(id: number): Promise<string>
+}
 const Api = tag<Api>('Api')
 const provide = [layer(Api, { user: async (id: number) => `user ${id}` })]
 

@@ -8,7 +8,10 @@ import { useEffect, useState } from 'react'
 import type { Atom, AtomStore } from '@sleekstack/core'
 import { atomStores } from '@sleekstack/react/internal'
 
-type Snapshot = readonly { readonly store: AtomStore; readonly atoms: readonly { readonly atom: Atom.Atom<unknown>; readonly label: string; readonly value: unknown }[] }[]
+type Snapshot = readonly {
+  readonly store: AtomStore
+  readonly atoms: readonly { readonly atom: Atom.Atom<unknown>; readonly label: string; readonly value: unknown }[]
+}[]
 
 const read = (): Snapshot =>
   atomStores().flatMap((store) => {

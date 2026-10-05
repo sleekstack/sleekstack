@@ -7,7 +7,10 @@ export class Greeter extends Context.Tag('Greeter')<Greeter, { greet(name: strin
 const ClockLive = declareLayer(Layer.succeed(Clock, { now: () => Date.now() }))
 // The Layer is plain Effect: `sleekstack check` reads what it provides and requires from its type.
 const GreeterLive = declareLayer(
-  Layer.effect(Greeter, Effect.map(Clock, (clock) => ({ greet: (name: string) => `Hello ${name} at ${clock.now()}` }))),
+  Layer.effect(
+    Greeter,
+    Effect.map(Clock, (clock) => ({ greet: (name: string) => `Hello ${name} at ${clock.now()}` })),
+  ),
 )
 
 export const AppModule = module({ name: 'app', entries: [ClockLive, GreeterLive] })

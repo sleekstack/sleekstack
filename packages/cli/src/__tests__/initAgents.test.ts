@@ -28,7 +28,9 @@ describe('sleekstack init-agents', () => {
     fs.writeFileSync(agents(), '# Mine\n\nkeep me\n')
     expect(run().code).toBe(0)
     const once = fs.readFileSync(agents(), 'utf8')
-    expect(once).toMatch(/^# Mine\n\nkeep me\n\n<!-- sleekstack:agents:start -->[\s\S]*node_modules\/@sleekstack\/kit\/llms\.md[\s\S]*<!-- sleekstack:agents:end -->\n$/)
+    expect(once).toMatch(
+      /^# Mine\n\nkeep me\n\n<!-- sleekstack:agents:start -->[\s\S]*node_modules\/@sleekstack\/kit\/llms\.md[\s\S]*<!-- sleekstack:agents:end -->\n$/,
+    )
     expect(run().out).toMatch(/up to date/)
     fs.appendFileSync(agents(), 'after\n')
     expect(run().code).toBe(0)
@@ -36,8 +38,11 @@ describe('sleekstack init-agents', () => {
   })
 
   it('stops on unbalanced or duplicate markers without writing', () => {
-    for (const bad of ['<!-- sleekstack:agents:start -->\n', '<!-- sleekstack:agents:end -->\n<!-- sleekstack:agents:start -->\n',
-      '<!-- sleekstack:agents:start -->\n<!-- sleekstack:agents:end -->\n<!-- sleekstack:agents:start -->\n<!-- sleekstack:agents:end -->\n']) {
+    for (const bad of [
+      '<!-- sleekstack:agents:start -->\n',
+      '<!-- sleekstack:agents:end -->\n<!-- sleekstack:agents:start -->\n',
+      '<!-- sleekstack:agents:start -->\n<!-- sleekstack:agents:end -->\n<!-- sleekstack:agents:start -->\n<!-- sleekstack:agents:end -->\n',
+    ]) {
       fs.writeFileSync(agents(), bad)
       const r = run()
       expect(r.code).toBe(2)

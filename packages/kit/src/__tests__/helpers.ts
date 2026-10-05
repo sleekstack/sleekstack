@@ -14,6 +14,10 @@ export async function boot(app: Module, onFinalizerError?: (c: Cause.Cause<unkno
 }
 
 export const err = (f: () => unknown) => {
-  try { f() } catch (e) { return e as Error & { code?: string; details?: Record<string, unknown> } }
+  try {
+    f()
+  } catch (e) {
+    return e as Error & { code?: string; details?: Record<string, unknown> }
+  }
   throw new Error('did not throw')
 }
