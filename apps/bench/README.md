@@ -31,9 +31,9 @@ pnpm --filter bench test             # compare script unit tests
 
 ## Reading the keyed update cases
 
-`keyed-update-atom` rows each read a shared atom (as a selection or hover state would) and take an item object: today every row re-runs because a row that read an atom is never skipped (ADR 0020 open decision), so it is the baseline for rows that read atoms.
+`keyed-update-atom` rows each read a shared atom (as a selection or hover state would) and take an item object: a row that reads an atom keeps its own subscription and is skipped on a parent re-run (1 run per update).
 
-All of them change one of 1,000 keyed rows per write and report component runs per update. `keyed-update-data` (rows take an item object) and `keyed-update-handler` (item plus an inline `on*` handler) are the cases a row can be skipped: 1 run per update. `keyed-update-render-callback` passes a fresh function that the row calls while rendering, so every row re-runs (1,000 runs): that is the cost of the component-run path itself and the control for it. See ADR 0020.
+All of them change one of 1,000 keyed rows per write and report component runs per update. `keyed-update-data` (rows take an item object) and `keyed-update-handler` (item plus an inline `on*` handler) are the cases a row can be skipped: 1 run per update. `keyed-update-render-callback` passes a fresh function that the row calls while rendering, so every row re-runs (1,000 runs): that is the cost of the component-run path itself and the control for it. `keyed-update-hook-miss` (a `useLocal` hook plus a nested host child) and `keyed-update-gen-miss` (an `Effect.gen` body with a hook and a nested component) also pass a fresh `label` function, so all 1,000 rows run for both libraries (asserted in the log). They cannot take the host-only shortcut because the rows hold state, so they measure the full Effect run path and are the gate for work on hooks and `instance()`. See ADR 0020.
 
 ## Why ratios, not times
 
