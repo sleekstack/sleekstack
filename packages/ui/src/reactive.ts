@@ -70,7 +70,8 @@ interface Memo {
 
 /** One run of an instance: ordinals by component function, its own slots and cursor, and what its children did. `undefined` at the root. */
 export interface RunFrame {
-  readonly ordinals: Map<Function, number>
+  /** Created by the first unkeyed child. */
+  ordinals?: Map<Function, number>
   readonly owner: Slots
   readonly id: string
   cursor: number
@@ -93,7 +94,7 @@ export const makeFrame = (
     done: false,
   },
   id = '',
-): RunFrame => ({ ordinals: new Map(), owner, id, cursor: 0 })
+): RunFrame => ({ owner, id, cursor: 0 })
 
 /** A run called a different number of `useLocal`s than the instance's previous run. */
 export class SlotMismatch extends Data.TaggedError('SlotMismatch')<{
@@ -449,8 +450,9 @@ export const instance = <P>(
       if (key === undefined) {
         // Keyed calls take no ordinal: unkeyed siblings keep their ids when a keyed one comes or goes.
         const frame = Context.get(ctx, Frame)
-        const ordinal = frame?.ordinals.get(type) ?? 0
-        frame?.ordinals.set(type, ordinal + 1)
+        const ordinals = frame && (frame.ordinals ??= new Map())
+        const ordinal = ordinals?.get(type) ?? 0
+        ordinals?.set(type, ordinal + 1)
         id = `${fnId(type)}#${ordinal}`
       } else id = `${fnId(type)}:key:${key}`
     }

@@ -1,10 +1,11 @@
 import { bench, describe } from 'vitest'
+import { solidAdapters } from './solid'
 import { atomScenarios, type Body, check, type Library } from './scenarios'
 
 for (const scenario of atomScenarios) {
   for (const size of scenario.sizes) {
     const caseName = `atoms/${scenario.name}${scenario.sizes.length > 1 ? ` n=${size}` : ''}`
-    const entries = Object.entries(scenario.adapters) as Array<
+    const entries = Object.entries({ ...scenario.adapters, solid: solidAdapters[scenario.name] }) as Array<
       [Library, NonNullable<(typeof scenario.adapters)[Library]>]
     >
     for (const [lib, a] of entries) if (a === 'n/a') console.log(`${caseName}: ${lib} n/a`)

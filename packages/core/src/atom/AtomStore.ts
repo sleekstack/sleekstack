@@ -76,8 +76,8 @@ interface Node {
   notified: number
   computing: boolean
   deps: Map<Node, number>
-  readonly children: Set<Node>
-  readonly listeners: Set<() => void>
+  children: Set<Node>
+  listeners: Set<() => void>
   /** Snapshot of `listeners` for a notify round; dropped on subscribe/unsubscribe. */
   lsnap?: Array<() => void>
   retains: number
@@ -94,6 +94,12 @@ interface Node {
 
 const BUCKET_MS = 50
 
+// Shared by every node that has not yet needed its own; never mutated (the add/push sites swap in a real one first).
+const NO_DEPS: Map<Node, number> = new Map()
+const NO_NODES: Set<Node> = new Set()
+const NO_LISTENERS: Set<() => void> = new Set()
+const NO_FINALIZERS: Array<() => void> = []
+
 // `Equal.equals` negated, with the common primitive case answered without it (NaN still goes through `Equal`).
 const differs = (a: unknown, b: unknown): boolean => {
   if (a === b) return false
@@ -108,6 +114,8 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
   const wrapBuild = options.wrapBuild ?? ((effect) => effect)
   const scheduleTask = options.scheduleTask ?? queueMicrotask
   const nodes = new Map<Atom<any>, Node>()
+  // Identifies this store in `atom.$owner`. A copied atom (`keepAlive`) carries the original's slot, so a hit also checks `node.atom`.
+  const owner = {}
   let pending: Node[] = []
   const enqueue = (node: Node) => {
     if (node.queued) return
@@ -126,6 +134,10 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
   const keys = new Map<string, Atom<any>>()
 
   const ensure = (atom: Atom<any>): Node => {
+    if (atom.$owner === owner) {
+      const hit = atom.$node as Node
+      if (hit.atom === atom) return hit
+    }
     let node = nodes.get(atom)
     if (!node) {
       const key = atom.serializable?.key
@@ -139,11 +151,11 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
         version: 0,
         notified: 0,
         computing: false,
-        deps: new Map(),
-        children: new Set(),
-        listeners: new Set(),
+        deps: NO_DEPS,
+        children: NO_NODES,
+        listeners: NO_LISTENERS,
         retains: 0,
-        finalizers: [],
+        finalizers: NO_FINALIZERS,
         removalQueued: false,
         bucket: undefined,
       }
@@ -154,6 +166,8 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
         node.version = 1
       }
       nodes.set(atom, node)
+      atom.$owner = owner
+      atom.$node = node
       if (key !== undefined) keys.set(key, atom)
       scheduleRemoval(node)
     }
@@ -162,7 +176,8 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
 
   const runFinalizers = (node: Node) => {
     const fs = node.finalizers
-    node.finalizers = []
+    if (fs === NO_FINALIZERS) return
+    node.finalizers = NO_FINALIZERS
     for (let i = fs.length - 1; i >= 0; i--) {
       try {
         fs[i]!()
@@ -233,6 +248,11 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
     flush()
   }
 
+  const addFinalizer = (node: Node, f: () => void) => {
+    if (node.finalizers === NO_FINALIZERS) node.finalizers = []
+    node.finalizers.push(f)
+  }
+
   const buildContext = (node: Node): BuildContext => {
     const get = <A>(atom: Atom<A>): A => {
       const parent = ensure(atom)
@@ -242,7 +262,9 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
       }
       // edge first, so a read that throws still re-runs this node when the parent recovers
       const seen = parent.version
+      if (node.deps === NO_DEPS) node.deps = new Map()
       node.deps.set(parent, seen)
+      if (parent.children === NO_NODES) parent.children = new Set()
       parent.children.add(node)
       cancelRemoval(parent)
       pull(parent)
@@ -256,7 +278,7 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
       refresh: (atom: Atom<any>) => refresh(atom),
       refreshSelf: () => invalidate(node),
       addFinalizer: (f: () => void) => {
-        node.finalizers.push(f)
+        addFinalizer(node, f)
       },
       fork: <A, E>(effect: Effect.Effect<A, E, any>, onExit: (exit: Exit.Exit<A, E>) => void) => {
         if (options.inert) return undefined
@@ -265,7 +287,7 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
           wrapBuild(effect, node.atom).pipe(Scope.extend(scope), Effect.provide(context)) as Effect.Effect<A, E>,
         )
         let active = true
-        node.finalizers.push(() => {
+        addFinalizer(node, () => {
           active = false
           const running = fiber.unsafePoll() === null
           const report = (exit: Exit.Exit<unknown, unknown>) => {
@@ -365,10 +387,18 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
   const remove = (node: Node) => {
     if (nodes.get(node.atom) !== node) return
     nodes.delete(node.atom)
+    unslot(node)
     runFinalizers(node)
     for (const parent of node.deps.keys()) {
       parent.children.delete(node)
       scheduleRemoval(parent)
+    }
+  }
+
+  const unslot = (node: Node) => {
+    if (node.atom.$node === node) {
+      node.atom.$owner = undefined
+      node.atom.$node = undefined
     }
   }
 
@@ -451,7 +481,9 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
 
   const subscribe = <A>(atom: Atom<A>, listener: () => void, opts?: { readonly immediate?: boolean }) => {
     const node = ensure(atom)
-    const l = () => listener()
+    // The same function subscribed twice needs distinct entries, so the second gets a wrapper.
+    const l = node.listeners.has(listener) ? () => listener() : listener
+    if (node.listeners === NO_LISTENERS) node.listeners = new Set()
     node.listeners.add(l)
     node.lsnap = undefined
     cancelRemoval(node)
@@ -538,6 +570,7 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
       buckets.clear()
       for (const node of [...nodes.values()]) {
         nodes.delete(node.atom)
+        unslot(node)
         runFinalizers(node)
       }
       await Promise.all([...closing])
