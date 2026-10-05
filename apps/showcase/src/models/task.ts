@@ -54,7 +54,12 @@ export interface CommentModel {
 
 export const CommentModel = {
   fromDto: (dto) =>
-    Effect.succeed({ id: dto.id, body: dto.body, authorId: dto.authorId, createdAtIso: new Date(dto.createdAt).toISOString() }),
+    Effect.succeed({
+      id: dto.id,
+      body: dto.body,
+      authorId: dto.authorId,
+      createdAtIso: new Date(dto.createdAt).toISOString(),
+    }),
 } satisfies ModelSpec<CommentDto, CommentModel>
 
 /** What the board renders: every project with its tasks and their comments, all UI-ready. */
@@ -72,9 +77,18 @@ const TaskDtoSchema = Schema.Struct({
   status: Schema.Literal('todo', 'in_progress', 'done'),
   createdAt: Schema.Number,
 })
-const CommentDtoSchema = Schema.Struct({ id: Schema.String, taskId: Schema.String, body: Schema.String, authorId: Schema.String, createdAt: Schema.Number })
+const CommentDtoSchema = Schema.Struct({
+  id: Schema.String,
+  taskId: Schema.String,
+  body: Schema.String,
+  authorId: Schema.String,
+  createdAt: Schema.Number,
+})
 export const BoardDto = Schema.Array(
-  Schema.Struct({ project: ProjectDto, tasks: Schema.Array(Schema.Struct({ task: TaskDtoSchema, comments: Schema.Array(CommentDtoSchema) })) }),
+  Schema.Struct({
+    project: ProjectDto,
+    tasks: Schema.Array(Schema.Struct({ task: TaskDtoSchema, comments: Schema.Array(CommentDtoSchema) })),
+  }),
 )
 export type BoardDto = typeof BoardDto.Type
 
@@ -85,9 +99,11 @@ export const BoardModel = {
     return Effect.forEach(dto, ({ project, tasks }) =>
       Effect.map(
         Effect.forEach(tasks, ({ task, comments }) =>
-          Effect.all({ task: TaskModel.fromDto(task), comments: Effect.forEach(comments, CommentModel.fromDto) })),
+          Effect.all({ task: TaskModel.fromDto(task), comments: Effect.forEach(comments, CommentModel.fromDto) }),
+        ),
         (tasks): BoardProject => ({ project, tasks }),
-      )).pipe(Effect.provideService(ProjectNames, { get: (id) => names.get(id) }))
+      ),
+    ).pipe(Effect.provideService(ProjectNames, { get: (id) => names.get(id) }))
   },
 } satisfies ModelSpec<BoardDto, readonly BoardProject[]>
 
@@ -104,7 +120,11 @@ export const NewTaskDraft = {
   schema: () => newTaskSchema,
   create: (): NewTaskDraft => ({ title: '', simulateFailure: false }),
   toDto: (draft, ctx) =>
-    Effect.succeed<CreateTask>({ projectId: ctx.projectId, title: draft.title.trim(), simulateFailure: draft.simulateFailure }),
+    Effect.succeed<CreateTask>({
+      projectId: ctx.projectId,
+      title: draft.title.trim(),
+      simulateFailure: draft.simulateFailure,
+    }),
 } satisfies DraftSpec<NewTaskDraft, CreateTask, NewTaskContext>
 
 // --- Comment: a second save boundary on the same task. ---
@@ -120,5 +140,6 @@ export interface TaskCommentContext {
 export const TaskCommentDraft = {
   schema: () => commentSchema,
   create: (): TaskCommentDraft => ({ body: '' }),
-  toDto: (draft, ctx) => Effect.succeed<AddComment>({ taskId: ctx.taskId, authorId: ctx.authorId, body: draft.body.trim() }),
+  toDto: (draft, ctx) =>
+    Effect.succeed<AddComment>({ taskId: ctx.taskId, authorId: ctx.authorId, body: draft.body.trim() }),
 } satisfies DraftSpec<TaskCommentDraft, AddComment, TaskCommentContext>

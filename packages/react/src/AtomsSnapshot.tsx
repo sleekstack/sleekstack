@@ -25,13 +25,19 @@ import { ATTR, encodeSnapshot, snapshotText } from './transport'
 export function AtomsSnapshot() {
   const state = useContext(ProviderContext)
   if (state === null) {
-    throw new Error('AtomsSnapshot needs a <LayerProvider> above this component: atom state lives in the nearest provider.')
+    throw new Error(
+      'AtomsSnapshot needs a <LayerProvider> above this component: atom state lives in the nearest provider.',
+    )
   }
   const id = useContext(SnapshotIdContext)
   const server = useContext(RegistryContext) !== null || typeof window === 'undefined'
-  const html =
-    server
-      ? encodeSnapshot(state.atoms ? dehydrate(state.atoms) : {})
-      : (snapshotText(id) ?? '{}')
-  return <script type="application/json" {...{ [ATTR]: id }} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: html }} />
+  const html = server ? encodeSnapshot(state.atoms ? dehydrate(state.atoms) : {}) : (snapshotText(id) ?? '{}')
+  return (
+    <script
+      type="application/json"
+      {...{ [ATTR]: id }}
+      suppressHydrationWarning
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  )
 }

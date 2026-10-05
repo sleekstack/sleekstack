@@ -10,7 +10,9 @@ afterEach(cleanup)
 
 class Boundary extends Component<{ children: ReactNode }, { error?: unknown }> {
   state: { error?: unknown } = {}
-  static getDerivedStateFromError(error: unknown) { return { error } }
+  static getDerivedStateFromError(error: unknown) {
+    return { error }
+  }
   render() {
     const e = this.state.error as SleekStackError | undefined
     return e ? <div data-testid="err">{`${e instanceof SleekStackError}:${e.code}`}</div> : this.props.children
@@ -20,7 +22,11 @@ class Boundary extends Component<{ children: ReactNode }, { error?: unknown }> {
 const Api = tag<{ double(n: number): Promise<number> }>('Api')
 const provide = [layer(Api, { double: async (n: number) => n * 2 })]
 const tree = (child: ReactNode, p: Parameters<typeof LayerProvider>[0]['provide'] = provide) => (
-  <Boundary><Suspense fallback="loading"><LayerProvider provide={p}>{child}</LayerProvider></Suspense></Boundary>
+  <Boundary>
+    <Suspense fallback="loading">
+      <LayerProvider provide={p}>{child}</LayerProvider>
+    </Suspense>
+  </Boundary>
 )
 const Show = ({ a }: { a: Atom<unknown> }) => <div data-testid="v">{String(useAtomValue(a))}</div>
 
@@ -32,9 +38,21 @@ describe('kit atoms', () => {
     function Inc() {
       const [v, set] = useAtom(n)
       const add = useAtomSet(n)
-      return <><button onClick={() => set(v + 1)}>set</button><button onClick={() => add((p) => p + 10)}>add</button></>
+      return (
+        <>
+          <button onClick={() => set(v + 1)}>set</button>
+          <button onClick={() => add((p) => p + 10)}>add</button>
+        </>
+      )
     }
-    renderStrict(tree(<><Inc /><Show a={plusOne} /></>))
+    renderStrict(
+      tree(
+        <>
+          <Inc />
+          <Show a={plusOne} />
+        </>,
+      ),
+    )
     expect((await screen.findByTestId('v')).textContent).toBe('3')
     await act(async () => fireEvent.click(screen.getByText('set')))
     await screen.findByText('5')
@@ -43,8 +61,14 @@ describe('kit atoms', () => {
   })
 
   it('an async fn reading a loading atom waits for it', async () => {
-    const slow = atom(async () => { await new Promise((r) => setTimeout(r, 20)); return 1 })
-    const next = atom(async (get) => { await null; return get(slow) + 1 })
+    const slow = atom(async () => {
+      await new Promise((r) => setTimeout(r, 20))
+      return 1
+    })
+    const next = atom(async (get) => {
+      await null
+      return get(slow) + 1
+    })
     renderStrict(tree(<Show a={next} />))
     await screen.findByText('2')
   })
@@ -62,7 +86,14 @@ describe('kit atoms', () => {
 
   it.each([
     ['missing dep', atom((api) => api.double(1), [Api]), [], 'MissingDependency'],
-    ['rejected fn', atom(async () => { throw new Error('boom') }), provide, 'Unknown'],
+    [
+      'rejected fn',
+      atom(async () => {
+        throw new Error('boom')
+      }),
+      provide,
+      'Unknown',
+    ],
   ] as const)('%s reaches the boundary as SleekStackError', async (_, a, p, code) => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     renderStrict(tree(<Show a={a} />, p as never))

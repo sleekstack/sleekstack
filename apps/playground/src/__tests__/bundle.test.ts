@@ -17,7 +17,7 @@ import { STORES_KEY } from '@sleekstack/react/internal'
 
 type RolldownOutput = Extract<Awaited<ReturnType<typeof build>>, { output: unknown }>
 
-const root =fileURLToPath(new URL('../..', import.meta.url))
+const root = fileURLToPath(new URL('../..', import.meta.url))
 
 describe('playground bundle separation (R11)', () => {
   it('a Tag-only entry build never contains the server-only implementation marker', async () => {
@@ -49,15 +49,18 @@ describe('playground bundle separation (R11)', () => {
       }
       for (const fileName of reachable) {
         const source = readFileSync(path.join(outDir, fileName), 'utf8')
-        expect(source, `${fileName} (reachable from the client-tags entry) must not contain SERVER_ONLY_MARKER`).not.toContain(
-          SERVER_ONLY_MARKER,
-        )
+        expect(
+          source,
+          `${fileName} (reachable from the client-tags entry) must not contain SERVER_ONLY_MARKER`,
+        ).not.toContain(SERVER_ONLY_MARKER)
       }
 
       // Sanity: the marker exists somewhere in the full build, outside that reachable
       // set, so the assertions above aren't vacuous (they'd also pass on an empty graph).
       const markerFoundOutsideClientGraph = chunks.some(
-        (c) => !reachable.has(c.fileName) && readFileSync(path.join(outDir, c.fileName), 'utf8').includes(SERVER_ONLY_MARKER),
+        (c) =>
+          !reachable.has(c.fileName) &&
+          readFileSync(path.join(outDir, c.fileName), 'utf8').includes(SERVER_ONLY_MARKER),
       )
       expect(markerFoundOutsideClientGraph).toBe(true)
     } finally {
@@ -70,7 +73,12 @@ describe('playground bundle separation (R11)', () => {
     const env = process.env.NODE_ENV
     process.env.NODE_ENV = 'production' // vitest sets 'test', which Vite would otherwise bake into the build
     try {
-      const result = (await build({ root, mode: 'production', logLevel: 'silent', build: { outDir, emptyOutDir: true, write: true } })) as RolldownOutput
+      const result = (await build({
+        root,
+        mode: 'production',
+        logLevel: 'silent',
+        build: { outDir, emptyOutDir: true, write: true },
+      })) as RolldownOutput
       const sources = result.output.filter((o) => o.type === 'chunk').map((c) => c.code)
       // Sanity: LayerProvider (whose dev path writes the registry) is in the build.
       expect(sources.some((c) => c.includes('[@sleekstack/react] onFinalizerError threw:'))).toBe(true)

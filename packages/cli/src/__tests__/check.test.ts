@@ -15,8 +15,14 @@ describe('sleekstack check', () => {
   it('reports every configureRuntime root independently, skips test files, exits 1 on violations', () => {
     const r = run(fixture('multi'), '--json')
     expect(r.code).toBe(1)
-    const roots = JSON.parse(r.out).roots.map((x: { file: string; errors: { code: string }[] }) => [x.file, x.errors.map((e) => e.code)])
-    expect(roots.sort()).toEqual([['bad.ts', ['MissingDependency']], ['good.ts', []]])
+    const roots = JSON.parse(r.out).roots.map((x: { file: string; errors: { code: string }[] }) => [
+      x.file,
+      x.errors.map((e) => e.code),
+    ])
+    expect(roots.sort()).toEqual([
+      ['bad.ts', ['MissingDependency']],
+      ['good.ts', []],
+    ])
   })
 
   it('--entry limits the roots', () => {
@@ -31,7 +37,9 @@ describe('sleekstack check', () => {
     const r = run(fixture('none'))
     expect(r.code).toBe(2)
     expect(r.err).toMatch(/No roots[\s\S]*Usage: sleekstack check/)
-    expect(r.err).toContain('No roots: no configureRuntime call found (pass --entry or set "sleekstack.entry" in package.json).\nUsage:')
+    expect(r.err).toContain(
+      'No roots: no configureRuntime call found (pass --entry or set "sleekstack.entry" in package.json).\nUsage:',
+    )
   })
 
   it('ui project: a component error exits 1 with file:line code; a clean ui-only project exits 0', () => {
@@ -54,7 +62,12 @@ describe('sleekstack check', () => {
   })
 
   it('showcase-kit: valid JSON only on stdout, exit 0', () => {
-    const r = run(path.join(__dirname, '../../../../apps/showcase-kit'), '--json', '--entry', 'src/server/runtime.server.ts')
+    const r = run(
+      path.join(__dirname, '../../../../apps/showcase-kit'),
+      '--json',
+      '--entry',
+      'src/server/runtime.server.ts',
+    )
     expect(r.code).toBe(0)
     const json = JSON.parse(r.out)
     expect(json.ok).toBe(true)
@@ -75,7 +88,10 @@ describe('sleekstack check', () => {
     expect(r.code).toBe(0)
     const json = JSON.parse(r.out)
     expect(json.ok).toBe(true)
-    expect(json.roots.map((x: { kind: string; file: string; line: number }) => [x.kind, x.file, x.line])).toEqual([['app', 'runtime.ts', 6], ['opaque', 'runtime.ts', 9]])
+    expect(json.roots.map((x: { kind: string; file: string; line: number }) => [x.kind, x.file, x.line])).toEqual([
+      ['app', 'runtime.ts', 6],
+      ['opaque', 'runtime.ts', 9],
+    ])
   })
 
   it.each([

@@ -12,7 +12,9 @@ describe('llms.md', () => {
   })
 
   it('pack lists llms.md and the sources/types', () => {
-    const out = JSON.parse(execFileSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], { cwd: pkgDir, encoding: 'utf8' }))
+    const out = JSON.parse(
+      execFileSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], { cwd: pkgDir, encoding: 'utf8' }),
+    )
     const files: string[] = out[0].files.map((f: { path: string }) => f.path)
     expect(files).toContain('llms.md')
     expect(files).toContain('src/index.ts')

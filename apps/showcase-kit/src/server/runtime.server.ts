@@ -18,8 +18,9 @@ import { ActivityLog } from '../domain/tags'
  */
 function onFinalizerError(e: FinalizerError): void {
   console.error('[showcase-kit] finalizer error:', e.message, e.tag ?? '')
-  void query(function* () { ;(yield* ActivityLog).record(`finalizer error: ${e.message}`) }).catch((err: unknown) =>
-    console.error('[showcase-kit] failed to record finalizer error', err))
+  void query(function* () {
+    ;(yield* ActivityLog).record(`finalizer error: ${e.message}`)
+  }).catch((err: unknown) => console.error('[showcase-kit] failed to record finalizer error', err))
 }
 
 const runtimeConfig: RuntimeConfig = { provide: [AppModule], onFinalizerError }

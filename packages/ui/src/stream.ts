@@ -42,7 +42,10 @@ const changed = (store: AtomStore, node: ReactiveNode): Promise<void> =>
  * script with the atom and query state changed since the previous one (`hydrateMount` merges them in order).
  * No resume manifest is emitted.
  */
-export const renderToStream = <E, A, LE = never>(app: Effect.Effect<Node, E, A>, opts: StreamOptions<Exclude<A, Store>, LE>): ReadableStream<Uint8Array> => {
+export const renderToStream = <E, A, LE = never>(
+  app: Effect.Effect<Node, E, A>,
+  opts: StreamOptions<Exclude<A, Store>, LE>,
+): ReadableStream<Uint8Array> => {
   const prefix = checkId('idPrefix', opts.idPrefix ?? 'sleek-')
   const nonce = opts.nonce === undefined ? '' : ` nonce="${escape(opts.nonce)}"`
   const encoder = new TextEncoder()
@@ -84,7 +87,11 @@ export const renderToStream = <E, A, LE = never>(app: Effect.Effect<Node, E, A>,
     const all = client ? dehydrateQueries(client) : undefined
     const queries = all && {
       ...all,
-      queries: all.queries.filter((q) => sentQueries.get(q.queryHash) !== q.state.dataUpdatedAt && (sentQueries.set(q.queryHash, q.state.dataUpdatedAt), true)),
+      queries: all.queries.filter(
+        (q) =>
+          sentQueries.get(q.queryHash) !== q.state.dataUpdatedAt &&
+          (sentQueries.set(q.queryHash, q.state.dataUpdatedAt), true),
+      ),
     }
     const b = paths
     paths = {}
@@ -123,7 +130,9 @@ export const renderToStream = <E, A, LE = never>(app: Effect.Effect<Node, E, A>,
         parent = outer
       }
       unsent.delete(id)
-      emit(`${state()}<template data-sleek-b="${id}">${html}</template><script${nonce}>__sleekSwap(${scriptJson(id)})</script>`)
+      emit(
+        `${state()}<template data-sleek-b="${id}">${html}</template><script${nonce}>__sleekSwap(${scriptJson(id)})</script>`,
+      )
     }
     waiting.push(settle(node))
     return `<!--sleek-p:${id}-->${serialize(node.child, c)}<!--/sleek-p-->`
@@ -161,7 +170,8 @@ export const renderToStream = <E, A, LE = never>(app: Effect.Effect<Node, E, A>,
       void (async () => {
         for (let i = 0; i < waiting.length; i++) await waiting[i]!.catch(() => {})
         if (disposed) return
-        if (unsent.size > 0) controller.enqueue(encoder.encode(`<script${nonce}>__sleekEnd(${scriptJson([...unsent])})</script>`))
+        if (unsent.size > 0)
+          controller.enqueue(encoder.encode(`<script${nonce}>__sleekEnd(${scriptJson([...unsent])})</script>`))
         await dispose()
         controller.close()
       })()

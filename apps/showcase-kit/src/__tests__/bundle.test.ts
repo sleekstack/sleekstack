@@ -14,7 +14,8 @@ import { ISLAND_MARKER } from '../islands/marker'
 
 const nextDir = fileURLToPath(new URL('../../.next', import.meta.url))
 const built = existsSync(path.join(nextDir, 'static', 'chunks'))
-if (!built) console.warn('[bundle.test] .next build output missing: run `pnpm --filter showcase-kit build` first; skipping.')
+if (!built)
+  console.warn('[bundle.test] .next build output missing: run `pnpm --filter showcase-kit build` first; skipping.')
 
 const jsFiles = (dir: string): string[] =>
   (readdirSync(dir, { recursive: true }) as string[]).filter((f) => f.endsWith('.js')).map((f) => path.join(dir, f))
@@ -27,7 +28,9 @@ describe.skipIf(!built)('showcase bundle separation (R10)', () => {
   })
 
   it('server output does contain it (non-vacuous)', () => {
-    const found = jsFiles(path.join(nextDir, 'server')).some((f) => readFileSync(f, 'utf8').includes(SERVER_ONLY_MARKER))
+    const found = jsFiles(path.join(nextDir, 'server')).some((f) =>
+      readFileSync(f, 'utf8').includes(SERVER_ONLY_MARKER),
+    )
     expect(found).toBe(true)
   })
 })

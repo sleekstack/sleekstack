@@ -9,20 +9,30 @@ import 'server-only'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 
-export interface ReportNode { readonly id: string; readonly name: string; readonly lifetime: string }
+export interface ReportNode {
+  readonly id: string
+  readonly name: string
+  readonly lifetime: string
+}
 export interface ReportGraph {
   readonly root: string
   readonly nodes: readonly ReportNode[]
   readonly edges: readonly { readonly from: string; readonly to: string; readonly tag: string }[]
 }
-export interface ReportError { readonly code: string; readonly message: string; readonly file: string; readonly line: number }
+export interface ReportError {
+  readonly code: string
+  readonly message: string
+  readonly file: string
+  readonly line: number
+}
 export interface Report {
   readonly ok: boolean
   readonly roots: readonly {
     readonly root: string
     /** 'app' | 'request' | 'overrides' | 'opaque'; /graph shows any other value as a plain root (additive schema). */
     readonly kind?: string
-    readonly graph: ReportGraph; readonly errors: readonly ReportError[]
+    readonly graph: ReportGraph
+    readonly errors: readonly ReportError[]
   }[]
 }
 

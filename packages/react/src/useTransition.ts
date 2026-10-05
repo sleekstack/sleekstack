@@ -12,13 +12,14 @@ import { Context, Effect, Exit, Queue, Scope, Stream, SubscriptionRef } from 'ef
 import { startTransition, useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { ProviderContext } from './context'
 
-
 // ---- internal: the provider's service context, suspending like useService --
 // (same pattern as useStore in atoms.ts)
 function useScopeContext(hook: string): Context.Context<any> {
   const state = useContext(ProviderContext)
   if (state === null) {
-    throw new Error(`${hook} needs a <LayerProvider> above this component: its services come from the nearest provider.`)
+    throw new Error(
+      `${hook} needs a <LayerProvider> above this component: its services come from the nearest provider.`,
+    )
   }
   const s = state.scopeState
   if (s.status === 'resolved') return s.scope.context
@@ -115,7 +116,9 @@ export function useEffectTransition<In, A, E, R = never>(
   )
 
   // reads a ref, not `tr`: a stale closure between the effect and its re-render must not drop the send
-  const send = useCallback((i: In) => void (live.current ? Effect.runFork(live.current.send(i)) : early.current.push(i)), [])
+  const send = useCallback(
+    (i: In) => void (live.current ? Effect.runFork(live.current.send(i)) : early.current.push(i)),
+    [],
+  )
   return [isPending, send] as const
 }
-

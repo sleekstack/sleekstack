@@ -16,7 +16,9 @@ describe('renderToString', () => {
   })
 
   it('separates adjacent text, also across fragments, with a comment marker', async () => {
-    const html = await renderToString(Effect.succeed(el('p', {}, 'a', fragment('b', el('i')), 'c')), { layer: Layer.empty })
+    const html = await renderToString(Effect.succeed(el('p', {}, 'a', fragment('b', el('i')), 'c')), {
+      layer: Layer.empty,
+    })
     expect(html).toBe('<p>a<!--sleek-t-->b<i></i>c</p>')
   })
 
@@ -39,7 +41,9 @@ describe('renderToString', () => {
   it('renders a fromReact guest with its props inline', async () => {
     const Greet = fromReact(({ who }: { who: string }) => createElement('b', null, `hi ${who}`))
     const tree = Effect.map(Greet({ who: 'Bo' }), (g) => el('div', {}, g))
-    expect(await renderToString(tree, { layer: Layer.empty })).toBe('<div><sleek-guest style="display: contents;"><b>hi Bo</b></sleek-guest></div>')
+    expect(await renderToString(tree, { layer: Layer.empty })).toBe(
+      '<div><sleek-guest style="display: contents;"><b>hi Bo</b></sleek-guest></div>',
+    )
   })
 
   it('escapes text and attribute values', async () => {
@@ -91,14 +95,18 @@ describe('renderToString', () => {
     const run = () => Effect.void
 
     it('diverts a function onClick into events with the captured context, never an attribute', async () => {
-      const node = (await Effect.runPromise(Effect.provideService(jsx('button', { onClick: run, children: 'go' }), Tag, 't'))) as any
+      const node = (await Effect.runPromise(
+        Effect.provideService(jsx('button', { onClick: run, children: 'go' }), Tag, 't'),
+      )) as any
       expect(node.attrs).toEqual({})
       expect(node.events.click.run).toBe(run)
       expect(Context.get(node.events.click.context, Tag)).toBe('t')
     })
 
     it('still rejects a non-function on* prop', async () => {
-      await expect(renderToString(jsx('a', { onClick: 'x()' }), { layer: Layer.empty })).rejects.toThrow('Unsafe attribute')
+      await expect(renderToString(jsx('a', { onClick: 'x()' }), { layer: Layer.empty })).rejects.toThrow(
+        'Unsafe attribute',
+      )
     })
 
     it('carries key on elements, not attrs; unkeyed nodes have no key', async () => {
@@ -108,7 +116,12 @@ describe('renderToString', () => {
 
     it('renderToString ignores events, key and id', async () => {
       const tree = jsx('ul', { children: [jsx('li', { onClick: run, children: 'a' }, 'x')] })
-      expect(await renderToString(Effect.map(tree, (n) => ({ ...n, id: 'i' }) as any), { layer: Layer.empty })).toBe('<ul><li>a</li></ul>')
+      expect(
+        await renderToString(
+          Effect.map(tree, (n) => ({ ...n, id: 'i' }) as any),
+          { layer: Layer.empty },
+        ),
+      ).toBe('<ul><li>a</li></ul>')
     })
   })
 

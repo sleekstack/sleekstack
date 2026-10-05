@@ -8,7 +8,7 @@ const countAtom = Atom.serializable(Atom.make(0), { key: 'count', schema: Schema
 const Counter = () =>
   Effect.gen(function* () {
     const [count, set] = yield* useAtom(countAtom)
-    return yield* (<button onClick={() => Effect.sync(() => set(count + 1))}>{String(count)}</button>)
+    return yield* <button onClick={() => Effect.sync(() => set(count + 1))}>{String(count)}</button>
   })
 
 /** Size budget entry (ADR 0022): a reactive app hydrating server HTML. */

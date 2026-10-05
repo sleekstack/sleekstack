@@ -20,8 +20,17 @@ const gate = () => {
 
 // A Pending whose content waits for `wait` (resolved immediately when absent).
 const tree = (wait?: Promise<void>) => {
-  const Slow = () => Effect.map(Effect.promise(() => wait ?? Promise.resolve()), () => el('b', {}, 'done'))
-  return jsx('div', { children: [jsx('p', { children: 'head' }), jsx(Pending, { fallback: jsx('i', { children: 'wait' }), children: jsx(Slow, {}) })] })
+  const Slow = () =>
+    Effect.map(
+      Effect.promise(() => wait ?? Promise.resolve()),
+      () => el('b', {}, 'done'),
+    )
+  return jsx('div', {
+    children: [
+      jsx('p', { children: 'head' }),
+      jsx(Pending, { fallback: jsx('i', { children: 'wait' }), children: jsx(Slow, {}) }),
+    ],
+  })
 }
 
 // Applies streamed HTML the way a browser would: parse, then run the inline scripts in order.
@@ -76,18 +85,25 @@ const read = async (stream: ReadableStream<Uint8Array>, onChunk?: (chunk: string
 }
 
 describe('renderToStream boundaries (R2, R5)', () => {
-  const slow = (wait: Promise<void> | undefined, tag: string, child: any = tag) => () =>
-    Effect.map(Effect.promise(() => wait ?? Promise.resolve()), () => jsx(tag, { children: child }))
+  const slow =
+    (wait: Promise<void> | undefined, tag: string, child: any = tag) =>
+    () =>
+      Effect.map(
+        Effect.promise(() => wait ?? Promise.resolve()),
+        () => jsx(tag, { children: child }),
+      )
   const fallback = (t: string) => jsx('i', { children: t })
 
   it('streams boundaries in completion order; the swapped DOM equals renderToString', async () => {
     const a = gate()
     const b = gate()
     const app = (pa?: Promise<void>, pb?: Promise<void>) =>
-      jsx('div', { children: [
-        jsx(Pending, { fallback: fallback('A'), children: jsx(slow(pa, 'a'), {}) }),
-        jsx(Pending, { fallback: fallback('B'), children: jsx(slow(pb, 'b'), {}) }),
-      ] })
+      jsx('div', {
+        children: [
+          jsx(Pending, { fallback: fallback('A'), children: jsx(slow(pa, 'a'), {}) }),
+          jsx(Pending, { fallback: fallback('B'), children: jsx(slow(pb, 'b'), {}) }),
+        ],
+      })
     const order: Array<string> = []
     const done = read(renderToStream(app(a.promise, b.promise), { layer }), (chunk) => {
       for (const m of chunk.matchAll(/<template data-sleek-b="([^"]+)"/g)) order.push(m[1]!)
@@ -104,34 +120,62 @@ describe('renderToStream boundaries (R2, R5)', () => {
   it.each([
     ['after', false],
     ['before', true],
-  ] as const)('a nested boundary whose content resolves %s its parent streams its chunk after the parent chunk', async (_, innerFirst) => {
-    const outer = gate()
-    const inner = gate()
-    const app = (po?: Promise<void>, pi?: Promise<void>) => {
-      const Inner = slow(pi, 'b')
-      const Outer = () => Effect.flatMap(Effect.promise(() => po ?? Promise.resolve()), () =>
-        jsx('section', { children: jsx(Pending, { fallback: fallback('in'), children: jsx(Inner, {}) }) }))
-      return jsx('div', { children: jsx(Pending, { fallback: fallback('out'), children: jsx(Outer, {}) }) })
-    }
-    if (innerFirst) inner.open()
-    const order: Array<string> = []
-    const done = read(renderToStream(app(outer.promise, inner.promise), { layer }), (chunk) => {
-      for (const m of chunk.matchAll(/<template data-sleek-b="([^"]+)"/g)) order.push(m[1]!)
-    })
-    await new Promise((r) => setTimeout(r, 20))
-    outer.open()
-    await new Promise((r) => setTimeout(r, 20))
-    inner.open()
-    const html = await done
-    expect(order).toEqual(['sleek-0', 'sleek-1'])
-    expect(normalize(apply(html))).toBe(normalize(await renderToString(app(), { layer })))
-  })
+  ] as const)(
+    'a nested boundary whose content resolves %s its parent streams its chunk after the parent chunk',
+    async (_, innerFirst) => {
+      const outer = gate()
+      const inner = gate()
+      const app = (po?: Promise<void>, pi?: Promise<void>) => {
+        const Inner = slow(pi, 'b')
+        const Outer = () =>
+          Effect.flatMap(
+            Effect.promise(() => po ?? Promise.resolve()),
+            () => jsx('section', { children: jsx(Pending, { fallback: fallback('in'), children: jsx(Inner, {}) }) }),
+          )
+        return jsx('div', { children: jsx(Pending, { fallback: fallback('out'), children: jsx(Outer, {}) }) })
+      }
+      if (innerFirst) inner.open()
+      const order: Array<string> = []
+      const done = read(renderToStream(app(outer.promise, inner.promise), { layer }), (chunk) => {
+        for (const m of chunk.matchAll(/<template data-sleek-b="([^"]+)"/g)) order.push(m[1]!)
+      })
+      await new Promise((r) => setTimeout(r, 20))
+      outer.open()
+      await new Promise((r) => setTimeout(r, 20))
+      inner.open()
+      const html = await done
+      expect(order).toEqual(['sleek-0', 'sleek-1'])
+      expect(normalize(apply(html))).toBe(normalize(await renderToString(app(), { layer })))
+    },
+  )
 
   it('boundary content starting with text after a text sibling keeps the text separator', async () => {
-    const app = jsx('div', { children: ['x', jsx(Pending, { fallback: fallback('w'), children: jsx(slow(undefined, 'span', 'y'), {}) })] })
-    const textFirst = jsx('div', { children: ['x', jsx(Pending, { fallback: 'w', children: jsx(() => Effect.map(Effect.promise(() => Promise.resolve()), () => fragment('y')), {}) }), 'z'] })
-    expect(normalize(apply(await read(renderToStream(app, { layer }))))).toBe(normalize(await renderToString(app, { layer })))
-    expect(normalize(apply(await read(renderToStream(textFirst, { layer }))))).toBe(normalize(await renderToString(textFirst, { layer })))
+    const app = jsx('div', {
+      children: ['x', jsx(Pending, { fallback: fallback('w'), children: jsx(slow(undefined, 'span', 'y'), {}) })],
+    })
+    const textFirst = jsx('div', {
+      children: [
+        'x',
+        jsx(Pending, {
+          fallback: 'w',
+          children: jsx(
+            () =>
+              Effect.map(
+                Effect.promise(() => Promise.resolve()),
+                () => fragment('y'),
+              ),
+            {},
+          ),
+        }),
+        'z',
+      ],
+    })
+    expect(normalize(apply(await read(renderToStream(app, { layer }))))).toBe(
+      normalize(await renderToString(app, { layer })),
+    )
+    expect(normalize(apply(await read(renderToStream(textFirst, { layer }))))).toBe(
+      normalize(await renderToString(textFirst, { layer })),
+    )
   })
 
   it('puts the nonce on every inline script', async () => {
@@ -143,7 +187,11 @@ describe('renderToStream boundaries (R2, R5)', () => {
 })
 
 class Boom extends Data.TaggedError('Boom')<{}> {}
-const failing = (g: { promise: Promise<void> }) => () => Effect.flatMap(Effect.promise(() => g.promise), () => Effect.fail(new Boom()))
+const failing = (g: { promise: Promise<void> }) => () =>
+  Effect.flatMap(
+    Effect.promise(() => g.promise),
+    () => Effect.fail(new Boom()),
+  )
 const drain = async (reader: ReadableStreamDefaultReader<Uint8Array>) => {
   let out = ''
   for (let r = await reader.read(); !r.done; r = await reader.read()) out += decoder.decode(r.value)
@@ -153,7 +201,11 @@ const drain = async (reader: ReadableStreamDefaultReader<Uint8Array>) => {
 describe('renderToStream errors and cancel (R2, R4)', () => {
   it('a boundary failing after flush streams the nearest Boundary fallback', async () => {
     const g = gate()
-    const app = jsx(Boundary, { tag: 'Boom', fallback: () => jsx('p', { children: 'caught' }), children: jsx(Pending, { fallback: 'wait', children: jsx(failing(g), {}) }) })
+    const app = jsx(Boundary, {
+      tag: 'Boom',
+      fallback: () => jsx('p', { children: 'caught' }),
+      children: jsx(Pending, { fallback: 'wait', children: jsx(failing(g), {}) }),
+    })
     const errors: Array<Cause.Cause<unknown>> = []
     const reader = renderToStream(app, { layer, onError: (c) => errors.push(c) }).getReader()
     const first = decoder.decode((await reader.read()).value)
@@ -168,7 +220,10 @@ describe('renderToStream errors and cancel (R2, R4)', () => {
   it('an unhandled failure after flush keeps the Pending fallback and reports once to onError', async () => {
     const g = gate()
     const errors: Array<Cause.Cause<unknown>> = []
-    const reader = renderToStream(jsx(Pending, { fallback: 'wait', children: jsx(failing(g), {}) }), { layer, onError: (c) => errors.push(c) }).getReader()
+    const reader = renderToStream(jsx(Pending, { fallback: 'wait', children: jsx(failing(g), {}) }), {
+      layer,
+      onError: (c) => errors.push(c),
+    }).getReader()
     const first = decoder.decode((await reader.read()).value)
     g.open()
     const rest = await drain(reader)
@@ -180,11 +235,29 @@ describe('renderToStream errors and cancel (R2, R4)', () => {
   it('cancel interrupts pending content, closes its scope (observer retain count 0) and drops late errors', async () => {
     const g = gate()
     let client: QueryClient | undefined
-    const observers = () => client?.getQueryCache().find({ queryKey: ['s'] })?.getObserversCount() ?? 0
+    const observers = () =>
+      client
+        ?.getQueryCache()
+        .find({ queryKey: ['s'] })
+        ?.getObserversCount() ?? 0
     const Q = () =>
-      Effect.flatMap(useQueryClient(), (c) => ((client = c), Effect.flatMap(useQuery({ queryKey: ['s'], queryFn: async () => 'q', retry: false }), () => Effect.flatMap(Effect.promise(() => g.promise), () => Effect.fail(new Boom())))))
+      Effect.flatMap(
+        useQueryClient(),
+        (c) => (
+          (client = c),
+          Effect.flatMap(useQuery({ queryKey: ['s'], queryFn: async () => 'q', retry: false }), () =>
+            Effect.flatMap(
+              Effect.promise(() => g.promise),
+              () => Effect.fail(new Boom()),
+            ),
+          )
+        ),
+      )
     const errors: Array<Cause.Cause<unknown>> = []
-    const reader = renderToStream(jsx(Pending, { fallback: 'wait', children: jsx(Q, {}) }), { layer: QueryClientLive(), onError: (c) => errors.push(c) }).getReader()
+    const reader = renderToStream(jsx(Pending, { fallback: 'wait', children: jsx(Q, {}) }), {
+      layer: QueryClientLive(),
+      onError: (c) => errors.push(c),
+    }).getReader()
     await reader.read()
     expect(observers()).toBe(1)
     await reader.cancel()
@@ -212,15 +285,27 @@ describe('renderToStream per-boundary state (R3)', () => {
       Effect.flatMap(useSuspenseQuery({ queryKey: ['q'], queryFn, staleTime: 60_000 }), (data) =>
         Effect.flatMap(useAtomValue(count), (n) => jsx('b', { children: `${data}:${n}` })),
       )
-    const Set7 = () => Effect.flatMap(Store, (s) => Effect.flatMap(Effect.promise(() => Promise.resolve()), () => (s.set(count, 7), jsx(Q, {}))))
-    const app = () => jsx('div', { children: jsx(Pending, { fallback: jsx('i', { children: 'wait' }), children: jsx(Set7, {}) }) })
+    const Set7 = () =>
+      Effect.flatMap(Store, (s) =>
+        Effect.flatMap(
+          Effect.promise(() => Promise.resolve()),
+          () => (s.set(count, 7), jsx(Q, {})),
+        ),
+      )
+    const app = () =>
+      jsx('div', { children: jsx(Pending, { fallback: jsx('i', { children: 'wait' }), children: jsx(Set7, {}) }) })
 
-    const html = await new Response(renderToStream(app(), { layer: Layer.succeed(QueryClientTag, new QueryClient()) })).text()
+    const html = await new Response(
+      renderToStream(app(), { layer: Layer.succeed(QueryClientTag, new QueryClient()) }),
+    ).text()
     // The shell's payload carries the atom set before flush; the chunk carries only what is new since: the query.
     const [shell, chunk] = html.split('</div>')
     expect(shell).not.toContain('data-sleek-hydrate')
     const payloads = [...chunk!.matchAll(/data-sleek-hydrate>([^<]*)</g)].map((m) => JSON.parse(m[1]!))
-    expect(payloads.map((p) => [p.atoms, p.queries?.queries.map((q: any) => q.queryHash)])).toEqual([[{ count: 7 }, undefined], [{}, ['["q"]']]])
+    expect(payloads.map((p) => [p.atoms, p.queries?.queries.map((q: any) => q.queryHash)])).toEqual([
+      [{ count: 7 }, undefined],
+      [{}, ['["q"]']],
+    ])
     expect(chunk!.indexOf('data-sleek-hydrate', chunk!.indexOf('"count"'))).toBeLessThan(chunk!.indexOf('<template'))
     expect(calls).toBe(1)
 
@@ -231,7 +316,15 @@ describe('renderToStream per-boundary state (R3)', () => {
     const store = makeAtomStore()
     const errors: Array<unknown> = []
     let h: any
-    await act(async () => void (h = await hydrateMount(app(), { layer: Layer.succeed(QueryClientTag, new QueryClient()), container, store, onError: (c) => errors.push(c) })))
+    await act(
+      async () =>
+        void (h = await hydrateMount(app(), {
+          layer: Layer.succeed(QueryClientTag, new QueryClient()),
+          container,
+          store,
+          onError: (c) => errors.push(c),
+        })),
+    )
     await act(() => new Promise((r) => setTimeout(r, 0)))
     expect(errors).toEqual([])
     expect(container.querySelector('b')!.textContent).toBe('srv:7')
@@ -251,7 +344,8 @@ describe('renderToStream late boundaries (R3)', () => {
       if (n.nodeName === 'SCRIPT' && !(n as Element).hasAttribute('type')) (n.remove(), new Function(n.textContent!)())
     }
   }
-  const settle = async (act: (f: () => Promise<void>) => Promise<void>) => act(() => new Promise((r) => setTimeout(r, 10)))
+  const settle = async (act: (f: () => Promise<void>) => Promise<void>) =>
+    act(() => new Promise((r) => setTimeout(r, 10)))
 
   it('hydrating mid-stream adopts each boundary as its chunk lands: same DOM as a fully loaded hydrate, no refetch', async () => {
     const { QueryClientTag } = await import('@sleekstack/query')
@@ -264,16 +358,36 @@ describe('renderToStream late boundaries (R3)', () => {
     const [ga, gb, gc] = [gate(), gate(), gate()]
     let calls = 0
     const queryFn = async () => (calls++, 'srv')
-    const C = () => Effect.flatMap(Effect.promise(() => gc.promise), () => jsx('u', { children: 'c' }))
-    const B = () =>
-      Effect.flatMap(Effect.promise(() => gb.promise), () =>
-        Effect.flatMap(useSuspenseQuery({ queryKey: ['b'], queryFn, staleTime: 60_000 }), (d) =>
-          jsx('section', { children: [jsx('b', { children: d }), jsx(Pending, { fallback: jsx('i', { children: 'wait c' }), children: jsx(C, {}) })] }),
-        ),
+    const C = () =>
+      Effect.flatMap(
+        Effect.promise(() => gc.promise),
+        () => jsx('u', { children: 'c' }),
       )
-    const A = () => Effect.flatMap(Effect.promise(() => ga.promise), () => jsx('a', { children: 'a' }))
+    const B = () =>
+      Effect.flatMap(
+        Effect.promise(() => gb.promise),
+        () =>
+          Effect.flatMap(useSuspenseQuery({ queryKey: ['b'], queryFn, staleTime: 60_000 }), (d) =>
+            jsx('section', {
+              children: [
+                jsx('b', { children: d }),
+                jsx(Pending, { fallback: jsx('i', { children: 'wait c' }), children: jsx(C, {}) }),
+              ],
+            }),
+          ),
+      )
+    const A = () =>
+      Effect.flatMap(
+        Effect.promise(() => ga.promise),
+        () => jsx('a', { children: 'a' }),
+      )
     const app = () =>
-      jsx('div', { children: [jsx(Pending, { fallback: jsx('i', { children: 'wait a' }), children: jsx(A, {}) }), jsx(Pending, { fallback: jsx('i', { children: 'wait b' }), children: jsx(B, {}) })] })
+      jsx('div', {
+        children: [
+          jsx(Pending, { fallback: jsx('i', { children: 'wait a' }), children: jsx(A, {}) }),
+          jsx(Pending, { fallback: jsx('i', { children: 'wait b' }), children: jsx(B, {}) }),
+        ],
+      })
     const qc = () => Layer.succeed(QueryClientTag, new QueryClient())
 
     const reader = renderToStream(app(), { layer: qc() }).getReader()
@@ -286,7 +400,9 @@ describe('renderToStream late boundaries (R3)', () => {
     feed(container, chunks.join(''))
     const errors: Array<unknown> = []
     let h: any
-    await act(async () => void (h = await hydrateMount(app(), { layer: qc(), container, onError: (c) => errors.push(c) })))
+    await act(
+      async () => void (h = await hydrateMount(app(), { layer: qc(), container, onError: (c) => errors.push(c) })),
+    )
     expect(container.querySelector('a')!.textContent).toBe('a')
     expect(container.textContent).toContain('wait b')
     gb.open()
@@ -304,7 +420,10 @@ describe('renderToStream late boundaries (R3)', () => {
     document.body.append(full)
     feed(full, [...chunks, b, rest].join(''))
     let h2: any
-    await act(async () => void (h2 = await hydrateMount(app(), { layer: qc(), container: full, onError: (c) => errors.push(c) })))
+    await act(
+      async () =>
+        void (h2 = await hydrateMount(app(), { layer: qc(), container: full, onError: (c) => errors.push(c) })),
+    )
     expect(errors).toEqual([])
     expect(container.innerHTML).toBe(full.innerHTML)
     expect(container.querySelector('u')!.textContent).toBe('c')
@@ -317,7 +436,10 @@ describe('renderToStream late boundaries (R3)', () => {
     const { BoundaryChunkMissing, hydrateMount } = await import('../index')
     delete (globalThis as { __sleekGone?: unknown }).__sleekGone
     const g = gate()
-    const app = () => jsx('div', { children: jsx(Pending, { fallback: jsx('i', { children: 'wait' }), children: jsx(failing(g), {}) }) })
+    const app = () =>
+      jsx('div', {
+        children: jsx(Pending, { fallback: jsx('i', { children: 'wait' }), children: jsx(failing(g), {}) }),
+      })
     const reader = renderToStream(app(), { layer, onError: () => {} }).getReader()
     const shell = decoder.decode((await reader.read()).value)
     const container = document.createElement('div')

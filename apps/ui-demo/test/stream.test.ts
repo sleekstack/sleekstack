@@ -8,8 +8,14 @@ const decoder = new TextDecoder()
 
 // A page section whose Pending content resolves after `wait`.
 const section = (name: string, wait: Promise<void>) => {
-  const Slow = () => Effect.flatMap(Effect.promise(() => wait), () => jsx('b', { children: `${name} done` }))
-  return jsx('section', { children: jsx(Pending as any, { fallback: jsx('i', { children: `${name} wait` }), children: jsx(Slow as any, {}) }) })
+  const Slow = () =>
+    Effect.flatMap(
+      Effect.promise(() => wait),
+      () => jsx('b', { children: `${name} done` }),
+    )
+  return jsx('section', {
+    children: jsx(Pending as any, { fallback: jsx('i', { children: `${name} wait` }), children: jsx(Slow as any, {}) }),
+  })
 }
 
 const shellAndRest = async (stream: ReadableStream<Uint8Array>) => {

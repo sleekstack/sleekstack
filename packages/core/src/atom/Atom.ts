@@ -50,7 +50,10 @@ export interface WriteContext<A> {
 /** @internal Build context the store passes to reads: adds the store's Effect runner. */
 export interface BuildContext extends Context {
   /** Forks `effect` on a fresh Scope for this build; returns the Exit when it completed synchronously. */
-  readonly fork: <A, E>(effect: Effect.Effect<A, E, any>, onExit: (exit: Exit.Exit<A, E>) => void) => Exit.Exit<A, E> | undefined
+  readonly fork: <A, E>(
+    effect: Effect.Effect<A, E, any>,
+    onExit: (exit: Exit.Exit<A, E>) => void,
+  ) => Exit.Exit<A, E> | undefined
 }
 
 /** A lazy, keyed node definition. */
@@ -126,7 +129,9 @@ const runStream = <A, E>(get: Context, stream: Stream.Stream<A, E, any>): Result
   let building = true
   const done = (exit: Exit.Exit<void, E>): Result.Result<A, E> =>
     Exit.isFailure(exit)
-      ? Result.failure(exit.cause, { previousValue: Option.orElse(last, () => (previous ? Result.value(previous) : Option.none())) })
+      ? Result.failure(exit.cause, {
+          previousValue: Option.orElse(last, () => (previous ? Result.value(previous) : Option.none())),
+        })
       : Option.isSome(last)
         ? Result.success(last.value)
         : Result.failure(Cause.fail(new Cause.NoSuchElementException()) as Cause.Cause<never>, {
@@ -152,11 +157,15 @@ const readResult = (get: Context, u: unknown): unknown =>
 /** An Effect atom: runs the Effect per build; its value is a `Result`. */
 export function make<A, E, R>(effect: Effect.Effect<A, E, R>): Atom<Result.Result<A, E | ScopeError>>
 /** A Stream atom: its value is the latest element as a `Result`; an empty Stream fails with `NoSuchElementException`. */
-export function make<A, E, R>(stream: Stream.Stream<A, E, R>): Atom<Result.Result<A, E | Cause.NoSuchElementException | ScopeError>>
+export function make<A, E, R>(
+  stream: Stream.Stream<A, E, R>,
+): Atom<Result.Result<A, E | Cause.NoSuchElementException | ScopeError>>
 /** A derived Effect atom. */
 export function make<A, E, R>(read: (get: Context) => Effect.Effect<A, E, R>): Atom<Result.Result<A, E | ScopeError>>
 /** A derived Stream atom. */
-export function make<A, E, R>(read: (get: Context) => Stream.Stream<A, E, R>): Atom<Result.Result<A, E | Cause.NoSuchElementException | ScopeError>>
+export function make<A, E, R>(
+  read: (get: Context) => Stream.Stream<A, E, R>,
+): Atom<Result.Result<A, E | Cause.NoSuchElementException | ScopeError>>
 /** A derived atom, recomputed when a dependency changes. */
 export function make<A>(read: (get: Context) => A): Atom<A>
 /** Writable state holding `value` initially. */
@@ -173,8 +182,10 @@ export function make(arg: unknown): Atom<unknown> {
 }
 
 /** A writable atom from a `read` and a `write`. */
-export const writable = <R, W = R>(read: (get: Context) => R, write: (ctx: WriteContext<R>, value: W) => void): Writable<R, W> =>
-  makeAtom(read, write)
+export const writable = <R, W = R>(
+  read: (get: Context) => R,
+  write: (ctx: WriteContext<R>, value: W) => void,
+): Writable<R, W> => makeAtom(read, write)
 
 /** A copy of `self` that the store never removes. */
 export const keepAlive = <T extends Atom<any>>(self: T): T => ({ ...self, keepAlive: true })
@@ -182,13 +193,26 @@ export const keepAlive = <T extends Atom<any>>(self: T): T => ({ ...self, keepAl
 /** A copy of `self` removed `ms` after it becomes unused. */
 export const setIdleTTL = <T extends Atom<any>>(self: T, ms: number): T => ({ ...self, idleTTL: ms })
 
-const mark = (kind: 'value' | 'result') => (self: Atom<any>, opts: { readonly key: string; readonly schema: Schema.Schema<any, any> }): any =>
-  ({ ...self, serializable: { key: opts.key, schema: opts.schema, kind } })
+const mark =
+  (kind: 'value' | 'result') =>
+  (self: Atom<any>, opts: { readonly key: string; readonly schema: Schema.Schema<any, any> }): any => ({
+    ...self,
+    serializable: { key: opts.key, schema: opts.schema, kind },
+  })
 
 /** Value kind of {@link serializable}. */
-function serializableValue<R, W, I>(self: Writable<R, W>, opts: { readonly key: string; readonly schema: Schema.Schema<R, I> }): Serializable<Writable<R, W>>
-function serializableValue<A, I>(self: Atom<A>, opts: { readonly key: string; readonly schema: Schema.Schema<A, I> }): Serializable<Atom<A>>
-function serializableValue(self: Atom<any>, opts: { readonly key: string; readonly schema: Schema.Schema<any, any> }): any {
+function serializableValue<R, W, I>(
+  self: Writable<R, W>,
+  opts: { readonly key: string; readonly schema: Schema.Schema<R, I> },
+): Serializable<Writable<R, W>>
+function serializableValue<A, I>(
+  self: Atom<A>,
+  opts: { readonly key: string; readonly schema: Schema.Schema<A, I> },
+): Serializable<Atom<A>>
+function serializableValue(
+  self: Atom<any>,
+  opts: { readonly key: string; readonly schema: Schema.Schema<any, any> },
+): any {
   return mark('value')(self, opts)
 }
 

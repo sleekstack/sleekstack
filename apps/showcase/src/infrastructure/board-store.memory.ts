@@ -24,7 +24,11 @@ export interface BoardSeed {
   readonly comments: readonly CommentRecord[]
 }
 
-const copy = (t: Tables): Tables => ({ projects: new Map(t.projects), tasks: new Map(t.tasks), comments: new Map(t.comments) })
+const copy = (t: Tables): Tables => ({
+  projects: new Map(t.projects),
+  tasks: new Map(t.tasks),
+  comments: new Map(t.comments),
+})
 
 const readsOf = (tables: () => Tables): BoardReads => {
   const task = (id: string) =>
@@ -66,7 +70,9 @@ export const makeBoardStore = (seed: BoardSeed): BoardStoreService => {
                 return moved
               }),
             addComment: (record) =>
-              Effect.as(reads.task(record.taskId), record).pipe(Effect.tap(() => void work.comments.set(record.id, record))),
+              Effect.as(reads.task(record.taskId), record).pipe(
+                Effect.tap(() => void work.comments.set(record.id, record)),
+              ),
           }
           // Publish a detached copy: a BoardTx kept past its transaction only ever writes an orphan.
           return Effect.tap(f(tx), () => void (committed = copy(work)))

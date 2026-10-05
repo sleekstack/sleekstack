@@ -34,7 +34,9 @@ export const check = async (caseName: string, bodies: ReadonlyArray<readonly [Li
     const json = JSON.stringify(await body())
     if (!expected) expected = { lib, json }
     else if (json !== expected.json)
-      throw new Error(`Correctness check failed: ${lib} in "${caseName}" produced ${json.slice(0, 200)}, ${expected.lib} produced ${expected.json.slice(0, 200)}`)
+      throw new Error(
+        `Correctness check failed: ${lib} in "${caseName}" produced ${json.slice(0, 200)}, ${expected.lib} produced ${expected.json.slice(0, 200)}`,
+      )
   }
 }
 
@@ -233,7 +235,10 @@ export const atomScenarios: ReadonlyArray<AtomScenario> = [
           calls = 0
           v++
           s.batch(() => atoms.forEach((a) => s.set(a, v)))
-          { const total = s.get(sum) / v; return [calls, total] }
+          {
+            const total = s.get(sum) / v
+            return [calls, total]
+          }
         }
       },
       jotai: (n) => {
@@ -247,7 +252,10 @@ export const atomScenarios: ReadonlyArray<AtomScenario> = [
         return () => {
           calls = 0
           s.set(setAll, ++v)
-          { const total = s.get(sum) / v; return [calls, total] }
+          {
+            const total = s.get(sum) / v
+            return [calls, total]
+          }
         }
       },
       'effect-atom': (n) => {
@@ -261,7 +269,10 @@ export const atomScenarios: ReadonlyArray<AtomScenario> = [
           calls = 0
           v++
           EA.batch(() => atoms.forEach((a) => r.set(a, v)))
-          { const total = r.get(sum) / v; return [calls, total] }
+          {
+            const total = r.get(sum) / v
+            return [calls, total]
+          }
         }
       },
     },
@@ -333,9 +344,18 @@ export const rowLabel = (i: number) => `Item ${i}`
 
 /** The list tree, SleekStack side: `<ul>` of `Row` components; `Row` 0 may be swapped for a reactive row. */
 // Module-level so the component type is stable across re-renders and the reconciler can reuse rows.
-const Row = ({ jsx, i, label }: { jsx: Jsx; i: number; label: (i: number) => string }) => jsx('li', { className: 'row', children: label(i) })
-export const sleekTree = (jsx: Jsx, first?: () => unknown, { keyed = false, ids = rowIds, label = rowLabel }: TreeOptions = {}) =>
-  jsx('ul', { children: ids.map((i) => (i === 0 && first ? jsx(first, {}) : jsx(Row, keyed ? { jsx, i, label, key: i } : { jsx, i, label }))) })
+const Row = ({ jsx, i, label }: { jsx: Jsx; i: number; label: (i: number) => string }) =>
+  jsx('li', { className: 'row', children: label(i) })
+export const sleekTree = (
+  jsx: Jsx,
+  first?: () => unknown,
+  { keyed = false, ids = rowIds, label = rowLabel }: TreeOptions = {},
+) =>
+  jsx('ul', {
+    children: ids.map((i) =>
+      i === 0 && first ? jsx(first, {}) : jsx(Row, keyed ? { jsx, i, label, key: i } : { jsx, i, label }),
+    ),
+  })
 
 /**
  * Data-shaped keyed list: each row takes an item object, never a fresh closure, so a row whose item is the same object has
@@ -347,18 +367,29 @@ export interface Item {
 }
 export const baseItems: ReadonlyArray<Item> = rowIds.map((i) => ({ id: i, label: rowLabel(i) }))
 /** Item list after write `n`: row 500 is a new object, every other item keeps its identity. */
-export const itemsAfter = (n: number): ReadonlyArray<Item> => baseItems.map((it) => (it.id === 500 ? { id: 500, label: `Item 500 #${n}` } : it))
+export const itemsAfter = (n: number): ReadonlyArray<Item> =>
+  baseItems.map((it) => (it.id === 500 ? { id: 500, label: `Item 500 #${n}` } : it))
 export const dataRuns = { sleekstack: 0, react: 0 }
-const DataRow = ({ jsx, item }: { jsx: Jsx; item: Item }) => (dataRuns.sleekstack++, jsx('li', { className: 'row', children: item.label }))
-export const sleekDataTree = (jsx: Jsx, items: ReadonlyArray<Item>) => jsx('ul', { children: items.map((item) => jsx(DataRow, { jsx, item, key: item.id })) })
+const DataRow = ({ jsx, item }: { jsx: Jsx; item: Item }) => (
+  dataRuns.sleekstack++,
+  jsx('li', { className: 'row', children: item.label })
+)
+export const sleekDataTree = (jsx: Jsx, items: ReadonlyArray<Item>) =>
+  jsx('ul', { children: items.map((item) => jsx(DataRow, { jsx, item, key: item.id })) })
 
 /** Like the data list, but each row also takes an inline `onPick` closure over its item (a new function on every parent run). */
 export const dataHandlerRuns = { sleekstack: 0, react: 0 }
 export const pickLog: Array<number> = []
-const HandlerRow = ({ jsx, item, onPick }: { jsx: Jsx; item: Item; onPick: () => unknown }) =>
-  (dataHandlerRuns.sleekstack++, jsx('li', { className: 'row', onClick: onPick, children: item.label }))
+const HandlerRow = ({ jsx, item, onPick }: { jsx: Jsx; item: Item; onPick: () => unknown }) => (
+  dataHandlerRuns.sleekstack++,
+  jsx('li', { className: 'row', onClick: onPick, children: item.label })
+)
 export const sleekHandlerTree = (jsx: Jsx, items: ReadonlyArray<Item>, effectSync: (f: () => void) => unknown) =>
-  jsx('ul', { children: items.map((item) => jsx(HandlerRow, { jsx, item, onPick: () => effectSync(() => void pickLog.push(item.id)), key: item.id })) })
+  jsx('ul', {
+    children: items.map((item) =>
+      jsx(HandlerRow, { jsx, item, onPick: () => effectSync(() => void pickLog.push(item.id)), key: item.id }),
+    ),
+  })
 
 /** Rows that each read one shared atom (`selected`), as a selection or hover state would: component runs per update, outside measurement. */
 export const dataAtomRuns = { sleekstack: 0, react: 0 }

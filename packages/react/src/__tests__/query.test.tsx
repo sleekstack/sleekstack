@@ -21,7 +21,11 @@ const View = ({ id }: { id: string }) => {
 }
 const Root = ({ id }: { id: string }) => (
   <api.LayerProvider provide={[QueryClientLive()]}>
-    <Suspense fallback={null}><api.QueryProvider><View id={id} /></api.QueryProvider></Suspense>
+    <Suspense fallback={null}>
+      <api.QueryProvider>
+        <View id={id} />
+      </api.QueryProvider>
+    </Suspense>
   </api.LayerProvider>
 )
 

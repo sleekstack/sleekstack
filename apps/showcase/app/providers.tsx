@@ -15,7 +15,11 @@ import { QueryClientLive } from '@sleekstack/query'
 
 const provide = [QueryClientLive()]
 
-export function Providers({ demoMode, state, children }: {
+export function Providers({
+  demoMode,
+  state,
+  children,
+}: {
   readonly demoMode: boolean
   readonly state?: DehydratedState
   readonly children: React.ReactNode

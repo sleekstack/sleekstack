@@ -12,7 +12,15 @@ import { runApp } from './runtime.server'
 export type ActionResult<T> = { readonly ok: true; readonly data: T } | { readonly ok: false; readonly error: string }
 
 export const act =
-  <I, A>(useCase: (input: I) => Effect.Effect<A, DomainError, Parameters<typeof runApp>[0] extends Effect.Effect<any, any, infer R> ? R : never>) =>
+  <I, A>(
+    useCase: (
+      input: I,
+    ) => Effect.Effect<
+      A,
+      DomainError,
+      Parameters<typeof runApp>[0] extends Effect.Effect<any, any, infer R> ? R : never
+    >,
+  ) =>
   async (input: I): Promise<ActionResult<A>> =>
     runApp(
       useCase(input).pipe(

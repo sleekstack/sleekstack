@@ -30,8 +30,16 @@ export const parseResults = (text: string, file: string): Results => {
     throw new InputError(`${file}: malformed JSON`)
   }
   const ok =
-    j && typeof j.machine?.node === 'string' && Array.isArray(j.cases) &&
-    j.cases.every((c: any) => typeof c?.case === 'string' && typeof c.library === 'string' && typeof c.mean === 'number' && typeof c.rme === 'number')
+    j &&
+    typeof j.machine?.node === 'string' &&
+    Array.isArray(j.cases) &&
+    j.cases.every(
+      (c: any) =>
+        typeof c?.case === 'string' &&
+        typeof c.library === 'string' &&
+        typeof c.mean === 'number' &&
+        typeof c.rme === 'number',
+    )
   if (!ok) throw new InputError(`${file}: does not match the results schema`)
   return j
 }

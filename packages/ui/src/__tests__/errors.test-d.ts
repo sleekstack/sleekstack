@@ -10,10 +10,14 @@ class ErrB extends Data.TaggedError('B')<{ readonly b: string }> {}
 declare const both: Effect.Effect<Node, ErrA | ErrB, never>
 
 // catching A leaves exactly B; the handler sees only A
-const onlyB = Catch('A', (e) => {
-  expectTypeOf(e).toEqualTypeOf<ErrA>()
-  return el('p', {}, String(e.a))
-}, both)
+const onlyB = Catch(
+  'A',
+  (e) => {
+    expectTypeOf(e).toEqualTypeOf<ErrA>()
+    return el('p', {}, String(e.a))
+  },
+  both,
+)
 expectTypeOf(onlyB).toEqualTypeOf<Effect.Effect<Node, ErrB, never>>()
 
 // catching every tag leaves never
@@ -25,6 +29,8 @@ Catch('C', () => el('p'), both)
 Catch('B', () => el('p'), both)
 
 // useSuspenseQuery: E is QueryFailed (an unprovided client is a compile-time R error), R is the query client and Store
-expectTypeOf(useSuspenseQuery({ queryKey: ['k'], queryFn: async () => 1 })).toEqualTypeOf<Effect.Effect<number, QueryFailed, QueryClientTag | Store>>()
+expectTypeOf(useSuspenseQuery({ queryKey: ['k'], queryFn: async () => 1 })).toEqualTypeOf<
+  Effect.Effect<number, QueryFailed, QueryClientTag | Store>
+>()
 // @ts-expect-error a disabled query never resolves
 useSuspenseQuery({ queryKey: ['k'], queryFn: async () => 1, enabled: false })

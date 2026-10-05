@@ -3,7 +3,22 @@ import { Atom, makeAtomStore } from '@sleekstack/core'
 import { Cause, Context, Effect, Layer, Schema } from 'effect'
 import { act, createElement, useState } from 'react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { bind, Boundary, el, Pending, fromReact, HydrateConflict, HydrationMismatch, hydrateMount, mount, type Mounted, renderToString, Store, useAtomValue, useLocal } from '../index'
+import {
+  bind,
+  Boundary,
+  el,
+  Pending,
+  fromReact,
+  HydrateConflict,
+  HydrationMismatch,
+  hydrateMount,
+  mount,
+  type Mounted,
+  renderToString,
+  Store,
+  useAtomValue,
+  useLocal,
+} from '../index'
 import { jsx as rawJsx } from '../jsx-runtime'
 import { useQuery } from '../query'
 import { QueryClientTag } from '@sleekstack/query'
@@ -51,7 +66,8 @@ describe('hydrateMount', () => {
     const Counter = () =>
       Effect.flatMap(
         Effect.sync(() => runs.counter++),
-        () => Effect.flatMap(useLocal(0), ([n, set]) => jsx('button', { onClick: () => set(n + 1), children: `n=${n}` })),
+        () =>
+          Effect.flatMap(useLocal(0), ([n, set]) => jsx('button', { onClick: () => set(n + 1), children: `n=${n}` })),
       )
     const App = () => jsx('div', { class: 'app', children: [jsx(Label, {}), jsx(Counter, {})] })
 
@@ -84,10 +100,14 @@ describe('hydrateMount', () => {
     let m!: Mounted
     await act(async () => void (m = await mount(jsx('p', { children: 'a' }), { layer: Layer.empty, container })))
     handles.push(m)
-    await expect(hydrateMount(jsx('p', { children: 'a' }), { layer: Layer.empty, container })).rejects.toMatchObject({ _tag: 'HydrateConflict' })
+    await expect(hydrateMount(jsx('p', { children: 'a' }), { layer: Layer.empty, container })).rejects.toMatchObject({
+      _tag: 'HydrateConflict',
+    })
 
     const { container: c2 } = await serverThenHydrate(() => jsx('p', { children: 'a' }))
-    await act(async () => void handles.push(await mount(jsx('b', { children: 'z' }), { layer: Layer.empty, container: c2 })))
+    await act(
+      async () => void handles.push(await mount(jsx('b', { children: 'z' }), { layer: Layer.empty, container: c2 })),
+    )
     expect(c2.innerHTML).toBe('<b>z</b>')
   })
 
@@ -105,15 +125,36 @@ class Boom extends Error {
 }
 
 // Hydrates `server` markup (optionally mutated) with `client`; returns the mismatches reported and a fresh client render.
-const mismatchCase = async (opts: { server: () => any; client: () => any; serverLayer?: Layer.Layer<any>; clientLayer?: Layer.Layer<any>; html?: (h: string) => string; mutate?: (c: Element) => void }) => {
+const mismatchCase = async (opts: {
+  server: () => any
+  client: () => any
+  serverLayer?: Layer.Layer<any>
+  clientLayer?: Layer.Layer<any>
+  html?: (h: string) => string
+  mutate?: (c: Element) => void
+}) => {
   const container = document.createElement('div')
   const html = await renderToString(opts.server(), { layer: opts.serverLayer ?? Layer.empty })
   container.innerHTML = opts.html ? opts.html(html) : html
   opts.mutate?.(container)
   const onError = vi.fn()
-  await act(async () => void handles.push(await hydrateMount(opts.client(), { layer: (opts.clientLayer ?? Layer.empty) as any, container, onError })))
+  await act(
+    async () =>
+      void handles.push(
+        await hydrateMount(opts.client(), { layer: (opts.clientLayer ?? Layer.empty) as any, container, onError }),
+      ),
+  )
   const fresh = document.createElement('div')
-  await act(async () => void handles.push(await mount(opts.client(), { layer: (opts.clientLayer ?? Layer.empty) as any, container: fresh, onError: () => {} })))
+  await act(
+    async () =>
+      void handles.push(
+        await mount(opts.client(), {
+          layer: (opts.clientLayer ?? Layer.empty) as any,
+          container: fresh,
+          onError: () => {},
+        }),
+      ),
+  )
   const errors = onError.mock.calls.map(([c]) => Cause.squash(c))
   return { container, fresh, errors, mismatches: errors.filter((e) => e instanceof HydrationMismatch) }
 }
@@ -130,16 +171,30 @@ describe('hydrateMount mismatch', () => {
 
   it('a differing client Layer is a mismatch only when the output differs', async () => {
     const App = () => Effect.map(Greeting, (g) => el('p', {}, g))
-    const same = await mismatchCase({ server: () => jsx(App, {}), client: () => jsx(App, {}), serverLayer: Layer.succeed(Greeting, 'hi'), clientLayer: Layer.succeed(Greeting, 'hi') })
+    const same = await mismatchCase({
+      server: () => jsx(App, {}),
+      client: () => jsx(App, {}),
+      serverLayer: Layer.succeed(Greeting, 'hi'),
+      clientLayer: Layer.succeed(Greeting, 'hi'),
+    })
     expect(same.errors).toEqual([])
-    const differ = await mismatchCase({ server: () => jsx(App, {}), client: () => jsx(App, {}), serverLayer: Layer.succeed(Greeting, 'hi'), clientLayer: Layer.succeed(Greeting, 'bye') })
+    const differ = await mismatchCase({
+      server: () => jsx(App, {}),
+      client: () => jsx(App, {}),
+      serverLayer: Layer.succeed(Greeting, 'hi'),
+      clientLayer: Layer.succeed(Greeting, 'bye'),
+    })
     expect(differ.mismatches).toHaveLength(1)
     expect(differ.container.innerHTML).toBe(differ.fresh.innerHTML)
   })
 
   it('a Boundary fallback rendered on the server is replaced by the content that succeeds on the client', async () => {
     const tree = (fail: boolean) => () =>
-      jsx(Boundary, { tag: 'Boom', fallback: () => Effect.succeed(el('em', {}, 'caught')), children: fail ? Effect.fail(new Boom()) : Effect.succeed(el('p', {}, 'ok')) })
+      jsx(Boundary, {
+        tag: 'Boom',
+        fallback: () => Effect.succeed(el('em', {}, 'caught')),
+        children: fail ? Effect.fail(new Boom()) : Effect.succeed(el('p', {}, 'ok')),
+      })
     const { container, fresh, mismatches } = await mismatchCase({ server: tree(true), client: tree(false) })
     expect(mismatches).toHaveLength(1)
     expect(container.innerHTML).toBe(fresh.innerHTML)
@@ -165,7 +220,11 @@ describe('hydrateMount mismatch', () => {
 
   it('a resume manifest script is ignored without a report', async () => {
     const app = () => jsx('p', { children: 'x' })
-    const { container, errors } = await mismatchCase({ server: app, client: app, html: (h) => `${h}<script type="application/json" data-sleek-manifest>{}</script>` })
+    const { container, errors } = await mismatchCase({
+      server: app,
+      client: app,
+      html: (h) => `${h}<script type="application/json" data-sleek-manifest>{}</script>`,
+    })
     expect(errors).toEqual([])
     expect(container.innerHTML).toBe('<p>x</p>')
   })
@@ -180,7 +239,10 @@ describe('hydrateMount mismatch', () => {
 
   it('a renderer defect during the walk falls back to a full client render of the container', async () => {
     const container = document.createElement('div')
-    container.innerHTML = await renderToString(jsx('div', { children: [jsx('b', { children: 'ok' }), jsx('i', { children: 'x' })] }), { layer: Layer.empty })
+    container.innerHTML = await renderToString(
+      jsx('div', { children: [jsx('b', { children: 'ok' }), jsx('i', { children: 'x' })] }),
+      { layer: Layer.empty },
+    )
     const server = [...container.querySelectorAll('b')]
     const onError = vi.fn()
     // An invalid attribute name makes `checkAttr` throw while adopting the client tree.
@@ -189,19 +251,31 @@ describe('hydrateMount mismatch', () => {
     expect(onError).toHaveBeenCalled()
     expect(container.querySelector('b')).not.toBe(server[0])
     const fresh = document.createElement('div')
-    await act(async () => void handles.push(await mount(client(), { layer: Layer.empty, container: fresh, onError: () => {} })))
+    await act(
+      async () => void handles.push(await mount(client(), { layer: Layer.empty, container: fresh, onError: () => {} })),
+    )
     expect(container.innerHTML).toBe(fresh.innerHTML)
   })
 })
 
 describe('hydrateMount keyed lists, form values, whitespace', () => {
-  const keyed = (tag: string, key: string, ...children: Array<any>): any => ({ ...(el(tag, {}, ...children) as any), key })
+  const keyed = (tag: string, key: string, ...children: Array<any>): any => ({
+    ...(el(tag, {}, ...children) as any),
+    key,
+  })
 
   it('keyed elements and keyed components keep server node identity, and a later reorder moves them', async () => {
     const order = Atom.make(['a', 'b', 'c'])
     const Item = (p: { id: string }) => Effect.succeed(el('b', {}, p.id))
     const App = () =>
-      Effect.flatMap(useAtomValue(order), (ks) => jsx('div', { children: [Effect.succeed(el('ul', {}, ...ks.map((k) => keyed('li', k, k)))), ...ks.map((k) => jsx(Item, { id: k, key: k }))] }))
+      Effect.flatMap(useAtomValue(order), (ks) =>
+        jsx('div', {
+          children: [
+            Effect.succeed(el('ul', {}, ...ks.map((k) => keyed('li', k, k)))),
+            ...ks.map((k) => jsx(Item, { id: k, key: k })),
+          ],
+        }),
+      )
     const container = document.createElement('div')
     container.innerHTML = await renderToString(jsx(App, {}), { layer: Layer.empty })
     const before = all(container).filter((n) => n.nodeType !== 8)
@@ -209,7 +283,10 @@ describe('hydrateMount keyed lists, form values, whitespace', () => {
     const items = [...container.querySelectorAll('b')]
     const store = makeAtomStore()
     const onError = vi.fn()
-    await act(async () => void handles.push(await hydrateMount(jsx(App, {}), { layer: Layer.empty, container, onError, store })))
+    await act(
+      async () =>
+        void handles.push(await hydrateMount(jsx(App, {}), { layer: Layer.empty, container, onError, store })),
+    )
     expect(onError).not.toHaveBeenCalled()
     expect(all(container)).toEqual(before)
 
@@ -226,7 +303,9 @@ describe('hydrateMount keyed lists, form values, whitespace', () => {
     const before = all(container)
     const onError = vi.fn()
     await act(async () => void handles.push(await hydrateMount(app(), { layer: Layer.empty, container, onError })))
-    expect(onError.mock.calls.map(([c]) => Cause.squash(c))).toEqual([expect.objectContaining({ _tag: 'DuplicateKey', key: 'd' })])
+    expect(onError.mock.calls.map(([c]) => Cause.squash(c))).toEqual([
+      expect.objectContaining({ _tag: 'DuplicateKey', key: 'd' }),
+    ])
     expect(all(container)).toEqual(before)
   })
 
@@ -260,7 +339,9 @@ describe('hydrateMount keyed lists, form values, whitespace', () => {
 
   describe('guests', () => {
     const mismatches = (onError: ReturnType<typeof vi.fn>) =>
-      onError.mock.calls.map(([c]) => Cause.squash(c as Cause.Cause<unknown>)).filter((e) => e instanceof HydrationMismatch)
+      onError.mock.calls
+        .map(([c]) => Cause.squash(c as Cause.Cause<unknown>))
+        .filter((e) => e instanceof HydrationMismatch)
 
     it('a guest adopts its server markup and keeps React state across parent re-runs (R6)', async () => {
       const n = Atom.make(0)
@@ -268,13 +349,17 @@ describe('hydrateMount keyed lists, form values, whitespace', () => {
         const [c, setC] = useState(0)
         return createElement('button', { onClick: () => setC(c + 1) }, `${c}/${p.n}`)
       })
-      const App = () => Effect.flatMap(useAtomValue(n), (v) => Effect.map(jsx(Counter, { n: v }), (g) => el('div', {}, g)))
+      const App = () =>
+        Effect.flatMap(useAtomValue(n), (v) => Effect.map(jsx(Counter, { n: v }), (g) => el('div', {}, g)))
       const container = document.createElement('div')
       container.innerHTML = await renderToString(jsx(App, {}), { layer: Layer.empty })
       const button = container.querySelector('button')!
       const onError = vi.fn()
       const store = makeAtomStore()
-      await act(async () => void handles.push(await hydrateMount(jsx(App, {}), { layer: Layer.empty, container, onError, store })))
+      await act(
+        async () =>
+          void handles.push(await hydrateMount(jsx(App, {}), { layer: Layer.empty, container, onError, store })),
+      )
       expect(container.querySelector('button')).toBe(button)
       await act(async () => button.click())
       await act(async () => store.set(n, 1))
@@ -320,7 +405,12 @@ describe('hydrateMount Pending (R2)', () => {
     const Slow = (p: { v: number }) => Effect.zipRight(Effect.sleep('5 millis'), jsx('b', { children: `v${p.v}` }))
     const App = () =>
       Effect.flatMap(useLocal(0), ([v, set]) =>
-        jsx('div', { children: [jsx('button', { onClick: () => set(v + 1), children: '+' }), jsx(Pending, { fallback: jsx('i', { children: 'wait' }), children: jsx(Slow, { v }) })] }),
+        jsx('div', {
+          children: [
+            jsx('button', { onClick: () => set(v + 1), children: '+' }),
+            jsx(Pending, { fallback: jsx('i', { children: 'wait' }), children: jsx(Slow, { v }) }),
+          ],
+        }),
       )
     const { container, before } = await serverThenHydrate(() => jsx(App, {}))
     expect(container.querySelector('i')).toBeNull()
@@ -350,7 +440,10 @@ describe('hydrateMount state payload (R5)', () => {
     const onError = vi.fn()
     let runs = 0
     const App = () => (runs++, jsx(Show, {}))
-    await act(async () => void handles.push(await hydrateMount(jsx(App, {}), { layer: Layer.empty, container, onError, store })))
+    await act(
+      async () =>
+        void handles.push(await hydrateMount(jsx(App, {}), { layer: Layer.empty, container, onError, store })),
+    )
     expect(onError).not.toHaveBeenCalled()
     expect(runs).toBe(1)
     expect(store.get(count)).toBe(7)
@@ -361,14 +454,26 @@ describe('hydrateMount state payload (R5)', () => {
   it('server query state is the client initial value with no refetch', async () => {
     let calls = 0
     const queryFn = async () => (calls++, 'srv')
-    const Q = () => Effect.map(useQuery({ queryKey: ['q'], queryFn, staleTime: 60_000 }), (r) => el('b', {}, `${r.status}:${r.data ?? ''}`))
+    const Q = () =>
+      Effect.map(useQuery({ queryKey: ['q'], queryFn, staleTime: 60_000 }), (r) =>
+        el('b', {}, `${r.status}:${r.data ?? ''}`),
+      )
     const server = new QueryClient()
     await server.prefetchQuery({ queryKey: ['q'], queryFn })
     const container = document.createElement('div')
     container.innerHTML = await renderToString(jsx(Q, {}), { layer: Layer.succeed(QueryClientTag, server) })
     expect(calls).toBe(1)
     const onError = vi.fn()
-    await act(async () => void handles.push(await hydrateMount(jsx(Q, {}), { layer: Layer.succeed(QueryClientTag, new QueryClient()), container, onError })))
+    await act(
+      async () =>
+        void handles.push(
+          await hydrateMount(jsx(Q, {}), {
+            layer: Layer.succeed(QueryClientTag, new QueryClient()),
+            container,
+            onError,
+          }),
+        ),
+    )
     await act(tick)
     expect(onError).not.toHaveBeenCalled()
     expect(container.querySelector('b')!.textContent).toBe('success:srv')
@@ -383,7 +488,9 @@ describe('hydrateMount state payload (R5)', () => {
     const container = document.createElement('div')
     container.innerHTML = '<sleek-reactive style="display: contents;"><b>n=7</b></sleek-reactive>' + script
     const onError = vi.fn()
-    await act(async () => void handles.push(await hydrateMount(jsx(Show, {}), { layer: Layer.empty, container, onError })))
+    await act(
+      async () => void handles.push(await hydrateMount(jsx(Show, {}), { layer: Layer.empty, container, onError })),
+    )
     const tags = onError.mock.calls.map(([c]) => (Cause.failureOption(c) as any).value?._tag)
     expect(tags.filter((t) => t === 'HydratePayloadInvalid')).toHaveLength(reports)
     expect(container.querySelector('b')!.textContent).toBe('n=0')

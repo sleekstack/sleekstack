@@ -24,7 +24,10 @@ describe('runEffect', () => {
     await expect(runEffect(Effect.die(new Error('boom')))).rejects.toThrow(/boom/)
     expect(sink.causes).toHaveLength(1)
 
-    const failingRelease = Layer.scoped(Req, Effect.acquireRelease(Effect.succeed('r'), () => Effect.die('release')))
+    const failingRelease = Layer.scoped(
+      Req,
+      Effect.acquireRelease(Effect.succeed('r'), () => Effect.die('release')),
+    )
     await expect(runEffect(Req, { request: failingRelease })).resolves.toBe('r')
     expect(sink.causes).toHaveLength(2)
     expect(Cause.pretty(sink.causes[1]!)).toMatch(/release/)
@@ -35,7 +38,12 @@ describe('runEffect', () => {
   })
 
   it('a throwing onError never changes the outcome', async () => {
-    configureRuntime({ layer: Layer.empty, onError: () => { throw new Error('sink') } })
+    configureRuntime({
+      layer: Layer.empty,
+      onError: () => {
+        throw new Error('sink')
+      },
+    })
     await expect(runEffect(Effect.die(new Error('orig')))).rejects.toThrow(/orig/)
   })
 
@@ -43,9 +51,23 @@ describe('runEffect', () => {
     const sink = collect()
     configureRuntime({ layer: Layer.empty, onError: sink.onError })
     const redirect = Object.assign(new Error('NEXT_REDIRECT'), { digest: 'NEXT_REDIRECT;replace;/x;307;' })
-    const notFound = Object.assign(new Error('NEXT_HTTP_ERROR_FALLBACK;404'), { digest: 'NEXT_HTTP_ERROR_FALLBACK;404' })
-    await expect(runEffect(Effect.sync(() => { throw redirect }))).rejects.toBe(redirect)
-    await expect(runEffect(Effect.sync(() => { throw notFound }))).rejects.toBe(notFound)
+    const notFound = Object.assign(new Error('NEXT_HTTP_ERROR_FALLBACK;404'), {
+      digest: 'NEXT_HTTP_ERROR_FALLBACK;404',
+    })
+    await expect(
+      runEffect(
+        Effect.sync(() => {
+          throw redirect
+        }),
+      ),
+    ).rejects.toBe(redirect)
+    await expect(
+      runEffect(
+        Effect.sync(() => {
+          throw notFound
+        }),
+      ),
+    ).rejects.toBe(notFound)
     await expect(runEffect(Effect.interrupt)).rejects.toThrow()
     expect(sink.causes).toHaveLength(0)
   })
@@ -53,7 +75,10 @@ describe('runEffect', () => {
   it('retries a failed layer build on the next call', async () => {
     let attempts = 0
     configureRuntime({
-      layer: Layer.effect(Greeting, Effect.suspend(() => (++attempts === 1 ? Effect.fail('down') : Effect.succeed('up')))),
+      layer: Layer.effect(
+        Greeting,
+        Effect.suspend(() => (++attempts === 1 ? Effect.fail('down') : Effect.succeed('up'))),
+      ),
     })
     await expect(runEffect(Greeting)).rejects.toThrow()
     await expect(runEffect(Greeting)).resolves.toBe('up')
@@ -63,10 +88,15 @@ describe('runEffect', () => {
   it('overrides shadow a request service built in the same call, and what request builds from', async () => {
     configureRuntime({ layer: Layer.succeed(Greeting, 'app') })
     const request = Layer.merge(Layer.succeed(Req, 'req'), Layer.effect(Req, Effect.succeed('unused')))
-    const derived = Layer.effect(Req, Effect.map(Greeting, (g) => `req:${g}`))
+    const derived = Layer.effect(
+      Req,
+      Effect.map(Greeting, (g) => `req:${g}`),
+    )
     const overrides = Layer.merge(Layer.succeed(Req, 'override'), Layer.succeed(Greeting, 'over'))
     await expect(runEffect(Req, { request, overrides })).resolves.toBe('override')
-    await expect(runEffect(Req, { request: derived, overrides: Layer.succeed(Greeting, 'over') })).resolves.toBe('req:over')
+    await expect(runEffect(Req, { request: derived, overrides: Layer.succeed(Greeting, 'over') })).resolves.toBe(
+      'req:over',
+    )
     await expect(runEffect(Greeting)).resolves.toBe('app')
   })
 
@@ -75,7 +105,9 @@ describe('runEffect', () => {
     configureRuntime({
       layer: Layer.scopedDiscard(Effect.addFinalizer(() => Effect.sync(() => void log.push('dispose')))),
     })
-    const inFlight = runEffect(Effect.never.pipe(Effect.onInterrupt(() => Effect.sync(() => void log.push('interrupted')))))
+    const inFlight = runEffect(
+      Effect.never.pipe(Effect.onInterrupt(() => Effect.sync(() => void log.push('interrupted')))),
+    )
     await new Promise((r) => setTimeout(r, 10))
     configureRuntime({ layer: Layer.empty })
     await expect(inFlight).rejects.toThrow()
@@ -107,7 +139,10 @@ describe('runEffect', () => {
   it('one onError sink gets every report with its phase: call defect, finalizer failure, failed build', async () => {
     const seen: string[] = []
     configureRuntime({ layer: Layer.empty, onError: (_c, info) => void seen.push(info.phase) })
-    const failingRelease = Layer.scoped(Req, Effect.acquireRelease(Effect.succeed('r'), () => Effect.die('fin')))
+    const failingRelease = Layer.scoped(
+      Req,
+      Effect.acquireRelease(Effect.succeed('r'), () => Effect.die('fin')),
+    )
     await expect(runEffect(Req, { request: failingRelease })).resolves.toBe('r')
     await expect(runEffect(Effect.die(new Error('d')))).rejects.toThrow()
     configureRuntime({ layer: Layer.fail('startup') as never, onError: (_c, info) => void seen.push(info.phase) })
@@ -118,7 +153,12 @@ describe('runEffect', () => {
   it('a new runtime is not built until the previous one has finished disposing', async () => {
     const log: string[] = []
     const slow = (name: string) =>
-      Layer.scopedDiscard(Effect.acquireRelease(Effect.sync(() => void log.push(`up:${name}`)), () => Effect.promise(() => new Promise<void>((r) => setTimeout(() => (log.push(`down:${name}`), r()), 30)))))
+      Layer.scopedDiscard(
+        Effect.acquireRelease(
+          Effect.sync(() => void log.push(`up:${name}`)),
+          () => Effect.promise(() => new Promise<void>((r) => setTimeout(() => (log.push(`down:${name}`), r()), 30))),
+        ),
+      )
     configureRuntime({ layer: slow('a') })
     await runEffect(Effect.void)
     configureRuntime({ layer: slow('b') })

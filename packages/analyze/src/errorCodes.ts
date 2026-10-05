@@ -45,7 +45,10 @@ const UI = '/docs/errors#component-errors'
 export const ERROR_CODES: Readonly<Record<AnalyzeCode, ErrorHelp>> = {
   MissingDependency: {
     rule: 'Every Tag a service, action or component requires is provided by an entry in scope.',
-    fix: ['Provide the Tag in this module or one it imports', 'Wrap the component in a Provide (or the mount layer) that supplies it'],
+    fix: [
+      'Provide the Tag in this module or one it imports',
+      'Wrap the component in a Provide (or the mount layer) that supplies it',
+    ],
     docs: GRAPH,
   },
   DependencyCycle: {
@@ -125,17 +128,26 @@ export const ERROR_CODES: Readonly<Record<AnalyzeCode, ErrorHelp>> = {
   },
   NonResumableHandler: {
     rule: 'Every on() entry names a top-level const defineHandler("literal-id", ...), and resume loaders import a module whose default export is one.',
-    fix: ['Hoist the defineHandler call to a top-level const with a string-literal id', 'Pass that const to on() instead of an inline function or a reassigned variable'],
+    fix: [
+      'Hoist the defineHandler call to a top-level const with a string-literal id',
+      'Pass that const to on() instead of an inline function or a reassigned variable',
+    ],
     docs: UI,
   },
   ConditionalSlot: {
-    rule: 'useLocal is called at the top level of a component\'s Effect.gen body: not inside a condition, loop, nested or helper function, or after an early return.',
-    fix: ['Move the useLocal call to the top of the component body, before any conditional return', 'Keep the local state in the component and pass it to the helper as an argument'],
+    rule: "useLocal is called at the top level of a component's Effect.gen body: not inside a condition, loop, nested or helper function, or after an early return.",
+    fix: [
+      'Move the useLocal call to the top of the component body, before any conditional return',
+      'Keep the local state in the component and pass it to the helper as an argument',
+    ],
     docs: UI,
   },
   MissingKey: {
     rule: 'Every element or component a .map / .flatMap / Array.from callback renders as children carries a key prop.',
-    fix: ['Add a key prop unique among the siblings, such as the item\'s id', 'Wrap a returned fragment in an element that carries the key'],
+    fix: [
+      "Add a key prop unique among the siblings, such as the item's id",
+      'Wrap a returned fragment in an element that carries the key',
+    ],
     docs: UI,
   },
 }

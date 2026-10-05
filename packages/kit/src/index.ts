@@ -5,9 +5,26 @@
  */
 
 export { tag, type Tag, type TagLike, type ServiceOf } from './tag'
-export { layer, withCleanup, type Layer, type Cleanup, type LayerOptions, type Lifetime, type Services, type Impl } from './layer'
+export {
+  layer,
+  withCleanup,
+  type Layer,
+  type Cleanup,
+  type LayerOptions,
+  type Lifetime,
+  type Services,
+  type Impl,
+} from './layer'
 export { module, validateProvide, type Module, type ModuleConfig, type Imports } from './module'
 export { effect, type EffectOptions } from './effect'
 export { SleekStackError, type SleekStackErrorCode, type SleekStackErrorDetails, type FinalizerError } from './errors'
 export { atom, type Atom, type WritableAtom, type Get, type AtomOptions } from './atom'
-export { cachedQuery, mutation, type CachedQuery, type CachedQueryOptions, type Mutation, type MutationOptions, type Body } from './query'
+export {
+  cachedQuery,
+  mutation,
+  type CachedQuery,
+  type CachedQueryOptions,
+  type Mutation,
+  type MutationOptions,
+  type Body,
+} from './query'
