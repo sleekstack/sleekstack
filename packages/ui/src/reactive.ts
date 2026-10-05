@@ -208,49 +208,48 @@ const handled = (run: Effect.Effect<Node, any, any>): Effect.Effect<Node, any, a
 
 
 
-interface LazyScope extends Scope.CloseableScope {
-  /** Closes without a fiber when nothing ever used the scope; false when it was used (close it normally). */
-  closeIfIdle(): boolean
-  /** Never forked its parent and not closed. */
-  isIdle(): boolean
-}
-const lazies = new WeakSet<object>()
-
 /** A scope that forks `parent` on first use. Used after it closed, it behaves like a closed scope: finalizers run at once. */
-const lazyScope = (parent: Scope.Scope): Scope.CloseableScope => {
-  let inner: Scope.CloseableScope | undefined
-  let closed = false
-  const real = (): Scope.CloseableScope => {
-    if (inner) return inner
-    inner = Effect.runSync(Scope.fork(parent, ExecutionStrategy.sequential))
-    if (closed) Effect.runSync(Scope.close(inner, Exit.void))
-    return inner
+class LazyScope {
+  readonly [Scope.ScopeTypeId] = Scope.ScopeTypeId
+  readonly [Scope.CloseableScopeTypeId] = Scope.CloseableScopeTypeId
+  readonly strategy = ExecutionStrategy.sequential
+  private inner: Scope.CloseableScope | undefined
+  private closed = false
+  constructor(private readonly parent: Scope.Scope) {}
+  private real(): Scope.CloseableScope {
+    if (this.inner) return this.inner
+    this.inner = Effect.runSync(Scope.fork(this.parent, ExecutionStrategy.sequential))
+    if (this.closed) Effect.runSync(Scope.close(this.inner, Exit.void))
+    return this.inner
   }
-  const self = {
-    [Scope.ScopeTypeId]: Scope.ScopeTypeId,
-    [Scope.CloseableScopeTypeId]: Scope.CloseableScopeTypeId,
-    strategy: ExecutionStrategy.sequential,
-    fork: (strategy: ExecutionStrategy.ExecutionStrategy) => Effect.suspend(() => (real() as any).fork(strategy) as Effect.Effect<Scope.CloseableScope>),
-    addFinalizer: (finalizer: Scope.Scope.Finalizer) => Effect.suspend(() => (real() as any).addFinalizer(finalizer) as Effect.Effect<void>),
-    close: (exit: Exit.Exit<unknown, unknown>) => {
-      closed = true
-      return inner ? Scope.close(inner, exit) : Effect.void
-    },
-    closeIfIdle: () => {
-      if (inner) return false
-      closed = true
-      return true
-    },
-    isIdle: () => !inner && !closed,
-  } as unknown as LazyScope
-  lazies.add(self)
-  return self
+  fork(strategy: ExecutionStrategy.ExecutionStrategy) {
+    return Effect.suspend(() => (this.real() as any).fork(strategy) as Effect.Effect<Scope.CloseableScope>)
+  }
+  addFinalizer(finalizer: Scope.Scope.Finalizer) {
+    return Effect.suspend(() => (this.real() as any).addFinalizer(finalizer) as Effect.Effect<void>)
+  }
+  close(exit: Exit.Exit<unknown, unknown>) {
+    this.closed = true
+    return this.inner ? Scope.close(this.inner, exit) : Effect.void
+  }
+  /** Closes without a fiber when nothing ever used the scope; false when it was used (close it normally). */
+  closeIfIdle(): boolean {
+    if (this.inner) return false
+    this.closed = true
+    return true
+  }
+  /** Never forked its parent and not closed. */
+  isIdle(): boolean {
+    return !this.inner && !this.closed
+  }
 }
+const lazyScope = (parent: Scope.Scope): Scope.CloseableScope => new LazyScope(parent) as unknown as Scope.CloseableScope
 /** Closes `scope` without a fiber when it is a lazy scope nothing used; true when that handled it. */
-export const closeIdle = (scope: Scope.CloseableScope): boolean => lazies.has(scope) && (scope as LazyScope).closeIfIdle()
-const isIdle = (scope: Scope.Scope | undefined): boolean => scope !== undefined && lazies.has(scope) && (scope as LazyScope).isIdle()
+export const closeIdle = (scope: Scope.CloseableScope): boolean => (scope as unknown) instanceof LazyScope && (scope as unknown as LazyScope).closeIfIdle()
+const isIdle = (scope: Scope.Scope | undefined): boolean => (scope as unknown) instanceof LazyScope && (scope as unknown as LazyScope).isIdle()
 
 // Per-run services: rebuilt for every parent run, so they never decide whether a child's inputs changed.
+const NO_ATOMS: ReadonlyArray<never> = []
 const PER_RUN = new Set<string>([Collector.key, Frame.key, RenderScope.key])
 const sameProps = (a: object, b: object): boolean => {
   if (a === b) return true
@@ -344,20 +343,34 @@ export const instance = <P>(type: (props: P) => Effect.Effect<Node, any, any>, p
       const reads = new Reads(slots)
       slots.running = true
       slots.called = false
-      let inner = Context.add(Context.add(ctx, Collector, reads), Frame, frame)
-      if (own) inner = Context.add(inner, RenderScope, own)
-      const checked = Effect.flatMap(Effect.provide(type(effProps), inner), (child) => {
+      // One map copy for the three per-run services (Context.add copies per call).
+      const map = new Map(ctx.unsafeMap)
+      map.set(Collector.key, reads)
+      map.set(Frame.key, frame)
+      if (own) map.set(RenderScope.key, own)
+      const inner = Context.unsafeMake(map)
+      // One continuation: check the slot count, then build the node.
+      return Effect.flatMap(Effect.provide(type(effProps), inner), (child): Effect.Effect<Node, SlotMismatch> => {
         if (slots.done && frame.cursor !== slots.atoms.length) return Effect.fail(new SlotMismatch({ id: self, expected: slots.atoms.length, actual: frame.cursor }))
         slots.done = true
         slots.running = false
-        return Effect.succeed(child)
-      })
-      return Effect.map(checked, (child): Node => {
-        if (reads.size === 0 && key === undefined) return own ? owned(child, own) : child
-        const node: Node = { _tag: 'Reactive', atoms: [...reads.keys()], seen: [...reads.values()], child, scope: own, rerun: Effect.provide(handled(run), ctx) as Effect.Effect<Node>, id: self, frame, ...(key !== undefined && { key }) }
+        if (reads.size === 0 && key === undefined) return Effect.succeed(own ? owned(child, own) : child)
+        const read = reads.size > 0
+        // A run that read no atom is never re-run by the renderer, so its `rerun` is built only if asked for.
+        const node: Node = {
+          _tag: 'Reactive',
+          atoms: read ? [...reads.keys()] : NO_ATOMS,
+          seen: read ? [...reads.values()] : NO_ATOMS,
+          child,
+          scope: own,
+          rerun: (read ? Effect.provide(handled(run), ctx) : Effect.suspend(() => Effect.provide(handled(run), ctx))) as Effect.Effect<Node>,
+          id: self,
+          frame,
+          ...(key !== undefined && { key }),
+        }
         // Remembered for the next parent run only when nothing the row did can change without it re-running: no atom read, scope unused.
-        slots.memo = parentFrame && key !== undefined && reads.size === 0 && !slots.called && isIdle(own) ? { props: effProps as object, ctx, node } : undefined
-        return node
+        slots.memo = parentFrame && key !== undefined && !read && !slots.called && isIdle(own) ? { props: effProps as object, ctx, node } : undefined
+        return Effect.succeed(node)
       })
     }
     const parent = Context.get(ctx, RenderScope)
