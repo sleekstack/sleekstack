@@ -216,16 +216,27 @@ const flat = (nodes: ReadonlyArray<Node>, scopes: Array<Scope.CloseableScope>, o
   }
   return out
 }
-// A repeated key reports `DuplicateKey` and the later sibling is unkeyed.
-const keysOf = (nodes: ReadonlyArray<Leaf>, env: Env): Array<string | undefined> => {
-  const seen = new Set<string>()
-  return nodes.map((n) => {
+// Children with no `Fragment` among them are their own leaves.
+const leaves = (nodes: ReadonlyArray<Node>, scopes: Array<Scope.CloseableScope>): ReadonlyArray<Leaf> => {
+  for (const n of nodes) if (n._tag === 'Fragment') return flat(nodes, scopes)
+  return nodes as ReadonlyArray<Leaf>
+}
+// A repeated key reports `DuplicateKey` and the later sibling is unkeyed. `undefined`: no keyed node.
+const keysOf = (nodes: ReadonlyArray<Leaf>, env: Env): Array<string | undefined> | undefined => {
+  let seen: Set<string> | undefined
+  let keys: Array<string | undefined> | undefined
+  for (let i = 0; i < nodes.length; i++) {
+    const n = nodes[i]!
     const k = n._tag === 'Element' || n._tag === 'Reactive' || n._tag === 'Guest' ? n.key : undefined
-    if (k === undefined) return undefined
-    if (seen.has(k)) return (env.duplicate(k), undefined)
-    seen.add(k)
-    return k
-  })
+    if (k === undefined) continue
+    if (seen?.has(k)) {
+      env.duplicate(k)
+      continue
+    }
+    ;(seen ??= new Set()).add(k)
+    ;(keys ??= new Array(nodes.length))[i] = k
+  }
+  return keys
 }
 
 const FORM = new Set(['INPUT', 'TEXTAREA', 'SELECT'])
@@ -386,10 +397,10 @@ const buildAll = (
   scopes: Array<Scope.CloseableScope>,
   parent: globalThis.Node,
 ): Array<Live> => {
-  const list = flat(nodes, scopes)
+  const list = leaves(nodes, scopes)
   const keys = keysOf(list, env)
   return list.flatMap((n, i) => {
-    const l = build(n, keys[i], env, scopes)
+    const l = build(n, keys?.[i], env, scopes)
     if (!l) return []
     parent.appendChild(l.dom)
     return [l]
@@ -401,12 +412,12 @@ const patch = (prev: Live, node: Leaf, key: string | undefined, env: Env, p: Pla
   // The same node as the live one (a reused subtree): nodes are immutable, so there is nothing to patch.
   if (prev.node === node) return prev
   try {
-    const keyed = key === undefined ? {} : { key }
     if (node._tag === 'Bind') return prev
     if (node._tag === 'Text') {
       if (prev.dom.nodeValue !== node.text) p.ops.push(() => void (prev.dom.nodeValue = node.text))
       return { node, dom: prev.dom, kids: [] }
     }
+    const keyed = key === undefined ? {} : { key }
     if (node._tag === 'Guest') {
       // Same component: the root and its React state stay; only the props re-render on commit.
       const root = prev.root!
@@ -416,17 +427,21 @@ const patch = (prev: Live, node: Leaf, key: string | undefined, env: Env, p: Pla
     const el = prev.dom as Element
     const old = (prev.node as ElementNode).attrs
     const next = (node as ElementNode).attrs
-    const changed: Array<readonly [string, string | undefined]> = []
-    for (const [k, v] of Object.entries(next))
-      if (!Object.hasOwn(old, k) || old[k] !== v) {
+    let changed: Array<readonly [string, string | undefined]> | undefined
+    for (const k in next) {
+      const v = next[k]!
+      if (old[k] !== v || !Object.hasOwn(old, k)) {
         checkAttr(k, v)
-        changed.push([k, v])
+        ;(changed ??= []).push([k, v])
       }
-    for (const k of Object.keys(old)) if (!Object.hasOwn(next, k)) changed.push([k, undefined])
-    if (changed.length > 0)
-      p.ops.push(() => changed.forEach(([k, v]) => (v === undefined ? el.removeAttribute(k) : el.setAttribute(k, v))))
+    }
+    for (const k in old) if (!Object.hasOwn(next, k)) (changed ??= []).push([k, undefined])
+    if (changed) {
+      const c = changed
+      p.ops.push(() => c.forEach(([k, v]) => (v === undefined ? el.removeAttribute(k) : el.setAttribute(k, v))))
+    }
     const kids = patchChildren(el, prev.kids, (node as ElementNode).children, env, p)
-    const props = FORM.has(el.tagName) ? changed.filter(([k]) => k === 'value' || k === 'checked') : []
+    const props = changed && FORM.has(el.tagName) ? changed.filter(([k]) => k === 'value' || k === 'checked') : []
     if (props.length > 0) p.ops.push(() => props.forEach(([k, v]) => setProp(el, k, v)))
     let bnd = prev.bnd
     const nextBound = (node as ElementNode).bound
@@ -443,11 +458,12 @@ const patch = (prev: Live, node: Leaf, key: string | undefined, env: Env, p: Pla
         })
       }
     }
-    const events = (node as ElementNode).events ?? {}
+    const events = (node as ElementNode).events
     let ev = prev.ev
-    if (ev || Object.keys(events).length > 0) {
+    if (ev || (events && Object.keys(events).length > 0)) {
       const e = (ev ??= { bindings: {}, listeners: new Map(), fibers: new Set(), dead: false })
-      p.ops.push(() => relisten(el, e, events, env.onError))
+      const bindings = events ?? {}
+      p.ops.push(() => relisten(el, e, bindings, env.onError))
     }
     return { node, dom: el, kids, ...(ev && { ev }), ...(bnd && { bnd }), ...keyed }
   } catch (error) {
@@ -498,30 +514,30 @@ const patchChildren = (
   env: Env,
   p: Plan,
 ): Array<Live> => {
-  const list = flat(nodes, p.scopes)
+  const list = leaves(nodes, p.scopes)
   const keys = keysOf(list, env)
-  const byKey = new Map<string, Live>()
+  let byKey: Map<string, Live> | undefined
   const pool: Array<Live> = []
   const gone: Array<Live> = []
   // ponytail: ids are unique per parent frame; ids repeated across flattened untracked siblings match in order.
-  const byId = new Map<string, Array<Live>>()
+  let byId: Map<string, Array<Live>> | undefined
   for (const l of old) {
     if (l.inst) {
       const id = (l.node as ReactiveNode).id
-      const bucket = byId.get(id)
+      const bucket = (byId ??= new Map()).get(id)
       if (bucket) bucket.push(l)
       else byId.set(id, [l])
-    } else if (l.key !== undefined) byKey.set(l.key, l)
+    } else if (l.key !== undefined) (byKey ??= new Map()).set(l.key, l)
     else pool.push(l)
   }
   let next = 0
   const lives: Array<Live> = []
   for (let i = 0; i < list.length; i++) {
     const n = list[i]!
-    const k = keys[i]
+    const k = keys?.[i]
     let prev: Live | undefined
     if (n._tag === 'Reactive') {
-      const m = byId.get(n.id)?.shift()
+      const m = byId?.get(n.id)?.shift()
       // The same node as the live one: a row that was not re-run (ADR 0020); nothing to adopt.
       if (m) {
         lives.push(m.inst!.node === n ? m : adopt(m, n, k, env, p))
@@ -529,8 +545,8 @@ const patchChildren = (
       }
     } else if (k === undefined) prev = pool[next++]
     else {
-      prev = byKey.get(k)
-      byKey.delete(k)
+      prev = byKey?.get(k)
+      byKey?.delete(k)
     }
     if (prev && same(prev.node, n)) {
       lives.push(patch(prev, n, k, env, p))
@@ -542,11 +558,19 @@ const patchChildren = (
     p.created.push(l)
     lives.push(l)
   }
-  gone.push(...byKey.values(), ...pool.slice(next))
-  if (byId.size > 0) for (const rest of byId.values()) gone.push(...rest)
-  p.dropped.push(...gone)
-  p.ops.push(() => place(parent, gone, lives))
+  if (byKey) gone.push(...byKey.values())
+  for (let i = next; i < pool.length; i++) gone.push(pool[i]!)
+  if (byId) for (const rest of byId.values()) gone.push(...rest)
+  if (gone.length > 0) p.dropped.push(...gone)
+  // Same nodes in the same order and nothing removed: the DOM is already right.
+  if (gone.length > 0 || !sameDoms(old, lives)) p.ops.push(() => place(parent, gone, lives))
   return lives
+}
+
+const sameDoms = (a: ReadonlyArray<Live>, b: ReadonlyArray<Live>): boolean => {
+  if (a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) if (a[i]!.dom !== b[i]!.dom) return false
+  return true
 }
 
 // Apply: removes what went, then inserts or moves only nodes out of order (in-place runs stay); a displaced focus is restored.
