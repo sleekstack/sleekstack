@@ -451,31 +451,42 @@ const patchChildren = (parent: globalThis.Node, old: ReadonlyArray<Live>, nodes:
   for (const l of old) {
     if (l.inst) {
       const id = (l.node as ReactiveNode).id
-      byId.set(id, [...(byId.get(id) ?? []), l])
+      const bucket = byId.get(id)
+      if (bucket) bucket.push(l)
+      else byId.set(id, [l])
     } else if (l.key !== undefined) byKey.set(l.key, l)
     else pool.push(l)
   }
   let next = 0
-  const lives = list.flatMap((n, i) => {
+  const lives: Array<Live> = []
+  for (let i = 0; i < list.length; i++) {
+    const n = list[i]!
     const k = keys[i]
     let prev: Live | undefined
     if (n._tag === 'Reactive') {
       const m = byId.get(n.id)?.shift()
       // The same node as the live one: a row that was not re-run (ADR 0020); nothing to adopt.
-      if (m) return [m.inst!.node === n ? m : adopt(m, n, k, env, p)]
+      if (m) {
+        lives.push(m.inst!.node === n ? m : adopt(m, n, k, env, p))
+        continue
+      }
     } else if (k === undefined) prev = pool[next++]
     else {
       prev = byKey.get(k)
       byKey.delete(k)
     }
-    if (prev && same(prev.node, n)) return [patch(prev, n, k, env, p)]
+    if (prev && same(prev.node, n)) {
+      lives.push(patch(prev, n, k, env, p))
+      continue
+    }
     if (prev) gone.push(prev)
     const l = build(n, k, env, p.scopes)
-    if (!l) return []
+    if (!l) continue
     p.created.push(l)
-    return [l]
-  })
-  gone.push(...byKey.values(), ...pool.slice(next), ...[...byId.values()].flat())
+    lives.push(l)
+  }
+  gone.push(...byKey.values(), ...pool.slice(next))
+  if (byId.size > 0) for (const rest of byId.values()) gone.push(...rest)
   p.dropped.push(...gone)
   p.ops.push(() => place(parent, gone, lives))
   return lives
@@ -484,6 +495,17 @@ const patchChildren = (parent: globalThis.Node, old: ReadonlyArray<Live>, nodes:
 // Apply: removes what went, then inserts or moves only nodes out of order (in-place runs stay); a displaced focus is restored.
 const place = (parent: globalThis.Node, gone: ReadonlyArray<Live>, lives: ReadonlyArray<Live>): void => {
   for (const l of gone) l.dom.remove()
+  // Already in order (the common case): nothing moves, so no focus to restore.
+  let at = parent.firstChild
+  let ordered = true
+  for (const l of lives) {
+    if (l.dom !== at) {
+      ordered = false
+      break
+    }
+    at = at.nextSibling
+  }
+  if (ordered) return
   const doc = parent.ownerDocument ?? (parent as Document)
   const focused = doc.activeElement as HTMLInputElement | null
   const sel = focused && parent.contains(focused) ? selection(focused) : undefined
