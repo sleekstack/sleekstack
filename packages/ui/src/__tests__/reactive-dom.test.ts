@@ -810,6 +810,55 @@ describe('keyed instance reuse', () => {
     expect(subs.get(tint)).toBe(0)
   })
 
+  describe('host-only rows', () => {
+    // A row that returns a bare host element is rebuilt from its props: unchanged output keeps the node, a fresh callback is just called.
+    const rig = async (row: (p: { item: Item; label: (i: Item) => string }) => any) => {
+      const list = mk([1, 2, 3])
+      const items = Atom.make(list)
+      const List = () => Effect.flatMap(useAtomValue(items), (l) => jsx('ul', { children: l.map((item) => jsx(row, { item, label: (i: Item) => i.label, key: item.id })) }))
+      const t = await go(jsx(List, {}))
+      return { ...t, items, list }
+    }
+
+    it('a fresh render callback with the same output keeps every li, and a changed output updates only that li', async () => {
+      let calls = 0
+      const { container, store, items, list } = await rig(({ item, label }) => (calls++, jsx('li', { children: label(item) })))
+      const lis = [...container.querySelectorAll('li')]
+      calls = 0
+      store.set(items, [...list])
+      await tick()
+      expect(calls).toBe(3)
+      expect([...container.querySelectorAll('li')].every((l, i) => l === lis[i])).toBe(true)
+      store.set(items, [list[0]!, { id: 2, label: 'changed' }, list[2]!])
+      await tick()
+      expect(rowsText(container)).toEqual(['L1', 'changed', 'L3'])
+      expect([...container.querySelectorAll('li')].every((l, i) => l === lis[i])).toBe(true)
+    })
+
+    it('a row that returns a nested component falls back to the normal path and still updates', async () => {
+      const Leaf = ({ text }: { text: string }) => jsx('b', { children: text })
+      const { container, store, items, list } = await rig(({ item, label }) => jsx('li', { children: jsx(Leaf, { text: label(item) }) }))
+      store.set(items, [list[0]!, { id: 2, label: 'changed' }, list[2]!])
+      await tick()
+      expect(rowsText(container)).toEqual(['L1', 'changed', 'L3'])
+    })
+
+    it('a row with an event handler falls back and the click reaches it', async () => {
+      const clicks: Array<number> = []
+      const { container } = await rig(({ item }) => jsx('li', { onClick: () => Effect.sync(() => void clicks.push(item.id)), children: item.label }))
+      container.querySelectorAll('li')[1]!.dispatchEvent(new Event('click', { bubbles: true }))
+      await tick()
+      expect(clicks).toEqual([2])
+    })
+
+    it('a row removed from the list leaves no li behind', async () => {
+      const { container, store, items, list } = await rig(({ item, label }) => jsx('li', { children: label(item) }))
+      store.set(items, [list[2]!, list[0]!])
+      await tick()
+      expect(rowsText(container)).toEqual(['L3', 'L1'])
+    })
+  })
+
   it('re-runs every row when a prop is a new function that is not an event handler', async () => {
     const list = mk([1, 2, 3])
     const { store, items, runs } = await setup(list, (item) => ({ item, format: () => item.id }))

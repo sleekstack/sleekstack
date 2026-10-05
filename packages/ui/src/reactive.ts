@@ -57,7 +57,9 @@ interface Memo {
   readonly props: object
   readonly ctx: Context.Context<never>
   readonly node: Node
-  readonly scope: Scope.Scope
+  readonly scope?: Scope.Scope
+  /** Host-only fast path: the element's type and props the node was built from. */
+  readonly host?: { readonly type: string; readonly props: object }
 }
 
 /** One run of an instance: ordinals by component function, its own slots and cursor, and what its children did. `undefined` at the root. */
@@ -285,6 +287,14 @@ export const closeIdle = (scope: Scope.CloseableScope): boolean => (scope as unk
 export const closeNow = (scope: Scope.CloseableScope): void => {
   if (!closeIdle(scope)) Effect.runFork(Scope.close(scope, Exit.void))
 }
+/** A host element a component returned as-is: `jsx` tags its Effect, so a run that returns one read no atom and used no scope. */
+export interface HostDescriptor {
+  readonly type: string
+  readonly props: Record<string, unknown>
+}
+export const hostOf = (e: unknown): HostDescriptor | undefined => (e as { _host?: HostDescriptor })._host
+// Set by `jsx-runtime` (which imports this module): eligibility and the synchronous node build.
+export const hostBuilder: { build?: (d: HostDescriptor, key: string) => Node | undefined } = {}
 const reusable = (scope: Scope.Scope | undefined): boolean => scope instanceof LazyScope && scope.reusable()
 
 // Per-run services: rebuilt for every parent run, so they never decide whether a child's inputs changed.
@@ -363,6 +373,8 @@ export const instance = <P>(type: (props: P) => Effect.Effect<Node, any, any>, p
       } else id = `${fnId(type)}:key:${key}`
     }
     const self = id
+    // The component's own Effect, when the host fast path already called it.
+    let pre: Effect.Effect<Node, any, any> | undefined
     const parentFrame = Context.get(ctx, Frame)
     let slots: Slots
     if (parentFrame) {
@@ -379,7 +391,38 @@ export const instance = <P>(type: (props: P) => Effect.Effect<Node, any, any>, p
       // re-runs it by itself when that changes).
       const m = forced ? undefined : slots.memo
       forced = false
-      if (m && reusable(m.scope) && sameProps(m.props, effProps as object) && sameServices(m.ctx, ctx)) return Effect.succeed(m.node)
+      if (m && (m.scope === undefined || reusable(m.scope)) && sameProps(m.props, effProps as object) && sameServices(m.ctx, ctx)) return Effect.succeed(m.node)
+      // A keyed row that returns a plain host element builds its node here, without the run machinery; unchanged output reuses the last node.
+      if (key !== undefined && hostBuilder.build && Context.get(ctx, RenderScope)) {
+        slots.running = true
+        slots.called = false
+        const eff = type(effProps)
+        slots.running = false
+        const d = hostOf(eff)
+        if (d) {
+          const pm = m
+          if (pm?.host && pm.host.type === d.type && sameProps(pm.host.props, d.props) && !slots.called) {
+            ;(pm as { props: object }).props = effProps as object
+            return Effect.succeed(pm.node)
+          }
+          const built = hostBuilder.build(d, key)
+          if (built) {
+            slots.done = true
+            const node: Node = {
+              _tag: 'Reactive',
+              atoms: NO_ATOMS,
+              seen: NO_ATOMS,
+              child: built,
+              rerun: Effect.suspend(() => ((forced = true), Effect.provide(handled(run), ctx))) as Effect.Effect<Node>,
+              id: self,
+              key,
+            }
+            slots.memo = slots.called ? undefined : { props: effProps as object, ctx, node, host: { type: d.type, props: d.props } }
+            return Effect.succeed(node)
+          }
+        }
+        pre = eff
+      }
     } else slots = rootSlots ??= { atoms: [], releases: [], done: false }
     const frame = makeFrame(slots, self)
     const body = (own: Scope.CloseableScope | undefined): Effect.Effect<Node, any, any> => {
@@ -393,7 +436,7 @@ export const instance = <P>(type: (props: P) => Effect.Effect<Node, any, any>, p
       if (own) map.set(RenderScope.key, own)
       const inner = Context.unsafeMake(map)
       // One continuation: check the slot count, then build the node.
-      return Effect.flatMap(Effect.provide(type(effProps), inner), (child): Effect.Effect<Node, SlotMismatch> => {
+      return Effect.flatMap(Effect.provide(((e) => ((pre = undefined), e))(pre ?? type(effProps)), inner), (child): Effect.Effect<Node, SlotMismatch> => {
         if (slots.done && frame.cursor !== slots.atoms.length) return Effect.fail(new SlotMismatch({ id: self, expected: slots.atoms.length, actual: frame.cursor }))
         slots.done = true
         slots.running = false

@@ -2,7 +2,7 @@ import { Atom } from '@sleekstack/core'
 import { type Context, Effect, Layer } from 'effect'
 import { bind, type Handler, isHandler, on } from './handler'
 import { el, type ElementNode, type EventBinding, fragment, type Node } from './node'
-import { Handlers, instance, RenderScope } from './reactive'
+import { type HostDescriptor, Handlers, hostBuilder, instance, RenderScope } from './reactive'
 
 /** What a JSX expression may hold between its tags. A serializable atom renders its current value as text and, under `renderToString`, is bound for `resume`. */
 export type Child = string | number | boolean | null | undefined | Effect.Effect<Node, any, any> | Atom.Serializable<Atom.Atom<any>> | ReadonlyArray<Child>
@@ -55,6 +55,19 @@ const element = (type: string, props: Props, key: string | undefined): Effect.Ef
     }),
   )
 
+// Plain host element: primitive attributes and text only (no function, atom, Effect or handler prop), so its output is its props.
+const isPrim = (v: unknown): boolean => v == null || typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean'
+hostBuilder.build = (d: HostDescriptor, key: string): Node | undefined => {
+  const p = d.props as Props
+  for (const k in p) {
+    const v = p[k]
+    if (k === 'children' ? !(isPrim(v) || (Array.isArray(v) && v.every(isPrim))) : /^on[A-Z]/.test(k) ? true : !isPrim(v)) return undefined
+  }
+  const base = el(d.type, attrs(p), ...flat(p.children)) as ElementNode
+  return { ...base, key }
+}
+const flat = (c: Child): Array<string> => (Array.isArray(c) ? c.flatMap(flat) : c == null || typeof c === 'boolean' ? [] : [String(c)])
+
 export const jsx = (type: string | ((props: any) => Element), props: Props, key?: string | number): Element => {
   const k = key ?? props.key
   const ks = k == null ? undefined : String(k)
@@ -62,7 +75,11 @@ export const jsx = (type: string | ((props: any) => Element), props: Props, key?
     ? type === Fragment || type === Provider || type === Boundary
       ? type(props as any)
       : (instance(type, props, ks) as Element)
-    : (element(type, props, ks) as Element)
+    : tagHost(element(type, props, ks), type, props)
+}
+const tagHost = (e: Effect.Effect<Node, any, any>, type: string, props: Props): Element => {
+  ;(e as { _host?: HostDescriptor })._host = { type, props }
+  return e as Element
 }
 export const jsxs = jsx
 
