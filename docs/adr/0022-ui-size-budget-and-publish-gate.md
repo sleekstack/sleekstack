@@ -1,4 +1,4 @@
-# 0020: `@sleekstack/ui` size budget and publish gate
+# 0022: `@sleekstack/ui` size budget and publish gate
 
 **Status:** Accepted
 
