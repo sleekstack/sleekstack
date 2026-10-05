@@ -21,7 +21,8 @@ export const TEXT_SEPARATOR = '<!--sleek-t-->'
 /** Rejects invalid tag names and the renderer-written `sleek-reactive` / `sleek-guest` hosts. */
 export const checkTag = (name: string): string => checkName(TAG, 'tag', name)
 const checkName = (re: RegExp, kind: string, name: string): string => {
-  if (!re.test(name) || (kind === 'tag' && RESERVED_TAGS.has(name.toLowerCase()))) throw new TypeError(`Invalid ${kind} name: ${JSON.stringify(name)}`)
+  if (!re.test(name) || (kind === 'tag' && RESERVED_TAGS.has(name.toLowerCase())))
+    throw new TypeError(`Invalid ${kind} name: ${JSON.stringify(name)}`)
   return name
 }
 
@@ -76,8 +77,7 @@ const checkId = (kind: string, id: string): string => {
 }
 
 // fn-17's codec; render rechecks the value kind for Bind nodes not built by `bind`.
-const encode = (atom: Atom.Atom<any>, value: unknown): unknown =>
-  Schema.encodeSync(valueInfo(atom).schema)(value)
+const encode = (atom: Atom.Atom<any>, value: unknown): unknown => Schema.encodeSync(valueInfo(atom).schema)(value)
 
 const handlerAttrs = (on: Readonly<Record<string, Handler<any, any>>>, c: Collector): string =>
   Object.entries(on)
@@ -88,7 +88,9 @@ const handlerAttrs = (on: Readonly<Record<string, Handler<any, any>>>, c: Collec
       if (seen && seen !== h) throw new DuplicateHandler({ id: h.id })
       c.handlers.set(h.id, h)
       c.events.add(event)
-      const flags = (h.opts.preventDefault ? ` data-sleek-pd-${event}` : '') + (h.opts.stopPropagation ? ` data-sleek-sp-${event}` : '')
+      const flags =
+        (h.opts.preventDefault ? ` data-sleek-pd-${event}` : '') +
+        (h.opts.stopPropagation ? ` data-sleek-sp-${event}` : '')
       return ` data-sleek-on-${event}="${escape(h.id)}"${flags}`
     })
     .join('')
@@ -108,7 +110,8 @@ const HOST_OPEN = (tag: string): string => `<${tag} style="display: contents;">`
 // A plain atom binding renders as bare text, so it needs a separator next to other text like a Text node does.
 const isText = (n: Node | undefined): boolean => n?._tag === 'Text' || (n?._tag === 'Bind' && !!n.plain)
 
-const flatten = (nodes: ReadonlyArray<Node>): Array<Node> => nodes.flatMap((n) => (n._tag === 'Fragment' ? flatten(n.children) : [n]))
+const flatten = (nodes: ReadonlyArray<Node>): Array<Node> =>
+  nodes.flatMap((n) => (n._tag === 'Fragment' ? flatten(n.children) : [n]))
 const serializeAll = (nodes: ReadonlyArray<Node>, c: Collector): string =>
   flatten(nodes)
     .map((n, i, list) => (isText(n) && isText(list[i - 1]) ? TEXT_SEPARATOR : '') + serialize(n, c))
@@ -132,9 +135,10 @@ const serialize = (node: Node, c: Collector): string => {
       return serializeAll(node.children, c)
     case 'Element': {
       checkTag(node.tag)
-      const attrs = Object.entries(node.attrs)
-        .map(([k, v]) => (checkAttr(k, v), ` ${k}="${escape(v)}"`))
-        .join('') + boundAttrs(node, c)
+      const attrs =
+        Object.entries(node.attrs)
+          .map(([k, v]) => (checkAttr(k, v), ` ${k}="${escape(v)}"`))
+          .join('') + boundAttrs(node, c)
       const on = node.on ? handlerAttrs(node.on, c) : ''
       return `<${node.tag}${attrs}${on}>${serializeAll(node.children, c)}</${node.tag}>`
     }
@@ -168,8 +172,16 @@ export const renderToString = async <E, A, LE = never>(
   try {
     let queries: DehydratedState | undefined
     // The scope's QueryClient (when the layer provides one) is dehydrated after the render's fetches settled.
-    const captured = Effect.tap(app, () => Effect.map(Effect.serviceOption(QueryClientTag), (c) => void (queries = Option.isSome(c) ? dehydrateQueries(c.value) : undefined)))
-    const withStore = captured.pipe(Effect.provideService(Store, store), Effect.provideService(Frame, makeFrame())) as Effect.Effect<Node, E, Exclude<A, Store>>
+    const captured = Effect.tap(app, () =>
+      Effect.map(
+        Effect.serviceOption(QueryClientTag),
+        (c) => void (queries = Option.isSome(c) ? dehydrateQueries(c.value) : undefined),
+      ),
+    )
+    const withStore = captured.pipe(
+      Effect.provideService(Store, store),
+      Effect.provideService(Frame, makeFrame()),
+    ) as Effect.Effect<Node, E, Exclude<A, Store>>
     const node = await runToNode(withStore, opts.layer, opts.onError)
     const c: Collector = { store, onError: opts.onError, handlers: new Map(), events: new Set(), atoms: new Map() }
     const html = serialize(node, c)

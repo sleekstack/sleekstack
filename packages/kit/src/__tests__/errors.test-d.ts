@@ -4,8 +4,14 @@ import { SleekStackError, type SleekStackErrorCode, type SleekStackErrorDetails 
 declare const e: unknown
 if (e instanceof SleekStackError) {
   expectTypeOf(e.code).toEqualTypeOf<SleekStackErrorCode>()
-  if (e.code === 'MissingDependency') expectTypeOf(e.details).toEqualTypeOf<SleekStackErrorDetails['MissingDependency']>()
-  if (e.code === 'PrivateDependency') expectTypeOf(e.details).toEqualTypeOf<{ readonly tag: string; readonly module: string; readonly requiredBy: string }>()
+  if (e.code === 'MissingDependency')
+    expectTypeOf(e.details).toEqualTypeOf<SleekStackErrorDetails['MissingDependency']>()
+  if (e.code === 'PrivateDependency')
+    expectTypeOf(e.details).toEqualTypeOf<{
+      readonly tag: string
+      readonly module: string
+      readonly requiredBy: string
+    }>()
   if (e.code === 'DependencyCycle') expectTypeOf(e.details.path).toEqualTypeOf<readonly string[]>()
   if (e.code === 'LayerFailed') expectTypeOf(e.details.cause).toEqualTypeOf<string>()
   if (e.code === 'Unknown') expectTypeOf(e.details).toEqualTypeOf<{}>()

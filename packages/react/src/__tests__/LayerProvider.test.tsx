@@ -48,7 +48,7 @@ describe('LayerProvider — REACT-01: accepts a provide prop of Layer and Module
         <Suspense fallback={<div data-testid="react01-loading">loading</div>}>
           <ServiceConsumer />
         </Suspense>
-      </LayerProvider>
+      </LayerProvider>,
     )
     // Service must resolve through the new `provide` prop — old prototype ignores it
     await waitFor(() => {
@@ -63,7 +63,7 @@ describe('LayerProvider — REACT-01: accepts a provide prop of Layer and Module
         <Suspense fallback={<div data-testid="react01b-loading">loading</div>}>
           <ServiceConsumer />
         </Suspense>
-      </LayerProvider>
+      </LayerProvider>,
     )
     await waitFor(() => {
       expect(screen.getByTestId('value').textContent).toBe('test-value')
@@ -80,7 +80,7 @@ describe('LayerProvider + useService — REACT-04: first useService call suspend
         <Suspense fallback={<div data-testid="loading">loading...</div>}>
           <ServiceConsumer />
         </Suspense>
-      </LayerProvider>
+      </LayerProvider>,
     )
 
     // On first render, service may not yet be resolved — fallback should appear
@@ -108,7 +108,7 @@ describe('LayerProvider + useService — REACT-04: first useService call suspend
         <Suspense fallback={<div data-testid="fallback">loading</div>}>
           <CapturingSuspendComponent />
         </Suspense>
-      </LayerProvider>
+      </LayerProvider>,
     )
 
     // Either the component suspended (thrownValue is a Promise) or resolved
@@ -136,8 +136,8 @@ describe('LayerProvider — REACT-08: scoped Layer finalizer runs on unmount', (
       CleanupService,
       Effect.acquireRelease(
         Effect.sync(() => ({ id: 'cleanup-test', cleanup: cleanupSpy })),
-        (svc) => Effect.sync(() => svc.cleanup())
-      )
+        (svc) => Effect.sync(() => svc.cleanup()),
+      ),
     )
 
     function CleanupConsumer() {
@@ -150,7 +150,7 @@ describe('LayerProvider — REACT-08: scoped Layer finalizer runs on unmount', (
         <Suspense fallback={<div>loading</div>}>
           <CleanupConsumer />
         </Suspense>
-      </LayerProvider>
+      </LayerProvider>,
     )
 
     // Wait for service to resolve
@@ -176,7 +176,13 @@ describe('LayerProvider — R9 scope ownership and cleanup', () => {
   it('finalizers run exactly once on unmount (StrictMode double-mount does not release)', async () => {
     const acquire = vi.fn()
     const release = vi.fn()
-    const L = Layer.scoped(CleanupService, Effect.acquireRelease(Effect.sync(() => (acquire(), { id: 'x', cleanup: () => {} })), () => Effect.sync(release)))
+    const L = Layer.scoped(
+      CleanupService,
+      Effect.acquireRelease(
+        Effect.sync(() => (acquire(), { id: 'x', cleanup: () => {} })),
+        () => Effect.sync(release),
+      ),
+    )
     function C() {
       return <div data-testid="once">{useService(CleanupService).id}</div>
     }
@@ -201,7 +207,9 @@ describe('LayerProvider — R9 scope ownership and cleanup', () => {
     const AppSvc = Context.GenericTag<{ n: string }>('AppLifetimeSvc')
     const CompSvc = Context.GenericTag<{ n: string }>('ComponentLifetimeSvc')
     const app = service(AppSvc, { lifetime: 'app' }, () => Effect.succeed({ n: 'app' }))
-    const comp = service(CompSvc, { requires: [AppSvc], lifetime: 'component' }, ([a]) => Effect.succeed({ n: `comp<${a.n}>` }))
+    const comp = service(CompSvc, { requires: [AppSvc], lifetime: 'component' }, ([a]) =>
+      Effect.succeed({ n: `comp<${a.n}>` }),
+    )
     function C() {
       return <div data-testid="both">{`${useService(AppSvc).n}|${useService(CompSvc).n}`}</div>
     }
@@ -217,7 +225,13 @@ describe('LayerProvider — R9 scope ownership and cleanup', () => {
 
   it('a failing finalizer on unmount reaches onFinalizerError', async () => {
     const sink = vi.fn()
-    const L = Layer.scoped(CleanupService, Effect.acquireRelease(Effect.sync(() => ({ id: 'f', cleanup: () => {} })), () => Effect.die(new Error('release boom'))))
+    const L = Layer.scoped(
+      CleanupService,
+      Effect.acquireRelease(
+        Effect.sync(() => ({ id: 'f', cleanup: () => {} })),
+        () => Effect.die(new Error('release boom')),
+      ),
+    )
     function C() {
       return <div data-testid="fin">{useService(CleanupService).id}</div>
     }
@@ -247,7 +261,13 @@ describe('LayerProvider — R9 scope ownership and cleanup', () => {
 describe('LayerProvider — R9 abandoned render', () => {
   it('a provider render abandoned before commit acquires nothing', async () => {
     const acquire = vi.fn()
-    const L = Layer.scoped(CleanupService, Effect.acquireRelease(Effect.sync(() => (acquire(), { id: 'a', cleanup: () => {} })), () => Effect.void))
+    const L = Layer.scoped(
+      CleanupService,
+      Effect.acquireRelease(
+        Effect.sync(() => (acquire(), { id: 'a', cleanup: () => {} })),
+        () => Effect.void,
+      ),
+    )
     function Throws(): never {
       throw new Error('abandon')
     }
@@ -278,7 +298,13 @@ describe('LayerProvider — R9 Suspense above the provider', () => {
   it('an async scoped Layer under an outer Suspense acquires once and releases once', async () => {
     const acquire = vi.fn()
     const release = vi.fn()
-    const L = Layer.scoped(CleanupService, Effect.acquireRelease(Effect.sleep(10).pipe(Effect.andThen(() => Effect.sync(() => (acquire(), { id: 'o', cleanup: () => {} })))), () => Effect.sync(release)))
+    const L = Layer.scoped(
+      CleanupService,
+      Effect.acquireRelease(
+        Effect.sleep(10).pipe(Effect.andThen(() => Effect.sync(() => (acquire(), { id: 'o', cleanup: () => {} })))),
+        () => Effect.sync(release),
+      ),
+    )
     function C() {
       return <div data-testid="outer-once">{useService(CleanupService).id}</div>
     }
@@ -302,7 +328,10 @@ describe('LayerProvider — R9 Suspense above the provider', () => {
     vi.useFakeTimers()
     try {
       const release = vi.fn()
-      const L = Layer.scoped(CleanupService, Effect.acquireRelease(Effect.succeed({ id: 'p', cleanup: () => {} }), () => Effect.sync(release)))
+      const L = Layer.scoped(
+        CleanupService,
+        Effect.acquireRelease(Effect.succeed({ id: 'p', cleanup: () => {} }), () => Effect.sync(release)),
+      )
       function C() {
         return <div>{useService(CleanupService).id}</div>
       }

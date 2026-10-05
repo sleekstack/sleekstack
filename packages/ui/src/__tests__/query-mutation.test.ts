@@ -21,7 +21,10 @@ afterEach(async () => {
   vi.useRealTimers()
 })
 const go = async (app: any, container = document.createElement('div')) => {
-  await act(async () => void handles.push(await mount(app, { layer: QueryClientLive(), container, store: makeAtomStore() } as any)))
+  await act(
+    async () =>
+      void handles.push(await mount(app, { layer: QueryClientLive(), container, store: makeAtomStore() } as any)),
+  )
   return container
 }
 
@@ -36,7 +39,15 @@ describe('useMutation', () => {
     const Reader = () =>
       Effect.flatMap(
         useMutation({ mutationFn: async (n: number) => (fail ? Promise.reject(boom) : `got ${n}`) }),
-        (m) => ((mutateAsync = m.mutateAsync), jsx('div', { children: [jsx('b', { children: `${m.status}:${m.data ?? ''}` }), jsx(Button, { onClick: () => m.mutate(7) })] })),
+        (m) => (
+          (mutateAsync = m.mutateAsync),
+          jsx('div', {
+            children: [
+              jsx('b', { children: `${m.status}:${m.data ?? ''}` }),
+              jsx(Button, { onClick: () => m.mutate(7) }),
+            ],
+          })
+        ),
       )
     const c = await go(jsx(Reader, {}))
     expect(c.querySelector('b')!.textContent).toBe('idle:')
@@ -58,11 +69,16 @@ describe('server render', () => {
     const client = new Client()
     client.setQueryData(['pre'], 'cached')
     const queryFn = vi.fn(async () => 'x')
-    const Q = (key: string) => () => Effect.map(useQuery({ queryKey: [key], queryFn }), (r) => el('b', {}, `${r.status}:${r.data ?? ''}`))
+    const Q = (key: string) => () =>
+      Effect.map(useQuery({ queryKey: [key], queryFn }), (r) => el('b', {}, `${r.status}:${r.data ?? ''}`))
     const M = () => Effect.map(useMutation({ mutationFn: async () => 1 }), (m) => el('i', {}, m.status))
-    const html = await renderToString(jsx('div', { children: [jsx(Q('pre'), {}), jsx(Q('none'), {}), jsx(M, {})] }), { layer: Layer.succeed(QueryClientTag, client) })
+    const html = await renderToString(jsx('div', { children: [jsx(Q('pre'), {}), jsx(Q('none'), {}), jsx(M, {})] }), {
+      layer: Layer.succeed(QueryClientTag, client),
+    })
     const r = (inner: string) => `<sleek-reactive style="display: contents;">${inner}</sleek-reactive>`
-    expect(html.slice(0, html.indexOf('<script'))).toBe(`<div>${r('<b>success:cached</b>')}${r('<b>pending:</b>')}${r('<i>idle</i>')}</div>`)
+    expect(html.slice(0, html.indexOf('<script'))).toBe(
+      `<div>${r('<b>success:cached</b>')}${r('<b>pending:</b>')}${r('<i>idle</i>')}</div>`,
+    )
     expect(queryFn).not.toHaveBeenCalled()
     expect(client.isFetching()).toBe(0)
   })
@@ -83,13 +99,18 @@ describe('dispose', () => {
     // One client the test owns (no gc timers of its own), so what is left on it after dispose is this module's.
     const client = new Client({ defaultOptions: { queries: { gcTime: Infinity }, mutations: { gcTime: Infinity } } })
     let attached = 0
-    const count = (e: { type: string }) => void (e.type === 'observerAdded' ? attached++ : e.type === 'observerRemoved' && attached--)
+    const count = (e: { type: string }) =>
+      void (e.type === 'observerAdded' ? attached++ : e.type === 'observerRemoved' && attached--)
     client.getQueryCache().subscribe(count)
     client.getMutationCache().subscribe(count)
     const observers = () => attached
     let mutate = () => {}
     const App = () =>
-      Effect.zipWith(useQuery({ queryKey: ['d'], queryFn: async () => 'v' }), useMutation({ mutationFn: async () => 1 }), (q, m) => ((mutate = m.mutate), el('b', {}, `${q.status}:${m.status}`)))
+      Effect.zipWith(
+        useQuery({ queryKey: ['d'], queryFn: async () => 'v' }),
+        useMutation({ mutationFn: async () => 1 }),
+        (q, m) => ((mutate = m.mutate), el('b', {}, `${q.status}:${m.status}`)),
+      )
     const container = document.createElement('div')
     const opts = { layer: Layer.succeed(QueryClientTag, client), container, store: makeAtomStore() } as any
     const h1 = await act(async () => await mount(jsx(App, {}), opts))
@@ -102,7 +123,11 @@ describe('dispose', () => {
     await act(async () => void (await h2.dispose()))
     await act(async () => void (await h1.dispose()))
     await act(async () => void (await vi.advanceTimersByTimeAsync(0)))
-    expect({ observers: observers(), timers: pending.size, queries: client.getQueryCache().getAll().length }).toEqual({ observers: 0, timers: 0, queries: 1 })
+    expect({ observers: observers(), timers: pending.size, queries: client.getQueryCache().getAll().length }).toEqual({
+      observers: 0,
+      timers: 0,
+      queries: 1,
+    })
     vi.unstubAllGlobals()
     vi.useRealTimers()
   })

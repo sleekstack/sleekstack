@@ -54,16 +54,30 @@ function CreateTaskForm({ project }: { readonly project: ProjectRecord }) {
   )
 }
 
-function ProjectBody({ project, tasks }: { readonly project: ProjectRecord; readonly tasks: readonly TaskWithComments[] }) {
+function ProjectBody({
+  project,
+  tasks,
+}: {
+  readonly project: ProjectRecord
+  readonly tasks: readonly TaskWithComments[]
+}) {
   const store = useService(ProjectFilterStore)
   // `getServerSnapshot` (3rd arg): the store is per-mount and always starts
   // at these values, so the server snapshot is the same accessor as the
   // client one — required explicitly or React throws under SSR.
   const filter = useSyncExternalStore(store.filter.subscribe, store.filter.get, store.filter.get)
-  const selectedTaskId = useSyncExternalStore(store.selectedTaskId.subscribe, store.selectedTaskId.get, store.selectedTaskId.get)
+  const selectedTaskId = useSyncExternalStore(
+    store.selectedTaskId.subscribe,
+    store.selectedTaskId.get,
+    store.selectedTaskId.get,
+  )
   // The create form's optimistic update needs `useQueryClient`, which (unlike `useMutation`) stays client-only,
   // so the form mounts after hydration.
-  const client = useSyncExternalStore(noSubscribe, () => true, () => false)
+  const client = useSyncExternalStore(
+    noSubscribe,
+    () => true,
+    () => false,
+  )
 
   const visible = filter === 'all' ? tasks : tasks.filter(({ task }) => task.status === filter)
   const selected = tasks.find(({ task }) => task.id === selectedTaskId)

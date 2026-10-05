@@ -77,7 +77,12 @@ export function TaskDetail({ task, comments, onClose }: TaskDetailProps) {
           <div>
             Move to:{' '}
             {STATUSES.map((status) => (
-              <button key={status} type="button" disabled={status === task.status || movePending} onClick={() => move(status)}>
+              <button
+                key={status}
+                type="button"
+                disabled={status === task.status || movePending}
+                onClick={() => move(status)}
+              >
                 {status}
               </button>
             ))}

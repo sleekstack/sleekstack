@@ -9,14 +9,18 @@ import { loadBoard } from './board-view'
 describe('resolveDraft', () => {
   const ctx = { projectId: 'p1' }
   it('resolves a valid draft to the wire body', async () => {
-    await expect(Effect.runPromise(resolveDraft(NewTaskDraft, { title: ' A ', simulateFailure: false }, ctx))).resolves.toEqual({
+    await expect(
+      Effect.runPromise(resolveDraft(NewTaskDraft, { title: ' A ', simulateFailure: false }, ctx)),
+    ).resolves.toEqual({
       projectId: 'p1',
       title: 'A',
       simulateFailure: false,
     })
   })
   it('fails with DraftInvalid carrying the designed messages', async () => {
-    const r = await Effect.runPromise(Effect.flip(resolveDraft(NewTaskDraft, { title: ' ', simulateFailure: false }, ctx)))
+    const r = await Effect.runPromise(
+      Effect.flip(resolveDraft(NewTaskDraft, { title: ' ', simulateFailure: false }, ctx)),
+    )
     expect(r.messages).toEqual(['Please enter a title'])
   })
 })

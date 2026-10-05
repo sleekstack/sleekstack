@@ -3,11 +3,18 @@ import { prefetchQueries } from '@sleekstack/next'
 import { effectFn, QueryClientLive } from '@sleekstack/query'
 import { HydrationBoundary, queryOptions, useQuery } from '@tanstack/react-query'
 
-interface Todo { readonly id: string; readonly title: string }
+interface Todo {
+  readonly id: string
+  readonly title: string
+}
 class TodoApi extends Context.Tag('TodoApi')<TodoApi, { get(id: string): Effect.Effect<Todo> }>() {}
 
 export const todoOptions = (id: string) =>
-  queryOptions({ queryKey: ['todo', id], queryFn: effectFn(Effect.flatMap(TodoApi, (api) => api.get(id))), staleTime: 30_000 })
+  queryOptions({
+    queryKey: ['todo', id],
+    queryFn: effectFn(Effect.flatMap(TodoApi, (api) => api.get(id))),
+    staleTime: 30_000,
+  })
 
 // A client component ('use client' in its own file in a real app), under the app's LayerProvider + QueryProvider.
 function TodoTitle({ id }: { id: string }) {

@@ -18,7 +18,8 @@ import type { Lifetime } from './lifetime'
 const tagName = (tag: Context.Tag<any, any>): string => (tag as { key?: string }).key ?? String(tag)
 
 /** @internal The typed miss for `key`: `requiredBy` looked it up and nothing provides it. */
-export const resolutionFailure = (key: string, requiredBy: string): MissingDependency => missingDependency(key, requiredBy)
+export const resolutionFailure = (key: string, requiredBy: string): MissingDependency =>
+  missingDependency(key, requiredBy)
 
 // The one Tag lookup: the instance, or the typed miss.
 const lookupTag = <T>(context: Context.Context<any>, tag: Context.Tag<any, T>, requiredBy: string) => {
@@ -79,7 +80,10 @@ export const resolveTag = <T>(context: Context.Context<any>, tag: Context.Tag<an
  * Effect.runSync(Effect.provideService(resolveTagEffect(Clock, 'example'), Clock, 1)) // 1
  * ```
  */
-export const resolveTagEffect = <T>(tag: Context.Tag<any, T>, requiredBy: string): Effect.Effect<T, MissingDependency> =>
+export const resolveTagEffect = <T>(
+  tag: Context.Tag<any, T>,
+  requiredBy: string,
+): Effect.Effect<T, MissingDependency> =>
   Effect.flatMap(Effect.context<never>(), (context) => {
     const r = lookupTag(context as Context.Context<any>, tag, requiredBy)
     return r.ok ? Effect.succeed(r.value) : Effect.fail(r.error)
@@ -99,7 +103,10 @@ export interface ChildScope {
    * Opens a nested scope. `entries` are child-boundary entries (modules flattened like the root's), built in the new
    * scope after its lifetime's entries, so they shadow parent instances inside that scope only.
    */
-  readonly child: (lifetime: 'request' | 'component', entries?: readonly (Entry | Module)[]) => Effect.Effect<ChildScope, unknown>
+  readonly child: (
+    lifetime: 'request' | 'component',
+    entries?: readonly (Entry | Module)[],
+  ) => Effect.Effect<ChildScope, unknown>
   /** @internal The Effect Scope holding this scope's services; closed by `close`. */
   readonly scope: Scope.CloseableScope
   /** Runs finalizers in reverse acquisition order; the Exit aggregates every failure. */
@@ -117,7 +124,13 @@ export type AppScope = ChildScope
  * The first `overrides` nodes (child-boundary entries) lock the Tags they provide, so dependents built after them see the override.
  * Each node builds in its own scope, attached to `scope` only once it succeeds, so finalizers run once, in reverse build order.
  */
-const buildAll = (scope: Scope.Scope, memo: Layer.MemoMap, parent: Context.Context<any>, nodes: readonly PlanNode[], overrides: number) => {
+const buildAll = (
+  scope: Scope.Scope,
+  memo: Layer.MemoMap,
+  parent: Context.Context<any>,
+  nodes: readonly PlanNode[],
+  overrides: number,
+) => {
   let ctx = parent
   const locked = new Set<string>() // Tags the first `overrides` nodes built: later nodes still build but cannot replace them
   const step = (n: PlanNode, i: number) => {
@@ -148,8 +161,12 @@ const buildAll = (scope: Scope.Scope, memo: Layer.MemoMap, parent: Context.Conte
         yield* Scope.addFinalizerExit(scope, (exit) => Scope.close(own, exit))
         const provided = out.value.unsafeMap
         if (i < overrides) for (const k of provided.keys()) locked.add(k)
-        ctx = Context.merge(ctx, i < overrides ? out.value : Context.unsafeMake(new Map([...provided].filter(([k]) => !locked.has(k)))))
-      }))
+        ctx = Context.merge(
+          ctx,
+          i < overrides ? out.value : Context.unsafeMake(new Map([...provided].filter(([k]) => !locked.has(k)))),
+        )
+      }),
+    )
   }
   return Effect.forEach(nodes, step, { discard: true }).pipe(Effect.map(() => ctx))
 }
@@ -224,8 +241,18 @@ const open = (
  * })
  * ```
  */
-export const makeAppScope = (input: readonly (Module | Entry)[], options: ScopeOptions = {}): Effect.Effect<AppScope, unknown> =>
+export const makeAppScope = (
+  input: readonly (Module | Entry)[],
+  options: ScopeOptions = {},
+): Effect.Effect<AppScope, unknown> =>
   Effect.suspend(() => {
     const graph = flatten(input)
-    return open('app', graph, Context.empty() as Context.Context<any>, graph.filter((n) => n.lifetime === 'app'), 0, options)
+    return open(
+      'app',
+      graph,
+      Context.empty() as Context.Context<any>,
+      graph.filter((n) => n.lifetime === 'app'),
+      0,
+      options,
+    )
   })

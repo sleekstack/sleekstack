@@ -14,7 +14,8 @@ const Counter = () => Effect.flatMap(useAtomValue(count), (n) => jsx('li', { cla
 
 const cases = {
   'jsx-overhead/non-reactive-1k': (j: typeof jsx) => () => renderToString(sleekTree(j), { layer: Layer.empty }),
-  'jsx-overhead/one-reactive-1k': (j: typeof jsx) => () => renderToString(sleekTree(j, Counter), { layer: Layer.empty }),
+  'jsx-overhead/one-reactive-1k': (j: typeof jsx) => () =>
+    renderToString(sleekTree(j, Counter), { layer: Layer.empty }),
 }
 
 for (const [name, make] of Object.entries(cases)) {

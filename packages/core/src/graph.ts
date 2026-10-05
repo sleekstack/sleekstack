@@ -25,7 +25,11 @@ const attributed = (layer: AnyLayer, module: Module | undefined): AnyLayer =>
   module === undefined
     ? layer
     : Layer.catchAllCause(layer, (cause) =>
-        Layer.failCause(Cause.die(new Error(`Raw Layer in module "${module.name}" failed to build: ${Cause.squash(cause)}`, { cause }))),
+        Layer.failCause(
+          Cause.die(
+            new Error(`Raw Layer in module "${module.name}" failed to build: ${Cause.squash(cause)}`, { cause }),
+          ),
+        ),
       )
 
 /** Entries of `input` in build order. A module's longest import path decides its depth; a thunk that throws is skipped. */

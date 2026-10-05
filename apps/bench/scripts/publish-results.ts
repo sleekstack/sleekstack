@@ -5,5 +5,8 @@ import { readResults } from './results'
 
 const root = resolve(import.meta.dirname, '..')
 const latest = readResults(resolve(root, 'results/latest.json'))
-writeFileSync(resolve(root, 'results/published.json'), JSON.stringify({ ...latest, publishedAt: new Date().toISOString().slice(0, 10) }, null, 2) + '\n')
+writeFileSync(
+  resolve(root, 'results/published.json'),
+  JSON.stringify({ ...latest, publishedAt: new Date().toISOString().slice(0, 10) }, null, 2) + '\n',
+)
 console.log(`results/published.json: ${latest.cases.length} cases`)

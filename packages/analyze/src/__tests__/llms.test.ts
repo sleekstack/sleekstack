@@ -11,7 +11,9 @@ const END = '<!-- generated:errors:end -->'
 
 /** The generated section; run with `UPDATE_LLMS=1` to rewrite llms.md from the table. */
 export const errorsSection = () =>
-  Object.entries(ERROR_CODES).map(([code, h]) => `- \`${code}\`: ${h.rule} Fix: ${h.fix.join('; ')}.`).join('\n')
+  Object.entries(ERROR_CODES)
+    .map(([code, h]) => `- \`${code}\`: ${h.rule} Fix: ${h.fix.join('; ')}.`)
+    .join('\n')
 
 describe('kit llms.md', () => {
   it('error section matches the analyzer error table', () => {

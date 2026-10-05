@@ -1,7 +1,12 @@
 import { layer, module, tag, withCleanup } from '@sleekstack/kit'
 
-interface Db { query(sql: string): Promise<unknown[]>; close(): Promise<void> }
-interface Tx { run(sql: string): Promise<unknown[]> }
+interface Db {
+  query(sql: string): Promise<unknown[]>
+  close(): Promise<void>
+}
+interface Tx {
+  run(sql: string): Promise<unknown[]>
+}
 const Db = tag<Db>('Db')
 const Tx = tag<Tx>('Tx')
 

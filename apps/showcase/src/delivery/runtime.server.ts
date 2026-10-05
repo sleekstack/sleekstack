@@ -18,7 +18,7 @@ import { isDemoMode } from './demo-mode'
 // call a no-op. A dev hot reload of this module (webpack/turbopack `hot.data`) replaces the runtime, so
 // the adapter interrupts in-flight calls and disposes the old one.
 type Hot = { data?: { reloaded?: boolean }; dispose(cb: (data: { reloaded?: boolean }) => void): void }
-const hot = (import.meta as { webpackHot?: Hot; turbopackHot?: Hot })
+const hot = import.meta as { webpackHot?: Hot; turbopackHot?: Hot }
 const hotModule = hot.webpackHot ?? hot.turbopackHot
 hotModule?.dispose((data) => void (data.reloaded = true))
 configureRuntime({ id: 'showcase', layer: AppLive }, { replace: hotModule?.data?.reloaded === true })
@@ -34,11 +34,17 @@ export async function runApp<A, E>(
   effect: Effect.Effect<A, E, Layer.Layer.Success<typeof RequestLive> | Layer.Layer.Success<typeof AppLive>>,
 ): Promise<A> {
   const demo = await isDemoMode()
-  return runEffect(effect.pipe(Effect.tapDefect(report)), { request: RequestLive, overrides: demo ? DemoLive : undefined })
+  return runEffect(effect.pipe(Effect.tapDefect(report)), {
+    request: RequestLive,
+    overrides: demo ? DemoLive : undefined,
+  })
 }
 
 /** Prefetches queries with the same request scope and demo overrides as `runApp` (a lazy server read sees neither). */
 export async function prefetchApp(queries: Parameters<typeof prefetchQueries>[0]) {
   const demo = await isDemoMode()
-  return prefetchQueries(queries, { request: Layer.merge(RequestLive, QueryClientLive()), overrides: demo ? DemoLive : undefined })
+  return prefetchQueries(queries, {
+    request: Layer.merge(RequestLive, QueryClientLive()),
+    overrides: demo ? DemoLive : undefined,
+  })
 }

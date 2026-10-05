@@ -28,7 +28,11 @@ export const MockActivityLogLayer = layer(ActivityLog, {
 export const MockClockLayer = layer(Clock, { now: () => 0 })
 
 /** The demo graph as a root module, so the analyzer reports its Shadowing (graph page). */
-export const DemoModule = module({ name: 'Demo', imports: [AppModule], provide: [MockActivityLogLayer, MockClockLayer] })
+export const DemoModule = module({
+  name: 'Demo',
+  imports: [AppModule],
+  provide: [MockActivityLogLayer, MockClockLayer],
+})
 
 /** Per-call `provide`; empty (no Shadowing) when demo mode is off. */
 export async function demoLayers(): Promise<readonly Layer<any>[]> {

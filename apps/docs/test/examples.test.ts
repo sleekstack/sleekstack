@@ -19,14 +19,21 @@ function kitExamples(): { id: string; lang: string; code: string }[] {
     return [...text.matchAll(/@example\s*\n\s*\*\s*```(tsx?)\n([\s\S]*?)\n\s*\*\s*```/g)].map((m, i) => ({
       id: `${f}#${i + 1}`,
       lang: m[1]!,
-      code: m[2]!.split('\n').map((l) => l.replace(/^\s*\* ?/, '')).join('\n'),
+      code: m[2]!
+        .split('\n')
+        .map((l) => l.replace(/^\s*\* ?/, ''))
+        .join('\n'),
     }))
   })
 }
 
 /** Typechecks snippets with apps/docs' compiler options; returns formatted diagnostics. */
 function typecheck(snippets: { id: string; lang: string; code: string }[]): string[] {
-  const config = ts.getParsedCommandLineOfConfigFile(join(docsDir, 'tsconfig.json'), {}, { ...ts.sys, onUnRecoverableConfigFileDiagnostic: () => {} })!
+  const config = ts.getParsedCommandLineOfConfigFile(
+    join(docsDir, 'tsconfig.json'),
+    {},
+    { ...ts.sys, onUnRecoverableConfigFileDiagnostic: () => {} },
+  )!
   const names = snippets.map((s, i) => {
     const file = join(tmp, `${i}.${s.lang}`)
     // `export {}` makes every snippet a module, so top-level names never collide.
@@ -35,19 +42,30 @@ function typecheck(snippets: { id: string; lang: string; code: string }[]): stri
   })
   const { incremental, tsBuildInfoFile, plugins, ...options } = config.options
   const program = ts.createProgram(names, { ...options, noEmit: true })
-  return ts.getPreEmitDiagnostics(program)
+  return ts
+    .getPreEmitDiagnostics(program)
     .filter((d) => d.file && names.includes(d.file.fileName))
-    .map((d) => `${snippets[names.indexOf(d.file!.fileName)]!.id}: ${ts.flattenDiagnosticMessageText(d.messageText, '\n')}`)
+    .map(
+      (d) =>
+        `${snippets[names.indexOf(d.file!.fileName)]!.id}: ${ts.flattenDiagnosticMessageText(d.messageText, '\n')}`,
+    )
 }
 
 /** Typechecks the guide snippets in place (they import each other), with apps/docs' compiler options. */
 function snippetDiagnostics(): { count: number; errors: string[] } {
   const dir = join(docsDir, 'snippets')
-  const files = readdirSync(dir, { recursive: true, encoding: 'utf8' }).filter((f) => /\.tsx?$/.test(f)).map((f) => join(dir, f))
-  const config = ts.getParsedCommandLineOfConfigFile(join(docsDir, 'tsconfig.json'), {}, { ...ts.sys, onUnRecoverableConfigFileDiagnostic: () => {} })!
+  const files = readdirSync(dir, { recursive: true, encoding: 'utf8' })
+    .filter((f) => /\.tsx?$/.test(f))
+    .map((f) => join(dir, f))
+  const config = ts.getParsedCommandLineOfConfigFile(
+    join(docsDir, 'tsconfig.json'),
+    {},
+    { ...ts.sys, onUnRecoverableConfigFileDiagnostic: () => {} },
+  )!
   const { incremental, tsBuildInfoFile, plugins, ...options } = config.options
   const program = ts.createProgram(files, { ...options, noEmit: true })
-  const errors = ts.getPreEmitDiagnostics(program)
+  const errors = ts
+    .getPreEmitDiagnostics(program)
     .filter((d) => d.file && d.file.fileName.startsWith(dir))
     .map((d) => `${d.file!.fileName.slice(dir.length + 1)}: ${ts.flattenDiagnosticMessageText(d.messageText, '\n')}`)
   return { count: files.length, errors }

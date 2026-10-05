@@ -14,20 +14,44 @@ const ctx = async (xs: readonly (Module | Entry)[]) => (await Effect.runPromise(
 // Build-time graph errors (missing, cycle, ambiguity, captive, privacy) are the analyzer's: packages/analyze fixtures.
 describe('root resolution', () => {
   it('builds in position order: an entry sees the ones listed before it', async () => {
-    const DbDecl = declareLayer(Layer.effect(Db, Effect.map(Config, (c) => `db(${c})`)))
+    const DbDecl = declareLayer(
+      Layer.effect(
+        Db,
+        Effect.map(Config, (c) => `db(${c})`),
+      ),
+    )
     const RepoDef = service(Repo, { requires: [Db] }, ([db]) => Effect.succeed(`repo(${db})`))
     expect(Context.get(await ctx([ConfigDef, DbDecl, RepoDef]), Repo)).toBe('repo(db(cfg))')
   })
 
   it('a dependency listed after its dependent fails with MissingDependency', async () => {
-    const DbDecl = declareLayer(Layer.effect(Db, Effect.map(Config, (c) => `db(${c})`)))
+    const DbDecl = declareLayer(
+      Layer.effect(
+        Db,
+        Effect.map(Config, (c) => `db(${c})`),
+      ),
+    )
     const exit = await Effect.runPromiseExit(makeAppScope([DbDecl, ConfigDef]))
-    expect(Exit.isFailure(exit) && Cause.squash(exit.cause)).toMatchObject({ _tag: 'MissingDependency', missing: 'Config' })
+    expect(Exit.isFailure(exit) && Cause.squash(exit.cause)).toMatchObject({
+      _tag: 'MissingDependency',
+      missing: 'Config',
+    })
   })
 
   it('imports build before their importer, deepest first', async () => {
     const Lib = module({ name: 'Lib', entries: [ConfigDef] })
-    const App = module({ name: 'App', imports: [Lib], entries: [declareLayer(Layer.effect(Db, Effect.map(Config, (c) => `db(${c})`)))] })
+    const App = module({
+      name: 'App',
+      imports: [Lib],
+      entries: [
+        declareLayer(
+          Layer.effect(
+            Db,
+            Effect.map(Config, (c) => `db(${c})`),
+          ),
+        ),
+      ],
+    })
     expect(Context.get(await ctx([App]), Db)).toBe('db(cfg)')
   })
 
@@ -44,7 +68,10 @@ describe('root resolution', () => {
 
   it('a later entry shadows one Tag of a multi-Tag Layer; the Layer still provides the rest', async () => {
     let built = 0
-    const Both = declareLayer(Layer.effectContext(Effect.sync(() => (built++, Context.make(Db, 'd').pipe(Context.add(Repo, 'r'))))), {})
+    const Both = declareLayer(
+      Layer.effectContext(Effect.sync(() => (built++, Context.make(Db, 'd').pipe(Context.add(Repo, 'r'))))),
+      {},
+    )
     const c = await ctx([module({ name: 'Lib', entries: [Both] }), service(Db, {}, () => Effect.succeed('local'))])
     expect([Context.get(c, Db), Context.get(c, Repo)]).toEqual(['local', 'r'])
     expect(built).toBe(1)
@@ -60,8 +87,17 @@ describe('root resolution', () => {
 
   it('diamond whose shared module provides a Tag is built once', async () => {
     let made = 0
-    const Shared = module({ name: 'Shared', entries: [service(Config, {}, () => Effect.sync(() => `n${++made}`))], exports: [Config] })
-    const c = await ctx([module({ name: 'App', imports: [module({ name: 'B', imports: [Shared] }), module({ name: 'C', imports: [Shared] })] })])
+    const Shared = module({
+      name: 'Shared',
+      entries: [service(Config, {}, () => Effect.sync(() => `n${++made}`))],
+      exports: [Config],
+    })
+    const c = await ctx([
+      module({
+        name: 'App',
+        imports: [module({ name: 'B', imports: [Shared] }), module({ name: 'C', imports: [Shared] })],
+      }),
+    ])
     expect(Context.get(c, Config)).toBe('n1')
     expect(made).toBe(1)
   })

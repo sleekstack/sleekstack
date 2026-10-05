@@ -25,7 +25,8 @@ describe('showcase request scopes', () => {
     const beforeLog = await logMessages()
     const results = await Promise.all(
       Array.from({ length: 20 }, (_, i) =>
-        createTask({ projectId: 'proj_1', title: `Concurrent task ${i}` } satisfies CreateTaskInput)),
+        createTask({ projectId: 'proj_1', title: `Concurrent task ${i}` } satisfies CreateTaskInput),
+      ),
     )
     for (const result of results) expect(result.ok).toBe(true)
     const taskIds = results.map((r) => (r.ok ? r.data.id : undefined))
@@ -67,7 +68,11 @@ describe('showcase request scopes', () => {
 
   it('adding a comment to an unknown task id is rejected with a descriptive error', async () => {
     const { addComment } = await import('../delivery/actions')
-    const result = await addComment({ taskId: 'no-such-task', body: 'hi', authorId: 'user_1' } satisfies AddCommentInput)
+    const result = await addComment({
+      taskId: 'no-such-task',
+      body: 'hi',
+      authorId: 'user_1',
+    } satisfies AddCommentInput)
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.error).toMatch(/unknown task id/i)
   })
@@ -99,7 +104,13 @@ describe('showcase request scopes', () => {
       Effect.flatMap(BoardStore, (store) =>
         store.transaction((tx) =>
           Effect.zipRight(
-            tx.createTask({ id: 'task_half', projectId: 'proj_1', title: 'Half-applied', status: 'todo', createdAt: 0 }),
+            tx.createTask({
+              id: 'task_half',
+              projectId: 'proj_1',
+              title: 'Half-applied',
+              status: 'todo',
+              createdAt: 0,
+            }),
             tx.moveTask('no-such-task', 'done'),
           ),
         ),
@@ -123,7 +134,10 @@ describe('showcase request scopes', () => {
   it('act maps a DomainError to { ok: false } and rejects on a defect', async () => {
     const { act } = await import('../delivery/act.server')
     const { InvalidInput } = await import('../domain/errors')
-    await expect(act(() => Effect.fail(new InvalidInput({ message: 'nope' })))(undefined)).resolves.toEqual({ ok: false, error: 'nope' })
+    await expect(act(() => Effect.fail(new InvalidInput({ message: 'nope' })))(undefined)).resolves.toEqual({
+      ok: false,
+      error: 'nope',
+    })
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
       await expect(act(() => Effect.die('act-defect'))(undefined)).rejects.toThrow()

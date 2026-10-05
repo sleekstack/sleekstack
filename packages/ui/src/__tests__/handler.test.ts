@@ -4,7 +4,20 @@ import { Effect, Layer, Schema } from 'effect'
 import { createElement } from 'react'
 import { describe, expect, it } from 'vitest'
 import { jsx } from '../jsx-runtime'
-import { bind, defineHandler, fromReact, DuplicateBindKey, DuplicateHandler, el, fragment, mount, on, renderToString, UnsupportedAtom, UnsupportedEvent } from '../index'
+import {
+  bind,
+  defineHandler,
+  fromReact,
+  DuplicateBindKey,
+  DuplicateHandler,
+  el,
+  fragment,
+  mount,
+  on,
+  renderToString,
+  UnsupportedAtom,
+  UnsupportedEvent,
+} from '../index'
 
 const count = Atom.serializable(Atom.make(3), { key: 'count', schema: Schema.Number })
 const inc = defineHandler('inc', () => Effect.void, { preventDefault: true, stopPropagation: true })
@@ -13,7 +26,12 @@ const render = (tree: ReturnType<typeof el>) => renderToString(Effect.succeed(tr
 
 describe('resumable server render', () => {
   it('emits handler, flag and bind attributes plus one manifest', async () => {
-    const tree = fragment(on(el('button', { type: 'button' }, 'add'), { click: inc, keydown: log }), bind(count), on(el('a'), { click: inc }), bind(count))
+    const tree = fragment(
+      on(el('button', { type: 'button' }, 'add'), { click: inc, keydown: log }),
+      bind(count),
+      on(el('a'), { click: inc }),
+      bind(count),
+    )
     expect(await render(tree)).toBe(
       '<button type="button" data-sleek-on-click="inc" data-sleek-pd-click data-sleek-sp-click data-sleek-on-keydown="log">add</button>' +
         '<sleek-bind data-sleek-bind="count">3</sleek-bind>' +
@@ -36,15 +54,38 @@ describe('resumable server render', () => {
   })
 
   it.each([
-    ['DuplicateHandler', fragment(on(el('a'), { click: inc }), on(el('b'), { click: defineHandler('inc', () => Effect.void) })), DuplicateHandler],
-    ['DuplicateBindKey', fragment(bind(count), bind(Atom.serializable(Atom.make(1), { key: 'count', schema: Schema.Number }))), DuplicateBindKey],
-    ['UnsupportedEvent on a raw node', { _tag: 'Element', tag: 'a', attrs: {}, children: [], on: { focus: inc } } as const, UnsupportedEvent],
+    [
+      'DuplicateHandler',
+      fragment(on(el('a'), { click: inc }), on(el('b'), { click: defineHandler('inc', () => Effect.void) })),
+      DuplicateHandler,
+    ],
+    [
+      'DuplicateBindKey',
+      fragment(bind(count), bind(Atom.serializable(Atom.make(1), { key: 'count', schema: Schema.Number }))),
+      DuplicateBindKey,
+    ],
+    [
+      'UnsupportedEvent on a raw node',
+      { _tag: 'Element', tag: 'a', attrs: {}, children: [], on: { focus: inc } } as const,
+      UnsupportedEvent,
+    ],
   ])('rejects %s', async (_, tree, error) => {
     await expect(render(tree)).rejects.toBeInstanceOf(error)
   })
 
   it('on() rejects non-bubbling events', () => {
-    for (const event of ['focus', 'blur', 'mouseenter', 'mouseleave', 'load', 'scroll', 'invalid', 'play', 'close', 'onclick'])
+    for (const event of [
+      'focus',
+      'blur',
+      'mouseenter',
+      'mouseleave',
+      'load',
+      'scroll',
+      'invalid',
+      'play',
+      'close',
+      'onclick',
+    ])
       expect(() => on(el('a'), { [event]: inc })).toThrow(UnsupportedEvent)
   })
 
@@ -58,12 +99,18 @@ describe('resumable server render', () => {
   })
 
   it('rejects handler ids and bind keys that do not round-trip through an attribute', async () => {
-    await expect(render(on(el('a'), { click: defineHandler('a\rb', () => Effect.void) }))).rejects.toThrow('Invalid handler id')
-    await expect(render(bind(Atom.serializable(Atom.make(0), { key: 'a\u0000', schema: Schema.Number })))).rejects.toThrow('Invalid bind key')
+    await expect(render(on(el('a'), { click: defineHandler('a\rb', () => Effect.void) }))).rejects.toThrow(
+      'Invalid handler id',
+    )
+    await expect(
+      render(bind(Atom.serializable(Atom.make(0), { key: 'a\u0000', schema: Schema.Number }))),
+    ).rejects.toThrow('Invalid bind key')
   })
 
   it('a guest cannot forge data-sleek-* attributes', async () => {
-    const raw = fromReact(() => createElement('i', { dangerouslySetInnerHTML: { __html: '<b/data-sleek-on-click=inc>' } }))
+    const raw = fromReact(() =>
+      createElement('i', { dangerouslySetInnerHTML: { __html: '<b/data-sleek-on-click=inc>' } }),
+    )
     for (const Forge of [fromReact(() => createElement('b', { 'data-sleek-on-click': 'inc' })), raw]) {
       const errors: Array<unknown> = []
       const html = await renderToString(Forge({}), { layer: Layer.empty, onError: (c) => errors.push(c) })
@@ -79,21 +126,31 @@ describe('resumable server render', () => {
 
   it('mount renders Bind as static text and ignores on', async () => {
     const container = document.createElement('div')
-    const m = await mount(Effect.succeed(fragment(on(el('button', {}, 'add'), { click: inc }), bind(count))), { layer: Layer.empty, container })
+    const m = await mount(Effect.succeed(fragment(on(el('button', {}, 'add'), { click: inc }), bind(count))), {
+      layer: Layer.empty,
+      container,
+    })
     expect(container.innerHTML).toBe('<button>add</button>3')
     await m.dispose()
   })
 
   it('JSX: a defineHandler value on onXxx and an atom child render the same HTML as on() and bind()', async () => {
-    const viaJsx = await renderToString(jsx('div', { children: [jsx('button', { onClick: inc, onKeyDown: log, children: 'add' }), count] }), { layer: Layer.empty })
+    const viaJsx = await renderToString(
+      jsx('div', { children: [jsx('button', { onClick: inc, onKeyDown: log, children: 'add' }), count] }),
+      { layer: Layer.empty },
+    )
     const viaNodes = await render(el('div', {}, on(el('button', {}, 'add'), { click: inc, keydown: log }), bind(count)))
     expect(viaJsx).toBe(viaNodes)
     expect(viaJsx).toContain('data-sleek-on-keydown="log"')
   })
 
   it('JSX: an onXxx closure stays an event closure, and a bad event name still throws', async () => {
-    const closure = await renderToString(jsx('button', { onClick: () => Effect.void, children: 'x' }), { layer: Layer.empty })
+    const closure = await renderToString(jsx('button', { onClick: () => Effect.void, children: 'x' }), {
+      layer: Layer.empty,
+    })
     expect(closure).toBe('<button>x</button>')
-    await expect(renderToString(jsx('button', { onFocus: inc }), { layer: Layer.empty })).rejects.toBeInstanceOf(UnsupportedEvent)
+    await expect(renderToString(jsx('button', { onFocus: inc }), { layer: Layer.empty })).rejects.toBeInstanceOf(
+      UnsupportedEvent,
+    )
   })
 })

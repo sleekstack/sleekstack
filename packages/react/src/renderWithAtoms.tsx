@@ -6,7 +6,12 @@
  */
 
 import React from 'react'
-import { renderToPipeableStream, renderToString, type PipeableStream, type RenderToPipeableStreamOptions } from 'react-dom/server'
+import {
+  renderToPipeableStream,
+  renderToString,
+  type PipeableStream,
+  type RenderToPipeableStreamOptions,
+} from 'react-dom/server'
 import { RegistryContext, type RequestRegistry } from './context'
 import { closeRegistry } from './managedScope'
 
@@ -46,8 +51,14 @@ const renderString = async (tree: React.ReactNode, registry: RequestRegistry): P
  * ```
  */
 export function renderWithAtoms(element: React.ReactNode): Promise<string>
-export function renderWithAtoms(element: React.ReactNode, options: { readonly stream: RenderToPipeableStreamOptions }): RenderWithAtomsStream
-export function renderWithAtoms(element: React.ReactNode, options?: { readonly stream: RenderToPipeableStreamOptions }): Promise<string> | RenderWithAtomsStream {
+export function renderWithAtoms(
+  element: React.ReactNode,
+  options: { readonly stream: RenderToPipeableStreamOptions },
+): RenderWithAtomsStream
+export function renderWithAtoms(
+  element: React.ReactNode,
+  options?: { readonly stream: RenderToPipeableStreamOptions },
+): Promise<string> | RenderWithAtomsStream {
   const registry: RequestRegistry = { scopes: new Map(), closers: [] }
   const tree = <RegistryContext.Provider value={registry}>{element}</RegistryContext.Provider>
   if (!options) return renderString(tree, registry)
@@ -58,7 +69,13 @@ export function renderWithAtoms(element: React.ReactNode, options?: { readonly s
   const close = () => void closeRegistry(registry).then(done)
   const stream = renderToPipeableStream(tree, {
     ...options.stream,
-    onShellError: (e) => { try { onShellError?.(e) } finally { close() } },
+    onShellError: (e) => {
+      try {
+        onShellError?.(e)
+      } finally {
+        close()
+      }
+    },
   })
   return {
     closed,
@@ -70,6 +87,9 @@ export function renderWithAtoms(element: React.ReactNode, options?: { readonly s
       events.on('error', close)
       return stream.pipe(destination)
     },
-    abort: (reason) => { stream.abort(reason); close() },
+    abort: (reason) => {
+      stream.abort(reason)
+      close()
+    },
   }
 }

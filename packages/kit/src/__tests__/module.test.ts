@@ -18,7 +18,13 @@ describe('module', () => {
   it('provide order does not matter for array deps', async () => {
     const dep = layer(B, (x) => `b${x}`, [A])
     expect((await boot(module({ name: 'App', provide: [dep, a] }))).get(B)).toBe('ba')
-    const { get } = await boot(module({ name: 'App', provide: [layer(B, (x) => `b${x}`, [A])], imports: [module({ name: 'Lib', provide: [a] })] }))
+    const { get } = await boot(
+      module({
+        name: 'App',
+        provide: [layer(B, (x) => `b${x}`, [A])],
+        imports: [module({ name: 'Lib', provide: [a] })],
+      }),
+    )
     expect(get(B)).toBe('ba')
   })
 })

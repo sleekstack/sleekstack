@@ -23,11 +23,21 @@ const measure = async (entry: string, source = false) => {
     define: { 'process.env.NODE_ENV': '"production"' },
     build: { write: false, minify: true, lib: { entry: path.join(__dirname, '../src', entry), formats: ['es'] } },
   })
-  const chunks = (Array.isArray(out) ? out : [out]).flatMap((o) => ('output' in o ? o.output : [])).filter((c) => c.type === 'chunk')
+  const chunks = (Array.isArray(out) ? out : [out])
+    .flatMap((o) => ('output' in o ? o.output : []))
+    .filter((c) => c.type === 'chunk')
   const main = chunks.find((c) => c.isEntry)!
   const eager = [main, ...main.imports.map((f) => chunks.find((c) => c.fileName === f)!)].map((c) => c.code).join('\n')
-  const lazy = chunks.filter((c) => c !== main && !main.imports.includes(c.fileName)).map((c) => c.code).join('\n')
-  return { code: chunks.map((c) => c.code).join('\n'), min: Buffer.byteLength(eager), gz: gzipSync(eager).length, lazyGz: lazy ? gzipSync(lazy).length : 0 }
+  const lazy = chunks
+    .filter((c) => c !== main && !main.imports.includes(c.fileName))
+    .map((c) => c.code)
+    .join('\n')
+  return {
+    code: chunks.map((c) => c.code).join('\n'),
+    min: Buffer.byteLength(eager),
+    gz: gzipSync(eager).length,
+    lazyGz: lazy ? gzipSync(lazy).length : 0,
+  }
 }
 
 // Gzip limits on the built packages: the ADR 0022 measurement plus about 5%.
@@ -42,7 +52,9 @@ describe('size budget (ADR 0022)', () => {
     it(`${name} stays within ${limit} B gzip`, { timeout: 60_000 }, async () => {
       const dist = await measure(entry)
       const src = await measure(entry, true)
-      console.log(`${name}: dist ${dist.min} B min, ${dist.gz} B gzip (lazy ${dist.lazyGz} B); source ${src.min} B min, ${src.gz} B gzip`)
+      console.log(
+        `${name}: dist ${dist.min} B min, ${dist.gz} B gzip (lazy ${dist.lazyGz} B); source ${src.min} B min, ${src.gz} B gzip`,
+      )
       expect(dist.gz).toBeLessThanOrEqual(limit)
     })
 

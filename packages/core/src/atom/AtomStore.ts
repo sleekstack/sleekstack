@@ -57,7 +57,11 @@ export interface AtomStore {
   /** Interrupts every build, runs every finalizer, and drops all nodes. */
   readonly dispose: () => Promise<void>
   /** @internal Read-only snapshot of the built atoms (devtools); never builds, reads or subscribes. Empty once disposed. */
-  readonly inspect: () => ReadonlyArray<{ readonly atom: Atom<unknown>; readonly label: string; readonly value: unknown }>
+  readonly inspect: () => ReadonlyArray<{
+    readonly atom: Atom<unknown>
+    readonly label: string
+    readonly value: unknown
+  }>
   /** @internal Records seeds for serializable atoms; use {@link hydrate}. */
   readonly hydrate: (snapshot: Snapshot) => void
 }
@@ -129,8 +133,19 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
         throw new DuplicateAtomKey({ key, message: `Two serializable atoms share the key "${key}"` })
       }
       node = {
-        atom, state: 'uninit', value: undefined, version: 0, notified: 0, computing: false, deps: new Map(),
-        children: new Set(), listeners: new Set(), retains: 0, finalizers: [], removalQueued: false, bucket: undefined,
+        atom,
+        state: 'uninit',
+        value: undefined,
+        version: 0,
+        notified: 0,
+        computing: false,
+        deps: new Map(),
+        children: new Set(),
+        listeners: new Set(),
+        retains: 0,
+        finalizers: [],
+        removalQueued: false,
+        bucket: undefined,
       }
       // A value atom starts valid with its constant (as its first pull would set it), unless a seed is waiting for it.
       if (atom.initial !== undefined && !(key !== undefined && seeds.has(key))) {
@@ -149,7 +164,11 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
     const fs = node.finalizers
     node.finalizers = []
     for (let i = fs.length - 1; i >= 0; i--) {
-      try { fs[i]!() } catch (e) { onFinalizerError(e) }
+      try {
+        fs[i]!()
+      } catch (e) {
+        onFinalizerError(e)
+      }
     }
   }
 
@@ -175,7 +194,11 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
       for (const node of batch) {
         // nodes holding a build (fibers, finalizers) are pulled too, so invalidation interrupts them
         if ((node.listeners.size === 0 && node.finalizers.length === 0) || nodes.get(node.atom) !== node) continue
-        try { pull(node) } catch { /* listeners re-read and see the error */ }
+        try {
+          pull(node)
+        } catch {
+          /* listeners re-read and see the error */
+        }
         if (node.version === node.notified && node.state === 'valid') continue
         node.notified = node.version
         for (const l of (node.lsnap ??= [...node.listeners])) l()
@@ -232,11 +255,15 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
       setSelf: (value: unknown) => setValue(node, value),
       refresh: (atom: Atom<any>) => refresh(atom),
       refreshSelf: () => invalidate(node),
-      addFinalizer: (f: () => void) => { node.finalizers.push(f) },
+      addFinalizer: (f: () => void) => {
+        node.finalizers.push(f)
+      },
       fork: <A, E>(effect: Effect.Effect<A, E, any>, onExit: (exit: Exit.Exit<A, E>) => void) => {
         if (options.inert) return undefined
         const scope = Effect.runSync(Scope.make())
-        const fiber = Effect.runFork(wrapBuild(effect, node.atom).pipe(Scope.extend(scope), Effect.provide(context)) as Effect.Effect<A, E>)
+        const fiber = Effect.runFork(
+          wrapBuild(effect, node.atom).pipe(Scope.extend(scope), Effect.provide(context)) as Effect.Effect<A, E>,
+        )
         let active = true
         node.finalizers.push(() => {
           active = false
@@ -246,17 +273,24 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
           }
           const done: Promise<void> = Effect.runPromise(
             Fiber.interrupt(fiber).pipe(
-              Effect.tap((exit) => Effect.sync(() => { if (running) report(exit) })),
+              Effect.tap((exit) =>
+                Effect.sync(() => {
+                  if (running) report(exit)
+                }),
+              ),
               Effect.zipRight(Effect.exit(Scope.close(scope, Exit.void))),
               Effect.tap((exit) => Effect.sync(() => report(exit))),
             ),
-          ).then(() => {})
+          )
+            .then(() => {})
             .finally(() => closing.delete(done))
           closing.add(done)
         })
         const exit = fiber.unsafePoll()
         if (exit) return exit
-        fiber.addObserver((exit) => { if (active) onExit(exit) })
+        fiber.addObserver((exit) => {
+          if (active) onExit(exit)
+        })
         return undefined
       },
     })
@@ -275,9 +309,16 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
     } finally {
       node.computing = false
       stack.pop()
-      for (const parent of previous.keys()) if (!node.deps.has(parent)) { parent.children.delete(node); scheduleRemoval(parent) }
+      for (const parent of previous.keys())
+        if (!node.deps.has(parent)) {
+          parent.children.delete(node)
+          scheduleRemoval(parent)
+        }
     }
-    if (node.state === 'uninit' || differs(node.value, value)) { node.value = value; node.version++ }
+    if (node.state === 'uninit' || differs(node.value, value)) {
+      node.value = value
+      node.version++
+    }
     node.state = 'valid'
   }
 
@@ -305,9 +346,15 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
     if (node.state === 'check') {
       for (const [parent, version] of node.deps) {
         pull(parent)
-        if (parent.version !== version) { node.state = 'dirty'; break }
+        if (parent.version !== version) {
+          node.state = 'dirty'
+          break
+        }
       }
-      if (node.state === 'check') { node.state = 'valid'; return }
+      if (node.state === 'check') {
+        node.state = 'valid'
+        return
+      }
     }
     recompute(node)
   }
@@ -319,7 +366,10 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
     if (nodes.get(node.atom) !== node) return
     nodes.delete(node.atom)
     runFinalizers(node)
-    for (const parent of node.deps.keys()) { parent.children.delete(node); scheduleRemoval(parent) }
+    for (const parent of node.deps.keys()) {
+      parent.children.delete(node)
+      scheduleRemoval(parent)
+    }
   }
 
   const cancelRemoval = (node: Node) => {
@@ -354,7 +404,10 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
         nodes: new Set<Node>(),
         timer: setTimeout(() => {
           buckets.delete(at)
-          for (const n of created.nodes) { n.bucket = undefined; if (removable(n)) remove(n) }
+          for (const n of created.nodes) {
+            n.bucket = undefined
+            if (removable(n)) remove(n)
+          }
         }, at - Date.now()),
       }
       bucket = created
@@ -379,11 +432,21 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
 
   const set = <R, W>(atom: Writable<R, W>, value: W) => {
     const node = ensure(atom)
-    if (node.state !== 'valid') try { pull(node) } catch { /* the write may replace a failing value */ }
+    if (node.state !== 'valid')
+      try {
+        pull(node)
+      } catch {
+        /* the write may replace a failing value */
+      }
     // A value atom's write is `setSelf`, one step that flushes itself: no write context, no batch.
     if (atom.initial !== undefined) return setValue(node, value)
     batchDepth++
-    try { atom.write((node.wctx ??= writeContext<R>(node)) as WriteContext<R>, value) } finally { batchDepth--; flush() }
+    try {
+      atom.write((node.wctx ??= writeContext<R>(node)) as WriteContext<R>, value)
+    } finally {
+      batchDepth--
+      flush()
+    }
   }
 
   const subscribe = <A>(atom: Atom<A>, listener: () => void, opts?: { readonly immediate?: boolean }) => {
@@ -392,10 +455,18 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
     node.listeners.add(l)
     node.lsnap = undefined
     cancelRemoval(node)
-    try { pull(node) } catch { /* surfaced on read */ }
+    try {
+      pull(node)
+    } catch {
+      /* surfaced on read */
+    }
     node.notified = node.version
     if (opts?.immediate) l()
-    return () => { node.listeners.delete(l); node.lsnap = undefined; scheduleRemoval(node) }
+    return () => {
+      node.listeners.delete(l)
+      node.lsnap = undefined
+      scheduleRemoval(node)
+    }
   }
 
   const refresh = <A>(atom: Atom<A>) => {
@@ -405,7 +476,12 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
 
   const batch = (f: () => void) => {
     batchDepth++
-    try { f() } finally { batchDepth--; flush() }
+    try {
+      f()
+    } finally {
+      batchDepth--
+      flush()
+    }
   }
 
   const hydrateStore = (snapshot: Snapshot) => {
@@ -447,7 +523,12 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
     },
     refresh,
     batch,
-    inspect: () => disposed ? [] : [...nodes.values()].filter((n) => n.state !== 'uninit').map((n) => ({ atom: n.atom, label: n.atom.label, value: n.value })),
+    inspect: () =>
+      disposed
+        ? []
+        : [...nodes.values()]
+            .filter((n) => n.state !== 'uninit')
+            .map((n) => ({ atom: n.atom, label: n.atom.label, value: n.value })),
     hydrate: hydrateStore,
     dispose: async () => {
       disposed = true
@@ -455,7 +536,10 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
       seeds.clear()
       for (const { timer } of buckets.values()) clearTimeout(timer)
       buckets.clear()
-      for (const node of [...nodes.values()]) { nodes.delete(node.atom); runFinalizers(node) }
+      for (const node of [...nodes.values()]) {
+        nodes.delete(node.atom)
+        runFinalizers(node)
+      }
       await Promise.all([...closing])
     },
   }

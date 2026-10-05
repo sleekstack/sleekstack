@@ -1,7 +1,11 @@
 import { layer, module, tag } from '@sleekstack/kit'
 
-interface Clock { now(): number }
-interface Greeter { greet(name: string): string }
+interface Clock {
+  now(): number
+}
+interface Greeter {
+  greet(name: string): string
+}
 
 export const Clock = tag<Clock>('Clock')
 export const Greeter = tag<Greeter>('Greeter')

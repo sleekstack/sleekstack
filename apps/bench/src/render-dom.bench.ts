@@ -10,14 +10,32 @@ import { createContext, createElement as h, useContext, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { createRoot } from 'react-dom/client'
 import { bench, describe } from 'vitest'
-import { check, dataAtomRuns, dataHandlerRuns, dataRuns, itemsAfter, ROWS, rowIds, rowLabel, sleekDataTree, sleekHandlerTree, sleekTree, type Item, type TreeOptions } from './scenarios'
+import {
+  check,
+  dataAtomRuns,
+  dataHandlerRuns,
+  dataRuns,
+  itemsAfter,
+  ROWS,
+  rowIds,
+  rowLabel,
+  sleekDataTree,
+  sleekHandlerTree,
+  sleekTree,
+  type Item,
+  type TreeOptions,
+} from './scenarios'
 
 const gc = (globalThis as { gc?: () => void }).gc
 const opts = { setup: () => gc?.() }
 
 const Row = ({ i, label }: { i: number; label: (i: number) => string }) => h('li', { className: 'row' }, label(i))
 const reactTree = (first?: () => unknown, { ids = rowIds, label = rowLabel }: TreeOptions = {}) =>
-  h('ul', null, ids.map((i) => (i === 0 && first ? h(first as any, { key: i }) : h(Row, { key: i, i, label }))))
+  h(
+    'ul',
+    null,
+    ids.map((i) => (i === 0 && first ? h(first as any, { key: i }) : h(Row, { key: i, i, label }))),
+  )
 
 // ---- first mount (+ unmount, so every iteration starts from an empty container) ----
 
@@ -53,7 +71,8 @@ const sleekUpdate = async () => {
   const container = document.createElement('div')
   const store = makeAtomStore()
   const count = Atom.make(0)
-  const Counter = () => Effect.flatMap(useAtomValue(count), (n) => jsx('li', { className: 'row', children: `Item ${n}` }))
+  const Counter = () =>
+    Effect.flatMap(useAtomValue(count), (n) => jsx('li', { className: 'row', children: `Item ${n}` }))
   await mount(sleekTree(jsx, Counter), { layer: Layer.empty, container, store })
   let n = 0
   return { container, run: async () => (store.set(count, ++n), await settle(), container.textContent) }
@@ -142,7 +161,11 @@ const reactKeyedData = () => {
   const List = () => {
     const [n, s] = useState(0)
     set = s
-    return h('ul', null, itemsAfter(n).map((item) => h(ReactDataRow, { key: item.id, item })))
+    return h(
+      'ul',
+      null,
+      itemsAfter(n).map((item) => h(ReactDataRow, { key: item.id, item })),
+    )
   }
   flushSync(() => createRoot(container).render(h(List)))
   let n = 0
@@ -158,14 +181,21 @@ const sleekKeyedHandler = async () => {
   let n = 0
   return { container, run: async () => (store.set(state, ++n), await tick(), container.textContent) }
 }
-const ReactHandlerRow = ({ item, onPick }: { item: Item; onPick: () => void }) => (dataHandlerRuns.react++, h('li', { className: 'row', onClick: onPick }, item.label))
+const ReactHandlerRow = ({ item, onPick }: { item: Item; onPick: () => void }) => (
+  dataHandlerRuns.react++,
+  h('li', { className: 'row', onClick: onPick }, item.label)
+)
 const reactKeyedHandler = () => {
   const container = document.createElement('div')
   let set!: (n: number) => void
   const List = () => {
     const [n, s] = useState(0)
     set = s
-    return h('ul', null, itemsAfter(n).map((item) => h(ReactHandlerRow, { key: item.id, item, onPick: () => void 0 })))
+    return h(
+      'ul',
+      null,
+      itemsAfter(n).map((item) => h(ReactHandlerRow, { key: item.id, item, onPick: () => void 0 })),
+    )
   }
   flushSync(() => createRoot(container).render(h(List)))
   let n = 0
@@ -179,8 +209,17 @@ const sleekKeyedAtom = async () => {
   const state = Atom.make(0)
   const selected = Atom.make(-1)
   const AtomRow = ({ item }: { item: Item }) =>
-    Effect.flatMap(useAtomValue(selected), (sel) => (dataAtomRuns.sleekstack++, jsx('li', { className: sel === item.id ? 'row selected' : 'row', children: item.label })))
-  const List = () => Effect.flatMap(useAtomValue(state), (n) => jsx('ul', { children: itemsAfter(n).map((item) => jsx(AtomRow as any, { item, key: item.id })) }))
+    Effect.flatMap(
+      useAtomValue(selected),
+      (sel) => (
+        dataAtomRuns.sleekstack++,
+        jsx('li', { className: sel === item.id ? 'row selected' : 'row', children: item.label })
+      ),
+    )
+  const List = () =>
+    Effect.flatMap(useAtomValue(state), (n) =>
+      jsx('ul', { children: itemsAfter(n).map((item) => jsx(AtomRow as any, { item, key: item.id })) }),
+    )
   await mount(jsx(List as any, {}), { layer: Layer.empty, container, store })
   let n = 0
   return { container, run: async () => (store.set(state, ++n), await tick(), container.textContent) }
@@ -197,7 +236,15 @@ const reactKeyedAtom = () => {
   const List = () => {
     const [n, s] = useState(0)
     set = s
-    return h(SelectedContext.Provider, { value: -1 }, h('ul', null, itemsAfter(n).map((item) => h(ReactAtomRow, { key: item.id, item }))))
+    return h(
+      SelectedContext.Provider,
+      { value: -1 },
+      h(
+        'ul',
+        null,
+        itemsAfter(n).map((item) => h(ReactAtomRow, { key: item.id, item })),
+      ),
+    )
   }
   flushSync(() => createRoot(container).render(h(List)))
   let n = 0
@@ -265,7 +312,13 @@ type Label = (item: Item) => string
 
 // A hook and a nested host child.
 const HookRow = ({ item, label }: { item: Item; label: Label }) =>
-  Effect.flatMap(useLocal(0), ([n]) => (missRuns.hook.sleekstack++, jsx('li', { className: 'row', children: [label(item), jsx('b', { children: n })] })))
+  Effect.flatMap(
+    useLocal(0),
+    ([n]) => (
+      missRuns.hook.sleekstack++,
+      jsx('li', { className: 'row', children: [label(item), jsx('b', { children: n })] })
+    ),
+  )
 const sleekHookMiss = async () => {
   const container = document.createElement('div')
   const store = makeAtomStore()
@@ -291,7 +344,11 @@ const reactHookMiss = () => {
     const [n, s] = useState(0)
     set = s
     const label: Label = (item) => item.label
-    return h('ul', null, itemsAfter(n).map((item) => h(ReactHookRow, { key: item.id, item, label })))
+    return h(
+      'ul',
+      null,
+      itemsAfter(n).map((item) => h(ReactHookRow, { key: item.id, item, label })),
+    )
   }
   flushSync(() => createRoot(container).render(h(List)))
   let n = 0
@@ -332,7 +389,11 @@ const reactGenMiss = () => {
     const [n, s] = useState(0)
     set = s
     const label: Label = (item) => item.label
-    return h('ul', null, itemsAfter(n).map((item) => h(ReactGenRow, { key: item.id, item, label })))
+    return h(
+      'ul',
+      null,
+      itemsAfter(n).map((item) => h(ReactGenRow, { key: item.id, item, label })),
+    )
   }
   flushSync(() => createRoot(container).render(h(List)))
   let n = 0
@@ -380,7 +441,10 @@ const sleekBound = async () => {
   const store = makeAtomStore()
   const count = Atom.make(0)
   const label = Atom.make((get) => `Item ${get(count)}`)
-  await mount(jsx('ul', { children: rowIds.map((i) => jsx('li', { className: 'row', 'data-i': i, children: label })) }), { layer: Layer.empty, container, store })
+  await mount(
+    jsx('ul', { children: rowIds.map((i) => jsx('li', { className: 'row', 'data-i': i, children: label })) }),
+    { layer: Layer.empty, container, store },
+  )
   let n = 0
   return { container, run: async () => (store.set(count, ++n), await settle(), container.textContent) }
 }
@@ -391,7 +455,11 @@ const reactBound = () => {
   const List = () => {
     const [n, s] = useState(0)
     set = s
-    return h('ul', null, rowIds.map((i) => h(Row, { key: i, i, n })))
+    return h(
+      'ul',
+      null,
+      rowIds.map((i) => h(Row, { key: i, i, n })),
+    )
   }
   flushSync(() => createRoot(container).render(h(List)))
   let n = 0

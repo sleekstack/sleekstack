@@ -40,9 +40,7 @@ type NonCallable<T> = T extends (...args: any) => any ? never : T extends abstra
 
 /** What `layer()` accepts as an implementation: a class, a (sync or async) factory, or a plain value. */
 export type Impl<T, A extends readonly unknown[]> =
-  | (new (...args: A) => T)
-  | ((...args: A) => T | Cleanup<T> | Promise<T | Cleanup<T>>)
-  | NonCallable<T>
+  (new (...args: A) => T) | ((...args: A) => T | Cleanup<T> | Promise<T | Cleanup<T>>) | NonCallable<T>
 
 const CLEANUP = Symbol('sleekstack.cleanup')
 type CleanupBox = { readonly [CLEANUP]: true; readonly service: unknown; readonly cleanup: () => unknown }
@@ -103,7 +101,8 @@ const runGenerator = (key: string, factory: () => Iterator<unknown, unknown, unk
         return Effect.fail(new LayerFailure(key, e))
       }
       if (res.done) return Effect.succeed(res.value)
-      if (!(res.value instanceof YieldWrap)) return Effect.fail(new LayerFailure(key, new Error('a layer generator must `yield*` Tags, not `yield` values')))
+      if (!(res.value instanceof YieldWrap))
+        return Effect.fail(new LayerFailure(key, new Error('a layer generator must `yield*` Tags, not `yield` values')))
       const y = yieldWrapGet(res.value) as Effect.Effect<unknown, unknown>
       return Effect.flatMap(Context.isTag(y) ? resolve(y) : y, step)
     }
@@ -142,13 +141,23 @@ const runGenerator = (key: string, factory: () => Iterator<unknown, unknown, unk
  * })
  * ```
  */
-export function layer<T, const D extends readonly AnyTag[]>(tag: TagLike<T>, impl: NoInfer<Impl<T, Services<D>>>, deps: D, opts?: LayerOptions): Layer<T>
+export function layer<T, const D extends readonly AnyTag[]>(
+  tag: TagLike<T>,
+  impl: NoInfer<Impl<T, Services<D>>>,
+  deps: D,
+  opts?: LayerOptions,
+): Layer<T>
 export function layer<T>(tag: TagLike<T>, impl: NoInfer<LayerGenerator<T>>, opts?: LayerOptions): Layer<T>
 export function layer<T>(tag: TagLike<T>, impl: NoInfer<Impl<T, []>>, deps?: undefined, opts?: LayerOptions): Layer<T>
-export function layer(tag: AnyTag, impl: unknown, depsOrOpts?: readonly AnyTag[] | LayerOptions, maybeOpts: LayerOptions = {}): Layer<unknown> {
+export function layer(
+  tag: AnyTag,
+  impl: unknown,
+  depsOrOpts?: readonly AnyTag[] | LayerOptions,
+  maybeOpts: LayerOptions = {},
+): Layer<unknown> {
   const gen = isGeneratorFunction(impl)
   const depTags = gen || !depsOrOpts ? [] : (depsOrOpts as readonly AnyTag[])
-  const opts = (gen ? depsOrOpts : maybeOpts) as LayerOptions | undefined ?? {}
+  const opts = ((gen ? depsOrOpts : maybeOpts) as LayerOptions | undefined) ?? {}
   const key = keyOf(tag)
   const run = async (resolved: readonly unknown[]): Promise<unknown> => {
     if (typeof impl !== 'function') return impl
@@ -160,23 +169,22 @@ export function layer(tag: AnyTag, impl: unknown, depsOrOpts?: readonly AnyTag[]
       ? runGenerator(key, impl as () => Iterator<unknown, unknown, unknown>)
       : Effect.tryPromise({ try: () => run(resolved), catch: (e) => new LayerFailure(key, e) })
   const requires = depTags.map(coreTag)
-  const acquire = Effect.flatMap(
-    Effect.all(requires) as unknown as Effect.Effect<readonly unknown[]>,
-    (resolved) =>
-      make(resolved).pipe(
-        Effect.flatMap((r) =>
-          isCleanup(r)
-            ? Effect.acquireRelease(Effect.succeed(r.service), () =>
-                Effect.promise(async () => {
-                  try {
-                    await r.cleanup()
-                  } catch (e) {
-                    throw new CleanupFailure(key, e)
-                  }
-                }))
-            : Effect.succeed(r),
-        ),
+  const acquire = Effect.flatMap(Effect.all(requires) as unknown as Effect.Effect<readonly unknown[]>, (resolved) =>
+    make(resolved).pipe(
+      Effect.flatMap((r) =>
+        isCleanup(r)
+          ? Effect.acquireRelease(Effect.succeed(r.service), () =>
+              Effect.promise(async () => {
+                try {
+                  await r.cleanup()
+                } catch (e) {
+                  throw new CleanupFailure(key, e)
+                }
+              }),
+            )
+          : Effect.succeed(r),
       ),
+    ),
   )
   const def = declareLayer(EffectLayer.scoped(coreTag(tag), acquire as Effect.Effect<unknown, unknown, never>), {
     attribute: false,

@@ -8,17 +8,33 @@ import 'server-only'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 
-export interface ReportNode { readonly id: string; readonly name: string; readonly lifetime: 'app' | 'request' | 'component'; readonly module: { readonly name: string } | null; readonly private: boolean; readonly shadowed: boolean }
+export interface ReportNode {
+  readonly id: string
+  readonly name: string
+  readonly lifetime: 'app' | 'request' | 'component'
+  readonly module: { readonly name: string } | null
+  readonly private: boolean
+  readonly shadowed: boolean
+}
 export interface ReportGraph {
   readonly root: string
   readonly nodes: readonly ReportNode[]
   readonly edges: readonly { readonly from: string; readonly to: string; readonly tag: string }[]
   readonly shadowing: readonly { readonly tag: string; readonly winner: string; readonly shadowed: readonly string[] }[]
 }
-export interface ReportError { readonly code: string; readonly message: string; readonly file: string; readonly line: number }
+export interface ReportError {
+  readonly code: string
+  readonly message: string
+  readonly file: string
+  readonly line: number
+}
 export interface Report {
   readonly ok: boolean
-  readonly roots: readonly { readonly root: string; readonly graph: ReportGraph; readonly errors: readonly ReportError[] }[]
+  readonly roots: readonly {
+    readonly root: string
+    readonly graph: ReportGraph
+    readonly errors: readonly ReportError[]
+  }[]
   readonly graphs: readonly ReportGraph[]
   readonly graphErrors: readonly ReportError[]
 }

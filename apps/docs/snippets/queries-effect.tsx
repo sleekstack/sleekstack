@@ -5,16 +5,24 @@ import { effectFn, QueryClientLive } from '@sleekstack/query'
 import { LayerProvider, QueryProvider } from '@sleekstack/react'
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-interface Todo { readonly id: string; readonly title: string }
-class TodoApi extends Context.Tag('TodoApi')<TodoApi, {
-  get(id: string): Effect.Effect<Todo>
-  rename(input: { id: string; title: string }): Effect.Effect<void>
-}>() {}
+interface Todo {
+  readonly id: string
+  readonly title: string
+}
+class TodoApi extends Context.Tag('TodoApi')<
+  TodoApi,
+  {
+    get(id: string): Effect.Effect<Todo>
+    rename(input: { id: string; title: string }): Effect.Effect<void>
+  }
+>() {}
 const provide = [
-  declareLayer(Layer.succeed(TodoApi, {
-    get: (id: string) => Effect.succeed({ id, title: 'Write docs' }),
-    rename: () => Effect.void,
-  })),
+  declareLayer(
+    Layer.succeed(TodoApi, {
+      get: (id: string) => Effect.succeed({ id, title: 'Write docs' }),
+      rename: () => Effect.void,
+    }),
+  ),
   // The scope's QueryClient: built with the provider, unmounted and cleared when its scope closes.
   QueryClientLive(),
 ]
@@ -32,7 +40,8 @@ function TodoView({ id }: { id: string }) {
   const { data, isPending } = useQuery(todoOptions(id))
   const rename = useMutation({
     // TanStack calls mutationFn as (variables, context); effectFn reads the client from that context.
-    mutationFn: (input: { id: string; title: string }, ctx) => effectFn(Effect.flatMap(TodoApi, (api) => api.rename(input)))(input, ctx),
+    mutationFn: (input: { id: string; title: string }, ctx) =>
+      effectFn(Effect.flatMap(TodoApi, (api) => api.rename(input)))(input, ctx),
     // Optimistic write, rolled back on error, refetched on settle: plain TanStack.
     onMutate: async (input) => {
       await client.cancelQueries({ queryKey: ['todo', input.id] })

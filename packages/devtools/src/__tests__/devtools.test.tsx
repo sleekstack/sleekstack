@@ -16,7 +16,10 @@ afterEach(() => {
 
 describe('SleekStackDevtools', () => {
   it('renders an empty state when the handler is off', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('Not Found', { status: 404 })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('Not Found', { status: 404 })),
+    )
     render(<SleekStackDevtools />)
     expect(await screen.findByText(/Devtools are off/)).not.toBeNull()
     expect(screen.getByText(/No atoms registered/)).not.toBeNull()
@@ -25,12 +28,27 @@ describe('SleekStackDevtools', () => {
   })
 
   it('shows graph, live scopes, errors and read-only atoms', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => Response.json({
-      scopes: [{ at: 0, kind: 'acquire', label: 'app' }],
-      errors: [{ at: 1, kind: 'error', label: 'defect', detail: 'boom' }],
-      live: { app: true, scopes: ['request#3'] },
-      graph: { roots: [{ root: 'app', graph: { nodes: [{ id: 'a', name: 'Store', lifetime: 'app' }], edges: [{ from: 'a', to: 'b', tag: 'Db' }] } }] },
-    })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        Response.json({
+          scopes: [{ at: 0, kind: 'acquire', label: 'app' }],
+          errors: [{ at: 1, kind: 'error', label: 'defect', detail: 'boom' }],
+          live: { app: true, scopes: ['request#3'] },
+          graph: {
+            roots: [
+              {
+                root: 'app',
+                graph: {
+                  nodes: [{ id: 'a', name: 'Store', lifetime: 'app' }],
+                  edges: [{ from: 'a', to: 'b', tag: 'Db' }],
+                },
+              },
+            ],
+          },
+        }),
+      ),
+    )
     const count = Atom.make(7)
     render(
       <LayerProvider provide={[]}>
@@ -45,13 +63,24 @@ describe('SleekStackDevtools', () => {
   })
 
   it('lists atoms of every open provider store, skips a store that throws, and drops unmounted stores', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('Not Found', { status: 404 })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('Not Found', { status: 404 })),
+    )
     const draft = Atom.make('hello')
     const Reader = () => <span>{useAtomValue(draft)}</span>
-    const provider = render(<LayerProvider provide={[]}><Reader /></LayerProvider>)
+    const provider = render(
+      <LayerProvider provide={[]}>
+        <Reader />
+      </LayerProvider>,
+    )
     await screen.findByText('hello')
     const set = (globalThis as Record<string, unknown>)[STORES_KEY] as Set<unknown>
-    const broken = { inspect: () => { throw new Error('disposed') } }
+    const broken = {
+      inspect: () => {
+        throw new Error('disposed')
+      },
+    }
     set.add(broken)
     render(<SleekStackDevtools intervalMs={20} />)
     expect(await screen.findByText(`store 1 · ${draft.label}:`, { exact: false })).not.toBeNull()
@@ -61,9 +90,16 @@ describe('SleekStackDevtools', () => {
   })
 
   it('renders a prop atom that is also in a registered store once, under its prop label', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('Not Found', { status: 404 })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('Not Found', { status: 404 })),
+    )
     const count = Atom.make(42)
-    render(<LayerProvider provide={[]}><SleekStackDevtools atoms={{ count }} intervalMs={20} /></LayerProvider>)
+    render(
+      <LayerProvider provide={[]}>
+        <SleekStackDevtools atoms={{ count }} intervalMs={20} />
+      </LayerProvider>,
+    )
     expect(await screen.findByText('42')).not.toBeNull()
     await new Promise((r) => setTimeout(r, 60)) // let the registry poll pick up the built atom
     expect(screen.getAllByText('42')).toHaveLength(1)
@@ -71,13 +107,23 @@ describe('SleekStackDevtools', () => {
   })
 
   it('hides a prop atom only in the panel provider store; the same atom in a sibling provider stays listed', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('Not Found', { status: 404 })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('Not Found', { status: 404 })),
+    )
     const count = Atom.make(5)
-    const Bump = () => { const v = useAtomValue(count); return <span>sibling {v}</span> }
+    const Bump = () => {
+      const v = useAtomValue(count)
+      return <span>sibling {v}</span>
+    }
     render(
       <>
-        <LayerProvider provide={[]}><Bump /></LayerProvider>
-        <LayerProvider provide={[]}><SleekStackDevtools atoms={{ count }} intervalMs={20} /></LayerProvider>
+        <LayerProvider provide={[]}>
+          <Bump />
+        </LayerProvider>
+        <LayerProvider provide={[]}>
+          <SleekStackDevtools atoms={{ count }} intervalMs={20} />
+        </LayerProvider>
       </>,
     )
     expect(await screen.findByText('sibling 5')).not.toBeNull()
@@ -88,19 +134,27 @@ describe('SleekStackDevtools', () => {
   })
 
   it('shows service acquire/release with scope and fiber, and links an error to its closed scope', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => Response.json({
-      disabled: false,
-      scopes: [{ at: 0, kind: 'acquire', label: 'Db', scope: 'request#2', fiber: '#7' }],
-      errors: [{ at: 1, kind: 'error', label: 'defect', detail: 'boom', scope: 'request#2' }],
-      live: { app: true, scopes: [] },
-    })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        Response.json({
+          disabled: false,
+          scopes: [{ at: 0, kind: 'acquire', label: 'Db', scope: 'request#2', fiber: '#7' }],
+          errors: [{ at: 1, kind: 'error', label: 'defect', detail: 'boom', scope: 'request#2' }],
+          live: { app: true, scopes: [] },
+        }),
+      ),
+    )
     render(<SleekStackDevtools />)
     expect(await screen.findByText('acquire Db in request#2 (#7)')).not.toBeNull()
     expect(screen.getByText('scope: request#2 (closed)')).not.toBeNull()
   })
 
   it('renders the disabled state, distinct from empty data', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ disabled: true, scopes: [], errors: [], live: { app: false, scopes: [] } })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Response.json({ disabled: true, scopes: [], errors: [], live: { app: false, scopes: [] } })),
+    )
     render(<SleekStackDevtools />)
     expect(await screen.findByText(/tracing is disabled/)).not.toBeNull()
     expect(screen.queryByText(/No errors recorded/)).toBeNull()
@@ -109,11 +163,14 @@ describe('SleekStackDevtools', () => {
   it('keeps at most one request in flight while the endpoint is slow, and aborts on unmount', async () => {
     let calls = 0
     let signal: AbortSignal | undefined
-    vi.stubGlobal('fetch', vi.fn((_url: string, init?: RequestInit) => {
-      calls++
-      signal = init?.signal ?? undefined
-      return new Promise<Response>(() => {})
-    }))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((_url: string, init?: RequestInit) => {
+        calls++
+        signal = init?.signal ?? undefined
+        return new Promise<Response>(() => {})
+      }),
+    )
     const { unmount } = render(<SleekStackDevtools intervalMs={5} />)
     await new Promise((r) => setTimeout(r, 60))
     expect(calls).toBe(1)
@@ -122,13 +179,21 @@ describe('SleekStackDevtools', () => {
   })
 
   it('treats a successful but malformed body as off', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => Response.json({})))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Response.json({})),
+    )
     render(<SleekStackDevtools />)
     expect(await screen.findByText(/Devtools are off/)).not.toBeNull()
   })
 
   it('a body whose graph roots are malformed shows the no-graph state, not a crash', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ scopes: [], errors: [], live: { app: true, scopes: [] }, graph: { roots: [{}] } })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        Response.json({ scopes: [], errors: [], live: { app: true, scopes: [] }, graph: { roots: [{}] } }),
+      ),
+    )
     render(<SleekStackDevtools />)
     expect(await screen.findByText(/No graph report supplied/)).not.toBeNull()
   })
@@ -137,10 +202,15 @@ describe('SleekStackDevtools', () => {
     vi.useFakeTimers()
     try {
       let calls = 0
-      vi.stubGlobal('fetch', vi.fn((_u: string, init?: RequestInit) => {
-        calls++
-        return new Promise<Response>((_, reject) => init?.signal?.addEventListener('abort', () => reject(new Error('aborted'))))
-      }))
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((_u: string, init?: RequestInit) => {
+          calls++
+          return new Promise<Response>((_, reject) =>
+            init?.signal?.addEventListener('abort', () => reject(new Error('aborted'))),
+          )
+        }),
+      )
       render(<SleekStackDevtools intervalMs={10} />)
       await vi.advanceTimersByTimeAsync(5000 + 20)
       expect(calls).toBeGreaterThanOrEqual(2)
@@ -159,43 +229,80 @@ describe('SleekStackDevtools', () => {
   })
 
   it('a body with a null error entry is off, not a crash', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ scopes: [], errors: [null], live: { app: true, scopes: [] } })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Response.json({ scopes: [], errors: [null], live: { app: true, scopes: [] } })),
+    )
     render(<SleekStackDevtools />)
     expect(await screen.findByText(/Devtools are off/)).not.toBeNull()
   })
 
   it('a body with an object-valued error detail or non-boolean live.app is off', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ scopes: [], errors: [{ at: 1, kind: 'error', label: 'x', detail: {} }], live: { app: true, scopes: [] } })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        Response.json({
+          scopes: [],
+          errors: [{ at: 1, kind: 'error', label: 'x', detail: {} }],
+          live: { app: true, scopes: [] },
+        }),
+      ),
+    )
     const first = render(<SleekStackDevtools />)
     expect(await screen.findByText(/Devtools are off/)).not.toBeNull()
     first.unmount()
-    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ scopes: [], errors: [], live: { scopes: [] } })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Response.json({ scopes: [], errors: [], live: { scopes: [] } })),
+    )
     render(<SleekStackDevtools />)
     expect(await screen.findByText(/Devtools are off/)).not.toBeNull()
   })
 
   it('Queries tab lists the QueryCache entries and events of the scope client', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('Not Found', { status: 404 })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('Not Found', { status: 404 })),
+    )
     let client: typeof QueryClientTag.Service | undefined
     const Probe = () => {
       client = useService(QueryClientTag)
       return null
     }
-    render(<LayerProvider provide={[QueryClientLive()]}><Probe /><SleekStackDevtools intervalMs={20} /></LayerProvider>)
+    render(
+      <LayerProvider provide={[QueryClientLive()]}>
+        <Probe />
+        <SleekStackDevtools intervalMs={20} />
+      </LayerProvider>,
+    )
     expect(await screen.findByText(/No queries recorded/)).not.toBeNull()
     await client!.fetchQuery({ queryKey: ['todo', 't1'], queryFn: async () => 'title t1' })
     const entry = await screen.findByText(/success, 0 observers, updated \d{4}-/)
     expect(entry.textContent).toContain('["todo","t1"]')
     for (const e of ['added', 'fetching', 'success']) expect(screen.getByText(`${e} ["todo","t1"]`)).not.toBeNull()
-    await client!.fetchQuery({ queryKey: ['bad'], queryFn: async () => { throw new Error('nope') } }).catch(() => {})
+    await client!
+      .fetchQuery({
+        queryKey: ['bad'],
+        queryFn: async () => {
+          throw new Error('nope')
+        },
+      })
+      .catch(() => {})
     expect(await screen.findByText('failure ["bad"]')).not.toBeNull()
     client!.removeQueries({ queryKey: ['todo', 't1'] })
     expect(await screen.findByText('removed ["todo","t1"]')).not.toBeNull()
   })
 
   it('Queries tab shows the empty state without a client in scope and nothing in production', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('Not Found', { status: 404 })))
-    const first = render(<LayerProvider provide={[]}><SleekStackDevtools /></LayerProvider>)
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('Not Found', { status: 404 })),
+    )
+    const first = render(
+      <LayerProvider provide={[]}>
+        <SleekStackDevtools />
+      </LayerProvider>,
+    )
     expect(await screen.findByText(/No queries recorded/)).not.toBeNull()
     first.unmount()
     vi.stubEnv('NODE_ENV', 'production')
@@ -208,15 +315,26 @@ describe('SleekStackDevtools', () => {
   })
 
   it('Queries tab rethrows a client layer failure instead of showing the empty state', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('Not Found', { status: 404 })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('Not Found', { status: 404 })),
+    )
     vi.spyOn(console, 'error').mockImplementation(() => {})
     class Boundary extends Component<{ children: ReactNode }, { error?: unknown }> {
       override state: { error?: unknown } = {}
       static getDerivedStateFromError = (error: unknown) => ({ error })
       override render = () => (this.state.error ? <p>app boundary: {String(this.state.error)}</p> : this.props.children)
     }
-    const failing = QueryClientLive(() => { throw new Error('config broke') })
-    render(<Boundary><LayerProvider provide={[failing]}><SleekStackDevtools /></LayerProvider></Boundary>)
+    const failing = QueryClientLive(() => {
+      throw new Error('config broke')
+    })
+    render(
+      <Boundary>
+        <LayerProvider provide={[failing]}>
+          <SleekStackDevtools />
+        </LayerProvider>
+      </Boundary>,
+    )
     expect(await screen.findByText(/app boundary: .*config broke/)).not.toBeNull()
   })
 })

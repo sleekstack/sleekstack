@@ -19,13 +19,24 @@ const Lib = module({ name: 'Lib', provide: [layer(Dep, 1)], exports: [] })
 let caught: unknown
 class Boundary extends Component<{ children: ReactNode }, { error?: unknown }> {
   state: { error?: unknown } = {}
-  static getDerivedStateFromError(error: unknown) { caught = error; return { error } }
-  render() { return this.state.error ? null : this.props.children }
+  static getDerivedStateFromError(error: unknown) {
+    caught = error
+    return { error }
+  }
+  render() {
+    return this.state.error ? null : this.props.children
+  }
 }
 const inReact = async (el: ReactNode, provide: never) => {
   caught = undefined
   vi.spyOn(console, 'error').mockImplementation(() => {})
-  render(<Boundary><Suspense fallback={null}><LayerProvider provide={provide}>{el}</LayerProvider></Suspense></Boundary>)
+  render(
+    <Boundary>
+      <Suspense fallback={null}>
+        <LayerProvider provide={provide}>{el}</LayerProvider>
+      </Suspense>
+    </Boundary>,
+  )
   await vi.waitFor(() => expect(caught).toBeDefined())
   vi.restoreAllMocks()
   return caught as SleekStackError
@@ -39,11 +50,24 @@ const boundaries: Record<string, (provide: never) => Promise<SleekStackError>> =
   'kit atoms': (p) => inReact(<ReadAtom a={atom((d) => d, [Dep])} />, p),
   'kit next': async (p) => {
     configureRuntime({ provide: p })
-    return runOperation(function* () { return yield* Dep }).then(() => { throw new Error('resolved') }, (e) => e)
+    return runOperation(function* () {
+      return yield* Dep
+    }).then(
+      () => {
+        throw new Error('resolved')
+      },
+      (e) => e,
+    )
   },
   AtomStore: async (p) => {
     const app = await Effect.runPromise(makeAppScope(unwrap(p)))
-    const r = atomStoreFor(app).get(CoreAtom.make(Effect.gen(function* () { return yield* coreTag(Dep) })))
+    const r = atomStoreFor(app).get(
+      CoreAtom.make(
+        Effect.gen(function* () {
+          return yield* coreTag(Dep)
+        }),
+      ),
+    )
     return normalize(Result.isFailure(r) ? Option.getOrThrow(Cause.failureOption(r.cause)) : 'no failure')
   },
 }
@@ -52,7 +76,11 @@ describe('every boundary gives the canonical resolution failure', () => {
   describe.each(Object.entries(boundaries))('%s', (_, run) => {
     it('missing -> MissingDependency', async () => {
       const e = await run([] as never)
-      expect(e).toMatchObject({ name: 'SleekStackError', code: 'MissingDependency', details: { tag: 'Dep', missing: 'Dep' } })
+      expect(e).toMatchObject({
+        name: 'SleekStackError',
+        code: 'MissingDependency',
+        details: { tag: 'Dep', missing: 'Dep' },
+      })
       assert(e.code === 'MissingDependency')
       expect(e.message).toBe(`"${e.details.service}" requires "Dep", which is not provided`)
     })

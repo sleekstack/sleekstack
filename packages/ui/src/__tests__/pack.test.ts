@@ -71,21 +71,50 @@ describe('tarball consumer (R2, R4)', () => {
     const app = path.join(dir, 'app')
     run('mkdir', ['-p', path.join(app, 'src')], dir)
     const dev = ui.devDependencies
-    writeFileSync(path.join(app, 'package.json'), JSON.stringify({
-      name: 'app', private: true, type: 'module',
-      dependencies: {
-        '@sleekstack/ui': `file:${tgz.ui}`, '@sleekstack/core': `file:${tgz.core}`, '@sleekstack/query': `file:${tgz.query}`,
-        effect: dev.effect, '@tanstack/query-core': dev['@tanstack/query-core'], react: dev.react, 'react-dom': dev['react-dom'],
-      },
-      devDependencies: { jsdom: dev.jsdom, '@types/react': dev['@types/react'], typescript: '^5.9.0', esbuild: '^0.25.0' },
-    }))
+    writeFileSync(
+      path.join(app, 'package.json'),
+      JSON.stringify({
+        name: 'app',
+        private: true,
+        type: 'module',
+        dependencies: {
+          '@sleekstack/ui': `file:${tgz.ui}`,
+          '@sleekstack/core': `file:${tgz.core}`,
+          '@sleekstack/query': `file:${tgz.query}`,
+          effect: dev.effect,
+          '@tanstack/query-core': dev['@tanstack/query-core'],
+          react: dev.react,
+          'react-dom': dev['react-dom'],
+        },
+        devDependencies: {
+          jsdom: dev.jsdom,
+          '@types/react': dev['@types/react'],
+          typescript: '^5.9.0',
+          esbuild: '^0.25.0',
+        },
+      }),
+    )
     // pnpm 11 reads overrides from pnpm-workspace.yaml; packed ui depends on core/query at 0.0.1, which is not on the registry.
-    writeFileSync(path.join(app, 'pnpm-workspace.yaml'),
-      `overrides:\n  "@sleekstack/core": "file:${tgz.core}"\n  "@sleekstack/query": "file:${tgz.query}"\nallowBuilds:\n  esbuild: true\n`)
-    writeFileSync(path.join(app, 'tsconfig.json'), JSON.stringify({
-      compilerOptions: { strict: true, noEmit: true, target: 'ES2022', module: 'ESNext', moduleResolution: 'Bundler', jsx: 'react-jsx', lib: ['ES2022', 'DOM'], skipLibCheck: true },
-      include: ['src'],
-    }))
+    writeFileSync(
+      path.join(app, 'pnpm-workspace.yaml'),
+      `overrides:\n  "@sleekstack/core": "file:${tgz.core}"\n  "@sleekstack/query": "file:${tgz.query}"\nallowBuilds:\n  esbuild: true\n`,
+    )
+    writeFileSync(
+      path.join(app, 'tsconfig.json'),
+      JSON.stringify({
+        compilerOptions: {
+          strict: true,
+          noEmit: true,
+          target: 'ES2022',
+          module: 'ESNext',
+          moduleResolution: 'Bundler',
+          jsx: 'react-jsx',
+          lib: ['ES2022', 'DOM'],
+          skipLibCheck: true,
+        },
+        include: ['src'],
+      }),
+    )
     writeFileSync(path.join(app, 'src/app.tsx'), APP)
     writeFileSync(path.join(app, 'src/guest.ts'), GUEST)
     writeFileSync(path.join(app, 'run.mjs'), RUN)
@@ -103,7 +132,22 @@ describe('tarball consumer (R2, R4)', () => {
     expect(mapFile && existsSync(path.join(dist, mapFile))).toBe(true)
     expect(JSON.parse(readFileSync(path.join(dist, mapFile!), 'utf8')).sourcesContent?.[0]).toBeTruthy()
 
-    run('pnpm', ['exec', 'esbuild', 'src/app.tsx', '--bundle', '--platform=node', '--format=esm', '--outfile=out.mjs', '--external:jsdom', '--external:react', '--external:react-dom'], app)
+    run(
+      'pnpm',
+      [
+        'exec',
+        'esbuild',
+        'src/app.tsx',
+        '--bundle',
+        '--platform=node',
+        '--format=esm',
+        '--outfile=out.mjs',
+        '--external:jsdom',
+        '--external:react',
+        '--external:react-dom',
+      ],
+      app,
+    )
     const { ssr, dom } = JSON.parse(run('node', ['run.mjs'], app))
     expect(ssr).toContain('<div class="card"><h1>Ada</h1></div>')
     expect(ssr).toContain('<i>hi Bo</i>')
