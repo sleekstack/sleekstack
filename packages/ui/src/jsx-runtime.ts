@@ -36,13 +36,13 @@ const renderChildren = (c: Child): Effect.Effect<Array<Node | string>, any, any>
   for (let i = 0; i < ps.length; i++) if (typeof ps[i] !== 'string') (n++, (last = i))
   if (n === 0) return Effect.succeed(ps as Array<string>)
   if (n === 1)
-    return Effect.flatMap(ps[last] as Effect.Effect<Node | string, any, any>, (k) =>
-      Effect.succeed(ps.map((p, i) => (i === last ? k : (p as string)))),
+    return Effect.map(ps[last] as Effect.Effect<Node | string, any, any>, (k) =>
+      ps.map((p, i) => (i === last ? k : (p as string))),
     )
   const run = ps.filter((p): p is Effect.Effect<Node | string, any, any> => typeof p !== 'string')
-  return Effect.flatMap(Effect.all(run), (ks) => {
+  return Effect.map(Effect.all(run), (ks) => {
     let j = 0
-    return Effect.succeed(ps.map((p) => (typeof p === 'string' ? p : ks[j++]!)))
+    return ps.map((p) => (typeof p === 'string' ? p : ks[j++]!))
   })
 }
 
@@ -64,28 +64,29 @@ const attrs = (props: Props): Record<string, string> =>
   )
 
 // A function-valued `onXxx` prop is an event closure, not an attribute; non-function `on*` still reaches `checkAttr`.
-const isEvent = (k: string, v: unknown): v is EventBinding['run'] => typeof v === 'function' && /^on[A-Z]/.test(k)
+const ON_PROP = /^on[A-Z]/
+const isEvent = (k: string, v: unknown): v is EventBinding['run'] => typeof v === 'function' && ON_PROP.test(k)
 // A `defineHandler` value on `onXxx` is a resumable handler: it goes to the node's `on`, which `renderToString` emits as `data-sleek-on-<event>`.
-const isHandlerProp = (k: string, v: unknown): v is Handler<any, any> => /^on[A-Z]/.test(k) && isHandler(v)
-const handlers = (props: Props): Record<string, Handler<any, any>> | undefined => {
-  const entries = Object.entries(props).flatMap(([k, v]) =>
-    isHandlerProp(k, v) ? [[k.slice(2).toLowerCase(), v] as const] : [],
+const isHandlerProp = (k: string, v: unknown): v is Handler<any, any> => ON_PROP.test(k) && isHandler(v)
+const recordOrUndefined = <V>(entries: ReadonlyArray<readonly [string, V]>): Record<string, V> | undefined =>
+  entries.length ? Object.fromEntries(entries) : undefined
+const handlers = (props: Props): Record<string, Handler<any, any>> | undefined =>
+  recordOrUndefined(
+    Object.entries(props).flatMap(([k, v]) => (isHandlerProp(k, v) ? [[k.slice(2).toLowerCase(), v] as const] : [])),
   )
-  return entries.length ? Object.fromEntries(entries) : undefined
-}
 // Atom-valued props (not `children`/`key`/events) are bound: the renderer keeps the attribute current.
-const bound = (props: Props): Record<string, Atom.Atom<any>> | undefined => {
-  const entries = Object.entries(props).flatMap(([k, v]) =>
-    k !== 'children' && k !== 'key' && !/^on[A-Z]/.test(k) && Atom.isAtom(v) ? [[RENAME[k] ?? k, v] as const] : [],
+const bound = (props: Props): Record<string, Atom.Atom<any>> | undefined =>
+  recordOrUndefined(
+    Object.entries(props).flatMap(([k, v]) =>
+      k !== 'children' && k !== 'key' && !ON_PROP.test(k) && Atom.isAtom(v) ? [[RENAME[k] ?? k, v] as const] : [],
+    ),
   )
-  return entries.length ? Object.fromEntries(entries) : undefined
-}
-const events = (props: Props, context: Context.Context<any>): Record<string, EventBinding> | undefined => {
-  const entries = Object.entries(props).flatMap(([k, v]) =>
-    isEvent(k, v) ? [[k.slice(2).toLowerCase(), { run: v, context }]] : [],
+const events = (props: Props, context: Context.Context<any>): Record<string, EventBinding> | undefined =>
+  recordOrUndefined(
+    Object.entries(props).flatMap(([k, v]) =>
+      isEvent(k, v) ? [[k.slice(2).toLowerCase(), { run: v, context }] as const] : [],
+    ),
   )
-  return entries.length ? Object.fromEntries(entries) : undefined
-}
 
 const element = (type: string, props: Props, key: string | undefined): Effect.Effect<Node, any, any> => {
   const build = (kids: Array<Node | string>, ctx: Context.Context<any> | undefined): Node => {
@@ -99,9 +100,9 @@ const element = (type: string, props: Props, key: string | undefined): Effect.Ef
   // The context is only captured for event closures.
   return hasEvent(props)
     ? Effect.flatMap(Effect.context<any>(), (ctx) =>
-        Effect.flatMap(renderChildren(props.children), (kids) => Effect.succeed(build(kids, ctx))),
+        Effect.map(renderChildren(props.children), (kids) => build(kids, ctx)),
       )
-    : Effect.flatMap(renderChildren(props.children), (kids) => Effect.succeed(build(kids, undefined)))
+    : Effect.map(renderChildren(props.children), (kids) => build(kids, undefined))
 }
 const hasEvent = (props: Props): boolean => {
   for (const k in props) if (isEvent(k, props[k])) return true
@@ -120,7 +121,7 @@ const hostNode = (d: HostDescriptor, key: string | undefined): Node | undefined 
     return key === undefined ? rest : { ...rest, key }
   }
   const p = d._hp as Props
-  for (const k in p) if (k !== 'children' && (/^on[A-Z]/.test(k) || !isPrim(p[k]))) return undefined
+  for (const k in p) if (k !== 'children' && (ON_PROP.test(k) || !isPrim(p[k]))) return undefined
   const kids = hostChildren(p.children, [])
   if (!kids) return undefined
   const base = el(d._ht, attrs(p), ...kids) as ElementNode
@@ -182,7 +183,7 @@ const tagHost = (e: Effect.Effect<Node, any, any>, type: string, props: Props, k
 export const jsxs = jsx
 
 export const Fragment = (props: { children?: Child }): Element =>
-  Effect.flatMap(renderChildren(props.children), (kids) => Effect.succeed(fragment(...kids))) as Element
+  Effect.map(renderChildren(props.children), (kids) => fragment(...kids)) as Element
 
 /** `<Provider layer={L}>…</Provider>`: JSX form of `Provide`. */
 export const Provider = (props: { layer: Layer.Layer<any, any, never>; children?: Child }): Element =>
@@ -200,7 +201,13 @@ export const Boundary = <E extends { readonly _tag: string }>(props: {
 }): Element =>
   Effect.catchTag(
     Effect.flatMap(Handlers, (hs) =>
-      Effect.provideService(Fragment(props), Handlers, [...hs, { tag: props.tag, fallback: props.fallback }]),
+      Effect.provideService(Fragment(props), Handlers, [
+        ...hs,
+        {
+          tag: props.tag,
+          fallback: props.fallback,
+        },
+      ]),
     ) as Effect.Effect<Node, { _tag: string }>,
     props.tag,
     (e) => props.fallback(e as unknown as E),
@@ -209,13 +216,16 @@ export const Boundary = <E extends { readonly _tag: string }>(props: {
 export declare namespace JSX {
   type Element = Effect.Effect<Node, never, never>
   type ElementType = string | ((props: any) => Effect.Effect<Node, any, any>)
+
   interface ElementChildrenAttribute {
     children: {}
   }
+
   /** `key` is accepted on every element and component; the renderer reads it, components never see it. */
   interface IntrinsicAttributes {
     key?: string | number
   }
+
   interface IntrinsicElements {
     [tag: string]: Props
   }
