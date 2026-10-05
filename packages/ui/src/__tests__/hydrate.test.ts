@@ -93,7 +93,7 @@ describe('hydrateMount', () => {
 
   it('a sleek-bind element unwraps to its server text node', async () => {
     const count = Atom.serializable(Atom.make(3), { key: 'count', schema: Schema.Number })
-    const app = () => Effect.succeed(el('p', {}, bind(count, 'n')))
+    const app = () => Effect.succeed(el('p', {}, bind(count)))
     const { container } = await serverThenHydrate(app)
     expect(container.innerHTML).toBe('<p>3</p>')
   })

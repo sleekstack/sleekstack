@@ -116,7 +116,7 @@ const adoptOne = (n: Leaf, key: string | undefined, dom: ChildNode | undefined, 
       case 'Reactive': {
         if (dom?.nodeName !== 'SLEEK-REACTIVE') return mismatch(n, key, dom, parent, env, scopes)
         const host = dom as HTMLElement
-        const inst: Instance = { lives: [], scopes: [], host, rerun: n.rerun, unsubs: [], fiber: undefined, queued: -1, epoch: 0, dead: false, scope: n.scope, frame: n.frame }
+        const inst: Instance = { lives: [], scopes: [], host, node: n, rerun: n.rerun, unsubs: [], fiber: undefined, queued: -1, epoch: 0, dead: false, scope: n.scope, frame: n.frame }
         inst.lives = adoptAll([n.child], host, env, inst.scopes)
         watch(inst, n, env)
         return { node: n, dom: host, kids: [], inst, ...keyed }

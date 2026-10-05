@@ -105,10 +105,13 @@ const boundAttrs = (node: ElementNode, c: Collector): string =>
 // Same host markup the DOM renderer creates (`dom.ts` build), so server DOM maps one-to-one onto the client tree.
 const HOST_OPEN = (tag: string): string => `<${tag} style="display: contents;">`
 
+// A plain atom binding renders as bare text, so it needs a separator next to other text like a Text node does.
+const isText = (n: Node | undefined): boolean => n?._tag === 'Text' || (n?._tag === 'Bind' && !!n.plain)
+
 const flatten = (nodes: ReadonlyArray<Node>): Array<Node> => nodes.flatMap((n) => (n._tag === 'Fragment' ? flatten(n.children) : [n]))
 const serializeAll = (nodes: ReadonlyArray<Node>, c: Collector): string =>
   flatten(nodes)
-    .map((n, i, list) => (n._tag === 'Text' && list[i - 1]?._tag === 'Text' ? TEXT_SEPARATOR : '') + serialize(n, c))
+    .map((n, i, list) => (isText(n) && isText(list[i - 1]) ? TEXT_SEPARATOR : '') + serialize(n, c))
     .join('')
 
 const serialize = (node: Node, c: Collector): string => {
