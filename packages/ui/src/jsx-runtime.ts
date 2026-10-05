@@ -2,7 +2,7 @@ import { Atom } from '@sleekstack/core'
 import { type Context, Effect, Layer } from 'effect'
 import { bind, type Handler, isHandler, on } from './handler'
 import { el, type ElementNode, type EventBinding, fragment, type Node } from './node'
-import { type HostDescriptor, Handlers, hostBuilder, instance, RenderScope } from './reactive'
+import { type HostDescriptor, Handlers, hostBuilder, hostOf, instance, RenderScope } from './reactive'
 
 /** What a JSX expression may hold between its tags. A serializable atom renders its current value as text and, under `renderToString`, is bound for `resume`. */
 export type Child = string | number | boolean | null | undefined | Effect.Effect<Node, any, any> | Atom.Serializable<Atom.Atom<any>> | ReadonlyArray<Child>
@@ -55,18 +55,42 @@ const element = (type: string, props: Props, key: string | undefined): Effect.Ef
     }),
   )
 
-// Plain host element: primitive attributes and text only (no function, atom, Effect or handler prop), so its output is its props.
+// Plain host tree: primitive attributes and text, nested plain host elements. Its output is its props, so it is built (and compared) synchronously.
 const isPrim = (v: unknown): boolean => v == null || typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean'
-hostBuilder.build = (d: HostDescriptor, key: string): Node | undefined => {
-  const p = d.props as Props
-  for (const k in p) {
-    const v = p[k]
-    if (k === 'children' ? !(isPrim(v) || (Array.isArray(v) && v.every(isPrim))) : /^on[A-Z]/.test(k) ? true : !isPrim(v)) return undefined
-  }
-  const base = el(d.type, attrs(p), ...flat(p.children)) as ElementNode
-  return { ...base, key }
+const hostNode = (d: HostDescriptor, key: string | undefined): Node | undefined => {
+  const p = d._hp as Props
+  for (const k in p) if (k !== 'children' && (/^on[A-Z]/.test(k) || !isPrim(p[k]))) return undefined
+  const kids = hostChildren(p.children, [])
+  if (!kids) return undefined
+  const base = el(d._ht, attrs(p), ...kids) as ElementNode
+  return key === undefined ? base : { ...base, key }
 }
-const flat = (c: Child): Array<string> => (Array.isArray(c) ? c.flatMap(flat) : c == null || typeof c === 'boolean' ? [] : [String(c)])
+const hostChildren = (c: unknown, out: Array<Node | string>): Array<Node | string> | undefined => {
+  if (Array.isArray(c)) {
+    for (const x of c) if (!hostChildren(x, out)) return undefined
+    return out
+  }
+  if (c == null || typeof c === 'boolean') return out
+  if (typeof c === 'string' || typeof c === 'number') return out.push(String(c)), out
+  const h = hostOf(c)
+  const n = h && hostNode(h, h._hk)
+  return n ? (out.push(n), out) : undefined
+}
+const sameVal = (x: unknown, y: unknown): boolean => {
+  if (Object.is(x, y)) return true
+  if (Array.isArray(x)) return Array.isArray(y) && x.length === y.length && x.every((v, i) => sameVal(v, y[i]))
+  const hx = hostOf(x)
+  const hy = hostOf(y)
+  return !!hx && !!hy && sameHost(hx, hy)
+}
+const sameHost = (a: HostDescriptor, b: HostDescriptor): boolean => {
+  if (a._ht !== b._ht || a._hk !== b._hk) return false
+  const ka = Object.keys(a._hp)
+  if (ka.length !== Object.keys(b._hp).length) return false
+  return ka.every((k) => Object.hasOwn(b._hp, k) && sameVal(a._hp[k], b._hp[k]))
+}
+hostBuilder.build = hostNode
+hostBuilder.same = sameHost
 
 export const jsx = (type: string | ((props: any) => Element), props: Props, key?: string | number): Element => {
   const k = key ?? props.key
@@ -75,10 +99,13 @@ export const jsx = (type: string | ((props: any) => Element), props: Props, key?
     ? type === Fragment || type === Provider || type === Boundary
       ? type(props as any)
       : (instance(type, props, ks) as Element)
-    : tagHost(element(type, props, ks), type, props)
+    : tagHost(element(type, props, ks), type, props, ks)
 }
-const tagHost = (e: Effect.Effect<Node, any, any>, type: string, props: Props): Element => {
-  ;(e as { _host?: HostDescriptor })._host = { type, props }
+const tagHost = (e: Effect.Effect<Node, any, any>, type: string, props: Props, key: string | undefined): Element => {
+  const h = e as unknown as { _ht: string; _hp: Props; _hk: string | undefined }
+  h._ht = type
+  h._hp = props
+  h._hk = key
   return e as Element
 }
 export const jsxs = jsx

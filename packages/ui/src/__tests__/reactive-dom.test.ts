@@ -237,7 +237,7 @@ describe('reactive DOM', () => {
       )
     const onError = vi.fn()
     await go(jsx(P, {}), { store, onError })
-    // P's slots plus L(a)'s one slot; useAtomValue holds are run-scoped and released with the run.
+    // P's holds plus L(a)'s one slot; useAtomValue holds are run-scoped and released with the run; useLocal needs none beyond its slot.
     const base = held
     store.set(fail, true)
     store.set(show, 2)
@@ -246,10 +246,10 @@ describe('reactive DOM', () => {
     expect(held).toBe(base)
     store.set(fail, false)
     await tick()
-    expect(held).toBe(base + 2)
+    expect(held).toBe(base + 1)
     store.set(show, 0)
     await tick()
-    expect(held).toBe(base - 2)
+    expect(held).toBe(base - 1)
   })
 
   it('a useQuery / useMutation observer keeps its retain across an adopt and is released on kill', async () => {
@@ -833,6 +833,24 @@ describe('keyed instance reuse', () => {
       await tick()
       expect(rowsText(container)).toEqual(['L1', 'changed', 'L3'])
       expect([...container.querySelectorAll('li')].every((l, i) => l === lis[i])).toBe(true)
+    })
+
+    it('a nested host tree is built from its props: unchanged output keeps its nodes, a changed leaf updates', async () => {
+      const { container, store, items, list } = await rig(({ item, label }) => jsx('li', { className: 'r', children: [jsx('b', { children: label(item) }), jsx('i', { children: item.id })] }))
+      const bs = [...container.querySelectorAll('b')]
+      store.set(items, [...list])
+      await tick()
+      expect([...container.querySelectorAll('b')].every((b, i) => b === bs[i])).toBe(true)
+      store.set(items, [list[0]!, { id: 2, label: 'changed' }, list[2]!])
+      await tick()
+      expect([...container.querySelectorAll('li')].map((l) => l.textContent)).toEqual(['L11', 'changed2', 'L33'])
+      expect(container.querySelectorAll('b')[0]).toBe(bs[0])
+    })
+
+    it('a nested child that is a component or an Effect falls back and still renders', async () => {
+      const Leaf = () => jsx('u', { children: 'x' })
+      const { container } = await rig(({ item }) => jsx('li', { children: [jsx('b', { children: item.label }), jsx(Leaf, {})] }))
+      expect([...container.querySelectorAll('li')].map((l) => l.textContent)).toEqual(['L1x', 'L2x', 'L3x'])
     })
 
     it('a row that returns a nested component falls back to the normal path and still updates', async () => {

@@ -3,22 +3,30 @@ import { Context, Data, Effect, ExecutionStrategy, Exit, Option, Scope } from 'e
 import type { Node } from './node'
 
 /** The mount's atom store. `mount` and `renderToString` provide it. */
-export class Store extends Effect.Tag('Store')<Store, AtomStore>() {}
+export class Store extends Effect.Tag('Store')<Store, AtomStore>() {
+}
 
 /** Atoms read by one run of a component instance; `id` is the instance's identity, the same object across its re-runs. */
 export class Reads extends Map<Atom.Atom<any>, unknown> {
-  constructor(readonly id: object) { super() }
+  constructor(readonly id: object) {
+    super()
+  }
 }
 
 /** The reads of the component run in progress; `undefined` outside a wrapped instance. */
 export class Collector extends Context.Reference<Collector>()('@sleekstack/ui/Collector', {
   defaultValue: (): Reads | undefined => undefined,
-}) {}
+}) {
+}
 
 /** Enclosing `Boundary` handlers, innermost last; captured with an instance's context for its re-runs. */
 export class Handlers extends Context.Reference<Handlers>()('@sleekstack/ui/Handlers', {
-  defaultValue: (): ReadonlyArray<{ readonly tag: string; readonly fallback: (error: any) => Effect.Effect<Node, any, any> }> => [],
-}) {}
+  defaultValue: (): ReadonlyArray<{
+    readonly tag: string;
+    readonly fallback: (error: any) => Effect.Effect<Node, any, any>
+  }> => [],
+}) {
+}
 
 /**
  * Lifetime of `Provider` layers. When set (by `mount`), each component run gets a child scope and its layers are
@@ -27,7 +35,8 @@ export class Handlers extends Context.Reference<Handlers>()('@sleekstack/ui/Hand
  */
 export class RenderScope extends Context.Reference<RenderScope>()('@sleekstack/ui/RenderScope', {
   defaultValue: (): Scope.Scope | undefined => undefined,
-}) {}
+}) {
+}
 
 /**
  * The mount's own scope. A component run's scope normally forks `RenderScope` (the enclosing run's scope) and closes with it;
@@ -36,7 +45,8 @@ export class RenderScope extends Context.Reference<RenderScope>()('@sleekstack/u
  */
 export class MountScope extends Context.Reference<MountScope>()('@sleekstack/ui/MountScope', {
   defaultValue: (): Scope.Scope | undefined => undefined,
-}) {}
+}) {
+}
 
 /** Local-state slots of one instance id, kept in its parent's registry (`kids`) across re-runs of both. */
 export interface Slots {
@@ -53,13 +63,14 @@ export interface Slots {
   running?: boolean
   called?: boolean
 }
+
 interface Memo {
   readonly props: object
   readonly ctx: Context.Context<never>
   readonly node: Node
   readonly scope?: Scope.Scope
   /** Host-only fast path: the element's type and props the node was built from. */
-  readonly host?: { readonly type: string; readonly props: object }
+  readonly host?: HostDescriptor
 }
 
 /** One run of an instance: ordinals by component function, its own slots and cursor, and what its children did. `undefined` at the root. */
@@ -78,14 +89,26 @@ export interface RunFrame {
 
 export class Frame extends Context.Reference<Frame>()('@sleekstack/ui/Frame', {
   defaultValue: (): RunFrame | undefined => undefined,
-}) {}
+}) {
+}
 
-export const makeFrame = (owner: Slots = { atoms: [], releases: [], done: false }, id = ''): RunFrame => ({ ordinals: new Map(), owner, id, cursor: 0 })
+export const makeFrame = (owner: Slots = {
+  atoms: [],
+  releases: [],
+  done: false
+}, id = ''): RunFrame => ({ordinals: new Map(), owner, id, cursor: 0})
 
 /** A run called a different number of `useLocal`s than the instance's previous run. */
-export class SlotMismatch extends Data.TaggedError('SlotMismatch')<{ readonly id: string; readonly expected: number; readonly actual: number }> {}
+export class SlotMismatch extends Data.TaggedError('SlotMismatch')<{
+  readonly id: string;
+  readonly expected: number;
+  readonly actual: number
+}> {
+}
+
 /** Two siblings share one key. */
-export class DuplicateKey extends Data.TaggedError('DuplicateKey')<{ readonly key: string }> {}
+export class DuplicateKey extends Data.TaggedError('DuplicateKey')<{ readonly key: string }> {
+}
 
 /** Releases a slot tree and resets it, so a disposed instance id starts fresh; idempotent. */
 export const disposeSlots = (s: Slots): void => {
@@ -132,7 +155,12 @@ const fnId = (f: Function): string => {
 // Typed `never` in E: `Store` is a requirement, so a missing store is unreachable for checked code; at runtime it fails with a tagged error.
 const store = (hook: string): Effect.Effect<AtomStore, never, Store> =>
   Effect.flatMap(Effect.serviceOption(Store), (s) =>
-    Option.isSome(s) ? Effect.succeed(s.value) : (Effect.fail(new MissingDependency({ tag: 'Store', service: hook, missing: 'Store', message: `"${hook}" requires "Store", which is not provided` })) as unknown as Effect.Effect<never>),
+    Option.isSome(s) ? Effect.succeed(s.value) : (Effect.fail(new MissingDependency({
+      tag: 'Store',
+      service: hook,
+      missing: 'Store',
+      message: `"${hook}" requires "Store", which is not provided`
+    })) as unknown as Effect.Effect<never>),
   )
 
 /** Reads an atom and registers it as a dependency of the running component instance. */
@@ -156,21 +184,31 @@ export const useAtomValue = <A>(atom: Atom.Atom<A>): Effect.Effect<A, never, Sto
 export const useLocal = <A>(initial: A): Effect.Effect<readonly [A, (next: A | ((previous: A) => A)) => void], never, Store> =>
   Effect.flatMap(Collector, (c) =>
     c === undefined
-      ? Effect.succeed([initial, () => {}] as const)
+      ? Effect.succeed([initial, () => {
+      }] as const)
       : Effect.flatMap(store('useLocal'), (s) =>
-          Effect.flatMap(Frame, (f) => {
-            const slots = f!.owner
-            const i = f!.cursor++
-            if (i >= slots.atoms.length) {
-              if (slots.done) return Effect.fail(new SlotMismatch({ id: f!.id, expected: slots.atoms.length, actual: i + 1 })) as unknown as Effect.Effect<never>
-              const a = Atom.writable<A, A>(() => initial, (ctx, v) => ctx.setSelf(v))
-              slots.atoms.push(a)
-              slots.releases.push(s.retain(a))
-            }
-            const atom = slots.atoms[i] as Atom.Writable<A>
-            return Effect.map(useAtomValue(atom), (value) => [value, (next: A | ((previous: A) => A)) => (typeof next === 'function' ? s.update(atom, next as (p: A) => A) : s.set(atom, next))] as const)
-          }),
-        ),
+        Effect.flatMap(Frame, (f) => {
+          const slots = f!.owner
+          const i = f!.cursor++
+          if (i >= slots.atoms.length) {
+            if (slots.done) return Effect.fail(new SlotMismatch({
+              id: f!.id,
+              expected: slots.atoms.length,
+              actual: i + 1
+            })) as unknown as Effect.Effect<never>
+            const a = Atom.writable<A, A>(() => initial, (ctx, v) => ctx.setSelf(v))
+            slots.atoms.push(a)
+            slots.releases.push(s.retain(a))
+          }
+          const atom = slots.atoms[i] as Atom.Writable<A>
+          // The slot atom is retained for the slot's lifetime above, so a run needs no hold of its own.
+          return Effect.map(Effect.sync(() => {
+            const value = s.get(atom)
+            if (!c.has(atom)) c.set(atom, value)
+            return value
+          }), (value) => [value, (next: A | ((previous: A) => A)) => (typeof next === 'function' ? s.update(atom, next as (p: A) => A) : s.set(atom, next))] as const)
+        }),
+      ),
   )
 
 /** Returns a setter for `atom`; registers nothing. */
@@ -187,13 +225,13 @@ export const runScopes = new WeakMap<Node, Scope.CloseableScope>()
 /** Fresh wrappers around what a re-run produced from a `Boundary` fallback rather than from the component itself. */
 export const fallbacks = new WeakSet<Node>()
 const asFallback = (n: Node): Node => {
-  const wrapped: Node = { _tag: 'Fragment', children: [n] }
+  const wrapped: Node = {_tag: 'Fragment', children: [n]}
   fallbacks.add(wrapped)
   return wrapped
 }
 
 const owned = (child: Node, scope: Scope.CloseableScope): Node => {
-  const wrapped: Node = { _tag: 'Fragment', children: [child] }
+  const wrapped: Node = {_tag: 'Fragment', children: [child]}
   runScopes.set(wrapped, scope)
   return wrapped
 }
@@ -203,8 +241,8 @@ const scopedRun = (run: Effect.Effect<Node, any, any>): Effect.Effect<Node, any,
   Effect.flatMap(RenderScope, (parent) =>
     parent
       ? Effect.flatMap(Scope.fork(parent, ExecutionStrategy.sequential), (own) =>
-          Effect.onExit(Effect.map(Effect.provideService(run, RenderScope, own), (n) => owned(n, own)), (exit) => (Exit.isSuccess(exit) ? Effect.void : Scope.close(own, exit))),
-        )
+        Effect.onExit(Effect.map(Effect.provideService(run, RenderScope, own), (n) => owned(n, own)), (exit) => (Exit.isSuccess(exit) ? Effect.void : Scope.close(own, exit))),
+      )
       : run,
   )
 
@@ -224,7 +262,6 @@ const withHandlers = (run: Effect.Effect<Node, any, any>, hs: ReadonlyArray<Hand
 const handled = (run: Effect.Effect<Node, any, any>): Effect.Effect<Node, any, any> => Effect.flatMap(Handlers, (hs) => withHandlers(run, hs))
 
 
-
 /** A scope that forks `parent` on first use. Used after it closed, it behaves like a closed scope: finalizers run at once. */
 class LazyScope {
   readonly [Scope.ScopeTypeId] = Scope.ScopeTypeId
@@ -233,37 +270,39 @@ class LazyScope {
   private inner: Scope.CloseableScope | undefined
   private closed = false
   private lent = false
+
   constructor(
     private parent: Scope.Scope,
     private readonly lease: Scope.Scope | undefined,
     private readonly frame: RunFrame | undefined,
-  ) {}
-  private real(): Scope.CloseableScope {
-    if (this.inner) return this.inner
-    this.inner = Effect.runSync(Scope.fork(this.parent, ExecutionStrategy.sequential))
-    if (this.closed) Effect.runSync(Scope.close(this.inner, Exit.void))
-    return this.inner
+  ) {
   }
+
   fork(strategy: ExecutionStrategy.ExecutionStrategy) {
     return Effect.suspend(() => (this.real() as any).fork(strategy) as Effect.Effect<Scope.CloseableScope>)
   }
+
   addFinalizer(finalizer: Scope.Scope.Finalizer) {
     return Effect.suspend(() => (this.real() as any).addFinalizer(finalizer) as Effect.Effect<void>)
   }
+
   close(exit: Exit.Exit<unknown, unknown>) {
     this.closed = true
     return this.inner ? Scope.close(this.inner, exit) : Effect.void
   }
+
   /** Closes without a fiber when nothing ever used the scope; false when it was used (close it normally). */
   closeIfIdle(): boolean {
     if (this.inner) return false
     this.closed = true
     return true
   }
+
   /** Never forked its parent and not closed. */
   isIdle(): boolean {
     return !this.inner && !this.closed
   }
+
   /** Fork the mount's scope instead of the enclosing run's, so this scope outlives that run; only before first use. */
   lend(): void {
     if (this.lent || this.inner || !this.lease) return
@@ -271,11 +310,20 @@ class LazyScope {
     this.parent = this.lease
     if (this.frame) (this.frame.leased ??= []).push(this as unknown as Scope.CloseableScope)
   }
+
   /** Safe for a parent that skips its owner to keep: not closed, and either unused or independent of the enclosing run. */
   reusable(): boolean {
     return !this.closed && (!this.inner || this.lent)
   }
+
+  private real(): Scope.CloseableScope {
+    if (this.inner) return this.inner
+    this.inner = Effect.runSync(Scope.fork(this.parent, ExecutionStrategy.sequential))
+    if (this.closed) Effect.runSync(Scope.close(this.inner, Exit.void))
+    return this.inner
+  }
 }
+
 const lazyScope = (parent: Scope.Scope, lease?: Scope.Scope, frame?: RunFrame): LazyScope => new LazyScope(parent, lease, frame)
 /** Lends `scope` to the mount before its first use, when it is a lazy scope. */
 export const lend = (scope: Scope.Scope | undefined): void => {
@@ -287,14 +335,17 @@ export const closeIdle = (scope: Scope.CloseableScope): boolean => (scope as unk
 export const closeNow = (scope: Scope.CloseableScope): void => {
   if (!closeIdle(scope)) Effect.runFork(Scope.close(scope, Exit.void))
 }
+
 /** A host element a component returned as-is: `jsx` tags its Effect, so a run that returns one read no atom and used no scope. */
 export interface HostDescriptor {
-  readonly type: string
-  readonly props: Record<string, unknown>
+  readonly _ht: string
+  readonly _hp: Record<string, unknown>
+  readonly _hk: string | undefined
 }
-export const hostOf = (e: unknown): HostDescriptor | undefined => (e as { _host?: HostDescriptor })._host
+
+export const hostOf = (e: unknown): HostDescriptor | undefined => ((e as HostDescriptor)._ht === undefined ? undefined : (e as HostDescriptor))
 // Set by `jsx-runtime` (which imports this module): eligibility and the synchronous node build.
-export const hostBuilder: { build?: (d: HostDescriptor, key: string) => Node | undefined } = {}
+export const hostBuilder: { build?: (d: HostDescriptor, key: string | undefined) => Node | undefined; same?: (a: HostDescriptor, b: HostDescriptor) => boolean } = {}
 const reusable = (scope: Scope.Scope | undefined): boolean => scope instanceof LazyScope && scope.reusable()
 
 // Per-run services: rebuilt for every parent run, so they never decide whether a child's inputs changed.
@@ -334,16 +385,16 @@ const stableHandlers = <P extends object>(slots: Slots, props: P): P => {
     let h = slots.handlers?.get(k)
     if (!h) {
       const w: { current: Function; readonly fn: Function } = {
-        current: v,
-        fn: (...args: Array<unknown>) => {
-          if (slots.running) slots.called = true
-          return w.current(...args)
-        },
-      }
+          current: v,
+          fn: (...args: Array<unknown>) => {
+            if (slots.running) slots.called = true
+            return w.current(...args)
+          },
+        }
       ;(slots.handlers ??= new Map()).set(k, (h = w))
     }
     h.current = v
-    ;(out ??= { ...src })[k] = h.fn
+    ;(out ??= {...src})[k] = h.fn
   }
   return (out ?? props) as P
 }
@@ -382,7 +433,7 @@ export const instance = <P>(type: (props: P) => Effect.Effect<Node, any, any>, p
       const kids = (parentFrame.owner.kids ??= new Map())
       let found = kids.get(self)
       if (found === undefined) {
-        kids.set(self, (found = { atoms: [], releases: [], done: false }))
+        kids.set(self, (found = {atoms: [], releases: [], done: false}))
         ;(parentFrame.pending ??= []).push([self, found])
       }
       slots = found
@@ -401,7 +452,7 @@ export const instance = <P>(type: (props: P) => Effect.Effect<Node, any, any>, p
         const d = hostOf(eff)
         if (d) {
           const pm = m
-          if (pm?.host && pm.host.type === d.type && sameProps(pm.host.props, d.props) && !slots.called) {
+          if (pm?.host && hostBuilder.same!(pm.host, d) && !slots.called) {
             ;(pm as { props: object }).props = effProps as object
             return Effect.succeed(pm.node)
           }
@@ -417,13 +468,18 @@ export const instance = <P>(type: (props: P) => Effect.Effect<Node, any, any>, p
               id: self,
               key,
             }
-            slots.memo = slots.called ? undefined : { props: effProps as object, ctx, node, host: { type: d.type, props: d.props } }
+            slots.memo = slots.called ? undefined : {
+              props: effProps as object,
+              ctx,
+              node,
+              host: d
+            }
             return Effect.succeed(node)
           }
         }
         pre = eff
       }
-    } else slots = rootSlots ??= { atoms: [], releases: [], done: false }
+    } else slots = rootSlots ??= {atoms: [], releases: [], done: false}
     const frame = makeFrame(slots, self)
     const body = (own: Scope.CloseableScope | undefined): Effect.Effect<Node, any, any> => {
       const reads = new Reads(slots)
@@ -437,7 +493,11 @@ export const instance = <P>(type: (props: P) => Effect.Effect<Node, any, any>, p
       const inner = Context.unsafeMake(map)
       // One continuation: check the slot count, then build the node.
       return Effect.flatMap(Effect.provide(((e) => ((pre = undefined), e))(pre ?? type(effProps)), inner), (child): Effect.Effect<Node, SlotMismatch> => {
-        if (slots.done && frame.cursor !== slots.atoms.length) return Effect.fail(new SlotMismatch({ id: self, expected: slots.atoms.length, actual: frame.cursor }))
+        if (slots.done && frame.cursor !== slots.atoms.length) return Effect.fail(new SlotMismatch({
+          id: self,
+          expected: slots.atoms.length,
+          actual: frame.cursor
+        }))
         slots.done = true
         slots.running = false
         frame.leased = undefined
@@ -450,18 +510,23 @@ export const instance = <P>(type: (props: P) => Effect.Effect<Node, any, any>, p
             ? owned(child, own)
             : child
           : {
-              _tag: 'Reactive',
-              atoms: read ? [...reads.keys()] : NO_ATOMS,
-              seen: read ? [...reads.values()] : NO_ATOMS,
-              child,
-              scope: own,
-              rerun: Effect.suspend(() => ((forced = true), Effect.provide(handled(run), ctx))) as Effect.Effect<Node>,
-              id: self,
-              frame,
-              ...(key !== undefined && { key }),
-            }
+            _tag: 'Reactive',
+            atoms: read ? [...reads.keys()] : NO_ATOMS,
+            seen: read ? [...reads.values()] : NO_ATOMS,
+            child,
+            scope: own,
+            rerun: Effect.suspend(() => ((forced = true), Effect.provide(handled(run), ctx))) as Effect.Effect<Node>,
+            id: self,
+            frame,
+            ...(key !== undefined && {key}),
+          }
         // Remembered for the next parent run when the row's scope will still be there (unused, or lent to the mount) and it did not call a handler while rendering.
-        slots.memo = parentFrame && own && !slots.called && reusable(own) ? { props: effProps as object, ctx, node, scope: own } : undefined
+        slots.memo = parentFrame && own && !slots.called && reusable(own) ? {
+          props: effProps as object,
+          ctx,
+          node,
+          scope: own
+        } : undefined
         return Effect.succeed(node)
       })
     }
