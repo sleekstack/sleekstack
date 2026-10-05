@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { Cause, Context, Data, Deferred, Effect, Stream } from 'effect'
+import { Cause, Context, Data, Deferred, Effect, Schema, Stream } from 'effect'
 import { Atom, AtomCycle, makeAtomStore, Result } from '../index'
 
 const tick = () => new Promise<void>((r) => setTimeout(r, 0))
@@ -256,5 +256,150 @@ describe('review regressions', () => {
     store.subscribe(atom, () => seen.push(store.get(atom)))
     store.batch(() => { store.refresh(atom); store.set(atom, 2) })
     expect(seen).toEqual([2])
+  })
+})
+
+describe('value atoms', () => {
+  it('start valid with their initial, notify once per write, and coalesce inside a batch', () => {
+    const store = makeAtomStore()
+    const a = Atom.make(1)
+    expect(store.get(a)).toBe(1)
+    let calls = 0
+    store.subscribe(a, () => void calls++)
+    store.set(a, 2)
+    store.set(a, 2)
+    expect(calls).toBe(1)
+    store.batch(() => { store.set(a, 3); store.set(a, 4) })
+    expect(calls).toBe(2)
+    expect(store.get(a)).toBe(4)
+  })
+
+  it('a write from a listener and a derived child both see the new value', () => {
+    const store = makeAtomStore()
+    const a = Atom.make(0)
+    const b = Atom.make(0)
+    const sum = Atom.make((get) => get(a) + get(b))
+    const seen: Array<number> = []
+    store.subscribe(sum, () => void seen.push(store.get(sum)))
+    store.subscribe(a, () => store.set(b, store.get(a) * 10))
+    store.set(a, 1)
+    expect(store.get(sum)).toBe(11)
+    expect(seen.at(-1)).toBe(11)
+  })
+
+  it('unused nodes are evicted by one shared task, and an evicted value atom restarts from its initial', () => {
+    const tasks: Array<() => void> = []
+    const store = makeAtomStore({ scheduleTask: (f) => void tasks.push(f) })
+    const atoms = [Atom.make(0), Atom.make(0), Atom.make(0)]
+    atoms.forEach((a) => store.set(a, 7))
+    expect(tasks.length).toBe(1)
+    const held = store.retain(atoms[1]!)
+    tasks.splice(0).forEach((f) => f())
+    expect(store.get(atoms[0]!)).toBe(0)
+    expect(store.get(atoms[1]!)).toBe(7)
+    held()
+  })
+
+  it('a value atom with a pending seed takes the seed, not its initial', () => {
+    const store = makeAtomStore()
+    const a = Atom.serializable(Atom.make(0), { key: 'n', schema: Schema.Number })
+    store.hydrate({ n: 41 })
+    expect(store.get(a)).toBe(41)
+  })
+})
+
+describe('derived atoms: cached build context', () => {
+  it('a read that throws still re-runs when its parent recovers, and every recompute tracks fresh dependencies', () => {
+    const store = makeAtomStore()
+    const input = Atom.make(0)
+    const flaky = Atom.make((get) => { const v = get(input); if (v === 1) throw new Error('boom'); return v })
+    const reader = Atom.make((get) => get(flaky) * 10)
+    store.subscribe(reader, () => {})
+    expect(store.get(reader)).toBe(0)
+    store.set(input, 1)
+    expect(() => store.get(reader)).toThrow('boom')
+    store.set(input, 2)
+    expect(store.get(reader)).toBe(20)
+  })
+
+  it('a derived atom drops a dependency it stops reading and stops recomputing for it', () => {
+    const store = makeAtomStore()
+    const flag = Atom.make(true)
+    const a = Atom.make(1)
+    const b = Atom.make(2)
+    let runs = 0
+    const pick = Atom.make((get) => (runs++, get(flag) ? get(a) : get(b)))
+    store.subscribe(pick, () => {})
+    store.set(flag, false)
+    expect(store.get(pick)).toBe(2)
+    runs = 0
+    store.set(a, 9)
+    expect(runs).toBe(0)
+    store.set(b, 3)
+    expect(store.get(pick)).toBe(3)
+  })
+})
+
+describe('value atoms: direct notify of a leaf write', () => {
+  it('notifies every listener once per change, and not for an equal write', () => {
+    const store = makeAtomStore()
+    const a = Atom.make(0)
+    const seen: number[] = []
+    store.subscribe(a, () => seen.push(store.get(a)))
+    store.subscribe(a, () => seen.push(-store.get(a)))
+    store.set(a, 1)
+    store.set(a, 1)
+    expect(seen).toEqual([1, -1])
+  })
+
+  it('a listener that writes again is notified for the nested write', () => {
+    const store = makeAtomStore()
+    const a = Atom.make(0)
+    const seen: number[] = []
+    store.subscribe(a, () => {
+      seen.push(store.get(a))
+      if (store.get(a) < 3) store.set(a, store.get(a) + 1)
+    })
+    store.set(a, 1)
+    expect(store.get(a)).toBe(3)
+    expect(seen).toContain(3)
+  })
+
+  it('a throwing listener propagates, leaves the store usable, and sees the new value on the next write', () => {
+    const store = makeAtomStore()
+    const a = Atom.make(0)
+    let boom = true
+    const seen: number[] = []
+    store.subscribe(a, () => { seen.push(store.get(a)); if (boom) throw new Error('boom') })
+    expect(() => store.set(a, 1)).toThrow('boom')
+    boom = false
+    store.set(a, 2)
+    expect(seen).toEqual([1, 2])
+    expect(store.get(a)).toBe(2)
+  })
+
+  it('a listener added or removed between writes is honoured (snapshot is dropped)', () => {
+    const store = makeAtomStore()
+    const a = Atom.make(0)
+    const calls: string[] = []
+    const off1 = store.subscribe(a, () => calls.push('one'))
+    store.set(a, 1)
+    const off2 = store.subscribe(a, () => calls.push('two'))
+    store.set(a, 2)
+    off1()
+    store.set(a, 3)
+    off2()
+    store.set(a, 4)
+    expect(calls).toEqual(['one', 'one', 'two', 'two'])
+  })
+
+  it('a dependent atom still recomputes and notifies', () => {
+    const store = makeAtomStore()
+    const a = Atom.make(1)
+    const d = Atom.make((get) => get(a) * 2)
+    const seen: number[] = []
+    store.subscribe(d, () => seen.push(store.get(d)))
+    store.set(a, 2)
+    expect(seen).toEqual([4])
   })
 })

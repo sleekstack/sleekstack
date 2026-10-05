@@ -4,7 +4,7 @@ import { renderToString as reactRenderToString } from 'react-dom/server'
 import { type Atom, type AtomStore, makeAtomStore } from '@sleekstack/core'
 import { reportRenderError, runToNode } from './component'
 import { checkEvent, DuplicateBindKey, DuplicateHandler, type Handler, valueInfo } from './handler'
-import type { Node } from './node'
+import type { ElementNode, Node } from './node'
 import { Frame, makeFrame, Store } from './reactive'
 
 const ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
@@ -77,11 +77,21 @@ const handlerAttrs = (on: Readonly<Record<string, Handler<any, any>>>, c: Collec
     })
     .join('')
 
+// Atom-valued attributes render their current value; they are not resumed.
+const boundAttrs = (node: ElementNode, c: Collector): string =>
+  Object.entries(node.bound ?? {})
+    .map(([k, a]) => {
+      const v = c.store.get(a)
+      return v == null || v === false ? '' : (checkAttr(k, String(v)), ` ${k}="${v === true ? '' : escape(String(v))}"`)
+    })
+    .join('')
+
 const serialize = (node: Node, c: Collector): string => {
   switch (node._tag) {
     case 'Text':
       return escape(node.text)
     case 'Bind': {
+      if (node.plain) return escape(String(c.store.get(node.atom)))
       const { key } = valueInfo(node.atom)
       const seen = c.atoms.get(key)
       if (seen && seen.atom !== node.atom) throw new DuplicateBindKey({ key })
@@ -96,7 +106,7 @@ const serialize = (node: Node, c: Collector): string => {
       checkTag(node.tag)
       const attrs = Object.entries(node.attrs)
         .map(([k, v]) => (checkAttr(k, v), ` ${k}="${escape(v)}"`))
-        .join('')
+        .join('') + boundAttrs(node, c)
       const on = node.on ? handlerAttrs(node.on, c) : ''
       return `<${node.tag}${attrs}${on}>${node.children.map((x) => serialize(x, c)).join('')}</${node.tag}>`
     }

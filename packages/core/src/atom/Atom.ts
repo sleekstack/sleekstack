@@ -64,6 +64,8 @@ export interface Atom<A> {
   readonly idleTTL?: number
   /** Computes the value; `get(other)` records dependencies. */
   readonly read: (get: Context) => A
+  /** @internal Set by `Atom.make(value)`: the constant initial value, so the store starts the node valid without building a read context. */
+  readonly initial?: { readonly value: unknown }
   /** @internal Set by {@link serializable}: the wire key, the Schema and which value shape it describes. */
   readonly serializable?: SerializableInfo
 }
@@ -162,10 +164,12 @@ export function make<A>(value: A): Writable<A>
 export function make(arg: unknown): Atom<unknown> {
   if (typeof arg === 'function') return makeAtom((get) => readResult(get, (arg as (get: Context) => unknown)(get)))
   if (Effect.isEffect(arg) || isStream(arg)) return makeAtom((get) => readResult(get, arg))
-  return makeAtom(
+  const atom = makeAtom(
     () => arg,
     (ctx, value) => ctx.setSelf(value),
   )
+  atom.initial = { value: arg }
+  return atom
 }
 
 /** A writable atom from a `read` and a `write`. */

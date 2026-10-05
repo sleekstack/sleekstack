@@ -359,3 +359,6 @@ const HandlerRow = ({ jsx, item, onPick }: { jsx: Jsx; item: Item; onPick: () =>
   (dataHandlerRuns.sleekstack++, jsx('li', { className: 'row', onClick: onPick, children: item.label }))
 export const sleekHandlerTree = (jsx: Jsx, items: ReadonlyArray<Item>, effectSync: (f: () => void) => unknown) =>
   jsx('ul', { children: items.map((item) => jsx(HandlerRow, { jsx, item, onPick: () => effectSync(() => void pickLog.push(item.id)), key: item.id })) })
+
+/** Rows that each read one shared atom (`selected`), as a selection or hover state would: component runs per update, outside measurement. */
+export const dataAtomRuns = { sleekstack: 0, react: 0 }

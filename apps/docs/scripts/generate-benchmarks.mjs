@@ -49,6 +49,8 @@ These numbers come from one machine running one workload. Every library runs the
 
 Recorded ${results.publishedAt ?? ''} on Node ${m.node}, ${m.cpu}, ${m.os}.
 
+The keyed-list update cases change one of 1,000 rows per write. \`keyed-update-data\` and \`keyed-update-handler\` (rows take an item object, or an item plus an inline \`on*\` handler) skip every unchanged row; \`keyed-update-render-callback\` passes a fresh render-time function to every row, so no row can skip and all 1,000 re-run. \`keyed-update-hook-miss\` and \`keyed-update-gen-miss\` do the same with rows that hold state (a hook, a nested component, an \`Effect.gen\` body), so all 1,000 run the full component path (the worst case).
+
 Library versions: ${Object.entries(results.versions).map(([k, v]) => `${k} ${v}`).join(', ')}.
 
 ${tables.join('\n\n')}

@@ -3,14 +3,14 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { Atom, makeAtomStore } from '@sleekstack/core'
-import { mount, useAtomValue } from '@sleekstack/ui'
+import { mount, useAtomValue, useLocal } from '@sleekstack/ui'
 import { jsx } from '@sleekstack/ui/jsx-runtime'
 import { Effect, Layer } from 'effect'
-import { createElement as h, useState } from 'react'
+import { createContext, createElement as h, useContext, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { createRoot } from 'react-dom/client'
 import { bench, describe } from 'vitest'
-import { check, dataHandlerRuns, dataRuns, itemsAfter, ROWS, rowIds, rowLabel, sleekDataTree, sleekHandlerTree, sleekTree, type Item, type TreeOptions } from './scenarios'
+import { check, dataAtomRuns, dataHandlerRuns, dataRuns, itemsAfter, ROWS, rowIds, rowLabel, sleekDataTree, sleekHandlerTree, sleekTree, type Item, type TreeOptions } from './scenarios'
 
 const gc = (globalThis as { gc?: () => void }).gc
 const opts = { setup: () => gc?.() }
@@ -83,6 +83,8 @@ const swaps = async (u: { container: Element; run: () => unknown }) => {
   return count
 }
 // ---- keyed list: one state write re-renders the whole keyed list; the reconciler should touch only what changed ----
+// `keyed-update-render-callback-1-of-1k` is the worst case: every row is passed a fresh `label` function that it calls while rendering,
+// so no row can be skipped (ADR 0020). `keyed-update-data` and `keyed-update-handler` are the cases rows skip.
 
 /** Keyed-list state per write count `n`. */
 type Step = (n: number) => TreeOptions
@@ -170,6 +172,38 @@ const reactKeyedHandler = () => {
   return { container, run: () => (flushSync(() => set(++n)), container.textContent) }
 }
 
+// Rows that read a shared atom (never written here): the row keeps its own subscription, so the parent re-run alone should not need to re-run it.
+const sleekKeyedAtom = async () => {
+  const container = document.createElement('div')
+  const store = makeAtomStore()
+  const state = Atom.make(0)
+  const selected = Atom.make(-1)
+  const AtomRow = ({ item }: { item: Item }) =>
+    Effect.flatMap(useAtomValue(selected), (sel) => (dataAtomRuns.sleekstack++, jsx('li', { className: sel === item.id ? 'row selected' : 'row', children: item.label })))
+  const List = () => Effect.flatMap(useAtomValue(state), (n) => jsx('ul', { children: itemsAfter(n).map((item) => jsx(AtomRow as any, { item, key: item.id })) }))
+  await mount(jsx(List as any, {}), { layer: Layer.empty, container, store })
+  let n = 0
+  return { container, run: async () => (store.set(state, ++n), await tick(), container.textContent) }
+}
+const SelectedContext = createContext(-1)
+const ReactAtomRow = ({ item }: { item: Item }) => {
+  const sel = useContext(SelectedContext)
+  dataAtomRuns.react++
+  return h('li', { className: sel === item.id ? 'row selected' : 'row' }, item.label)
+}
+const reactKeyedAtom = () => {
+  const container = document.createElement('div')
+  let set!: (n: number) => void
+  const List = () => {
+    const [n, s] = useState(0)
+    set = s
+    return h(SelectedContext.Provider, { value: -1 }, h('ul', null, itemsAfter(n).map((item) => h(ReactAtomRow, { key: item.id, item }))))
+  }
+  flushSync(() => createRoot(container).render(h(List)))
+  let n = 0
+  return { container, run: () => (flushSync(() => set(++n)), container.textContent) }
+}
+
 const sleekU = await sleekUpdate()
 const reactU = reactUpdate()
 await check('render-dom/update-1-of-1k', [
@@ -182,7 +216,7 @@ await check('render-dom/keyed-reorder-1k', [
   ['sleekstack', keyedReorder.sleekstack.run],
   ['react', keyedReorder.react.run],
 ])
-await check('render-dom/keyed-update-1-of-1k', [
+await check('render-dom/keyed-update-render-callback-1-of-1k', [
   ['sleekstack', keyedUpdate.sleekstack.run],
   ['react', keyedUpdate.react.run],
 ])
@@ -212,16 +246,163 @@ for (const lib of ['sleekstack', 'react'] as const) {
   console.log(`render-dom/keyed-update-handler-1-of-1k component runs per update (${lib}):`, dataHandlerRuns[lib])
 }
 
+const keyedAtom = { sleekstack: await sleekKeyedAtom(), react: reactKeyedAtom() }
+await check('render-dom/keyed-update-atom-1-of-1k', [
+  ['sleekstack', keyedAtom.sleekstack.run],
+  ['react', keyedAtom.react.run],
+])
+for (const lib of ['sleekstack', 'react'] as const) {
+  dataAtomRuns[lib] = 0
+  await keyedAtom[lib].run()
+  await settle()
+  console.log(`render-dom/keyed-update-atom-1-of-1k component runs per update (${lib}):`, dataAtomRuns[lib])
+}
+
+// ---- forced misses: every row takes a fresh `label` closure per write, so all 1k rows run; the rows keep state (a hook) ----
+
+const missRuns = { hook: { sleekstack: 0, react: 0 }, gen: { sleekstack: 0, react: 0 } }
+type Label = (item: Item) => string
+
+// A hook and a nested host child.
+const HookRow = ({ item, label }: { item: Item; label: Label }) =>
+  Effect.flatMap(useLocal(0), ([n]) => (missRuns.hook.sleekstack++, jsx('li', { className: 'row', children: [label(item), jsx('b', { children: n })] })))
+const sleekHookMiss = async () => {
+  const container = document.createElement('div')
+  const store = makeAtomStore()
+  const state = Atom.make(0)
+  const List = () =>
+    Effect.flatMap(useAtomValue(state), (n) => {
+      const label: Label = (item) => item.label
+      return jsx('ul', { children: itemsAfter(n).map((item) => jsx(HookRow as any, { item, label, key: item.id })) })
+    })
+  await mount(jsx(List as any, {}), { layer: Layer.empty, container, store })
+  let n = 0
+  return { container, run: async () => (store.set(state, ++n), await tick(), container.textContent) }
+}
+const ReactHookRow = ({ item, label }: { item: Item; label: Label }) => {
+  const [n] = useState(0)
+  missRuns.hook.react++
+  return h('li', { className: 'row' }, label(item), h('b', null, n))
+}
+const reactHookMiss = () => {
+  const container = document.createElement('div')
+  let set!: (n: number) => void
+  const List = () => {
+    const [n, s] = useState(0)
+    set = s
+    const label: Label = (item) => item.label
+    return h('ul', null, itemsAfter(n).map((item) => h(ReactHookRow, { key: item.id, item, label })))
+  }
+  flushSync(() => createRoot(container).render(h(List)))
+  let n = 0
+  return { container, run: () => (flushSync(() => set(++n)), container.textContent) }
+}
+
+// An `Effect.gen` body with a hook and a nested component.
+const Badge = ({ n }: { n: number }) => jsx('b', { children: n })
+const GenRow = ({ item, label }: { item: Item; label: Label }) =>
+  Effect.gen(function* () {
+    const [n] = yield* useLocal(0)
+    missRuns.gen.sleekstack++
+    return yield* jsx('li', { className: 'row', children: [label(item), jsx(Badge as any, { n })] })
+  })
+const sleekGenMiss = async () => {
+  const container = document.createElement('div')
+  const store = makeAtomStore()
+  const state = Atom.make(0)
+  const List = () =>
+    Effect.flatMap(useAtomValue(state), (n) => {
+      const label: Label = (item) => item.label
+      return jsx('ul', { children: itemsAfter(n).map((item) => jsx(GenRow as any, { item, label, key: item.id })) })
+    })
+  await mount(jsx(List as any, {}), { layer: Layer.empty, container, store })
+  let n = 0
+  return { container, run: async () => (store.set(state, ++n), await tick(), container.textContent) }
+}
+const ReactBadge = ({ n }: { n: number }) => h('b', null, n)
+const ReactGenRow = ({ item, label }: { item: Item; label: Label }) => {
+  const [n] = useState(0)
+  missRuns.gen.react++
+  return h('li', { className: 'row' }, label(item), h(ReactBadge, { n }))
+}
+const reactGenMiss = () => {
+  const container = document.createElement('div')
+  let set!: (n: number) => void
+  const List = () => {
+    const [n, s] = useState(0)
+    set = s
+    const label: Label = (item) => item.label
+    return h('ul', null, itemsAfter(n).map((item) => h(ReactGenRow, { key: item.id, item, label })))
+  }
+  flushSync(() => createRoot(container).render(h(List)))
+  let n = 0
+  return { container, run: () => (flushSync(() => set(++n)), container.textContent) }
+}
+
+const hookMiss = { sleekstack: await sleekHookMiss(), react: reactHookMiss() }
+await check('render-dom/keyed-update-hook-miss-1-of-1k', [
+  ['sleekstack', hookMiss.sleekstack.run],
+  ['react', hookMiss.react.run],
+])
+const genMiss = { sleekstack: await sleekGenMiss(), react: reactGenMiss() }
+await check('render-dom/keyed-update-gen-miss-1-of-1k', [
+  ['sleekstack', genMiss.sleekstack.run],
+  ['react', genMiss.react.run],
+])
+// Row-component executions per update, counted outside measurement: every row runs for both libraries.
+for (const [name, key, cases] of [
+  ['render-dom/keyed-update-hook-miss-1-of-1k', 'hook', hookMiss],
+  ['render-dom/keyed-update-gen-miss-1-of-1k', 'gen', genMiss],
+] as const) {
+  for (const lib of ['sleekstack', 'react'] as const) {
+    missRuns[key][lib] = 0
+    await cases[lib].run()
+    await settle()
+    console.log(`${name} component runs per update (${lib}):`, missRuns[key][lib])
+  }
+}
+
 const nodeSwaps: Record<string, Record<string, number>> = {}
 for (const [name, u] of [
   ['render-dom/update-1-of-1k', { sleekstack: sleekU, react: reactU }],
   ['render-dom/keyed-reorder-1k', keyedReorder],
-  ['render-dom/keyed-update-1-of-1k', keyedUpdate],
+  ['render-dom/keyed-update-render-callback-1-of-1k', keyedUpdate],
   ['render-dom/keyed-update-data-1-of-1k', keyedData],
 ] as const) {
   nodeSwaps[name] = { sleekstack: await swaps(u.sleekstack), react: await swaps(u.react) }
   console.log(`${name} node swaps per update:`, nodeSwaps[name])
 }
+
+// ---- one atom shown in 1k places: SleekStack binds each text node to the atom, React re-renders the list ----
+
+const sleekBound = async () => {
+  const container = document.createElement('div')
+  const store = makeAtomStore()
+  const count = Atom.make(0)
+  const label = Atom.make((get) => `Item ${get(count)}`)
+  await mount(jsx('ul', { children: rowIds.map((i) => jsx('li', { className: 'row', 'data-i': i, children: label })) }), { layer: Layer.empty, container, store })
+  let n = 0
+  return { container, run: async () => (store.set(count, ++n), await settle(), container.textContent) }
+}
+const reactBound = () => {
+  const container = document.createElement('div')
+  let set!: (n: number) => void
+  const Row = ({ i, n }: { i: number; n: number }) => h('li', { className: 'row', 'data-i': i }, `Item ${n}`)
+  const List = () => {
+    const [n, s] = useState(0)
+    set = s
+    return h('ul', null, rowIds.map((i) => h(Row, { key: i, i, n })))
+  }
+  flushSync(() => createRoot(container).render(h(List)))
+  let n = 0
+  return { container, run: () => (flushSync(() => set(++n)), container.textContent) }
+}
+const bound = { sleekstack: await sleekBound(), react: reactBound() }
+await check('render-dom/atom-bound-text-1k', [
+  ['sleekstack', bound.sleekstack.run],
+  ['react', bound.react.run],
+])
+
 const results = resolve(import.meta.dirname, '../results')
 mkdirSync(results, { recursive: true })
 writeFileSync(resolve(results, 'swaps.json'), JSON.stringify(nodeSwaps, null, 2))
@@ -241,7 +422,7 @@ describe('render-dom/keyed-reorder-1k', () => {
   bench('react', () => void keyedReorder.react.run(), opts)
 })
 
-describe('render-dom/keyed-update-1-of-1k', () => {
+describe('render-dom/keyed-update-render-callback-1-of-1k', () => {
   bench('sleekstack', async () => void (await keyedUpdate.sleekstack.run()), opts)
   bench('react', () => void keyedUpdate.react.run(), opts)
 })
@@ -254,4 +435,24 @@ describe('render-dom/keyed-update-data-1-of-1k', () => {
 describe('render-dom/keyed-update-handler-1-of-1k', () => {
   bench('sleekstack', async () => void (await keyedHandler.sleekstack.run()), opts)
   bench('react', () => void keyedHandler.react.run(), opts)
+})
+
+describe('render-dom/keyed-update-atom-1-of-1k', () => {
+  bench('sleekstack', async () => void (await keyedAtom.sleekstack.run()), opts)
+  bench('react', () => void keyedAtom.react.run(), opts)
+})
+
+describe('render-dom/atom-bound-text-1k', () => {
+  bench('sleekstack', async () => void (await bound.sleekstack.run()), opts)
+  bench('react', () => void bound.react.run(), opts)
+})
+
+describe('render-dom/keyed-update-hook-miss-1-of-1k', () => {
+  bench('sleekstack', async () => void (await hookMiss.sleekstack.run()), opts)
+  bench('react', () => void hookMiss.react.run(), opts)
+})
+
+describe('render-dom/keyed-update-gen-miss-1-of-1k', () => {
+  bench('sleekstack', async () => void (await genMiss.sleekstack.run()), opts)
+  bench('react', () => void genMiss.react.run(), opts)
 })

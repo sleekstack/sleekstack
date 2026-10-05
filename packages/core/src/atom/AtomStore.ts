@@ -74,13 +74,28 @@ interface Node {
   deps: Map<Node, number>
   readonly children: Set<Node>
   readonly listeners: Set<() => void>
+  /** Snapshot of `listeners` for a notify round; dropped on subscribe/unsubscribe. */
+  lsnap?: Array<() => void>
   retains: number
   finalizers: Array<() => void>
   removalQueued: boolean
   bucket: Set<Node> | undefined
+  /** The write context handed to `atom.write`, built on first write. */
+  wctx?: WriteContext<any>
+  /** The build context handed to `atom.read`; its closures only reach the node, so every recompute reuses it. */
+  bctx?: BuildContext
+  /** In `pending` (a node is queued once per round). */
+  queued?: boolean
 }
 
 const BUCKET_MS = 50
+
+// `Equal.equals` negated, with the common primitive case answered without it (NaN still goes through `Equal`).
+const differs = (a: unknown, b: unknown): boolean => {
+  if (a === b) return false
+  const t = typeof a
+  return t === 'object' || t === 'function' || a !== a ? !Equal.equals(a, b) : true
+}
 
 /** Creates an {@link AtomStore}. */
 export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
@@ -89,7 +104,12 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
   const wrapBuild = options.wrapBuild ?? ((effect) => effect)
   const scheduleTask = options.scheduleTask ?? queueMicrotask
   const nodes = new Map<Atom<any>, Node>()
-  const pending = new Set<Node>()
+  let pending: Node[] = []
+  const enqueue = (node: Node) => {
+    if (node.queued) return
+    node.queued = true
+    pending.push(node)
+  }
   const closing = new Set<Promise<void>>()
   const buckets = new Map<number, { nodes: Set<Node>; timer: ReturnType<typeof setTimeout> }>()
   const stack: Node[] = []
@@ -112,6 +132,12 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
         atom, state: 'uninit', value: undefined, version: 0, notified: 0, computing: false, deps: new Map(),
         children: new Set(), listeners: new Set(), retains: 0, finalizers: [], removalQueued: false, bucket: undefined,
       }
+      // A value atom starts valid with its constant (as its first pull would set it), unless a seed is waiting for it.
+      if (atom.initial !== undefined && !(key !== undefined && seeds.has(key))) {
+        node.state = 'valid'
+        node.value = atom.initial.value
+        node.version = 1
+      }
       nodes.set(atom, node)
       if (key !== undefined) keys.set(key, atom)
       scheduleRemoval(node)
@@ -128,11 +154,13 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
   }
 
   // visited per traversal: a node left 'check'/'dirty' by a failed pull still forwards to its descendants
-  const markChildren = (node: Node, visited = new Set<Node>()) => {
+  const markChildren = (node: Node, visited?: Set<Node>) => {
+    if (node.children.size === 0) return
+    visited ??= new Set<Node>()
     for (const child of node.children) {
       if (visited.has(child)) continue
       visited.add(child)
-      pending.add(child)
+      enqueue(child)
       if (child.state === 'valid') child.state = 'check'
       markChildren(child, visited)
     }
@@ -140,16 +168,17 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
 
   const flush = () => {
     if (batchDepth > 0) return
-    while (pending.size > 0) {
-      const batch = [...pending]
-      pending.clear()
+    while (pending.length > 0) {
+      const batch = pending
+      pending = []
+      for (const node of batch) node.queued = false
       for (const node of batch) {
         // nodes holding a build (fibers, finalizers) are pulled too, so invalidation interrupts them
         if ((node.listeners.size === 0 && node.finalizers.length === 0) || nodes.get(node.atom) !== node) continue
         try { pull(node) } catch { /* listeners re-read and see the error */ }
         if (node.version === node.notified && node.state === 'valid') continue
         node.notified = node.version
-        for (const l of [...node.listeners]) l()
+        for (const l of (node.lsnap ??= [...node.listeners])) l()
       }
     }
   }
@@ -157,18 +186,26 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
   const invalidate = (node: Node) => {
     node.state = 'dirty'
     runFinalizers(node)
-    pending.add(node)
+    enqueue(node)
     markChildren(node)
     flush()
   }
 
   const setValue = (node: Node, value: unknown) => {
-    const changed = node.state === 'uninit' || !Equal.equals(node.value, value)
+    const changed = node.state === 'uninit' || differs(node.value, value)
     node.state = 'valid' // an explicit write supersedes a pending recompute
     if (!changed) return
     node.value = value
     node.version++
-    pending.add(node)
+    // A leaf with listeners and no resource, written outside a batch with nothing queued: notify directly, no queue round.
+    if (node.children.size === 0 && node.finalizers.length === 0 && batchDepth === 0 && pending.length === 0) {
+      if (node.listeners.size === 0) return
+      node.notified = node.version
+      for (const l of (node.lsnap ??= [...node.listeners])) l()
+      return
+    }
+    // `flush` only pulls a node something listens to or built a resource for.
+    if (node.listeners.size > 0 || node.finalizers.length > 0) enqueue(node)
     markChildren(node)
     flush()
   }
@@ -181,11 +218,12 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
         throw new AtomCycle({ path, message: `Atom read cycle: ${path.join(' -> ')}` })
       }
       // edge first, so a read that throws still re-runs this node when the parent recovers
-      node.deps.set(parent, parent.version)
+      const seen = parent.version
+      node.deps.set(parent, seen)
       parent.children.add(node)
       cancelRemoval(parent)
       pull(parent)
-      node.deps.set(parent, parent.version)
+      if (parent.version !== seen) node.deps.set(parent, parent.version)
       return parent.value as A
     }
     return Object.assign(get, {
@@ -226,18 +264,20 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
 
   const recompute = (node: Node) => {
     runFinalizers(node)
-    for (const parent of node.deps.keys()) { parent.children.delete(node); scheduleRemoval(parent) }
+    // Edges are diffed after the read: a parent read again keeps its edge, so it is never scheduled for removal.
+    const previous = node.deps
     node.deps = new Map()
     node.computing = true
     stack.push(node)
     let value: unknown
     try {
-      value = node.atom.read(buildContext(node))
+      value = node.atom.read((node.bctx ??= buildContext(node)))
     } finally {
       node.computing = false
       stack.pop()
+      for (const parent of previous.keys()) if (!node.deps.has(parent)) { parent.children.delete(node); scheduleRemoval(parent) }
     }
-    if (node.state === 'uninit' || !Equal.equals(node.value, value)) { node.value = value; node.version++ }
+    if (node.state === 'uninit' || differs(node.value, value)) { node.value = value; node.version++ }
     node.state = 'valid'
   }
 
@@ -287,13 +327,23 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
     node.bucket = undefined
   }
 
+  const removals: Node[] = []
+  const drainRemovals = () => {
+    const batch = removals.splice(0)
+    for (const node of batch) {
+      node.removalQueued = false
+      if (removable(node)) remove(node)
+    }
+  }
+
   function scheduleRemoval(node: Node) {
     if (!removable(node)) return
     const ttl = node.atom.idleTTL ?? options.defaultIdleTTL
     if (ttl === undefined || ttl <= 0) {
       if (node.removalQueued) return
       node.removalQueued = true
-      scheduleTask(() => { node.removalQueued = false; if (removable(node)) remove(node) })
+      // One task per tick removes every node queued in it, in queue order.
+      if (removals.push(node) === 1) scheduleTask(drainRemovals)
       return
     }
     cancelRemoval(node)
@@ -329,19 +379,23 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
 
   const set = <R, W>(atom: Writable<R, W>, value: W) => {
     const node = ensure(atom)
-    try { pull(node) } catch { /* the write may replace a failing value */ }
-    batch(() => atom.write(writeContext<R>(node), value))
+    if (node.state !== 'valid') try { pull(node) } catch { /* the write may replace a failing value */ }
+    // A value atom's write is `setSelf`, one step that flushes itself: no write context, no batch.
+    if (atom.initial !== undefined) return setValue(node, value)
+    batchDepth++
+    try { atom.write((node.wctx ??= writeContext<R>(node)) as WriteContext<R>, value) } finally { batchDepth--; flush() }
   }
 
   const subscribe = <A>(atom: Atom<A>, listener: () => void, opts?: { readonly immediate?: boolean }) => {
     const node = ensure(atom)
     const l = () => listener()
     node.listeners.add(l)
+    node.lsnap = undefined
     cancelRemoval(node)
     try { pull(node) } catch { /* surfaced on read */ }
     node.notified = node.version
     if (opts?.immediate) l()
-    return () => { node.listeners.delete(l); scheduleRemoval(node) }
+    return () => { node.listeners.delete(l); node.lsnap = undefined; scheduleRemoval(node) }
   }
 
   const refresh = <A>(atom: Atom<A>) => {

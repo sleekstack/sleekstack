@@ -3,7 +3,7 @@ import { Atom, makeAtomStore } from '@sleekstack/core'
 import { Cause, Context, Data, Deferred, Effect, Layer, Schema } from 'effect'
 import { act, createElement, useEffect, useState } from 'react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { Boundary, el, fromReact, mount, type Mounted, Provider, Store, useAtomValue, useLocal, useSetAtom } from '../index'
+import { Boundary, el, fromReact, mount, type Mounted, Provider, renderToString, Store, useAtomValue, useLocal, useSetAtom } from '../index'
 import type { Node } from '../node'
 import { Fragment, jsx as rawJsx } from '../jsx-runtime'
 import { useMutation, useQuery, useQueryClient } from '../query'
@@ -171,12 +171,12 @@ describe('reactive DOM', () => {
     await tick()
     expect(container.querySelector('span')).toBe(span)
     expect(container.querySelector('em')).toBe(em)
-    expect(innerRuns).toBe(1)
+    expect(innerRuns).toBe(0) // the inner reads an atom: only that atom re-runs it
     expect(subs.get(inner)).toBe(1)
     store.set(inner, 'i3')
     await tick()
     expect(container.textContent).toBe('o2i3')
-    expect(innerRuns).toBe(2)
+    expect(innerRuns).toBe(1)
   })
 
   it('a matched instance with an in-flight re-run adopts and the latest run wins; a removed instance is fully killed', async () => {
@@ -195,10 +195,13 @@ describe('reactive DOM', () => {
     const em = container.querySelector('em')
     store.set(inner, 1) // in flight, blocked on the gate
     await tick()
-    store.set(outer, 1) // the parent's run reads inner = 1 without blocking and adopts
+    store.set(outer, 1) // the parent re-runs; the inner's own in-flight re-run is not its business
+    await tick()
+    expect(container.textContent).toBe('10')
+    expect(log).not.toContain('interrupted')
+    Effect.runSync(Deferred.succeed(gate, undefined))
     await tick()
     expect(container.textContent).toBe('11')
-    expect(log).toContain('interrupted')
     expect(container.querySelector('em')).toBe(em)
     expect(subs.get(inner)).toBe(1)
     const released = log.filter((l) => l === 'released').length
@@ -234,7 +237,7 @@ describe('reactive DOM', () => {
       )
     const onError = vi.fn()
     await go(jsx(P, {}), { store, onError })
-    // P's slots plus L(a)'s one slot; useAtomValue holds are run-scoped and released with the run.
+    // P's holds plus L(a)'s one slot; useAtomValue holds are run-scoped and released with the run; useLocal needs none beyond its slot.
     const base = held
     store.set(fail, true)
     store.set(show, 2)
@@ -243,10 +246,10 @@ describe('reactive DOM', () => {
     expect(held).toBe(base)
     store.set(fail, false)
     await tick()
-    expect(held).toBe(base + 2)
+    expect(held).toBe(base + 1)
     store.set(show, 0)
     await tick()
-    expect(held).toBe(base - 2)
+    expect(held).toBe(base - 1)
   })
 
   it('a useQuery / useMutation observer keeps its retain across an adopt and is released on kill', async () => {
@@ -782,6 +785,98 @@ describe('keyed instance reuse', () => {
     expect(runs()).toBe(4)
   })
 
+  it('a row that reads an atom skips parent re-runs, still follows its atom, and drops its subscription and hold when removed', async () => {
+    const list = mk([1, 2])
+    const items = Atom.make(list)
+    const tint = Atom.make('a')
+    let runs = 0
+    const Row = ({ item }: { item: Item }) => Effect.flatMap(useAtomValue(tint), (t) => (runs++, jsx('li', { children: item.label + t })))
+    const List = () => Effect.flatMap(useAtomValue(items), (l) => jsx('ul', { children: l.map((item) => jsx(Row, { item, key: item.id })) }))
+    const { container, store } = await go(jsx(List, {}), { store: counted() })
+    expect(runs).toBe(2)
+    store.set(items, [...list])
+    await tick()
+    expect(runs).toBe(2)
+    expect(subs.get(tint)).toBe(2)
+    store.set(tint, 'b')
+    await tick()
+    expect(rowsText(container)).toEqual(['L1b', 'L2b'])
+    store.set(items, [list[0]!])
+    await tick()
+    expect(rowsText(container)).toEqual(['L1b'])
+    expect(subs.get(tint)).toBe(1)
+    store.set(items, [])
+    await tick()
+    expect(subs.get(tint)).toBe(0)
+  })
+
+  describe('host-only rows', () => {
+    // A row that returns a bare host element is rebuilt from its props: unchanged output keeps the node, a fresh callback is just called.
+    const rig = async (row: (p: { item: Item; label: (i: Item) => string }) => any) => {
+      const list = mk([1, 2, 3])
+      const items = Atom.make(list)
+      const List = () => Effect.flatMap(useAtomValue(items), (l) => jsx('ul', { children: l.map((item) => jsx(row, { item, label: (i: Item) => i.label, key: item.id })) }))
+      const t = await go(jsx(List, {}))
+      return { ...t, items, list }
+    }
+
+    it('a fresh render callback with the same output keeps every li, and a changed output updates only that li', async () => {
+      let calls = 0
+      const { container, store, items, list } = await rig(({ item, label }) => (calls++, jsx('li', { children: label(item) })))
+      const lis = [...container.querySelectorAll('li')]
+      calls = 0
+      store.set(items, [...list])
+      await tick()
+      expect(calls).toBe(3)
+      expect([...container.querySelectorAll('li')].every((l, i) => l === lis[i])).toBe(true)
+      store.set(items, [list[0]!, { id: 2, label: 'changed' }, list[2]!])
+      await tick()
+      expect(rowsText(container)).toEqual(['L1', 'changed', 'L3'])
+      expect([...container.querySelectorAll('li')].every((l, i) => l === lis[i])).toBe(true)
+    })
+
+    it('a nested host tree is built from its props: unchanged output keeps its nodes, a changed leaf updates', async () => {
+      const { container, store, items, list } = await rig(({ item, label }) => jsx('li', { className: 'r', children: [jsx('b', { children: label(item) }), jsx('i', { children: item.id })] }))
+      const bs = [...container.querySelectorAll('b')]
+      store.set(items, [...list])
+      await tick()
+      expect([...container.querySelectorAll('b')].every((b, i) => b === bs[i])).toBe(true)
+      store.set(items, [list[0]!, { id: 2, label: 'changed' }, list[2]!])
+      await tick()
+      expect([...container.querySelectorAll('li')].map((l) => l.textContent)).toEqual(['L11', 'changed2', 'L33'])
+      expect(container.querySelectorAll('b')[0]).toBe(bs[0])
+    })
+
+    it('a nested child that is a component or an Effect falls back and still renders', async () => {
+      const Leaf = () => jsx('u', { children: 'x' })
+      const { container } = await rig(({ item }) => jsx('li', { children: [jsx('b', { children: item.label }), jsx(Leaf, {})] }))
+      expect([...container.querySelectorAll('li')].map((l) => l.textContent)).toEqual(['L1x', 'L2x', 'L3x'])
+    })
+
+    it('a row that returns a nested component falls back to the normal path and still updates', async () => {
+      const Leaf = ({ text }: { text: string }) => jsx('b', { children: text })
+      const { container, store, items, list } = await rig(({ item, label }) => jsx('li', { children: jsx(Leaf, { text: label(item) }) }))
+      store.set(items, [list[0]!, { id: 2, label: 'changed' }, list[2]!])
+      await tick()
+      expect(rowsText(container)).toEqual(['L1', 'changed', 'L3'])
+    })
+
+    it('a row with an event handler falls back and the click reaches it', async () => {
+      const clicks: Array<number> = []
+      const { container } = await rig(({ item }) => jsx('li', { onClick: () => Effect.sync(() => void clicks.push(item.id)), children: item.label }))
+      container.querySelectorAll('li')[1]!.dispatchEvent(new Event('click', { bubbles: true }))
+      await tick()
+      expect(clicks).toEqual([2])
+    })
+
+    it('a row removed from the list leaves no li behind', async () => {
+      const { container, store, items, list } = await rig(({ item, label }) => jsx('li', { children: label(item) }))
+      store.set(items, [list[2]!, list[0]!])
+      await tick()
+      expect(rowsText(container)).toEqual(['L3', 'L1'])
+    })
+  })
+
   it('re-runs every row when a prop is a new function that is not an event handler', async () => {
     const list = mk([1, 2, 3])
     const { store, items, runs } = await setup(list, (item) => ({ item, format: () => item.id }))
@@ -886,5 +981,180 @@ describe('keyed instance reuse', () => {
     await tick()
     expect(rowsText(container)).toEqual(['b1', 'b2'])
     expect(runs).toBe(4)
+  })
+})
+
+describe('atom bindings in JSX', () => {
+  it('a derived atom as a child and an atom as an attribute follow the atom without re-running the component', async () => {
+    const count = Atom.make(1)
+    const label = Atom.make((get) => `n=${get(count) * 2}`)
+    const cls = Atom.make('a')
+    let runs = 0
+    const View = () => (runs++, jsx('p', { className: cls, 'data-n': count, children: ['x ', label] }))
+    const { container, store } = await go(jsx(View, {}), { store: counted() })
+    const p = container.querySelector('p')!
+    expect(p.outerHTML).toBe('<p class="a" data-n="1">x n=2</p>')
+    store.set(count, 5)
+    store.set(cls, 'b')
+    await tick()
+    expect(container.querySelector('p')).toBe(p)
+    expect(p.outerHTML).toBe('<p class="b" data-n="5">x n=10</p>')
+    expect(runs).toBe(1)
+  })
+
+  it('false and null drop the attribute; true sets it empty', async () => {
+    const flag = Atom.make<boolean | null>(true)
+    const { container, store } = await go(jsx('input', { disabled: flag }))
+    const input = container.querySelector('input')!
+    expect(input.getAttribute('disabled')).toBe('')
+    store.set(flag, false)
+    await tick()
+    expect(input.hasAttribute('disabled')).toBe(false)
+    store.set(flag, null)
+    await tick()
+    expect(input.hasAttribute('disabled')).toBe(false)
+  })
+
+  it('a form value follows its atom', async () => {
+    const v = Atom.make('a')
+    const { container, store } = await go(jsx('input', { value: v }))
+    const input = container.querySelector('input')!
+    expect(input.value).toBe('a')
+    store.set(v, 'b')
+    await tick()
+    expect(input.value).toBe('b')
+  })
+
+  it('a parent re-run that swaps the atom re-points the binding, and dropping the element releases it', async () => {
+    const which = Atom.make(true)
+    const a = Atom.make('A')
+    const b = Atom.make('B')
+    const Same = () => Effect.flatMap(useAtomValue(which), (w) => jsx('span', { title: w ? a : b }))
+    const { container, store } = await go(jsx(Same, {}), { store: counted() })
+    const span = container.querySelector('span')!
+    expect(span.title).toBe('A')
+    expect(subs.get(a)).toBe(1)
+    store.set(which, false)
+    await tick()
+    expect(container.querySelector('span')).toBe(span)
+    expect(span.title).toBe('B')
+    expect(subs.get(a) ?? 0).toBe(0)
+    expect(subs.get(b)).toBe(1)
+    store.set(a, 'A2')
+    store.set(b, 'B2')
+    await tick()
+    expect(span.title).toBe('B2')
+  })
+
+  it('renderToString renders the current values', async () => {
+    const x = Atom.make((_get) => 'v')
+    const html = await renderToString(jsx('p', { title: x, children: x }), { layer: Layer.empty })
+    expect(html).toContain('<p title="v">v</p>')
+  })
+})
+
+describe('unkeyed host rows', () => {
+  interface Item {
+    id: number
+    label: string
+  }
+  const lis = (c: HTMLElement) => [...c.querySelectorAll('li')]
+
+  it('an unchanged row is not re-run and keeps its li; a changed row rebuilds only itself', async () => {
+    const list: Array<Item> = [1, 2, 3].map((id) => ({ id, label: `L${id}` }))
+    const items = Atom.make(list)
+    let runs = 0
+    const Row = ({ item }: { item: Item }) => (runs++, jsx('li', { children: [jsx('b', { children: item.label })] }))
+    const List = () => Effect.flatMap(useAtomValue(items), (l) => jsx('ul', { children: l.map((item) => jsx(Row, { item })) }))
+    const { container, store } = await go(jsx(List, {}))
+    const before = lis(container)
+    expect(runs).toBe(3)
+    store.set(items, [...list])
+    await tick()
+    expect(runs).toBe(3)
+    expect(lis(container).every((l, i) => l === before[i])).toBe(true)
+    store.set(items, [list[0]!, { id: 2, label: 'changed' }, list[2]!])
+    await tick()
+    expect(lis(container).map((l) => l.textContent)).toEqual(['L1', 'changed', 'L3'])
+    expect(runs).toBe(4)
+    expect(lis(container).every((l, i) => l === before[i])).toBe(true)
+  })
+
+  it('renderToString renders unkeyed host rows with nested elements', async () => {
+    const Row = ({ n }: { n: number }) => jsx('li', { className: 'r', children: [jsx('b', { children: `n${n}` }), n] })
+    const html = await renderToString(jsx('ul', { children: [1, 2].map((n) => jsx(Row, { n })) }), { layer: Layer.empty })
+    expect(html).toBe('<ul><li class="r"><b>n1</b>1</li><li class="r"><b>n2</b>2</li></ul>')
+  })
+
+  it('a row that had local state and drops it still reports a slot mismatch', async () => {
+    const withState = Atom.make(true)
+    const Row = ({ on }: { on: boolean }) => (on ? Effect.flatMap(useLocal(0), ([n]) => jsx('li', { children: String(n) })) : jsx('li', { children: 'plain' }))
+    const List = () => Effect.flatMap(useAtomValue(withState), (on) => jsx('ul', { children: jsx(Row, { on }) }))
+    const onError = vi.fn()
+    const { container, store } = await go(jsx(List, {}), { onError })
+    expect(container.textContent).toBe('0')
+    store.set(withState, false)
+    await tick()
+    expect(onError).toHaveBeenCalled()
+    expect(JSON.stringify(onError.mock.calls[0]![0])).toContain('SlotMismatch')
+  })
+
+  it('an unkeyed row with a hook and a nested component still renders and updates', async () => {
+    const tint = Atom.make('a')
+    const Leaf = () => jsx('u', { children: 'x' })
+    const Row = () => Effect.flatMap(useAtomValue(tint), (t) => jsx('li', { children: [t, jsx(Leaf, {})] }))
+    const { container, store } = await go(jsx('ul', { children: [jsx(Row, {}), jsx(Row, {})] }))
+    expect(container.textContent).toBe('axax')
+    store.set(tint, 'b')
+    await tick()
+    expect(container.textContent).toBe('bxbx')
+  })
+})
+
+describe('eager host elements', () => {
+  it('a plain host tree is the same node on every run and renders like a lazy one', async () => {
+    const tree = jsx('p', { className: 'a', children: ['x', 1, jsx('b', { children: 'y' })] })
+    const first = Effect.runSync(tree as any)
+    expect(Effect.runSync(tree as any)).toBe(first)
+    expect(first).toEqual(el('p', { class: 'a' }, 'x', '1', el('b', {}, 'y')))
+    const html = await renderToString(tree, { layer: Layer.empty })
+    expect(html).toBe('<p class="a">x1<b>y</b></p>')
+  })
+
+  it('an element with an event, an atom or a component child still runs lazily and keeps them', async () => {
+    const clicks: Array<string> = []
+    const label = Atom.make('L')
+    const Leaf = () => jsx('u', { children: 'leaf' })
+    const { container } = await go(jsx('div', { children: [jsx('button', { onClick: () => Effect.sync(() => void clicks.push('c')), children: 'go' }), jsx('i', { title: label, children: label }), jsx('p', { children: jsx(Leaf, {}) })] }))
+    expect(container.innerHTML).toBe('<div><button>go</button><i title="L">L</i><p><u>leaf</u></p></div>')
+    container.querySelector('button')!.dispatchEvent(new Event('click', { bubbles: true }))
+    await tick()
+    expect(clicks).toEqual(['c'])
+  })
+
+  it('an element key survives, including when a keyed row returns a keyed host element', async () => {
+    const order = Atom.make([1, 2, 3])
+    const Row = ({ n }: { n: number }) => jsx('li', { key: `own${n}`, children: String(n) })
+    const List = () => Effect.flatMap(useAtomValue(order), (l) => jsx('ul', { children: l.map((n) => jsx(Row, { n, key: n })) }))
+    const { container, store } = await go(jsx(List, {}))
+    const lis = [...container.querySelectorAll('li')]
+    store.set(order, [3, 1, 2])
+    await tick()
+    expect([...container.querySelectorAll('li')].map((l) => l.textContent)).toEqual(['3', '1', '2'])
+    expect(new Set([...container.querySelectorAll('li')])).toEqual(new Set(lis))
+  })
+})
+
+describe('lazy element children', () => {
+  it('keeps the order of text, atoms and component children, with none, one or several components', async () => {
+    const A = () => jsx('u', { children: 'A' })
+    const B = () => jsx('s', { children: 'B' })
+    const at = Atom.make('@')
+    const none = await renderToString(jsx('p', { children: ['a', 1, null, false, 'b'] }), { layer: Layer.empty })
+    const one = await renderToString(jsx('p', { children: ['a', jsx(A, {}), 'b'] }), { layer: Layer.empty })
+    const many = await renderToString(jsx('p', { children: ['x', jsx(A, {}), 'y', at, jsx(B, {}), 'z'] }), { layer: Layer.empty })
+    expect(none).toBe('<p>a1b</p>')
+    expect(one).toBe('<p>a<u>A</u>b</p>')
+    expect(many).toBe('<p>x<u>A</u>y@<s>B</s>z</p>')
   })
 })
