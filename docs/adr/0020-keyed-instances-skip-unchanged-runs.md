@@ -53,6 +53,8 @@ A miss runs `instance()` as today and stores the new entry. The entry is publish
 
 **Unkeyed and string rendering (amendment).** The host-only shortcut no longer needs a key or a `RenderScope`. An unkeyed row that returns a plain host tree gets that tree as its node (as an unkeyed run that read no atom always did), still advances the ordinal, and is remembered for the next parent run; a keyed one is still a `Reactive`. `renderToString` supplies no `RenderScope`, so SSR rows take the shortcut too. It applies only to an instance with no local-state atoms and no child slots: a row that used `useLocal` earlier takes the normal run, which still reports `SlotMismatch`. Measured (same-run ratios): `render-string/list-1k` 2.4x slower than React to 1.6x faster, `render-dom/mount-1k` 1.3x slower to 3.7x faster, `jsx-overhead/non-reactive-1k` 2.7x to 0.77x of the direct-call reference.
 
+**Eager host elements (amendment).** `jsx` builds an eligible host tree (same rule as above) when it is called and returns it as an already-succeeded Effect carrying the node, so a plain host element costs no context read, `Effect.all` or `map` at run time; the instance shortcut reuses that node. The same node is handed out each time the Effect runs (nodes are immutable). An element with an event, handler, atom prop or a component or Effect child still runs lazily. Measured: a hook row with a nested host child, 1,000 misses per update, about 17ms to 13ms; `jsx-overhead` about 5.2ms to 4.0ms.
+
 Not affected: `renderToString` (no previous run, every row renders), `resume` (never runs components, ADR 0017).
 
 ## Consequences

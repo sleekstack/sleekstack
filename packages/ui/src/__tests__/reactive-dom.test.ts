@@ -1110,3 +1110,37 @@ describe('unkeyed host rows', () => {
     expect(container.textContent).toBe('bxbx')
   })
 })
+
+describe('eager host elements', () => {
+  it('a plain host tree is the same node on every run and renders like a lazy one', async () => {
+    const tree = jsx('p', { className: 'a', children: ['x', 1, jsx('b', { children: 'y' })] })
+    const first = Effect.runSync(tree as any)
+    expect(Effect.runSync(tree as any)).toBe(first)
+    expect(first).toEqual(el('p', { class: 'a' }, 'x', '1', el('b', {}, 'y')))
+    const html = await renderToString(tree, { layer: Layer.empty })
+    expect(html).toBe('<p class="a">x1<b>y</b></p>')
+  })
+
+  it('an element with an event, an atom or a component child still runs lazily and keeps them', async () => {
+    const clicks: Array<string> = []
+    const label = Atom.make('L')
+    const Leaf = () => jsx('u', { children: 'leaf' })
+    const { container } = await go(jsx('div', { children: [jsx('button', { onClick: () => Effect.sync(() => void clicks.push('c')), children: 'go' }), jsx('i', { title: label, children: label }), jsx('p', { children: jsx(Leaf, {}) })] }))
+    expect(container.innerHTML).toBe('<div><button>go</button><i title="L">L</i><p><u>leaf</u></p></div>')
+    container.querySelector('button')!.dispatchEvent(new Event('click', { bubbles: true }))
+    await tick()
+    expect(clicks).toEqual(['c'])
+  })
+
+  it('an element key survives, including when a keyed row returns a keyed host element', async () => {
+    const order = Atom.make([1, 2, 3])
+    const Row = ({ n }: { n: number }) => jsx('li', { key: `own${n}`, children: String(n) })
+    const List = () => Effect.flatMap(useAtomValue(order), (l) => jsx('ul', { children: l.map((n) => jsx(Row, { n, key: n })) }))
+    const { container, store } = await go(jsx(List, {}))
+    const lis = [...container.querySelectorAll('li')]
+    store.set(order, [3, 1, 2])
+    await tick()
+    expect([...container.querySelectorAll('li')].map((l) => l.textContent)).toEqual(['3', '1', '2'])
+    expect(new Set([...container.querySelectorAll('li')])).toEqual(new Set(lis))
+  })
+})

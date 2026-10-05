@@ -339,6 +339,8 @@ export interface HostDescriptor {
   readonly _ht: string
   readonly _hp: Record<string, unknown>
   readonly _hk: string | undefined
+  /** The node `jsx` already built for an eligible host tree. */
+  readonly _hn?: Node
 }
 
 export const hostOf = (e: unknown): HostDescriptor | undefined => ((e as HostDescriptor)._ht === undefined ? undefined : (e as HostDescriptor))

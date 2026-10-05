@@ -64,6 +64,13 @@ const element = (type: string, props: Props, key: string | undefined): Effect.Ef
 // Plain host tree: primitive attributes and text, nested plain host elements. Its output is its props, so it is built (and compared) synchronously.
 const isPrim = (v: unknown): boolean => v == null || typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean'
 const hostNode = (d: HostDescriptor, key: string | undefined): Node | undefined => {
+  // `jsx` built an eligible tree already: reuse it, re-keyed when the caller's key differs from the element's own.
+  const pre = d._hn as ElementNode | undefined
+  if (pre) {
+    if (key === d._hk) return pre
+    const { key: _own, ...rest } = pre
+    return key === undefined ? rest : { ...rest, key }
+  }
   const p = d._hp as Props
   for (const k in p) if (k !== 'children' && (/^on[A-Z]/.test(k) || !isPrim(p[k]))) return undefined
   const kids = hostChildren(p.children, [])
@@ -79,7 +86,7 @@ const hostChildren = (c: unknown, out: Array<Node | string>): Array<Node | strin
   if (c == null || typeof c === 'boolean') return out
   if (typeof c === 'string' || typeof c === 'number') return out.push(String(c)), out
   const h = hostOf(c)
-  const n = h && hostNode(h, h._hk)
+  const n = h && (h._hn ?? hostNode(h, h._hk))
   return n ? (out.push(n), out) : undefined
 }
 const sameVal = (x: unknown, y: unknown): boolean => {
@@ -105,7 +112,17 @@ export const jsx = (type: string | ((props: any) => Element), props: Props, key?
     ? type === Fragment || type === Provider || type === Boundary
       ? type(props as any)
       : (instance(type, props, ks) as Element)
-    : tagHost(element(type, props, ks), type, props, ks)
+    : hostElement(type, props, ks)
+}
+// A plain host tree is built now and handed out as an already-succeeded Effect, with no context read or `Effect.all`; anything else runs lazily.
+const hostElement = (type: string, props: Props, key: string | undefined): Element => {
+  const d = { _ht: type, _hp: props, _hk: key } as HostDescriptor
+  const node = hostNode(d, key)
+  if (!node) return tagHost(element(type, props, key), type, props, key)
+  const e = Effect.succeed(node)
+  tagHost(e, type, props, key)
+  ;(e as unknown as { _hn: Node })._hn = node
+  return e as Element
 }
 const tagHost = (e: Effect.Effect<Node, any, any>, type: string, props: Props, key: string | undefined): Element => {
   const h = e as unknown as { _ht: string; _hp: Props; _hk: string | undefined }
