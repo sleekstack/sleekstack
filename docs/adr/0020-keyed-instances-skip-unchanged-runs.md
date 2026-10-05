@@ -51,6 +51,8 @@ A miss runs `instance()` as today and stores the new entry. The entry is publish
 
 **Run-scoped holds (amendment).** `useLocal` already retains its slot atom for the slot's lifetime, so a run no longer takes its own hold and scope fork for it. A hook-only row's miss went from about 27ms to about 14.5ms per 1,000 rows; a row with a hook and a nested child from about 24ms to about 17ms. Context-map reuse across runs was tried and gave no gain (reverted).
 
+**Unkeyed and string rendering (amendment).** The host-only shortcut no longer needs a key or a `RenderScope`. An unkeyed row that returns a plain host tree gets that tree as its node (as an unkeyed run that read no atom always did), still advances the ordinal, and is remembered for the next parent run; a keyed one is still a `Reactive`. `renderToString` supplies no `RenderScope`, so SSR rows take the shortcut too. It applies only to an instance with no local-state atoms and no child slots: a row that used `useLocal` earlier takes the normal run, which still reports `SlotMismatch`. Measured (same-run ratios): `render-string/list-1k` 2.4x slower than React to 1.6x faster, `render-dom/mount-1k` 1.3x slower to 3.7x faster, `jsx-overhead/non-reactive-1k` 2.7x to 0.77x of the direct-call reference.
+
 Not affected: `renderToString` (no previous run, every row renders), `resume` (never runs components, ADR 0017).
 
 ## Consequences

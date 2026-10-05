@@ -443,8 +443,9 @@ export const instance = <P>(type: (props: P) => Effect.Effect<Node, any, any>, p
       const m = forced ? undefined : slots.memo
       forced = false
       if (m && (m.scope === undefined || reusable(m.scope)) && sameProps(m.props, effProps as object) && sameServices(m.ctx, ctx)) return Effect.succeed(m.node)
-      // A keyed row that returns a plain host element builds its node here, without the run machinery; unchanged output reuses the last node.
-      if (key !== undefined && hostBuilder.build && Context.get(ctx, RenderScope)) {
+      // A row that returns a plain host element builds its node here, without the run machinery; unchanged output reuses the last node.
+      // Only an instance with no local state or child slots of its own: otherwise the normal run checks its slot count.
+      if (hostBuilder.build && slots.atoms.length === 0 && slots.kids === undefined) {
         slots.running = true
         slots.called = false
         const eff = type(effProps)
@@ -459,7 +460,8 @@ export const instance = <P>(type: (props: P) => Effect.Effect<Node, any, any>, p
           const built = hostBuilder.build(d, key)
           if (built) {
             slots.done = true
-            const node: Node = {
+            // Keyed calls are always instance nodes (ADR 0015); an unkeyed one that read no atom is its plain output.
+            const node: Node = key === undefined ? built : {
               _tag: 'Reactive',
               atoms: NO_ATOMS,
               seen: NO_ATOMS,

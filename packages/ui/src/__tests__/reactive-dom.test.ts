@@ -1052,3 +1052,61 @@ describe('atom bindings in JSX', () => {
     expect(html).toContain('<p title="v">v</p>')
   })
 })
+
+describe('unkeyed host rows', () => {
+  interface Item {
+    id: number
+    label: string
+  }
+  const lis = (c: HTMLElement) => [...c.querySelectorAll('li')]
+
+  it('an unchanged row is not re-run and keeps its li; a changed row rebuilds only itself', async () => {
+    const list: Array<Item> = [1, 2, 3].map((id) => ({ id, label: `L${id}` }))
+    const items = Atom.make(list)
+    let runs = 0
+    const Row = ({ item }: { item: Item }) => (runs++, jsx('li', { children: [jsx('b', { children: item.label })] }))
+    const List = () => Effect.flatMap(useAtomValue(items), (l) => jsx('ul', { children: l.map((item) => jsx(Row, { item })) }))
+    const { container, store } = await go(jsx(List, {}))
+    const before = lis(container)
+    expect(runs).toBe(3)
+    store.set(items, [...list])
+    await tick()
+    expect(runs).toBe(3)
+    expect(lis(container).every((l, i) => l === before[i])).toBe(true)
+    store.set(items, [list[0]!, { id: 2, label: 'changed' }, list[2]!])
+    await tick()
+    expect(lis(container).map((l) => l.textContent)).toEqual(['L1', 'changed', 'L3'])
+    expect(runs).toBe(4)
+    expect(lis(container).every((l, i) => l === before[i])).toBe(true)
+  })
+
+  it('renderToString renders unkeyed host rows with nested elements', async () => {
+    const Row = ({ n }: { n: number }) => jsx('li', { className: 'r', children: [jsx('b', { children: `n${n}` }), n] })
+    const html = await renderToString(jsx('ul', { children: [1, 2].map((n) => jsx(Row, { n })) }), { layer: Layer.empty })
+    expect(html).toBe('<ul><li class="r"><b>n1</b>1</li><li class="r"><b>n2</b>2</li></ul>')
+  })
+
+  it('a row that had local state and drops it still reports a slot mismatch', async () => {
+    const withState = Atom.make(true)
+    const Row = ({ on }: { on: boolean }) => (on ? Effect.flatMap(useLocal(0), ([n]) => jsx('li', { children: String(n) })) : jsx('li', { children: 'plain' }))
+    const List = () => Effect.flatMap(useAtomValue(withState), (on) => jsx('ul', { children: jsx(Row, { on }) }))
+    const onError = vi.fn()
+    const { container, store } = await go(jsx(List, {}), { onError })
+    expect(container.textContent).toBe('0')
+    store.set(withState, false)
+    await tick()
+    expect(onError).toHaveBeenCalled()
+    expect(JSON.stringify(onError.mock.calls[0]![0])).toContain('SlotMismatch')
+  })
+
+  it('an unkeyed row with a hook and a nested component still renders and updates', async () => {
+    const tint = Atom.make('a')
+    const Leaf = () => jsx('u', { children: 'x' })
+    const Row = () => Effect.flatMap(useAtomValue(tint), (t) => jsx('li', { children: [t, jsx(Leaf, {})] }))
+    const { container, store } = await go(jsx('ul', { children: [jsx(Row, {}), jsx(Row, {})] }))
+    expect(container.textContent).toBe('axax')
+    store.set(tint, 'b')
+    await tick()
+    expect(container.textContent).toBe('bxbx')
+  })
+})
