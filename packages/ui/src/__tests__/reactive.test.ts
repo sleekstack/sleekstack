@@ -16,7 +16,9 @@ const Counter = () => Effect.map(useAtomValue(count), (n) => el('b', {}, String(
 
 describe('reactive components', () => {
   it('renders the current atom value with no wrapper element', async () => {
-    expect(await renderToString(jsx(Counter, {}), { layer: Layer.empty })).toBe('<sleek-reactive style="display: contents;"><b>3</b></sleek-reactive>')
+    expect(await renderToString(jsx(Counter, {}), { layer: Layer.empty })).toBe(
+      '<sleek-reactive style="display: contents;"><b>3</b></sleek-reactive>',
+    )
   })
 
   it('returns a Reactive node only when atoms were read', async () => {
@@ -35,12 +37,17 @@ describe('reactive components', () => {
   it('sees an enclosing Provider layer', async () => {
     const Hi = () => Effect.zipWith(Greeting, useAtom(count), (g, [n]) => el('p', {}, `${g} ${n}`))
     const app = jsx(Provider, { layer: Layer.succeed(Greeting, 'hi'), children: jsx(Hi, {}) })
-    expect(await renderToString(app, { layer: Layer.empty })).toBe('<sleek-reactive style="display: contents;"><p>hi 3</p></sleek-reactive>')
+    expect(await renderToString(app, { layer: Layer.empty })).toBe(
+      '<sleek-reactive style="display: contents;"><p>hi 3</p></sleek-reactive>',
+    )
   })
 
   it('keeps a scoped Provider layer alive for re-runs; closing a superseded run scope releases it', async () => {
     const log: Array<string> = []
-    const layer = Layer.scoped(Greeting, Effect.acquireRelease(Effect.succeed('hi'), () => Effect.sync(() => log.push('released'))))
+    const layer = Layer.scoped(
+      Greeting,
+      Effect.acquireRelease(Effect.succeed('hi'), () => Effect.sync(() => log.push('released'))),
+    )
     const Hi = () => Effect.zipWith(Greeting, useAtomValue(count), (g, n) => el('p', {}, `${g} ${n}`))
     const Outer = () => Effect.flatMap(useAtomValue(count), () => jsx(Provider, { layer, children: jsx(Hi, {}) }))
     const scope = Effect.runSync(Scope.make())
@@ -72,10 +79,15 @@ describe('reactive components', () => {
 
   describe('instance identity', () => {
     const store = makeAtomStore()
-    const run = (e: Effect.Effect<any, any, any>) => Effect.runPromise(Effect.provideService(e, Store, store) as Effect.Effect<any>)
+    const run = (e: Effect.Effect<any, any, any>) =>
+      Effect.runPromise(Effect.provideService(e, Store, store) as Effect.Effect<any>)
     const A = () => Effect.map(useAtomValue(count), (n) => el('i', {}, String(n)))
-    const ids = (n: any): Array<string> => (n._tag === 'Reactive' ? [n.id, ...ids(n.child)] : (n.children ?? []).flatMap((c: any) => (typeof c === 'string' ? [] : ids(c))))
-    const Parent = ({ cond }: { cond: boolean }) => jsx(Fragment, { children: [cond && jsx(A, {}), jsx(A, {}), jsx(A, {}, 'k')] })
+    const ids = (n: any): Array<string> =>
+      n._tag === 'Reactive'
+        ? [n.id, ...ids(n.child)]
+        : (n.children ?? []).flatMap((c: any) => (typeof c === 'string' ? [] : ids(c)))
+    const Parent = ({ cond }: { cond: boolean }) =>
+      jsx(Fragment, { children: [cond && jsx(A, {}), jsx(A, {}), jsx(A, {}, 'k')] })
 
     it('ids are stable across runs; ordinal counts every call (positional shift)', async () => {
       const on = ids(await run(jsx(Parent, { cond: true })))
@@ -104,8 +116,11 @@ describe('reactive components', () => {
 
   describe('useLocal', () => {
     const run = (e: Effect.Effect<any, any, any>, store = makeAtomStore(), frame = makeFrame()) =>
-      Effect.runPromise(e.pipe(Effect.provideService(Store, store), Effect.provideService(Frame, frame)) as Effect.Effect<any>)
-    const text = (n: any): string => (n._tag === 'Text' ? n.text : n._tag === 'Reactive' ? text(n.child) : (n.children ?? []).map(text).join(''))
+      Effect.runPromise(
+        e.pipe(Effect.provideService(Store, store), Effect.provideService(Frame, frame)) as Effect.Effect<any>,
+      )
+    const text = (n: any): string =>
+      n._tag === 'Text' ? n.text : n._tag === 'Reactive' ? text(n.child) : (n.children ?? []).map(text).join('')
     let setters: Record<string, (next: any) => void> = {}
     const Local = ({ name }: { name: string }) =>
       Effect.map(useLocal(0), ([n, set]) => {
@@ -115,7 +130,15 @@ describe('reactive components', () => {
 
     it('persists across re-runs; value and updater setters change it; siblings and keys are independent', async () => {
       setters = {}
-      const P = () => jsx(Fragment, { children: [jsx(Local, { name: 'a' }), jsx(Local, { name: 'b' }), jsx(Local, { name: 'k' }, 'x'), jsx(Local, { name: 'l' }, 'y')] })
+      const P = () =>
+        jsx(Fragment, {
+          children: [
+            jsx(Local, { name: 'a' }),
+            jsx(Local, { name: 'b' }),
+            jsx(Local, { name: 'k' }, 'x'),
+            jsx(Local, { name: 'l' }, 'y'),
+          ],
+        })
       const node: any = await run(jsx(P, {}, 'p'))
       const a = node.child.children[0]
       expect(a.atoms).toHaveLength(1)
@@ -128,7 +151,8 @@ describe('reactive components', () => {
     })
 
     // Children of a fragment register in the frame they run in; each run of the parent gets a fresh frame over the same slots.
-    const kidsOf = (more: boolean) => jsx(Fragment, { children: [jsx(Local, { name: 'a' }), more && jsx(Local, { name: 'b' }, 'b')] })
+    const kidsOf = (more: boolean) =>
+      jsx(Fragment, { children: [jsx(Local, { name: 'a' }), more && jsx(Local, { name: 'b' }, 'b')] })
 
     it('dropping a run disposes only the slots it created', async () => {
       setters = {}
@@ -162,7 +186,10 @@ describe('reactive components', () => {
 
     it('a run with a different useLocal count fails with SlotMismatch and keeps the slot count', async () => {
       let extra = false
-      const C = () => Effect.flatMap(useLocal(1), ([n]) => (extra ? Effect.map(useLocal(2), () => el('p', {}, String(n))) : Effect.succeed(el('p', {}, String(n)))))
+      const C = () =>
+        Effect.flatMap(useLocal(1), ([n]) =>
+          extra ? Effect.map(useLocal(2), () => el('p', {}, String(n))) : Effect.succeed(el('p', {}, String(n))),
+        )
       const node: any = await run(jsx(C, {}, 'c'))
       extra = true
       expect(await Effect.runPromise(Effect.flip(node.rerun as Effect.Effect<any, any>))).toBeInstanceOf(SlotMismatch)
@@ -171,12 +198,21 @@ describe('reactive components', () => {
       const D = ({ k }: { k: number }) => (k === 2 ? Effect.succeed(el('p')) : Effect.map(useLocal(0), () => el('p')))
       const frame = makeFrame()
       await run(jsx(D, { k: 1 }), undefined, frame)
-      const err = await Effect.runPromise(Effect.flip(jsx(D, { k: 2 }).pipe(Effect.provideService(Store, makeAtomStore()), Effect.provideService(Frame, makeFrame(frame.owner))) as Effect.Effect<any, any>))
+      const err = await Effect.runPromise(
+        Effect.flip(
+          jsx(D, { k: 2 }).pipe(
+            Effect.provideService(Store, makeAtomStore()),
+            Effect.provideService(Frame, makeFrame(frame.owner)),
+          ) as Effect.Effect<any, any>,
+        ),
+      )
       expect(err).toMatchObject({ _tag: 'SlotMismatch', expected: 1, actual: 0 })
     })
 
     it('renderToString renders initial; outside an instance the setter is a no-op', async () => {
-      expect(await renderToString(jsx(Local, { name: 'a' }), { layer: Layer.empty })).toBe('<sleek-reactive style="display: contents;"><i>a0</i></sleek-reactive>')
+      expect(await renderToString(jsx(Local, { name: 'a' }), { layer: Layer.empty })).toBe(
+        '<sleek-reactive style="display: contents;"><i>a0</i></sleek-reactive>',
+      )
       const [n, set] = await Effect.runPromise(Effect.provideService(useLocal(7), Store, makeAtomStore()))
       expect(n).toBe(7)
       expect(set(1)).toBeUndefined()

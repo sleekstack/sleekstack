@@ -3,7 +3,12 @@ const NATIVE = 'a[href], area[href], input[type=checkbox i], input[type=radio i]
 
 const isSubmit = (el: Element) => {
   const b = el.closest('button, input[type=submit i], input[type=image i]')
-  return b !== null && (b as HTMLButtonElement).type !== 'button' && (b as HTMLButtonElement).type !== 'reset' && (b as HTMLButtonElement).form !== null
+  return (
+    b !== null &&
+    (b as HTMLButtonElement).type !== 'button' &&
+    (b as HTMLButtonElement).type !== 'reset' &&
+    (b as HTMLButtonElement).form !== null
+  )
 }
 
 /** Whether a click recorded before hydration should be re-dispatched on its target. */

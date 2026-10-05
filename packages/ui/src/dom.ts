@@ -6,7 +6,21 @@ import { createRoot, type Root } from 'react-dom/client'
 import { reportRenderError, runToNode } from './component'
 import type { BindNode, ElementNode, EventBinding, FragmentNode, GuestNode, Node, ReactiveNode } from './node'
 import { Hydrating } from './pending'
-import { closeNow, commitSlots, disposeSlots, dropSlots, DuplicateKey, fallbacks, Frame, makeFrame, MountScope, RenderScope, type RunFrame, runScopes, Store } from './reactive'
+import {
+  closeNow,
+  commitSlots,
+  disposeSlots,
+  dropSlots,
+  DuplicateKey,
+  fallbacks,
+  Frame,
+  makeFrame,
+  MountScope,
+  RenderScope,
+  type RunFrame,
+  runScopes,
+  Store,
+} from './reactive'
 import { checkAttr, checkTag } from './string'
 
 export interface Mounted {
@@ -193,7 +207,11 @@ const commit = (p: Plan): void => {
 }
 
 export type Leaf = Exclude<Node, FragmentNode>
-export const flat = (nodes: ReadonlyArray<Node>, scopes: Array<Scope.CloseableScope>, out: Array<Leaf> = []): Array<Leaf> => {
+export const flat = (
+  nodes: ReadonlyArray<Node>,
+  scopes: Array<Scope.CloseableScope>,
+  out: Array<Leaf> = [],
+): Array<Leaf> => {
   for (const n of nodes) {
     if (n._tag !== 'Fragment') out.push(n)
     else {
@@ -210,7 +228,7 @@ export const keysOf = (nodes: ReadonlyArray<Leaf>, env: Env): Array<string | und
   return nodes.map((n) => {
     const k = n._tag === 'Element' || n._tag === 'Reactive' || n._tag === 'Guest' ? n.key : undefined
     if (k === undefined) return undefined
-    if (seen.has(k)) return env.duplicate(k), undefined
+    if (seen.has(k)) return (env.duplicate(k), undefined)
     seen.add(k)
     return k
   })
@@ -246,7 +264,10 @@ const bindAttrs = (el: Element, atoms: Readonly<Record<string, Atom.Atom<any>>>,
   box.atoms = atoms
   box.off = () => offs.splice(0).forEach((f) => f())
 }
-const sameAtoms = (a: Readonly<Record<string, Atom.Atom<any>>> | undefined, b: Readonly<Record<string, Atom.Atom<any>>> | undefined): boolean => {
+const sameAtoms = (
+  a: Readonly<Record<string, Atom.Atom<any>>> | undefined,
+  b: Readonly<Record<string, Atom.Atom<any>>> | undefined,
+): boolean => {
   const ka = a ? Object.keys(a) : []
   if (ka.length !== (b ? Object.keys(b).length : 0)) return false
   return ka.every((k) => b![k] === a![k])
@@ -278,17 +299,33 @@ export const listen = (el: Element, ev: Events, names: Iterable<string>, onError
   }
 }
 const relisten = (el: Element, ev: Events, next: Readonly<Record<string, EventBinding>>, onError?: OnError): void => {
-  for (const [name, f] of ev.listeners) if (!Object.hasOwn(next, name)) (el.removeEventListener(name, f), ev.listeners.delete(name))
+  for (const [name, f] of ev.listeners)
+    if (!Object.hasOwn(next, name)) (el.removeEventListener(name, f), ev.listeners.delete(name))
   ev.bindings = next
-  listen(el, ev, Object.keys(next).filter((n) => !ev.listeners.has(n)), onError)
+  listen(
+    el,
+    ev,
+    Object.keys(next).filter((n) => !ev.listeners.has(n)),
+    onError,
+  )
 }
 
 // The boundary keeps its identity across renders, so a failed guest stays empty until unmounted.
 export const guestElement = (node: GuestNode, env: Env): ReactNode =>
-  createElement(GuestBoundary, { report: (error: unknown) => reportRenderError(error, env.onError) }, createElement(node.component, node.props))
-export const renderGuest = (root: Root, node: GuestNode, env: Env): void => flushSync(() => root.render(guestElement(node, env)))
+  createElement(
+    GuestBoundary,
+    { report: (error: unknown) => reportRenderError(error, env.onError) },
+    createElement(node.component, node.props),
+  )
+export const renderGuest = (root: Root, node: GuestNode, env: Env): void =>
+  flushSync(() => root.render(guestElement(node, env)))
 
-export const build = (node: Leaf, key: string | undefined, env: Env, scopes: Array<Scope.CloseableScope>): Live | null => {
+export const build = (
+  node: Leaf,
+  key: string | undefined,
+  env: Env,
+  scopes: Array<Scope.CloseableScope>,
+): Live | null => {
   try {
     const keyed = key === undefined ? {} : { key }
     switch (node._tag) {
@@ -309,7 +346,8 @@ export const build = (node: Leaf, key: string | undefined, env: Env, scopes: Arr
         }
         const kids = buildAll(node.children, env, scopes, el)
         // After the options, so a `<select>` value finds its option.
-        if (FORM.has(el.tagName)) for (const k of ['value', 'checked']) if (Object.hasOwn(node.attrs, k)) setProp(el, k, node.attrs[k])
+        if (FORM.has(el.tagName))
+          for (const k of ['value', 'checked']) if (Object.hasOwn(node.attrs, k)) setProp(el, k, node.attrs[k])
         const bnd: BoundAttrs | undefined = node.bound && { atoms: {}, off: () => {} }
         if (bnd) bindAttrs(el, node.bound!, env, bnd)
         if (!node.events) return { node, dom: el, kids, ...(bnd && { bnd }), ...keyed }
@@ -320,7 +358,20 @@ export const build = (node: Leaf, key: string | undefined, env: Env, scopes: Arr
       case 'Reactive': {
         const host = env.doc.createElement('sleek-reactive')
         host.style.display = 'contents'
-        const inst: Instance = { lives: [], scopes: [], host, rerun: node.rerun, unsubs: [], fiber: undefined, queued: -1, epoch: 0, dead: false, scope: node.scope, frame: node.frame, node }
+        const inst: Instance = {
+          lives: [],
+          scopes: [],
+          host,
+          rerun: node.rerun,
+          unsubs: [],
+          fiber: undefined,
+          queued: -1,
+          epoch: 0,
+          dead: false,
+          scope: node.scope,
+          frame: node.frame,
+          node,
+        }
         installed.add(node)
         inst.lives = buildAll([node.child], env, inst.scopes, host)
         watch(inst, node, env)
@@ -330,7 +381,10 @@ export const build = (node: Leaf, key: string | undefined, env: Env, scopes: Arr
         // One React root per guest host; `display: contents` keeps the host out of layout.
         const host = env.doc.createElement('sleek-guest')
         host.style.display = 'contents'
-        const root = createRoot(host, { onCaughtError: () => {}, onUncaughtError: (error) => reportRenderError(error, env.onError) })
+        const root = createRoot(host, {
+          onCaughtError: () => {},
+          onUncaughtError: (error) => reportRenderError(error, env.onError),
+        })
         const live: Live = { node, dom: host, kids: [], root, ...keyed }
         renderGuest(root, node, env)
         return live
@@ -341,7 +395,12 @@ export const build = (node: Leaf, key: string | undefined, env: Env, scopes: Arr
     return null
   }
 }
-const buildAll = (nodes: ReadonlyArray<Node>, env: Env, scopes: Array<Scope.CloseableScope>, parent: globalThis.Node): Array<Live> => {
+const buildAll = (
+  nodes: ReadonlyArray<Node>,
+  env: Env,
+  scopes: Array<Scope.CloseableScope>,
+  parent: globalThis.Node,
+): Array<Live> => {
   const list = flat(nodes, scopes)
   const keys = keysOf(list, env)
   return list.flatMap((n, i) => {
@@ -379,7 +438,8 @@ const patch = (prev: Live, node: Leaf, key: string | undefined, env: Env, p: Pla
         changed.push([k, v])
       }
     for (const k of Object.keys(old)) if (!Object.hasOwn(next, k)) changed.push([k, undefined])
-    if (changed.length > 0) p.ops.push(() => changed.forEach(([k, v]) => (v === undefined ? el.removeAttribute(k) : el.setAttribute(k, v))))
+    if (changed.length > 0)
+      p.ops.push(() => changed.forEach(([k, v]) => (v === undefined ? el.removeAttribute(k) : el.setAttribute(k, v))))
     const kids = patchChildren(el, prev.kids, (node as ElementNode).children, env, p)
     const props = FORM.has(el.tagName) ? changed.filter(([k]) => k === 'value' || k === 'checked') : []
     if (props.length > 0) p.ops.push(() => props.forEach(([k, v]) => setProp(el, k, v)))
@@ -391,7 +451,8 @@ const patch = (prev: Live, node: Leaf, key: string | undefined, env: Env, p: Pla
         p.ops.push(() => {
           const old = box.atoms
           box.off()
-          for (const k of Object.keys(old)) if (!nextBound || !Object.hasOwn(nextBound, k)) if (!Object.hasOwn(next, k)) el.removeAttribute(k)
+          for (const k of Object.keys(old))
+            if (!nextBound || !Object.hasOwn(nextBound, k)) if (!Object.hasOwn(next, k)) el.removeAttribute(k)
           if (nextBound) bindAttrs(el, nextBound, env, box)
           else box.atoms = {}
         })
@@ -450,10 +511,20 @@ const replaceScopes = (inst: Instance, next: Array<Scope.CloseableScope>): void 
 
 const same = (a: Leaf, b: Leaf): boolean =>
   a._tag === b._tag &&
-  (a._tag === 'Element' ? a.tag === (b as ElementNode).tag : a._tag === 'Bind' ? a.atom === (b as BindNode).atom : a._tag !== 'Guest' || a.component === (b as GuestNode).component)
+  (a._tag === 'Element'
+    ? a.tag === (b as ElementNode).tag
+    : a._tag === 'Bind'
+      ? a.atom === (b as BindNode).atom
+      : a._tag !== 'Guest' || a.component === (b as GuestNode).component)
 
 // Matching: instances by id; others by key and type, else the next unkeyed old sibling by position (a separate pool).
-const patchChildren = (parent: globalThis.Node, old: ReadonlyArray<Live>, nodes: ReadonlyArray<Node>, env: Env, p: Plan): Array<Live> => {
+const patchChildren = (
+  parent: globalThis.Node,
+  old: ReadonlyArray<Live>,
+  nodes: ReadonlyArray<Node>,
+  env: Env,
+  p: Plan,
+): Array<Live> => {
   const list = flat(nodes, p.scopes)
   const keys = keysOf(list, env)
   const byKey = new Map<string, Live>()
@@ -593,7 +664,13 @@ const swap = (inst: Instance, node: Node, env: Env): void => {
   const errors: Array<unknown> = []
   const p = plan()
   const own = !fallbacks.has(node) && node._tag === 'Reactive' ? node : undefined
-  const lives = patchChildren(inst.host, inst.lives, [own ? own.child : node], { ...env, defect: (e) => errors.push(e), duplicate: once(env.onError) }, p)
+  const lives = patchChildren(
+    inst.host,
+    inst.lives,
+    [own ? own.child : node],
+    { ...env, defect: (e) => errors.push(e), duplicate: once(env.onError) },
+    p,
+  )
   if (errors.length > 0 || inst.dead || !env.live()) {
     abort(p)
     dropScopes(node)
@@ -677,7 +754,13 @@ export const start = async <E, A, LE = never>(
     }
   }
   const hydrating = { on: !!adoptWith }
-  const provided = app.pipe(Effect.provideService(Store, store), Effect.provideService(RenderScope, scope), Effect.provideService(MountScope, scope), Effect.provideService(Frame, frame), Effect.provideService(Hydrating, hydrating)) as Effect.Effect<Node, E, Exclude<A, Store>>
+  const provided = app.pipe(
+    Effect.provideService(Store, store),
+    Effect.provideService(RenderScope, scope),
+    Effect.provideService(MountScope, scope),
+    Effect.provideService(Frame, frame),
+    Effect.provideService(Hydrating, hydrating),
+  ) as Effect.Effect<Node, E, Exclude<A, Store>>
   let node: Node
   try {
     // The mount layer lives in the mount scope: re-runs reuse its services after the first render.
@@ -690,7 +773,14 @@ export const start = async <E, A, LE = never>(
     hydrating.on = false
   }
   if (!current()) return noop
-  const env: Env = { doc: container.ownerDocument, store, onError, live: current, defect: (e) => reportRenderError(e, onError), duplicate: once(onError) }
+  const env: Env = {
+    doc: container.ownerDocument,
+    store,
+    onError,
+    live: current,
+    defect: (e) => reportRenderError(e, onError),
+    duplicate: once(onError),
+  }
   if (adoptWith) {
     const top: Owner = { lives: [], scopes: [] }
     top.lives = adoptWith(container, node, env, top.scopes)

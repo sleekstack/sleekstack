@@ -27,7 +27,11 @@ export function Board({ demoMode }: { readonly demoMode: boolean }) {
   return (
     <div>
       <DemoToggle demoMode={demoMode} />
-      {board ? board.map(({ project, tasks }) => <ProjectView key={project.id} project={project} tasks={tasks} />) : <p>Loading board…</p>}
+      {board ? (
+        board.map(({ project, tasks }) => <ProjectView key={project.id} project={project} tasks={tasks} />)
+      ) : (
+        <p>Loading board…</p>
+      )}
       <ScopeLog />
     </div>
   )

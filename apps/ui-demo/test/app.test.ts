@@ -43,7 +43,8 @@ it('a filter click re-renders only the columns; a task pick replaces the detail'
   const container = document.createElement('div')
   let m!: Awaited<ReturnType<typeof mount>>
   await act(async () => void (m = await mount(App({ viewer: 'u1' }), { layer: AppLive, container })))
-  const click = (v: string) => act(async () => container.querySelector<HTMLButtonElement>(`button[data-value="${v}"]`)!.click())
+  const click = (v: string) =>
+    act(async () => container.querySelector<HTMLButtonElement>(`button[data-value="${v}"]`)!.click())
   const header = container.querySelector('header')
   const team = container.querySelector('.team')
   const doneBtn = container.querySelector('button[data-value="done"]')
@@ -76,7 +77,9 @@ it('the backlog shows the Pending fallback, then loads through useSuspenseQuery;
   ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
   const container = document.createElement('div')
   let sawFallback = false
-  const seen = new MutationObserver(() => void (sawFallback ||= container.querySelector('.backlog-panel .spinner') !== null))
+  const seen = new MutationObserver(
+    () => void (sawFallback ||= container.querySelector('.backlog-panel .spinner') !== null),
+  )
   seen.observe(container, { childList: true, subtree: true })
   let m!: Awaited<ReturnType<typeof mount>>
   await act(async () => void (m = await mount(App({ viewer: 'u1' }), { layer: AppLive, container })))

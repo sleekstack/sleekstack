@@ -10,7 +10,11 @@ import { isPrivate, resolve, type Seen } from './extract'
 import { analyzeError } from './errorCodes'
 import type { ActionDecl, AnalyzeCode, AnalyzeError, Lifetime, Location, ModuleDecl } from './model'
 
-const allowed: Record<Lifetime, readonly Lifetime[]> = { app: ['app'], request: ['app', 'request'], component: ['app', 'component'] }
+const allowed: Record<Lifetime, readonly Lifetime[]> = {
+  app: ['app'],
+  request: ['app', 'request'],
+  component: ['app', 'component'],
+}
 
 export function validate(root: ModuleDecl): AnalyzeError[] {
   const errors: AnalyzeError[] = []
@@ -27,7 +31,12 @@ export function validate(root: ModuleDecl): AnalyzeError[] {
       return void err('ModuleCycle', `Module import cycle: ${cycle.join(' -> ')}`, m.loc)
     }
     const named = byName.get(m.name)
-    if (named && named !== m) return void err('DuplicateModule', `Two distinct modules are named "${m.name}" (reached via ${here.join(' -> ')})`, m.loc)
+    if (named && named !== m)
+      return void err(
+        'DuplicateModule',
+        `Two distinct modules are named "${m.name}" (reached via ${here.join(' -> ')})`,
+        m.loc,
+      )
     byName.set(m.name, m)
     if (done.has(m)) return // diamond: already checked below
     onStack.add(m)
@@ -47,7 +56,12 @@ export function validate(root: ModuleDecl): AnalyzeError[] {
     const best = Math.min(...ss.map((s) => s.depth))
     const top = ss.filter((s) => s.depth === best)
     if (top.length > 1) ambiguous.add(tag)
-    if (top.length > 1) err('AmbiguousProvider', `Tag "${tag}" is provided by several entries at the same precedence: ${top.map(where).join(', ')}`, top[1]!.p.loc)
+    if (top.length > 1)
+      err(
+        'AmbiguousProvider',
+        `Tag "${tag}" is provided by several entries at the same precedence: ${top.map(where).join(', ')}`,
+        top[1]!.p.loc,
+      )
   }
 
   // Live providers: non-opaque, winning at least one Tag. Their id is core's (`A+B` for a declared Layer).
@@ -58,13 +72,24 @@ export function validate(root: ModuleDecl): AnalyzeError[] {
       if (ambiguous.has(r)) continue
       const owner = won.get(r)
       if (!owner) {
-        err('MissingDependency',
+        err(
+          'MissingDependency',
           `Service "${id(s)}" (${where(s)}) requires "${r}", but no entry provides it. ` +
-          `If a raw Layer provides it, wrap it with declareLayer(layer, { provides: [...] }).`, s.p.loc)
+            `If a raw Layer provides it, wrap it with declareLayer(layer, { provides: [...] }).`,
+          s.p.loc,
+        )
       } else if (owner.module !== s.module && isPrivate(owner.module, r)) {
-        err('PrivateDependency', `"${id(s)}" requires "${r}", which is private to module "${owner.module.name}" (not in its exports)`, s.p.loc)
+        err(
+          'PrivateDependency',
+          `"${id(s)}" requires "${r}", which is private to module "${owner.module.name}" (not in its exports)`,
+          s.p.loc,
+        )
       } else if (!allowed[lifetime(s)].includes(lifetime(owner))) {
-        err('CaptiveDependency', `Service "${id(s)}" (${lifetime(s)}) cannot depend on "${id(owner)}" (${lifetime(owner)})`, s.p.loc)
+        err(
+          'CaptiveDependency',
+          `Service "${id(s)}" (${lifetime(s)}) cannot depend on "${id(owner)}" (${lifetime(owner)})`,
+          s.p.loc,
+        )
       }
     }
   }
@@ -99,11 +124,23 @@ export function validateAction(runtime: ModuleDecl, a: ActionDecl): AnalyzeError
   // The overlay's own errors: whatever validating it adds beyond the runtime's (its layers and provided modules).
   const key = (e: AnalyzeError) => `${e.code}|${e.file}:${e.line}|${e.message}`
   const base = new Set(validate(runtime).map(key))
-  const overlay = a.provide.entries.length || a.provide.imports.length ? validate(root).filter((e) => !base.has(key(e))) : []
-  return [...overlay, ...a.yields.flatMap(({ tag, loc }): AnalyzeError[] => {
-    const owner = won.get(tag)
-    if (!owner) return [analyzeError('MissingDependency', `The action yields "${tag}", but no entry provides it`, loc)]
-    if (owner.module !== root && owner.module !== runtime && isPrivate(owner.module, tag)) return [analyzeError('PrivateDependency', `The action yields "${tag}", which is private to module "${owner.module.name}" (not in its exports)`, loc)]
-    return []
-  })]
+  const overlay =
+    a.provide.entries.length || a.provide.imports.length ? validate(root).filter((e) => !base.has(key(e))) : []
+  return [
+    ...overlay,
+    ...a.yields.flatMap(({ tag, loc }): AnalyzeError[] => {
+      const owner = won.get(tag)
+      if (!owner)
+        return [analyzeError('MissingDependency', `The action yields "${tag}", but no entry provides it`, loc)]
+      if (owner.module !== root && owner.module !== runtime && isPrivate(owner.module, tag))
+        return [
+          analyzeError(
+            'PrivateDependency',
+            `The action yields "${tag}", which is private to module "${owner.module.name}" (not in its exports)`,
+            loc,
+          ),
+        ]
+      return []
+    }),
+  ]
 }

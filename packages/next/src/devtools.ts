@@ -31,7 +31,12 @@ export interface DevtoolsOptions {
 /** The current buffer split into scopes (scope/acquire/release) and errors, plus the graph when available. */
 export function devtoolsSnapshot(options: DevtoolsOptions = {}): DevtoolsSnapshot {
   const events = devEvents()
-  const snapshot = { disabled: !devEnabled(), scopes: events.filter((e) => e.kind !== 'error'), errors: events.filter((e) => e.kind === 'error'), live: devLive() }
+  const snapshot = {
+    disabled: !devEnabled(),
+    scopes: events.filter((e) => e.kind !== 'error'),
+    errors: events.filter((e) => e.kind === 'error'),
+    live: devLive(),
+  }
   return options.graph ? { ...snapshot, graph: options.graph() } : snapshot
 }
 
@@ -50,7 +55,8 @@ const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]', '::1'])
 export function devtoolsHandler(options: DevtoolsOptions = {}): { (): Response; (request: Request): Response } {
   return (request?: Request) => {
     if (!devEnabled()) return new Response('Not Found', { status: 404 })
-    if (request && !options.allowRemote && !LOOPBACK.has(new URL(request.url).hostname)) return new Response('Forbidden', { status: 403 })
+    if (request && !options.allowRemote && !LOOPBACK.has(new URL(request.url).hostname))
+      return new Response('Forbidden', { status: 403 })
     return Response.json(devtoolsSnapshot(options))
   }
 }

@@ -13,9 +13,17 @@ import { runEffect } from './runtime'
 
 const settled = (store: AtomStore, atom: Atom.Atom<any>): Promise<void> =>
   new Promise((resolve) => {
-    const done = () => { const v = store.get(atom); return atom.serializable?.kind !== 'result' || v._tag !== 'Initial' } // `get` rethrows a failed read
+    const done = () => {
+      const v = store.get(atom)
+      return atom.serializable?.kind !== 'result' || v._tag !== 'Initial'
+    } // `get` rethrows a failed read
     if (done()) return resolve()
-    const unsubscribe = store.subscribe(atom, () => { if (done()) { unsubscribe(); resolve() } })
+    const unsubscribe = store.subscribe(atom, () => {
+      if (done()) {
+        unsubscribe()
+        resolve()
+      }
+    })
   })
 
 /**
@@ -42,7 +50,9 @@ export const prefetchAtoms = (
       Effect.acquireUseRelease(
         Effect.sync(() => makeAtomStore({ context })),
         (store) =>
-          Effect.sync(() => { for (const a of atoms) store.mount(a) }).pipe(
+          Effect.sync(() => {
+            for (const a of atoms) store.mount(a)
+          }).pipe(
             Effect.zipRight(Effect.promise(() => Promise.all(atoms.map((a) => settled(store, a))))),
             Effect.map(() => ({ ...dehydrate(store) })), // RSC props reject null-prototype objects
           ),

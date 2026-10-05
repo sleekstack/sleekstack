@@ -19,7 +19,9 @@ const contexts = new WeakMap<QueryClient, Context.Context<never>>()
  * A scoped layer providing a mounted `QueryClient`; on scope close it is unmounted and cleared.
  * A throwing config function fails the layer with the original error.
  */
-export const QueryClientLive = (config?: QueryClientConfig | (() => QueryClientConfig)): Layer.Layer<QueryClientTag, unknown> =>
+export const QueryClientLive = (
+  config?: QueryClientConfig | (() => QueryClientConfig),
+): Layer.Layer<QueryClientTag, unknown> =>
   Layer.scoped(
     QueryClientTag,
     Effect.gen(function* () {

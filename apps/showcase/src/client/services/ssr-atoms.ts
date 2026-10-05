@@ -17,4 +17,7 @@ export const serverTime = Atom.serializable.result(
 )
 
 /** A sync writable atom, seeded from the server value. */
-export const greeting = Atom.serializable(Atom.make('hello from the server'), { key: 'showcase/greeting', schema: Schema.String })
+export const greeting = Atom.serializable(Atom.make('hello from the server'), {
+  key: 'showcase/greeting',
+  schema: Schema.String,
+})

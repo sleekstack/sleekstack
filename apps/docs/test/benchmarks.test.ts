@@ -9,7 +9,8 @@ const script = join(import.meta.dirname, '../scripts/generate-benchmarks.mjs')
 describe('benchmarks page', () => {
   it('renders a table per suite with machine info, versions and caveats', () => {
     const page: string = renderBenchmarks(JSON.parse(readFileSync(publishedFile, 'utf8')))
-    for (const h of ['## Atoms', '## String render', '## DOM render', '## JSX instance wrapper']) expect(page).toContain(h)
+    for (const h of ['## Atoms', '## String render', '## DOM render', '## JSX instance wrapper'])
+      expect(page).toContain(h)
     expect(page).toContain('one machine running one workload')
     expect(page).toMatch(/jotai \d/)
     expect(page).toContain('node swaps')

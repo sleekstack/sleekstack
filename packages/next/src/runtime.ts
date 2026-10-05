@@ -15,7 +15,8 @@ export const isNextControlFlow = (value: unknown): boolean => {
   const digest = (value as { digest?: unknown } | null)?.digest
   return (
     typeof digest === 'string' &&
-    (digest.startsWith('NEXT_REDIRECT') || digest.startsWith('NEXT_HTTP_ERROR_FALLBACK') ||
+    (digest.startsWith('NEXT_REDIRECT') ||
+      digest.startsWith('NEXT_HTTP_ERROR_FALLBACK') ||
       digest === 'NEXT_NOT_FOUND' ||
       digest === 'DYNAMIC_SERVER_USAGE' ||
       digest === 'BAILOUT_TO_CLIENT_SIDE_RENDERING')

@@ -48,7 +48,11 @@ const show = (value: unknown): string => {
 }
 
 function AtomRow({ label, atom }: { readonly label: string; readonly atom: Atom.Atom<unknown> }) {
-  return <li>{label}: <code>{show(useAtomValue(atom))}</code></li>
+  return (
+    <li>
+      {label}: <code>{show(useAtomValue(atom))}</code>
+    </li>
+  )
 }
 
 const REQUEST_TIMEOUT_MS = 5000
@@ -56,15 +60,23 @@ const REQUEST_TIMEOUT_MS = 5000
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null
 const strs = (v: unknown, keys: readonly string[]): boolean => isObj(v) && keys.every((k) => typeof v[k] === 'string')
 const isEvent = (v: unknown): v is DevEvent =>
-  strs(v, ['kind', 'label']) && typeof (v as DevEvent).at === 'number' &&
-  (['detail', 'scope', 'fiber'] as const).every((k) => (v as DevEvent)[k] === undefined || typeof (v as DevEvent)[k] === 'string')
+  strs(v, ['kind', 'label']) &&
+  typeof (v as DevEvent).at === 'number' &&
+  (['detail', 'scope', 'fiber'] as const).every(
+    (k) => (v as DevEvent)[k] === undefined || typeof (v as DevEvent)[k] === 'string',
+  )
 
 const isDevtoolsData = (v: unknown): v is DevtoolsData =>
   isObj(v) &&
   (v.disabled === undefined || typeof v.disabled === 'boolean') &&
-  Array.isArray(v.scopes) && v.scopes.every(isEvent) &&
-  Array.isArray(v.errors) && v.errors.every(isEvent) &&
-  isObj(v.live) && typeof v.live.app === 'boolean' && Array.isArray(v.live.scopes) && v.live.scopes.every((s) => typeof s === 'string')
+  Array.isArray(v.scopes) &&
+  v.scopes.every(isEvent) &&
+  Array.isArray(v.errors) &&
+  v.errors.every(isEvent) &&
+  isObj(v.live) &&
+  typeof v.live.app === 'boolean' &&
+  Array.isArray(v.live.scopes) &&
+  v.live.scopes.every((s) => typeof s === 'string')
 
 /** Polls `endpoint` (next poll only after the previous settles); `undefined` until the first response, `null` while off (404, network error or non-JSON). */
 function useDevtoolsData(endpoint: string, intervalMs: number): DevtoolsData | null | undefined {
@@ -108,9 +120,15 @@ export function SleekStackDevtools({ endpoint = '/api/devtools', intervalMs = 20
   // Prop atoms read from the panel's own provider store: only that store's instance is hidden (prop label wins);
   // the same atom in other stores holds its own value and stays listed.
   const own = useProviderAtomStore()
-  const stores = useStoreAtoms(intervalMs).map(({ store, atoms }) => (store === own ? atoms.filter((a) => !propAtoms.has(a.atom)) : atoms))
+  const stores = useStoreAtoms(intervalMs).map(({ store, atoms }) =>
+    store === own ? atoms.filter((a) => !propAtoms.has(a.atom)) : atoms,
+  )
   return (
-    <aside aria-label="SleekStack devtools" data-devtools={DEVTOOLS_MARKER} style={{ borderTop: '1px solid #ccc', marginTop: '2rem', fontSize: 13 }}>
+    <aside
+      aria-label="SleekStack devtools"
+      data-devtools={DEVTOOLS_MARKER}
+      style={{ borderTop: '1px solid #ccc', marginTop: '2rem', fontSize: 13 }}
+    >
       <h2>SleekStack devtools</h2>
       {data === undefined ? (
         <p>Connecting to {endpoint}…</p>
@@ -125,9 +143,22 @@ export function SleekStackDevtools({ endpoint = '/api/devtools', intervalMs = 20
             {graphs.length ? (
               graphs.map((g, i) => (
                 <div key={`${i}:${g.root}`}>
-                  <strong>{g.root}</strong>{g.kind ? ` [${g.kind}]` : ''}: {g.nodes.length} nodes, {g.edges.length} edges
-                  <ul>{g.nodes.map((n) => <li key={n.id}>{n.name} ({n.lifetime})</li>)}</ul>
-                  <ul aria-label="edges">{g.edges.map((e) => <li key={`${e.from}>${e.to}>${e.tag}`}>{e.from} → {e.to} ({e.tag})</li>)}</ul>
+                  <strong>{g.root}</strong>
+                  {g.kind ? ` [${g.kind}]` : ''}: {g.nodes.length} nodes, {g.edges.length} edges
+                  <ul>
+                    {g.nodes.map((n) => (
+                      <li key={n.id}>
+                        {n.name} ({n.lifetime})
+                      </li>
+                    ))}
+                  </ul>
+                  <ul aria-label="edges">
+                    {g.edges.map((e) => (
+                      <li key={`${e.from}>${e.to}>${e.tag}`}>
+                        {e.from} → {e.to} ({e.tag})
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               ))
             ) : (
@@ -137,7 +168,11 @@ export function SleekStackDevtools({ endpoint = '/api/devtools', intervalMs = 20
           <section aria-label="scopes">
             <h3>Live scopes</h3>
             <p>App runtime: {data.live.app ? 'built' : 'not built'}</p>
-            <ul>{data.live.scopes.map((s) => <li key={s}>{s}</li>)}</ul>
+            <ul>
+              {data.live.scopes.map((s) => (
+                <li key={s}>{s}</li>
+              ))}
+            </ul>
             {data.live.scopes.length === 0 && <p>No open request scopes.</p>}
           </section>
           <ServiceEvents events={data.scopes} />
@@ -151,8 +186,16 @@ export function SleekStackDevtools({ endpoint = '/api/devtools', intervalMs = 20
           <p>No atoms registered.</p>
         ) : (
           <ul>
-            {entries.map(([k, a]) => <AtomRow key={k} label={k} atom={a} />)}
-            {stores.flatMap((atoms, i) => atoms.map((a) => <li key={`${i}:${a.label}`}>store {i + 1} · {a.label}: <code>{show(a.value)}</code></li>))}
+            {entries.map(([k, a]) => (
+              <AtomRow key={k} label={k} atom={a} />
+            ))}
+            {stores.flatMap((atoms, i) =>
+              atoms.map((a) => (
+                <li key={`${i}:${a.label}`}>
+                  store {i + 1} · {a.label}: <code>{show(a.value)}</code>
+                </li>
+              )),
+            )}
           </ul>
         )}
       </section>

@@ -60,7 +60,9 @@ export function fail(message: string): never {
 
 const isStreamShaped = (value: unknown): boolean =>
   (typeof ReadableStream !== 'undefined' && value instanceof ReadableStream) ||
-  (typeof value === 'object' && value !== null && typeof (value as { [Symbol.asyncIterator]?: unknown })[Symbol.asyncIterator] === 'function')
+  (typeof value === 'object' &&
+    value !== null &&
+    typeof (value as { [Symbol.asyncIterator]?: unknown })[Symbol.asyncIterator] === 'function')
 
 const streamingError = () =>
   new Error(
@@ -87,10 +89,14 @@ async function run(
   }
   const fn = () =>
     Effect.gen(function* () {
-      yield* Effect.all((opts.scope ?? []).map((t) => resolveTagEffect(coreTag(t), 'action'))).pipe(Effect.mapError((e) => normalize(e)))
+      yield* Effect.all((opts.scope ?? []).map((t) => resolveTagEffect(coreTag(t), 'action'))).pipe(
+        Effect.mapError((e) => normalize(e)),
+      )
       const context = (yield* Effect.context<never>()) as Context.Context<any>
       // The body runs on the managed runtime's fiber: its logger, tracer and interruption all apply.
-      const value = yield* (make(context) as Effect.Effect<unknown, unknown, never>).pipe(Effect.catchAllCause(classify))
+      const value = yield* (make(context) as Effect.Effect<unknown, unknown, never>).pipe(
+        Effect.catchAllCause(classify),
+      )
       return isStreamShaped(value) ? yield* Effect.fail(streamingError()) : value
     })
   // Not normalized: Next's dynamic-rendering bailouts (e.g. from `cookies()`) must reach Next as thrown.
@@ -125,7 +131,9 @@ async function runGen<R>(impl: () => Gen<R>, opts: OperationOptions): Promise<Ac
     return Effect.mapInputContext(inner, () => scope as Context.Context<never>).pipe(
       Effect.catchAllDefect((e) => {
         const key = e instanceof Error ? /^Service not found: (.+?)(?: \(defined at|$)/.exec(e.message)?.[1] : undefined
-        return key !== undefined && !scope.unsafeMap.has(key) ? Effect.fail(resolutionFailure(key, 'action')) : Effect.die(e)
+        return key !== undefined && !scope.unsafeMap.has(key)
+          ? Effect.fail(resolutionFailure(key, 'action'))
+          : Effect.die(e)
       }),
     )
   }
@@ -170,7 +178,10 @@ export function defineEffect<A extends readonly unknown[], R>(
 }
 
 /** Like {@link defineEffect}, for a read: the call resolves the plain value and a {@link fail} rejects with its message. */
-export function defineQuery<A extends readonly unknown[], R>(impl: (...args: A) => Gen<R>, opts: OperationOptions = {}): (...args: A) => Promise<Awaited<R>> {
+export function defineQuery<A extends readonly unknown[], R>(
+  impl: (...args: A) => Gen<R>,
+  opts: OperationOptions = {},
+): (...args: A) => Promise<Awaited<R>> {
   return (...args: A) => unwrapQuery(runGen(() => impl(...args), opts))
 }
 

@@ -17,7 +17,9 @@ test('Island keeps server DOM, survives a wrapper re-render, hydrates on visible
   await expect(btn).toHaveText('count 3') // server HTML, below the fold
   const rendersBefore = await page.evaluate(() => (window as { __islandRenders?: number }).__islandRenders ?? 0)
   await page.evaluate(() => {
-    ;(window as { __node?: Element | null }).__node = document.querySelector('[aria-label="visible island"] [data-island] button')
+    ;(window as { __node?: Element | null }).__node = document.querySelector(
+      '[aria-label="visible island"] [data-island] button',
+    )
   })
 
   // Wrapper re-render before hydration must not rewrite the dormant DOM.
@@ -34,7 +36,9 @@ test('Island keeps server DOM, survives a wrapper re-render, hydrates on visible
 
   // Scroll: visible trigger hydrates; node identity preserved, becomes interactive.
   await btn.scrollIntoViewIfNeeded()
-  await expect.poll(() => page.evaluate(() => (window as { __islandRenders?: number }).__islandRenders ?? 0)).toBeGreaterThan(rendersBefore)
+  await expect
+    .poll(() => page.evaluate(() => (window as { __islandRenders?: number }).__islandRenders ?? 0))
+    .toBeGreaterThan(rendersBefore)
   expect(await same()).toBe(true)
   await btn.click()
   await expect(btn).toHaveText('count 4')
@@ -134,17 +138,23 @@ test.describe('shared app scope and triggers', () => {
       new MutationObserver((records) => {
         for (const r of records)
           for (const n of r.addedNodes)
-            if (n instanceof Element && n.parentElement?.hasAttribute('data-island') && !nodes.includes(n)) nodes.push(n)
+            if (n instanceof Element && n.parentElement?.hasAttribute('data-island') && !nodes.includes(n))
+              nodes.push(n)
       }).observe(document, { childList: true, subtree: true })
     })
     await page.goto('/islands')
     // load + idle hydrate on their own; interaction on a click; visible on scroll.
     await page.getByRole('region', { name: 'interaction button' }).getByRole('button').click()
     await page.getByRole('region', { name: 'action island' }).getByRole('button').click()
-    await page.getByRole('region', { name: 'visible island' }).getByRole('button', { name: /^count/ }).scrollIntoViewIfNeeded()
+    await page
+      .getByRole('region', { name: 'visible island' })
+      .getByRole('button', { name: /^count/ })
+      .scrollIntoViewIfNeeded()
     for (const id of ['button', 'shared-a', 'shared-b']) await expect.poll(() => hydrated(page, id)).toBe(true)
     await expect(page.getByRole('region', { name: 'action island' }).locator('output')).toHaveText('ok island')
-    await expect(page.getByRole('region', { name: 'visible island' }).getByRole('button', { name: /^count/ })).toHaveText('count 3')
+    await expect(
+      page.getByRole('region', { name: 'visible island' }).getByRole('button', { name: /^count/ }),
+    ).toHaveText('count 3')
     const kept = await page.evaluate(() => {
       const before = (window as { __nodes?: Element[] }).__nodes ?? []
       const now = [...document.querySelectorAll('[data-island] > *')]
@@ -156,7 +166,9 @@ test.describe('shared app scope and triggers', () => {
   })
 })
 
-test('useId in an Island is benign: no hydration error, server ids kept in the DOM, client id differs', async ({ page }) => {
+test('useId in an Island is benign: no hydration error, server ids kept in the DOM, client id differs', async ({
+  page,
+}) => {
   const errors: string[] = []
   page.on('console', (m) => {
     if (m.type() === 'error' || m.type() === 'warning') errors.push(m.text())

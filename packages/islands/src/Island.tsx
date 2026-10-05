@@ -1,4 +1,15 @@
-import { Component, createElement, lazy, Suspense, use, useEffect, useRef, type ComponentProps, type ComponentType, type ReactNode } from 'react'
+import {
+  Component,
+  createElement,
+  lazy,
+  Suspense,
+  use,
+  useEffect,
+  useRef,
+  type ComponentProps,
+  type ComponentType,
+  type ReactNode,
+} from 'react'
 import { createRoot, hydrateRoot, type Root } from 'react-dom/client'
 import { validateProvide } from '@sleekstack/kit'
 import { LayerProvider } from '@sleekstack/kit/react'
@@ -87,7 +98,13 @@ export const defineIslands = <M extends Record<string, IslandLoader>>(map: M, op
     return c
   }
 
-  return function Island<N extends keyof M & string>({ name, props, hydrate = 'visible', rootMargin, provide = NONE }: IslandProps<M, N>) {
+  return function Island<N extends keyof M & string>({
+    name,
+    props,
+    hydrate = 'visible',
+    rootMargin,
+    provide = NONE,
+  }: IslandProps<M, N>) {
     if (!Object.hasOwn(map, name)) throw new IslandNotFound(`Unknown island "${name}"`)
     const ref = useRef<HTMLDivElement>(null)
 
@@ -98,83 +115,89 @@ export const defineIslands = <M extends Record<string, IslandLoader>>(map: M, op
         clearTimeout(t)
         pendingUnmount.delete(el)
       }
-      const disarm = arm(el, hydrate, (e) => {
-        if (activations.has(el)) {
-          // Only the first click while the chunk loads is kept; later ones are dropped.
-          if (isClick(e) && pendingClicks.get(el) === null) pendingClicks.set(el, e)
-          return
-        }
-        if (hydrate === 'interaction') pendingClicks.set(el, isClick(e) ? e : null)
-        // Assigned before the first await below, so every check sees it.
-        let activation!: Activation
-        activation = (async () => {
-          // `interaction` retries on the next event; other triggers keep the dormant HTML.
-          const dropForRetry = () => {
-            if (hydrate === 'interaction' && activations.get(el) === activation) {
-              activations.delete(el)
-              pendingClicks.delete(el)
+      const disarm = arm(
+        el,
+        hydrate,
+        (e) => {
+          if (activations.has(el)) {
+            // Only the first click while the chunk loads is kept; later ones are dropped.
+            if (isClick(e) && pendingClicks.get(el) === null) pendingClicks.set(el, e)
+            return
+          }
+          if (hydrate === 'interaction') pendingClicks.set(el, isClick(e) ? e : null)
+          // Assigned before the first await below, so every check sees it.
+          let activation!: Activation
+          activation = (async () => {
+            // `interaction` retries on the next event; other triggers keep the dormant HTML.
+            const dropForRetry = () => {
+              if (hydrate === 'interaction' && activations.get(el) === activation) {
+                activations.delete(el)
+                pendingClicks.delete(el)
+              }
             }
-          }
-          let C: ComponentType<any>
-          try {
-            C = (await map[name]!()).default
-          } catch (e) {
-            console.error(`[island ${name}] chunk failed to load`, e)
-            dropForRetry()
-            return undefined
-          }
-          if (activations.get(el) !== activation) return undefined
-          try {
-            assertNoDuplicateTag(appProvide, provide)
-          } catch (e) {
-            console.error(`[island ${name}]`, e)
-            return undefined
-          }
-          let appScope
-          try {
-            appScope = await app.acquire()
-          } catch (e) {
-            // Fails this Island; a later activation retries the build.
-            console.error(`[island ${name}] app scope failed to build`, e)
-            dropForRetry()
-            return undefined
-          }
-          if (activations.get(el) !== activation) {
-            app.release()
-            return undefined
-          }
-          const replay = () => {
-            const click = pendingClicks.get(el)
-            pendingClicks.delete(el)
-            if (click) replayClick(el, click)
-          }
-          // Inside the boundary: Suspense content hydrates in its own pass, after the shell.
-          const tree = (
-            <Boundary name={name}>
-              <LayerProvider provide={provide} appScope={appScope}>
-                <Suspense>
-                  {createElement(C, props)}
-                  <OnCommit run={replay} />
-                </Suspense>
-              </LayerProvider>
-            </Boundary>
-          )
-          // Server HTML present: attach to it. Fresh client mount (no server HTML): render.
-          let root: Root
-          if (el.firstChild) root = hydrateRoot(el, tree, { onRecoverableError: (e) => console.error(`[island ${name}]`, e) })
-          else {
-            root = createRoot(el)
-            root.render(tree)
-          }
-          return {
-            unmount: () => {
-              root.unmount()
+            let C: ComponentType<any>
+            try {
+              C = (await map[name]!()).default
+            } catch (e) {
+              console.error(`[island ${name}] chunk failed to load`, e)
+              dropForRetry()
+              return undefined
+            }
+            if (activations.get(el) !== activation) return undefined
+            try {
+              assertNoDuplicateTag(appProvide, provide)
+            } catch (e) {
+              console.error(`[island ${name}]`, e)
+              return undefined
+            }
+            let appScope
+            try {
+              appScope = await app.acquire()
+            } catch (e) {
+              // Fails this Island; a later activation retries the build.
+              console.error(`[island ${name}] app scope failed to build`, e)
+              dropForRetry()
+              return undefined
+            }
+            if (activations.get(el) !== activation) {
               app.release()
-            },
-          }
-        })()
-        activations.set(el, activation)
-      }, { rootMargin })
+              return undefined
+            }
+            const replay = () => {
+              const click = pendingClicks.get(el)
+              pendingClicks.delete(el)
+              if (click) replayClick(el, click)
+            }
+            // Inside the boundary: Suspense content hydrates in its own pass, after the shell.
+            const tree = (
+              <Boundary name={name}>
+                <LayerProvider provide={provide} appScope={appScope}>
+                  <Suspense>
+                    {createElement(C, props)}
+                    <OnCommit run={replay} />
+                  </Suspense>
+                </LayerProvider>
+              </Boundary>
+            )
+            // Server HTML present: attach to it. Fresh client mount (no server HTML): render.
+            let root: Root
+            if (el.firstChild)
+              root = hydrateRoot(el, tree, { onRecoverableError: (e) => console.error(`[island ${name}]`, e) })
+            else {
+              root = createRoot(el)
+              root.render(tree)
+            }
+            return {
+              unmount: () => {
+                root.unmount()
+                app.release()
+              },
+            }
+          })()
+          activations.set(el, activation)
+        },
+        { rootMargin },
+      )
       return () => {
         disarm()
         // Deferred: unmounting another root synchronously during a commit warns;

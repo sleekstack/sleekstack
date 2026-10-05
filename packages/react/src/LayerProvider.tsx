@@ -78,9 +78,15 @@ export function LayerProvider(props: LayerProviderProps) {
   const initialProvide = useRef(provide)
   const warned = useRef(false)
 
-  if ((globalThis as { process?: { env?: { NODE_ENV?: string } } }).process?.env?.NODE_ENV !== 'production' && !warned.current && !sameEntries(initialProvide.current, provide)) {
+  if (
+    (globalThis as { process?: { env?: { NODE_ENV?: string } } }).process?.env?.NODE_ENV !== 'production' &&
+    !warned.current &&
+    !sameEntries(initialProvide.current, provide)
+  ) {
     warned.current = true
-    console.warn('[@sleekstack/react] <LayerProvider provide> changed after mount; changes are ignored for the provider\'s lifetime. Remount it (e.g. with a key) to apply new entries.')
+    console.warn(
+      "[@sleekstack/react] <LayerProvider provide> changed after mount; changes are ignored for the provider's lifetime. Remount it (e.g. with a key) to apply new entries.",
+    )
   }
 
   useEffect(() => {

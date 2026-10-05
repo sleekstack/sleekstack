@@ -10,10 +10,23 @@ const ENTRIES = ['src/index.ts', 'src/next/index.ts', 'src/react/index.ts']
 const DEPRECATED = new Set(['src/next/index.ts#effect'])
 
 describe('kit entry-point export names', () => {
-  const program = ts.createProgram(ENTRIES.map((e) => path.join(root, e)), { strict: true, moduleResolution: ts.ModuleResolutionKind.Bundler, module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX, skipLibCheck: true })
+  const program = ts.createProgram(
+    ENTRIES.map((e) => path.join(root, e)),
+    {
+      strict: true,
+      moduleResolution: ts.ModuleResolutionKind.Bundler,
+      module: ts.ModuleKind.ESNext,
+      target: ts.ScriptTarget.ES2022,
+      jsx: ts.JsxEmit.ReactJSX,
+      skipLibCheck: true,
+    },
+  )
   const checker = program.getTypeChecker()
   const exported = ENTRIES.flatMap((entry) =>
-    checker.getExportsOfModule(checker.getSymbolAtLocation(program.getSourceFile(path.join(root, entry))!)!).map((s) => ({ entry, s })))
+    checker
+      .getExportsOfModule(checker.getSymbolAtLocation(program.getSourceFile(path.join(root, entry))!)!)
+      .map((s) => ({ entry, s })),
+  )
 
   it('no name is exported by two entry points with different declarations', () => {
     const meaning = new Map<string, ts.Symbol>()
@@ -32,7 +45,10 @@ describe('kit entry-point export names', () => {
     for (const key of DEPRECATED) {
       const [entry, name] = key.split('#') as [string, string]
       const s = exported.find((x) => x.entry === entry && x.s.name === name)!.s
-      expect(ts.getJSDocTags(s.declarations![0]!.parent.parent).some((t) => t.tagName.text === 'deprecated'), key).toBe(true)
+      expect(
+        ts.getJSDocTags(s.declarations![0]!.parent.parent).some((t) => t.tagName.text === 'deprecated'),
+        key,
+      ).toBe(true)
       expect(checker.getAliasedSymbol(s).name).toBe('runOperation')
     }
   }, 60_000)

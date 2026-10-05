@@ -4,18 +4,36 @@ import { Atom, AtomCycle, makeAtomStore, Result } from '../index'
 
 const tick = () => new Promise<void>((r) => setTimeout(r, 0))
 
-afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
+afterEach(() => {
+  vi.useRealTimers()
+  vi.unstubAllGlobals()
+})
 
 describe('Atom + AtomStore: derivation', () => {
   it('recomputes only on change; a diamond computes each node once per change', () => {
     const store = makeAtomStore()
     const a = Atom.make(1)
-    let bRuns = 0, cRuns = 0, dRuns = 0, parityRuns = 0
-    const b = Atom.make((get) => { bRuns++; return get(a) + 1 })
-    const c = Atom.make((get) => { cRuns++; return get(a) * 2 })
-    const d = Atom.make((get) => { dRuns++; return get(b) + get(c) })
+    let bRuns = 0,
+      cRuns = 0,
+      dRuns = 0,
+      parityRuns = 0
+    const b = Atom.make((get) => {
+      bRuns++
+      return get(a) + 1
+    })
+    const c = Atom.make((get) => {
+      cRuns++
+      return get(a) * 2
+    })
+    const d = Atom.make((get) => {
+      dRuns++
+      return get(b) + get(c)
+    })
     const parity = Atom.make((get) => get(a) % 2)
-    const afterParity = Atom.make((get) => { parityRuns++; return get(parity) })
+    const afterParity = Atom.make((get) => {
+      parityRuns++
+      return get(parity)
+    })
     const seen: number[] = []
     store.subscribe(d, () => seen.push(store.get(d)))
     store.mount(afterParity)
@@ -35,7 +53,10 @@ describe('Atom + AtomStore: derivation', () => {
     const sum = Atom.make((get) => get(x) + get(y))
     const seen: number[] = []
     store.subscribe(sum, () => seen.push(store.get(sum)))
-    store.batch(() => { store.set(x, 2); store.set(y, 3) })
+    store.batch(() => {
+      store.set(x, 2)
+      store.set(y, 3)
+    })
     expect(seen).toEqual([5])
     store.update(x, (n) => n + 1)
     expect(seen).toEqual([5, 6])
@@ -44,7 +65,10 @@ describe('Atom + AtomStore: derivation', () => {
   it('writable(read, write) routes writes', () => {
     const store = makeAtomStore()
     const base = Atom.make(1)
-    const doubled = Atom.writable((get) => get(base) * 2, (ctx, v: number) => ctx.set(base, v / 2))
+    const doubled = Atom.writable(
+      (get) => get(base) * 2,
+      (ctx, v: number) => ctx.set(base, v / 2),
+    )
     store.mount(doubled)
     store.set(doubled, 10)
     expect(store.get(base)).toBe(5)
@@ -56,7 +80,11 @@ describe('Atom + AtomStore: derivation', () => {
     const p: Atom.Atom<number> = Atom.make((get): number => get(q))
     const q: Atom.Atom<number> = Atom.make((get): number => get(p))
     let err: unknown
-    try { store.get(p) } catch (e) { err = e }
+    try {
+      store.get(p)
+    } catch (e) {
+      err = e
+    }
     expect(err).toBeInstanceOf(AtomCycle)
     expect((err as AtomCycle).path).toEqual([p.label, q.label, p.label])
     expect((err as AtomCycle).message).toContain(`${p.label} -> ${q.label}`)
@@ -80,7 +108,13 @@ describe('Effect and Stream atoms', () => {
         const n = yield* N
         yield* Deferred.await(gate)
         return n
-      }).pipe(Effect.onInterrupt(() => Effect.sync(() => { interrupted++ }))),
+      }).pipe(
+        Effect.onInterrupt(() =>
+          Effect.sync(() => {
+            interrupted++
+          }),
+        ),
+      ),
     )
     store.mount(atom)
     expect(store.get(atom)).toEqual(Result.initial(true))
@@ -99,7 +133,8 @@ describe('Effect and Stream atoms', () => {
     const store = makeAtomStore()
     const atom = Atom.make(Stream.make(1, 2, 3))
     const empty = Atom.make(Stream.empty)
-    store.mount(atom); store.mount(empty)
+    store.mount(atom)
+    store.mount(empty)
     await tick()
     expect(store.get(atom)).toEqual(Result.success(3))
     expect(Result.isFailure(store.get(empty))).toBe(true)
@@ -126,7 +161,12 @@ describe('family', () => {
 describe('lifecycle', () => {
   const tracked = () => {
     let finalized = 0
-    const atom = Atom.make((get) => { get.addFinalizer(() => { finalized++ }); return 1 })
+    const atom = Atom.make((get) => {
+      get.addFinalizer(() => {
+        finalized++
+      })
+      return 1
+    })
     return { atom, finalized: () => finalized }
   }
 
@@ -154,7 +194,14 @@ describe('lifecycle', () => {
     expect(ttl.finalized()).toBe(1)
 
     let kept = 0
-    const alive = Atom.keepAlive(Atom.make((get) => { get.addFinalizer(() => { kept++ }); return 1 }))
+    const alive = Atom.keepAlive(
+      Atom.make((get) => {
+        get.addFinalizer(() => {
+          kept++
+        })
+        return 1
+      }),
+    )
     store.get(alive)
     vi.advanceTimersByTime(1000)
     expect(kept).toBe(0)
@@ -173,10 +220,25 @@ describe('lifecycle', () => {
     const errors: unknown[] = []
     const store = makeAtomStore({ onFinalizerError: (e) => errors.push(e) })
     let interrupted = false
-    const running = Atom.make(Effect.never.pipe(Effect.onInterrupt(() => Effect.sync(() => { interrupted = true }))))
+    const running = Atom.make(
+      Effect.never.pipe(
+        Effect.onInterrupt(() =>
+          Effect.sync(() => {
+            interrupted = true
+          }),
+        ),
+      ),
+    )
     const failing = Atom.make(Effect.addFinalizer(() => Effect.die('fin-boom')).pipe(Effect.zipRight(Effect.never)))
-    const sync = Atom.make((get) => { get.addFinalizer(() => { throw new Error('sync-boom') }); return 1 })
-    store.mount(running); store.mount(failing); store.mount(sync)
+    const sync = Atom.make((get) => {
+      get.addFinalizer(() => {
+        throw new Error('sync-boom')
+      })
+      return 1
+    })
+    store.mount(running)
+    store.mount(failing)
+    store.mount(sync)
     await store.dispose()
     expect(interrupted).toBe(true)
     expect(errors.map(String)).toEqual(expect.arrayContaining(['Error: sync-boom', 'fin-boom']))
@@ -187,7 +249,10 @@ describe('review regressions', () => {
   it('a write before the first read keeps dependency tracking', () => {
     const store = makeAtomStore()
     const base = Atom.make(1)
-    const w = Atom.writable((get) => get(base) * 2, (ctx, v: number) => ctx.setSelf(v))
+    const w = Atom.writable(
+      (get) => get(base) * 2,
+      (ctx, v: number) => ctx.setSelf(v),
+    )
     store.set(w, 10)
     store.mount(w)
     store.set(base, 4)
@@ -197,12 +262,27 @@ describe('review regressions', () => {
   it('a derived atom that caught a parent error, and subscribers past a throwing node, see recovery', () => {
     const store = makeAtomStore()
     const input = Atom.make(0)
-    const risky = Atom.make((get) => { if (get(input) === 0) throw new Error('zero'); return get(input) })
-    const safe = Atom.make((get) => { try { return get(risky) } catch { return -1 } })
+    const risky = Atom.make((get) => {
+      if (get(input) === 0) throw new Error('zero')
+      return get(input)
+    })
+    const safe = Atom.make((get) => {
+      try {
+        return get(risky)
+      } catch {
+        return -1
+      }
+    })
     const mid = Atom.make((get) => get(risky) + 1)
     const after = Atom.make((get) => get(mid))
     const seen: number[] = []
-    const read = (atom: Atom.Atom<number>) => () => { try { seen.push(store.get(atom)) } catch { /* error state */ } }
+    const read = (atom: Atom.Atom<number>) => () => {
+      try {
+        seen.push(store.get(atom))
+      } catch {
+        /* error state */
+      }
+    }
     store.subscribe(safe, read(safe))
     store.subscribe(after, read(after))
     expect(store.get(safe)).toBe(-1)
@@ -217,7 +297,17 @@ describe('review regressions', () => {
     const store = makeAtomStore()
     const dep = Atom.make(0)
     let interrupted = 0
-    const mk = () => Atom.make((get) => { get(dep); return Effect.never.pipe(Effect.onInterrupt(() => Effect.sync(() => { interrupted++ }))) })
+    const mk = () =>
+      Atom.make((get) => {
+        get(dep)
+        return Effect.never.pipe(
+          Effect.onInterrupt(() =>
+            Effect.sync(() => {
+              interrupted++
+            }),
+          ),
+        )
+      })
     const retained = mk()
     store.retain(retained)
     store.get(retained)
@@ -254,7 +344,10 @@ describe('review regressions', () => {
     const atom = Atom.make(1)
     const seen: number[] = []
     store.subscribe(atom, () => seen.push(store.get(atom)))
-    store.batch(() => { store.refresh(atom); store.set(atom, 2) })
+    store.batch(() => {
+      store.refresh(atom)
+      store.set(atom, 2)
+    })
     expect(seen).toEqual([2])
   })
 })
@@ -269,7 +362,10 @@ describe('value atoms', () => {
     store.set(a, 2)
     store.set(a, 2)
     expect(calls).toBe(1)
-    store.batch(() => { store.set(a, 3); store.set(a, 4) })
+    store.batch(() => {
+      store.set(a, 3)
+      store.set(a, 4)
+    })
     expect(calls).toBe(2)
     expect(store.get(a)).toBe(4)
   })
@@ -312,7 +408,11 @@ describe('derived atoms: cached build context', () => {
   it('a read that throws still re-runs when its parent recovers, and every recompute tracks fresh dependencies', () => {
     const store = makeAtomStore()
     const input = Atom.make(0)
-    const flaky = Atom.make((get) => { const v = get(input); if (v === 1) throw new Error('boom'); return v })
+    const flaky = Atom.make((get) => {
+      const v = get(input)
+      if (v === 1) throw new Error('boom')
+      return v
+    })
     const reader = Atom.make((get) => get(flaky) * 10)
     store.subscribe(reader, () => {})
     expect(store.get(reader)).toBe(0)
@@ -370,7 +470,10 @@ describe('value atoms: direct notify of a leaf write', () => {
     const a = Atom.make(0)
     let boom = true
     const seen: number[] = []
-    store.subscribe(a, () => { seen.push(store.get(a)); if (boom) throw new Error('boom') })
+    store.subscribe(a, () => {
+      seen.push(store.get(a))
+      if (boom) throw new Error('boom')
+    })
     expect(() => store.set(a, 1)).toThrow('boom')
     boom = false
     store.set(a, 2)

@@ -12,7 +12,9 @@ export function __setDemoCookie(v: string | undefined): void {
   value = v
 }
 
-export async function cookies(): Promise<{ get(name: string): { readonly name: string; readonly value: string } | undefined }> {
+export async function cookies(): Promise<{
+  get(name: string): { readonly name: string; readonly value: string } | undefined
+}> {
   return {
     get: (name) => (value !== undefined ? { name, value } : undefined),
   }

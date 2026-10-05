@@ -18,7 +18,10 @@ describe('QueryClientLive', () => {
     const calls: string[] = []
     const spies = (['mount', 'unmount', 'clear'] as const).map((m) => {
       const orig = QueryClient.prototype[m]
-      return vi.spyOn(QueryClient.prototype, m).mockImplementation(function (this: QueryClient) { calls.push(m); orig.call(this) })
+      return vi.spyOn(QueryClient.prototype, m).mockImplementation(function (this: QueryClient) {
+        calls.push(m)
+        orig.call(this)
+      })
     })
     try {
       const { client, close } = await build()
@@ -34,15 +37,30 @@ describe('QueryClientLive', () => {
 
   it('a throwing config function fails the layer with the original error', async () => {
     const err = new Error('bad config')
-    const exit = await Effect.runPromiseExit(Effect.scoped(Layer.build(QueryClientLive(() => { throw err }))))
+    const exit = await Effect.runPromiseExit(
+      Effect.scoped(
+        Layer.build(
+          QueryClientLive(() => {
+            throw err
+          }),
+        ),
+      ),
+    )
     expect(exit).toEqual(Exit.fail(err))
   })
 })
 
 describe('effectFn', () => {
-  const run = async <A>(fn: (ctx: { client: QueryClient; signal?: AbortSignal }) => Promise<A>, signal?: AbortSignal) => {
+  const run = async <A>(
+    fn: (ctx: { client: QueryClient; signal?: AbortSignal }) => Promise<A>,
+    signal?: AbortSignal,
+  ) => {
     const { client, close } = await build()
-    try { return await fn({ client, signal }) } finally { await close() }
+    try {
+      return await fn({ client, signal })
+    } finally {
+      await close()
+    }
   }
 
   it('resolves with the success value using the layer services', async () => {
@@ -63,7 +81,15 @@ describe('effectFn', () => {
   it('interrupts on abort', async () => {
     const ac = new AbortController()
     let interrupted = false
-    const fn = effectFn(Effect.never.pipe(Effect.onInterrupt(() => Effect.sync(() => { interrupted = true }))))
+    const fn = effectFn(
+      Effect.never.pipe(
+        Effect.onInterrupt(() =>
+          Effect.sync(() => {
+            interrupted = true
+          }),
+        ),
+      ),
+    )
     const p = run(fn, ac.signal)
     setTimeout(() => ac.abort(), 5)
     await expect(p).rejects.toBeDefined()
@@ -74,7 +100,16 @@ describe('effectFn', () => {
     const ac = new AbortController()
     ac.abort()
     let ran = false
-    await expect(run(effectFn(Effect.sync(() => { ran = true })), ac.signal)).rejects.toBeDefined()
+    await expect(
+      run(
+        effectFn(
+          Effect.sync(() => {
+            ran = true
+          }),
+        ),
+        ac.signal,
+      ),
+    ).rejects.toBeDefined()
     expect(ran).toBe(false)
   })
 
@@ -83,7 +118,9 @@ describe('effectFn', () => {
     try {
       const m = new MutationObserver(client, { mutationFn: effectFn(Greeting) })
       await expect(m.mutate(undefined)).resolves.toBe('hi')
-    } finally { await close() }
+    } finally {
+      await close()
+    }
   })
 
   it('a missing Tag rejects with the standard missing-dependency error', async () => {
@@ -92,6 +129,8 @@ describe('effectFn', () => {
   })
 
   it('works as a queryFn through fetchQuery', async () => {
-    await expect(run(({ client }) => client.fetchQuery({ queryKey: ['g'], queryFn: effectFn(Greeting) }))).resolves.toBe('hi')
+    await expect(
+      run(({ client }) => client.fetchQuery({ queryKey: ['g'], queryFn: effectFn(Greeting) })),
+    ).resolves.toBe('hi')
   })
 })

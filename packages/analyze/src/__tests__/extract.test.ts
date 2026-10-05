@@ -4,8 +4,13 @@ import { analyze } from '../index'
 
 const fixture = (name: string) => analyze({ project: path.join(__dirname, 'fixtures', name, 'tsconfig.json') })
 const byId = <T extends { id: string }>(xs: readonly T[]) => [...xs].sort((a, b) => a.id.localeCompare(b.id))
-const edgeKey = (xs: readonly { from: string; to: string; tag: string }[]) => xs.map((e) => `${e.from}->${e.to}:${e.tag}`).sort()
-const shape = (g: { nodes: readonly { id: string }[]; edges: readonly { from: string; to: string; tag: string }[]; shadowing: readonly unknown[] }) => ({
+const edgeKey = (xs: readonly { from: string; to: string; tag: string }[]) =>
+  xs.map((e) => `${e.from}->${e.to}:${e.tag}`).sort()
+const shape = (g: {
+  nodes: readonly { id: string }[]
+  edges: readonly { from: string; to: string; tag: string }[]
+  shadowing: readonly unknown[]
+}) => ({
   nodes: byId(g.nodes),
   edges: edgeKey(g.edges),
   shadowing: g.shadowing,
@@ -20,7 +25,9 @@ describe('analyze', () => {
     expect(g.private).toEqual(expect.arrayContaining(['Store']))
     expect(g.modules.find((m) => m.name === 'Infra')?.exports).toEqual(['Clock', 'Logger'])
     expect(edgeKey(r.atoms.edges)).toEqual(['atom:count->Clock:Clock', 'atom:doubled->Clock:Clock'])
-    expect(edgeKey(g.edges)).toEqual(expect.arrayContaining(['effect:boot->Logger:Logger', 'effect:boot->TaskRepo:TaskRepo']))
+    expect(edgeKey(g.edges)).toEqual(
+      expect.arrayContaining(['effect:boot->Logger:Logger', 'effect:boot->TaskRepo:TaskRepo']),
+    )
   })
 
   it('core fixture: clean graph', () => {

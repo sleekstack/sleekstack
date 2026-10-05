@@ -4,7 +4,23 @@ import { QueryClientTag } from '@sleekstack/query'
 import { type DehydratedState, hydrate as hydrateQueries } from '@tanstack/query-core'
 import { hydrateRoot } from 'react-dom/client'
 import { reportRenderError } from './component'
-import { build, mount, type Env, type Events, flat, guestElement, type Instance, keysOf, type Leaf, listen, type Live, type Mounted, owned, start, watch } from './dom'
+import {
+  build,
+  mount,
+  type Env,
+  type Events,
+  flat,
+  guestElement,
+  type Instance,
+  keysOf,
+  type Leaf,
+  listen,
+  type Live,
+  type Mounted,
+  owned,
+  start,
+  watch,
+} from './dom'
 import type { Node } from './node'
 import { Store } from './reactive'
 import { checkAttr, checkTag, TEXT_SEPARATOR } from './string'
@@ -20,7 +36,10 @@ const isSeparator = (d: ChildNode): boolean => d.nodeType === 8 && (d as Comment
  * Reported through `onError` once per replaced subtree; the subtree is rebuilt so the DOM equals a client render.
  * Parser-normalised markup (an inserted `<tbody>`, an auto-closed `<p>`) is not supported and surfaces as a mismatch.
  */
-export class HydrationMismatch extends Data.TaggedError('HydrationMismatch')<{ readonly expected: string; readonly found: string }> {}
+export class HydrationMismatch extends Data.TaggedError('HydrationMismatch')<{
+  readonly expected: string
+  readonly found: string
+}> {}
 
 /** The `data-sleek-hydrate` state script is not valid JSON or not a v1 payload; hydration falls back to client initial values. */
 export class HydratePayloadInvalid extends Data.TaggedError('HydratePayloadInvalid')<{ readonly reason: string }> {}
@@ -37,10 +56,17 @@ const readPayload = (container: Element, onError?: (cause: Cause.Cause<unknown>)
   try {
     const p: unknown = JSON.parse(script.textContent ?? '')
     if (!isRecord(p) || p.v !== 1 || !isRecord(p.atoms)) throw new Error('not a v1 payload')
-    if (p.queries !== undefined && !(isRecord(p.queries) && Array.isArray(p.queries.queries) && Array.isArray(p.queries.mutations))) throw new Error('queries is not a DehydratedState')
+    if (
+      p.queries !== undefined &&
+      !(isRecord(p.queries) && Array.isArray(p.queries.queries) && Array.isArray(p.queries.mutations))
+    )
+      throw new Error('queries is not a DehydratedState')
     return p as Payload
   } catch (error) {
-    sink(Cause.fail(new HydratePayloadInvalid({ reason: error instanceof Error ? error.message : String(error) })), onError)
+    sink(
+      Cause.fail(new HydratePayloadInvalid({ reason: error instanceof Error ? error.message : String(error) })),
+      onError,
+    )
     return undefined
   }
 }
@@ -65,10 +91,25 @@ const seeded = <E, A>(app: Effect.Effect<Node, E, A>, p: Payload): Effect.Effect
   )
 
 const report = (env: Env, expected: string, found: ChildNode | string | undefined): void => {
-  sink(Cause.fail(new HydrationMismatch({ expected, found: typeof found === 'string' ? found : found ? found.nodeName : 'nothing' })), env.onError)
+  sink(
+    Cause.fail(
+      new HydrationMismatch({
+        expected,
+        found: typeof found === 'string' ? found : found ? found.nodeName : 'nothing',
+      }),
+    ),
+    env.onError,
+  )
 }
 
-const mismatch = (n: Leaf, key: string | undefined, dom: ChildNode | undefined, parent: globalThis.Node, env: Env, scopes: Array<Scope.CloseableScope>): Live | null => {
+const mismatch = (
+  n: Leaf,
+  key: string | undefined,
+  dom: ChildNode | undefined,
+  parent: globalThis.Node,
+  env: Env,
+  scopes: Array<Scope.CloseableScope>,
+): Live | null => {
   report(env, n._tag === 'Element' ? `<${n.tag}>` : n._tag, dom)
   const l = build(n, key, env, scopes)
   if (l) parent.insertBefore(l.dom, dom ?? null)
@@ -76,10 +117,18 @@ const mismatch = (n: Leaf, key: string | undefined, dom: ChildNode | undefined, 
   return l
 }
 
-const textOf = (env: Env, n: Leaf): string => (n._tag === 'Text' ? n.text : n._tag === 'Bind' ? String(env.store.get(n.atom)) : '')
+const textOf = (env: Env, n: Leaf): string =>
+  n._tag === 'Text' ? n.text : n._tag === 'Bind' ? String(env.store.get(n.atom)) : ''
 
 // One leaf against the DOM node at its position; null `dom` past the end. Creates DOM only on a mismatch or empty text.
-const adoptOne = (n: Leaf, key: string | undefined, dom: ChildNode | undefined, parent: globalThis.Node, env: Env, scopes: Array<Scope.CloseableScope>): Live | null => {
+const adoptOne = (
+  n: Leaf,
+  key: string | undefined,
+  dom: ChildNode | undefined,
+  parent: globalThis.Node,
+  env: Env,
+  scopes: Array<Scope.CloseableScope>,
+): Live | null => {
   try {
     const keyed = key === undefined ? {} : { key }
     switch (n._tag) {
@@ -103,7 +152,8 @@ const adoptOne = (n: Leaf, key: string | undefined, dom: ChildNode | undefined, 
         return { node: n, dom: d, kids: [] }
       }
       case 'Element': {
-        if (dom?.nodeType !== 1 || (dom as Element).localName !== checkTag(n.tag).toLowerCase()) return mismatch(n, key, dom, parent, env, scopes)
+        if (dom?.nodeType !== 1 || (dom as Element).localName !== checkTag(n.tag).toLowerCase())
+          return mismatch(n, key, dom, parent, env, scopes)
         const el = dom as Element
         for (const [k, v] of Object.entries(n.attrs)) checkAttr(k, v)
         // Attributes and form `value` / `checked` are left as the server (or the user) left them.
@@ -116,7 +166,20 @@ const adoptOne = (n: Leaf, key: string | undefined, dom: ChildNode | undefined, 
       case 'Reactive': {
         if (dom?.nodeName !== 'SLEEK-REACTIVE') return mismatch(n, key, dom, parent, env, scopes)
         const host = dom as HTMLElement
-        const inst: Instance = { lives: [], scopes: [], host, node: n, rerun: n.rerun, unsubs: [], fiber: undefined, queued: -1, epoch: 0, dead: false, scope: n.scope, frame: n.frame }
+        const inst: Instance = {
+          lives: [],
+          scopes: [],
+          host,
+          node: n,
+          rerun: n.rerun,
+          unsubs: [],
+          fiber: undefined,
+          queued: -1,
+          epoch: 0,
+          dead: false,
+          scope: n.scope,
+          frame: n.frame,
+        }
         inst.lives = adoptAll([n.child], host, env, inst.scopes)
         watch(inst, n, env)
         return { node: n, dom: host, kids: [], inst, ...keyed }
@@ -128,7 +191,12 @@ const adoptOne = (n: Leaf, key: string | undefined, dom: ChildNode | undefined, 
         const root = hydrateRoot(host, guestElement(n, env), {
           onCaughtError: () => {},
           onUncaughtError: (error) => reportRenderError(error, env.onError),
-          onRecoverableError: (error) => report(env, `guest ${n.component.displayName ?? n.component.name}`, `React: ${error instanceof Error ? error.message : String(error)}`),
+          onRecoverableError: (error) =>
+            report(
+              env,
+              `guest ${n.component.displayName ?? n.component.name}`,
+              `React: ${error instanceof Error ? error.message : String(error)}`,
+            ),
         })
         return { node: n, dom: host, kids: [], root, ...keyed }
       }
@@ -139,7 +207,12 @@ const adoptOne = (n: Leaf, key: string | undefined, dom: ChildNode | undefined, 
   }
 }
 
-const adoptAll = (nodes: ReadonlyArray<Node>, parent: globalThis.Node, env: Env, scopes: Array<Scope.CloseableScope>): Array<Live> => {
+const adoptAll = (
+  nodes: ReadonlyArray<Node>,
+  parent: globalThis.Node,
+  env: Env,
+  scopes: Array<Scope.CloseableScope>,
+): Array<Live> => {
   for (const d of [...parent.childNodes]) if (isSeparator(d)) d.remove()
   const list = flat(nodes, scopes)
   const keys = keysOf(list, env)
@@ -175,13 +248,20 @@ const adoptAll = (nodes: ReadonlyArray<Node>, parent: globalThis.Node, env: Env,
  */
 export const hydrateMount = async <E, A, LE = never>(
   app: Effect.Effect<Node, E, A>,
-  opts: { layer: Layer.Layer<Exclude<A, Store>, LE, never>; container: Element; onError?: (cause: Cause.Cause<unknown>) => void; store?: AtomStore },
+  opts: {
+    layer: Layer.Layer<Exclude<A, Store>, LE, never>
+    container: Element
+    onError?: (cause: Cause.Cause<unknown>) => void
+    store?: AtomStore
+  },
 ): Promise<Mounted> => {
   if (owned(opts.container)) throw new HydrateConflict({ container: opts.container })
   const p = readPayload(opts.container, opts.onError)
   if (p) app = seeded(app, p) as typeof app
   let broken = false
-  const h = await start(app, opts, (container, node, env, scopes) => adoptAll([node], container, { ...env, defect: (e) => ((broken = true), env.defect(e)) }, scopes))
+  const h = await start(app, opts, (container, node, env, scopes) =>
+    adoptAll([node], container, { ...env, defect: (e) => ((broken = true), env.defect(e)) }, scopes),
+  )
   if (!broken) return h
   // A renderer defect mid-walk leaves the adopted tree untrustworthy: fall back to a full client render.
   await h.dispose()
