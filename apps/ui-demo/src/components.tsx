@@ -1,8 +1,7 @@
 /** @jsxImportSource @sleekstack/ui */
 import { Effect } from 'effect'
 import { Boundary, Pending, useAtomValue, useLocal, useSetAtom } from '@sleekstack/ui'
-import type { QueryFailed } from '@sleekstack/ui/query'
-import { useAddTask, useSuspenseBacklog } from './backlog'
+import { useAddTask, useSuspenseBacklog, type QueryFailed } from './backlog'
 import { AddButton, Avatar, FilterBar, Votes } from './guests'
 import { filterAtom, selectedAtom } from './state'
 import {
