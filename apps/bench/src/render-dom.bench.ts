@@ -6,11 +6,11 @@ import { Atom, makeAtomStore } from '@sleekstack/core'
 import { mount, useAtomValue } from '@sleekstack/ui'
 import { jsx } from '@sleekstack/ui/jsx-runtime'
 import { Effect, Layer } from 'effect'
-import { createElement as h, useState } from 'react'
+import { createContext, createElement as h, useContext, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { createRoot } from 'react-dom/client'
 import { bench, describe } from 'vitest'
-import { check, dataHandlerRuns, dataRuns, itemsAfter, ROWS, rowIds, rowLabel, sleekDataTree, sleekHandlerTree, sleekTree, type Item, type TreeOptions } from './scenarios'
+import { check, dataAtomRuns, dataHandlerRuns, dataRuns, itemsAfter, ROWS, rowIds, rowLabel, sleekDataTree, sleekHandlerTree, sleekTree, type Item, type TreeOptions } from './scenarios'
 
 const gc = (globalThis as { gc?: () => void }).gc
 const opts = { setup: () => gc?.() }
@@ -172,6 +172,38 @@ const reactKeyedHandler = () => {
   return { container, run: () => (flushSync(() => set(++n)), container.textContent) }
 }
 
+// Rows that read a shared atom (never written here): the row keeps its own subscription, so the parent re-run alone should not need to re-run it.
+const sleekKeyedAtom = async () => {
+  const container = document.createElement('div')
+  const store = makeAtomStore()
+  const state = Atom.make(0)
+  const selected = Atom.make(-1)
+  const AtomRow = ({ item }: { item: Item }) =>
+    Effect.flatMap(useAtomValue(selected), (sel) => (dataAtomRuns.sleekstack++, jsx('li', { className: sel === item.id ? 'row selected' : 'row', children: item.label })))
+  const List = () => Effect.flatMap(useAtomValue(state), (n) => jsx('ul', { children: itemsAfter(n).map((item) => jsx(AtomRow as any, { item, key: item.id })) }))
+  await mount(jsx(List as any, {}), { layer: Layer.empty, container, store })
+  let n = 0
+  return { container, run: async () => (store.set(state, ++n), await tick(), container.textContent) }
+}
+const SelectedContext = createContext(-1)
+const ReactAtomRow = ({ item }: { item: Item }) => {
+  const sel = useContext(SelectedContext)
+  dataAtomRuns.react++
+  return h('li', { className: sel === item.id ? 'row selected' : 'row' }, item.label)
+}
+const reactKeyedAtom = () => {
+  const container = document.createElement('div')
+  let set!: (n: number) => void
+  const List = () => {
+    const [n, s] = useState(0)
+    set = s
+    return h(SelectedContext.Provider, { value: -1 }, h('ul', null, itemsAfter(n).map((item) => h(ReactAtomRow, { key: item.id, item }))))
+  }
+  flushSync(() => createRoot(container).render(h(List)))
+  let n = 0
+  return { container, run: () => (flushSync(() => set(++n)), container.textContent) }
+}
+
 const sleekU = await sleekUpdate()
 const reactU = reactUpdate()
 await check('render-dom/update-1-of-1k', [
@@ -212,6 +244,18 @@ for (const lib of ['sleekstack', 'react'] as const) {
   await keyedHandler[lib].run()
   await settle()
   console.log(`render-dom/keyed-update-handler-1-of-1k component runs per update (${lib}):`, dataHandlerRuns[lib])
+}
+
+const keyedAtom = { sleekstack: await sleekKeyedAtom(), react: reactKeyedAtom() }
+await check('render-dom/keyed-update-atom-1-of-1k', [
+  ['sleekstack', keyedAtom.sleekstack.run],
+  ['react', keyedAtom.react.run],
+])
+for (const lib of ['sleekstack', 'react'] as const) {
+  dataAtomRuns[lib] = 0
+  await keyedAtom[lib].run()
+  await settle()
+  console.log(`render-dom/keyed-update-atom-1-of-1k component runs per update (${lib}):`, dataAtomRuns[lib])
 }
 
 const nodeSwaps: Record<string, Record<string, number>> = {}
@@ -256,4 +300,9 @@ describe('render-dom/keyed-update-data-1-of-1k', () => {
 describe('render-dom/keyed-update-handler-1-of-1k', () => {
   bench('sleekstack', async () => void (await keyedHandler.sleekstack.run()), opts)
   bench('react', () => void keyedHandler.react.run(), opts)
+})
+
+describe('render-dom/keyed-update-atom-1-of-1k', () => {
+  bench('sleekstack', async () => void (await keyedAtom.sleekstack.run()), opts)
+  bench('react', () => void keyedAtom.react.run(), opts)
 })

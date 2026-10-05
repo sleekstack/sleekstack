@@ -31,7 +31,9 @@ pnpm --filter bench test             # compare script unit tests
 
 ## Reading the keyed update cases
 
-All three change one of 1,000 keyed rows per write and report component runs per update. `keyed-update-data` (rows take an item object) and `keyed-update-handler` (item plus an inline `on*` handler) are the cases a row can be skipped: 1 run per update. `keyed-update-render-callback` passes a fresh function that the row calls while rendering, so every row re-runs (1,000 runs): that is the cost of the component-run path itself and the control for it. See ADR 0020.
+`keyed-update-atom` rows each read a shared atom (as a selection or hover state would) and take an item object: today every row re-runs because a row that read an atom is never skipped (ADR 0020 open decision), so it is the baseline for rows that read atoms.
+
+All of them change one of 1,000 keyed rows per write and report component runs per update. `keyed-update-data` (rows take an item object) and `keyed-update-handler` (item plus an inline `on*` handler) are the cases a row can be skipped: 1 run per update. `keyed-update-render-callback` passes a fresh function that the row calls while rendering, so every row re-runs (1,000 runs): that is the cost of the component-run path itself and the control for it. See ADR 0020.
 
 ## Why ratios, not times
 
