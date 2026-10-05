@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { Atom, makeAtomStore } from '@sleekstack/core'
-import { Cause, Context, Data, Deferred, Effect, Layer } from 'effect'
+import { Cause, Context, Data, Deferred, Effect, Layer, Schema } from 'effect'
 import { act, createElement, useEffect, useState } from 'react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { Boundary, el, fromReact, mount, type Mounted, Provider, Store, useAtomValue, useLocal, useSetAtom } from '../index'
@@ -725,5 +725,166 @@ describe('host events', () => {
     expect(interrupted).toBe(2)
     a.click()
     expect(ran).toBe(1)
+  })
+
+  it('a bound atom child follows its atom without re-running the component; drop and swap release it', async () => {
+    const mk = (key: string) => Atom.serializable(Atom.make(1), { key, schema: Schema.Number })
+    const a = mk('a')
+    const b = mk('b')
+    const pick = Atom.make<'a' | 'b' | 'none'>('a')
+    let runs = 0
+    const P = () => Effect.flatMap(useAtomValue(pick), (w) => (runs++, jsx('p', { children: w === 'a' ? a : w === 'b' ? b : null })))
+    const store = counted()
+    const { container } = await go(jsx(P, {}), { store })
+    const text = () => container.querySelector('p')!.textContent
+    expect(text()).toBe('1')
+    store.set(a, 5)
+    expect(text()).toBe('5')
+    expect(runs).toBe(1)
+    store.set(pick, 'b')
+    await tick()
+    expect(text()).toBe('1')
+    expect(subs.get(a)).toBe(0)
+    expect(subs.get(b)).toBe(1)
+    store.set(b, 7)
+    expect(text()).toBe('7')
+    store.set(pick, 'none')
+    await tick()
+    expect(subs.get(b)).toBe(0)
+  })
+})
+
+// ADR 0020: a keyed instance whose props and services are unchanged, and that read no atom, is not re-run.
+describe('keyed instance reuse', () => {
+  interface Item {
+    id: number
+    label: string
+  }
+  const mk = (ids: Array<number>): Array<Item> => ids.map((id) => ({ id, label: `L${id}` }))
+  const rowsText = (c: HTMLElement) => [...c.querySelectorAll('li')].map((l) => l.textContent)
+  // `list` is a parent that reads one atom of items and renders a keyed Row per item; `runs` counts Row runs.
+  const setup = async (initial: Array<Item>, rowProps: (item: Item) => object = (item) => ({ item })) => {
+    const items = Atom.make(initial)
+    let runs = 0
+    const Row = ({ item }: { item: Item }) => (runs++, jsx('li', { children: item.label }))
+    const List = () => Effect.flatMap(useAtomValue(items), (list) => jsx('ul', { children: list.map((item) => jsx(Row, { ...rowProps(item), key: item.id })) }))
+    const t = await go(jsx(List, {}))
+    return { ...t, items, runs: () => runs }
+  }
+
+  it('re-runs only the row whose item object changed', async () => {
+    const list = mk([1, 2, 3])
+    const { container, store, items, runs } = await setup(list)
+    expect(runs()).toBe(3)
+    store.set(items, [list[0]!, { id: 2, label: 'changed' }, list[2]!])
+    await tick()
+    expect(rowsText(container)).toEqual(['L1', 'changed', 'L3'])
+    expect(runs()).toBe(4)
+  })
+
+  it('re-runs every row when a prop is a new function that is not an event handler', async () => {
+    const list = mk([1, 2, 3])
+    const { store, items, runs } = await setup(list, (item) => ({ item, format: () => item.id }))
+    store.set(items, [...list])
+    await tick()
+    expect(runs()).toBe(6)
+  })
+
+  it('skips rows that take a fresh inline on* handler, and a click reaches the newest closure', async () => {
+    const list = mk([1, 2])
+    const items = Atom.make(list)
+    const stamp = Atom.make(0)
+    const picks: Array<string> = []
+    let runs = 0
+    const Row = ({ item, onPick }: { item: Item; onPick: () => Effect.Effect<void> }) => (runs++, jsx('li', { onClick: onPick, children: item.label }))
+    const List = () =>
+      Effect.flatMap(useAtomValue(items), (l) =>
+        Effect.flatMap(useAtomValue(stamp), (st) => jsx('ul', { children: l.map((item) => jsx(Row, { item, onPick: () => Effect.sync(() => void picks.push(`${item.id}@${st}`)), key: item.id })) })),
+      )
+    const { container, store } = await go(jsx(List, {}))
+    expect(runs).toBe(2)
+    store.set(stamp, 1)
+    await tick()
+    expect(runs).toBe(2)
+    await act(async () => container.querySelectorAll('li')[1]!.dispatchEvent(new Event('click', { bubbles: true })))
+    expect(picks).toEqual(['2@1'])
+  })
+
+  it('does not remember a row that called its handler while rendering', async () => {
+    const list = mk([1, 2])
+    const items = Atom.make(list)
+    let runs = 0
+    const Row = ({ item, onFormat }: { item: Item; onFormat: () => string }) => (runs++, jsx('li', { children: onFormat() + item.label }))
+    const List = () => Effect.flatMap(useAtomValue(items), (l) => jsx('ul', { children: l.map((item) => jsx(Row, { item, onFormat: () => 'x', key: item.id })) }))
+    const { store } = await go(jsx(List, {}))
+    store.set(items, [...list])
+    await tick()
+    expect(runs).toBe(4)
+  })
+
+  it('does not see an item mutated in place', async () => {
+    const list = mk([1, 2])
+    const { container, store, items, runs } = await setup(list)
+    list[0]!.label = 'mutated'
+    store.set(items, [...list])
+    await tick()
+    expect(rowsText(container)).toEqual(['L1', 'L2'])
+    expect(runs()).toBe(2)
+  })
+
+  it('reorders without re-running, and a removed then re-added key runs fresh', async () => {
+    const list = mk([1, 2, 3])
+    const { container, store, items, runs } = await setup(list)
+    store.set(items, [list[2]!, list[0]!, list[1]!])
+    await tick()
+    expect(rowsText(container)).toEqual(['L3', 'L1', 'L2'])
+    expect(runs()).toBe(3)
+    store.set(items, [list[2]!, list[1]!])
+    await tick()
+    expect(rowsText(container)).toEqual(['L3', 'L2'])
+    store.set(items, [list[2]!, list[0]!, list[1]!])
+    await tick()
+    expect(rowsText(container)).toEqual(['L3', 'L1', 'L2'])
+    expect(runs()).toBe(4)
+  })
+
+  it('keeps a skipped row\'s local state, and a row that reads atoms keeps updating', async () => {
+    const list = mk([1, 2])
+    const items = Atom.make(list)
+    const count = Atom.make(0)
+    let runs = 0
+    const Row = ({ item }: { item: Item }) =>
+      Effect.flatMap(useLocal(0), ([n, set]) => Effect.flatMap(useAtomValue(count), (c) => (runs++, jsx('li', { onClick: () => Effect.sync(() => set(n + 1)), children: `${item.label}:${n}:${c}` }))))
+    const List = () => Effect.flatMap(useAtomValue(items), (l) => jsx('ul', { children: l.map((item) => jsx(Row, { item, key: item.id })) }))
+    const { container, store } = await go(jsx(List, {}))
+    const text = () => rowsText(container)
+    await act(async () => container.querySelectorAll('li')[0]!.dispatchEvent(new Event('click', { bubbles: true })))
+    await tick()
+    expect(text()).toEqual(['L1:1:0', 'L2:0:0'])
+    store.set(items, [...list])
+    await tick()
+    expect(text()).toEqual(['L1:1:0', 'L2:0:0'])
+    store.set(count, 5)
+    await tick()
+    expect(text()).toEqual(['L1:1:5', 'L2:0:5'])
+    expect(runs).toBeGreaterThan(2)
+  })
+
+  it('re-runs rows when a Provider above them changes a service', async () => {
+    const g = Atom.make('a')
+    const list = mk([1, 2])
+    let runs = 0
+    const Row = ({ item }: { item: Item }) => Effect.flatMap(Greeting, (hi) => (runs++, jsx('li', { children: `${hi}${item.id}` })))
+    const List = () =>
+      Effect.flatMap(useAtomValue(g), (v) => jsx(Provider, { layer: Layer.succeed(Greeting, v), children: jsx('ul', { children: list.map((item) => jsx(Row, { item, key: item.id })) }) }))
+    const { container, store } = await go(jsx(List, {}))
+    expect(rowsText(container)).toEqual(['a1', 'a2'])
+    store.set(g, 'a')
+    await tick()
+    expect(runs).toBe(2)
+    store.set(g, 'b')
+    await tick()
+    expect(rowsText(container)).toEqual(['b1', 'b2'])
+    expect(runs).toBe(4)
   })
 })
