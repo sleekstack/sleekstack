@@ -219,7 +219,7 @@ const activate = async <R, LE>(opts: ResumeOptions<R, LE>): Promise<Resumed> => 
   )
   for (const type of m.events) container.addEventListener(type, listener)
 
-  const handle: Resumed = {
+  return {
     dispose: async () => {
       if (!active) return
       active = false
@@ -230,5 +230,4 @@ const activate = async <R, LE>(opts: ResumeOptions<R, LE>): Promise<Resumed> => 
       await store.dispose()
     },
   }
-  return handle
 }
