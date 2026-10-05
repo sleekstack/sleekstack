@@ -1,7 +1,11 @@
 import { layer, module, tag } from '@sleekstack/kit'
 
-interface Pool { size: number }
-interface Users { count(): number }
+interface Pool {
+  size: number
+}
+interface Users {
+  count(): number
+}
 const Pool = tag<Pool>('Pool')
 const Users = tag<Users>('Users')
 

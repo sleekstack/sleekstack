@@ -15,7 +15,11 @@ describe('graphsOf', () => {
       ],
     })
     expect(roots.map((r) => [r.root, r.kind])).toEqual([
-      ['App', 'app'], ['RequestLive', 'request'], ['DemoLive', 'overrides'], ['x.ts:3', 'opaque'], ['Later', undefined],
+      ['App', 'app'],
+      ['RequestLive', 'request'],
+      ['DemoLive', 'overrides'],
+      ['x.ts:3', 'opaque'],
+      ['Later', undefined],
     ])
   })
 

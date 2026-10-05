@@ -4,7 +4,8 @@ import { NewTaskDraft, ProjectNames, TaskCommentDraft, TaskModel, type TaskDto }
 
 const dto: TaskDto = { id: 't1', projectId: 'p1', title: 'Ship it', status: 'in_progress', createdAt: 0 }
 const names = new Map([['p1', 'Launch']])
-const build = (d: TaskDto) => Effect.runSync(TaskModel.fromDto(d).pipe(Effect.provideService(ProjectNames, { get: (id) => names.get(id) })))
+const build = (d: TaskDto) =>
+  Effect.runSync(TaskModel.fromDto(d).pipe(Effect.provideService(ProjectNames, { get: (id) => names.get(id) })))
 
 describe('TaskModel.fromDto', () => {
   it('resolves labels and context', () => {
@@ -56,6 +57,10 @@ describe('TaskCommentDraft', () => {
     expect(valid(schema, { body: ' hi ' })).toBe(true)
   })
   it('toDto carries the context', () => {
-    expect(Effect.runSync(TaskCommentDraft.toDto({ body: ' hi ' }, cctx))).toEqual({ taskId: 't1', authorId: 'u1', body: 'hi' })
+    expect(Effect.runSync(TaskCommentDraft.toDto({ body: ' hi ' }, cctx))).toEqual({
+      taskId: 't1',
+      authorId: 'u1',
+      body: 'hi',
+    })
   })
 })

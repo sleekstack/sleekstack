@@ -18,7 +18,12 @@ export class MissingDependency extends Data.TaggedError('MissingDependency')<{
 
 /** @internal The canonical scope-lookup miss: `requiredBy` looked up `key`, and nothing provides it. */
 export const missingDependency = (key: string, requiredBy: string): MissingDependency =>
-  new MissingDependency({ tag: key, service: requiredBy, missing: key, message: `"${requiredBy}" requires "${key}", which is not provided` })
+  new MissingDependency({
+    tag: key,
+    service: requiredBy,
+    missing: key,
+    message: `"${requiredBy}" requires "${key}", which is not provided`,
+  })
 
 /** Error code `DependencyCycle`: services require each other in a cycle (`path` lists it). */
 export class DependencyCycle extends Data.TaggedError('DependencyCycle')<{

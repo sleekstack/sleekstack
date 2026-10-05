@@ -2,8 +2,14 @@
 import { cachedQuery, layer, mutation, tag } from '@sleekstack/kit'
 import { LayerProvider, useMutation, useQuery, useQueryClient } from '@sleekstack/kit/react'
 
-interface Todo { id: string; title: string }
-interface Api { todo(id: string): Promise<Todo>; rename(id: string, title: string): Promise<void> }
+interface Todo {
+  id: string
+  title: string
+}
+interface Api {
+  todo(id: string): Promise<Todo>
+  rename(id: string, title: string): Promise<void>
+}
 const Api = tag<Api>('Api')
 const provide = [layer(Api, { todo: async (id: string) => ({ id, title: 'Write docs' }), rename: async () => {} })]
 

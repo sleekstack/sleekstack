@@ -16,4 +16,3 @@ import ApiExample from './api-example'
 export default function App() {
   return <ApiExample />
 }
-

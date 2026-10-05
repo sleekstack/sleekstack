@@ -5,7 +5,8 @@ import { el, type ElementNode, type EventBinding, fragment, type Node } from './
 import { type HostDescriptor, Handlers, hostBuilder, hostOf, instance, RenderScope } from './reactive'
 
 /** What a JSX expression may hold between its tags. An atom renders its current value as text and follows it; a serializable one is also bound for `resume` under `renderToString`. */
-export type Child = string | number | boolean | null | undefined | Effect.Effect<Node, any, any> | Atom.Atom<any> | ReadonlyArray<Child>
+export type Child =
+  string | number | boolean | null | undefined | Effect.Effect<Node, any, any> | Atom.Atom<any> | ReadonlyArray<Child>
 
 /** Every JSX expression is an `Effect<Node>`. Its requirements and errors are read from the tree by `sleekstack check`, not by tsc. */
 type Element = Effect.Effect<Node, never, never>
@@ -17,7 +18,12 @@ type Part = Effect.Effect<Node | string, any, any> | string
 const parts = (c: Child, out: Array<Part>): Array<Part> => {
   if (Array.isArray(c)) for (const x of c) parts(x, out)
   else if (c == null || typeof c === 'boolean') return out
-  else if (Atom.isAtom(c)) out.push(Effect.sync(() => (c.serializable?.kind === 'value' ? bind(c) : ({ _tag: 'Bind', atom: c, plain: true }) as Node)))
+  else if (Atom.isAtom(c))
+    out.push(
+      Effect.sync(() =>
+        c.serializable?.kind === 'value' ? bind(c) : ({ _tag: 'Bind', atom: c, plain: true } as Node),
+      ),
+    )
   else out.push(Effect.isEffect(c) ? c : String(c))
   return out
 }
@@ -29,7 +35,10 @@ const renderChildren = (c: Child): Effect.Effect<Array<Node | string>, any, any>
   let last = -1
   for (let i = 0; i < ps.length; i++) if (typeof ps[i] !== 'string') (n++, (last = i))
   if (n === 0) return Effect.succeed(ps as Array<string>)
-  if (n === 1) return Effect.flatMap(ps[last] as Effect.Effect<Node | string, any, any>, (k) => Effect.succeed(ps.map((p, i) => (i === last ? k : (p as string)))))
+  if (n === 1)
+    return Effect.flatMap(ps[last] as Effect.Effect<Node | string, any, any>, (k) =>
+      Effect.succeed(ps.map((p, i) => (i === last ? k : (p as string)))),
+    )
   const run = ps.filter((p): p is Effect.Effect<Node | string, any, any> => typeof p !== 'string')
   return Effect.flatMap(Effect.all(run), (ks) => {
     let j = 0
@@ -42,7 +51,15 @@ const RENAME: Record<string, string> = { className: 'class', htmlFor: 'for' }
 const attrs = (props: Props): Record<string, string> =>
   Object.fromEntries(
     Object.entries(props).flatMap(([k, v]) =>
-      k === 'children' || k === 'key' || isEvent(k, v) || isHandlerProp(k, v) || v == null || v === false || Atom.isAtom(v) ? [] : [[RENAME[k] ?? k, v === true ? '' : String(v)]],
+      k === 'children' ||
+      k === 'key' ||
+      isEvent(k, v) ||
+      isHandlerProp(k, v) ||
+      v == null ||
+      v === false ||
+      Atom.isAtom(v)
+        ? []
+        : [[RENAME[k] ?? k, v === true ? '' : String(v)]],
     ),
   )
 
@@ -51,16 +68,22 @@ const isEvent = (k: string, v: unknown): v is EventBinding['run'] => typeof v ==
 // A `defineHandler` value on `onXxx` is a resumable handler: it goes to the node's `on`, which `renderToString` emits as `data-sleek-on-<event>`.
 const isHandlerProp = (k: string, v: unknown): v is Handler<any, any> => /^on[A-Z]/.test(k) && isHandler(v)
 const handlers = (props: Props): Record<string, Handler<any, any>> | undefined => {
-  const entries = Object.entries(props).flatMap(([k, v]) => (isHandlerProp(k, v) ? [[k.slice(2).toLowerCase(), v] as const] : []))
+  const entries = Object.entries(props).flatMap(([k, v]) =>
+    isHandlerProp(k, v) ? [[k.slice(2).toLowerCase(), v] as const] : [],
+  )
   return entries.length ? Object.fromEntries(entries) : undefined
 }
 // Atom-valued props (not `children`/`key`/events) are bound: the renderer keeps the attribute current.
 const bound = (props: Props): Record<string, Atom.Atom<any>> | undefined => {
-  const entries = Object.entries(props).flatMap(([k, v]) => (k !== 'children' && k !== 'key' && !/^on[A-Z]/.test(k) && Atom.isAtom(v) ? [[RENAME[k] ?? k, v] as const] : []))
+  const entries = Object.entries(props).flatMap(([k, v]) =>
+    k !== 'children' && k !== 'key' && !/^on[A-Z]/.test(k) && Atom.isAtom(v) ? [[RENAME[k] ?? k, v] as const] : [],
+  )
   return entries.length ? Object.fromEntries(entries) : undefined
 }
 const events = (props: Props, context: Context.Context<any>): Record<string, EventBinding> | undefined => {
-  const entries = Object.entries(props).flatMap(([k, v]) => (isEvent(k, v) ? [[k.slice(2).toLowerCase(), { run: v, context }]] : []))
+  const entries = Object.entries(props).flatMap(([k, v]) =>
+    isEvent(k, v) ? [[k.slice(2).toLowerCase(), { run: v, context }]] : [],
+  )
   return entries.length ? Object.fromEntries(entries) : undefined
 }
 
@@ -75,7 +98,9 @@ const element = (type: string, props: Props, key: string | undefined): Effect.Ef
   }
   // The context is only captured for event closures.
   return hasEvent(props)
-    ? Effect.flatMap(Effect.context<any>(), (ctx) => Effect.flatMap(renderChildren(props.children), (kids) => Effect.succeed(build(kids, ctx))))
+    ? Effect.flatMap(Effect.context<any>(), (ctx) =>
+        Effect.flatMap(renderChildren(props.children), (kids) => Effect.succeed(build(kids, ctx))),
+      )
     : Effect.flatMap(renderChildren(props.children), (kids) => Effect.succeed(build(kids, undefined)))
 }
 const hasEvent = (props: Props): boolean => {
@@ -84,7 +109,8 @@ const hasEvent = (props: Props): boolean => {
 }
 
 // Plain host tree: primitive attributes and text, nested plain host elements. Its output is its props, so it is built (and compared) synchronously.
-const isPrim = (v: unknown): boolean => v == null || typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean'
+const isPrim = (v: unknown): boolean =>
+  v == null || typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean'
 const hostNode = (d: HostDescriptor, key: string | undefined): Node | undefined => {
   // `jsx` built an eligible tree already: reuse it, re-keyed when the caller's key differs from the element's own.
   const pre = d._hn as ElementNode | undefined
@@ -106,7 +132,7 @@ const hostChildren = (c: unknown, out: Array<Node | string>): Array<Node | strin
     return out
   }
   if (c == null || typeof c === 'boolean') return out
-  if (typeof c === 'string' || typeof c === 'number') return out.push(String(c)), out
+  if (typeof c === 'string' || typeof c === 'number') return (out.push(String(c)), out)
   const h = hostOf(c)
   const n = h && (h._hn ?? hostNode(h, h._hk))
   return n ? (out.push(n), out) : undefined
@@ -161,7 +187,9 @@ export const Fragment = (props: { children?: Child }): Element =>
 /** `<Provider layer={L}>…</Provider>`: JSX form of `Provide`. */
 export const Provider = (props: { layer: Layer.Layer<any, any, never>; children?: Child }): Element =>
   Effect.flatMap(RenderScope, (scope) =>
-    scope ? Effect.flatMap(Layer.buildWithScope(props.layer, scope), (ctx) => Effect.provide(Fragment(props), ctx)) : Effect.provide(Fragment(props), props.layer),
+    scope
+      ? Effect.flatMap(Layer.buildWithScope(props.layer, scope), (ctx) => Effect.provide(Fragment(props), ctx))
+      : Effect.provide(Fragment(props), props.layer),
   ) as Element
 
 /** `<Boundary tag="X" fallback={(e: X) => …}>…</Boundary>`: JSX form of `Catch`; handles only that tag. */
@@ -171,7 +199,9 @@ export const Boundary = <E extends { readonly _tag: string }>(props: {
   children?: Child
 }): Element =>
   Effect.catchTag(
-    Effect.flatMap(Handlers, (hs) => Effect.provideService(Fragment(props), Handlers, [...hs, { tag: props.tag, fallback: props.fallback }])) as Effect.Effect<Node, { _tag: string }>,
+    Effect.flatMap(Handlers, (hs) =>
+      Effect.provideService(Fragment(props), Handlers, [...hs, { tag: props.tag, fallback: props.fallback }]),
+    ) as Effect.Effect<Node, { _tag: string }>,
     props.tag,
     (e) => props.fallback(e as unknown as E),
   ) as Element

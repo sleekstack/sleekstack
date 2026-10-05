@@ -8,7 +8,15 @@
 
 import React from 'react'
 import { Cause, Effect, Exit } from 'effect'
-import { atomStoreFor, makeAppScope, makeAtomStore, type ChildScope, type Entry, type Module, type Snapshot } from '@sleekstack/core'
+import {
+  atomStoreFor,
+  makeAppScope,
+  makeAtomStore,
+  type ChildScope,
+  type Entry,
+  type Module,
+  type Snapshot,
+} from '@sleekstack/core'
 import { RegistryContext, type ProviderState, type RequestRegistry } from './context'
 import { settleSuspensions } from './atoms'
 import { seedFor } from './transport'
@@ -95,7 +103,9 @@ const park = (owned: Owned, props: object) => {
   const token = (owned.parkToken = {})
   owned.parkedBy = props
   owned.stale = false
-  queueMicrotask(() => { if (owned.parkToken === token) owned.stale = true })
+  queueMicrotask(() => {
+    if (owned.parkToken === token) owned.stale = true
+  })
   const gc = (): unknown =>
     setTimeout(() => {
       if (owned.parkToken !== token || !parked.has(owned)) return
@@ -106,18 +116,42 @@ const park = (owned: Owned, props: object) => {
   gc()
 }
 
-const adopt = (props: ScopeProps, parent: ProviderState | null, appScope: ChildScope | undefined): Owned | undefined => {
+const adopt = (
+  props: ScopeProps,
+  parent: ProviderState | null,
+  appScope: ChildScope | undefined,
+): Owned | undefined => {
   let found: Owned | undefined
   for (const o of parked) {
-    if (o.parent !== parent || o.appScope !== appScope || o.hydrate !== props.hydrate || o.snapshotId !== (props.snapshotId ?? '')) continue
-    if (o.parkedBy === (props.owner ?? props)) { found = o; break }
-    if (!found && o.stale && sameEntries(o.provide, props.provide) && sameShape((o.parkedBy as ScopeProps).children, props.children)) found = o
+    if (
+      o.parent !== parent ||
+      o.appScope !== appScope ||
+      o.hydrate !== props.hydrate ||
+      o.snapshotId !== (props.snapshotId ?? '')
+    )
+      continue
+    if (o.parkedBy === (props.owner ?? props)) {
+      found = o
+      break
+    }
+    if (
+      !found &&
+      o.stale &&
+      sameEntries(o.provide, props.provide) &&
+      sameShape((o.parkedBy as ScopeProps).children, props.children)
+    )
+      found = o
   }
   if (found) parked.delete(found)
   return found
 }
 
-function create(props: ScopeProps, parent: ProviderState | null, sink: ProviderState['onFinalizerError'], appScope: ChildScope | undefined): Owned {
+function create(
+  props: ScopeProps,
+  parent: ProviderState | null,
+  sink: ProviderState['onFinalizerError'],
+  appScope: ChildScope | undefined,
+): Owned {
   const { provide, hydrate } = props
   const snapshotId = props.snapshotId ?? ''
   const seed = seedFor(props)
@@ -139,11 +173,13 @@ function create(props: ScopeProps, parent: ProviderState | null, sink: ProviderS
   const opened: Promise<ChildScope> = parent
     ? started.then(() => parent.scope).then((p) => run(p.child('component', [...provide])))
     : appScope
-    ? started.then(() => run(appScope.child('component', [...provide])))
-    : started.then(() => run(Effect.suspend(() => makeAppScope([...provide], { onFinalizerError: sink })))).then((app) => {
-        owned.push(app)
-        return run(app.child('component'))
-      })
+      ? started.then(() => run(appScope.child('component', [...provide])))
+      : started
+          .then(() => run(Effect.suspend(() => makeAppScope([...provide], { onFinalizerError: sink }))))
+          .then((app) => {
+            owned.push(app)
+            return run(app.child('component'))
+          })
   const scope = opened.then((s) => {
     owned.push(s)
     // Registered on the scope after its services, so closing it interrupts atoms before service finalizers.
@@ -162,7 +198,16 @@ function create(props: ScopeProps, parent: ProviderState | null, sink: ProviderS
     parent?.start()
     resolveStart()
   }
-  const state: ProviderState = { scope, scopeState: { status: 'pending' }, cache: new Map(), atoms: undefined, onFinalizerError: sink, children: new Set(), started: false, start }
+  const state: ProviderState = {
+    scope,
+    scopeState: { status: 'pending' },
+    cache: new Map(),
+    atoms: undefined,
+    onFinalizerError: sink,
+    children: new Set(),
+    started: false,
+    start,
+  }
   scope.then(
     (s) => void (state.scopeState = { status: 'resolved', scope: s }),
     (error) => void (state.scopeState = { status: 'rejected', error }),
@@ -196,9 +241,14 @@ export const closeProvidersOn = async (appScope: ChildScope): Promise<void> => {
 }
 
 /** Adopts a parked scope for this render or creates one, then parks it under this render's identity. */
-export const acquire = (props: ScopeProps, parent: ProviderState | null, sink: ProviderState['onFinalizerError'] | undefined): Owned => {
+export const acquire = (
+  props: ScopeProps,
+  parent: ProviderState | null,
+  sink: ProviderState['onFinalizerError'] | undefined,
+): Owned => {
   const appScope = parent ? undefined : props.appScope // ignored when nested
-  const owned = adopt(props, parent, appScope) ?? create(props, parent, sink ?? parent?.onFinalizerError ?? defaultSink, appScope)
+  const owned =
+    adopt(props, parent, appScope) ?? create(props, parent, sink ?? parent?.onFinalizerError ?? defaultSink, appScope)
   park(owned, props.owner ?? props)
   return owned
 }
@@ -217,7 +267,8 @@ export const mount = (owned: Owned, parent: ProviderState | null, onClosed: () =
     owned.pendingClose = undefined
   }
   parent?.children.add(owned.close)
-  const siblings = owned.appScope && (external.get(owned.appScope) ?? external.set(owned.appScope, new Set()).get(owned.appScope)!)
+  const siblings =
+    owned.appScope && (external.get(owned.appScope) ?? external.set(owned.appScope, new Set()).get(owned.appScope)!)
   siblings?.add(owned.close)
   return () => {
     const token = (owned.pendingClose = { cancelled: false })
@@ -233,13 +284,20 @@ export const mount = (owned: Owned, parent: ProviderState | null, onClosed: () =
   }
 }
 
-const sinkFor = (sink: ProviderState['onFinalizerError'] | undefined, parent: ProviderState | null) => sink ?? parent?.onFinalizerError ?? defaultSink
+const sinkFor = (sink: ProviderState['onFinalizerError'] | undefined, parent: ProviderState | null) =>
+  sink ?? parent?.onFinalizerError ?? defaultSink
 
 /**
  * Server acquisition under a request registry: the scope registered under `id` (a Suspense retry of the same
  * provider), else a new one started at once (no commit on the server) and closed by {@link closeRegistry}.
  */
-export const acquireOnServer = (registry: RequestRegistry, id: string, props: ScopeProps, parent: ProviderState | null, sink: ProviderState['onFinalizerError'] | undefined): Owned => {
+export const acquireOnServer = (
+  registry: RequestRegistry,
+  id: string,
+  props: ScopeProps,
+  parent: ProviderState | null,
+  sink: ProviderState['onFinalizerError'] | undefined,
+): Owned => {
   const found = registry.scopes.get(id)
   if (found) return found
   const owned = create(props, parent, sinkFor(sink, parent), parent ? undefined : props.appScope)
@@ -259,22 +317,33 @@ export const closeRegistry = (registry: RequestRegistry): Promise<void> =>
  * Server render without a registry: a never-started scope (no commit on the server, so nothing opens or needs
  * closing) built without client adoption or parking; atoms read from an inert per-render store (no fiber forked).
  */
-const inertServerState = (props: ScopeProps, parent: ProviderState | null, sink: ProviderState['onFinalizerError'] | undefined): Owned => {
+const inertServerState = (
+  props: ScopeProps,
+  parent: ProviderState | null,
+  sink: ProviderState['onFinalizerError'] | undefined,
+): Owned => {
   const owned = create(props, parent, sinkFor(sink, parent), parent ? undefined : props.appScope)
-  const state: ProviderState = Object.create(owned.state, { atoms: { value: makeAtomStore({ inert: true, hydrate: seedFor(props) }) } })
+  const state: ProviderState = Object.create(owned.state, {
+    atoms: { value: makeAtomStore({ inert: true, hydrate: seedFor(props) }) },
+  })
   return { ...owned, state }
 }
 
 /** The provider's scope source: request registry (server under `renderWithAtoms`), inert server state, or client `acquire`. */
-export const useScopeSource = (props: ScopeProps, parent: ProviderState | null, sink: ProviderState['onFinalizerError'] | undefined): React.RefObject<Owned | null> => {
+export const useScopeSource = (
+  props: ScopeProps,
+  parent: ProviderState | null,
+  sink: ProviderState['onFinalizerError'] | undefined,
+): React.RefObject<Owned | null> => {
   const id = React.useId()
   const registry = React.useContext(RegistryContext)
   const ref = React.useRef<Owned | null>(null)
   if (ref.current === null) {
-    ref.current =
-      registry ? acquireOnServer(registry, id, props, parent, sink)
-      : typeof window === 'undefined' ? inertServerState(props, parent, sink)
-      : acquire(props, parent, sink)
+    ref.current = registry
+      ? acquireOnServer(registry, id, props, parent, sink)
+      : typeof window === 'undefined'
+        ? inertServerState(props, parent, sink)
+        : acquire(props, parent, sink)
   }
   return ref
 }

@@ -56,14 +56,19 @@ export const ProjectFilterStore = tag<ProjectFilterStoreService>('ProjectFilterS
 const logWithClock = (clock: ClockService, message: string) => scopeLog.record(`${message} at ${clock.now()}`)
 
 export const makeProjectFilterStoreLayer = (projectId: string) =>
-  layer(ProjectFilterStore, async (clock) => {
-    await sleep(10)
-    logWithClock(clock, `acquire: ProjectFilterStore (${projectId})`)
-    const selectedTaskId = createStore(selectionMemory.get(projectId) ?? null)
-    selectedTaskId.subscribe(() => selectionMemory.set(projectId, selectedTaskId.get()))
-    const service: ProjectFilterStoreService = { filter: createStore<TaskStatusFilter>('all'), selectedTaskId }
-    return withCleanup(service, () => logWithClock(clock, `release: ProjectFilterStore (${projectId})`))
-  }, [Clock], { lifetime: 'component' })
+  layer(
+    ProjectFilterStore,
+    async (clock) => {
+      await sleep(10)
+      logWithClock(clock, `acquire: ProjectFilterStore (${projectId})`)
+      const selectedTaskId = createStore(selectionMemory.get(projectId) ?? null)
+      selectedTaskId.subscribe(() => selectionMemory.set(projectId, selectedTaskId.get()))
+      const service: ProjectFilterStoreService = { filter: createStore<TaskStatusFilter>('all'), selectedTaskId }
+      return withCleanup(service, () => logWithClock(clock, `release: ProjectFilterStore (${projectId})`))
+    },
+    [Clock],
+    { lifetime: 'component' },
+  )
 
 export interface DraftEditorService {
   /** The comment-draft atom; its state lives (and dies) with the task-detail provider's atom store. */
@@ -73,15 +78,25 @@ export interface DraftEditorService {
 export const DraftEditor = tag<DraftEditorService>('DraftEditor')
 
 export const makeDraftEditorLayer = (taskId: string) =>
-  layer(DraftEditor, async (clock) => {
-    await sleep(10)
-    logWithClock(clock, `acquire: DraftEditor (${taskId})`)
-    return withCleanup({ draft: atom('') }, () => logWithClock(clock, `release: DraftEditor (${taskId})`))
-  }, [Clock], { lifetime: 'component' })
+  layer(
+    DraftEditor,
+    async (clock) => {
+      await sleep(10)
+      logWithClock(clock, `acquire: DraftEditor (${taskId})`)
+      return withCleanup({ draft: atom('') }, () => logWithClock(clock, `release: DraftEditor (${taskId})`))
+    },
+    [Clock],
+    { lifetime: 'component' },
+  )
 
 /** "Break detail": acquisition rejects, so `useService` throws to the ErrorBoundary. */
 export const makeBrokenDraftEditorLayer = (taskId: string) =>
-  layer(DraftEditor, async (): Promise<DraftEditorService> => {
-    await sleep(10)
-    throw new Error(`DraftEditor acquisition failed for task ${taskId} (simulated)`)
-  }, [], { lifetime: 'component' })
+  layer(
+    DraftEditor,
+    async (): Promise<DraftEditorService> => {
+      await sleep(10)
+      throw new Error(`DraftEditor acquisition failed for task ${taskId} (simulated)`)
+    },
+    [],
+    { lifetime: 'component' },
+  )

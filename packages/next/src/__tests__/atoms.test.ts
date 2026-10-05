@@ -10,18 +10,23 @@ describe('prefetchAtoms', () => {
     configureRuntime({ layer: Layer.succeed(Name, 'ada') }, { replace: true })
     const released: string[] = []
     const greeting = Atom.serializable.result(
-      Atom.make(Effect.gen(function* () {
-        yield* Effect.addFinalizer(() => Effect.sync(() => released.push('greeting')))
-        yield* Effect.sleep(5)
-        return `hi ${yield* Name}`
-      }).pipe(Effect.scoped)),
+      Atom.make(
+        Effect.gen(function* () {
+          yield* Effect.addFinalizer(() => Effect.sync(() => released.push('greeting')))
+          yield* Effect.sleep(5)
+          return `hi ${yield* Name}`
+        }).pipe(Effect.scoped),
+      ),
       { key: 'greeting', schema: Schema.String },
     )
     const count = Atom.serializable(Atom.make(3), { key: 'count', schema: Schema.Number })
     const broken = Atom.serializable.result(Atom.make(Effect.fail('nope')), { key: 'broken', schema: Schema.String })
     // Built inside the store: the finalizer registered by `keep` runs when the store is disposed.
     const keep = Atom.serializable(
-      Atom.make((get) => { get.addFinalizer(() => released.push('store')); return 1 }),
+      Atom.make((get) => {
+        get.addFinalizer(() => released.push('store'))
+        return 1
+      }),
       { key: 'keep', schema: Schema.Number },
     )
 
@@ -41,7 +46,12 @@ describe('prefetchAtoms', () => {
     expect(released).toEqual(['store'])
 
     released.length = 0
-    const boom = Atom.serializable(Atom.make((): number => { throw new Error('read boom') }), { key: 'boom', schema: Schema.Number })
+    const boom = Atom.serializable(
+      Atom.make((): number => {
+        throw new Error('read boom')
+      }),
+      { key: 'boom', schema: Schema.Number },
+    )
     await expect(prefetchAtoms([keep, boom])).rejects.toThrow(/read boom/)
     expect(released).toEqual(['store'])
   })

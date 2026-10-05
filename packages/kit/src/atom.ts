@@ -47,16 +47,24 @@ const wrap = <A extends Atom<any>>(core: Core): A => {
 
 const PENDING = Symbol('sleekstack.atom.pending')
 
-const getter = (get: CoreAtom.Context): Get => (a) => {
-  const r = get(coreAtom(a))
-  if (Result.isInitial(r)) throw PENDING
-  if (Result.isFailure(r)) throw Cause.squash(r.cause)
-  return r.value as never
-}
+const getter =
+  (get: CoreAtom.Context): Get =>
+  (a) => {
+    const r = get(coreAtom(a))
+    if (Result.isInitial(r)) throw PENDING
+    if (Result.isFailure(r)) throw Cause.squash(r.cause)
+    return r.value as never
+  }
 
-const isThenable = (x: unknown): x is PromiseLike<unknown> => typeof (x as { then?: unknown } | null)?.then === 'function'
+const isThenable = (x: unknown): x is PromiseLike<unknown> =>
+  typeof (x as { then?: unknown } | null)?.then === 'function'
 
-const derived = (fn: (...args: any[]) => unknown, deps: readonly AnyTag[], opts: AtomOptions, prefix: readonly unknown[] = []) => {
+const derived = (
+  fn: (...args: any[]) => unknown,
+  deps: readonly AnyTag[],
+  opts: AtomOptions,
+  prefix: readonly unknown[] = [],
+) => {
   const tags = deps.map(coreTag)
   const base: Core = CoreAtom.make((get: CoreAtom.Context) =>
     // Deps resolve synchronously in the forked build, so `fn` (and its `get` calls) runs inside the read.
@@ -111,7 +119,14 @@ export function atom(fn: unknown, deps: readonly AnyTag[] = [], opts: AtomOption
   if (typeof fn === 'function') return derived(fn as (...a: any[]) => unknown, deps, opts)
   const core: CoreAtom.Writable<Result.Result<unknown>, unknown> = CoreAtom.writable(
     () => Result.success(fn),
-    (ctx, v) => ctx.setSelf(Result.success(typeof v === 'function' ? (v as (p: unknown) => unknown)((ctx.get(core) as Result.Success<unknown>).value) : v)),
+    (ctx, v) =>
+      ctx.setSelf(
+        Result.success(
+          typeof v === 'function'
+            ? (v as (p: unknown) => unknown)((ctx.get(core) as Result.Success<unknown>).value)
+            : v,
+        ),
+      ),
   )
   return wrap(core)
 }

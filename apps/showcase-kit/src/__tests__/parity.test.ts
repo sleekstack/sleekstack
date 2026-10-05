@@ -11,7 +11,11 @@ import { describe, expect, it } from 'vitest'
 import type { Report } from '../server/report.server'
 
 let out = ''
-const code = main(['check', '--json', '--entry', 'src/server/runtime.server.ts'], { cwd: path.join(__dirname, '../..'), out: (s) => (out += s), err: () => {} })
+const code = main(['check', '--json', '--entry', 'src/server/runtime.server.ts'], {
+  cwd: path.join(__dirname, '../..'),
+  out: (s) => (out += s),
+  err: () => {},
+})
 const report = JSON.parse(out) as Report
 
 describe('analyzer graph of the app', () => {
@@ -22,7 +26,12 @@ describe('analyzer graph of the app', () => {
     expect(g.nodes.length).toBeGreaterThan(5)
     expect(new Set(g.nodes.map((n) => n.module?.name))).toEqual(new Set(['Infra', 'Data', 'Activity', 'App']))
     expect(g.nodes.filter((n) => n.private).map((n) => n.id)).toEqual(['Store'])
-    expect(g.edges.filter((e) => e.from === 'TaskRepo').map((e) => e.to).sort()).toEqual(['Clock', 'IdGen', 'Store'])
+    expect(
+      g.edges
+        .filter((e) => e.from === 'TaskRepo')
+        .map((e) => e.to)
+        .sort(),
+    ).toEqual(['Clock', 'IdGen', 'Store'])
     expect(g.shadowing).toHaveLength(0)
   })
 

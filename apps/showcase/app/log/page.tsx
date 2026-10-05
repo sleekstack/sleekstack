@@ -31,7 +31,8 @@ export default async function LogPage() {
       <ol>
         {events.map((event) => (
           <li key={event.id}>
-            <time dateTime={new Date(event.at).toISOString()}>{new Date(event.at).toISOString()}</time> — {event.message}
+            <time dateTime={new Date(event.at).toISOString()}>{new Date(event.at).toISOString()}</time> —{' '}
+            {event.message}
           </li>
         ))}
       </ol>

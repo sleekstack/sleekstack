@@ -33,8 +33,12 @@ const counting = (result: () => Promise<string>) => {
   const fn = { calls: 0, queryFn: () => (fn.calls++, result()) }
   return fn
 }
-const Show = (key: string, queryFn: () => Promise<string>, tagName = 'b') => () =>
-  Effect.map(useQuery({ queryKey: [key], queryFn, retry: false, staleTime: 0 }), (r) => el(tagName, {}, `${r.status}:${r.data ?? ''}`))
+const Show =
+  (key: string, queryFn: () => Promise<string>, tagName = 'b') =>
+  () =>
+    Effect.map(useQuery({ queryKey: [key], queryFn, retry: false, staleTime: 0 }), (r) =>
+      el(tagName, {}, `${r.status}:${r.data ?? ''}`),
+    )
 
 describe('useQuery', () => {
   it('renders pending then the resolved result; re-renders only readers of that query', async () => {
@@ -51,7 +55,12 @@ describe('useQuery', () => {
   })
 
   it('a rejected queryFn renders status error', async () => {
-    const { container } = await go(jsx(Show('e', () => Promise.reject(new Error('no'))), {}))
+    const { container } = await go(
+      jsx(
+        Show('e', () => Promise.reject(new Error('no'))),
+        {},
+      ),
+    )
     await tick()
     expect(container.textContent).toBe('error:')
   })
@@ -59,7 +68,12 @@ describe('useQuery', () => {
   it('an unrelated atom change re-runs without refetching under staleTime 0', async () => {
     const fn = counting(async () => 'v')
     const a = Atom.make(0)
-    const C = () => Effect.zipWith(useAtomValue(a), useQuery({ queryKey: ['u'], queryFn: fn.queryFn, retry: false, staleTime: 0 }), (n, r) => el('b', {}, `${n}:${r.data ?? ''}`))
+    const C = () =>
+      Effect.zipWith(
+        useAtomValue(a),
+        useQuery({ queryKey: ['u'], queryFn: fn.queryFn, retry: false, staleTime: 0 }),
+        (n, r) => el('b', {}, `${n}:${r.data ?? ''}`),
+      )
     const { container, store } = await go(jsx(C, {}))
     await tick()
     store.set(a, 1)
@@ -75,13 +89,24 @@ describe('useQuery', () => {
     const show = Atom.make(true)
     let client: QueryClient | undefined
     const Grab = () => Effect.map(useQueryClient(), (c) => ((client = c), el('s', {}, '')))
-    const Gate = () => Effect.flatMap(useAtomValue(show), (on) => (on ? jsx('div', { children: [jsx(Grab, {}), jsx(Show('k', fn.queryFn), {}), jsx(Show('k', fn.queryFn, 'u'), {})] }) : Effect.succeed(el('p', {}, 'off'))))
+    const Gate = () =>
+      Effect.flatMap(useAtomValue(show), (on) =>
+        on
+          ? jsx('div', {
+              children: [jsx(Grab, {}), jsx(Show('k', fn.queryFn), {}), jsx(Show('k', fn.queryFn, 'u'), {})],
+            })
+          : Effect.succeed(el('p', {}, 'off')),
+      )
     const { container, store } = await go(jsx(Gate, {}))
     await tick()
     expect(container.querySelector('b')!.textContent).toBe('success:s')
     expect(container.querySelector('u')!.textContent).toBe('success:s')
     expect(fn.calls).toBe(1)
-    const observers = () => client!.getQueryCache().find({ queryKey: ['k'] })!.getObserversCount()
+    const observers = () =>
+      client!
+        .getQueryCache()
+        .find({ queryKey: ['k'] })!
+        .getObserversCount()
     expect(observers()).toBe(1)
     store.set(show, false)
     await tick()

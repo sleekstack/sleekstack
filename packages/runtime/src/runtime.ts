@@ -72,7 +72,13 @@ export const devEnabled = (): boolean =>
  * Records into the buffer only while `config` is still the current one: late events from a replaced runtime
  * are dropped. Never throws: a devtools hook must not fail a request.
  */
-const record = (config: RuntimeConfig, kind: DevEvent['kind'], label: string, detail?: string, extra: { scope?: string; fiber?: string } = {}): void => {
+const record = (
+  config: RuntimeConfig,
+  kind: DevEvent['kind'],
+  label: string,
+  detail?: string,
+  extra: { scope?: string; fiber?: string } = {},
+): void => {
   try {
     const slot = getSlot()
     if (slot.config !== config) return
@@ -113,14 +119,21 @@ export const traceService = <A, E, R>(ids: readonly string[], layer: Layer.Layer
       Effect.acquireRelease(
         Effect.flatMap(Effect.zip(FiberRef.get(currentTrace), Effect.fiberId), ([trace, fiber]) =>
           Effect.sync(() => {
-            if (trace) for (const id of ids) record(trace.config, 'acquire', id, undefined, { scope: trace.scope, fiber: FiberId.threadName(fiber) })
+            if (trace)
+              for (const id of ids)
+                record(trace.config, 'acquire', id, undefined, { scope: trace.scope, fiber: FiberId.threadName(fiber) })
             return trace
           }),
         ),
         (trace) =>
           Effect.flatMap(Effect.fiberId, (fiber) =>
             Effect.sync(() => {
-              if (trace) for (const id of ids) record(trace.config, 'release', id, undefined, { scope: trace.scope, fiber: FiberId.threadName(fiber) })
+              if (trace)
+                for (const id of ids)
+                  record(trace.config, 'release', id, undefined, {
+                    scope: trace.scope,
+                    fiber: FiberId.threadName(fiber),
+                  })
             }),
           ),
       ),
@@ -170,7 +183,9 @@ export function configureRuntime(config: RuntimeConfig, options: { readonly repl
     const runtime = slot.runtime
     const fibers = [...slot.fibers]
     // New builds wait for this, so the old runtime's resources are released before the new ones are acquired.
-    slot.disposing = Effect.runPromise(Fiber.interruptAll(fibers)).then(() => (runtime ? disposeReported(previous, runtime) : undefined))
+    slot.disposing = Effect.runPromise(Fiber.interruptAll(fibers)).then(() =>
+      runtime ? disposeReported(previous, runtime) : undefined,
+    )
   }
   slot.events = []
   slot.live = { app: false, scopes: new Set() }
@@ -182,7 +197,9 @@ export function configureRuntime(config: RuntimeConfig, options: { readonly repl
 /** Descriptive error for an unconfigured call, thrown at call time. */
 export class RuntimeNotConfigured extends Error {
   constructor() {
-    super('[@sleekstack/runtime] runEffect was called before configureRuntime(); call configureRuntime({ layer }) first.')
+    super(
+      '[@sleekstack/runtime] runEffect was called before configureRuntime(); call configureRuntime({ layer }) first.',
+    )
     this.name = 'RuntimeNotConfigured'
   }
 }
@@ -204,14 +221,23 @@ const classifierFor = (config: RuntimeConfig, fallback: ControlFlowClassifier | 
   typeof config.isControlFlow === 'function' ? config.isControlFlow : (fallback ?? neverControlFlow)
 
 /** The first classified value, boxed so a classified `undefined` is distinguishable from no match. */
-const findControlFlow = (cause: Cause.Cause<unknown>, isControlFlow: ControlFlowClassifier): { readonly value: unknown } | undefined => {
+const findControlFlow = (
+  cause: Cause.Cause<unknown>,
+  isControlFlow: ControlFlowClassifier,
+): { readonly value: unknown } | undefined => {
   const values = [...Cause.defects(cause), ...Cause.failures(cause)]
   const i = values.findIndex(isControlFlow)
   return i === -1 ? undefined : { value: values[i] }
 }
 
-const callSink = (config: RuntimeConfig, cause: Cause.Cause<unknown>, phase: ErrorInfo['phase'], scope?: string): void => {
-  if (devEnabled()) record(config, 'error', Cause.isDie(cause) ? 'defect' : 'failure', Cause.pretty(cause), scope ? { scope } : {})
+const callSink = (
+  config: RuntimeConfig,
+  cause: Cause.Cause<unknown>,
+  phase: ErrorInfo['phase'],
+  scope?: string,
+): void => {
+  if (devEnabled())
+    record(config, 'error', Cause.isDie(cause) ? 'defect' : 'failure', Cause.pretty(cause), scope ? { scope } : {})
   try {
     ;(config.onError ?? defaultSink)(cause, { phase })
   } catch (sinkError) {
@@ -219,9 +245,15 @@ const callSink = (config: RuntimeConfig, cause: Cause.Cause<unknown>, phase: Err
   }
 }
 
-const report = (config: RuntimeConfig, cause: Cause.Cause<unknown>, phase: ErrorInfo['phase'] = 'call', scope?: string): void => callSink(config, cause, phase, scope)
+const report = (
+  config: RuntimeConfig,
+  cause: Cause.Cause<unknown>,
+  phase: ErrorInfo['phase'] = 'call',
+  scope?: string,
+): void => callSink(config, cause, phase, scope)
 
-const reportFinalizer = (config: RuntimeConfig, cause: Cause.Cause<unknown>, scope?: string): void => callSink(config, cause, 'finalizer', scope)
+const reportFinalizer = (config: RuntimeConfig, cause: Cause.Cause<unknown>, scope?: string): void =>
+  callSink(config, cause, 'finalizer', scope)
 
 /**
  * @internal For adapters that own finalizers inside the app layer (kit's app scope): routes a
@@ -233,7 +265,11 @@ export const reportFinalizerFailure = (cause: Cause.Cause<unknown>): void => {
 }
 
 /** Disposes `runtime`, routing a finalizer failure to the finalizer sink instead of an unhandled rejection. */
-const disposeReported = async (config: RuntimeConfig, runtime: ManagedRuntime.ManagedRuntime<any, any>, scope?: string): Promise<void> => {
+const disposeReported = async (
+  config: RuntimeConfig,
+  runtime: ManagedRuntime.ManagedRuntime<any, any>,
+  scope?: string,
+): Promise<void> => {
   const exit = await Effect.runPromiseExit(runtime.disposeEffect)
   if (Exit.isFailure(exit)) reportFinalizer(config, exit.cause, scope)
 }
@@ -261,7 +297,9 @@ const runtimeFor = (slot: RuntimeSlot, config: RuntimeConfig): ManagedRuntime.Ma
         Layer.locally(layer, currentTrace, { config, scope: 'app' }),
       )
     : layer
-  return (slot.runtime = ManagedRuntime.make(tracked as Layer.Layer<never, unknown, never>) as ManagedRuntime.ManagedRuntime<any, any>)
+  return (slot.runtime = ManagedRuntime.make(
+    tracked as Layer.Layer<never, unknown, never>,
+  ) as ManagedRuntime.ManagedRuntime<any, any>)
 }
 
 /**
@@ -306,7 +344,10 @@ export async function runEffect<A, E, R>(effect: Effect.Effect<A, E, R>, options
           ? yield* Layer.buildWithScope(options.overrides, scope).pipe(Effect.provide(base))
           : (Context.empty() as Context.Context<any>)
         const request: Context.Context<any> = options.request
-          ? yield* Layer.buildWithScope(scopeLabel ? traceService(['request'], options.request) : options.request, scope).pipe(Effect.provide(Context.merge(base, overrides)))
+          ? yield* Layer.buildWithScope(
+              scopeLabel ? traceService(['request'], options.request) : options.request,
+              scope,
+            ).pipe(Effect.provide(Context.merge(base, overrides)))
           : (Context.empty() as Context.Context<any>)
         // Later contexts win: overrides shadow request services, which shadow the base.
         const context = Context.merge(Context.merge(base, request), overrides) as Context.Context<R>
@@ -331,23 +372,26 @@ export async function runEffect<A, E, R>(effect: Effect.Effect<A, E, R>, options
     }),
   )
   slot.fibers.add(fiber)
-  const outcome = await new Promise<Exit.Exit<{ buildFailure: Cause.Cause<unknown> } | { exit: Exit.Exit<A, unknown> }, never>>((resolve) =>
-    fiber.addObserver(resolve as never),
-  )
+  const outcome = await new Promise<
+    Exit.Exit<{ buildFailure: Cause.Cause<unknown> } | { exit: Exit.Exit<A, unknown> }, never>
+  >((resolve) => fiber.addObserver(resolve as never))
   slot.fibers.delete(fiber)
   if (Exit.isSuccess(outcome) && 'buildFailure' in outcome.value) {
     const failure = outcome.value.buildFailure
     // A failed build is not cached: the next call builds again.
     if (slot.runtime === runtime) slot.runtime = undefined
     const controlFlow = findControlFlow(failure, isControlFlow)
-    if (controlFlow === undefined && !Cause.isInterruptedOnly(failure)) report(config, failure, 'build', scopeLabel || undefined)
+    if (controlFlow === undefined && !Cause.isInterruptedOnly(failure))
+      report(config, failure, 'build', scopeLabel || undefined)
     await disposeReported(config, runtime, scopeLabel || undefined)
     if (controlFlow !== undefined) throw controlFlow.value
     // Reject exactly as `Effect.runPromise` would.
     await Effect.runPromise(Effect.failCause(failure))
   }
   // An interrupted fiber never reaches `return`; its own Exit is the outcome.
-  const exit: Exit.Exit<A, unknown> = Exit.isSuccess(outcome) ? (outcome.value as { exit: Exit.Exit<A, unknown> }).exit : (outcome as unknown as Exit.Exit<never, unknown>)
+  const exit: Exit.Exit<A, unknown> = Exit.isSuccess(outcome)
+    ? (outcome.value as { exit: Exit.Exit<A, unknown> }).exit
+    : (outcome as unknown as Exit.Exit<never, unknown>)
   if (Exit.isSuccess(exit)) return exit.value
   const cause = exit.cause
   const controlFlow = findControlFlow(cause, isControlFlow)

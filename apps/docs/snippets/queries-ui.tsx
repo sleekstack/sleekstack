@@ -29,4 +29,7 @@ const Add = () =>
   })
 
 export const start = (container: Element) =>
-  mount(Effect.map(Effect.all([List(), Add()]), (nodes) => el('div', {}, ...nodes)), { layer: QueryClientLive(), container })
+  mount(
+    Effect.map(Effect.all([List(), Add()]), (nodes) => el('div', {}, ...nodes)),
+    { layer: QueryClientLive(), container },
+  )

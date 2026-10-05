@@ -53,8 +53,14 @@ function assertNeverRendersAReleasedInstance(trace: readonly Event[]): void {
 
 /** Every acquired id was eventually released exactly once — nothing leaks, nothing double-frees. */
 function assertEveryAcquisitionReleasedExactlyOnce(trace: readonly Event[]): void {
-  const acquired = trace.filter((e) => e.kind === 'acquire').map((e) => e.id).sort((a, b) => a - b)
-  const released = trace.filter((e) => e.kind === 'release').map((e) => e.id).sort((a, b) => a - b)
+  const acquired = trace
+    .filter((e) => e.kind === 'acquire')
+    .map((e) => e.id)
+    .sort((a, b) => a - b)
+  const released = trace
+    .filter((e) => e.kind === 'release')
+    .map((e) => e.id)
+    .sort((a, b) => a - b)
   expect(released).toEqual(acquired)
 }
 

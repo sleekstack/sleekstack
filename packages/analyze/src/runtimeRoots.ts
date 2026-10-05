@@ -39,8 +39,13 @@ const isNullish = (e: ts.Expression) =>
 
 /** A property's static key (`a`, `'a'`, `['a']`, `[`a`]`); null when computed from anything else. */
 const staticName = (n: ts.PropertyName): string | null => {
-  if (ts.isIdentifier(n) || ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n) || ts.isNumericLiteral(n)) return n.text
-  if (ts.isComputedPropertyName(n) && (ts.isStringLiteral(n.expression) || ts.isNoSubstitutionTemplateLiteral(n.expression))) return n.expression.text
+  if (ts.isIdentifier(n) || ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n) || ts.isNumericLiteral(n))
+    return n.text
+  if (
+    ts.isComputedPropertyName(n) &&
+    (ts.isStringLiteral(n.expression) || ts.isNoSubstitutionTemplateLiteral(n.expression))
+  )
+    return n.expression.text
   return ts.isComputedPropertyName(n) ? null : n.getText()
 }
 
@@ -50,7 +55,11 @@ export function runEffectRoots(call: ts.CallExpression, ctx: RootCtx): ExtraRoot
   if (!opts) return []
   const o = ctx.unwrap(opts)
   const nonLiteral = (n: ts.Node, what: string) =>
-    ctx.fail(n, `runEffect options ${what} "${ctx.text(n)}" cannot be read statically; pass an object literal`, 'NonLiteralOptions')
+    ctx.fail(
+      n,
+      `runEffect options ${what} "${ctx.text(n)}" cannot be read statically; pass an object literal`,
+      'NonLiteralOptions',
+    )
   if (!ts.isObjectLiteralExpression(o)) return nonLiteral(opts, 'value')
   const values: ['request' | 'overrides', ts.Expression][] = []
   for (const p of o.properties) {
@@ -71,10 +80,21 @@ export function runEffectRoots(call: ts.CallExpression, ctx: RootCtx): ExtraRoot
     // A const (or imported) binding to a conditional or a nullish value expands like the value itself.
     if (ts.isIdentifier(u) || ts.isPropertyAccessExpression(u)) {
       let f: ts.Expression | ts.ClassDeclaration | undefined
-      try { f = ctx.follow(u) } catch { f = undefined } // plainLayer below reports the same failure, located
+      try {
+        f = ctx.follow(u)
+      } catch {
+        f = undefined
+      } // plainLayer below reports the same failure, located
       if (f && !ts.isClassDeclaration(f) && (ts.isConditionalExpression(f) || isNullish(f))) return branch(kind, f)
     }
-    const m: ModuleDecl = { name: ctx.text(u), entries: [], imports: [], exports: undefined, lifetime: undefined, loc: at }
+    const m: ModuleDecl = {
+      name: ctx.text(u),
+      entries: [],
+      imports: [],
+      exports: undefined,
+      lifetime: undefined,
+      loc: at,
+    }
     try {
       // Located at the call: that is where the layer meets the app graph.
       ctx.plainLayer(u, (p) => m.entries.push({ ...p, loc: at, lifetime: kind === 'request' ? 'request' : p.lifetime }))
@@ -99,7 +119,10 @@ const key = (e: AnalyzeError) => `${e.code}|${e.file}:${e.line}|${e.message}`
  * A root passes when its own provides plus ANY app root satisfy it: the first app it validates cleanly
  * over is its graph; otherwise the first app's errors stand. With no app root it stands alone.
  */
-export function checkRoot(m: ModuleDecl, apps: readonly ModuleDecl[]): { readonly graph: Graph; readonly errors: AnalyzeError[] } {
+export function checkRoot(
+  m: ModuleDecl,
+  apps: readonly ModuleDecl[],
+): { readonly graph: Graph; readonly errors: AnalyzeError[] } {
   if (!apps.length) return { graph: graphOf(m), errors: validate(m) }
   let first: { graph: Graph; errors: AnalyzeError[] } | undefined
   for (const app of apps) {

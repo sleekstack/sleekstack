@@ -8,7 +8,10 @@ export const metadata = {
 
 export default async function RootLayout({ children }: { readonly children: ReactNode }) {
   // Dev only: a dead branch in production, so the panel's chunk is never emitted.
-  const Devtools = process.env.NODE_ENV !== 'production' ? (await import('../src/client/components/DevtoolsMount')).DevtoolsMount : null
+  const Devtools =
+    process.env.NODE_ENV !== 'production'
+      ? (await import('../src/client/components/DevtoolsMount')).DevtoolsMount
+      : null
   return (
     <html lang="en">
       <body style={{ fontFamily: 'system-ui, sans-serif', margin: 0, padding: '1.5rem' }}>
