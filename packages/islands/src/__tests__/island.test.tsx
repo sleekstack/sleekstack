@@ -26,7 +26,10 @@ const serverHtml = async (ui: React.ReactNode) => {
   }
 }
 
-const flush = () => act(async () => { await new Promise((r) => setTimeout(r, 0)) })
+const flush = () =>
+  act(async () => {
+    await new Promise((r) => setTimeout(r, 0))
+  })
 
 beforeEach(() => {
   renders = 0
@@ -57,7 +60,16 @@ const mount = async (hydrate: Trigger, strict = false) => {
 describe('Island', () => {
   it('server-renders full HTML and renders on the client only after the trigger, keeping the DOM', async () => {
     let fire!: (entries: { isIntersecting: boolean }[]) => void
-    vi.stubGlobal('IntersectionObserver', class { constructor(cb: typeof fire) { fire = cb } observe() {} disconnect() {} })
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        constructor(cb: typeof fire) {
+          fire = cb
+        }
+        observe() {}
+        disconnect() {}
+      },
+    )
     const { host, button, root } = await mount('visible')
     await flush()
     expect(renders).toBe(0)
@@ -76,7 +88,13 @@ describe('Island', () => {
   it('StrictMode double effects and same-node remount hydrate once', async () => {
     const { root } = await mount('load', true)
     await flush()
-    await act(async () => root.render(<StrictMode><Island name="counter" props={{ start: 3 }} hydrate="load" /></StrictMode>))
+    await act(async () =>
+      root.render(
+        <StrictMode>
+          <Island name="counter" props={{ start: 3 }} hydrate="load" />
+        </StrictMode>,
+      ),
+    )
     await flush()
     expect(loader).toHaveBeenCalledOnce()
     expect(renders).toBeGreaterThan(0)
@@ -120,7 +138,9 @@ describe('Island', () => {
 
   it.each(['keydown', 'focusin'])('interaction: %s only starts hydration', async (type) => {
     const { button } = await mount('interaction')
-    await act(async () => { button.dispatchEvent(new Event(type, { bubbles: true })) })
+    await act(async () => {
+      button.dispatchEvent(new Event(type, { bubbles: true }))
+    })
     await flush()
     expect(loader).toHaveBeenCalledOnce()
     expect(renders).toBe(1)
@@ -154,7 +174,9 @@ describe('Island', () => {
     const host = document.createElement('div')
     host.innerHTML = html
     document.body.append(host)
-    await act(async () => { hydrateRoot(host, <Broken name="counter" props={{ start: 1 }} hydrate="load" />) })
+    await act(async () => {
+      hydrateRoot(host, <Broken name="counter" props={{ start: 1 }} hydrate="load" />)
+    })
     await flush()
     expect(host.textContent).toContain('count 1')
     expect(err).toHaveBeenCalledWith(expect.stringContaining('chunk failed'), expect.any(Error))
@@ -165,7 +187,16 @@ describe('arm', () => {
   it('visible keeps observing a hidden container and fires once when shown', () => {
     let cb!: (e: { isIntersecting: boolean }[]) => void
     const disconnect = vi.fn()
-    vi.stubGlobal('IntersectionObserver', class { constructor(c: typeof cb) { cb = c } observe() {} disconnect = disconnect })
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        constructor(c: typeof cb) {
+          cb = c
+        }
+        observe() {}
+        disconnect = disconnect
+      },
+    )
     const fire = vi.fn()
     arm(document.createElement('div'), 'visible', fire)
     cb([{ isIntersecting: false }])
@@ -186,7 +217,10 @@ describe('arm', () => {
 
   it('idle fires via requestIdleCallback with a timeout cap', () => {
     let cb!: () => void
-    const ric = vi.fn((c: () => void, _o?: { timeout: number }) => { cb = c; return 1 })
+    const ric = vi.fn((c: () => void, _o?: { timeout: number }) => {
+      cb = c
+      return 1
+    })
     vi.stubGlobal('requestIdleCallback', ric)
     vi.stubGlobal('cancelIdleCallback', vi.fn())
     const fire = vi.fn()
@@ -208,7 +242,16 @@ describe('arm', () => {
 
   it('visible passes rootMargin to IntersectionObserver', () => {
     const init = vi.fn()
-    vi.stubGlobal('IntersectionObserver', class { constructor(_c: unknown, o: unknown) { init(o) } observe() {} disconnect() {} })
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        constructor(_c: unknown, o: unknown) {
+          init(o)
+        }
+        observe() {}
+        disconnect() {}
+      },
+    )
     arm(document.createElement('div'), 'visible', vi.fn(), { rootMargin: '200px' })
     expect(init).toHaveBeenCalledWith({ rootMargin: '200px' })
   })
@@ -219,7 +262,13 @@ describe('arm', () => {
     const fire = vi.fn()
     const disarm = arm(el, 'interaction', fire)
     for (const t of ['pointerdown', 'touchstart', 'focusin', 'keydown', 'click']) child.dispatchEvent(new Event(t))
-    expect(fire.mock.calls.map(([e]) => (e as Event).type)).toEqual(['pointerdown', 'touchstart', 'focusin', 'keydown', 'click'])
+    expect(fire.mock.calls.map(([e]) => (e as Event).type)).toEqual([
+      'pointerdown',
+      'touchstart',
+      'focusin',
+      'keydown',
+      'click',
+    ])
     disarm()
     child.dispatchEvent(new Event('click'))
     expect(fire).toHaveBeenCalledTimes(5)

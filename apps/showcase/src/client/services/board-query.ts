@@ -15,7 +15,10 @@ import { resolveDraft, type DraftSpec } from '../../lib/contracts'
 import { BoardDto, NewTaskDraft, TaskCommentDraft } from '../../models/task'
 
 /** The one board query. */
-export const boardOptions = queryOptions({ queryKey: ['board'] as const, queryFn: (): Promise<BoardDto> => readBoard() })
+export const boardOptions = queryOptions({
+  queryKey: ['board'] as const,
+  queryFn: (): Promise<BoardDto> => readBoard(),
+})
 
 const settle = <A>(r: ActionResult<A>) => (r.ok ? Effect.succeed(r.data) : Effect.fail(r.error))
 
@@ -27,7 +30,10 @@ const run = async <A>(effect: Effect.Effect<A, string>): Promise<A> => {
 }
 
 /** A board mutation spec: `mutationFn` resolves the input and sends it; `patch` (null for an invalid draft) is the optimistic write. */
-export type BoardMutation<I> = { readonly mutationFn: (input: I) => Promise<unknown>; readonly patch: (input: I, board: BoardDto) => BoardDto | null }
+export type BoardMutation<I> = {
+  readonly mutationFn: (input: I) => Promise<unknown>
+  readonly patch: (input: I, board: BoardDto) => BoardDto | null
+}
 
 const boardMutation = <I, Dto, A>(
   toDto: (input: I) => Effect.Effect<Dto, string>,
@@ -35,9 +41,16 @@ const boardMutation = <I, Dto, A>(
   patch: (dto: Dto, board: BoardDto) => BoardDto,
 ): BoardMutation<I> => ({
   mutationFn: (input) =>
-    run(Effect.flatMap(toDto(input), (dto) =>
-      Effect.flatMap(Effect.tryPromise({ try: () => send(dto), catch: (e) => (e instanceof Error ? e.message : String(e)) }), settle))),
-  patch: (input, board) => Effect.runSync(Effect.match(toDto(input), { onFailure: () => null, onSuccess: (dto) => patch(dto, board) })),
+    run(
+      Effect.flatMap(toDto(input), (dto) =>
+        Effect.flatMap(
+          Effect.tryPromise({ try: () => send(dto), catch: (e) => (e instanceof Error ? e.message : String(e)) }),
+          settle,
+        ),
+      ),
+    ),
+  patch: (input, board) =>
+    Effect.runSync(Effect.match(toDto(input), { onFailure: () => null, onSuccess: (dto) => patch(dto, board) })),
 })
 
 /** A Draft input: the form state plus its context, resolved through the Draft's `toDto`. */
@@ -59,7 +72,16 @@ export const createTaskMutation = boardMutation(draftInput(NewTaskDraft), create
           ...p,
           tasks: [
             ...p.tasks,
-            { task: { id: pendingId('task'), projectId: dto.projectId, title: dto.title, status: 'todo' as const, createdAt: Date.now() }, comments: [] },
+            {
+              task: {
+                id: pendingId('task'),
+                projectId: dto.projectId,
+                title: dto.title,
+                status: 'todo' as const,
+                createdAt: Date.now(),
+              },
+              comments: [],
+            },
           ],
         },
   ),
@@ -71,11 +93,29 @@ export const addCommentMutation = boardMutation(draftInput(TaskCommentDraft), ad
     tasks: p.tasks.map((t) =>
       t.task.id !== dto.taskId
         ? t
-        : { ...t, comments: [...t.comments, { id: pendingId('comment'), taskId: dto.taskId, body: dto.body, authorId: dto.authorId, createdAt: Date.now() }] },
+        : {
+            ...t,
+            comments: [
+              ...t.comments,
+              {
+                id: pendingId('comment'),
+                taskId: dto.taskId,
+                body: dto.body,
+                authorId: dto.authorId,
+                createdAt: Date.now(),
+              },
+            ],
+          },
     ),
   })),
 )
 
-export const moveTaskMutation = boardMutation((input: { readonly taskId: string; readonly status: TaskStatus }) => Effect.succeed(input), moveTask, (dto, b) =>
-  b.map((p) => ({ ...p, tasks: p.tasks.map((t) => (t.task.id === dto.taskId ? { ...t, task: { ...t.task, status: dto.status } } : t)) })),
+export const moveTaskMutation = boardMutation(
+  (input: { readonly taskId: string; readonly status: TaskStatus }) => Effect.succeed(input),
+  moveTask,
+  (dto, b) =>
+    b.map((p) => ({
+      ...p,
+      tasks: p.tasks.map((t) => (t.task.id === dto.taskId ? { ...t, task: { ...t.task, status: dto.status } } : t)),
+    })),
 )

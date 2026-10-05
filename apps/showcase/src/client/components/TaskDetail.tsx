@@ -28,13 +28,16 @@ export function DraftEditorPanel({ taskId }: { readonly taskId: string }) {
   const { mutate, isPending: pending } = useBoardMutation(addCommentMutation)
 
   const submit = () => {
-    mutate({ draft: { body }, src: { taskId, authorId: 'demo-user' } }, {
-      onSuccess: () => {
-        setError(null)
-        setBody('')
+    mutate(
+      { draft: { body }, src: { taskId, authorId: 'demo-user' } },
+      {
+        onSuccess: () => {
+          setError(null)
+          setBody('')
+        },
+        onError: (e) => setError(e.message),
       },
-      onError: (e) => setError(e.message),
-    })
+    )
   }
 
   return (
@@ -65,7 +68,10 @@ export function TaskDetail({ task, comments, onClose }: TaskDetailProps) {
   const { mutate: moveTo, isPending: movePending } = useBoardMutation(moveTaskMutation)
 
   const move = (status: TaskStatus) => {
-    moveTo({ taskId: task.id, status }, { onSuccess: () => setMoveError(null), onError: (e) => setMoveError(e.message) })
+    moveTo(
+      { taskId: task.id, status },
+      { onSuccess: () => setMoveError(null), onError: (e) => setMoveError(e.message) },
+    )
   }
 
   return (
@@ -82,7 +88,12 @@ export function TaskDetail({ task, comments, onClose }: TaskDetailProps) {
           <div>
             Move to:{' '}
             {STATUSES.map((status) => (
-              <button key={status} type="button" disabled={status === task.status || movePending} onClick={() => move(status)}>
+              <button
+                key={status}
+                type="button"
+                disabled={status === task.status || movePending}
+                onClick={() => move(status)}
+              >
                 {status}
               </button>
             ))}

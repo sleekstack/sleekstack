@@ -136,10 +136,7 @@ function HttpStatusCard() {
 // error policy (T-04-03, 01-RESEARCH.md Security Domain).
 // ---------------------------------------------------------------------------
 
-class ErrorBoundary extends React.Component<
-  { children: React.ReactNode },
-  { hasError: boolean; error: Error | null }
-> {
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: Error | null }> {
   constructor(props: { children: React.ReactNode }) {
     super(props)
     this.state = { hasError: false, error: null }
@@ -189,14 +186,12 @@ export default function ApiExample() {
           <section style={{ marginBottom: '32px' }}>
             <h2>1. Service Resolution via Suspense</h2>
             <p style={{ color: '#555', fontSize: '14px' }}>
-              <code>useService(UserApi)</code> suspends on first render then resolves synchronously.
-              The Suspense fallback shows "Initializing services..." briefly.
+              <code>useService(UserApi)</code> suspends on first render then resolves synchronously. The Suspense
+              fallback shows "Initializing services..." briefly.
             </p>
             <Suspense
               fallback={
-                <div style={{ padding: '12px', fontStyle: 'italic', color: '#888' }}>
-                  Initializing services...
-                </div>
+                <div style={{ padding: '12px', fontStyle: 'italic', color: '#888' }}>Initializing services...</div>
               }
             >
               <GreetingCard name="Alice" />
@@ -208,14 +203,12 @@ export default function ApiExample() {
           <section style={{ marginBottom: '32px' }}>
             <h2>2. Module Imports Auto-Pull (CORE-03)</h2>
             <p style={{ color: '#555', fontSize: '14px' }}>
-              <code>AppModule</code> imports <code>HttpModule</code>. Only <code>AppModule</code> is
-              listed in the outer <code>LayerProvider</code>; HttpClient is available automatically.
+              <code>AppModule</code> imports <code>HttpModule</code>. Only <code>AppModule</code> is listed in the outer{' '}
+              <code>LayerProvider</code>; HttpClient is available automatically.
             </p>
             <Suspense
               fallback={
-                <div style={{ padding: '12px', fontStyle: 'italic', color: '#888' }}>
-                  Loading HttpClient status...
-                </div>
+                <div style={{ padding: '12px', fontStyle: 'italic', color: '#888' }}>Loading HttpClient status...</div>
               }
             >
               <HttpStatusCard />
@@ -226,17 +219,15 @@ export default function ApiExample() {
           <section style={{ marginBottom: '32px' }}>
             <h2>3. Nested Provider — Shadowing (REACT-05)</h2>
             <p style={{ color: '#555', fontSize: '14px' }}>
-              The inner <code>LayerProvider</code> provides <code>MockHttpClientLayer</code> which
-              shadows the real <code>HttpClient</code> from the outer scope. The card below resolves
-              the mocked value ("[MOCK] Response from …"), not the real one.
+              The inner <code>LayerProvider</code> provides <code>MockHttpClientLayer</code> which shadows the real{' '}
+              <code>HttpClient</code> from the outer scope. The card below resolves the mocked value ("[MOCK] Response
+              from …"), not the real one.
             </p>
             {/* Inner LayerProvider: shadows HttpClient with the mock */}
             <LayerProvider provide={[MockHttpClientLayer]}>
               <Suspense
                 fallback={
-                  <div style={{ padding: '12px', fontStyle: 'italic', color: '#888' }}>
-                    Loading mocked status...
-                  </div>
+                  <div style={{ padding: '12px', fontStyle: 'italic', color: '#888' }}>Loading mocked status...</div>
                 }
               >
                 <HttpStatusCard />
@@ -257,28 +248,28 @@ export default function ApiExample() {
             <h3 style={{ marginTop: 0 }}>How this works</h3>
             <ul style={{ lineHeight: '1.8' }}>
               <li>
-                <strong>Tags:</strong> <code>Context.GenericTag&lt;T&gt;(id)</code> — service
-                identifiers; imported directly from <code>effect</code>
+                <strong>Tags:</strong> <code>Context.GenericTag&lt;T&gt;(id)</code> — service identifiers; imported
+                directly from <code>effect</code>
               </li>
               <li>
-                <strong>Layers:</strong> <code>Layer.scoped(Tag, Effect.acquireRelease(...))</code>{' '}
-                — define services with finalizers; finalizers log to console on unmount
+                <strong>Layers:</strong> <code>Layer.scoped(Tag, Effect.acquireRelease(...))</code> — define services
+                with finalizers; finalizers log to console on unmount
               </li>
               <li>
-                <strong>Modules:</strong> <code>module(&#123; name, entries, imports &#125;)</code>{' '}
-                — group related layers; imports are automatically pulled into scope
+                <strong>Modules:</strong> <code>module(&#123; name, entries, imports &#125;)</code> — group related
+                layers; imports are automatically pulled into scope
               </li>
               <li>
-                <strong>LayerProvider:</strong> owns one <code>ManagedRuntime</code> per mount; inner
-                provider inherits parent context; child layers shadow parent for the same Tag
+                <strong>LayerProvider:</strong> owns one <code>ManagedRuntime</code> per mount; inner provider inherits
+                parent context; child layers shadow parent for the same Tag
               </li>
               <li>
-                <strong>useService(Tag):</strong> suspends on first call, returns synchronously
-                from cache thereafter; throws descriptive error when no provider is found
+                <strong>useService(Tag):</strong> suspends on first call, returns synchronously from cache thereafter;
+                throws descriptive error when no provider is found
               </li>
               <li>
-                <strong>Cleanup:</strong> open the browser console and unmount the app to see
-                finalizer logs — inner scope finalizes before outer (REACT-02)
+                <strong>Cleanup:</strong> open the browser console and unmount the app to see finalizer logs — inner
+                scope finalizes before outer (REACT-02)
               </li>
             </ul>
           </section>

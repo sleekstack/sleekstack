@@ -10,7 +10,16 @@ import { renderToString, type RenderToPipeableStreamOptions } from 'react-dom/se
 import { Context, Effect, Layer } from 'effect'
 import { Atom } from '@sleekstack/core'
 import { ADOPT_MS } from '../managedScope'
-import { LayerProvider, renderWithAtoms, useAtom, useAtomRefresh, useAtomSet, useAtomSuspense, useAtomValue, useService } from '../index'
+import {
+  LayerProvider,
+  renderWithAtoms,
+  useAtom,
+  useAtomRefresh,
+  useAtomSet,
+  useAtomSuspense,
+  useAtomValue,
+  useService,
+} from '../index'
 
 const Db = Context.GenericTag<{ name: string }>('SsrDb')
 const Other = Context.GenericTag<{ name: string }>('SsrOther')
@@ -24,9 +33,14 @@ const stream = (element: React.ReactNode, options: RenderToPipeableStreamOptions
     // Minimal Node Writable for Fizz's pipe (no @types/node here); emits 'finish' a tick after end, like a socket.
     const listeners: Record<string, Array<() => void>> = {}
     const sink = {
-      write: (chunk: Uint8Array | string) => { html += typeof chunk === 'string' ? chunk : decoder.decode(chunk); return true },
+      write: (chunk: Uint8Array | string) => {
+        html += typeof chunk === 'string' ? chunk : decoder.decode(chunk)
+        return true
+      },
       end: () => {
-        const finish = () => { for (const l of listeners.finish ?? []) l() }
+        const finish = () => {
+          for (const l of listeners.finish ?? []) l()
+        }
         resolve({ html, closed: s.closed, finish })
         if (!manual) setTimeout(finish, 5)
       },
@@ -52,7 +66,13 @@ describe('renderWithAtoms', () => {
   }
 
   it('renders all five atom hooks in stream mode', async () => {
-    const { html, closed } = await stream(<LayerProvider provide={[]}><Suspense fallback="wait"><Hooks /></Suspense></LayerProvider>)
+    const { html, closed } = await stream(
+      <LayerProvider provide={[]}>
+        <Suspense fallback="wait">
+          <Hooks />
+        </Suspense>
+      </LayerProvider>,
+    )
     expect(html).toContain('1-1-loaded')
     await closed
   })
@@ -66,7 +86,15 @@ describe('renderWithAtoms', () => {
       useAtomRefresh(count)
       return <span>{`${useAtomValue(count)}${n}:${useAtomValue(never)._tag}:${useAtomSuspense(now).value}`}</span>
     }
-    expect(await renderWithAtoms(<LayerProvider provide={[]}><Suspense fallback="wait"><View /></Suspense></LayerProvider>)).toContain('11:Initial:now')
+    expect(
+      await renderWithAtoms(
+        <LayerProvider provide={[]}>
+          <Suspense fallback="wait">
+            <View />
+          </Suspense>
+        </LayerProvider>,
+      ),
+    ).toContain('11:Initial:now')
   })
 
   const Name = ({ tag }: { tag: typeof Db }) => <b>{useService(tag).name}</b>
@@ -75,7 +103,10 @@ describe('renderWithAtoms', () => {
       <Suspense fallback="outer-wait">
         <Name tag={Db} />
         <LayerProvider provide={[inner]}>
-          <Suspense fallback="inner-wait"><Name tag={Db} /><Name tag={Other} /></Suspense>
+          <Suspense fallback="inner-wait">
+            <Name tag={Db} />
+            <Name tag={Other} />
+          </Suspense>
         </LayerProvider>
       </Suspense>
     </LayerProvider>
@@ -83,7 +114,10 @@ describe('renderWithAtoms', () => {
   const sync = (name: string) => Layer.succeed(Db, { name })
   const async = (name: string) => Layer.effect(Db, Effect.as(Effect.sleep('5 millis'), { name }))
 
-  it.each([['sync', sync], ['async', async]] as const)('nested providers shadow like the client (%s layers)', async (_, make) => {
+  it.each([
+    ['sync', sync],
+    ['async', async],
+  ] as const)('nested providers shadow like the client (%s layers)', async (_, make) => {
     const { html } = await stream(tree(make('parent'), make('child')))
     expect(html.replace(/<!-- -->/g, '')).toMatch(/<b>parent<\/b>.*<b>child<\/b><b>other<\/b>/)
   })
@@ -94,7 +128,10 @@ describe('renderWithAtoms', () => {
   })
 
   const tracked = (log: string[], name: string) =>
-    Layer.scoped(Db, Effect.acquireRelease(Effect.succeed({ name }), () => Effect.sync(() => log.push(name))))
+    Layer.scoped(
+      Db,
+      Effect.acquireRelease(Effect.succeed({ name }), () => Effect.sync(() => log.push(name))),
+    )
   const Opened = ({ log, name, children }: { log: string[]; name: string; children?: React.ReactNode }) => (
     <LayerProvider provide={[tracked(log, name)]}>{children}</LayerProvider>
   )
@@ -104,7 +141,17 @@ describe('renderWithAtoms', () => {
     let interrupted = 0
     const forever = Atom.make(Effect.never.pipe(Effect.onInterrupt(() => Effect.sync(() => void interrupted++))))
     const Read = () => <i>{useAtomValue(forever)._tag}</i>
-    const { closed, finish } = await stream(<Opened log={log} name="a"><Opened log={log} name="b"><Opened log={log} name="c"><Read /></Opened></Opened></Opened>, {}, true)
+    const { closed, finish } = await stream(
+      <Opened log={log} name="a">
+        <Opened log={log} name="b">
+          <Opened log={log} name="c">
+            <Read />
+          </Opened>
+        </Opened>
+      </Opened>,
+      {},
+      true,
+    )
     await sleep(20)
     expect(log).toEqual([]) // output ended, destination not finished yet
     finish()
@@ -116,10 +163,20 @@ describe('renderWithAtoms', () => {
   it('closes registry scopes LIFO after a shell error', async () => {
     const log: string[] = []
     vi.spyOn(console, 'error').mockImplementation(() => {})
-    const Boom = () => { useService(Db); throw new Error('shell') }
-    const s = renderWithAtoms(<Opened log={log} name="a"><Opened log={log} name="b"><Boom /></Opened></Opened>, {
-      stream: { onError: () => {}, onShellError: () => {} },
-    })
+    const Boom = () => {
+      useService(Db)
+      throw new Error('shell')
+    }
+    const s = renderWithAtoms(
+      <Opened log={log} name="a">
+        <Opened log={log} name="b">
+          <Boom />
+        </Opened>
+      </Opened>,
+      {
+        stream: { onError: () => {}, onShellError: () => {} },
+      },
+    )
     await s.closed
     expect(log).toEqual(['b', 'a'])
   })
@@ -130,7 +187,13 @@ describe('renderWithAtoms', () => {
     const forever = Atom.make(Effect.never.pipe(Effect.onInterrupt(() => Effect.sync(() => void interrupted++))))
     const Wait = () => <i>{String(useAtomSuspense(forever).value)}</i>
     const s = renderWithAtoms(
-      <Opened log={log} name="a"><Opened log={log} name="b"><Suspense fallback="w"><Wait /></Suspense></Opened></Opened>,
+      <Opened log={log} name="a">
+        <Opened log={log} name="b">
+          <Suspense fallback="w">
+            <Wait />
+          </Suspense>
+        </Opened>
+      </Opened>,
       { stream: { onError: () => {} } },
     )
     await sleep(10)
@@ -144,7 +207,14 @@ describe('renderWithAtoms', () => {
   it('abort interrupts a provider layer that never finishes opening, and closed resolves', async () => {
     let interrupted = 0
     const never = Layer.effect(Db, Effect.never.pipe(Effect.onInterrupt(() => Effect.sync(() => void interrupted++))))
-    const s = renderWithAtoms(<LayerProvider provide={[never]}><Suspense fallback="w"><b /></Suspense></LayerProvider>, { stream: { onError: () => {} } })
+    const s = renderWithAtoms(
+      <LayerProvider provide={[never]}>
+        <Suspense fallback="w">
+          <b />
+        </Suspense>
+      </LayerProvider>,
+      { stream: { onError: () => {} } },
+    )
     await sleep(10)
     s.abort()
     await s.closed
@@ -154,7 +224,10 @@ describe('renderWithAtoms', () => {
   it('a provider retried after suspension reuses its registry scope', async () => {
     const { useScopeSource } = await import('../managedScope')
     let opened = 0
-    const layer = Layer.effect(Db, Effect.sync(() => (opened++, { name: 'once' })))
+    const layer = Layer.effect(
+      Db,
+      Effect.sync(() => (opened++, { name: 'once' })),
+    )
     let ready = false
     const gate = sleep(5).then(() => void (ready = true))
     const Probe = () => {
@@ -162,7 +235,11 @@ describe('renderWithAtoms', () => {
       if (!ready) throw gate
       return <b>{owned.state.scopeState.status}</b>
     }
-    const { html } = await stream(<Suspense fallback="w"><Probe /></Suspense>)
+    const { html } = await stream(
+      <Suspense fallback="w">
+        <Probe />
+      </Suspense>,
+    )
     expect(html).toContain('resolved')
     expect(opened).toBe(1)
   })
@@ -173,8 +250,14 @@ describe('renderWithAtoms', () => {
     const Read = () => <b>{useAtomSuspense(name).value}</b>
     const app = (value: string, ms: number) => (
       <LayerProvider provide={[Layer.effect(Db, Effect.as(Effect.sleep(ms), { name: value }))]}>
-        <Suspense fallback="w"><Read /></Suspense>
-        <LayerProvider provide={[]}><Suspense fallback="w"><Read /></Suspense></LayerProvider>
+        <Suspense fallback="w">
+          <Read />
+        </Suspense>
+        <LayerProvider provide={[]}>
+          <Suspense fallback="w">
+            <Read />
+          </Suspense>
+        </LayerProvider>
       </LayerProvider>
     )
     const [x, y] = await Promise.all([stream(app('first', 15)), stream(app('second', 3))])
@@ -193,7 +276,13 @@ describe('server render without renderWithAtoms', () => {
     const count = Atom.make(2)
     const effect = Atom.make(Effect.sync(() => ++ran))
     const View = () => <span>{`${useAtomValue(count)}:${useAtomValue(effect)._tag}`}</span>
-    expect(renderToString(<LayerProvider provide={[]}><View /></LayerProvider>)).toContain('2:Initial')
+    expect(
+      renderToString(
+        <LayerProvider provide={[]}>
+          <View />
+        </LayerProvider>,
+      ),
+    ).toContain('2:Initial')
     expect(ran).toBe(0)
     vi.spyOn(console, 'error').mockImplementation(() => {})
     expect(() => renderToString(<View />)).toThrow(/needs a <LayerProvider>/)
@@ -203,8 +292,16 @@ describe('server render without renderWithAtoms', () => {
     const timers = vi.spyOn(globalThis, 'setTimeout')
     const n = Atom.make(1)
     const View = () => <i>{useAtomValue(n)}</i>
-    renderToString(<LayerProvider provide={[]}><View /></LayerProvider>)
-    renderToString(<LayerProvider provide={[]}><View /></LayerProvider>)
+    renderToString(
+      <LayerProvider provide={[]}>
+        <View />
+      </LayerProvider>,
+    )
+    renderToString(
+      <LayerProvider provide={[]}>
+        <View />
+      </LayerProvider>,
+    )
     expect(timers.mock.calls.some(([, ms]) => ms === ADOPT_MS)).toBe(false)
   })
 })

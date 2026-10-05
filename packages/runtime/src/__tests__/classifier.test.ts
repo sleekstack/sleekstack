@@ -8,7 +8,12 @@ const custom = { kind: 'my-redirect' }
 describe('isControlFlow', () => {
   it('a supplied classifier decides control flow; Next digests are ordinary defects', async () => {
     const reported: unknown[] = []
-    configureRuntime({ id: 'cf', layer: Layer.empty, onError: (c) => void reported.push(c), isControlFlow: (v) => v === custom })
+    configureRuntime({
+      id: 'cf',
+      layer: Layer.empty,
+      onError: (c) => void reported.push(c),
+      isControlFlow: (v) => v === custom,
+    })
     await expect(runEffect(Effect.die(custom))).rejects.toBe(custom)
     expect(reported).toHaveLength(0)
     const err = await runEffect(Effect.die(redirect)).catch((e: unknown) => e)
@@ -28,14 +33,24 @@ describe('isControlFlow', () => {
 describe('isControlFlow edges', () => {
   it('rethrows a classified value from a failed app-layer build untouched, unreported', async () => {
     const reported: unknown[] = []
-    configureRuntime({ id: 'build', layer: Layer.effectDiscard(Effect.die(custom)), onError: (c) => void reported.push(c), isControlFlow: (v) => v === custom })
+    configureRuntime({
+      id: 'build',
+      layer: Layer.effectDiscard(Effect.die(custom)),
+      onError: (c) => void reported.push(c),
+      isControlFlow: (v) => v === custom,
+    })
     await expect(runEffect(Effect.void)).rejects.toBe(custom)
     expect(reported).toHaveLength(0)
   })
 
   it('a classified undefined is control flow, not a defect', async () => {
     const reported: unknown[] = []
-    configureRuntime({ id: 'undef', layer: Layer.empty, onError: (c) => void reported.push(c), isControlFlow: (v) => v === undefined })
+    configureRuntime({
+      id: 'undef',
+      layer: Layer.empty,
+      onError: (c) => void reported.push(c),
+      isControlFlow: (v) => v === undefined,
+    })
     await expect(runEffect(Effect.die(undefined))).rejects.toBeUndefined()
     await expect(runEffect(Effect.fail(undefined))).rejects.toBeUndefined()
     expect(reported).toHaveLength(0)

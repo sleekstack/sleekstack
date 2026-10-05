@@ -127,7 +127,18 @@ export function LayerProvider(props: LayerProviderProps): ReactNode {
     () => onFinalizerError && ((cause: unknown) => onFinalizerError(toFinalizerError(cause))),
     [onFinalizerError],
   )
-  return createElement(CoreProvider, { provide: lowered, owner: props, ...(sink && { onFinalizerError: sink }), ...(appScope && { appScope: scopes.get(appScope) }) }, nested ? createElement(KitClientContext.Provider, { value: client }, children) : createElement(KitProviderContext.Provider, { value: true }, children))
+  return createElement(
+    CoreProvider,
+    {
+      provide: lowered,
+      owner: props,
+      ...(sink && { onFinalizerError: sink }),
+      ...(appScope && { appScope: scopes.get(appScope) }),
+    },
+    nested
+      ? createElement(KitClientContext.Provider, { value: client }, children)
+      : createElement(KitProviderContext.Provider, { value: true }, children),
+  )
 }
 
 /**
@@ -144,7 +155,6 @@ export const KitProviderContext = createContext(false)
  * component-lifetime client, so nested providers pass the enclosing one down through React context instead.
  */
 export const KitClientContext = createContext<QueryClient | null>(null)
-
 
 const isThenable = (x: unknown) => typeof (x as { then?: unknown } | null)?.then === 'function'
 
@@ -182,7 +192,8 @@ export function useService<T>(tag: TagLike<T>): T {
   return kit(() => coreUseService(coreTag(tag)) as T)
 }
 
-const isDev = () => (globalThis as { process?: { env?: { NODE_ENV?: string } } }).process?.env?.NODE_ENV !== 'production'
+const isDev = () =>
+  (globalThis as { process?: { env?: { NODE_ENV?: string } } }).process?.env?.NODE_ENV !== 'production'
 
 /**
  * {@link useService} for each Tag, in order. Keep the array length fixed.
@@ -210,7 +221,9 @@ const isDev = () => (globalThis as { process?: { env?: { NODE_ENV?: string } } }
 export function useServices<const D extends readonly AnyTag[]>(tags: D): Services<D> {
   const len = useRef(tags.length)
   if (isDev() && len.current !== tags.length) {
-    console.warn(`[@sleekstack/kit] useServices: tag array length changed (${len.current} -> ${tags.length}); keep it fixed between renders.`)
+    console.warn(
+      `[@sleekstack/kit] useServices: tag array length changed (${len.current} -> ${tags.length}); keep it fixed between renders.`,
+    )
     len.current = tags.length
   }
   return tags.map((t) => useService(t)) as Services<D>

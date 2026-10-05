@@ -26,7 +26,10 @@ export function rewriteAnchors(raw, route) {
     (ids.has(frag) ? frag : (bySlug.get(frag.replace(/-\d+$/, '')) ?? frag))
   return raw
     .replace(/\[([^\]]*)\]\(#([^)]+)\)/g, (_, text, frag) => `[${text}](#${fix(text, frag)})`)
-    .replace(/\[([^\]]*)\]\((?:\.\/)?index\.md(?:#([^)]*))?\)/g, (_, text, frag) => `[${text}](${route}${frag ? `#${fix(text, frag)}` : ''})`)
+    .replace(
+      /\[([^\]]*)\]\((?:\.\/)?index\.md(?:#([^)]*))?\)/g,
+      (_, text, frag) => `[${text}](${route}${frag ? `#${fix(text, frag)}` : ''})`,
+    )
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
@@ -62,14 +65,18 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     // `### X` entry with the namespace summary and a link to it.
     const out = join(outRoot, ep.pkg, `${ep.entry}.md`)
     const nsDir = ep.entry === 'index' ? join(outRoot, ep.pkg) : join(outRoot, ep.pkg, ep.entry)
-    const nsFiles = readdirSync(tmp, { recursive: true, encoding: 'utf8' }).filter((f) => /(^|\/)namespaces\/[^/]+\.md$/.test(f))
+    const nsFiles = readdirSync(tmp, { recursive: true, encoding: 'utf8' }).filter((f) =>
+      /(^|\/)namespaces\/[^/]+\.md$/.test(f),
+    )
     const nsRoute = (name) => `${ep.route}/${name.toLowerCase()}`
     let raw = readFileSync(join(tmp, 'index.md'), 'utf8')
     for (const f of nsFiles) {
       const name = basename(f, '.md')
       const nsRaw = readFileSync(join(tmp, f), 'utf8')
       const summary = nsRaw.split(/^## /m)[0].trim()
-      raw = raw.replace(`- [${name}](${f})`, `### ${name}\n\n${summary}\n\nSee [${name}](${nsRoute(name)}).\n`).replaceAll(`](${f}`, `](${nsRoute(name)}`)
+      raw = raw
+        .replace(`- [${name}](${f})`, `### ${name}\n\n${summary}\n\nSee [${name}](${nsRoute(name)}).\n`)
+        .replaceAll(`](${f}`, `](${nsRoute(name)}`)
       const nsBody = rewriteAnchors(
         nsRaw
           .replace(/\]\((?:\.\.\/)+index\.md/g, '](index.md')
@@ -77,7 +84,10 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
         ep.route,
       )
       mkdirSync(nsDir, { recursive: true })
-      writeFileSync(join(nsDir, `${name.toLowerCase()}.md`), `---\ntitle: "${ep.name}: ${name}"\ndescription: API reference for the ${name} namespace of ${ep.name}\n---\n\n${nsBody}`)
+      writeFileSync(
+        join(nsDir, `${name.toLowerCase()}.md`),
+        `---\ntitle: "${ep.name}: ${name}"\ndescription: API reference for the ${name} namespace of ${ep.name}\n---\n\n${nsBody}`,
+      )
     }
     const body = rewriteAnchors(raw, ep.route)
     mkdirSync(dirname(out), { recursive: true })

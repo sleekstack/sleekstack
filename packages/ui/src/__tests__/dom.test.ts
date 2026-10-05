@@ -61,7 +61,10 @@ describe('mount', () => {
   it('a superseded in-flight mount writes nothing and its handle disposes as a no-op', async () => {
     const container = document.createElement('div')
     const gate = Effect.runSync(Deferred.make<void>())
-    const slow = Layer.effect(UserRepo, Effect.as(Deferred.await(gate), { get: () => Effect.succeed({ name: 'Slow' }) }))
+    const slow = Layer.effect(
+      UserRepo,
+      Effect.as(Deferred.await(gate), { get: () => Effect.succeed({ name: 'Slow' }) }),
+    )
     const first = mount(app('1'), { layer: slow, container })
     await act(async () => void track(await mount(app('1'), { layer: repoLayer('B'), container })))
     let late!: Mounted
@@ -99,7 +102,9 @@ describe('mount', () => {
     const container = document.createElement('div')
     await act(async () => void (await mount(app('1'), { layer: UserRepoTest, container })))
     let err: unknown
-    await act(async () => void (err = await mount(UserCard({ id: '2' }), { layer: UserRepoTest, container }).catch((e) => e)))
+    await act(
+      async () => void (err = await mount(UserCard({ id: '2' }), { layer: UserRepoTest, container }).catch((e) => e)),
+    )
     expect(err).toBeInstanceOf(UserNotFound)
     expect(container.innerHTML).toBe('')
   })
@@ -112,7 +117,12 @@ describe('mount', () => {
     let next: Promise<Mounted> | undefined
     const onError = () => void (next ??= mount(app('1'), { layer: repoLayer('B'), container }))
     await act(async () => {
-      track(await mount(Effect.map(Bad({}), (b) => fragment('stale', b)), { layer: Layer.empty, container, onError }))
+      track(
+        await mount(
+          Effect.map(Bad({}), (b) => fragment('stale', b)),
+          { layer: Layer.empty, container, onError },
+        ),
+      )
       expect(container.innerHTML).toBe('')
       track(await next!)
     })

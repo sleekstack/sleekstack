@@ -32,14 +32,14 @@ function entryFor(state: ProviderState, tag: Context.Tag<any, any>): CacheEntry 
     }
   } else {
     state.start()
-    const promise: Promise<unknown> = state.scope.then(
-      (scope) => {
+    const promise: Promise<unknown> = state.scope
+      .then((scope) => {
         const value = lookup(scope, tag)
         Object.assign(entry, { status: 'resolved', value })
-      },
-    ).catch((error: unknown) => {
-      Object.assign(entry, { status: 'rejected', error })
-    })
+      })
+      .catch((error: unknown) => {
+        Object.assign(entry, { status: 'rejected', error })
+      })
     entry = { status: 'pending', promise }
   }
   state.cache.set(tag, entry)

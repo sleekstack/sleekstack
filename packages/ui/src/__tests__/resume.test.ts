@@ -3,15 +3,37 @@ import { Atom } from '@sleekstack/core'
 import { Context, Effect, Layer, Schema } from 'effect'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  bind, defineHandler, DuplicateBindKey, el, fragment, ManifestDecodeFailed, ManifestInvalid, on, renderToString, resume, type Resumed, Store,
+  bind,
+  defineHandler,
+  DuplicateBindKey,
+  el,
+  fragment,
+  ManifestDecodeFailed,
+  ManifestInvalid,
+  on,
+  renderToString,
+  resume,
+  type Resumed,
+  Store,
 } from '../index'
 
 class Step extends Context.Tag('Step')<Step, number>() {}
 const count = Atom.serializable(Atom.make(0), { key: 'count', schema: Schema.Number })
-const inc = defineHandler('inc', () => Effect.flatMap(Step, (n) => Effect.flatMap(Store, (s) => Effect.sync(() => s.update(count, (c) => c + n)))), { preventDefault: true })
+const inc = defineHandler(
+  'inc',
+  () => Effect.flatMap(Step, (n) => Effect.flatMap(Store, (s) => Effect.sync(() => s.update(count, (c) => c + n)))),
+  { preventDefault: true },
+)
 const seen: Array<unknown> = []
 const log = defineHandler('log', (e) => Effect.sync(() => void seen.push(e)), { stopPropagation: true })
-const boom = defineHandler('boom', () => Effect.flatMap(Store, (s) => Effect.zipRight(Effect.sync(() => s.update(count, (c) => c + 100)), Effect.fail('bad'))))
+const boom = defineHandler('boom', () =>
+  Effect.flatMap(Store, (s) =>
+    Effect.zipRight(
+      Effect.sync(() => s.update(count, (c) => c + 100)),
+      Effect.fail('bad'),
+    ),
+  ),
+)
 
 const spy = vi.fn()
 const Counter = () =>
@@ -21,7 +43,10 @@ const Counter = () =>
       on(el('button', { id: 'b' }, 'add'), { click: inc }),
       el('p', {}, bind(count)),
       bind(count),
-      on(el('div', { id: 'outer' }, on(el('input', { id: 'in', value: 'x' }), { click: log }), el('span', { id: 'sp' })), { click: log }),
+      on(
+        el('div', { id: 'outer' }, on(el('input', { id: 'in', value: 'x' }), { click: log }), el('span', { id: 'sp' })),
+        { click: log },
+      ),
       on(el('i', { id: 'boom' }), { click: boom }),
     )
   })
@@ -45,7 +70,11 @@ const loaders = (extra: Record<string, () => Promise<any>> = {}) => ({
   boom: async () => ({ default: boom }),
   ...extra,
 })
-const start = async (container: Element, handlers: Record<string, () => Promise<any>> = loaders(), onError = vi.fn()) => {
+const start = async (
+  container: Element,
+  handlers: Record<string, () => Promise<any>> = loaders(),
+  onError = vi.fn(),
+) => {
   const h = await resume({ container, layer: Layer.succeed(Step, 1), handlers, atoms: [count], onError })
   handles.push(h)
   return h
@@ -84,9 +113,10 @@ describe('resume', () => {
     const gate = defer()
     const a = defineHandler('a', () => Effect.sync(() => void order.push('a')))
     const b = defineHandler('b', () => Effect.sync(() => void order.push('b')))
-    c.innerHTML = '<i id="a" data-sleek-on-click="a"></i><i id="b" data-sleek-on-click="b"></i><script type="application/json" data-sleek-manifest>{"v":1,"events":["click"],"atoms":{}}</script>'
+    c.innerHTML =
+      '<i id="a" data-sleek-on-click="a"></i><i id="b" data-sleek-on-click="b"></i><script type="application/json" data-sleek-manifest>{"v":1,"events":["click"],"atoms":{}}</script>'
     await start(c, { a: async () => (await gate.promise, { default: a }), b: async () => ({ default: b }) })
-    click(c, '#a'), click(c, '#b'), click(c, '#a')
+    ;(click(c, '#a'), click(c, '#b'), click(c, '#a'))
     await flush()
     expect(order).toEqual([])
     gate.resolve()
@@ -105,17 +135,22 @@ describe('resume', () => {
     expect(outer).toHaveBeenCalledTimes(1) // only #b's click reached the body; log stops propagation synchronously
     document.body.removeEventListener('click', outer)
     await flush()
-    expect(seen).toEqual([
-      { type: 'click', value: 'x', checked: false },
-      { type: 'click' },
-    ])
+    expect(seen).toEqual([{ type: 'click', value: 'x', checked: false }, { type: 'click' }])
   })
 
   it.each([
     ['missing', '<p></p>', ManifestInvalid],
-    ['several', '<script type="application/json" data-sleek-manifest>{"v":1,"events":[],"atoms":{}}</script>'.repeat(2), ManifestInvalid],
+    [
+      'several',
+      '<script type="application/json" data-sleek-manifest>{"v":1,"events":[],"atoms":{}}</script>'.repeat(2),
+      ManifestInvalid,
+    ],
     ['malformed', '<script type="application/json" data-sleek-manifest>{nope</script>', ManifestInvalid],
-    ['undecodable', '<script type="application/json" data-sleek-manifest>{"v":1,"events":[],"atoms":{"n":"x"}}</script>', ManifestDecodeFailed],
+    [
+      'undecodable',
+      '<script type="application/json" data-sleek-manifest>{"v":1,"events":[],"atoms":{"n":"x"}}</script>',
+      ManifestDecodeFailed,
+    ],
   ])('rejects a %s manifest and leaves the container untouched', async (_, html, error) => {
     const c = await setup(html)
     const before = c.innerHTML
@@ -127,22 +162,30 @@ describe('resume', () => {
   })
 
   it('seeds a read-only serializable atom without calling write; rejects a non-serializable atom', async () => {
-    const big = Atom.serializable(Atom.make(() => 1n), { key: 'big', schema: Schema.BigInt })
-    const html = '<sleek-bind data-sleek-bind="big">7</sleek-bind><script type="application/json" data-sleek-manifest>{"v":1,"events":[],"atoms":{"big":"7"}}</script>'
+    const big = Atom.serializable(
+      Atom.make(() => 1n),
+      { key: 'big', schema: Schema.BigInt },
+    )
+    const html =
+      '<sleek-bind data-sleek-bind="big">7</sleek-bind><script type="application/json" data-sleek-manifest>{"v":1,"events":[],"atoms":{"big":"7"}}</script>'
     const c = await setup(html)
     const h = await resume({ container: c, layer: Layer.empty, handlers: {}, atoms: [big] })
     handles.push(h)
     expect(c.querySelector('sleek-bind')!.textContent).toBe('7')
     const c2 = await setup(html)
     const before = c2.innerHTML
-    await expect(resume({ container: c2, layer: Layer.empty, handlers: {}, atoms: [Atom.make(1)] })).rejects.toMatchObject({ _tag: 'UnsupportedAtom' })
+    await expect(
+      resume({ container: c2, layer: Layer.empty, handlers: {}, atoms: [Atom.make(1)] }),
+    ).rejects.toMatchObject({ _tag: 'UnsupportedAtom' })
     expect(c2.innerHTML).toBe(before)
   })
 
   it('rejects two different atoms that share a serializable key', async () => {
     const c = await setup()
     const twin = Atom.serializable(Atom.make(1), { key: 'count', schema: Schema.Number })
-    await expect(resume({ container: c, layer: Layer.empty, handlers: {}, atoms: [count, twin] })).rejects.toBeInstanceOf(DuplicateBindKey)
+    await expect(
+      resume({ container: c, layer: Layer.empty, handlers: {}, atoms: [count, twin] }),
+    ).rejects.toBeInstanceOf(DuplicateBindKey)
   })
 
   it('rejects with the original layer error and can be retried', async () => {
@@ -163,7 +206,7 @@ describe('resume', () => {
     c.querySelector('#sp')!.setAttribute('data-sleek-on-click', 'nope')
     c.querySelector('#outer')!.setAttribute('data-sleek-on-click', 'mismatch')
     await start(c, loaders({ inc: flaky, mismatch: async () => ({ default: log }) }), onError)
-    click(c, '#b'), click(c, '#sp'), click(c, '#outer'), click(c, '#boom')
+    ;(click(c, '#b'), click(c, '#sp'), click(c, '#outer'), click(c, '#boom'))
     await flush()
     const errs = onError.mock.calls.map(([cause]) => JSON.stringify(cause))
     expect(errs).toHaveLength(4)
@@ -199,13 +242,22 @@ describe('resume', () => {
   it('dispose interrupts a running handler; a sync throw does not stall the queue', async () => {
     const c = await setup()
     let wrote = false
-    const slow = defineHandler('inc', () => Effect.zipRight(Effect.sleep(20), Effect.sync(() => void (wrote = true))))
+    const slow = defineHandler('inc', () =>
+      Effect.zipRight(
+        Effect.sleep(20),
+        Effect.sync(() => void (wrote = true)),
+      ),
+    )
     const thrower = defineHandler('boom', () => {
       throw new Error('sync')
     })
     const onError = vi.fn()
-    const h = await start(c, loaders({ inc: async () => ({ default: slow }), boom: async () => ({ default: thrower }) }), onError)
-    click(c, '#boom'), click(c, '#b')
+    const h = await start(
+      c,
+      loaders({ inc: async () => ({ default: slow }), boom: async () => ({ default: thrower }) }),
+      onError,
+    )
+    ;(click(c, '#boom'), click(c, '#b'))
     await flush()
     expect(String(onError.mock.calls[0]![0])).toContain('sync')
     await h.dispose()
@@ -216,7 +268,9 @@ describe('resume', () => {
   it('dispose interrupts a forked fiber and removes listeners', async () => {
     const c = await setup()
     const interrupted = defer()
-    const fork = defineHandler('inc', () => Effect.forkScoped(Effect.never.pipe(Effect.onInterrupt(() => Effect.sync(() => interrupted.resolve())))))
+    const fork = defineHandler('inc', () =>
+      Effect.forkScoped(Effect.never.pipe(Effect.onInterrupt(() => Effect.sync(() => interrupted.resolve())))),
+    )
     const load = vi.fn(async () => ({ default: fork }))
     const h = await start(c, loaders({ inc: load }))
     click(c, '#b')

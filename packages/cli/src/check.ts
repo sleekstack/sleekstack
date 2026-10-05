@@ -20,12 +20,28 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { initAgents } from './initAgents'
-import { analyze, analyzeComponents, ERROR_CODES, type AnalyzeCode, type AnalyzeError, type ComponentReport } from '@sleekstack/analyze'
+import {
+  analyze,
+  analyzeComponents,
+  ERROR_CODES,
+  type AnalyzeCode,
+  type AnalyzeError,
+  type ComponentReport,
+} from '@sleekstack/analyze'
 
-const USAGE = 'Usage: sleekstack check [--project <tsconfig>] [--entry <file>...] [--json] [--lenient]\n       sleekstack explain <CODE>\n       sleekstack init-agents [--file <AGENTS.md>]'
+const USAGE =
+  'Usage: sleekstack check [--project <tsconfig>] [--entry <file>...] [--json] [--lenient]\n       sleekstack explain <CODE>\n       sleekstack init-agents [--file <AGENTS.md>]'
 
-interface Io { readonly cwd: string; readonly out: (s: string) => void; readonly err: (s: string) => void }
-const stdio: Io = { cwd: process.cwd(), out: (s) => process.stdout.write(s + '\n'), err: (s) => process.stderr.write(s + '\n') }
+interface Io {
+  readonly cwd: string
+  readonly out: (s: string) => void
+  readonly err: (s: string) => void
+}
+const stdio: Io = {
+  cwd: process.cwd(),
+  out: (s) => process.stdout.write(s + '\n'),
+  err: (s) => process.stderr.write(s + '\n'),
+}
 
 /** The nearest package.json at or above `dir`, parsed, with its directory. */
 function nearestPackage(dir: string): { dir: string; pkg: any } | undefined {
@@ -46,7 +62,9 @@ function configuredEntries(dir: string): string[] | undefined {
 /** The `@sleekstack/ui` component pass, only when the nearest package.json lists `@sleekstack/ui` (R8). */
 function components(project: string): ComponentReport | undefined {
   const pkg = nearestPackage(path.dirname(project))?.pkg
-  const listed = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies'].some((k) => pkg?.[k]?.['@sleekstack/ui'] !== undefined)
+  const listed = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies'].some(
+    (k) => pkg?.[k]?.['@sleekstack/ui'] !== undefined,
+  )
   return listed ? analyzeComponents({ project }) : undefined
 }
 
@@ -56,7 +74,8 @@ export function main(argv: readonly string[], io: Io = stdio): number {
     if (argv[0] === 'explain') {
       if (argv.length !== 2) return (io.err(USAGE), 2)
       const help = Object.hasOwn(ERROR_CODES, argv[1]!) ? ERROR_CODES[argv[1] as AnalyzeCode] : undefined
-      if (!help) return (io.err(`Unknown code "${argv[1] ?? ''}". Known: ${Object.keys(ERROR_CODES).join(', ')}\n${USAGE}`), 2)
+      if (!help)
+        return (io.err(`Unknown code "${argv[1] ?? ''}". Known: ${Object.keys(ERROR_CODES).join(', ')}\n${USAGE}`), 2)
       io.out(`${argv[1]}: ${help.rule}\n${help.fix.map((f) => `  fix: ${f}`).join('\n')}\n  docs: ${help.docs}`)
       return 0
     }
@@ -69,7 +88,8 @@ export function main(argv: readonly string[], io: Io = stdio): number {
       const a = argv[i]
       if (a === '--json') json = true
       else if (a === '--lenient') lenient = true
-      else if ((a === '--project' || a === '--entry') && argv[i + 1]) a === '--project' ? (project = argv[++i]!) : entries.push(argv[++i]!)
+      else if ((a === '--project' || a === '--entry') && argv[i + 1])
+        a === '--project' ? (project = argv[++i]!) : entries.push(argv[++i]!)
       else return (io.err(`Unknown or incomplete argument "${a}"\n${USAGE}`), 2)
     }
     project = path.resolve(io.cwd, project)
@@ -80,14 +100,45 @@ export function main(argv: readonly string[], io: Io = stdio): number {
     })
     const ui = components(project)
     if (report.runtimes.length === 0 && !ui?.trees.length)
-      return (io.err(`No roots: no configureRuntime call ${ui ? 'or @sleekstack/ui mount ' : ''}found (pass --entry or set "sleekstack.entry" in package.json${ui ? ', or mount a tree' : ''}).\n${USAGE}`), 2)
-    const roots = report.runtimes.map((r) => ({ kind: r.kind, root: r.graph.root, file: r.file, line: r.line, nodes: r.graph.nodes.length, errors: r.errors, graph: r.graph }))
+      return (
+        io.err(
+          `No roots: no configureRuntime call ${ui ? 'or @sleekstack/ui mount ' : ''}found (pass --entry or set "sleekstack.entry" in package.json${ui ? ', or mount a tree' : ''}).\n${USAGE}`,
+        ),
+        2
+      )
+    const roots = report.runtimes.map((r) => ({
+      kind: r.kind,
+      root: r.graph.root,
+      file: r.file,
+      line: r.line,
+      nodes: r.graph.nodes.length,
+      errors: r.errors,
+      graph: r.graph,
+    }))
     const ok = report.extraction.length === 0 && roots.every((r) => r.errors.length === 0) && !ui?.errors.length
-    const line = (e: AnalyzeError) => `  ${e.file}:${e.line} ${e.code}: ${e.message}${e.fix.map((f) => `\n    fix: ${f}`).join('')}\n    docs: ${e.docs}`
-    if (json) io.out(JSON.stringify({ ok, errors: report.extraction, roots, graphs: report.graphs, graphErrors: report.errors, ...(ui && { components: ui }) }, null, 2))
+    const line = (e: AnalyzeError) =>
+      `  ${e.file}:${e.line} ${e.code}: ${e.message}${e.fix.map((f) => `\n    fix: ${f}`).join('')}\n    docs: ${e.docs}`
+    if (json)
+      io.out(
+        JSON.stringify(
+          {
+            ok,
+            errors: report.extraction,
+            roots,
+            graphs: report.graphs,
+            graphErrors: report.errors,
+            ...(ui && { components: ui }),
+          },
+          null,
+          2,
+        ),
+      )
     else {
       report.extraction.forEach((e) => io.err(line(e)))
-      for (const r of roots) io.err(`${r.errors.length ? 'FAIL' : 'ok  '} [${r.kind}] ${r.root} (${r.nodes} nodes)${r.errors.map((e) => '\n' + line(e)).join('')}`)
+      for (const r of roots)
+        io.err(
+          `${r.errors.length ? 'FAIL' : 'ok  '} [${r.kind}] ${r.root} (${r.nodes} nodes)${r.errors.map((e) => '\n' + line(e)).join('')}`,
+        )
       ui?.errors.forEach((e) => io.err(line(e)))
     }
     return ok ? 0 : 1

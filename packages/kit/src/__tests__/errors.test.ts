@@ -21,13 +21,24 @@ describe('definition-time errors via the kit API', () => {
 })
 
 const graph = new MissingDependency({ service: 'S', missing: 'M', message: 'S needs M' })
-const fiberFailure = (() => { try { Effect.runSync(Effect.fail(graph)) } catch (e) { return e } })()
+const fiberFailure = (() => {
+  try {
+    Effect.runSync(Effect.fail(graph))
+  } catch (e) {
+    return e
+  }
+})()
 
 describe('normalize envelopes', () => {
   it.each([
     ['Cause', Cause.fail(graph), 'MissingDependency', { service: 'S', missing: 'M' }],
     ['FiberFailure', fiberFailure, 'MissingDependency', { service: 'S', missing: 'M' }],
-    ['plain Error with a Cause cause is not unwrapped', new Error('pretty', { cause: Cause.fail(graph) }), 'Unknown', {}],
+    [
+      'plain Error with a Cause cause is not unwrapped',
+      new Error('pretty', { cause: Cause.fail(graph) }),
+      'Unknown',
+      {},
+    ],
     ['tagged graph error', graph, 'MissingDependency', { service: 'S', missing: 'M' }],
     ['LayerFailure', new LayerFailure('L', new Error('boom')), 'LayerFailed', { tag: 'L', cause: 'boom' }],
     ['CleanupFailure', new CleanupFailure('C', new Error('bye')), 'CleanupFailed', { tag: 'C' }],

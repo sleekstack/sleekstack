@@ -8,10 +8,14 @@ class ErrB extends Data.TaggedError('B')<{ readonly b: string }> {}
 declare const both: Effect.Effect<Node, ErrA | ErrB, never>
 
 // catching A leaves exactly B; the handler sees only A
-const onlyB = Catch('A', (e) => {
-  expectTypeOf(e).toEqualTypeOf<ErrA>()
-  return el('p', {}, String(e.a))
-}, both)
+const onlyB = Catch(
+  'A',
+  (e) => {
+    expectTypeOf(e).toEqualTypeOf<ErrA>()
+    return el('p', {}, String(e.a))
+  },
+  both,
+)
 expectTypeOf(onlyB).toEqualTypeOf<Effect.Effect<Node, ErrB, never>>()
 
 // catching every tag leaves never

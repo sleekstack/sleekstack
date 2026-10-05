@@ -29,7 +29,11 @@ function Projects() {
 
 export function Board({ demoMode }: { readonly demoMode: boolean }) {
   // false on the server and while hydrating, true after: the board is fetched on the client only
-  const client = useSyncExternalStore(noSubscribe, () => true, () => false)
+  const client = useSyncExternalStore(
+    noSubscribe,
+    () => true,
+    () => false,
+  )
   return (
     <div>
       <DemoToggle demoMode={demoMode} />

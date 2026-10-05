@@ -61,7 +61,9 @@ const SERVICE_NOT_FOUND = /^Service not found: (.+?)(?: \(defined at|$)/
 /** Runs a body as an Effect: thrown errors and rejections become failures, a missing Tag a MissingDependency. */
 const lower = <T>(body: () => Body<T>, label: string): Effect.Effect<T, unknown> =>
   Effect.gen(body as () => Generator<never, T | Promise<T>, any>).pipe(
-    Effect.flatMap((out) => (out instanceof Promise ? Effect.tryPromise({ try: () => out, catch: (e) => e }) : Effect.succeed(out))),
+    Effect.flatMap((out) =>
+      out instanceof Promise ? Effect.tryPromise({ try: () => out, catch: (e) => e }) : Effect.succeed(out),
+    ),
     Effect.catchAllDefect((e) =>
       Effect.flatMap(Effect.context<never>(), (ctx) => {
         // Only a Tag really absent from the scope is a MissingDependency, not a service throwing that message.
@@ -74,7 +76,8 @@ const lower = <T>(body: () => Body<T>, label: string): Effect.Effect<T, unknown>
 /** @internal The TanStack query options behind a kit query. */
 export const queryOpts = (q: CachedQuery<unknown>): QueryOpts => q as unknown as QueryOpts
 /** @internal The TanStack mutation function behind a kit mutation. */
-export const mutationFn = <I, T>(m: Mutation<I, T>): ((input: I) => Promise<T>) => (m as unknown as { mutationFn: (input: I) => Promise<T> }).mutationFn
+export const mutationFn = <I, T>(m: Mutation<I, T>): ((input: I) => Promise<T>) =>
+  (m as unknown as { mutationFn: (input: I) => Promise<T> }).mutationFn
 
 /**
  * Defines a cached query: `(args) => CachedQuery`, one entry per `key(args)`. Concurrent reads of a key

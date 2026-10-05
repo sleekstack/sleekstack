@@ -24,7 +24,10 @@ export const sharedAppScope = (provide: Provide) => {
       if (--count > 0 || !current) return
       const p = current
       current = undefined
-      void p.then((h) => h.close(), () => {})
+      void p.then(
+        (h) => h.close(),
+        () => {},
+      )
     },
   }
 }

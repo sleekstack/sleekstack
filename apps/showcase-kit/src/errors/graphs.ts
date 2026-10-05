@@ -13,7 +13,10 @@ const C = tag<string>('errors.C')
 
 export const MissingDependency = module({ name: 'errors.missing-dependency', provide: [layer(B, (a) => a, [A])] })
 
-export const DependencyCycle = module({ name: 'errors.dependency-cycle', provide: [layer(A, (b) => b, [B]), layer(B, (a) => a, [A])] })
+export const DependencyCycle = module({
+  name: 'errors.dependency-cycle',
+  provide: [layer(A, (b) => b, [B]), layer(B, (a) => a, [A])],
+})
 
 export const CaptiveDependency = module({
   name: 'errors.captive-dependency',
@@ -30,7 +33,14 @@ export const ModuleCycle = module({ name: 'errors.module-cycle', imports: [Cycle
 
 const X1 = module({ name: 'errors.X', provide: [layer(A, () => 'x1')] })
 const X2 = module({ name: 'errors.X', provide: [layer(B, () => 'x2')] })
-export const DuplicateModule = module({ name: 'errors.duplicate-module', imports: [X1, module({ name: 'errors.Y', imports: [X2] })] })
+export const DuplicateModule = module({
+  name: 'errors.duplicate-module',
+  imports: [X1, module({ name: 'errors.Y', imports: [X2] })],
+})
 
 const Lib = module({ name: 'errors.Lib', provide: [layer(A, 'secret'), layer(B, (a) => a, [A])], exports: [B] })
-export const PrivateDependency = module({ name: 'errors.private-dependency', imports: [Lib], provide: [layer(C, (a) => a, [A])] })
+export const PrivateDependency = module({
+  name: 'errors.private-dependency',
+  imports: [Lib],
+  provide: [layer(C, (a) => a, [A])],
+})

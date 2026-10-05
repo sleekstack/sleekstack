@@ -19,13 +19,23 @@ import { __setDemoCookie } from '../test/next-headers-stub'
 import { UnitOfWork } from '../server/request.server'
 import type { AddCommentInput, CreateTaskInput, MoveTaskInput } from '../server/board.actions'
 
-const countTasks = (projectId: string) => query(function* () { return (yield* TaskRepo).listByProject(projectId).length })
+const countTasks = (projectId: string) =>
+  query(function* () {
+    return (yield* TaskRepo).listByProject(projectId).length
+  })
 
-const logMessages = () => query(function* () { return (yield* ActivityLog).list().map((e) => e.message) })
+const logMessages = () =>
+  query(function* () {
+    return (yield* ActivityLog).list().map((e) => e.message)
+  })
 
 describe('showcase request scopes', () => {
   it('an action called before instrumentation.ts configures the runtime rejects with a descriptive error', async () => {
-    await expect(runOperation(function* () { return 'unconfigured' })).rejects.toThrow(/configureRuntime/)
+    await expect(
+      runOperation(function* () {
+        return 'unconfigured'
+      }),
+    ).rejects.toThrow(/configureRuntime/)
   })
 
   it("importing the runtime module twice (dev HMR re-running register()) is the library's same-reference no-op", async () => {
@@ -39,7 +49,8 @@ describe('showcase request scopes', () => {
     const beforeLog = await logMessages()
     const results = await Promise.all(
       Array.from({ length: 20 }, (_, i) =>
-        createTask({ projectId: 'proj_1', title: `Concurrent task ${i}` } satisfies CreateTaskInput)),
+        createTask({ projectId: 'proj_1', title: `Concurrent task ${i}` } satisfies CreateTaskInput),
+      ),
     )
     for (const result of results) expect(result.ok).toBe(true)
     const taskIds = results.map((r) => (r.ok ? r.data.id : undefined))
@@ -81,7 +92,11 @@ describe('showcase request scopes', () => {
 
   it('adding a comment to an unknown task id is rejected with a descriptive error', async () => {
     const { addComment } = await import('../server/board.actions')
-    const result = await addComment({ taskId: 'no-such-task', body: 'hi', authorId: 'user_1' } satisfies AddCommentInput)
+    const result = await addComment({
+      taskId: 'no-such-task',
+      body: 'hi',
+      authorId: 'user_1',
+    } satisfies AddCommentInput)
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.error).toMatch(/unknown task id/i)
   })
@@ -109,15 +124,16 @@ describe('showcase request scopes', () => {
 
   it('a commit whose second staged write throws applies nothing (atomic)', async () => {
     const before = await countTasks('proj_1')
-    const halfApplied = () => runOperation(function* () {
-      const taskRepo = yield* TaskRepo
-      const uow = yield* UnitOfWork
-      uow.stage(() => void taskRepo.create({ projectId: 'proj_1', title: 'Half-applied' }))
-      uow.stage(() => {
-        throw new Error('second write failed')
+    const halfApplied = () =>
+      runOperation(function* () {
+        const taskRepo = yield* TaskRepo
+        const uow = yield* UnitOfWork
+        uow.stage(() => void taskRepo.create({ projectId: 'proj_1', title: 'Half-applied' }))
+        uow.stage(() => {
+          throw new Error('second write failed')
+        })
+        uow.commit()
       })
-      uow.commit()
-    })
     await expect(halfApplied()).rejects.toThrow(/second write failed/)
     expect(await countTasks('proj_1')).toBe(before)
   })
@@ -133,17 +149,31 @@ describe('showcase request scopes', () => {
 
   it("a request-scope finalizer failure goes to the app's sink (logged and recorded); a throwing sink leaves the result unchanged", async () => {
     const Boom = tag<number>('requests.test.FinalizerBoom')
-    const BoomLayer = layer(Boom, () => withCleanup(1, () => {
-      throw new Error('finalizer boom')
-    }), [], { lifetime: 'request' })
-    const runOp = () => runOperation(function* () { return 'ok' }, { scope: [Boom], provide: [BoomLayer] })
+    const BoomLayer = layer(
+      Boom,
+      () =>
+        withCleanup(1, () => {
+          throw new Error('finalizer boom')
+        }),
+      [],
+      { lifetime: 'request' },
+    )
+    const runOp = () =>
+      runOperation(
+        function* () {
+          return 'ok'
+        },
+        { scope: [Boom], provide: [BoomLayer] },
+      )
 
     // The app's own sink: logs to the console and records to the ActivityLog.
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
       await expect(runOp()).resolves.toEqual({ ok: true, data: 'ok' })
       expect(spy.mock.calls.some((c) => String(c[0]).includes('[showcase-kit] finalizer error'))).toBe(true)
-      await vi.waitFor(async () => expect((await logMessages()).some((m: string) => m.includes('finalizer boom'))).toBe(true))
+      await vi.waitFor(async () =>
+        expect((await logMessages()).some((m: string) => m.includes('finalizer boom'))).toBe(true),
+      )
 
       // Now make the sink throw (its first statement, console.error, throws): same result.
       spy.mockImplementationOnce(() => {

@@ -15,7 +15,8 @@ const ATTR = /^[^\s"'<>\/=\x00-\x1f]+$/
 /** Rejects invalid tag names and the renderer-written `sleek-reactive`. */
 export const checkTag = (name: string): string => checkName(TAG, 'tag', name)
 const checkName = (re: RegExp, kind: string, name: string): string => {
-  if (!re.test(name) || (kind === 'tag' && name.toLowerCase() === 'sleek-reactive')) throw new TypeError(`Invalid ${kind} name: ${JSON.stringify(name)}`)
+  if (!re.test(name) || (kind === 'tag' && name.toLowerCase() === 'sleek-reactive'))
+    throw new TypeError(`Invalid ${kind} name: ${JSON.stringify(name)}`)
   return name
 }
 
@@ -60,8 +61,7 @@ const checkId = (kind: string, id: string): string => {
 }
 
 // fn-17's codec; render rechecks the value kind for Bind nodes not built by `bind`.
-const encode = (atom: Atom.Atom<any>, value: unknown): unknown =>
-  Schema.encodeSync(valueInfo(atom).schema)(value)
+const encode = (atom: Atom.Atom<any>, value: unknown): unknown => Schema.encodeSync(valueInfo(atom).schema)(value)
 
 const handlerAttrs = (on: Readonly<Record<string, Handler<any, any>>>, c: Collector): string =>
   Object.entries(on)
@@ -72,7 +72,9 @@ const handlerAttrs = (on: Readonly<Record<string, Handler<any, any>>>, c: Collec
       if (seen && seen !== h) throw new DuplicateHandler({ id: h.id })
       c.handlers.set(h.id, h)
       c.events.add(event)
-      const flags = (h.opts.preventDefault ? ` data-sleek-pd-${event}` : '') + (h.opts.stopPropagation ? ` data-sleek-sp-${event}` : '')
+      const flags =
+        (h.opts.preventDefault ? ` data-sleek-pd-${event}` : '') +
+        (h.opts.stopPropagation ? ` data-sleek-sp-${event}` : '')
       return ` data-sleek-on-${event}="${escape(h.id)}"${flags}`
     })
     .join('')
@@ -104,9 +106,10 @@ const serialize = (node: Node, c: Collector): string => {
       return node.children.map((x) => serialize(x, c)).join('')
     case 'Element': {
       checkTag(node.tag)
-      const attrs = Object.entries(node.attrs)
-        .map(([k, v]) => (checkAttr(k, v), ` ${k}="${escape(v)}"`))
-        .join('') + boundAttrs(node, c)
+      const attrs =
+        Object.entries(node.attrs)
+          .map(([k, v]) => (checkAttr(k, v), ` ${k}="${escape(v)}"`))
+          .join('') + boundAttrs(node, c)
       const on = node.on ? handlerAttrs(node.on, c) : ''
       return `<${node.tag}${attrs}${on}>${node.children.map((x) => serialize(x, c)).join('')}</${node.tag}>`
     }
@@ -136,7 +139,10 @@ export const renderToString = async <E, A, LE = never>(
 ): Promise<string> => {
   const store = makeAtomStore()
   try {
-    const withStore = app.pipe(Effect.provideService(Store, store), Effect.provideService(Frame, makeFrame())) as Effect.Effect<Node, E, Exclude<A, Store>>
+    const withStore = app.pipe(
+      Effect.provideService(Store, store),
+      Effect.provideService(Frame, makeFrame()),
+    ) as Effect.Effect<Node, E, Exclude<A, Store>>
     const node = await runToNode(withStore, opts.layer, opts.onError)
     const c: Collector = { store, onError: opts.onError, handlers: new Map(), events: new Set(), atoms: new Map() }
     const html = serialize(node, c)

@@ -18,7 +18,11 @@ export function headings(text) {
 }
 
 const toRoute = (dir, file) => {
-  const slug = relative(dir, file).split('\\').join('/').replace(/\.mdx?$/, '').replace(/(^|\/)index$/, '')
+  const slug = relative(dir, file)
+    .split('\\')
+    .join('/')
+    .replace(/\.mdx?$/, '')
+    .replace(/(^|\/)index$/, '')
   return slug ? `/docs/${slug}` : '/docs'
 }
 
@@ -30,7 +34,9 @@ export function findBrokenLinks(dir = contentDir) {
   const files = readdirSync(dir, { recursive: true })
     .map((f) => join(dir, String(f)))
     .filter((f) => /\.mdx?$/.test(f))
-  const pages = new Map(files.map((f) => [toRoute(dir, f), new Set(headings(readFileSync(f, 'utf8')).map((h) => h.id))]))
+  const pages = new Map(
+    files.map((f) => [toRoute(dir, f), new Set(headings(readFileSync(f, 'utf8')).map((h) => h.id))]),
+  )
   const broken = []
   for (const file of files) {
     const self = toRoute(dir, file)
@@ -41,7 +47,11 @@ export function findBrokenLinks(dir = contentDir) {
       // Browser semantics: a relative link resolves against the page URL's directory, so on
       // /docs (the index page) `./concepts` is /concepts, not /docs/concepts.
       const base = posix.dirname(self)
-      const route = !path ? self : path.startsWith('/') ? path.replace(/\/$/, '') : posix.join(base, path).replace(/\/$/, '')
+      const route = !path
+        ? self
+        : path.startsWith('/')
+          ? path.replace(/\/$/, '')
+          : posix.join(base, path).replace(/\/$/, '')
       const ids = pages.get(route)
       if (!ids || (hash && !ids.has(hash))) broken.push({ file: relative(dir, file), link: raw })
     }
