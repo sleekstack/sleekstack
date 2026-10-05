@@ -128,6 +128,12 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
         atom, state: 'uninit', value: undefined, version: 0, notified: 0, computing: false, deps: new Map(),
         children: new Set(), listeners: new Set(), retains: 0, finalizers: [], removalQueued: false, bucket: undefined,
       }
+      // A value atom starts valid with its constant (as its first pull would set it), unless a seed is waiting for it.
+      if (atom.initial !== undefined && !(key !== undefined && seeds.has(key))) {
+        node.state = 'valid'
+        node.value = atom.initial.value
+        node.version = 1
+      }
       nodes.set(atom, node)
       if (key !== undefined) keys.set(key, atom)
       scheduleRemoval(node)
@@ -309,13 +315,23 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
     node.bucket = undefined
   }
 
+  const removals: Node[] = []
+  const drainRemovals = () => {
+    const batch = removals.splice(0)
+    for (const node of batch) {
+      node.removalQueued = false
+      if (removable(node)) remove(node)
+    }
+  }
+
   function scheduleRemoval(node: Node) {
     if (!removable(node)) return
     const ttl = node.atom.idleTTL ?? options.defaultIdleTTL
     if (ttl === undefined || ttl <= 0) {
       if (node.removalQueued) return
       node.removalQueued = true
-      scheduleTask(() => { node.removalQueued = false; if (removable(node)) remove(node) })
+      // One task per tick removes every node queued in it, in queue order.
+      if (removals.push(node) === 1) scheduleTask(drainRemovals)
       return
     }
     cancelRemoval(node)
@@ -351,10 +367,11 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
 
   const set = <R, W>(atom: Writable<R, W>, value: W) => {
     const node = ensure(atom)
-    try { pull(node) } catch { /* the write may replace a failing value */ }
-    const ctx = (node.wctx ??= writeContext<R>(node)) as WriteContext<R>
+    if (node.state !== 'valid') try { pull(node) } catch { /* the write may replace a failing value */ }
+    // A value atom's write is `setSelf`, one step that flushes itself: no write context, no batch.
+    if (atom.initial !== undefined) return setValue(node, value)
     batchDepth++
-    try { atom.write(ctx, value) } finally { batchDepth--; flush() }
+    try { atom.write((node.wctx ??= writeContext<R>(node)) as WriteContext<R>, value) } finally { batchDepth--; flush() }
   }
 
   const subscribe = <A>(atom: Atom<A>, listener: () => void, opts?: { readonly immediate?: boolean }) => {

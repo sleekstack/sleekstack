@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { Cause, Context, Data, Deferred, Effect, Stream } from 'effect'
+import { Cause, Context, Data, Deferred, Effect, Schema, Stream } from 'effect'
 import { Atom, AtomCycle, makeAtomStore, Result } from '../index'
 
 const tick = () => new Promise<void>((r) => setTimeout(r, 0))
@@ -256,5 +256,54 @@ describe('review regressions', () => {
     store.subscribe(atom, () => seen.push(store.get(atom)))
     store.batch(() => { store.refresh(atom); store.set(atom, 2) })
     expect(seen).toEqual([2])
+  })
+})
+
+describe('value atoms', () => {
+  it('start valid with their initial, notify once per write, and coalesce inside a batch', () => {
+    const store = makeAtomStore()
+    const a = Atom.make(1)
+    expect(store.get(a)).toBe(1)
+    let calls = 0
+    store.subscribe(a, () => void calls++)
+    store.set(a, 2)
+    store.set(a, 2)
+    expect(calls).toBe(1)
+    store.batch(() => { store.set(a, 3); store.set(a, 4) })
+    expect(calls).toBe(2)
+    expect(store.get(a)).toBe(4)
+  })
+
+  it('a write from a listener and a derived child both see the new value', () => {
+    const store = makeAtomStore()
+    const a = Atom.make(0)
+    const b = Atom.make(0)
+    const sum = Atom.make((get) => get(a) + get(b))
+    const seen: Array<number> = []
+    store.subscribe(sum, () => void seen.push(store.get(sum)))
+    store.subscribe(a, () => store.set(b, store.get(a) * 10))
+    store.set(a, 1)
+    expect(store.get(sum)).toBe(11)
+    expect(seen.at(-1)).toBe(11)
+  })
+
+  it('unused nodes are evicted by one shared task, and an evicted value atom restarts from its initial', () => {
+    const tasks: Array<() => void> = []
+    const store = makeAtomStore({ scheduleTask: (f) => void tasks.push(f) })
+    const atoms = [Atom.make(0), Atom.make(0), Atom.make(0)]
+    atoms.forEach((a) => store.set(a, 7))
+    expect(tasks.length).toBe(1)
+    const held = store.retain(atoms[1]!)
+    tasks.splice(0).forEach((f) => f())
+    expect(store.get(atoms[0]!)).toBe(0)
+    expect(store.get(atoms[1]!)).toBe(7)
+    held()
+  })
+
+  it('a value atom with a pending seed takes the seed, not its initial', () => {
+    const store = makeAtomStore()
+    const a = Atom.serializable(Atom.make(0), { key: 'n', schema: Schema.Number })
+    store.hydrate({ n: 41 })
+    expect(store.get(a)).toBe(41)
   })
 })
