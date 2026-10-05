@@ -4,8 +4,8 @@ import { bind, type Handler, isHandler, on } from './handler'
 import { el, type ElementNode, type EventBinding, fragment, type Node } from './node'
 import { type HostDescriptor, Handlers, hostBuilder, hostOf, instance, RenderScope } from './reactive'
 
-/** What a JSX expression may hold between its tags. A serializable atom renders its current value as text and, under `renderToString`, is bound for `resume`. */
-export type Child = string | number | boolean | null | undefined | Effect.Effect<Node, any, any> | Atom.Serializable<Atom.Atom<any>> | ReadonlyArray<Child>
+/** What a JSX expression may hold between its tags. An atom renders its current value as text and follows it; a serializable one is also bound for `resume` under `renderToString`. */
+export type Child = string | number | boolean | null | undefined | Effect.Effect<Node, any, any> | Atom.Atom<any> | ReadonlyArray<Child>
 
 /** Every JSX expression is an `Effect<Node>`. Its requirements and errors are read from the tree by `sleekstack check`, not by tsc. */
 type Element = Effect.Effect<Node, never, never>
@@ -17,7 +17,7 @@ const rendered = (c: Child): Array<Effect.Effect<Node | string, any, any>> =>
     : c == null || typeof c === 'boolean'
       ? []
       : Atom.isAtom(c)
-        ? [Effect.sync(() => bind(c))]
+        ? [Effect.sync(() => (c.serializable?.kind === 'value' ? bind(c) : ({ _tag: 'Bind', atom: c, plain: true }) as Node))]
         : [Effect.isEffect(c) ? c : Effect.succeed(String(c))]
 
 const renderChildren = (c: Child) => Effect.all(rendered(c)) as Effect.Effect<Array<Node | string>>
@@ -27,7 +27,7 @@ const RENAME: Record<string, string> = { className: 'class', htmlFor: 'for' }
 const attrs = (props: Props): Record<string, string> =>
   Object.fromEntries(
     Object.entries(props).flatMap(([k, v]) =>
-      k === 'children' || k === 'key' || isEvent(k, v) || isHandlerProp(k, v) || v == null || v === false ? [] : [[RENAME[k] ?? k, v === true ? '' : String(v)]],
+      k === 'children' || k === 'key' || isEvent(k, v) || isHandlerProp(k, v) || v == null || v === false || Atom.isAtom(v) ? [] : [[RENAME[k] ?? k, v === true ? '' : String(v)]],
     ),
   )
 
@@ -37,6 +37,11 @@ const isEvent = (k: string, v: unknown): v is EventBinding['run'] => typeof v ==
 const isHandlerProp = (k: string, v: unknown): v is Handler<any, any> => /^on[A-Z]/.test(k) && isHandler(v)
 const handlers = (props: Props): Record<string, Handler<any, any>> | undefined => {
   const entries = Object.entries(props).flatMap(([k, v]) => (isHandlerProp(k, v) ? [[k.slice(2).toLowerCase(), v] as const] : []))
+  return entries.length ? Object.fromEntries(entries) : undefined
+}
+// Atom-valued props (not `children`/`key`/events) are bound: the renderer keeps the attribute current.
+const bound = (props: Props): Record<string, Atom.Atom<any>> | undefined => {
+  const entries = Object.entries(props).flatMap(([k, v]) => (k !== 'children' && k !== 'key' && !/^on[A-Z]/.test(k) && Atom.isAtom(v) ? [[RENAME[k] ?? k, v] as const] : []))
   return entries.length ? Object.fromEntries(entries) : undefined
 }
 const events = (props: Props, context: Context.Context<any>): Record<string, EventBinding> | undefined => {
@@ -51,7 +56,8 @@ const element = (type: string, props: Props, key: string | undefined): Effect.Ef
       const hs = handlers(props)
       const node = (hs ? on(base, hs) : base) as ElementNode
       const evs = events(props, ctx)
-      return { ...node, ...(evs && { events: evs }), ...(key !== undefined && { key }) }
+      const bd = bound(props)
+      return { ...node, ...(evs && { events: evs }), ...(bd && { bound: bd }), ...(key !== undefined && { key }) }
     }),
   )
 

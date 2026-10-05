@@ -268,6 +268,37 @@ for (const [name, u] of [
   nodeSwaps[name] = { sleekstack: await swaps(u.sleekstack), react: await swaps(u.react) }
   console.log(`${name} node swaps per update:`, nodeSwaps[name])
 }
+
+// ---- one atom shown in 1k places: SleekStack binds each text node to the atom, React re-renders the list ----
+
+const sleekBound = async () => {
+  const container = document.createElement('div')
+  const store = makeAtomStore()
+  const count = Atom.make(0)
+  const label = Atom.make((get) => `Item ${get(count)}`)
+  await mount(jsx('ul', { children: rowIds.map((i) => jsx('li', { className: 'row', 'data-i': i, children: label })) }), { layer: Layer.empty, container, store })
+  let n = 0
+  return { container, run: async () => (store.set(count, ++n), await settle(), container.textContent) }
+}
+const reactBound = () => {
+  const container = document.createElement('div')
+  let set!: (n: number) => void
+  const Row = ({ i, n }: { i: number; n: number }) => h('li', { className: 'row', 'data-i': i }, `Item ${n}`)
+  const List = () => {
+    const [n, s] = useState(0)
+    set = s
+    return h('ul', null, rowIds.map((i) => h(Row, { key: i, i, n })))
+  }
+  flushSync(() => createRoot(container).render(h(List)))
+  let n = 0
+  return { container, run: () => (flushSync(() => set(++n)), container.textContent) }
+}
+const bound = { sleekstack: await sleekBound(), react: reactBound() }
+await check('render-dom/atom-bound-text-1k', [
+  ['sleekstack', bound.sleekstack.run],
+  ['react', bound.react.run],
+])
+
 const results = resolve(import.meta.dirname, '../results')
 mkdirSync(results, { recursive: true })
 writeFileSync(resolve(results, 'swaps.json'), JSON.stringify(nodeSwaps, null, 2))
@@ -305,4 +336,9 @@ describe('render-dom/keyed-update-handler-1-of-1k', () => {
 describe('render-dom/keyed-update-atom-1-of-1k', () => {
   bench('sleekstack', async () => void (await keyedAtom.sleekstack.run()), opts)
   bench('react', () => void keyedAtom.react.run(), opts)
+})
+
+describe('render-dom/atom-bound-text-1k', () => {
+  bench('sleekstack', async () => void (await bound.sleekstack.run()), opts)
+  bench('react', () => void bound.react.run(), opts)
 })

@@ -41,6 +41,12 @@ interface Live {
   readonly ev?: Events
   /** A `Bind` node's store subscription and atom hold; released when the node is dropped. */
   readonly off?: () => void
+  /** An element's atom-valued attributes: shared by every Live of that element across patches. */
+  readonly bnd?: BoundAttrs
+}
+interface BoundAttrs {
+  atoms: Readonly<Record<string, Atom.Atom<any>>>
+  off: () => void
 }
 // One direct listener per event name reads the current binding, so a patch swaps closures without re-listening.
 interface Events {
@@ -102,6 +108,7 @@ const dropScopes = (node: Node): void => {
 const drop = (l: Live): void => {
   if (l.inst) kill(l.inst)
   l.off?.()
+  l.bnd?.off()
   if (l.root) l.root.unmount()
   if (l.ev) {
     l.ev.dead = true
@@ -215,6 +222,34 @@ const setProp = (el: Element, k: string, v: string | undefined): void => {
   if (k === 'checked' && f.checked !== (v !== undefined)) f.checked = v !== undefined
 }
 
+// An atom's value as an attribute: nullish and `false` drop it, `true` is empty, form `value`/`checked` also set the property.
+const applyAttr = (el: Element, k: string, v: unknown): void => {
+  const s = v == null || v === false ? undefined : v === true ? '' : String(v)
+  if (s === undefined) el.removeAttribute(k)
+  else {
+    checkAttr(k, s)
+    el.setAttribute(k, s)
+  }
+  if (FORM.has(el.tagName) && (k === 'value' || k === 'checked')) setProp(el, k, s)
+}
+// Sets each atom-valued attribute now and follows the atom without re-running anything; `off` releases the holds.
+const bindAttrs = (el: Element, atoms: Readonly<Record<string, Atom.Atom<any>>>, env: Env, box: BoundAttrs): void => {
+  const offs: Array<() => void> = []
+  for (const [k, a] of Object.entries(atoms)) {
+    applyAttr(el, k, read(env.store, a))
+    const release = env.store.retain(a)
+    const unsub = env.store.subscribe(a, () => applyAttr(el, k, read(env.store, a)))
+    offs.push(unsub, release)
+  }
+  box.atoms = atoms
+  box.off = () => offs.splice(0).forEach((f) => f())
+}
+const sameAtoms = (a: Readonly<Record<string, Atom.Atom<any>>> | undefined, b: Readonly<Record<string, Atom.Atom<any>>> | undefined): boolean => {
+  const ka = a ? Object.keys(a) : []
+  if (ka.length !== (b ? Object.keys(b).length : 0)) return false
+  return ka.every((k) => b![k] === a![k])
+}
+
 // Sync throw, non-Effect return, failure or defect go to `onError`; fibers end with the element.
 const dispatch = (ev: Events, name: string, event: Event, onError?: OnError): void => {
   const b = ev.bindings[name]
@@ -274,10 +309,12 @@ const build = (node: Leaf, key: string | undefined, env: Env, scopes: Array<Scop
         const kids = buildAll(node.children, env, scopes, el)
         // After the options, so a `<select>` value finds its option.
         if (FORM.has(el.tagName)) for (const k of ['value', 'checked']) if (Object.hasOwn(node.attrs, k)) setProp(el, k, node.attrs[k])
-        if (!node.events) return { node, dom: el, kids, ...keyed }
+        const bnd: BoundAttrs | undefined = node.bound && { atoms: {}, off: () => {} }
+        if (bnd) bindAttrs(el, node.bound!, env, bnd)
+        if (!node.events) return { node, dom: el, kids, ...(bnd && { bnd }), ...keyed }
         const ev: Events = { bindings: node.events, listeners: new Map(), fibers: new Set(), dead: false }
         listen(el, ev, Object.keys(node.events), env.onError)
-        return { node, dom: el, kids, ev, ...keyed }
+        return { node, dom: el, kids, ev, ...(bnd && { bnd }), ...keyed }
       }
       case 'Reactive': {
         const host = env.doc.createElement('sleek-reactive')
@@ -345,13 +382,27 @@ const patch = (prev: Live, node: Leaf, key: string | undefined, env: Env, p: Pla
     const kids = patchChildren(el, prev.kids, (node as ElementNode).children, env, p)
     const props = FORM.has(el.tagName) ? changed.filter(([k]) => k === 'value' || k === 'checked') : []
     if (props.length > 0) p.ops.push(() => props.forEach(([k, v]) => setProp(el, k, v)))
+    let bnd = prev.bnd
+    const nextBound = (node as ElementNode).bound
+    if (bnd || nextBound) {
+      const box: BoundAttrs = (bnd ??= { atoms: {}, off: () => {} })
+      if (!sameAtoms(box.atoms, nextBound)) {
+        p.ops.push(() => {
+          const old = box.atoms
+          box.off()
+          for (const k of Object.keys(old)) if (!nextBound || !Object.hasOwn(nextBound, k)) if (!Object.hasOwn(next, k)) el.removeAttribute(k)
+          if (nextBound) bindAttrs(el, nextBound, env, box)
+          else box.atoms = {}
+        })
+      }
+    }
     const events = (node as ElementNode).events ?? {}
     let ev = prev.ev
     if (ev || Object.keys(events).length > 0) {
       const e = (ev ??= { bindings: {}, listeners: new Map(), fibers: new Set(), dead: false })
       p.ops.push(() => relisten(el, e, events, env.onError))
     }
-    return { node, dom: el, kids, ...(ev && { ev }), ...keyed }
+    return { node, dom: el, kids, ...(ev && { ev }), ...(bnd && { bnd }), ...keyed }
   } catch (error) {
     env.defect(error)
     return prev

@@ -3,7 +3,7 @@ import { Atom, makeAtomStore } from '@sleekstack/core'
 import { Cause, Context, Data, Deferred, Effect, Layer, Schema } from 'effect'
 import { act, createElement, useEffect, useState } from 'react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { Boundary, el, fromReact, mount, type Mounted, Provider, Store, useAtomValue, useLocal, useSetAtom } from '../index'
+import { Boundary, el, fromReact, mount, type Mounted, Provider, renderToString, Store, useAtomValue, useLocal, useSetAtom } from '../index'
 import type { Node } from '../node'
 import { Fragment, jsx as rawJsx } from '../jsx-runtime'
 import { useMutation, useQuery, useQueryClient } from '../query'
@@ -981,5 +981,74 @@ describe('keyed instance reuse', () => {
     await tick()
     expect(rowsText(container)).toEqual(['b1', 'b2'])
     expect(runs).toBe(4)
+  })
+})
+
+describe('atom bindings in JSX', () => {
+  it('a derived atom as a child and an atom as an attribute follow the atom without re-running the component', async () => {
+    const count = Atom.make(1)
+    const label = Atom.make((get) => `n=${get(count) * 2}`)
+    const cls = Atom.make('a')
+    let runs = 0
+    const View = () => (runs++, jsx('p', { className: cls, 'data-n': count, children: ['x ', label] }))
+    const { container, store } = await go(jsx(View, {}), { store: counted() })
+    const p = container.querySelector('p')!
+    expect(p.outerHTML).toBe('<p class="a" data-n="1">x n=2</p>')
+    store.set(count, 5)
+    store.set(cls, 'b')
+    await tick()
+    expect(container.querySelector('p')).toBe(p)
+    expect(p.outerHTML).toBe('<p class="b" data-n="5">x n=10</p>')
+    expect(runs).toBe(1)
+  })
+
+  it('false and null drop the attribute; true sets it empty', async () => {
+    const flag = Atom.make<boolean | null>(true)
+    const { container, store } = await go(jsx('input', { disabled: flag }))
+    const input = container.querySelector('input')!
+    expect(input.getAttribute('disabled')).toBe('')
+    store.set(flag, false)
+    await tick()
+    expect(input.hasAttribute('disabled')).toBe(false)
+    store.set(flag, null)
+    await tick()
+    expect(input.hasAttribute('disabled')).toBe(false)
+  })
+
+  it('a form value follows its atom', async () => {
+    const v = Atom.make('a')
+    const { container, store } = await go(jsx('input', { value: v }))
+    const input = container.querySelector('input')!
+    expect(input.value).toBe('a')
+    store.set(v, 'b')
+    await tick()
+    expect(input.value).toBe('b')
+  })
+
+  it('a parent re-run that swaps the atom re-points the binding, and dropping the element releases it', async () => {
+    const which = Atom.make(true)
+    const a = Atom.make('A')
+    const b = Atom.make('B')
+    const Same = () => Effect.flatMap(useAtomValue(which), (w) => jsx('span', { title: w ? a : b }))
+    const { container, store } = await go(jsx(Same, {}), { store: counted() })
+    const span = container.querySelector('span')!
+    expect(span.title).toBe('A')
+    expect(subs.get(a)).toBe(1)
+    store.set(which, false)
+    await tick()
+    expect(container.querySelector('span')).toBe(span)
+    expect(span.title).toBe('B')
+    expect(subs.get(a) ?? 0).toBe(0)
+    expect(subs.get(b)).toBe(1)
+    store.set(a, 'A2')
+    store.set(b, 'B2')
+    await tick()
+    expect(span.title).toBe('B2')
+  })
+
+  it('renderToString renders the current values', async () => {
+    const x = Atom.make((_get) => 'v')
+    const html = await renderToString(jsx('p', { title: x, children: x }), { layer: Layer.empty })
+    expect(html).toContain('<p title="v">v</p>')
   })
 })

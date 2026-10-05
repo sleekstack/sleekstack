@@ -18,6 +18,8 @@ export interface ElementNode {
   /** Event name to closure binding, from function-valued `onXxx` JSX props; ignored by `renderToString`. */
   readonly events?: Readonly<Record<string, EventBinding>>
   readonly key?: string
+  /** Attribute name to atom, from atom-valued JSX props: set from the atom's value and kept current without re-running the component. */
+  readonly bound?: Readonly<Record<string, Atom.Atom<any>>>
 }
 /** A JSX event closure and the context captured while its element's JSX Effect ran. */
 export interface EventBinding {
@@ -54,6 +56,8 @@ export interface ReactiveNode {
 export interface BindNode {
   readonly _tag: 'Bind'
   readonly atom: Atom.Atom<any>
+  /** Any atom (derived, not serializable): live text on the client, plain text in `renderToString`, never resumed. */
+  readonly plain?: true
 }
 export type Node = TextNode | ElementNode | FragmentNode | GuestNode | ReactiveNode | BindNode
 
