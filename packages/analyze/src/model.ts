@@ -94,7 +94,11 @@ export interface Graph {
   readonly nodes: readonly GraphNode[]
   readonly edges: readonly Edge[]
   readonly shadowing: readonly Shadowing[]
-  readonly modules: readonly (Location & { readonly name: string; readonly imports: readonly string[]; readonly exports: readonly string[] | null })[]
+  readonly modules: readonly (Location & {
+    readonly name: string
+    readonly imports: readonly string[]
+    readonly exports: readonly string[] | null
+  })[]
   /** Ids of private Tag nodes. */
   readonly private: readonly string[]
 }
@@ -119,7 +123,11 @@ export interface Report {
    * Calls count outside test files, or only in `entries` when given. Each root is validated independently: its
    * errors are the unreadable declarations it reaches plus graph validation.
    */
-  readonly runtimes: readonly (Location & { readonly kind: RootKind; readonly graph: Graph; readonly errors: readonly AnalyzeError[] })[]
+  readonly runtimes: readonly (Location & {
+    readonly kind: RootKind
+    readonly graph: Graph
+    readonly errors: readonly AnalyzeError[]
+  })[]
 }
 
 /**
@@ -130,8 +138,21 @@ export interface Report {
  */
 export type UiNode = Location &
   (
-    | { readonly kind: 'component'; readonly name: string; readonly guest: boolean; readonly closure?: boolean; readonly requires: readonly string[]; readonly errors: readonly string[]; readonly children: readonly UiNode[] }
-    | { readonly kind: 'provide'; readonly provides: readonly string[]; readonly requires: readonly string[]; readonly children: readonly UiNode[] }
+    | {
+        readonly kind: 'component'
+        readonly name: string
+        readonly guest: boolean
+        readonly closure?: boolean
+        readonly requires: readonly string[]
+        readonly errors: readonly string[]
+        readonly children: readonly UiNode[]
+      }
+    | {
+        readonly kind: 'provide'
+        readonly provides: readonly string[]
+        readonly requires: readonly string[]
+        readonly children: readonly UiNode[]
+      }
     | { readonly kind: 'catch'; readonly tag: string; readonly children: readonly UiNode[] }
     | { readonly kind: 'unresolved'; readonly message: string }
   )

@@ -9,14 +9,24 @@ import { Cause, Runtime } from 'effect'
 
 /** The structured `details` each {@link SleekStackError} `code` carries (mirrors core's tagged error fields). */
 export interface SleekStackErrorDetails {
-  MissingDependency: { readonly tag?: string; readonly service: string; readonly missing: string; readonly module?: string }
+  MissingDependency: {
+    readonly tag?: string
+    readonly service: string
+    readonly missing: string
+    readonly module?: string
+  }
   CleanupFailed: { readonly tag: string }
   DependencyCycle: { readonly path: readonly string[] }
   AmbiguousProvider: { readonly tag: string; readonly modules: readonly string[] }
   ModuleCycle: { readonly path: readonly string[] }
   DuplicateModule: { readonly name: string }
   InvalidModule: { readonly name?: string }
-  CaptiveDependency: { readonly service: string; readonly lifetime: string; readonly dependency: string; readonly dependencyLifetime: string }
+  CaptiveDependency: {
+    readonly service: string
+    readonly lifetime: string
+    readonly dependency: string
+    readonly dependencyLifetime: string
+  }
   PrivateDependency: { readonly tag: string; readonly module: string; readonly requiredBy: string }
   DuplicateTag: { readonly tag: string }
   InvalidTag: {}
@@ -59,7 +69,12 @@ type SleekStackErrorArgs<C extends SleekStackErrorCode> = C extends SleekStackEr
 
 /** Constructs a {@link SleekStackError}; also the `instanceof` check. */
 export const SleekStackError = class SleekStackError extends Error {
-  constructor(readonly code: SleekStackErrorCode, message: string, readonly details: object = {}, options?: Options) {
+  constructor(
+    readonly code: SleekStackErrorCode,
+    message: string,
+    readonly details: object = {},
+    options?: Options,
+  ) {
     super(message, options)
     this.name = 'SleekStackError'
   }
@@ -75,19 +90,33 @@ export interface FinalizerError {
 }
 
 const GRAPH_CODES = new Set<string>([
-  'MissingDependency', 'DependencyCycle', 'AmbiguousProvider', 'ModuleCycle', 'DuplicateModule', 'InvalidModule', 'CaptiveDependency', 'PrivateDependency', 'AtomCycle',
+  'MissingDependency',
+  'DependencyCycle',
+  'AmbiguousProvider',
+  'ModuleCycle',
+  'DuplicateModule',
+  'InvalidModule',
+  'CaptiveDependency',
+  'PrivateDependency',
+  'AtomCycle',
 ])
 
 /** @internal A layer factory threw or rejected. */
 export class LayerFailure extends Error {
-  constructor(readonly tag: string, cause: unknown) {
+  constructor(
+    readonly tag: string,
+    cause: unknown,
+  ) {
     super(`Layer for "${tag}" failed: ${cause instanceof Error ? cause.message : String(cause)}`, { cause })
   }
 }
 
 /** @internal A `withCleanup` cleanup threw or rejected; carries the Layer's Tag key. */
 export class CleanupFailure extends Error {
-  constructor(readonly tag: string, cause: unknown) {
+  constructor(
+    readonly tag: string,
+    cause: unknown,
+  ) {
     super(cause instanceof Error ? cause.message : String(cause), { cause })
   }
 }
@@ -95,7 +124,10 @@ export class CleanupFailure extends Error {
 const messageOf = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
 /** @internal Converts anything thrown (or an Effect Cause) into a SleekStackError. */
-export function normalize(e: unknown, fallback: 'Unknown' | 'HandlerFailed' | 'InvalidModule' = 'Unknown'): SleekStackError {
+export function normalize(
+  e: unknown,
+  fallback: 'Unknown' | 'HandlerFailed' | 'InvalidModule' = 'Unknown',
+): SleekStackError {
   if (e instanceof SleekStackError) return e
   if (Cause.isCause(e)) return normalize(Cause.squash(e), fallback)
   if (Runtime.isFiberFailure(e)) return normalize(e[Runtime.FiberFailureCauseId], fallback)

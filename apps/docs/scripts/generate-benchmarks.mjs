@@ -34,7 +34,10 @@ export function renderBenchmarks(results) {
         '',
         `| case | library | mean | p99 | rme | samples${swaps ? ' | node swaps' : ''} |`,
         `| --- | --- | ---: | ---: | ---: | ---:${swaps ? ' | ---:' : ''} |`,
-        ...cases.map((c) => `| ${c.case.slice(suite.length + 1)} | ${c.library} | ${ms(c.mean)} | ${ms(c.p99)} | ±${c.rme.toFixed(2)}% | ${c.samples}${swaps ? ` | ${c.swaps ?? ''}` : ''} |`),
+        ...cases.map(
+          (c) =>
+            `| ${c.case.slice(suite.length + 1)} | ${c.library} | ${ms(c.mean)} | ${ms(c.p99)} | ±${c.rme.toFixed(2)}% | ${c.samples}${swaps ? ` | ${c.swaps ?? ''}` : ''} |`,
+        ),
       ].join('\n')
     })
   const m = results.machine
@@ -51,7 +54,9 @@ Recorded ${results.publishedAt ?? ''} on Node ${m.node}, ${m.cpu}, ${m.os}.
 
 The keyed-list update cases change one of 1,000 rows per write. \`keyed-update-data\` and \`keyed-update-handler\` (rows take an item object, or an item plus an inline \`on*\` handler) skip every unchanged row; \`keyed-update-render-callback\` passes a fresh render-time function to every row, so no row can skip and all 1,000 re-run. \`keyed-update-hook-miss\` and \`keyed-update-gen-miss\` do the same with rows that hold state (a hook, a nested component, an \`Effect.gen\` body), so all 1,000 run the full component path (the worst case).
 
-Library versions: ${Object.entries(results.versions).map(([k, v]) => `${k} ${v}`).join(', ')}.
+Library versions: ${Object.entries(results.versions)
+    .map(([k, v]) => `${k} ${v}`)
+    .join(', ')}.
 
 ${tables.join('\n\n')}
 
@@ -61,7 +66,9 @@ To refresh this page, run \`pnpm --filter bench bench:json\` and then \`pnpm --f
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   if (!existsSync(publishedFile)) {
-    console.error(`${publishedFile} is missing. Create it with: pnpm --filter bench bench:json && pnpm --filter bench publish-results`)
+    console.error(
+      `${publishedFile} is missing. Create it with: pnpm --filter bench bench:json && pnpm --filter bench publish-results`,
+    )
     process.exit(1)
   }
   writeFileSync(join(contentDir, 'benchmarks.mdx'), renderBenchmarks(JSON.parse(readFileSync(publishedFile, 'utf8'))))

@@ -47,7 +47,10 @@ const refresh = vi.fn()
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }))
 
 const actions = vi.hoisted(() => {
-  const task = (id: string, projectId: string, title: string) => ({ task: { id, projectId, title, status: 'todo' as const, createdAt: 0 }, comments: [] })
+  const task = (id: string, projectId: string, title: string) => ({
+    task: { id, projectId, title, status: 'todo' as const, createdAt: 0 },
+    comments: [],
+  })
   const dto = [
     { project: { id: 'p1', name: 'Alpha' }, tasks: [task('t1', 'p1', 'Write spec')] },
     { project: { id: 'p2', name: 'Beta' }, tasks: [task('t2', 'p2', 'Ship it')] },
@@ -197,7 +200,9 @@ describe('Board — R7/R8 nested component scopes', () => {
         </LayerProvider>
       </Providers>,
     )
-    fireEvent.change(await screen.findByLabelText('new comment', {}, { timeout: SCOPE_LOAD_TIMEOUT }), { target: { value: 'hello' } })
+    fireEvent.change(await screen.findByLabelText('new comment', {}, { timeout: SCOPE_LOAD_TIMEOUT }), {
+      target: { value: 'hello' },
+    })
     await waitFor(() => expect(screen.getByLabelText('service draft').textContent).toBe('hello'))
   })
 })
@@ -226,7 +231,9 @@ describe('Board — cache-backed mutations (no router.refresh)', () => {
     reply({ ok: false, error: 'Simulated failure: create rejected before commit' })
 
     await waitFor(() => expect(within(project).queryByRole('button', { name: /doomed/i })).toBeNull())
-    expect((await within(project).findByRole('alert', {}, { timeout: 10_000 })).textContent).toBe('Simulated failure: create rejected before commit')
+    expect((await within(project).findByRole('alert', {}, { timeout: 10_000 })).textContent).toBe(
+      'Simulated failure: create rejected before commit',
+    )
     expect(refresh).not.toHaveBeenCalled()
   })
 
@@ -234,7 +241,10 @@ describe('Board — cache-backed mutations (no router.refresh)', () => {
     actions.createTask.mockResolvedValue({ ok: true, data: {} })
     const project = await alpha()
     const reads = actions.readBoard.mock.calls.length
-    const saved = [{ ...actions.dto[0]!, tasks: [...actions.dto[0]!.tasks, actions.task('t9', 'p1', 'Saved')] }, actions.dto[1]!]
+    const saved = [
+      { ...actions.dto[0]!, tasks: [...actions.dto[0]!.tasks, actions.task('t9', 'p1', 'Saved')] },
+      actions.dto[1]!,
+    ]
     actions.readBoard.mockImplementation(async () => saved)
     fireEvent.change(within(project).getByLabelText(/new task title/i), { target: { value: 'Saved' } })
     fireEvent.click(within(project).getByRole('button', { name: /create task/i }))

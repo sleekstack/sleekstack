@@ -13,7 +13,10 @@ import { ActivityLog, BoardStore, Clock, IdGen, RequestContext } from '../domain
 import { loadBoard } from './board-view'
 
 /** Server-facing wording per field; the rule itself lives only in the domain schema. */
-const SERVER_MESSAGES: Record<string, string> = { title: 'Task title cannot be empty', body: 'Comment body cannot be empty' }
+const SERVER_MESSAGES: Record<string, string> = {
+  title: 'Task title cannot be empty',
+  body: 'Comment body cannot be empty',
+}
 
 /** Parses with the domain schema; the first issue becomes the `InvalidInput` message. */
 const parse = <A, I>(schema: Schema.Schema<A, I>, input: unknown): Effect.Effect<A, InvalidInput> =>
@@ -28,10 +31,19 @@ const createTask = (input: CreateTask) =>
   Effect.gen(function* () {
     yield* RequestContext
     const { projectId, title, simulateFailure } = yield* parse(CreateTask, input)
-    const record = { id: (yield* IdGen).next('task'), projectId, title, status: 'todo' as const, createdAt: (yield* Clock).now() }
+    const record = {
+      id: (yield* IdGen).next('task'),
+      projectId,
+      title,
+      status: 'todo' as const,
+      createdAt: (yield* Clock).now(),
+    }
     const created = yield* (yield* BoardStore).transaction((tx) =>
       Effect.flatMap(tx.createTask(record), (task) =>
-        simulateFailure ? new SimulatedFailure({ message: 'Simulated failure: create rejected before commit' }) : Effect.succeed(task)),
+        simulateFailure
+          ? new SimulatedFailure({ message: 'Simulated failure: create rejected before commit' })
+          : Effect.succeed(task),
+      ),
     )
     ;(yield* ActivityLog).record(`Task created: ${created.id} "${created.title}"`)
     return created

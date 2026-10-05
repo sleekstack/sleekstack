@@ -13,8 +13,21 @@ const includesOf = (f: string) =>
   [...read(f).matchAll(/<include>([^<#]+)(?:#[^<]*)?<\/include>/g)].map((m) => resolve(contentDir, m[1]!.trim()))
 
 const scope = [
-  'index', 'getting-started-kit', 'getting-started-effect', 'concepts', 'kit-vs-effect',
-  'nextjs', 'react', 'atoms', 'queries', 'queries-ssr', 'tanstack-query', 'side-effects', 'errors', 'testing', 'showcases',
+  'index',
+  'getting-started-kit',
+  'getting-started-effect',
+  'concepts',
+  'kit-vs-effect',
+  'nextjs',
+  'react',
+  'atoms',
+  'queries',
+  'queries-ssr',
+  'tanstack-query',
+  'side-effects',
+  'errors',
+  'testing',
+  'showcases',
 ]
 
 describe('guides', () => {

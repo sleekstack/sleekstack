@@ -14,6 +14,9 @@ importers:
 
   .:
     devDependencies:
+      prettier:
+        specifier: ^3.9.9
+        version: 3.9.9
       turbo:
         specifier: ^2.5.0
         version: 2.9.16
@@ -3016,6 +3019,11 @@ packages:
 
   react-hook-form@7.89.0:
     resolution: {integrity: sha512-vKcoCfy8RKZDrhSdqsRFp0uEOdS1AhLjOL6hR7Wmfzg1akNxEhaPf5WORx8SgEQPVXakdDyDkqQp+KNxVnnPHg==}
+  prettier@3.9.9:
+    resolution: {integrity: sha512-Z/CJHIkdujO/OtN7nXUii0Rf3VT5SRuhjBA82Xvu2XhBUgX3nhP67T0LHceBdQLex7OOFGTox+Q5Yg8Jk2Qivg==}
+    engines: {node: '>=14'}
+    hasBin: true
+
     engines: {node: '>=18.0.0'}
     peerDependencies:
       '@types/react': '*'
@@ -5793,6 +5801,8 @@ snapshots:
       react: 19.2.6
     optionalDependencies:
       '@types/react': 19.2.17
+
+  prettier@3.9.9: {}
 
   react-is@17.0.2: {}
 

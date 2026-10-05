@@ -18,14 +18,19 @@ describe('LayerProvider appScope (external)', () => {
     let finalized = 0
     const CounterLayer = Layer.scoped(
       Counter,
-      Effect.acquireRelease(Effect.sync(() => ({ id: ++built })), () => Effect.sync(() => void finalized++)),
+      Effect.acquireRelease(
+        Effect.sync(() => ({ id: ++built })),
+        () => Effect.sync(() => void finalized++),
+      ),
     )
     const app = await Effect.runPromise(makeAppScope([CounterLayer]))
 
     const Show = ({ testId }: { testId: string }) => <div data-testid={testId}>{useService(Counter).id}</div>
     const tree = (testId: string) => (
       <LayerProvider provide={[]} appScope={app}>
-        <Suspense fallback={null}><Show testId={testId} /></Suspense>
+        <Suspense fallback={null}>
+          <Show testId={testId} />
+        </Suspense>
       </LayerProvider>
     )
     const a = render(tree('a'))

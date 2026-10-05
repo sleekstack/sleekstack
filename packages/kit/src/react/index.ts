@@ -7,7 +7,14 @@ import { normalize, type SleekStackError } from '../errors'
 import { mutationFn, queryOpts, type CachedQuery, type Mutation } from '../query'
 import { kit, KitClientContext, KitProviderContext } from './hooks'
 
-export { LayerProvider, useService, useServices, createAppScope, type LayerProviderProps, type AppScopeHandle } from './hooks'
+export {
+  LayerProvider,
+  useService,
+  useServices,
+  createAppScope,
+  type LayerProviderProps,
+  type AppScopeHandle,
+} from './hooks'
 export { useAtom, useAtomValue, useAtomSet, type SetAtom } from './atoms'
 
 const QUERY_PROVIDE = [QueryClientLive()]
@@ -26,7 +33,15 @@ const QUERY_PROVIDE = [QueryClientLive()]
  * ```
  */
 export function QueryProvider(props: { readonly children?: ReactNode }) {
-  return createElement(KitProviderContext.Provider, { value: true }, createElement(KitClientContext.Provider, { value: null }, createElement(CoreProvider, { provide: QUERY_PROVIDE, owner: props }, props.children)))
+  return createElement(
+    KitProviderContext.Provider,
+    { value: true },
+    createElement(
+      KitClientContext.Provider,
+      { value: null },
+      createElement(CoreProvider, { provide: QUERY_PROVIDE, owner: props }, props.children),
+    ),
+  )
 }
 
 const useClient = () => {
@@ -117,7 +132,13 @@ export interface MutationHandle<I, T> {
 export function useMutation<I, T>(mutation: Mutation<I, T>): MutationHandle<I, T> {
   const m = rqUseMutation<T, unknown, I>({ mutationFn: mutationFn(mutation) }, useClient())
   const run = m.mutateAsync
-  const mutate = useCallback((input: I) => run(input).catch((e: unknown) => { throw normalize(e) }), [run])
+  const mutate = useCallback(
+    (input: I) =>
+      run(input).catch((e: unknown) => {
+        throw normalize(e)
+      }),
+    [run],
+  )
   return {
     mutate,
     data: m.data,
@@ -175,6 +196,6 @@ export function useQueryClient(): QueryClient {
     invalidate: (t) => void c.invalidateQueries(filters(t)),
     refetch: (t) => void c.refetchQueries(filters(t)),
     setData: (query, value) => void c.setQueryData(queryOpts(query).queryKey, value),
-    getData: <T,>(query: CachedQuery<T>) => c.getQueryData(queryOpts(query).queryKey) as T | undefined,
+    getData: <T>(query: CachedQuery<T>) => c.getQueryData(queryOpts(query).queryKey) as T | undefined,
   }
 }

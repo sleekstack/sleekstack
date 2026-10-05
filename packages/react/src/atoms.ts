@@ -80,7 +80,10 @@ export function useAtomValue<A, B>(atom: Atom.Atom<A>, f?: (a: A) => B): A | B {
     let output: B
     return () => {
       const value = b.getSnapshot()
-      if (!Object.is(value, input)) { input = value; output = f(value as A) }
+      if (!Object.is(value, input)) {
+        input = value
+        output = f(value as A)
+      }
       return output
     }
   }, [b, f])
@@ -150,14 +153,25 @@ export function useAtomRefresh(atom: Atom.Atom<any>): () => void {
 
 const pending = (r: Result.Result<any, any>, onWaiting: boolean) => r._tag === 'Initial' || (onWaiting && r.waiting)
 
-const once = (f: () => void) => { let done = false; return () => { if (!done) { done = true; f() } } }
+const once = (f: () => void) => {
+  let done = false
+  return () => {
+    if (!done) {
+      done = true
+      f()
+    }
+  }
+}
 const closed = new WeakSet<AtomStore>()
 /** The store's scope closed (its nodes are gone): stop the suspension GC timers waiting on it. */
 export const settleSuspensions = (store: AtomStore) => void closed.add(store)
 
 // A settled suspension's hold on its node. `blockers` counts later suspensions started inside its retry window
 // (the same render chain retrying into its next atom, i.e. a waterfall): it stays held until they finish.
-interface Hold { blockers: number; readonly finish: () => void }
+interface Hold {
+  blockers: number
+  readonly finish: () => void
+}
 // Settled holds re-read (still resolved) by the render in progress: a waterfall's retry reads its earlier atoms
 // before suspending on the next one, so these are the only predecessors a new suspension links to. Cleared on a
 // microtask, i.e. per synchronous render pass.
@@ -183,7 +197,11 @@ const holdsFor = (store: AtomStore, atom: Atom.Atom<any>) => {
 // One promise per (store, atom, suspendOnWaiting) until it settles; the next suspension is a new generation.
 const suspensions = new WeakMap<AtomStore, WeakMap<Atom.Atom<any>, Map<boolean, Promise<void>>>>()
 
-const suspensionFor = (store: AtomStore, atom: Atom.Atom<Result.Result<any, any>>, onWaiting: boolean): Promise<void> => {
+const suspensionFor = (
+  store: AtomStore,
+  atom: Atom.Atom<Result.Result<any, any>>,
+  onWaiting: boolean,
+): Promise<void> => {
   let perStore = suspensions.get(store)
   if (!perStore) suspensions.set(store, (perStore = new WeakMap()))
   let perAtom = perStore.get(atom)
@@ -211,17 +229,22 @@ const suspensionFor = (store: AtomStore, atom: Atom.Atom<Result.Result<any, any>
     const check = () => {
       if (done) return
       let r: Result.Result<any, any>
-      try { r = store.get(atom) } catch { r = Result.success(undefined) } // a throwing read settles too; the retry rethrows it
+      try {
+        r = store.get(atom)
+      } catch {
+        r = Result.success(undefined)
+      } // a throwing read settles too; the retry rethrows it
       if (pending(r, onWaiting)) return
       done = true
       perAtom!.delete(onWaiting)
       unsubscribe?.()
       holdsFor(store, atom).add(hold)
-      const gc = (): unknown => setTimeout(() => {
-        if (closed.has(store)) return
-        if (hold.blockers > 0) return gc()
-        hold.finish()
-      }, RETRY_MS)
+      const gc = (): unknown =>
+        setTimeout(() => {
+          if (closed.has(store)) return
+          if (hold.blockers > 0) return gc()
+          hold.finish()
+        }, RETRY_MS)
       gc()
       resolve()
     }

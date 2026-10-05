@@ -25,13 +25,23 @@ export interface TaskWithComments {
   readonly comments: readonly CommentModel[]
 }
 
-function ProjectBody({ project, tasks }: { readonly project: ProjectRecord; readonly tasks: readonly TaskWithComments[] }) {
+function ProjectBody({
+  project,
+  tasks,
+}: {
+  readonly project: ProjectRecord
+  readonly tasks: readonly TaskWithComments[]
+}) {
   const store = useService(ProjectFilterStore)
   // `getServerSnapshot` (3rd arg): the store is per-mount and always starts
   // at these values, so the server snapshot is the same accessor as the
   // client one — required explicitly or React throws under SSR.
   const filter = useSyncExternalStore(store.filter.subscribe, store.filter.get, store.filter.get)
-  const selectedTaskId = useSyncExternalStore(store.selectedTaskId.subscribe, store.selectedTaskId.get, store.selectedTaskId.get)
+  const selectedTaskId = useSyncExternalStore(
+    store.selectedTaskId.subscribe,
+    store.selectedTaskId.get,
+    store.selectedTaskId.get,
+  )
   const newTaskCtx = useMemo(() => ({ projectId: project.id }), [project.id])
   const form = useDraftForm(NewTaskDraft, newTaskCtx)
   const [createError, setCreateError] = useState<string | null>(null)
@@ -40,10 +50,16 @@ function ProjectBody({ project, tasks }: { readonly project: ProjectRecord; read
   const visible = filter === 'all' ? tasks : tasks.filter(({ task }) => task.status === filter)
   const selected = tasks.find(({ task }) => task.id === selectedTaskId)
 
-  const submitCreate = form.handleSubmit((draft) => {
-    form.reset() // the task shows optimistically, so the form is free for the next one
-    mutate({ draft, src: newTaskCtx }, { onSuccess: () => setCreateError(null), onError: (e) => setCreateError(e.message) })
-  }, () => setCreateError(null))
+  const submitCreate = form.handleSubmit(
+    (draft) => {
+      form.reset() // the task shows optimistically, so the form is free for the next one
+      mutate(
+        { draft, src: newTaskCtx },
+        { onSuccess: () => setCreateError(null), onError: (e) => setCreateError(e.message) },
+      )
+    },
+    () => setCreateError(null),
+  )
 
   return (
     <section aria-label={`project: ${project.name}`}>
@@ -67,7 +83,11 @@ function ProjectBody({ project, tasks }: { readonly project: ProjectRecord; read
         ))}
       </ul>
       <form onSubmit={submitCreate} noValidate>
-        <input aria-label={`new task title (${project.name})`} placeholder="New task title" {...form.register('title')} />
+        <input
+          aria-label={`new task title (${project.name})`}
+          placeholder="New task title"
+          {...form.register('title')}
+        />
         {form.formState.errors.title && <p role="alert">{form.formState.errors.title.message}</p>}
         <label>
           <input type="checkbox" {...form.register('simulateFailure')} />

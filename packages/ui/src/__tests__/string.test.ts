@@ -86,14 +86,18 @@ describe('renderToString', () => {
     const run = () => Effect.void
 
     it('diverts a function onClick into events with the captured context, never an attribute', async () => {
-      const node = (await Effect.runPromise(Effect.provideService(jsx('button', { onClick: run, children: 'go' }), Tag, 't'))) as any
+      const node = (await Effect.runPromise(
+        Effect.provideService(jsx('button', { onClick: run, children: 'go' }), Tag, 't'),
+      )) as any
       expect(node.attrs).toEqual({})
       expect(node.events.click.run).toBe(run)
       expect(Context.get(node.events.click.context, Tag)).toBe('t')
     })
 
     it('still rejects a non-function on* prop', async () => {
-      await expect(renderToString(jsx('a', { onClick: 'x()' }), { layer: Layer.empty })).rejects.toThrow('Unsafe attribute')
+      await expect(renderToString(jsx('a', { onClick: 'x()' }), { layer: Layer.empty })).rejects.toThrow(
+        'Unsafe attribute',
+      )
     })
 
     it('carries key on elements, not attrs; unkeyed nodes have no key', async () => {
@@ -103,7 +107,12 @@ describe('renderToString', () => {
 
     it('renderToString ignores events, key and id', async () => {
       const tree = jsx('ul', { children: [jsx('li', { onClick: run, children: 'a' }, 'x')] })
-      expect(await renderToString(Effect.map(tree, (n) => ({ ...n, id: 'i' }) as any), { layer: Layer.empty })).toBe('<ul><li>a</li></ul>')
+      expect(
+        await renderToString(
+          Effect.map(tree, (n) => ({ ...n, id: 'i' }) as any),
+          { layer: Layer.empty },
+        ),
+      ).toBe('<ul><li>a</li></ul>')
     })
   })
 })

@@ -36,15 +36,22 @@ export const defineHandler = <E = never, R = never>(
 
 /** True for a value built by `defineHandler`. */
 export const isHandler = (v: unknown): v is Handler<any, any> =>
-  typeof v === 'object' && v !== null && typeof (v as Handler).id === 'string' && typeof (v as Handler).run === 'function' && typeof (v as Handler).opts === 'object'
+  typeof v === 'object' &&
+  v !== null &&
+  typeof (v as Handler).id === 'string' &&
+  typeof (v as Handler).run === 'function' &&
+  typeof (v as Handler).opts === 'object'
 
 // Events that never bubble, so a delegated container listener cannot see them. Any other lowercase event name is accepted.
 const NON_BUBBLING = new Set(
-  'focus blur load unload error scroll scrollend mouseenter mouseleave pointerenter pointerleave invalid abort cancel close toggle beforetoggle loadstart loadeddata loadedmetadata loadend progress canplay canplaythrough durationchange emptied ended pause play playing ratechange seeked seeking stalled suspend timeupdate volumechange waiting resize'.split(' '),
+  'focus blur load unload error scroll scrollend mouseenter mouseleave pointerenter pointerleave invalid abort cancel close toggle beforetoggle loadstart loadeddata loadedmetadata loadend progress canplay canplaythrough durationchange emptied ended pause play playing ratechange seeked seeking stalled suspend timeupdate volumechange waiting resize'.split(
+    ' ',
+  ),
 )
 /** Throws `UnsupportedEvent` for non-bubbling events and malformed names (`onclick`); returns the event. */
 export const checkEvent = (event: string): string => {
-  if (!/^[a-z][a-z0-9]*$/.test(event) || event.startsWith('on') || NON_BUBBLING.has(event)) throw new UnsupportedEvent({ event })
+  if (!/^[a-z][a-z0-9]*$/.test(event) || event.startsWith('on') || NON_BUBBLING.has(event))
+    throw new UnsupportedEvent({ event })
   return event
 }
 

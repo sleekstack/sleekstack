@@ -17,5 +17,9 @@ export default async function Page() {
 
 // Client.tsx ('use client' in its own file in a real app)
 export function Client({ snapshot }: { snapshot: Snapshot }) {
-  return <LayerProvider provide={[app]} hydrate={snapshot}><Readers /></LayerProvider>
+  return (
+    <LayerProvider provide={[app]} hydrate={snapshot}>
+      <Readers />
+    </LayerProvider>
+  )
 }

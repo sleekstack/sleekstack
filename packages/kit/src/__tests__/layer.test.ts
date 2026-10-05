@@ -3,9 +3,13 @@ import { Effect } from 'effect'
 import { layer, module, tag, withCleanup } from '../index'
 import { boot } from './helpers'
 
-interface Config { url: string }
+interface Config {
+  url: string
+}
 const Config = tag<Config>('Config')
-interface Conn { url: string }
+interface Conn {
+  url: string
+}
 const Conn = tag<Conn>('Conn')
 type Transform = (n: number) => number
 const Transform = tag<Transform>('Transform')
@@ -15,7 +19,9 @@ const run = (...provide: Parameters<typeof module>[0]['provide'] & object) => bo
 
 class ConnImpl implements Conn {
   url: string
-  constructor(c: Config) { this.url = `class:${c.url}` }
+  constructor(c: Config) {
+    this.url = `class:${c.url}`
+  }
 }
 
 describe('layer', () => {
@@ -30,7 +36,10 @@ describe('layer', () => {
 
   it('withCleanup: service returned, cleanup runs on scope close', async () => {
     const end = vi.fn()
-    const { get, scope } = await run(cfg, layer(Conn, (c) => withCleanup({ url: c.url }, end), [Config]))
+    const { get, scope } = await run(
+      cfg,
+      layer(Conn, (c) => withCleanup({ url: c.url }, end), [Config]),
+    )
     expect(get<Conn>(Conn).url).toBe('x')
     expect(end).not.toHaveBeenCalled()
     await Effect.runPromise(scope.close)
@@ -39,7 +48,19 @@ describe('layer', () => {
 
   it('a throwing cleanup reaches onFinalizerError', async () => {
     const sink = vi.fn()
-    const { scope } = await boot(module({ name: 'App', provide: [layer(Conn, () => withCleanup({ url: '' }, () => { throw new Error('bye') }))] }), sink)
+    const { scope } = await boot(
+      module({
+        name: 'App',
+        provide: [
+          layer(Conn, () =>
+            withCleanup({ url: '' }, () => {
+              throw new Error('bye')
+            }),
+          ),
+        ],
+      }),
+      sink,
+    )
     scope.dispose()
     await vi.waitFor(() => expect(sink).toHaveBeenCalledOnce())
   })
@@ -49,8 +70,18 @@ describe('layer', () => {
   })
 
   it.each([
-    ['sync throw', () => { throw new Error('nope') }],
-    ['reject', async () => { throw new Error('nope') }],
+    [
+      'sync throw',
+      () => {
+        throw new Error('nope')
+      },
+    ],
+    [
+      'reject',
+      async () => {
+        throw new Error('nope')
+      },
+    ],
   ])('factory %s -> LayerFailed naming the Tag', async (_, f) => {
     const e = await run(layer(Conn, f as never)).catch((x) => x)
     expect(e.code).toBe('LayerFailed')
@@ -72,11 +103,15 @@ describe('layer (generator factory)', () => {
     const conn = layer(Conn, function* () {
       const c = yield* Config
       log.push('build Conn')
-      return withCleanup({ url: `g:${c.url}` }, () => { log.push('close Conn') })
+      return withCleanup({ url: `g:${c.url}` }, () => {
+        log.push('close Conn')
+      })
     })
     const config = layer(Config, function* () {
       log.push('build Config')
-      return withCleanup({ url: 'x' }, () => { log.push('close Config') })
+      return withCleanup({ url: 'x' }, () => {
+        log.push('close Config')
+      })
     })
     const { get, scope } = await run(config, conn) // providers first: entries build in position order
     expect(get<Conn>(Conn).url).toBe('g:x')
@@ -86,34 +121,61 @@ describe('layer (generator factory)', () => {
 
   it('a provider yielded twice builds once and finalizes once', async () => {
     const end = vi.fn()
-    const config = layer(Config, function* () { return withCleanup({ url: 'x' }, end) })
-    const conn = layer(Conn, function* () { return { url: (yield* Config).url } })
-    const list = layer(List, function* () { return [(yield* Config).url.length] })
+    const config = layer(Config, function* () {
+      return withCleanup({ url: 'x' }, end)
+    })
+    const conn = layer(Conn, function* () {
+      return { url: (yield* Config).url }
+    })
+    const list = layer(List, function* () {
+      return [(yield* Config).url.length]
+    })
     const { scope } = await run(config, conn, list)
     await Effect.runPromise(scope.close)
     expect(end).toHaveBeenCalledOnce()
   })
 
   it('an array-form layer can depend on a generator layer', async () => {
-    const config = layer(Config, function* () { return { url: 'y' } })
-    expect((await run(config, layer(Conn, (c) => ({ url: c.url }), [Config]))).get<Conn>(Conn).url).toBe('y')
+    const config = layer(Config, function* () {
+      return { url: 'y' }
+    })
+    expect(
+      (
+        await run(
+          config,
+          layer(Conn, (c) => ({ url: c.url }), [Config]),
+        )
+      ).get<Conn>(Conn).url,
+    ).toBe('y')
   })
 
   it('unprovided yield -> MissingDependency', async () => {
-    const e = await run(layer(Conn, function* () { return { url: (yield* Config).url } })).catch((x) => x)
+    const e = await run(
+      layer(Conn, function* () {
+        return { url: (yield* Config).url }
+      }),
+    ).catch((x) => x)
     expect(e.code).toBe('MissingDependency')
     expect(e.message).toContain('Config')
   })
 
-  it('a Tag listed after its yielding layer -> MissingDependency (cycles are the analyzer\'s)', async () => {
-    const a = layer(Config, function* () { return { url: (yield* Conn).url } })
-    const b = layer(Conn, function* () { return { url: (yield* Config).url } })
+  it("a Tag listed after its yielding layer -> MissingDependency (cycles are the analyzer's)", async () => {
+    const a = layer(Config, function* () {
+      return { url: (yield* Conn).url }
+    })
+    const b = layer(Conn, function* () {
+      return { url: (yield* Config).url }
+    })
     const e = await run(a, b).catch((x) => x)
     expect(e.code).toBe('MissingDependency')
   })
 
   it('a throwing generator -> LayerFailed', async () => {
-    const e = await run(layer(Conn, function* () { throw new Error('nope') })).catch((x) => x)
+    const e = await run(
+      layer(Conn, function* () {
+        throw new Error('nope')
+      }),
+    ).catch((x) => x)
     expect(e.code).toBe('LayerFailed')
   })
 })

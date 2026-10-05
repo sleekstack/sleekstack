@@ -10,7 +10,13 @@ describe('devtools', () => {
     await runEffect(Effect.succeed(1))
     await expect(runEffect(Effect.die('boom'))).rejects.toBeDefined()
     let snap = devtoolsSnapshot()
-    expect(snap.scopes.map((e) => e.kind)).toEqual(['acquire', 'scope-open', 'scope-close', 'scope-open', 'scope-close'])
+    expect(snap.scopes.map((e) => e.kind)).toEqual([
+      'acquire',
+      'scope-open',
+      'scope-close',
+      'scope-open',
+      'scope-close',
+    ])
     expect(snap.errors).toHaveLength(1)
     expect(snap.graph).toBeUndefined()
 
@@ -28,7 +34,13 @@ describe('devtools', () => {
   it('handler returns JSON with graph in dev; 404 and no recording in production', async () => {
     configureRuntime({ layer: Layer.empty })
     const body = await devtoolsHandler({ graph: () => ({ nodes: [] }) })().json()
-    expect(body).toEqual({ disabled: false, scopes: [], errors: [], live: { app: false, scopes: [] }, graph: { nodes: [] } })
+    expect(body).toEqual({
+      disabled: false,
+      scopes: [],
+      errors: [],
+      live: { app: false, scopes: [] },
+      graph: { nodes: [] },
+    })
 
     vi.stubEnv('NODE_ENV', 'production')
     try {
@@ -51,9 +63,19 @@ describe('devtools', () => {
     let resolveStarted!: () => void
     const started = new Promise<void>((r) => (resolveStarted = r))
     configureRuntime({ layer: Layer.empty, onError: () => {} })
-    const inflight = runEffect(Effect.zipRight(Effect.sync(() => resolveStarted()), Effect.never), {
-      request: Layer.scopedDiscard(Effect.addFinalizer(() => Effect.die('finalizer'))) as unknown as Layer.Layer<any, any, any>,
-    })
+    const inflight = runEffect(
+      Effect.zipRight(
+        Effect.sync(() => resolveStarted()),
+        Effect.never,
+      ),
+      {
+        request: Layer.scopedDiscard(Effect.addFinalizer(() => Effect.die('finalizer'))) as unknown as Layer.Layer<
+          any,
+          any,
+          any
+        >,
+      },
+    )
     inflight.catch(() => {})
     await started
     configureRuntime({ layer: Layer.empty })
@@ -70,7 +92,12 @@ describe('devtools', () => {
     expect(devtoolsSnapshot().live.app).toBe(true)
     let resolveStarted!: () => void
     const started = new Promise<void>((r) => (resolveStarted = r))
-    const long = runEffect(Effect.zipRight(Effect.sync(() => resolveStarted()), Effect.never))
+    const long = runEffect(
+      Effect.zipRight(
+        Effect.sync(() => resolveStarted()),
+        Effect.never,
+      ),
+    )
     long.catch(() => {})
     await started
     for (let i = 0; i < 250; i++) await runEffect(Effect.void)
@@ -92,7 +119,11 @@ describe('devtools', () => {
 
   it('an error links to its request scope after the scope closes; traced services carry scope and fiber', async () => {
     configureRuntime({ layer: Layer.empty, onError: () => {} })
-    await expect(runEffect(Effect.die('boom'), { request: traceService(['Svc', 'Repo'], Layer.empty) as unknown as Layer.Layer<any, any, any> })).rejects.toBeDefined()
+    await expect(
+      runEffect(Effect.die('boom'), {
+        request: traceService(['Svc', 'Repo'], Layer.empty) as unknown as Layer.Layer<any, any, any>,
+      }),
+    ).rejects.toBeDefined()
     const snap = devtoolsSnapshot()
     const scope = snap.scopes.find((e) => e.kind === 'scope-open')!.label
     expect(snap.errors[0]?.scope).toBe(scope)
@@ -110,7 +141,7 @@ describe('devtools', () => {
     ])
   })
 
-  it('a lazy app-layer build failure triggered by a call is linked to that call\'s request scope', async () => {
+  it("a lazy app-layer build failure triggered by a call is linked to that call's request scope", async () => {
     configureRuntime({ layer: Layer.fail('nope') as unknown as Layer.Layer<never>, onError: () => {} })
     await expect(runEffect(Effect.void)).rejects.toBeDefined()
     expect(devtoolsSnapshot().errors.map((e) => e.scope)).toEqual([expect.stringMatching(/^request#\d+$/)])
@@ -139,8 +170,16 @@ describe('devtools', () => {
     })
     configureRuntime({ layer: Layer.setTracer(user) })
     // Every record() now throws (buffer push), including the traced service hook.
-    Object.defineProperty(devEvents(), 'push', { value: () => { throw new Error('hook') } })
-    await expect(runEffect(Effect.withSpan(Effect.succeed(1), 'mine'), { request: traceService(['Svc'], Layer.empty) as unknown as Layer.Layer<any, any, any> })).resolves.toBe(1)
+    Object.defineProperty(devEvents(), 'push', {
+      value: () => {
+        throw new Error('hook')
+      },
+    })
+    await expect(
+      runEffect(Effect.withSpan(Effect.succeed(1), 'mine'), {
+        request: traceService(['Svc'], Layer.empty) as unknown as Layer.Layer<any, any, any>,
+      }),
+    ).resolves.toBe(1)
     expect(spans).toContain('mine')
   })
 })

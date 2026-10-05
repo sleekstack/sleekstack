@@ -10,7 +10,9 @@ import { Cause, Context, Effect, Exit, Layer } from 'effect'
 import { LayerProvider, useEffectTransition } from '../index'
 
 const Api = Context.GenericTag<{ find: (q: string) => Effect.Effect<string, 'Offline'> }>('TransitionApi')
-const ApiLive = Layer.succeed(Api, { find: (q) => (q === 'bad' ? Effect.fail('Offline' as const) : Effect.succeed(`found:${q}`)) })
+const ApiLive = Layer.succeed(Api, {
+  find: (q) => (q === 'bad' ? Effect.fail('Offline' as const) : Effect.succeed(`found:${q}`)),
+})
 
 function setup(log: string[]) {
   let send!: (q: string) => unknown
@@ -32,7 +34,9 @@ function setup(log: string[]) {
   }
   const ui = (
     <LayerProvider provide={[ApiLive]}>
-      <Suspense fallback={null}><View /></Suspense>
+      <Suspense fallback={null}>
+        <View />
+      </Suspense>
     </LayerProvider>
   )
   return { ui, send: (q: string) => act(async () => void send(q)) }
@@ -51,12 +55,23 @@ describe('useEffectTransition', () => {
 
   it('replays a send made before the mount effect ran', async () => {
     const Early = () => {
-      const [, run] = useEffectTransition((q: string) => Effect.succeed(q), (e) => { if (Exit.isSuccess(e)) got.push(e.value) })
+      const [, run] = useEffectTransition(
+        (q: string) => Effect.succeed(q),
+        (e) => {
+          if (Exit.isSuccess(e)) got.push(e.value)
+        },
+      )
       React.useState(() => run('early')) // during render, before any effect
       return null
     }
     const got: string[] = []
-    render(<LayerProvider provide={[]}><Suspense fallback={null}><Early /></Suspense></LayerProvider>)
+    render(
+      <LayerProvider provide={[]}>
+        <Suspense fallback={null}>
+          <Early />
+        </Suspense>
+      </LayerProvider>,
+    )
     await waitFor(() => expect(got).toEqual(['early']))
   })
 

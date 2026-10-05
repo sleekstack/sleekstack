@@ -19,7 +19,8 @@ const setup = () => {
     Layer.succeed(IdGen, { next: (p: string) => `${p}_${++seq}` }),
     Layer.succeed(RequestContext, { requestId: 'req', user: { id: 'u', name: 'U' } }),
   )
-  const run = <A, E>(e: Effect.Effect<A, E, any>) => Effect.runPromise(Effect.either(Effect.provide(e, env) as Effect.Effect<A, E>))
+  const run = <A, E>(e: Effect.Effect<A, E, any>) =>
+    Effect.runPromise(Effect.either(Effect.provide(e, env) as Effect.Effect<A, E>))
   const tasks = () => Effect.runPromise(store.tasksOf('p1'))
   const comments = () => Effect.runPromise(store.commentsOf('t1'))
   return { run, tasks, comments, log }

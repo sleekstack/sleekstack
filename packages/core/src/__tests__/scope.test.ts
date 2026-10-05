@@ -28,16 +28,22 @@ describe('scope runtime', () => {
     const r = service(Rq, { requires: [A], lifetime: 'request' }, ([x]) => Effect.sync(() => ({ n: ++n, a: x })))
     const app = await run(makeAppScope([a, r]))
     const [c1, c2] = await run(Effect.all([app.child('request'), app.child('request')]))
-    const r1 = Context.get(c1!.context, Rq), r2 = Context.get(c2!.context, Rq)
+    const r1 = Context.get(c1!.context, Rq),
+      r2 = Context.get(c2!.context, Rq)
     expect(r1).not.toBe(r2)
     expect(r1.a).toBe(r2.a)
     expect(r1.a).toBe(Context.get(app.context, A))
   })
 
-  const tracked = (log: string[], fail?: string) => (tag: Context.Tag<any, { n: number }>, name: string, requires: readonly Context.Tag<any, any>[] = []) =>
-    service(tag, { requires }, () =>
-      Effect.acquireRelease(Effect.sync(() => (log.push(`+${name}`), { n: 0 })), () =>
-        name === fail ? Effect.die(`${name} failed`) : Effect.sync(() => void log.push(`-${name}`))))
+  const tracked =
+    (log: string[], fail?: string) =>
+    (tag: Context.Tag<any, { n: number }>, name: string, requires: readonly Context.Tag<any, any>[] = []) =>
+      service(tag, { requires }, () =>
+        Effect.acquireRelease(
+          Effect.sync(() => (log.push(`+${name}`), { n: 0 })),
+          () => (name === fail ? Effect.die(`${name} failed`) : Effect.sync(() => void log.push(`-${name}`))),
+        ),
+      )
 
   it('finalizes in reverse order; a failing finalizer does not stop the rest', async () => {
     const log: string[] = []
@@ -51,7 +57,8 @@ describe('scope runtime', () => {
   it('dispose reports finalizer failures to onFinalizerError', async () => {
     const t = tracked([], 'A')
     const seen = await new Promise<Cause.Cause<unknown>>((resolve) =>
-      run(makeAppScope([t(A, 'A')], { onFinalizerError: resolve })).then((s) => s.dispose()))
+      run(makeAppScope([t(A, 'A')], { onFinalizerError: resolve })).then((s) => s.dispose()),
+    )
     expect(Cause.pretty(seen)).toContain('A failed')
   })
 
@@ -90,9 +97,14 @@ describe('scope runtime', () => {
     let calls = 0
     const gate = await run(Deferred.make<void>())
     const b = service(B, { lifetime: 'request' }, () =>
-      Effect.acquireRelease(Effect.sync(() => (log.push('+B'), { n: 0 })), () => Effect.sync(() => void log.push('-B'))))
+      Effect.acquireRelease(
+        Effect.sync(() => (log.push('+B'), { n: 0 })),
+        () => Effect.sync(() => void log.push('-B')),
+      ),
+    )
     const x = service(X, { requires: [B], lifetime: 'request' }, () =>
-      ++calls === 1 ? Deferred.succeed(gate, undefined).pipe(Effect.zipRight(Effect.never)) : Effect.succeed({ n: 1 }))
+      ++calls === 1 ? Deferred.succeed(gate, undefined).pipe(Effect.zipRight(Effect.never)) : Effect.succeed({ n: 1 }),
+    )
     const app = await run(makeAppScope([b, x]))
     const fiber = Effect.runFork(app.child('request'))
     await run(Deferred.await(gate))
@@ -107,11 +119,16 @@ describe('scope runtime', () => {
     let n = 0
     const a = service(A, {}, () => Effect.succeed({ n: -1 }))
     const c = service(Rq, { requires: [A], lifetime: 'component' }, ([x]) =>
-      Effect.acquireRelease(Effect.sync(() => ({ n: ++n, a: x })), (v) => Effect.sync(() => void log.push(`-${v.n}`))))
+      Effect.acquireRelease(
+        Effect.sync(() => ({ n: ++n, a: x })),
+        (v) => Effect.sync(() => void log.push(`-${v.n}`)),
+      ),
+    )
     const app = await run(makeAppScope([a, c]))
     const outer = await run(app.child('component'))
     const inner = await run(outer.child('component'))
-    const o = Context.get(outer.context, Rq), i = Context.get(inner.context, Rq)
+    const o = Context.get(outer.context, Rq),
+      i = Context.get(inner.context, Rq)
     expect(i).not.toBe(o)
     expect(i.a).toBe(o.a)
     await run(inner.close)

@@ -18,9 +18,7 @@ export type CacheEntry =
   | { status: 'rejected'; readonly promise: Promise<unknown>; error: unknown }
 
 export type ScopeState =
-  | { status: 'pending' }
-  | { status: 'resolved'; scope: ChildScope }
-  | { status: 'rejected'; error: unknown }
+  { status: 'pending' } | { status: 'resolved'; scope: ChildScope } | { status: 'rejected'; error: unknown }
 
 export interface ProviderState {
   /** Resolves to this provider's component scope. Never rejects unhandled (see `scopeState`). */
@@ -63,4 +61,5 @@ const RootAwareProvider = ({ value, children }: { value: ProviderState | null; c
   const inner = createElement(BaseProvider, { value }, children)
   return query ? inner : createElement(QueryStoreContext.Provider, { value }, inner)
 }
-;(ProviderContext as { Provider: Provider<ProviderState | null> }).Provider = RootAwareProvider as unknown as Provider<ProviderState | null>
+;(ProviderContext as { Provider: Provider<ProviderState | null> }).Provider =
+  RootAwareProvider as unknown as Provider<ProviderState | null>

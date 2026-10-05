@@ -5,14 +5,23 @@ import { useAddTask, useBacklog } from './backlog'
 import { AddButton, Avatar, FilterBar, Votes } from './guests'
 import { filterAtom, selectedAtom } from './state'
 import {
-  MISSING_TASK, ProjectNotFound, TaskNotFound, TaskRepo, UserNotFound, UserRepo, Viewer,
-  type Status, type Task,
+  MISSING_TASK,
+  ProjectNotFound,
+  TaskNotFound,
+  TaskRepo,
+  UserNotFound,
+  UserRepo,
+  Viewer,
+  type Status,
+  type Task,
 } from './domain'
 
 const STATUSES: ReadonlyArray<Status> = ['todo', 'in_progress', 'done']
 const LABEL: Record<Status, string> = { todo: 'To do', in_progress: 'In progress', done: 'Done' }
 
-export const StatusBadge = ({ status }: { status: Status }) => <span className={`badge ${status}`}>{LABEL[status]}</span>
+export const StatusBadge = ({ status }: { status: Status }) => (
+  <span className={`badge ${status}`}>{LABEL[status]}</span>
+)
 
 /** Needs UserRepo and Viewer; fails with UserNotFound. */
 export const Assignee = ({ id }: { id: string }) =>
@@ -99,7 +108,11 @@ const Triage = ({ tasks }: { tasks: ReadonlyArray<Task> }) =>
             {open ? 'Hide' : 'Show'} triage
           </button>
         </h3>
-        <input className="search" placeholder="Search" onInput={(e: Event) => Effect.sync(() => setQuery((e.target as HTMLInputElement).value))} />
+        <input
+          className="search"
+          placeholder="Search"
+          onInput={(e: Event) => Effect.sync(() => setQuery((e.target as HTMLInputElement).value))}
+        />
         <button type="button" className="sort" onClick={() => Effect.sync(() => setDesc((d) => !d))}>
           {desc ? 'Z-A' : 'A-Z'}
         </button>
@@ -156,7 +169,11 @@ export const TaskDetail = ({ id }: { id: string }) =>
         <h2>{task.title}</h2>
         <StatusBadge status={task.status} />
         <MaybeAssignee id={task.assigneeId} />
-        {viewer.canEdit ? <p className="muted">{viewer.name} can edit this task</p> : <p className="muted">Read only</p>}
+        {viewer.canEdit ? (
+          <p className="muted">{viewer.name} can edit this task</p>
+        ) : (
+          <p className="muted">Read only</p>
+        )}
       </aside>
     )
   })

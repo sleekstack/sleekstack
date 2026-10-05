@@ -74,15 +74,12 @@ export function declareLayer<ROut, E, RIn>(
 const isTagged = (x: unknown, tag: string): boolean =>
   typeof x === 'object' && x !== null && (x as { _tag?: unknown })._tag === tag
 
-const isTagArray = (x: unknown): boolean =>
-  Array.isArray(x) && x.every((t) => Context.isTag(t))
+const isTagArray = (x: unknown): boolean => Array.isArray(x) && x.every((t) => Context.isTag(t))
 
 /** Structural check for a tagged entry, so malformed values fail in module(), not at scope build. */
 function entryProblem(e: unknown): string | undefined {
   if (isDeclaredLayer(e)) {
-    return Layer.isLayer(e.layer)
-      ? undefined
-      : 'is a malformed declared Layer'
+    return Layer.isLayer(e.layer) ? undefined : 'is a malformed declared Layer'
   }
   return Layer.isLayer(e) ? undefined : 'is not a declared Layer or Layer'
 }
@@ -123,7 +120,8 @@ function makeModule(config: {
     throw new InvalidModule({ message: `module(): 'name' must be a non-empty string, got: ${JSON.stringify(name)}` })
   }
   const entries = config.entries ?? []
-  if (!Array.isArray(entries)) throw new InvalidModule({ name, message: `module("${name}"): 'entries' must be an array` })
+  if (!Array.isArray(entries))
+    throw new InvalidModule({ name, message: `module("${name}"): 'entries' must be an array` })
   entries.forEach((e, i) => {
     const problem = entryProblem(e)
     if (problem) throw new InvalidModule({ name, message: `module("${name}"): entry ${i} ${problem}` })

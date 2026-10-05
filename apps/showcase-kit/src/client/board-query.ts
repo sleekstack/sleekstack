@@ -10,7 +10,14 @@ import { createContext, createElement, useContext, useState, type ReactNode } fr
 import { mutation } from '@sleekstack/kit'
 import { useMutation, useQueryClient } from '@sleekstack/kit/react'
 import type { ActionResult } from '@sleekstack/kit/next'
-import { addComment, createTask, moveTask, type AddCommentInput, type CreateTaskInput, type MoveTaskInput } from '../server/board.actions'
+import {
+  addComment,
+  createTask,
+  moveTask,
+  type AddCommentInput,
+  type CreateTaskInput,
+  type MoveTaskInput,
+} from '../server/board.actions'
 
 export { board, type BoardData, type BoardProject } from './board-family'
 import { board, type BoardData } from './board-family'
@@ -21,9 +28,21 @@ const settled = <T>(result: Promise<ActionResult<T>>) =>
     return r.data
   })
 
-export const createTaskMutation = mutation({ run: function* (input: CreateTaskInput) { return settled(createTask(input)) } })
-export const moveTaskMutation = mutation({ run: function* (input: MoveTaskInput) { return settled(moveTask(input)) } })
-export const addCommentMutation = mutation({ run: function* (input: AddCommentInput) { return settled(addComment(input)) } })
+export const createTaskMutation = mutation({
+  run: function* (input: CreateTaskInput) {
+    return settled(createTask(input))
+  },
+})
+export const moveTaskMutation = mutation({
+  run: function* (input: MoveTaskInput) {
+    return settled(moveTask(input))
+  },
+})
+export const addCommentMutation = mutation({
+  run: function* (input: AddCommentInput) {
+    return settled(addComment(input))
+  },
+})
 
 // The cached board is `base` with every in-flight call's patch applied, oldest first. A failed call drops only its own
 // patch and recomputes, so overlapping rollbacks never wipe a later write; a committed patch folds into `base` once
@@ -47,7 +66,10 @@ export function OptimisticScope({ children }: { readonly children?: ReactNode })
  *
  * @returns `run` (resolves with the failure message, or null on success) and `isPending`.
  */
-export function useBoardMutation<I, T>(m: Parameters<typeof useMutation<I, T>>[0], patch: (input: I, board: BoardData) => BoardData) {
+export function useBoardMutation<I, T>(
+  m: Parameters<typeof useMutation<I, T>>[0],
+  patch: (input: I, board: BoardData) => BoardData,
+) {
   const { mutate, isPending } = useMutation(m)
   const client = useQueryClient()
   const holder = useContext(LogContext)
@@ -57,7 +79,12 @@ export function useBoardMutation<I, T>(m: Parameters<typeof useMutation<I, T>>[0
     const current = client.getData(q)
     const layer: Layer = { patch: (b) => patch(input, b), committed: false }
     let log = holder.current
-    const render = () => log && client.setData(q, log.layers.reduce((b, l) => l.patch(b), log.base))
+    const render = () =>
+      log &&
+      client.setData(
+        q,
+        log.layers.reduce((b, l) => l.patch(b), log.base),
+      )
     if (current) {
       log = holder.current ??= { base: current, layers: [] }
       log.layers.push(layer)
@@ -97,11 +124,29 @@ export const addTask = (input: CreateTaskInput, b: BoardData): BoardData =>
   b.map((p) =>
     p.project.id !== input.projectId
       ? p
-      : { ...p, tasks: [...p.tasks, { task: { id: pendingId('task'), projectId: input.projectId, title: input.title.trim(), status: 'todo', createdAt: Date.now() }, comments: [] }] },
+      : {
+          ...p,
+          tasks: [
+            ...p.tasks,
+            {
+              task: {
+                id: pendingId('task'),
+                projectId: input.projectId,
+                title: input.title.trim(),
+                status: 'todo',
+                createdAt: Date.now(),
+              },
+              comments: [],
+            },
+          ],
+        },
   )
 
 export const setStatus = (input: MoveTaskInput, b: BoardData): BoardData =>
-  b.map((p) => ({ ...p, tasks: p.tasks.map((t) => (t.task.id === input.taskId ? { ...t, task: { ...t.task, status: input.status } } : t)) }))
+  b.map((p) => ({
+    ...p,
+    tasks: p.tasks.map((t) => (t.task.id === input.taskId ? { ...t, task: { ...t.task, status: input.status } } : t)),
+  }))
 
 export const addCommentTo = (input: AddCommentInput, b: BoardData): BoardData =>
   b.map((p) => ({
@@ -109,6 +154,18 @@ export const addCommentTo = (input: AddCommentInput, b: BoardData): BoardData =>
     tasks: p.tasks.map((t) =>
       t.task.id !== input.taskId
         ? t
-        : { ...t, comments: [...t.comments, { id: pendingId('comment'), taskId: input.taskId, body: input.body.trim(), authorId: input.authorId, createdAt: Date.now() }] },
+        : {
+            ...t,
+            comments: [
+              ...t.comments,
+              {
+                id: pendingId('comment'),
+                taskId: input.taskId,
+                body: input.body.trim(),
+                authorId: input.authorId,
+                createdAt: Date.now(),
+              },
+            ],
+          },
     ),
   }))

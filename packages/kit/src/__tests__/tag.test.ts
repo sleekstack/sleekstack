@@ -5,13 +5,20 @@ import { validateProvide } from '../module'
 import { coreTag } from '../tag'
 import { boot, err } from './helpers'
 
-interface Db { q(): string }
+interface Db {
+  q(): string
+}
 const Db = tag<Db>('Db')
-abstract class Users { abstract find(): string }
+abstract class Users {
+  abstract find(): string
+}
 
 describe('tag', () => {
   it('tag and abstract-class Tags resolve in a built graph', async () => {
-    const App = module({ name: 'App', provide: [layer(Db, { q: () => 'db' }), layer(Users, (db) => ({ find: () => `u:${db.q()}` }), [Db])] })
+    const App = module({
+      name: 'App',
+      provide: [layer(Db, { q: () => 'db' }), layer(Users, (db) => ({ find: () => `u:${db.q()}` }), [Db])],
+    })
     const { get } = await boot(App)
     expect(get<Users>(Users).find()).toBe('u:db')
   })
@@ -31,7 +38,16 @@ describe('tag', () => {
     const a = layer(Db, { q: () => '' })
     const b = layer(Users, () => ({ find: () => '' }), [Db2])
     expect(err(() => validateProvide([a, b])).code).toBe('DuplicateTag')
-    expect(err(() => configureRuntime({ provide: [module({ name: 'App', provide: [a], imports: [module({ name: 'Lib', provide: [b] })] })] })).code).toBe('DuplicateTag')
-    expect(() => { validateProvide([a]); validateProvide([layer(Db2, { q: () => '' })]) }).not.toThrow()
+    expect(
+      err(() =>
+        configureRuntime({
+          provide: [module({ name: 'App', provide: [a], imports: [module({ name: 'Lib', provide: [b] })] })],
+        }),
+      ).code,
+    ).toBe('DuplicateTag')
+    expect(() => {
+      validateProvide([a])
+      validateProvide([layer(Db2, { q: () => '' })])
+    }).not.toThrow()
   })
 })

@@ -54,7 +54,7 @@ describe('Nested LayerProvider — REACT-02: inherits parent scope, inner finali
             </Suspense>
           </LayerProvider>
         </Suspense>
-      </LayerProvider>
+      </LayerProvider>,
     )
 
     await waitFor(() => {
@@ -69,16 +69,16 @@ describe('Nested LayerProvider — REACT-02: inherits parent scope, inner finali
       DatabaseService,
       Effect.acquireRelease(
         Effect.sync(() => ({ query: () => 'outer-db' })),
-        () => Effect.sync(() => unmountOrder.push('outer'))
-      )
+        () => Effect.sync(() => unmountOrder.push('outer')),
+      ),
     )
 
     const InnerScopedLayer = Layer.scoped(
       UserService,
       Effect.acquireRelease(
         Effect.sync(() => ({ getUser: () => 'inner-user' })),
-        () => Effect.sync(() => unmountOrder.push('inner'))
-      )
+        () => Effect.sync(() => unmountOrder.push('inner')),
+      ),
     )
 
     function InnerConsumer() {
@@ -95,7 +95,7 @@ describe('Nested LayerProvider — REACT-02: inherits parent scope, inner finali
             </Suspense>
           </LayerProvider>
         </Suspense>
-      </LayerProvider>
+      </LayerProvider>,
     )
 
     await waitFor(() => {
@@ -134,7 +134,7 @@ describe('LayerProvider shadowing — REACT-05: replacement Layer shadows transi
             </Suspense>
           </LayerProvider>
         </Suspense>
-      </LayerProvider>
+      </LayerProvider>,
     )
 
     await waitFor(() => {
@@ -164,7 +164,7 @@ describe('LayerProvider shadowing — REACT-05: replacement Layer shadows transi
             </Suspense>
           </LayerProvider>
         </Suspense>
-      </LayerProvider>
+      </LayerProvider>,
     )
 
     await waitFor(() => {
@@ -203,7 +203,7 @@ describe('module() imports in LayerProvider — CORE-03: Module imports are auto
         <Suspense fallback={<div>loading</div>}>
           <DbConsumerFromImport />
         </Suspense>
-      </LayerProvider>
+      </LayerProvider>,
     )
 
     await waitFor(() => {
@@ -240,7 +240,7 @@ describe('module() imports in LayerProvider — CORE-03: Module imports are auto
         <Suspense fallback={<div>loading</div>}>
           <TransitiveConsumer />
         </Suspense>
-      </LayerProvider>
+      </LayerProvider>,
     )
 
     await waitFor(() => {
@@ -270,7 +270,9 @@ describe('R9 review regressions', () => {
 
   it('resolves when the only Suspense boundary wraps the providers', async () => {
     function C() {
-      return <div data-testid="outer-suspense">{`${useService(DatabaseService).query()}|${useService(UserService).getUser()}`}</div>
+      return (
+        <div data-testid="outer-suspense">{`${useService(DatabaseService).query()}|${useService(UserService).getUser()}`}</div>
+      )
     }
     renderStrict(
       <Suspense fallback={<div>loading</div>}>
@@ -287,7 +289,12 @@ describe('R9 review regressions', () => {
   it('inner finalizes before outer with async finalizers', async () => {
     const order: string[] = []
     const scoped = <I, S>(tag: Context.Tag<I, S>, value: S, name: string, ms: number) =>
-      Layer.scoped(tag, Effect.acquireRelease(Effect.succeed(value), () => Effect.sleep(ms).pipe(Effect.andThen(() => order.push(name)))))
+      Layer.scoped(
+        tag,
+        Effect.acquireRelease(Effect.succeed(value), () =>
+          Effect.sleep(ms).pipe(Effect.andThen(() => order.push(name))),
+        ),
+      )
     function C() {
       return <div data-testid="async-fin">{useService(UserService).getUser()}</div>
     }

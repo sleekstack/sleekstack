@@ -10,13 +10,21 @@ import { configureRuntime } from '@sleekstack/next'
 
 class A extends Context.Tag('errors.A')<A, { readonly a: string }>() {}
 class B extends Context.Tag('errors.B')<B, { readonly b: string }>() {}
-interface Shared { readonly n: number }
+interface Shared {
+  readonly n: number
+}
 const S1 = Context.GenericTag<Shared>('errors.S1')
 const S2 = Context.GenericTag<Shared>('errors.S2')
 
-const BLive = Layer.effect(B, Effect.map(A, ({ a }) => ({ b: a })))
+const BLive = Layer.effect(
+  B,
+  Effect.map(A, ({ a }) => ({ b: a })),
+)
 const Untyped: any = BLive
-const ALive = Layer.effect(A, Effect.map(B, ({ b }) => ({ a: b })))
+const ALive = Layer.effect(
+  A,
+  Effect.map(B, ({ b }) => ({ a: b })),
+)
 
 configureRuntime({ layer: BLive } as never)
 configureRuntime({ layer: Layer.mergeAll(Layer.succeed(S1, { n: 1 }), Layer.succeed(S2, { n: 2 })) } as never)

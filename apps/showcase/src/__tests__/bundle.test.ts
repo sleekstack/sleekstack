@@ -14,7 +14,8 @@ import { SERVER_ONLY_MARKER } from '../infrastructure/runtime-infra.live'
 
 const nextDir = fileURLToPath(new URL('../../.next', import.meta.url))
 const built = existsSync(path.join(nextDir, 'static', 'chunks'))
-if (!built) console.warn('[bundle.test] .next build output missing: run `pnpm --filter showcase build` first; skipping.')
+if (!built)
+  console.warn('[bundle.test] .next build output missing: run `pnpm --filter showcase build` first; skipping.')
 
 const jsFiles = (dir: string): string[] =>
   (readdirSync(dir, { recursive: true }) as string[]).filter((f) => f.endsWith('.js')).map((f) => path.join(dir, f))
@@ -27,17 +28,21 @@ describe.skipIf(!built)('showcase bundle separation (R10)', () => {
   })
 
   it('server output does contain it (non-vacuous)', () => {
-    const found = jsFiles(path.join(nextDir, 'server')).some((f) => readFileSync(f, 'utf8').includes(SERVER_ONLY_MARKER))
+    const found = jsFiles(path.join(nextDir, 'server')).some((f) =>
+      readFileSync(f, 'utf8').includes(SERVER_ONLY_MARKER),
+    )
     expect(found).toBe(true)
   })
 
   it('client chunks never contain the devtools panel (dev-only)', () => {
     if (process.env.NODE_ENV === 'development') return
-    for (const f of jsFiles(path.join(nextDir, 'static', 'chunks'))) expect(readFileSync(f, 'utf8'), f).not.toContain(DEVTOOLS_MARKER)
+    for (const f of jsFiles(path.join(nextDir, 'static', 'chunks')))
+      expect(readFileSync(f, 'utf8'), f).not.toContain(DEVTOOLS_MARKER)
   })
 
   it('client chunks never contain the query devtools (Queries tab, dev-only)', () => {
     if (process.env.NODE_ENV === 'development') return
-    for (const f of jsFiles(path.join(nextDir, 'static', 'chunks'))) expect(readFileSync(f, 'utf8'), f).not.toContain(QUERY_DEVTOOLS_MARKER)
+    for (const f of jsFiles(path.join(nextDir, 'static', 'chunks')))
+      expect(readFileSync(f, 'utf8'), f).not.toContain(QUERY_DEVTOOLS_MARKER)
   })
 })

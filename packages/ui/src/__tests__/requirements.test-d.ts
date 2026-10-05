@@ -31,4 +31,6 @@ const Guest = fromReact((_: { n: number }) => null)
 expectTypeOf(Guest).toEqualTypeOf<Component<{ n: number }, never, never>>()
 expectTypeOf(Guest).toExtend<Component<{ n: number }, Error, A | B>>()
 
-expectTypeOf(useLocal(0)).toEqualTypeOf<Effect.Effect<readonly [number, (next: number | ((previous: number) => number)) => void], never, Store>>()
+expectTypeOf(useLocal(0)).toEqualTypeOf<
+  Effect.Effect<readonly [number, (next: number | ((previous: number) => number)) => void], never, Store>
+>()

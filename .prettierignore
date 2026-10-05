@@ -1,0 +1,12 @@
+node_modules
+dist
+.next
+.turbo
+.flow
+.idea
+**/results
+**/*.d.ts
+pnpm-lock.yaml
+apps/docs/content/docs/api
+.source
+**/fixtures

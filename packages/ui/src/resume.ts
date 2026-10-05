@@ -4,9 +4,15 @@ import { DuplicateBindKey, type Handler, type HandlerEvent, valueInfo } from './
 import { Store } from './reactive'
 
 export class ManifestInvalid extends Data.TaggedError('ManifestInvalid')<{ readonly reason: string }> {}
-export class ManifestDecodeFailed extends Data.TaggedError('ManifestDecodeFailed')<{ readonly key: string; readonly cause?: unknown }> {}
+export class ManifestDecodeFailed extends Data.TaggedError('ManifestDecodeFailed')<{
+  readonly key: string
+  readonly cause?: unknown
+}> {}
 export class UnknownHandler extends Data.TaggedError('UnknownHandler')<{ readonly id: string }> {}
-export class HandlerIdMismatch extends Data.TaggedError('HandlerIdMismatch')<{ readonly key: string; readonly id: string }> {}
+export class HandlerIdMismatch extends Data.TaggedError('HandlerIdMismatch')<{
+  readonly key: string
+  readonly id: string
+}> {}
 
 export type HandlerLoader<R> = () => Promise<{ readonly default: Handler<any, R> }>
 export interface Resumed {
@@ -48,8 +54,13 @@ const readManifest = (container: Element): { events: Array<string>; atoms: Recor
     throw new ManifestInvalid({ reason: 'malformed JSON' })
   }
   const ok =
-    m && m.v === 1 && Array.isArray(m.events) && m.events.every((e: unknown) => typeof e === 'string') &&
-    m.atoms && typeof m.atoms === 'object' && !Array.isArray(m.atoms)
+    m &&
+    m.v === 1 &&
+    Array.isArray(m.events) &&
+    m.events.every((e: unknown) => typeof e === 'string') &&
+    m.atoms &&
+    typeof m.atoms === 'object' &&
+    !Array.isArray(m.atoms)
   if (!ok) throw new ManifestInvalid({ reason: 'unexpected shape' })
   return m
 }
@@ -162,7 +173,12 @@ const activate = async <R, LE>(opts: ResumeOptions<R, LE>): Promise<Resumed> => 
       try {
         h = await loading
       } catch (error) {
-        if (active) report(error instanceof UnknownHandler || error instanceof HandlerIdMismatch ? Cause.fail(error) : Cause.die(error))
+        if (active)
+          report(
+            error instanceof UnknownHandler || error instanceof HandlerIdMismatch
+              ? Cause.fail(error)
+              : Cause.die(error),
+          )
         return
       }
       if (!active) return
@@ -170,7 +186,10 @@ const activate = async <R, LE>(opts: ResumeOptions<R, LE>): Promise<Resumed> => 
       // DOM writes wait for the run's exit: a failed handler leaves the DOM as it was, and writable atoms are restored.
       const before = binds.map(({ atom }) => [atom, store.get(atom)] as const)
       deferred = true
-      const run = Effect.provide(Effect.suspend(() => h.run(event)), ctx as Context.Context<any>)
+      const run = Effect.provide(
+        Effect.suspend(() => h.run(event)),
+        ctx as Context.Context<any>,
+      )
       const exit = await Effect.runPromise(Effect.flatMap(Effect.forkIn(run, scope), Fiber.await))
       deferred = false
       if (!active) return
@@ -195,7 +214,9 @@ const activate = async <R, LE>(opts: ResumeOptions<R, LE>): Promise<Resumed> => 
     enqueue(target.getAttribute(attr)!, snapshot(e))
   }
 
-  const unsubs = binds.map(({ node, atom }) => store.subscribe(atom, () => void (deferred || (node.textContent = String(store.get(atom))))))
+  const unsubs = binds.map(({ node, atom }) =>
+    store.subscribe(atom, () => void (deferred || (node.textContent = String(store.get(atom))))),
+  )
   for (const type of m.events) container.addEventListener(type, listener)
 
   const handle: Resumed = {
