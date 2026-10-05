@@ -78,9 +78,20 @@ interface Node {
   finalizers: Array<() => void>
   removalQueued: boolean
   bucket: Set<Node> | undefined
+  /** The write context handed to `atom.write`, built on first write. */
+  wctx?: WriteContext<any>
+  /** In `pending` (a node is queued once per round). */
+  queued?: boolean
 }
 
 const BUCKET_MS = 50
+
+// `Equal.equals` negated, with the common primitive case answered without it (NaN still goes through `Equal`).
+const differs = (a: unknown, b: unknown): boolean => {
+  if (a === b) return false
+  const t = typeof a
+  return t === 'object' || t === 'function' || a !== a ? !Equal.equals(a, b) : true
+}
 
 /** Creates an {@link AtomStore}. */
 export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
@@ -89,7 +100,12 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
   const wrapBuild = options.wrapBuild ?? ((effect) => effect)
   const scheduleTask = options.scheduleTask ?? queueMicrotask
   const nodes = new Map<Atom<any>, Node>()
-  const pending = new Set<Node>()
+  let pending: Node[] = []
+  const enqueue = (node: Node) => {
+    if (node.queued) return
+    node.queued = true
+    pending.push(node)
+  }
   const closing = new Set<Promise<void>>()
   const buckets = new Map<number, { nodes: Set<Node>; timer: ReturnType<typeof setTimeout> }>()
   const stack: Node[] = []
@@ -128,11 +144,13 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
   }
 
   // visited per traversal: a node left 'check'/'dirty' by a failed pull still forwards to its descendants
-  const markChildren = (node: Node, visited = new Set<Node>()) => {
+  const markChildren = (node: Node, visited?: Set<Node>) => {
+    if (node.children.size === 0) return
+    visited ??= new Set<Node>()
     for (const child of node.children) {
       if (visited.has(child)) continue
       visited.add(child)
-      pending.add(child)
+      enqueue(child)
       if (child.state === 'valid') child.state = 'check'
       markChildren(child, visited)
     }
@@ -140,9 +158,10 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
 
   const flush = () => {
     if (batchDepth > 0) return
-    while (pending.size > 0) {
-      const batch = [...pending]
-      pending.clear()
+    while (pending.length > 0) {
+      const batch = pending
+      pending = []
+      for (const node of batch) node.queued = false
       for (const node of batch) {
         // nodes holding a build (fibers, finalizers) are pulled too, so invalidation interrupts them
         if ((node.listeners.size === 0 && node.finalizers.length === 0) || nodes.get(node.atom) !== node) continue
@@ -157,18 +176,19 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
   const invalidate = (node: Node) => {
     node.state = 'dirty'
     runFinalizers(node)
-    pending.add(node)
+    enqueue(node)
     markChildren(node)
     flush()
   }
 
   const setValue = (node: Node, value: unknown) => {
-    const changed = node.state === 'uninit' || !Equal.equals(node.value, value)
+    const changed = node.state === 'uninit' || differs(node.value, value)
     node.state = 'valid' // an explicit write supersedes a pending recompute
     if (!changed) return
     node.value = value
     node.version++
-    pending.add(node)
+    // `flush` only pulls a node something listens to or built a resource for.
+    if (node.listeners.size > 0 || node.finalizers.length > 0) enqueue(node)
     markChildren(node)
     flush()
   }
@@ -226,7 +246,8 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
 
   const recompute = (node: Node) => {
     runFinalizers(node)
-    for (const parent of node.deps.keys()) { parent.children.delete(node); scheduleRemoval(parent) }
+    // Edges are diffed after the read: a parent read again keeps its edge, so it is never scheduled for removal.
+    const previous = node.deps
     node.deps = new Map()
     node.computing = true
     stack.push(node)
@@ -236,8 +257,9 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
     } finally {
       node.computing = false
       stack.pop()
+      for (const parent of previous.keys()) if (!node.deps.has(parent)) { parent.children.delete(node); scheduleRemoval(parent) }
     }
-    if (node.state === 'uninit' || !Equal.equals(node.value, value)) { node.value = value; node.version++ }
+    if (node.state === 'uninit' || differs(node.value, value)) { node.value = value; node.version++ }
     node.state = 'valid'
   }
 
@@ -330,7 +352,9 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
   const set = <R, W>(atom: Writable<R, W>, value: W) => {
     const node = ensure(atom)
     try { pull(node) } catch { /* the write may replace a failing value */ }
-    batch(() => atom.write(writeContext<R>(node), value))
+    const ctx = (node.wctx ??= writeContext<R>(node)) as WriteContext<R>
+    batchDepth++
+    try { atom.write(ctx, value) } finally { batchDepth--; flush() }
   }
 
   const subscribe = <A>(atom: Atom<A>, listener: () => void, opts?: { readonly immediate?: boolean }) => {
