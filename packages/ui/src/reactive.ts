@@ -153,63 +153,61 @@ const fnId = (f: Function): string => {
 }
 
 // Typed `never` in E: `Store` is a requirement, so a missing store is unreachable for checked code; at runtime it fails with a tagged error.
+const missingStore = (hook: string): Effect.Effect<never> =>
+  Effect.fail(new MissingDependency({
+    tag: 'Store',
+    service: hook,
+    missing: 'Store',
+    message: `"${hook}" requires "Store", which is not provided`
+  })) as unknown as Effect.Effect<never>
 const store = (hook: string): Effect.Effect<AtomStore, never, Store> =>
-  Effect.flatMap(Effect.serviceOption(Store), (s) =>
-    Option.isSome(s) ? Effect.succeed(s.value) : (Effect.fail(new MissingDependency({
-      tag: 'Store',
-      service: hook,
-      missing: 'Store',
-      message: `"${hook}" requires "Store", which is not provided`
-    })) as unknown as Effect.Effect<never>),
-  )
+  Effect.flatMap(Effect.serviceOption(Store), (s) => (Option.isSome(s) ? Effect.succeed(s.value) : missingStore(hook)))
 
 /** Reads an atom and registers it as a dependency of the running component instance. */
 export const useAtomValue = <A>(atom: Atom.Atom<A>): Effect.Effect<A, never, Store> =>
-  Effect.flatMap(store('useAtomValue'), (s) =>
-    Effect.flatMap(Collector, (c) =>
-      Effect.flatMap(RenderScope, (scope) => {
-        const first = c !== undefined && !c.has(atom)
-        // Hold the atom for the run's lifetime so it is not dropped (and reset) before the renderer subscribes.
-        const hold = first && scope ? Effect.flatMap(Effect.sync(() => (lend(scope), s.retain(atom))), (release) => Scope.addFinalizer(scope, Effect.sync(release))) : Effect.void
-        return Effect.map(hold, () => {
-          const value = s.get(atom)
-          if (first) c.set(atom, value)
-          return value
-        })
-      }),
-    ),
-  )
+  // One context read for the three services a hook needs.
+  Effect.flatMap(Effect.context<never>(), (ctx) => {
+    const so = Context.getOption(ctx, Store)
+    if (Option.isNone(so)) return missingStore('useAtomValue') as Effect.Effect<A>
+    const s = so.value
+    const c = Context.get(ctx, Collector)
+    const scope = Context.get(ctx, RenderScope)
+    const first = c !== undefined && !c.has(atom)
+    const read = (): A => {
+      const value = s.get(atom)
+      if (first) c.set(atom, value)
+      return value
+    }
+    // Hold the atom for the run's lifetime so it is not dropped (and reset) before the renderer subscribes.
+    if (!(first && scope)) return Effect.succeed(read())
+    lend(scope)
+    const release = s.retain(atom)
+    return Effect.zipRight(Scope.addFinalizer(scope, Effect.sync(release)), Effect.sync(read))
+  })
 
 /** Instance-local state: slot *n* is the *n*-th call of the run. Outside an instance, `initial` and a no-op setter. */
 export const useLocal = <A>(initial: A): Effect.Effect<readonly [A, (next: A | ((previous: A) => A)) => void], never, Store> =>
-  Effect.flatMap(Collector, (c) =>
-    c === undefined
-      ? Effect.succeed([initial, () => {
-      }] as const)
-      : Effect.flatMap(store('useLocal'), (s) =>
-        Effect.flatMap(Frame, (f) => {
-          const slots = f!.owner
-          const i = f!.cursor++
-          if (i >= slots.atoms.length) {
-            if (slots.done) return Effect.fail(new SlotMismatch({
-              id: f!.id,
-              expected: slots.atoms.length,
-              actual: i + 1
-            })) as unknown as Effect.Effect<never>
-            const a = Atom.writable<A, A>(() => initial, (ctx, v) => ctx.setSelf(v))
-            slots.atoms.push(a)
-            slots.releases.push(s.retain(a))
-          }
-          const atom = slots.atoms[i] as Atom.Writable<A>
-          // The slot atom is retained for the slot's lifetime above, so a run needs no hold of its own.
-          return Effect.map(Effect.sync(() => {
-            const value = s.get(atom)
-            if (!c.has(atom)) c.set(atom, value)
-            return value
-          }), (value) => [value, (next: A | ((previous: A) => A)) => (typeof next === 'function' ? s.update(atom, next as (p: A) => A) : s.set(atom, next))] as const)
-        }),
-      ),
-  )
+  Effect.flatMap(Effect.context<never>(), (ctx) => {
+    const c = Context.get(ctx, Collector)
+    if (c === undefined) return Effect.succeed([initial, () => {}] as const)
+    const so = Context.getOption(ctx, Store)
+    if (Option.isNone(so)) return missingStore('useLocal') as Effect.Effect<never>
+    const s = so.value
+    const f = Context.get(ctx, Frame)!
+    const slots = f.owner
+    const i = f.cursor++
+    if (i >= slots.atoms.length) {
+      if (slots.done) return Effect.fail(new SlotMismatch({ id: f.id, expected: slots.atoms.length, actual: i + 1 })) as unknown as Effect.Effect<never>
+      const a = Atom.writable<A, A>(() => initial, (cx, v) => cx.setSelf(v))
+      slots.atoms.push(a)
+      slots.releases.push(s.retain(a))
+    }
+    const atom = slots.atoms[i] as Atom.Writable<A>
+    // The slot atom is retained for the slot's lifetime above, so a run needs no hold of its own.
+    const value = s.get(atom)
+    if (!c.has(atom)) c.set(atom, value)
+    return Effect.succeed([value, (next: A | ((previous: A) => A)) => (typeof next === 'function' ? s.update(atom, next as (p: A) => A) : s.set(atom, next))] as const)
+  })
 
 /** Returns a setter for `atom`; registers nothing. */
 export const useSetAtom = <R, W>(atom: Atom.Writable<R, W>): Effect.Effect<(value: W) => void, never, Store> =>
