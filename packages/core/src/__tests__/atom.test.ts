@@ -307,3 +307,35 @@ describe('value atoms', () => {
     expect(store.get(a)).toBe(41)
   })
 })
+
+describe('derived atoms: cached build context', () => {
+  it('a read that throws still re-runs when its parent recovers, and every recompute tracks fresh dependencies', () => {
+    const store = makeAtomStore()
+    const input = Atom.make(0)
+    const flaky = Atom.make((get) => { const v = get(input); if (v === 1) throw new Error('boom'); return v })
+    const reader = Atom.make((get) => get(flaky) * 10)
+    store.subscribe(reader, () => {})
+    expect(store.get(reader)).toBe(0)
+    store.set(input, 1)
+    expect(() => store.get(reader)).toThrow('boom')
+    store.set(input, 2)
+    expect(store.get(reader)).toBe(20)
+  })
+
+  it('a derived atom drops a dependency it stops reading and stops recomputing for it', () => {
+    const store = makeAtomStore()
+    const flag = Atom.make(true)
+    const a = Atom.make(1)
+    const b = Atom.make(2)
+    let runs = 0
+    const pick = Atom.make((get) => (runs++, get(flag) ? get(a) : get(b)))
+    store.subscribe(pick, () => {})
+    store.set(flag, false)
+    expect(store.get(pick)).toBe(2)
+    runs = 0
+    store.set(a, 9)
+    expect(runs).toBe(0)
+    store.set(b, 3)
+    expect(store.get(pick)).toBe(3)
+  })
+})

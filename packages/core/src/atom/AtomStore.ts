@@ -80,6 +80,8 @@ interface Node {
   bucket: Set<Node> | undefined
   /** The write context handed to `atom.write`, built on first write. */
   wctx?: WriteContext<any>
+  /** The build context handed to `atom.read`; its closures only reach the node, so every recompute reuses it. */
+  bctx?: BuildContext
   /** In `pending` (a node is queued once per round). */
   queued?: boolean
 }
@@ -207,11 +209,12 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
         throw new AtomCycle({ path, message: `Atom read cycle: ${path.join(' -> ')}` })
       }
       // edge first, so a read that throws still re-runs this node when the parent recovers
-      node.deps.set(parent, parent.version)
+      const seen = parent.version
+      node.deps.set(parent, seen)
       parent.children.add(node)
       cancelRemoval(parent)
       pull(parent)
-      node.deps.set(parent, parent.version)
+      if (parent.version !== seen) node.deps.set(parent, parent.version)
       return parent.value as A
     }
     return Object.assign(get, {
@@ -259,7 +262,7 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
     stack.push(node)
     let value: unknown
     try {
-      value = node.atom.read(buildContext(node))
+      value = node.atom.read((node.bctx ??= buildContext(node)))
     } finally {
       node.computing = false
       stack.pop()
