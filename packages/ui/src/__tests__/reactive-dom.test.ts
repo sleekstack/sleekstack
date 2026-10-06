@@ -14,6 +14,7 @@ import {
   Store,
   useAtomValue,
   useLocal,
+  useMount,
   useSetAtom,
 } from '../index'
 import type { Node } from '../node'
@@ -862,6 +863,62 @@ describe('host events', () => {
     for (const b of container.querySelectorAll('button')) b.click()
     await tick()
     expect(log).toEqual(['plain', 'gen', 'value'])
+  })
+
+  describe('useMount', () => {
+    it('runs once across re-runs, and its scope closes when the instance is removed', async () => {
+      const n = Atom.make(0)
+      const show = Atom.make(true)
+      const log: Array<string> = []
+      const Child = () =>
+        Effect.flatMap(
+          useMount(
+            Effect.zipRight(
+              Effect.sync(() => log.push('mount')),
+              Effect.addFinalizer(() => Effect.sync(() => log.push('cleanup'))),
+            ),
+          ),
+          () => Effect.map(useAtomValue(n), (v) => el('i', {}, String(v))),
+        )
+      const P = () => Effect.flatMap(useAtomValue(show), (s) => jsx('div', { children: s ? jsx(Child, {}) : null }))
+      const { store } = await go(jsx(P, {}))
+      store.set(n, 1)
+      await tick()
+      store.set(n, 2)
+      await tick()
+      expect(log).toEqual(['mount'])
+      store.set(show, false)
+      await tick()
+      expect(log).toEqual(['mount', 'cleanup'])
+    })
+
+    it('is interrupted and cleaned up on dispose', async () => {
+      const log: Array<string> = []
+      const C = () =>
+        Effect.as(
+          useMount(Effect.onInterrupt(Effect.never, () => Effect.sync(() => log.push('interrupted')))),
+          el('b', {}),
+        )
+      const { handle } = await go(jsx(C, {}))
+      await act(() => handle.dispose())
+      await tick()
+      expect(log).toEqual(['interrupted'])
+    })
+
+    it('reports a failure to onError and sees the component context', async () => {
+      const errors: Array<Cause.Cause<unknown>> = []
+      const C = () => Effect.as(useMount(Effect.flatMap(Greeting, () => Effect.fail(new Boom()))), el('b', {}))
+      await go(jsx(C, {}), { layer: Layer.succeed(Greeting, 'hi') as any, onError: (c) => errors.push(c) })
+      await tick()
+      expect(errors).toHaveLength(1)
+    })
+
+    it('does not run on the server', async () => {
+      let ran = 0
+      const C = () => Effect.as(useMount(Effect.sync(() => ran++)), el('b', {}))
+      await renderToString(jsx(C, {}) as any, { layer: Layer.empty })
+      expect(ran).toBe(0)
+    })
   })
 
   it('in-flight fibers are interrupted on removal and dispose; no closure runs after dispose', async () => {

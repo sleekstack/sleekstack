@@ -1,10 +1,11 @@
 import { Effect, Layer } from 'effect'
-import { el, mount, useLocal } from '@sleekstack/ui'
+import { el, mount, useLocal, useMount } from '@sleekstack/ui'
 
 const Good = () =>
   Effect.gen(function* () {
     const [open, setOpen] = yield* useLocal(false)
     yield* useLocal(0)
+    yield* useMount(Effect.void)
     if (open) return el('p', {}, 'open')
     setOpen(true)
     return el('p')
@@ -13,11 +14,13 @@ const Good = () =>
 const Bad = (flag: boolean, ids: readonly number[]) =>
   Effect.gen(function* () {
     if (flag) yield* useLocal(1) // @error ConditionalSlot
+    if (flag) yield* useMount(Effect.void) // @error ConditionalSlot
     for (const _ of ids) yield* useLocal(2) // @error ConditionalSlot
     const x = flag ? yield* useLocal(3) : undefined // @error ConditionalSlot
     const nested = () => Effect.gen(function* () { return yield* useLocal(4) }) // @error ConditionalSlot
     if (ids.length === 0) return el('p', {}, String(x))
     yield* useLocal(5) // @error ConditionalSlot
+    yield* useMount(Effect.void) // @error ConditionalSlot
     yield* nested()
     return el('p')
   })

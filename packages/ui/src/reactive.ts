@@ -1,5 +1,5 @@
 import { Atom, type AtomStore, MissingDependency } from '@sleekstack/core'
-import { Context, Data, Effect, ExecutionStrategy, Exit, Option, Scope } from 'effect'
+import { Cause, Context, Data, Effect, ExecutionStrategy, Exit, Fiber, Option, Scope } from 'effect'
 import type { YieldWrap } from 'effect/Utils'
 import type { Node, ReactiveNode } from './node'
 
@@ -236,6 +236,51 @@ export const useLocal = <A>(
       (next: A | ((previous: A) => A)) =>
         typeof next === 'function' ? s.update(atom, next as (p: A) => A) : s.set(atom, next),
     ] as const)
+  })
+
+/** Where `useMount` reports the failure of its Effect; set by the mount from its `onError`. */
+export class MountError extends Context.Reference<MountError>()('@sleekstack/ui/MountError', {
+  defaultValue: (): ((cause: Cause.Cause<unknown>) => void) | undefined => undefined,
+}) {}
+
+/**
+ * Runs `effect` once, on an instance's first run, and ends it (interrupting it and closing its scope) when the instance is
+ * removed or the mount disposed. Re-runs skip it. Not run by `renderToString` / `renderToStream`. Its failure goes to `onError`.
+ * Like `useLocal` it takes a slot, so call it unconditionally. The cleanup is not awaited by `dispose`.
+ */
+export const useMount = <E, R>(
+  effect: Effect.Effect<void, E, R>,
+): Effect.Effect<void, never, Exclude<R, Scope.Scope> | Store> =>
+  Effect.flatMap(Effect.context<never>(), (ctx) => {
+    // Only a mount provides `MountScope`: a string or stream render never runs it.
+    if (Context.get(ctx, Collector) === undefined || Context.get(ctx, MountScope) === undefined) return Effect.void
+    if (Option.isNone(Context.getOption(ctx, Store))) return missingStore('useMount') as Effect.Effect<never>
+    const f = Context.get(ctx, Frame)!
+    const slots = f.owner
+    const i = f.cursor++
+    if (i < slots.atoms.length) return Effect.void
+    if (slots.done)
+      return Effect.fail(
+        new SlotMismatch({ id: f.id, expected: slots.atoms.length, actual: i + 1 }),
+      ) as unknown as Effect.Effect<never>
+    // The slot only marks the first run; nothing reads it, so it never re-runs the instance.
+    const mark = Atom.make(true)
+    slots.atoms.push(mark)
+    const scope = Effect.runSync(Scope.make())
+    const report = Context.get(ctx, MountError)
+    const fiber = Effect.runFork(
+      effect.pipe(
+        Effect.provideService(Scope.Scope, scope),
+        Effect.provide(ctx as Context.Context<R>),
+        Effect.catchAllCause((cause) =>
+          Cause.isInterruptedOnly(cause) ? Effect.void : Effect.sync(() => report?.(cause)),
+        ),
+      ) as Effect.Effect<void>,
+    )
+    slots.releases.push(() => {
+      Effect.runFork(Effect.zipRight(Fiber.interrupt(fiber), Scope.close(scope, Exit.void)))
+    })
+    return Effect.void
   })
 
 /** Returns a setter for `atom`; registers nothing. */

@@ -15,6 +15,7 @@ import {
   fallbacks,
   Frame,
   makeFrame,
+  MountError,
   MountScope,
   RenderScope,
   type RunFrame,
@@ -835,6 +836,7 @@ export const start = async <E, A, LE = never>(
     Effect.provideService(Store, store),
     Effect.provideService(RenderScope, scope),
     Effect.provideService(MountScope, scope),
+    Effect.provideService(MountError, (cause) => safeReport(cause, onError)),
     Effect.provideService(Frame, frame),
     Effect.provideService(Hydrating, hydrating),
   ) as Effect.Effect<Node, E, Exclude<A, Store>>

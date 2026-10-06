@@ -663,13 +663,13 @@ export function analyzeComponents(opts: { readonly project: string }): Component
     }
   }
   const rules: AnalyzeError[] = []
-  /** `useLocal` must be a statement-level `yield*` in a component's generator body (`function*` or `Effect.gen`), before any `return`; anything else fails closed. */
-  const checkSlot = (call: ts.CallExpression) => {
+  /** `useLocal` and `useMount` must be a statement-level `yield*` in a component's generator body (`function*` or `Effect.gen`), before any `return`; anything else fails closed. */
+  const checkSlot = (call: ts.CallExpression, hook = 'useLocal') => {
     const bad = (why: string) =>
       rules.push(
         analyzeError(
           'ConditionalSlot',
-          `useLocal "${text(call)}" ${why}; slots must run in the same order on every run`,
+          `${hook} "${text(call)}" ${why}; slots must run in the same order on every run`,
           loc(call),
         ),
       )
@@ -766,6 +766,7 @@ export function analyzeComponents(opts: { readonly project: string }): Component
   }
   const visit = (n: ts.Node): void => {
     if (ts.isCallExpression(n) && calleeOf(n) === 'ui/reactive#useLocal') checkSlot(n)
+    if (ts.isCallExpression(n) && calleeOf(n) === 'ui/reactive#useMount') checkSlot(n, 'useMount')
     if (ts.isCallExpression(n)) checkKeys(n)
     if (ts.isCallExpression(n) && calleeOf(n) === 'ui/handler#on') checkOn(n)
     if (ts.isJsxAttribute(n)) checkJsxHandler(n)
