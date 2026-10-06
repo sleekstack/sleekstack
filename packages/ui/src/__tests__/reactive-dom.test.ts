@@ -844,6 +844,26 @@ describe('host events', () => {
     expect(errors).toHaveLength(4)
   })
 
+  it('a handler may be a plain function, a generator or an Effect value; all run', async () => {
+    const log: Array<string> = []
+    const { container } = await go(
+      jsx('div', {
+        children: [
+          jsx('button', { onClick: () => void log.push('plain') }),
+          jsx('button', {
+            onClick: function* () {
+              yield* Effect.sync(() => log.push('gen'))
+            },
+          }),
+          jsx('button', { onClick: Effect.sync(() => log.push('value')) }),
+        ],
+      }),
+    )
+    for (const b of container.querySelectorAll('button')) b.click()
+    await tick()
+    expect(log).toEqual(['plain', 'gen', 'value'])
+  })
+
   it('in-flight fibers are interrupted on removal and dispose; no closure runs after dispose', async () => {
     const show = Atom.make(true)
     let interrupted = 0

@@ -1,5 +1,4 @@
 /** @jsxImportSource @sleekstack/ui */
-import { Effect } from 'effect'
 import { Boundary, Pending, useAtomValue, useSetAtom } from '@sleekstack/ui'
 import { MaybeAssignee, Viewer } from '../../identity'
 import { filterAtom, selectedAtom } from '../application/state'
@@ -15,7 +14,7 @@ export const TaskCard = function* ({ task }: { task: Task }) {
   return (
     <article className="card" data-id={task.id}>
       <h4>
-        <button type="button" className="open" onClick={() => Effect.sync(() => select(task.id))}>
+        <button type="button" className="open" onClick={() => select(task.id)}>
           {task.title}
         </button>
       </h4>

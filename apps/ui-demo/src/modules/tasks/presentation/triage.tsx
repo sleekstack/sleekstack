@@ -1,5 +1,4 @@
 /** @jsxImportSource @sleekstack/ui */
-import { Effect } from 'effect'
 import { useLocal } from '@sleekstack/ui'
 import type { Task } from '../domain/model'
 import { Votes } from './guests'
@@ -15,16 +14,16 @@ export const Triage = function* ({ tasks }: { tasks: ReadonlyArray<Task> }) {
   return (
     <section className="triage">
       <h3>
-        <button type="button" className="collapse" onClick={() => Effect.sync(() => setOpen((o) => !o))}>
+        <button type="button" className="collapse" onClick={() => setOpen((o) => !o)}>
           {open ? 'Hide' : 'Show'} triage
         </button>
       </h3>
       <input
         className="search"
         placeholder="Search"
-        onInput={(e: Event) => Effect.sync(() => setQuery((e.target as HTMLInputElement).value))}
+        onInput={(e: Event) => setQuery((e.target as HTMLInputElement).value)}
       />
-      <button type="button" className="sort" onClick={() => Effect.sync(() => setDesc((d) => !d))}>
+      <button type="button" className="sort" onClick={() => setDesc((d) => !d)}>
         {desc ? 'Z-A' : 'A-Z'}
       </button>
       {open && (
