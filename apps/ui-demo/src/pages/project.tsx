@@ -15,7 +15,7 @@ const ProjectView = function* ({ projectId }: { projectId: string }) {
     return () => {
       if (document.title === title) document.title = APP_TITLE
     }
-  }, [project.name])
+  }, [projectId])
   return (
     <section className="board">
       <h2>{project.name}</h2>
