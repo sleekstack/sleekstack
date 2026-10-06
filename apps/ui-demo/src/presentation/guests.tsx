@@ -24,7 +24,11 @@ const AddView = ({ onAdd }: { onAdd: (task: { title: string; priority: 'low' | '
       }}
     >
       <input className="new-title" placeholder="New task" value={title} onChange={(e) => setTitle(e.target.value)} />
-      <select className="new-priority" value={priority} onChange={(e) => setPriority(e.target.value as typeof priority)}>
+      <select
+        className="new-priority"
+        value={priority}
+        onChange={(e) => setPriority(e.target.value as typeof priority)}
+      >
         {PRIORITIES.map((p) => (
           <option key={p}>{p}</option>
         ))}

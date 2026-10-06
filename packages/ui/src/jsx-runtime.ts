@@ -2,7 +2,7 @@ import { Atom } from '@sleekstack/core'
 import { type Context, Effect, Layer } from 'effect'
 import { bind, type Handler, isHandler, on } from './handler'
 import { el, type ElementNode, type EventBinding, fragment, type Node } from './node'
-import { type HostDescriptor, Handlers, hostBuilder, hostOf, instance, RenderScope } from './reactive'
+import { type ComponentResult, type HostDescriptor, Handlers, hostBuilder, hostOf, instance, RenderScope } from './reactive'
 
 /** What a JSX expression may hold between its tags. An atom renders its current value as text and follows it; a serializable one is also bound for `resume` under `renderToString`. */
 export type Child =
@@ -152,12 +152,12 @@ const sameHost = (a: HostDescriptor, b: HostDescriptor): boolean => {
 hostBuilder.build = hostNode
 hostBuilder.same = sameHost
 
-export const jsx = (type: string | ((props: any) => Element), props: Props, key?: string | number): Element => {
+export const jsx = (type: string | ((props: any) => ComponentResult), props: Props, key?: string | number): Element => {
   const k = key ?? props.key
   const ks = k == null ? undefined : String(k)
   return typeof type === 'function'
     ? type === Fragment || type === Provider || type === Boundary
-      ? type(props as any)
+      ? (type as (props: any) => Element)(props as any)
       : (instance(type, props, ks) as Element)
     : hostElement(type, props, ks)
 }
@@ -216,7 +216,7 @@ export { Pending } from './pending'
 
 export declare namespace JSX {
   type Element = Effect.Effect<Node, never, never>
-  type ElementType = string | ((props: any) => Effect.Effect<Node, any, any>)
+  type ElementType = string | ((props: any) => ComponentResult)
 
   interface ElementChildrenAttribute {
     children: {}

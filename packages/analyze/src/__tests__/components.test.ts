@@ -38,6 +38,7 @@ describe('component pass', () => {
     'ui-keys',
     'ui-closures',
     'ui-pending',
+    'ui-generators',
   ])('%s: code and file:line', (name) => {
     const want = expected(name)
     expect(want.length).toBeGreaterThan(0)
