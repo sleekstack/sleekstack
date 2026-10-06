@@ -270,13 +270,13 @@ const sameDeps = (a: ReadonlyArray<unknown>, b: ReadonlyArray<unknown>): boolean
 /**
  * `useEffect(fn, deps?)`, as in React: `fn` runs after the DOM of an instance's first run is committed and again when `deps` change (every run when
  * omitted; once for `[]`). Its returned cleanup runs before the next `fn` and when the instance is removed or the mount
- * disposed (not awaited). `fn` may return an Effect instead: it runs with the run's context in its own `Scope`
+ * disposed (not awaited). `fn` may be an Effect itself (or return one): it runs with the run's context in its own `Scope`
  * (`Effect.addFinalizer` / `acquireRelease` work), and is interrupted as the cleanup. A throw or failure goes to `onError`.
  * Not run by `renderToString` / `renderToStream`. Takes a slot like `useLocal`, so call it unconditionally.
  * A run that is dropped (it failed, or a newer one replaced it) never runs its effects.
  */
 export const useEffect = <E = never, R = never>(
-  fn: () => EffectResult<E, R>,
+  fn: (() => EffectResult<E, R>) | Effect.Effect<void, E, R>,
   deps?: ReadonlyArray<unknown>,
 ): Effect.Effect<void, never, Exclude<R, Scope.Scope> | Store> =>
   Effect.flatMap(Effect.context<never>(), (ctx) => {
@@ -315,7 +315,7 @@ export const useEffect = <E = never, R = never>(
       slot.started = true
       slot.deps = deps
       try {
-        const r = fn()
+        const r = Effect.isEffect(fn) ? fn : fn()
         if (typeof r === 'function') slot.cleanup = r
         else if (Effect.isEffect(r)) {
           const scope = Effect.runSync(Scope.make())

@@ -964,6 +964,30 @@ describe('host events', () => {
       expect(log).toEqual(['hi', 'finalized'])
     })
 
+    it('accepts a raw Effect, run in its own scope and interrupted on dispose', async () => {
+      const log: Array<string> = []
+      const C = () =>
+        Effect.zipRight(
+          useUiEffect(
+            Effect.zipRight(
+              Effect.addFinalizer(() => Effect.sync(() => log.push('finalized'))),
+              Effect.zipRight(
+                Effect.sync(() => log.push('ran')),
+                Effect.never,
+              ),
+            ),
+            [],
+          ),
+          Effect.succeed(el('b')),
+        )
+      const { handle } = await go(jsx(C, {}))
+      await tick()
+      expect(log).toEqual(['ran'])
+      await act(() => handle.dispose())
+      await tick()
+      expect(log).toEqual(['ran', 'finalized'])
+    })
+
     it('a throw, a failed Effect and a throwing cleanup reach onError', async () => {
       const errors: Array<Cause.Cause<unknown>> = []
       const A = () =>

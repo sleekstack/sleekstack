@@ -16,7 +16,7 @@ A component body runs again whenever an atom it reads changes, and each run's `S
 - Before `fn` runs again, its previous cleanup runs.
 - A release in the instance's `Slots.releases` runs the last cleanup when the instance is removed, when a dropped first run's slots are disposed, or when the mount is disposed; it cascades to child instances.
 
-`fn` returns nothing, a cleanup function, or an Effect. An Effect runs as a fiber with the run's context and its own `Scope` (`Effect.addFinalizer` / `acquireRelease` work); its cleanup interrupts the fiber and closes the scope. The hook's requirements exclude `Scope`.
+`fn` is an Effect itself, or a function returning nothing, a cleanup function, or an Effect. An Effect runs as a fiber with the run's context and its own `Scope` (`Effect.addFinalizer` / `acquireRelease` work); its cleanup interrupts the fiber and closes the scope. The hook's requirements exclude `Scope`.
 
 - The slot is never read, so it does not make the instance depend on anything.
 - A mount provides `MountScope`; string and stream renders do not, so `useEffect` is a no-op there.
