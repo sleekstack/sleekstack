@@ -1,6 +1,7 @@
 /** @jsxImportSource @sleekstack/ui */
 import { Provider } from '@sleekstack/ui'
-import { Header, ProjectNav, ProjectPage, Team } from './components'
+import { ProjectPage } from './presentation/board'
+import { Header, ProjectNav, Team } from './presentation/layout'
 import { ViewerLive } from './infrastructure'
 
 /** The whole page, viewed as `viewer`: one `Provider` scopes the Viewer for every component under it. */

@@ -1,7 +1,8 @@
 import { Effect } from 'effect'
 import { useMutation, useSuspenseQuery } from '@sleekstack/ui/query'
 import { effectFn, QueryClientTag } from '@sleekstack/query'
-import { TaskRepo, type NewTask, type Status } from './domain'
+import { TaskRepo } from '../domain/ports'
+import type { NewTask, Status } from '../domain/model'
 
 export type { QueryFailed } from '@sleekstack/ui/query'
 

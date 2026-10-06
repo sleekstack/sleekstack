@@ -16,18 +16,17 @@ export const PriorityBadge = ({ priority }: { priority: Priority }) => (
 )
 
 /** Needs UserRepo and Viewer; fails with UserNotFound. */
-export const Assignee = ({ id }: { id: string }) =>
-  Effect.gen(function* () {
-    const user = yield* UserRepo.get(id)
-    const { user: viewer } = yield* Viewer
-    return yield* (
-      <>
-        <Avatar name={user.name} />
-        <span>{user.name}</span>
-        {viewer.id === user.id && <em className="you">you</em>}
-      </>
-    )
-  })
+export const Assignee = function* ({ id }: { id: string }) {
+  const user = yield* UserRepo.get(id)
+  const { user: viewer } = yield* Viewer
+  return (
+    <>
+      <Avatar name={user.name} />
+      <span>{user.name}</span>
+      {viewer.id === user.id && <em className="you">you</em>}
+    </>
+  )
+}
 
 export const MaybeAssignee = ({ id }: { id: string | null }) => (
   <Boundary tag="UserNotFound" fallback={(_: UserNotFound) => <span className="muted">Left the team</span>}>

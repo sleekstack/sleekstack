@@ -9,42 +9,41 @@ import { Viewer } from '../domain/ports'
 import { MaybeAssignee, STATUS_LABEL, StatusBadge } from './shared'
 
 /** The open task, from the project's tasks; only editors can move or delete it. Fails with `TaskNotFound` when it is gone. */
-const Detail = ({ projectId, tasks }: { projectId: string; tasks: ReadonlyArray<Task> }) =>
-  Effect.gen(function* () {
-    const id = yield* useAtomValue(selectedAtom)
-    if (id === null) return yield* <p className="detail muted">Select a task</p>
-    const task = tasks.find((t) => t.id === id)
-    if (!task) return yield* Effect.fail(new TaskNotFound({ id }))
-    const { user: viewer } = yield* Viewer
-    const { move, remove } = yield* useTaskActions(projectId)
-    return yield* (
-      <aside className="detail">
-        <h2>{task.title}</h2>
-        <StatusBadge status={task.status} />
-        <MaybeAssignee id={task.assigneeId} />
-        {viewer.canEdit ? (
-          <div className="row actions">
-            {STATUSES.filter((s) => s !== task.status).map((s) => (
-              <button
-                key={s}
-                type="button"
-                className="move"
-                data-status={s}
-                onClick={() => Effect.sync(() => move.mutate({ id: task.id, status: s }))}
-              >
-                Move to {STATUS_LABEL[s]}
-              </button>
-            ))}
-            <button type="button" className="delete" onClick={() => Effect.sync(() => remove.mutate(task.id))}>
-              Delete
+const Detail = function* ({ projectId, tasks }: { projectId: string; tasks: ReadonlyArray<Task> }) {
+  const id = yield* useAtomValue(selectedAtom)
+  if (id === null) return <p className="detail muted">Select a task</p>
+  const task = tasks.find((t) => t.id === id)
+  if (!task) return Effect.fail(new TaskNotFound({ id }))
+  const { user: viewer } = yield* Viewer
+  const { move, remove } = yield* useTaskActions(projectId)
+  return (
+    <aside className="detail">
+      <h2>{task.title}</h2>
+      <StatusBadge status={task.status} />
+      <MaybeAssignee id={task.assigneeId} />
+      {viewer.canEdit ? (
+        <div className="row actions">
+          {STATUSES.filter((s) => s !== task.status).map((s) => (
+            <button
+              key={s}
+              type="button"
+              className="move"
+              data-status={s}
+              onClick={() => Effect.sync(() => move.mutate({ id: task.id, status: s }))}
+            >
+              Move to {STATUS_LABEL[s]}
             </button>
-          </div>
-        ) : (
-          <p className="muted">Read only</p>
-        )}
-      </aside>
-    )
-  })
+          ))}
+          <button type="button" className="delete" onClick={() => Effect.sync(() => remove.mutate(task.id))}>
+            Delete
+          </button>
+        </div>
+      ) : (
+        <p className="muted">Read only</p>
+      )}
+    </aside>
+  )
+}
 
 export const DetailPanel = ({ projectId, tasks }: { projectId: string; tasks: ReadonlyArray<Task> }) => (
   <div className="selected">

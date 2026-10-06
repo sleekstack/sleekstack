@@ -1,0 +1,80 @@
+import type { Project, Task, User } from '../domain/model'
+
+export const users: ReadonlyArray<User> = [
+  { id: 'u1', name: 'Ada', canEdit: true },
+  { id: 'u2', name: 'Grace', canEdit: false },
+  { id: 'u3', name: 'Linus', canEdit: true },
+]
+export const projects: ReadonlyArray<Project> = [
+  { id: 'p1', name: 'Website relaunch' },
+  { id: 'p2', name: 'Mobile app' },
+]
+// `u9` left the team: tasks that name them still render.
+export const tasks: ReadonlyArray<Task> = [
+  {
+    id: 't1',
+    projectId: 'p1',
+    title: 'Migrate the blog to the new CMS',
+    status: 'done',
+    priority: 'medium',
+    labels: ['content'],
+    due: '2026-10-02',
+    assigneeId: 'u1',
+    votes: 3,
+  },
+  {
+    id: 't2',
+    projectId: 'p1',
+    title: 'Fix the checkout redirect loop',
+    status: 'in_progress',
+    priority: 'high',
+    labels: ['bug', 'payments'],
+    due: '2026-10-09',
+    assigneeId: 'u3',
+    votes: 5,
+  },
+  {
+    id: 't3',
+    projectId: 'p1',
+    title: 'Pick a cookie consent provider',
+    status: 'todo',
+    priority: 'low',
+    labels: ['legal'],
+    due: null,
+    assigneeId: null,
+    votes: 0,
+  },
+  {
+    id: 't4',
+    projectId: 'p1',
+    title: 'Audit the image sizes on the landing page',
+    status: 'todo',
+    priority: 'medium',
+    labels: ['performance'],
+    due: '2026-10-16',
+    assigneeId: 'u9',
+    votes: 1,
+  },
+  {
+    id: 't5',
+    projectId: 'p2',
+    title: 'Ship offline mode for the task list',
+    status: 'todo',
+    priority: 'high',
+    labels: ['feature'],
+    due: '2026-11-01',
+    assigneeId: 'u2',
+    votes: 2,
+  },
+  {
+    id: 't6',
+    projectId: 'p2',
+    title: 'Crash on rotating the settings screen',
+    status: 'in_progress',
+    priority: 'high',
+    labels: ['bug'],
+    due: '2026-10-08',
+    assigneeId: 'u1',
+    votes: 4,
+  },
+]

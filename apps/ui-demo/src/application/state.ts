@@ -1,5 +1,5 @@
 import { Atom } from '@sleekstack/core'
-import type { Status } from './domain'
+import type { Status } from '../domain/model'
 
 /** The project on screen. */
 export const projectAtom = Atom.make('p1')
