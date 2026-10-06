@@ -23,9 +23,11 @@ On a tag/text/guest mismatch report `HydrationMismatch` through `onError` and re
 - [ ] Each named case has a test; HydrationMismatch is a runtime error class, not an AnalyzeCode.
 
 ## Done summary
-TBD
+Added `HydrationMismatch` (runtime tagged error, exported from @sleekstack/ui): reported via onError once per replaced subtree and once per parent for extra server nodes; resume manifest script ignored silently; a renderer defect mid-walk disposes the adoption and falls back to a full client `mount`. Parser-normalised DOM (tbody) documented as non-goal (reports + recovers). Tests in packages/ui/src/__tests__/hydrate.test.ts cover each named case.
 
+stage: impl-review - skipped(config: REVIEW_MODE=none)
+Tier: implementer: opus at medium (project routing block)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: f7a4355906a7fea4426f88b6fc8d3cf7cb78afee
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/ui... --filter=ui-demo
 - PRs:

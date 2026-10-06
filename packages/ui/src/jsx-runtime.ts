@@ -213,6 +213,9 @@ export const Boundary = <E extends { readonly _tag: string }>(props: {
     (e) => props.fallback(e as unknown as E),
   ) as Element
 
+// Not on the direct-call list in `jsx`: `Pending` runs as an instance (id, key, slots).
+export { Pending } from './pending'
+
 export declare namespace JSX {
   type Element = Effect.Effect<Node, never, never>
   type ElementType = string | ((props: any) => Effect.Effect<Node, any, any>)

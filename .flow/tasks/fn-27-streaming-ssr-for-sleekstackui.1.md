@@ -29,9 +29,13 @@ Early proof point. `renderToStream(app, { layer, nonce, idPrefix, onError })` re
 - [ ] Zero-pending trees produce shell and close; `renderToString` output unchanged.
 
 ## Done summary
-TBD
+renderToStream(app, { layer, nonce, idPrefix, onError }) in packages/ui/src/stream.ts: shell flushes first with each unresolved Pending as `<!--sleek-p:ID-->fallback<!--/sleek-p-->`; resolved content follows as `<template data-sleek-b="ID">html</template><script nonce>__sleekSwap("ID")</script>`; swap runtime emitted once at the shell head (only when boundaries exist). Zero-pending trees emit exactly renderToString output. Pre-flush failure errors the stream with the original error (shared nodeOrThrow in component.ts). Layer built into the stream's root scope; store/slots/scope disposed on completion, error or cancel. No resume manifest, no hydrate payload yet (fn-27.4).
 
+Draft protocol ADR text (for task 6): Placeholder = comment pair `sleek-p:<id>` / `/sleek-p` around the fallback; ids `<idPrefix><n>`, idPrefix validated by the handler-id regex, default `sleek-`. Chunk = template container keyed `data-sleek-b` + one inline swap call; swap replaces the marker range (depth-counted for nesting) with the template content. Every inline script carries `nonce`.
+
+Tests: packages/ui/src/__tests__/stream.test.ts (shell-first + swapped DOM equals renderToString, pre-flush defect rejects, zero-pending equals renderToString, bad idPrefix throws).
+stage: impl-review - skipped(config: no review requested by conductor)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 2b20eefdcc934c153eea05142c69fd67bdce74aa
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/ui..., pnpm turbo run test typecheck --filter=ui-demo
 - PRs:

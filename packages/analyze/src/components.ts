@@ -236,6 +236,11 @@ export function analyzeComponents(opts: { readonly project: string }): Component
       return [...open.attributes.properties.flatMap(closure), ...kids]
     const id = libId(checker.getSymbolAtLocation(tag), checker)
     if (id === 'ui/jsx-runtime#Fragment') return kids
+    if (id === 'ui/pending#Pending') {
+      // Transparent: children keep their R and E; the fallback renders beside them, so its components are siblings.
+      const fb = attrOf(open, 'fallback')
+      return [...kids, ...(fb ? embedded(fb) : [])]
+    }
     if (id === 'ui/jsx-runtime#Provider') {
       const layer = attrOf(open, 'layer') ?? fail(e, '<Provider> needs a layer')
       const { provides, requires } = layerTags(layer, checker.getTypeAtLocation(layer))

@@ -55,6 +55,10 @@ Next owns its render, so there is no wrapper. Without one, a server `LayerProvid
 
 Query hydration is TanStack's own (`prefetchQueries` + `HydrationBoundary`, see [Queries SSR](/docs/queries-ssr)); it does not go through the atom store.
 
+### `@sleekstack/ui` host trees: `hydrateMount`
+
+`renderToString` from `@sleekstack/ui` appends a `<script data-sleek-hydrate>` with the store's dehydrated atoms and the layer's query cache. `hydrateMount(app, { layer, container })` reads it, seeds the store before the first run and adopts the server DOM, so each component runs once. A malformed script is reported as `HydratePayloadInvalid` and atoms start from their initial values; a missing script (no state on the server) is not an error.
+
 ## Limits
 
 - `@sleekstack/kit` has no serializable atoms: kit atom hooks render on the server, but their values are not transferred.

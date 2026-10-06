@@ -1,7 +1,7 @@
 import { Cause, Context, Data, Effect, Layer } from 'effect'
 import { createElement } from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import { el, fragment, fromReact, type Node, Provide, renderToString } from '../index'
+import { el, fragment, fromReact, type Node, Pending, Provide, renderToString } from '../index'
 import { jsx } from '../jsx-runtime'
 import { app, UserCard, UserNotFound, UserRepoTest } from './fixtures/user-card'
 
@@ -10,9 +10,16 @@ class Boom extends Data.TaggedError('Boom')<{}> {}
 describe('renderToString', () => {
   it('renders the UserCard example to exact markup', async () => {
     expect(await renderToString(app('1'), { layer: UserRepoTest })).toBe(
-      '<div class="card"><h2>Ada</h2><span class="avatar">Ada</span></div>',
+      '<div class="card"><h2>Ada</h2><sleek-guest style="display: contents;"><span class="avatar">Ada</span></sleek-guest></div>',
     )
     expect(await renderToString(app('2'), { layer: UserRepoTest })).toBe('<p>Not found</p>')
+  })
+
+  it('separates adjacent text, also across fragments, with a comment marker', async () => {
+    const html = await renderToString(Effect.succeed(el('p', {}, 'a', fragment('b', el('i')), 'c')), {
+      layer: Layer.empty,
+    })
+    expect(html).toBe('<p>a<!--sleek-t-->b<i></i>c</p>')
   })
 
   it('rejects an uncaught failure with the original error', async () => {
@@ -34,7 +41,9 @@ describe('renderToString', () => {
   it('renders a fromReact guest with its props inline', async () => {
     const Greet = fromReact(({ who }: { who: string }) => createElement('b', null, `hi ${who}`))
     const tree = Effect.map(Greet({ who: 'Bo' }), (g) => el('div', {}, g))
-    expect(await renderToString(tree, { layer: Layer.empty })).toBe('<div><b>hi Bo</b></div>')
+    expect(await renderToString(tree, { layer: Layer.empty })).toBe(
+      '<div><sleek-guest style="display: contents;"><b>hi Bo</b></sleek-guest></div>',
+    )
   })
 
   it('escapes text and attribute values', async () => {
@@ -114,5 +123,17 @@ describe('renderToString', () => {
         ),
       ).toBe('<ul><li>a</li></ul>')
     })
+  })
+
+  it('Pending awaits its content and emits no fallback markup', async () => {
+    const Slow = () => Effect.as(Effect.sleep('5 millis'), el('p', {}, 'loaded'))
+    const tree = jsx(Pending, { fallback: el('i', {}, 'wait'), children: jsx(Slow, {}) })
+    expect(await renderToString(tree, { layer: Layer.empty })).toBe('<p>loaded</p>')
+  })
+
+  it('a failing Pending child rejects with its typed error', async () => {
+    const boom = new Boom()
+    const tree = jsx(Pending, { fallback: el('i', {}, 'wait'), children: Effect.fail(boom) })
+    await expect(renderToString(tree, { layer: Layer.empty })).rejects.toBe(boom)
   })
 })

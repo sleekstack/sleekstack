@@ -4,9 +4,9 @@ import { QueryClientLive } from '@sleekstack/query'
 import { Effect } from 'effect'
 import { act } from 'react'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
-import { el, mount, type Mounted, useAtomValue } from '../index'
+import { Boundary, el, mount, type Mounted, Pending, renderToString, useAtomValue } from '../index'
 import { jsx as rawJsx } from '../jsx-runtime'
-import { useQuery, useQueryClient } from '../query'
+import { QueryFailed, useQuery, useQueryClient, useSuspenseQuery } from '../query'
 import type { QueryClient } from '@tanstack/query-core'
 
 const jsx = (type: any, props: any) => rawJsx(type, props)
@@ -116,5 +116,123 @@ describe('useQuery', () => {
     await tick()
     // A dropped entry means a fresh observer: subscribing again refetches the stale query.
     expect(fn.calls).toBe(2)
+  })
+})
+
+describe('useSuspenseQuery', () => {
+  const Data = (key: string, queryFn: (ctx: { signal: AbortSignal }) => Promise<string>) => () =>
+    Effect.map(useSuspenseQuery({ queryKey: [key], queryFn, retry: false }), (d) => el('b', {}, d))
+  let client: QueryClient | undefined
+  const Grab = () => Effect.map(useQueryClient(), (c) => ((client = c), el('s', {}, '')))
+  const observers = (key: string) =>
+    client!
+      .getQueryCache()
+      .find({ queryKey: [key] })
+      ?.getObserversCount() ?? 0
+
+  it('resolves under Pending, retains the observer, releases it on unmount', async () => {
+    let resolve!: (v: string) => void
+    const show = Atom.make(true)
+    const Gate = () =>
+      Effect.flatMap(useAtomValue(show), (on) =>
+        on
+          ? jsx(Pending, {
+              fallback: Effect.succeed(el('i', {}, 'loading')),
+              children: jsx(
+                Data('s', () => new Promise((r) => (resolve = r))),
+                {},
+              ),
+            })
+          : Effect.succeed(el('p', {}, 'off')),
+      )
+    const { container, store } = await go(jsx('div', { children: [jsx(Grab, {}), jsx(Gate, {})] }))
+    expect(container.textContent).toBe('loading')
+    expect(observers('s')).toBe(1)
+    resolve('hi')
+    await tick()
+    expect(container.querySelector('b')!.textContent).toBe('hi')
+    store.set(show, false)
+    await tick()
+    expect(container.textContent).toBe('off')
+    expect(observers('s')).toBe(0)
+  })
+
+  it('a failed fetch surfaces QueryFailed through a Boundary', async () => {
+    const tree = jsx(Boundary, {
+      tag: 'QueryFailed',
+      fallback: (e: QueryFailed) => Effect.succeed(el('p', {}, `caught:${(e.cause as Error).message}`)),
+      children: jsx(
+        Data('f', () => Promise.reject(new Error('no'))),
+        {},
+      ),
+    })
+    const { container } = await go(tree)
+    expect(container.textContent).toBe('caught:no')
+  })
+
+  it('unmounting while in flight aborts the fetch and drops the observer', async () => {
+    let aborted = false
+    const show = Atom.make(true)
+    const fn = ({ signal }: { signal: AbortSignal }) => (
+      signal.addEventListener('abort', () => void (aborted = true)),
+      new Promise<string>(() => {})
+    )
+    const Gate = () =>
+      Effect.flatMap(useAtomValue(show), (on) =>
+        on
+          ? jsx(Pending, { fallback: Effect.succeed(el('i', {}, 'loading')), children: jsx(Data('a', fn), {}) })
+          : Effect.succeed(el('p', {}, 'off')),
+      )
+    const { store } = await go(jsx('div', { children: [jsx(Grab, {}), jsx(Gate, {})] }))
+    expect(observers('a')).toBe(1)
+    store.set(show, false)
+    await tick()
+    expect(aborted).toBe(true)
+    expect(observers('a')).toBe(0)
+  })
+
+  it('invalidation re-runs with new data, keeps the old data meanwhile, never loops, and releases the observer', async () => {
+    let n = 0
+    let resolve: ((v: string) => void) | undefined
+    const fn = counting(() => (n++ === 0 ? Promise.resolve('v0') : new Promise<string>((r) => (resolve = r))))
+    const show = Atom.make(true)
+    const D = () =>
+      Effect.map(useSuspenseQuery({ queryKey: ['inv'], queryFn: fn.queryFn, retry: false, staleTime: 0 }), (d) =>
+        el('b', {}, d),
+      )
+    const Gate = () =>
+      Effect.flatMap(useAtomValue(show), (on) =>
+        on
+          ? jsx(Pending, { fallback: Effect.succeed(el('i', {}, 'loading')), children: jsx(D, {}) })
+          : Effect.succeed(el('p', {}, 'off')),
+      )
+    const { container, store } = await go(jsx('div', { children: [jsx(Grab, {}), jsx(Gate, {})] }))
+    await tick()
+    expect(container.querySelector('b')!.textContent).toBe('v0')
+    await act(async () => void client!.invalidateQueries({ queryKey: ['inv'] }))
+    await tick()
+    expect(container.querySelector('b')!.textContent).toBe('v0')
+    resolve!('v1')
+    await tick()
+    await tick()
+    expect(container.querySelector('b')!.textContent).toBe('v1')
+    expect(fn.calls).toBe(2)
+    store.set(show, false)
+    await tick()
+    expect(observers('inv')).toBe(0)
+  })
+
+  it('awaits under renderToString without a loading state', async () => {
+    expect(
+      await renderToString(
+        jsx(
+          Data('r', async () => 'server'),
+          {},
+        ),
+        { layer: QueryClientLive() } as any,
+      ),
+    ).toMatch(
+      /^<sleek-reactive style="display: contents;"><b>server<\/b><\/sleek-reactive><script type="application\/json" data-sleek-hydrate>/,
+    )
   })
 })

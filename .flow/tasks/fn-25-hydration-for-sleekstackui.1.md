@@ -30,9 +30,11 @@ Makes `renderToString` emit the structure the DOM renderer builds so the first c
 - [ ] `pnpm turbo run test typecheck --filter=@sleekstack/ui... --filter=ui-demo`.
 
 ## Done summary
-TBD
+renderToString now wraps Reactive output in `<sleek-reactive style="display: contents;">` and guest html in `<sleek-guest style="display: contents;">` (forgery check still on inner html), and separates adjacent Text nodes, flattened across fragments, with `<!--sleek-t-->` (exported as TEXT_SEPARATOR). Resume tests pass with the wrappers, so they are always on and no option was added. checkTag rejects user-built sleek-guest too. Separator comments can't be built by users, and payload attributes are already blocked by the data-sleek- rule. Tests: string.test.ts separator case, reactive.test.ts parametrized reserved-tag rejection, updated exact-string assertions.
 
+Tier: implementer: opus at medium (project routing block)
+stage: impl-review - skipped(config: REVIEW_MODE=none)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 743d6be870b1ad71bd85fb142733a3d33972f32c
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/ui... --filter=ui-demo, baseline: green via handoff (full pnpm turbo run test typecheck 33/33 at the fn-24 tip)
 - PRs:

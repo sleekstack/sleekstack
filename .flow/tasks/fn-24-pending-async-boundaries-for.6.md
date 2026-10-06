@@ -25,9 +25,12 @@ Real screen proving the feature: the backlog list under Pending with a spinner f
 - [ ] `pnpm turbo run test typecheck --filter=ui-demo`.
 
 ## Done summary
-TBD
+Backlog list in ui-demo now uses useSuspenseQuery inside Pending (spinner fallback), wrapped in Boundary tag QueryFailed; SSR and mount tests cover fallback then list. Analyzer clean.
 
+baseline: green via handoff (5e441d0)
+Tier: implementer: opus at medium (project routing block)
+stage: impl-review - skipped(config: REVIEW_MODE=none)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 7d3347e9546ddf7b29da19eb942b092ab4745ac0
+- Tests: pnpm turbo run test typecheck --filter=ui-demo
 - PRs:

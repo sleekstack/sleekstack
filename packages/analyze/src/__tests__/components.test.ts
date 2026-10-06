@@ -37,6 +37,7 @@ describe('component pass', () => {
     'ui-slots',
     'ui-keys',
     'ui-closures',
+    'ui-pending',
   ])('%s: code and file:line', (name) => {
     const want = expected(name)
     expect(want.length).toBeGreaterThan(0)

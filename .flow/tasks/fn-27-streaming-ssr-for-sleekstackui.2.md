@@ -25,9 +25,13 @@ Each resolved boundary streams an HTML chunk (inside a `<template>` container so
 - [ ] Nonce is on every inline script (R5).
 
 ## Done summary
-TBD
+Boundary chunks now render in their placeholder's text context (string.ts `serializeAll(nodes, c, edge)` + `Around` passed to `Collector.boundary`), so the swapped DOM equals renderToString including `<!--sleek-t-->` separators on both sides. Ordering/nonce/swap were already in place from .1; added tests proving completion order, nested boundaries (inner chunk always after parent chunk, whether inner content resolves before or after parent), text separators, and nonce on every inline script. New helper packages/ui/src/__tests__/helpers/normalize.ts strips scripts, emptied templates and sleek-p markers.
 
+Known gap: a boundary that is the first/last child of another boundary's content only sees text context within that content list, not beyond it (rare).
+Notes for .3/.4: nested children only exist after the parent chunk serializes, so a failed parent never spawns child fibers. Pending children/fallbacks in tests must be JSX Effects (jsx(...)), never Effect.succeed(jsx(...)); components returning JSX after an await need Effect.flatMap.
+
+stage: impl-review - skipped(config: no review requested by conductor)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 17609c12d086518159885439aedb080696107087
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/ui... --filter=ui-demo
 - PRs:

@@ -75,7 +75,10 @@ describe('server render', () => {
     const html = await renderToString(jsx('div', { children: [jsx(Q('pre'), {}), jsx(Q('none'), {}), jsx(M, {})] }), {
       layer: Layer.succeed(QueryClientTag, client),
     })
-    expect(html).toBe('<div><b>success:cached</b><b>pending:</b><i>idle</i></div>')
+    const r = (inner: string) => `<sleek-reactive style="display: contents;">${inner}</sleek-reactive>`
+    expect(html.slice(0, html.indexOf('<script'))).toBe(
+      `<div>${r('<b>success:cached</b>')}${r('<b>pending:</b>')}${r('<i>idle</i>')}</div>`,
+    )
     expect(queryFn).not.toHaveBeenCalled()
     expect(client.isFetching()).toBe(0)
   })

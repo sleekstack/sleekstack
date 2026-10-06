@@ -27,9 +27,14 @@ Early proof point. Adds `hydrateMount` beside `mount`: runs the app once, then w
 - [ ] A second hydrate on one container fails with a tagged error; `mount` then `hydrateMount` on the same container is defined and tested.
 
 ## Done summary
-TBD
+Added `hydrateMount` (packages/ui/src/hydrate.ts) sharing mount's front half through a new `start()` in dom.ts: it runs the app once and adopts the server DOM (elements, text with separator comments removed, sleek-reactive instances with watch, sleek-guest hosts, sleek-bind unwrapped to its text node), attaching listeners via `listen` and running checkTag/checkAttr, never touching attributes or form value/checked. `HydrateConflict` (tagged) rejects hydrateMount on any container already mounted or hydrated, before the app runs; `mount` after `hydrateMount` replaces as usual. Tests in __tests__/hydrate.test.ts: node identity + one run per component + onClick/useLocal, double hydrate, mount-then-hydrate, bind unwrap.
 
+Spike shortcuts for later tasks (marked `ponytail:`): mismatch replaces the node and reports a plain defect (fn-25.3), extra server nodes removed silently (fn-25.3), guests use createRoot so React re-renders guest content (fn-25.5).
+
+baseline: green via handoff (verified at aac1aea by fn-25.1)
+Tier: implementer: opus at medium (project routing block)
+stage: impl-review - skipped(config: REVIEW_MODE=none)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 135f42974a6ce37c190afcb3c9a6e69af16f52ff
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/ui... --filter=ui-demo
 - PRs:

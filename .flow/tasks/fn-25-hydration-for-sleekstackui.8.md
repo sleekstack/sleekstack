@@ -25,9 +25,14 @@ End-to-end proof and docs. CONTEXT.md currently says _Avoid_: Hydrate for Resume
 - [ ] Docs updated; `pnpm turbo run test typecheck --filter=@sleekstack/ui... --filter=ui-demo --filter=docs` green.
 
 ## Done summary
-TBD
+Added apps/ui-demo/test/hydrate.test.ts (full App: renderToString, then hydrateMount; server nodes kept, payload script removed, no onError, a sort click re-renders). Documented the built behavior: ADR 0015 `## Amendment: hydration` (and fixed the "serializes once" and "ignore closures" lines), notes in ADR 0016/0017, a Hydrate Mount entry in CONTEXT.md (Hydrate dropped from Resume's _Avoid_), README rows, atoms.mdx and queries-ssr.mdx.
 
+Outside Touches: the gate was red at base. apps/ui-demo/test/app.test.ts had four exact-string pins that broke on fn-25.1's `<!--sleek-t-->` separator. I updated them to the exact new output, with no weaker matchers. The BASELINE_HANDOFF "green" claim was wrong for ui-demo#test.
+
+baseline: red (ui-demo#test app.test.ts, inherited from fn-25.1 separator)
+Tier: implementer: opus at medium (project routing block)
+stage: impl-review - skipped(config: REVIEW_MODE=none)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: ef98864e63e12047b0599992a46dea7cd0609361
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/ui... --filter=ui-demo --filter=docs
 - PRs:

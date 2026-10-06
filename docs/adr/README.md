@@ -23,3 +23,5 @@
 | [0017](0017-resumable-host-first-components.md) | `@sleekstack/ui` (spike): host HTML resumes through named handlers and bound atoms without re-running components | Proposed |
 | [0020](0020-keyed-instances-skip-unchanged-runs.md) | A keyed instance whose props and context are unchanged is not re-run | Accepted |
 | [0021](0021-atoms-bind-in-jsx.md) | An atom in JSX (child or attribute value) binds the DOM directly; the component does not re-run | Accepted |
+| [0022](0022-ui-size-budget-and-publish-gate.md) | `@sleekstack/ui` size budget (measured on built output, asserted in a test) and the publish gate; the package stays private | Accepted |
+| [0023](0023-streaming-ssr-protocol.md) | `@sleekstack/ui` streaming SSR: comment placeholders, template chunks swapped by an inline runtime, `b` map, `__sleekEnd`, `nonce`, distinct `idPrefix` per stream | Accepted |

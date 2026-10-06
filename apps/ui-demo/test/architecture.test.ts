@@ -10,6 +10,7 @@ import { expect, it } from 'vitest'
 //   components      the UI; never touches infrastructure
 //   app, main       composition roots: wire UI to infrastructure
 //   resume/*        the resumable counter: no React, no components, no domain
+//   size/*          size-budget entries: built `@sleekstack/ui` output only
 interface Rule {
   readonly local: ReadonlyArray<string>
   readonly packages: ReadonlyArray<string>
@@ -23,6 +24,8 @@ const rules: Record<string, Rule> = {
   components: { local: ['domain', 'state', 'guests', 'backlog'], packages: ['effect', '@sleekstack/ui'] },
   app: { local: ['components', 'domain', 'infrastructure'], packages: ['@sleekstack/ui'] },
   main: { local: ['app', 'infrastructure'], packages: ['@sleekstack/ui'] },
+  'size/mount': { local: [], packages: ['@sleekstack/ui', 'effect'] },
+  'size/hydrate': { local: [], packages: ['@sleekstack/core', '@sleekstack/ui', 'effect'] },
   'resume/count': { local: [], packages: ['@sleekstack/core', 'effect'] },
   'resume/increment': { local: ['resume/count'], packages: ['@sleekstack/ui', 'effect'] },
   'resume/counter': { local: ['resume/count', 'resume/increment'], packages: ['@sleekstack/ui'] },

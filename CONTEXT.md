@@ -139,7 +139,11 @@ _Avoid_: Event listener, callback, action
 
 **Resume**:
 `resume({ container, layer, handlers, atoms })`: makes server-rendered host HTML interactive without running any Component. It seeds its own store from the Manifest, keeps `bind` text in sync and runs Handlers through one queue with `layer`. Distinct from React hydration (Islands), which runs component code, and from atom-store `hydrate`, which only seeds a Snapshot (ADR 0017).
-_Avoid_: Hydrate, rehydrate, boot
+_Avoid_: rehydrate, boot. Not Hydrate: `hydrateMount` runs components and adopts the server DOM (see Hydrate Mount).
+
+**Hydrate Mount**:
+`hydrateMount(app, { layer, container, onError?, store? })`: runs a host tree once on the client against `renderToString` output and adopts the server DOM instead of rebuilding it. Seeds state from the `<script data-sleek-hydrate>` payload. Distinct from Resume (no component runs) and from atom-store `hydrate` (seeds a Snapshot only). ADR 0015.
+_Avoid_: rehydrate, revive
 
 **Manifest**:
 The one `<script data-sleek-manifest>` that `renderToString` emits: the delegated event types and each bind key's encoded atom value. Only serializable value-kind atoms enter it; a bad entry fails `resume` with `ManifestDecodeFailed`. Not a Snapshot.
@@ -156,6 +160,10 @@ _Avoid_: Context provider, LayerProvider
 **Catch**:
 `Catch(tag, fallback, children)`: renders `fallback` for one tagged error and removes only that tag from `E`.
 _Avoid_: Error boundary, try
+
+**Pending**:
+`<Pending fallback>{children}</Pending>`: an instance that renders `fallback` while its children wait on an async Effect (such as `useSuspenseQuery`), then the children. A re-run keeps the previous content until the new content resolves; `renderToString` awaits the content and never emits the fallback. `renderToStream` emits the fallback in the shell and the content later as a chunk (ADR 0023). A content error goes to the enclosing `Boundary` (ADR 0015).
+_Avoid_: Suspense, loading provider, provider
 
 **Store** *(ui)*:
 The `Store` Tag over core's `AtomStore`, one per `mount`. A host component that reads an atom through `useAtomValue` / `useAtom` re-runs when it changes; the Reconciler patches its subtree and matched guests keep their React state (ADR 0015).

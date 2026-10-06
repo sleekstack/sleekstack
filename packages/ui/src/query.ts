@@ -7,6 +7,7 @@
 import { Atom, type AtomStore } from '@sleekstack/core'
 import { QueryClientTag } from '@sleekstack/query'
 import {
+  type DefaultedQueryObserverOptions,
   type MutateOptions,
   MutationObserver,
   type MutationObserverOptions,
@@ -17,7 +18,7 @@ import {
   type QueryObserverOptions,
   type QueryObserverResult,
 } from '@tanstack/query-core'
-import { Effect, Scope } from 'effect'
+import { Data, Effect, Scope } from 'effect'
 import { Collector, RenderScope, Store, useAtomValue } from './reactive'
 
 type Entry = {
@@ -28,6 +29,10 @@ type Entry = {
 }
 
 const registries = new WeakMap<AtomStore, Map<string, Entry>>()
+
+// Server render: read the result through a throwaway atom so the component is a `Reactive` instance on the server
+// too, matching the client's markup for hydration.
+const serverRead = <A>(value: A): Effect.Effect<A, never, Store> => useAtomValue(Atom.make(value))
 
 /** The scope's `QueryClient`. */
 export const useQueryClient = (): Effect.Effect<QueryClient, never, QueryClientTag> => QueryClientTag
@@ -59,34 +64,89 @@ export const useQuery = <
     const scope = yield* RenderScope
     const defaulted = client.defaultQueryOptions(options as QueryObserverOptions<any, any, any, any, any>)
     if (!scope)
-      return new QueryObserver(client, defaulted).getOptimisticResult(defaulted) as QueryObserverResult<TData, TError>
+      return (yield* serverRead(
+        new QueryObserver(client, defaulted).getOptimisticResult(defaulted),
+      )) as QueryObserverResult<TData, TError>
+    const e = yield* retain(client, store, scope, defaulted)
+    return (yield* useAtomValue(e.atom)) as QueryObserverResult<TData, TError>
+  })
+
+// Shares one observer per store and query hash; the run scope's finalizer drops it when the last user closes.
+const retain = (
+  client: QueryClient,
+  store: AtomStore,
+  scope: Scope.Scope,
+  defaulted: DefaultedQueryObserverOptions<any, any, any, any, any>,
+) =>
+  Effect.gen(function* () {
     let registry = registries.get(store)
     if (!registry) registries.set(store, (registry = new Map()))
+    const reg = registry
     const hash = defaulted.queryHash
-    let entry = registry.get(hash)
-    if (entry) entry.observer.setOptions(defaulted)
+    let e = reg.get(hash)
+    if (e) e.observer.setOptions(defaulted)
     else {
       const observer = new QueryObserver(client, defaulted)
-      entry = {
+      e = {
         observer,
         atom: Atom.make<unknown>(observer.getOptimisticResult(defaulted)),
         refs: 0,
         unsubscribe: () => {},
       }
-      registry.set(hash, entry)
+      reg.set(hash, e)
     }
-    const e = entry
-    const reg = registry
-    if (e.refs++ === 0) e.unsubscribe = e.observer.subscribe((result) => store.set(e.atom, result))
+    const entry = e
+    if (entry.refs++ === 0) entry.unsubscribe = entry.observer.subscribe((result) => store.set(entry.atom, result))
     yield* Scope.addFinalizer(
       scope,
       Effect.sync(() => {
-        if (--e.refs > 0) return
-        e.unsubscribe()
+        if (--entry.refs > 0) return
+        entry.unsubscribe()
         reg.delete(hash)
       }),
     )
-    return (yield* useAtomValue(e.atom)) as QueryObserverResult<TData, TError>
+    return entry
+  })
+
+/** A failed `useSuspenseQuery` fetch; `cause` is TanStack's error. Tagged so a `Boundary` can match it. */
+export class QueryFailed extends Data.TaggedError('QueryFailed')<{ readonly cause: unknown }> {}
+
+/** `useSuspenseQuery` options: `useQuery`'s without `select`; `enabled: false` is rejected (a disabled query never resolves). */
+export type UseSuspenseQueryOptions<TQueryFnData, TError, TQueryKey extends QueryKey> = Omit<
+  UseQueryOptions<TQueryFnData, TError, TQueryFnData, TQueryKey>,
+  'enabled' | 'select'
+> & {
+  enabled?: true
+}
+
+/**
+ * Waits for a query's data (`fetchQuery`, so fresh cached data within `staleTime` returns at once) and fails with
+ * `QueryFailed`. Under a run scope it retains the shared observer like `useQuery`, and an interrupt cancels the fetch;
+ * without one (server render) it awaits and returns the data without subscribing.
+ */
+export const useSuspenseQuery = <TQueryFnData = unknown, TError = Error, TQueryKey extends QueryKey = QueryKey>(
+  options: UseSuspenseQueryOptions<TQueryFnData, TError, TQueryKey>,
+): Effect.Effect<TQueryFnData, QueryFailed, QueryClientTag | Store> =>
+  Effect.gen(function* () {
+    const client = yield* QueryClientTag
+    const scope = yield* RenderScope
+    const defaulted = client.defaultQueryOptions(options as QueryObserverOptions<any, any, any, any, any>)
+    if (scope) {
+      // Reading the atom re-runs on every observer result; held data short-circuits so a re-run never refetches.
+      const result = (yield* useAtomValue(
+        (yield* retain(client, yield* Store, scope, defaulted)).atom,
+      )) as QueryObserverResult<TQueryFnData, TError>
+      if (result.data !== undefined)
+        return result.status === 'error' ? yield* Effect.fail(new QueryFailed({ cause: result.error })) : result.data
+    }
+    const data = yield* Effect.tryPromise({
+      try: (signal) => {
+        signal.addEventListener('abort', () => void client.cancelQueries({ queryKey: defaulted.queryKey, exact: true }))
+        return client.fetchQuery(defaulted as any) as Promise<TQueryFnData>
+      },
+      catch: (cause) => new QueryFailed({ cause }),
+    })
+    return scope ? data : yield* serverRead(data)
   })
 
 /** `useMutation` result: TanStack's result plus `mutateAsync`; `mutate` swallows the rejection (the error is in the result), `mutateAsync` keeps it. */
@@ -132,7 +192,8 @@ export const useMutation = <TData = unknown, TError = Error, TVariables = void, 
     })
     if (!scope || !id) {
       const observer = new MutationObserver<TData, TError, TVariables, TContext>(client, options)
-      return withMutate(observer, observer.getCurrentResult())
+      const idle = withMutate(observer, observer.getCurrentResult())
+      return scope ? idle : yield* serverRead(idle)
     }
     const store = yield* Store
     const index = calls.get(scope) ?? 0

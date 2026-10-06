@@ -24,9 +24,15 @@ Same build for core and query, `effect` and `@tanstack/query-core` as peers, `si
 - [ ] `pnpm turbo run test typecheck --filter=@sleekstack/core...` green on a clean checkout.
 
 ## Done summary
-TBD
+core and query build with tsc to dist; main/types/exports point at dist, sideEffects false, effect (and @tanstack/query-core for query) are peers plus devDependencies; turbo test/typecheck depend on ^build. Packed manifests verified: effect is a peer, no dependencies, maps included.
 
+Knock-on fixes outside Touches (required by dist resolution): analyze libId regex accepts dist/*.d.ts (else every core-declared fixture failed); docs entry-points maps dist/*.d.ts back to src/*.ts for typedoc; showcase serverTime got an explicit type (TS2742: inferred type named core/dist/atom/Result, declaration:true in base tsconfig). Consumers with declaration emit may hit TS2742 on inferred Result types; a ./Result subpath or similar would fix it generically (not built, YAGNI).
+
+Gate: pnpm turbo run test typecheck build --filter=...@sleekstack/core --force -> Tasks: 37 successful, 37 total.
+pnpm install changed pnpm-lock.yaml (committed).
+
+stage: impl-review - skipped(config: conductor requested no review)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 0e52c04949a9abd9a3052acfaab4f6abf7171daf
+- Tests: pnpm turbo run test typecheck build --filter=...@sleekstack/core --force
 - PRs:

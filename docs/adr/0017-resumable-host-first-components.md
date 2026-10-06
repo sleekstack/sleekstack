@@ -51,3 +51,5 @@ Almost all of the entry is Effect. The resume runtime itself is small, and a han
 - Decide whether a page that already ships Effect should prefer `resume` over hydration, and measure it against a hydrated host tree.
 - Replay pre-resume events, as Islands do.
 - Decide whether `mount` should subscribe `Bind` nodes.
+
+Note (fn-25): host trees now also have hydration, `hydrateMount` (ADR 0015, Amendment: hydration), which runs components once and adopts the server DOM. `resume` is unchanged and ignores the `data-sleek-hydrate` script; `hydrateMount` ignores the resume manifest. Choosing between them per page is still open.

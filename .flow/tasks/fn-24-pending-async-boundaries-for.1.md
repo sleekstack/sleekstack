@@ -34,9 +34,13 @@ Early proof point. Builds `Pending` as a component instance whose content fiber 
 - [ ] Existing ui tests pass; `pnpm turbo run test typecheck --filter=@sleekstack/ui...` green.
 
 ## Done summary
-TBD
+Added `Pending` (packages/ui/src/pending.ts): an instance whose content forks in a daemon fiber with its own scope, frame and slot subtree (`content` kid of the Pending's slots). The resolved content moves into a useLocal slot as `{node, frame, props}`; the props-identity discriminator separates a slot-set re-run (emit stored node, no fork) from a fresh run (fork). Previous content stays on screen during a re-fork. dom.ts: re-emitted nodes adopt idempotently, untracked scopes still in the new set stay open, content slots commit with the run, and dropScopes leaves uncommitted content to its Pending. `pending: {fallback, content, frame?}` rides on ReactiveNode.
+Follow-ups (fn-24.2): content failure is dropped (no error routing yet); stale-fork completion is ignored; one scope closer per fork accumulates in the content slots until dispose.
 
+baseline: green
+stage: impl-review - skipped(config: REVIEW_MODE=none)
+Tier: implementer: opus at medium (project routing block)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 348ad076721299c35338daaa73412f27aa3b0675
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/ui...
 - PRs:

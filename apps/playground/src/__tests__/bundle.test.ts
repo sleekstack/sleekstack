@@ -11,9 +11,11 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { build, type RollupOutput } from 'vite'
+import { build } from 'vite'
 import { SERVER_ONLY_MARKER } from '../services.server'
 import { STORES_KEY } from '@sleekstack/react/internal'
+
+type RolldownOutput = Extract<Awaited<ReturnType<typeof build>>, { output: unknown }>
 
 const root = fileURLToPath(new URL('../..', import.meta.url))
 
@@ -25,7 +27,7 @@ describe('playground bundle separation (R11)', () => {
         root,
         logLevel: 'silent',
         build: { outDir, emptyOutDir: true, write: true },
-      })) as RollupOutput
+      })) as RolldownOutput
       const chunks = result.output.filter((o) => o.type === 'chunk')
 
       const clientChunk = chunks.find((c) => c.name === 'client-tags')
@@ -76,7 +78,7 @@ describe('playground bundle separation (R11)', () => {
         mode: 'production',
         logLevel: 'silent',
         build: { outDir, emptyOutDir: true, write: true },
-      })) as RollupOutput
+      })) as RolldownOutput
       const sources = result.output.filter((o) => o.type === 'chunk').map((c) => c.code)
       // Sanity: LayerProvider (whose dev path writes the registry) is in the build.
       expect(sources.some((c) => c.includes('[@sleekstack/react] onFinalizerError threw:'))).toBe(true)

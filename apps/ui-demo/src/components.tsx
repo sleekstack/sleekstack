@@ -1,7 +1,7 @@
 /** @jsxImportSource @sleekstack/ui */
 import { Effect } from 'effect'
-import { Boundary, useAtomValue, useLocal, useSetAtom } from '@sleekstack/ui'
-import { useAddTask, useBacklog } from './backlog'
+import { Boundary, Pending, useAtomValue, useLocal, useSetAtom } from '@sleekstack/ui'
+import { useAddTask, useSuspenseBacklog, type QueryFailed } from './backlog'
 import { AddButton, Avatar, FilterBar, Votes } from './guests'
 import { filterAtom, selectedAtom } from './state'
 import {
@@ -198,14 +198,13 @@ export const Team = () =>
     )
   })
 
-/** Reads the project's tasks through the query cache; re-runs when the query result changes. */
+/** Waits on the project's tasks through the query cache (under `Pending`); re-runs when the query result changes. */
 const BacklogList = ({ projectId }: { projectId: string }) =>
   Effect.gen(function* () {
-    const q = yield* useBacklog(projectId)
-    if (q.isPending) return yield* <p className="muted">Loading backlog</p>
+    const tasks = yield* useSuspenseBacklog(projectId)
     return yield* (
       <ul className="backlog">
-        {(q.data ?? []).map((t) => (
+        {tasks.map((t) => (
           <li key={t.id}>{t.title}</li>
         ))}
       </ul>
@@ -223,7 +222,11 @@ export const Backlog = ({ projectId }: { projectId: string }) => (
   <section className="backlog-panel">
     <h2>Backlog</h2>
     <AddTask projectId={projectId} />
-    <BacklogList projectId={projectId} />
+    <Boundary tag="QueryFailed" fallback={(_: QueryFailed) => <p className="error">Backlog failed to load</p>}>
+      <Pending fallback={<p className="muted spinner">Loading backlog</p>}>
+        <BacklogList projectId={projectId} />
+      </Pending>
+    </Boundary>
   </section>
 )
 

@@ -26,9 +26,12 @@ Pending must not fall into the generic component path of the Analyzer.
 - [ ] Analyzer tests green: `pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack`.
 
 ## Done summary
-TBD
+The Analyzer now treats `<Pending>` (libId `ui/pending#Pending`, since jsx-runtime re-exports it from ./pending) as transparent: children's R and E pass through, and the `fallback` JSX is analyzed through `embedded()` as siblings. New fixture `ui-pending` (in components.test.ts) covers a child MissingDependency and a fallback UnhandledError.
 
+baseline: green via handoff (verified at f44c401 by fn-24.1)
+Tier: implementer: opus at medium (project routing block)
+stage: impl-review - skipped(config: REVIEW_MODE=none)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 2634deaf87bf7f3e8cecb834210788ab3fa9c281
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack
 - PRs:

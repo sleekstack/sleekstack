@@ -22,9 +22,14 @@ Each chunk carries its own dehydrated atom and query state (fn-25 format, `data-
 - [ ] A client that hydrates a streamed boundary does not refetch its state (R3 state half).
 
 ## Done summary
-TBD
+renderToStream now appends a `data-sleek-hydrate` payload (string.ts `payload`, now exported) to the shell and before each chunk's `<template>`, holding only atoms (by encoded JSON) and queries (by queryHash+dataUpdatedAt) changed since the previous flush; one Collector spans the stream. The QueryClient is read from the built layer context. hydrateMount's readPayload now reads every top-level `script[data-sleek-hydrate]` in the container, merging atoms in order (later wins, since core `hydrate` keeps the first value per key) and concatenating queries; a malformed one is reported and skipped.
 
+Test: stream.test.ts "each chunk carries its new atom and query state; hydrating the streamed DOM does not refetch" (red without the hydrate.ts change).
+
+Notes for .5: payloads are read only once, at hydrateMount; chunks arriving later are not yet merged. Payload scripts sit at the stream's top level (container children), outside templates. No resume manifest in the stream. An unhandled post-flush failure sends no chunk and no payload.
+
+stage: impl-review - skipped(config: no review requested by conductor)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: a77e7e330df44d4103253e1964ce681bdce4eeed
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/ui... --filter=ui-demo
 - PRs:

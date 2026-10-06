@@ -15,11 +15,12 @@ it('renders the board for Ada, with every failure caught by its Boundary', async
   expect(html).toContain('Wire the mount layer')
   expect(html).toContain('<em class="you">you</em>') // Ada is the assignee of t1 and the viewer
   expect(html).toContain('Unassigned')
-  expect(html).toContain('Unknown user ghost') // UserNotFound inside a card
-  expect(html).toContain('No project &quot;missing&quot;') // ProjectNotFound
-  expect(html).toContain('No task &quot;nope&quot;') // TaskNotFound
-  expect(html).toContain('Ada can edit this task')
-  expect(html).toContain('Loading backlog') // renderToString starts no fetch
+  expect(html).toContain('Unknown user <!--sleek-t-->ghost') // UserNotFound inside a card; text separator from renderToString
+  expect(html).toContain('No project &quot;<!--sleek-t-->missing<!--sleek-t-->&quot;') // ProjectNotFound
+  expect(html).toContain('No task &quot;<!--sleek-t-->nope<!--sleek-t-->&quot;') // TaskNotFound
+  expect(html).toContain('Ada<!--sleek-t--> can edit this task')
+  expect(html).toContain('<li>Document Boundary</li>') // renderToString awaits Pending content
+  expect(html).not.toContain('Loading backlog')
 })
 
 it('scopes the Viewer per mount: Grace reads only', async () => {
@@ -72,13 +73,21 @@ it('a filter click re-renders only the columns; a task pick replaces the detail'
   await act(() => m.dispose())
 })
 
-it('the backlog loads through useQuery; a guest-triggered mutation updates it, siblings keep their nodes', async () => {
+it('the backlog shows the Pending fallback, then loads through useSuspenseQuery; a guest-triggered mutation updates it, siblings keep their nodes', async () => {
   ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
   const container = document.createElement('div')
+  let sawFallback = false
+  const seen = new MutationObserver(
+    () => void (sawFallback ||= container.querySelector('.backlog-panel .spinner') !== null),
+  )
+  seen.observe(container, { childList: true, subtree: true })
   let m!: Awaited<ReturnType<typeof mount>>
   await act(async () => void (m = await mount(App({ viewer: 'u1' }), { layer: AppLive, container })))
   const items = () => [...container.querySelectorAll('.backlog li')].map((li) => li.textContent)
   await vi.waitFor(() => expect(items()).toEqual(['Document Boundary']))
+  seen.disconnect()
+  expect(sawFallback).toBe(true)
+  expect(container.querySelector('.backlog-panel .spinner')).toBeNull()
   const header = container.querySelector('header')
   const board = container.querySelector('.board')
   const add = container.querySelector<HTMLButtonElement>('button.add')!

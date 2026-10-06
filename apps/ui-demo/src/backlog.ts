@@ -1,14 +1,16 @@
 import { Effect } from 'effect'
-import { useMutation, useQuery } from '@sleekstack/ui/query'
+import { useMutation, useSuspenseQuery } from '@sleekstack/ui/query'
 import { effectFn, QueryClientTag } from '@sleekstack/query'
 import { TaskRepo } from './domain'
+
+export type { QueryFailed } from '@sleekstack/ui/query'
 
 // The cache key lives here only: the read and the invalidation after a write cannot drift apart.
 const key = (projectId: string) => ['tasks', projectId]
 
-/** The project's tasks through the query cache. */
-export const useBacklog = (projectId: string) =>
-  useQuery({ queryKey: key(projectId), queryFn: effectFn(TaskRepo.byProject(projectId)) })
+/** The same tasks for a component under `Pending`: suspends until the first result, fails with `QueryFailed`. */
+export const useSuspenseBacklog = (projectId: string) =>
+  useSuspenseQuery({ queryKey: key(projectId), queryFn: effectFn(TaskRepo.byProject(projectId)) })
 
 /** `mutate(title)` adds a task, then refreshes the backlog. */
 export const useAddTask = (projectId: string) =>

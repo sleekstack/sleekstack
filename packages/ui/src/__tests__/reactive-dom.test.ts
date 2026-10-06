@@ -1341,7 +1341,7 @@ describe('eager host elements', () => {
     expect(Effect.runSync(tree as any)).toBe(first)
     expect(first).toEqual(el('p', { class: 'a' }, 'x', '1', el('b', {}, 'y')))
     const html = await renderToString(tree, { layer: Layer.empty })
-    expect(html).toBe('<p class="a">x1<b>y</b></p>')
+    expect(html).toBe('<p class="a">x<!--sleek-t-->1<b>y</b></p>')
   })
 
   it('an element with an event, an atom or a component child still runs lazily and keeps them', async () => {
@@ -1387,8 +1387,8 @@ describe('lazy element children', () => {
     const many = await renderToString(jsx('p', { children: ['x', jsx(A, {}), 'y', at, jsx(B, {}), 'z'] }), {
       layer: Layer.empty,
     })
-    expect(none).toBe('<p>a1b</p>')
+    expect(none).toBe('<p>a<!--sleek-t-->1<!--sleek-t-->b</p>')
     expect(one).toBe('<p>a<u>A</u>b</p>')
-    expect(many).toBe('<p>x<u>A</u>y@<s>B</s>z</p>')
+    expect(many).toBe('<p>x<u>A</u>y<!--sleek-t-->@<s>B</s>z</p>')
   })
 })
