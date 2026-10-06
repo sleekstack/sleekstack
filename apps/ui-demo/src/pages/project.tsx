@@ -6,17 +6,18 @@ import { ProjectBoard } from '../modules/tasks'
 
 const APP_TITLE = 'SleekStack UI Demo'
 
-/** Needs ProjectRepo; reads the open project and fails with ProjectNotFound for an unknown or archived one. */
+/** The project `projectAtom` names; fails with ProjectNotFound for an unknown or archived one. */
+const useOpenProject = () => Effect.flatMap(useAtomValue(projectAtom), ProjectRepo.get)
+
+/** Needs ProjectRepo. */
 const ProjectView = function* () {
-  const projectId = yield* useAtomValue(projectAtom)
-  const project = yield* ProjectRepo.get(projectId)
-  // The tab title follows the open project. The effect reads `projectAtom` itself, so it re-runs (finalizer first) when
-  // the project changes; the finalizer puts the plain title back unless another project already took it.
+  const project = yield* useOpenProject()
+  // The tab title follows the open project. The effect reads the same atom, so it re-runs (finalizer first) when the
+  // project changes; the finalizer puts the plain title back unless another project already took it.
   yield* useEffect(function* () {
-    const id = yield* useAtomValue(projectAtom)
-    const found = yield* Effect.option(ProjectRepo.get(id))
-    if (Option.isNone(found)) return
-    const title = `${found.value.name} · ${APP_TITLE}`
+    const open = yield* Effect.option(useOpenProject())
+    if (Option.isNone(open)) return
+    const title = `${open.value.name} · ${APP_TITLE}`
     document.title = title
     yield* Effect.addFinalizer(() =>
       Effect.sync(() => {
@@ -27,7 +28,7 @@ const ProjectView = function* () {
   return (
     <section className="board">
       <h2>{project.name}</h2>
-      <ProjectBoard projectId={projectId} />
+      <ProjectBoard projectId={project.id} />
     </section>
   )
 }
