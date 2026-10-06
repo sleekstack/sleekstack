@@ -30,3 +30,4 @@
 | [0026](0026-plain-event-handlers.md) | Event handlers: a function, a generator or an Effect | Accepted |
 | [0027](0027-use-effect.md) | `useEffect`: an effect tied to an instance, re-run when its deps change | Accepted |
 | [0028](0028-commit-effects-and-refs.md) | Effects run after the DOM commit; `useRef` and the `ref` prop | Accepted |
+| [0029](0029-generator-effects.md) | Generator effects follow the atoms they read, no `deps` needed | Accepted |

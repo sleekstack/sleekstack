@@ -262,24 +262,141 @@ interface EffectSlot {
   started: boolean
   deps: ReadonlyArray<unknown> | undefined
   cleanup: (() => void) | undefined
+  /** A generator effect is running (it follows the atoms it reads, not the component's runs). */
+  tracked: boolean
+  /** The latest committed `fn` of a generator effect: what an atom-driven re-run calls. */
+  make: (() => Generator<any, unknown, any>) | undefined
+  /** Restarts a running generator effect in place (its atoms stay held). */
+  restart: (() => void) | undefined
 }
 
 const sameDeps = (a: ReadonlyArray<unknown>, b: ReadonlyArray<unknown>): boolean =>
   a.length === b.length && a.every((x, i) => Object.is(x, b[i]))
+
+/** The atoms a generator effect reads: each is subscribed when first read, and a change re-runs the effect. */
+class EffectReads extends Reads {
+  constructor(private readonly onNew: (atom: Atom.Atom<any>) => void) {
+    super({})
+  }
+  override set(atom: Atom.Atom<any>, value: unknown): this {
+    if (!this.has(atom)) this.onNew(atom)
+    return super.set(atom, value)
+  }
+}
+
+/**
+ * Runs a generator effect and follows it: it runs as `Effect.gen` in its own `Scope` with the component's context,
+ * recording the atoms it reads (`yield* useAtomValue(a)`, also after an `await`). A change to one of them (batched into one
+ * microtask) ends the run (interrupt, scope closed: its finalizers are the cleanup) and starts it again, from `slot.make`.
+ * The returned function ends it for good.
+ */
+const track = (
+  slot: EffectSlot,
+  first: Generator<any, unknown, any>,
+  ctx: Context.Context<never>,
+  store: AtomStore,
+  report: ((cause: Cause.Cause<unknown>) => void) | undefined,
+): { readonly restart: () => void; readonly stop: () => void } => {
+  let stop: Effect.Effect<void> | undefined
+  let dead = false
+  let queued = false
+  let closing = false
+  let pending: Generator<any, unknown, any> | undefined = first
+  // Atoms stay held across restarts (until the effect ends): between runs nothing else holds them, and an idle atom is reset.
+  const held = new Map<Atom.Atom<any>, () => void>()
+  // The previous run is fully ended (finalizers done) before the next one starts; changes meanwhile fold into that start.
+  const restart = () => {
+    if (closing) return
+    closing = true
+    const end = stop ?? Effect.void
+    stop = undefined
+    Effect.runFork(
+      Effect.zipRight(
+        end,
+        Effect.sync(() => {
+          closing = false
+          if (!dead) start()
+        }),
+      ),
+    )
+  }
+  const changed = () => {
+    if (dead || queued) return
+    queued = true
+    queueMicrotask(() => {
+      queued = false
+      if (!dead) restart()
+    })
+  }
+  const start = () => {
+    const gen = pending ?? slot.make!()
+    pending = undefined
+    const scope = Effect.runSync(Scope.make())
+    const unsubs: Array<() => void> = []
+    const reads = new EffectReads((atom) => {
+      if (!held.has(atom)) held.set(atom, store.retain(atom))
+      unsubs.push(store.subscribe(atom, changed))
+    })
+    const fiber = Effect.runFork(
+      Effect.gen(() => gen).pipe(
+        Effect.provideService(Scope.Scope, scope),
+        Effect.provideService(RenderScope, scope),
+        Effect.provideService(Collector, reads),
+        // Slot hooks (`useLocal`, ...) belong to components: inside an effect they get a frame of their own.
+        Effect.provideService(Frame, makeFrame()),
+        Effect.provide(ctx),
+        Effect.catchAllCause((cause) =>
+          Cause.isInterruptedOnly(cause) ? Effect.void : Effect.sync(() => report?.(cause)),
+        ),
+      ) as Effect.Effect<void>,
+    )
+    stop = Effect.zipRight(
+      Effect.sync(() => unsubs.splice(0).forEach((u) => u())),
+      Effect.zipRight(Fiber.interrupt(fiber), Scope.close(scope, Exit.void)),
+    )
+  }
+  start()
+  const end = () => {
+    dead = true
+    const last = stop
+    stop = undefined
+    Effect.runFork(
+      Effect.zipRight(
+        last ?? Effect.void,
+        Effect.sync(() => held.forEach((release) => release())),
+      ),
+    )
+  }
+  return { restart, stop: end }
+}
+
+/** The requirements a generator effect's yields add. */
+type YieldedContext<Y> = Y extends YieldWrap<Effect.Effect<any, any, infer R>> ? R : never
 
 /**
  * `useEffect(fn, deps?)`, as in React: `fn` runs after the DOM of an instance's first run is committed and again when `deps` change (every run when
  * omitted; once for `[]`). Its returned cleanup runs before the next `fn` and when the instance is removed or the mount
  * disposed (not awaited). `fn` may be an Effect itself (or return one): it runs with the run's context in its own `Scope`
  * (`Effect.addFinalizer` / `acquireRelease` work), and is interrupted as the cleanup. A throw or failure goes to `onError`.
+ *
+ * `fn` may also be a generator function: it runs like an Effect, and follows the atoms it reads (`yield* useAtomValue(a)`)
+ * instead of `deps`: when one changes, its scope closes (the finalizers are the cleanup) and it runs again. Without `deps` it
+ * is not re-run by the component's own runs (it uses its latest closure when an atom re-runs it); with `deps` it also
+ * restarts when they change. Plain values (props) are not tracked: list them in `deps`.
+ *
  * Not run by `renderToString` / `renderToStream`. Takes a slot like `useLocal`, so call it unconditionally.
  * A run that is dropped (it failed, or a newer one replaced it) never runs its effects.
  */
-export const useEffect = <E = never, R = never>(
+export function useEffect<Y extends YieldWrap<Effect.Effect<any, any, any>>>(
+  fn: () => Generator<Y, unknown, any>,
+  deps?: ReadonlyArray<unknown>,
+): Effect.Effect<void, never, Exclude<YieldedContext<Y>, Scope.Scope> | Store>
+export function useEffect<E = never, R = never>(
   fn: (() => EffectResult<E, R>) | Effect.Effect<void, E, R>,
   deps?: ReadonlyArray<unknown>,
-): Effect.Effect<void, never, Exclude<R, Scope.Scope> | Store> =>
-  Effect.flatMap(Effect.context<never>(), (ctx) => {
+): Effect.Effect<void, never, Exclude<R, Scope.Scope> | Store>
+export function useEffect(fn: any, deps?: ReadonlyArray<unknown>): Effect.Effect<void, never, any> {
+  return Effect.flatMap(Effect.context<never>(), (ctx) => {
     if (Context.get(ctx, Collector) === undefined) return Effect.void
     const f = Context.get(ctx, Frame)!
     f.effectful = true
@@ -295,7 +412,17 @@ export const useEffect = <E = never, R = never>(
         new SlotMismatch({ id: f.id, expected: slots.atoms.length, actual: i + 1 }),
       ) as unknown as Effect.Effect<never>
     // The slot holds one mutable record that nothing reads, so a run never makes the instance depend on it.
-    if (first) slots.atoms.push(Atom.make<EffectSlot>({ started: false, deps: undefined, cleanup: undefined }))
+    if (first)
+      slots.atoms.push(
+        Atom.make<EffectSlot>({
+          started: false,
+          deps: undefined,
+          cleanup: undefined,
+          tracked: false,
+          make: undefined,
+          restart: undefined,
+        }),
+      )
     const slot = so.value.get(slots.atoms[i] as Atom.Atom<EffectSlot>)
     const report = Context.get(ctx, MountError)
     const end = () => {
@@ -310,19 +437,34 @@ export const useEffect = <E = never, R = never>(
     if (first) slots.releases.push(end)
     // Queued, not run: the renderer runs it once this run's DOM is committed; a dropped run never does.
     ;(f.effects ??= []).push(() => {
-      if (slot.started && deps !== undefined && slot.deps !== undefined && sameDeps(slot.deps, deps)) return
+      // A generator effect follows its atoms: a component run only refreshes the closure it re-runs from.
+      if (slot.tracked && !Effect.isEffect(fn)) slot.make = fn as () => Generator<any, unknown, any>
+      if (slot.started) {
+        const same = deps !== undefined && slot.deps !== undefined && sameDeps(slot.deps, deps)
+        if (slot.tracked ? deps === undefined || same : same) return
+        // Changed deps restart a generator effect in place, so the atoms it holds are not released in between.
+        if (slot.tracked && slot.restart) return void ((slot.deps = deps), slot.restart())
+      }
       end()
+      slot.restart = undefined
       slot.started = true
+      slot.tracked = false
       slot.deps = deps
       try {
         const r = Effect.isEffect(fn) ? fn : fn()
         if (typeof r === 'function') slot.cleanup = r
-        else if (Effect.isEffect(r)) {
+        else if (isGenerator(r)) {
+          slot.tracked = true
+          slot.make = fn as () => Generator<any, unknown, any>
+          const t = track(slot, r as Generator<any, unknown, any>, ctx, so.value, report)
+          slot.cleanup = t.stop
+          slot.restart = t.restart
+        } else if (Effect.isEffect(r)) {
           const scope = Effect.runSync(Scope.make())
           const fiber = Effect.runFork(
-            (r as Effect.Effect<void, E, R>).pipe(
+            (r as Effect.Effect<void, any, any>).pipe(
               Effect.provideService(Scope.Scope, scope),
-              Effect.provide(ctx as Context.Context<R>),
+              Effect.provide(ctx),
               Effect.catchAllCause((cause) =>
                 Cause.isInterruptedOnly(cause) ? Effect.void : Effect.sync(() => report?.(cause)),
               ),
@@ -337,6 +479,7 @@ export const useEffect = <E = never, R = never>(
     })
     return Effect.void
   })
+}
 
 /**
  * `useRef(initial?)`, as in React: a `{ current }` box that is the same object on every run of the instance and that

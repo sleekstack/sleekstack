@@ -964,6 +964,96 @@ describe('host events', () => {
       expect(log).toEqual(['hi', 'finalized'])
     })
 
+    describe('a generator effect', () => {
+      const Tracked = (a: Atom.Atom<number>, log: Array<string>) => () =>
+        Effect.as(
+          useUiEffect(function* () {
+            const v = yield* useAtomValue(a)
+            log.push(`run${v}`)
+            yield* Effect.addFinalizer(() => Effect.sync(() => log.push(`end${v}`)))
+          }),
+          el('b'),
+        )
+
+      it('follows the atoms it reads: cleanup, then run again; once for several changes in a tick', async () => {
+        const n = Atom.make(0)
+        const log: Array<string> = []
+        const { store, handle } = await go(jsx(Tracked(n, log), {}))
+        expect(log).toEqual(['run0'])
+        store.set(n, 1)
+        store.set(n, 2)
+        await tick()
+        expect(log).toEqual(['run0', 'end0', 'run2'])
+        await act(() => handle.dispose())
+        await tick()
+        expect(log).toEqual(['run0', 'end0', 'run2', 'end2'])
+      })
+
+      it('is not re-run by the component re-running, and uses the latest closure when an atom re-runs it', async () => {
+        const tracked = Atom.make(0)
+        const other = Atom.make(0)
+        const log: Array<string> = []
+        const C = () =>
+          Effect.flatMap(useAtomValue(other), (o) =>
+            Effect.zipRight(
+              useUiEffect(function* () {
+                const v = yield* useAtomValue(tracked)
+                log.push(`t${v}/o${o}`)
+              }),
+              Effect.succeed(el('b')),
+            ),
+          )
+        const { store } = await go(jsx(C, {}))
+        store.set(other, 1) // the component re-runs; the effect does not
+        await tick()
+        expect(log).toEqual(['t0/o0'])
+        store.set(tracked, 1) // the atom re-runs it, from the newest closure
+        await tick()
+        expect(log).toEqual(['t0/o0', 't1/o1'])
+      })
+
+      it('tracks a read made after an async step, and restarts when deps change too', async () => {
+        const n = Atom.make(0)
+        const log: Array<string> = []
+        const C = (dep: Atom.Atom<number>) => () =>
+          Effect.flatMap(useAtomValue(dep), (d) =>
+            Effect.zipRight(
+              useUiEffect(
+                function* () {
+                  yield* Effect.sleep(1)
+                  const v = yield* useAtomValue(n)
+                  log.push(`n${v}/d${d}`)
+                },
+                [d],
+              ),
+              Effect.succeed(el('b')),
+            ),
+          )
+        const dep = Atom.make(0)
+        const { store } = await go(jsx(C(dep), {}))
+        await act(async () => void (await new Promise((r) => setTimeout(r, 20))))
+        store.set(n, 1)
+        await act(async () => void (await new Promise((r) => setTimeout(r, 20))))
+        store.set(dep, 1)
+        await act(async () => void (await new Promise((r) => setTimeout(r, 20))))
+        expect(log).toEqual(['n0/d0', 'n1/d0', 'n1/d1'])
+      })
+
+      it('reports a failure to onError', async () => {
+        const errors: Array<Cause.Cause<unknown>> = []
+        const C = () =>
+          Effect.as(
+            useUiEffect(function* () {
+              yield* Effect.fail(new Boom())
+            }),
+            el('b'),
+          )
+        await go(jsx(C, {}), { onError: (c) => errors.push(c) })
+        await tick()
+        expect(errors).toHaveLength(1)
+      })
+    })
+
     it('accepts a raw Effect, run in its own scope and interrupted on dispose', async () => {
       const log: Array<string> = []
       const C = () =>

@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted. Amended by ADR 0028: effects run after the DOM is committed.
+Accepted. Amended by ADR 0028 (effects run after the DOM is committed) and ADR 0029 (generator effects).
 
 ## Context
 
