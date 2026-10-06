@@ -14,7 +14,7 @@ import * as Registry from '@effect-atom/atom/Registry'
 import { Atom, makeAtomStore } from '@sleekstack/core'
 import { atom as jAtom, createStore } from 'jotai/vanilla'
 
-export type Library = 'sleekstack' | 'jotai' | 'solid' | 'effect-atom' | 'react' | 'direct'
+export type Library = 'sleekstack' | 'jotai' | 'solid' | 'qwik' | 'effect-atom' | 'react' | 'direct'
 
 /** A measured body: sync or async; its return value is the final state used by the correctness check. */
 export type Body = () => unknown

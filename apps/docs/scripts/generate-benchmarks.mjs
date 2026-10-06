@@ -10,7 +10,7 @@ const SCENARIOS = 'https://github.com/sleekstack/sleekstack/blob/master/apps/ben
 const SUITES = {
   atoms: 'Atoms (reference: jotai)',
   reactivity: 'Reactive graphs: js-reactivity-benchmark and cellx shapes (reference: jotai)',
-  jsfb: 'js-framework-benchmark operations in jsdom (reference: React)',
+  jsfb: 'js-framework-benchmark operations in jsdom (reference: React; Solid and Qwik shown)',
   'render-string': 'String render (reference: React)',
   'render-dom': 'DOM render in jsdom (reference: React)',
   'jsx-overhead': 'JSX instance wrapper (reference: direct component calls)',

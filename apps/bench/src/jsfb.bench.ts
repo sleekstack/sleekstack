@@ -16,12 +16,10 @@ import { createElement as h, memo, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { createRoot } from 'react-dom/client'
 import { bench, describe } from 'vitest'
+import { qwikApp } from './jsfb.qwik'
+import { solidApp } from './jsfb.solid'
+import { type App, clickCell, type Row, tick } from './jsfb-shared'
 import { check } from './scenarios'
-
-interface Row {
-  readonly id: number
-  readonly label: string
-}
 
 // The suite's label generator (adjective colour noun), seeded so both libraries get the same rows.
 const ADJECTIVES = ['pretty', 'large', 'big', 'small', 'tall', 'short', 'long', 'handsome', 'plain', 'quaint', 'clean']
@@ -34,20 +32,6 @@ const makeData = () => {
   return (count: number): Array<Row> =>
     Array.from({ length: count }, () => ({ id: id++, label: `${pick(ADJECTIVES)} ${pick(COLOURS)} ${pick(NOUNS)}` }))
 }
-
-const tick = () => new Promise((r) => setTimeout(r, 0))
-
-/** One mounted table. `run` operations are the suite's: each returns when the DOM is committed. */
-interface App {
-  container: Element
-  set(rows: ReadonlyArray<Row>): Promise<void>
-  get(): ReadonlyArray<Row>
-  click(rowIndex: number, cell: 2 | 3): Promise<void>
-}
-
-// Rows by position, not `:nth-child`: SleekStack wraps each keyed row in a `display: contents` host element.
-const clickCell = (container: Element, rowIndex: number, cell: 2 | 3) =>
-  (container.querySelectorAll('tbody tr')[rowIndex]!.querySelector(`td:nth-child(${cell}) a`) as HTMLElement).click()
 
 // ---- SleekStack ----
 
@@ -209,6 +193,7 @@ const ops: ReadonlyArray<Op> = [
   { name: 'clear-1k', start: 1000, run: async (a, data, base) => (await a.set([]), a.set(base)) },
 ]
 
+const gc = (globalThis as { gc?: () => void }).gc
 const settledText = (app: App) => `${app.container.querySelectorAll('tbody tr').length}:${app.container.textContent}`
 
 const instance = async (make: () => Promise<App> | App, op: Op) => {
@@ -222,7 +207,12 @@ const instance = async (make: () => Promise<App> | App, op: Op) => {
 
 for (const op of ops) {
   const caseName = `jsfb/${op.name}`
-  const libs = { sleekstack: sleekApp, react: async () => reactApp() } as const
+  const libs = {
+    sleekstack: sleekApp,
+    react: async () => reactApp(),
+    solid: async () => solidApp(),
+    qwik: qwikApp,
+  } as const
   // A fresh table per library for the check, so the measured tables start from setup state.
   const checked = await Promise.all(
     Object.entries(libs).map(async ([lib, make]) => [lib, await instance(make, op)] as const),
@@ -230,18 +220,26 @@ for (const op of ops) {
   await check(
     caseName,
     checked.map(
-      ([lib, i]) => [lib as 'sleekstack' | 'react', async () => (await i.run(), settledText(i.app))] as const,
+      ([lib, i]) =>
+        [lib as 'sleekstack' | 'react' | 'solid' | 'qwik', async () => (await i.run(), settledText(i.app))] as const,
     ),
   )
-  const measured = await Promise.all(
-    Object.entries(libs).map(async ([lib, make]) => [lib, await instance(make, op)] as const),
-  )
+  for (const [, i] of checked) i.app.dispose?.()
   describe(caseName, () => {
-    for (const [lib, i] of measured)
-      bench(
-        lib,
-        async () => void (await i.run()),
-        op.slow ? { iterations: 5, warmupIterations: 1, time: 0, warmupTime: 0 } : { time: 2000 },
-      )
+    for (const [lib, make] of Object.entries(libs)) {
+      // Built when the benchmark starts and dropped when it ends: one table alive at a time keeps GC out of the numbers.
+      let current: Awaited<ReturnType<typeof instance>> | undefined
+      bench(lib, async () => void (await current!.run()), {
+        ...(op.slow ? { iterations: 5, warmupIterations: 1, time: 0, warmupTime: 0 } : { time: 2000 }),
+        setup: async () => {
+          current = await instance(make, op)
+          gc?.()
+        },
+        teardown: () => {
+          current?.app.dispose?.()
+          current = undefined
+        },
+      })
+    }
   })
 }
