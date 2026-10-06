@@ -1,4 +1,4 @@
-import { Atom, type AtomStore, MissingDependency } from '@sleekstack/core'
+import { Atom, type AtomStore, MissingDependency, type Result } from '@sleekstack/core'
 import { Cause, Context, Data, Effect, ExecutionStrategy, Exit, Fiber, Option, Scope } from 'effect'
 import type { YieldWrap } from 'effect/Utils'
 import type { Node, ReactiveNode, Ref } from './node'
@@ -478,6 +478,74 @@ export function useEffect(fn: any, deps?: ReadonlyArray<unknown>): Effect.Effect
       }
     })
     return Effect.void
+  })
+}
+
+/** The errors a generator's yields add. */
+type YieldedError<Y> = Y extends YieldWrap<Effect.Effect<any, infer E, any>> ? E : never
+
+// The latest `source` of each hook-made derived atom: a recompute uses the newest closure, not the first run's.
+const derivedSource = new WeakMap<Atom.Atom<any>, { source: any }>()
+
+const deriveAtom = (box: { source: any }, ctx: Context.Context<never>): Atom.Atom<any> => {
+  const atom = Atom.make((get) => {
+    const r = box.source(get)
+    // Run in the component's context: the store's own context knows nothing of the app's layers.
+    return isGenerator(r)
+      ? Effect.provide(
+          Effect.gen(() => r as Generator<any, unknown, any>),
+          ctx,
+        )
+      : Effect.isEffect(r)
+        ? Effect.provide(r, ctx)
+        : r
+  })
+  derivedSource.set(atom, box)
+  return atom
+}
+
+/**
+ * A derived atom owned by this instance: one atom for the instance's whole life (the same object on every run), recomputed
+ * when an atom it reads with `get` changes. Pass
+ * - an Effect: it runs in the component's context (its services, `Layer`s above it), and the atom holds a `Result`;
+ * - `(get) => Effect` or a generator function `function* (get) { … }` (yields run as `Effect.gen`): same, and `get(atom)`
+ *   (read before the first async step) is a dependency;
+ * - `(get) => value`: a plain derived atom.
+ * The services it needs join the component's requirements (so the `Result`'s error has no `ScopeError`: they are provided). The context is the one of the first run, and the newest
+ * closure is used when it recomputes. Takes a slot like `useLocal`, so call it unconditionally.
+ */
+export function useDerivedAtom<A, E, R>(
+  effect: Effect.Effect<A, E, R>,
+): Effect.Effect<Atom.Atom<Result.Result<A, E>>, never, R | Store>
+export function useDerivedAtom<Y extends YieldWrap<Effect.Effect<any, any, any>>, A>(
+  read: (get: Atom.Context) => Generator<Y, A, any>,
+): Effect.Effect<Atom.Atom<Result.Result<A, YieldedError<Y>>>, never, YieldedContext<Y> | Store>
+export function useDerivedAtom<A, E, R>(
+  read: (get: Atom.Context) => Effect.Effect<A, E, R>,
+): Effect.Effect<Atom.Atom<Result.Result<A, E>>, never, R | Store>
+export function useDerivedAtom<A>(read: (get: Atom.Context) => A): Effect.Effect<Atom.Atom<A>, never, Store>
+export function useDerivedAtom(source: any): Effect.Effect<Atom.Atom<any>, never, any> {
+  return Effect.flatMap(Effect.context<never>(), (ctx) => {
+    const wrapped = Effect.isEffect(source) ? () => source : source
+    const f = Context.get(ctx, Frame)
+    if (Context.get(ctx, Collector) === undefined || f === undefined)
+      return Effect.succeed(deriveAtom({ source: wrapped }, ctx))
+    const so = Context.getOption(ctx, Store)
+    if (Option.isNone(so)) return missingStore('useDerivedAtom') as Effect.Effect<never>
+    const slots = f.owner
+    const i = f.cursor++
+    if (i >= slots.atoms.length) {
+      if (slots.done)
+        return Effect.fail(
+          new SlotMismatch({ id: f.id, expected: slots.atoms.length, actual: i + 1 }),
+        ) as unknown as Effect.Effect<never>
+      const atom = deriveAtom({ source: wrapped }, ctx)
+      slots.atoms.push(atom as unknown as Atom.Writable<any>)
+      slots.releases.push(so.value.retain(atom))
+    }
+    const atom = slots.atoms[i] as unknown as Atom.Atom<any>
+    derivedSource.get(atom)!.source = wrapped
+    return Effect.succeed(atom)
   })
 }
 

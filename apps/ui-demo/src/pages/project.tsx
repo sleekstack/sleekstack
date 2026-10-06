@@ -1,31 +1,37 @@
 /** @jsxImportSource @sleekstack/ui */
+import { Result } from '@sleekstack/core'
 import { Effect } from 'effect'
-import { Boundary, useAtomValue, useEffect } from '@sleekstack/ui'
-import { type Project, ProjectNotFound, ProjectRepo, projectAtom } from '../modules/projects'
+import { Boundary, useAtomValue, useDerivedAtom, useEffect } from '@sleekstack/ui'
+import { ProjectNotFound, ProjectRepo, projectAtom } from '../modules/projects'
 import { ProjectBoard } from '../modules/tasks'
 
 const APP_TITLE = 'SleekStack UI Demo'
 
-/** The tab title while a project is on screen. It is a child of the view, so a failed project (the fallback replaces the view) removes it and its cleanup puts the plain title back. */
-const DocumentTitle = function* ({ project }: { project: Project }) {
-  yield* useEffect(() => {
-    const title = `${project.name} · ${APP_TITLE}`
-    document.title = title
-    return () => {
-      if (document.title === title) document.title = APP_TITLE
-    }
-  }, [project.id])
-  return <></>
-}
-
-/** Needs ProjectRepo; reads the open project and fails with ProjectNotFound for an unknown or archived one. */
+/** Needs ProjectRepo; shows the project `projectAtom` names, and fails with ProjectNotFound for an unknown or archived one. */
 const ProjectView = function* () {
-  const project = yield* Effect.flatMap(useAtomValue(projectAtom), ProjectRepo.get)
+  // One derived atom, in the component's context (so it can use ProjectRepo); the view and the title effect both read it.
+  const open = yield* useDerivedAtom(function* (get) {
+    return yield* ProjectRepo.get(get(projectAtom))
+  })
+  const project = yield* useAtomValue(open)
+  // The tab title follows the open project: the effect reads `open`, so it restarts (finalizer first) when it changes.
+  yield* useEffect(function* () {
+    const current = yield* useAtomValue(open)
+    if (!Result.isSuccess(current)) return
+    const title = `${current.value.name} · ${APP_TITLE}`
+    document.title = title
+    yield* Effect.addFinalizer(() =>
+      Effect.sync(() => {
+        if (document.title === title) document.title = APP_TITLE
+      }),
+    )
+  })
+  if (Result.isFailure(project)) return yield* Effect.failCause(project.cause)
+  if (!Result.isSuccess(project)) return <p className="muted">Loading…</p>
   return (
     <section className="board">
-      <DocumentTitle project={project} />
-      <h2>{project.name}</h2>
-      <ProjectBoard projectId={project.id} />
+      <h2>{project.value.name}</h2>
+      <ProjectBoard projectId={project.value.id} />
     </section>
   )
 }

@@ -31,3 +31,4 @@
 | [0027](0027-use-effect.md) | `useEffect`: an effect tied to an instance, re-run when its deps change | Accepted |
 | [0028](0028-commit-effects-and-refs.md) | Effects run after the DOM commit; `useRef` and the `ref` prop | Accepted |
 | [0029](0029-generator-effects.md) | Generator effects follow the atoms they read, no `deps` needed | Accepted |
+| [0030](0030-derived-atom-hook.md) | `useDerivedAtom`: a derived atom in the component's context | Accepted |
