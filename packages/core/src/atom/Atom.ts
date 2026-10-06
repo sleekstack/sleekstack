@@ -71,6 +71,9 @@ export interface Atom<A> {
   readonly initial?: { readonly value: unknown }
   /** @internal Set by {@link serializable}: the wire key, the Schema and which value shape it describes. */
   readonly serializable?: SerializableInfo
+  /** @internal The last store that built a node for this atom, and that node: a hit skips the store's `Map` lookup. */
+  $owner?: object
+  $node?: object
 }
 
 /** @internal How a serializable atom crosses the wire. */
@@ -99,6 +102,8 @@ const makeAtom = <A>(read: (get: Context) => A, write?: (ctx: WriteContext<A>, v
   [TypeId]: TypeId,
   label: `atom#${++counter}`,
   keepAlive: false,
+  $owner: undefined,
+  $node: undefined,
   read,
   ...(write ? { write } : {}),
 })

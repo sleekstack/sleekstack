@@ -9,8 +9,15 @@ test('Island keeps server DOM, survives a wrapper re-render, hydrates on visible
 
   // load island hydrates and becomes interactive
   const loadBtn = page.getByRole('region', { name: 'load island' }).getByRole('button')
-  await loadBtn.click()
-  await expect(loadBtn).toHaveText('count 11')
+  // A click before hydration lands on inert server DOM and is lost: wait for the island's first client render, and
+  // click again only while the count has not moved (a late first click must not be counted twice).
+  await expect
+    .poll(() => page.evaluate(() => (window as { __islandRenders?: number }).__islandRenders ?? 0))
+    .toBeGreaterThan(0)
+  await expect(async () => {
+    if ((await loadBtn.textContent()) === 'count 10') await loadBtn.click()
+    await expect(loadBtn).toHaveText('count 11', { timeout: 1000 })
+  }).toPass()
 
   const host = page.getByRole('region', { name: 'visible island' })
   const btn = host.getByRole('button', { name: /^count/ })
@@ -188,7 +195,14 @@ test('useId in an Island is benign: no hydration error, server ids kept in the D
   await host.getByRole('button').click()
   await expect(host.getByRole('button')).toHaveText('ided 1')
   const loadBtn = page.getByRole('region', { name: 'load island' }).getByRole('button')
-  await loadBtn.click()
-  await expect(loadBtn).toHaveText('count 11')
+  // A click before hydration lands on inert server DOM and is lost: wait for the island's first client render, and
+  // click again only while the count has not moved (a late first click must not be counted twice).
+  await expect
+    .poll(() => page.evaluate(() => (window as { __islandRenders?: number }).__islandRenders ?? 0))
+    .toBeGreaterThan(0)
+  await expect(async () => {
+    if ((await loadBtn.textContent()) === 'count 10') await loadBtn.click()
+    await expect(loadBtn).toHaveText('count 11', { timeout: 1000 })
+  }).toPass()
   expect(errors).toEqual([])
 })

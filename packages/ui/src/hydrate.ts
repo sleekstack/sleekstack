@@ -295,7 +295,7 @@ const adoptAll = (
       if (end === i) close()
     }
     if (i === list.length) break
-    const l = adoptOne(list[i]!, keys[i], dom, parent, env, scopes)
+    const l = adoptOne(list[i]!, keys?.[i], dom, parent, env, scopes)
     if (!l) continue
     lives.push(l)
     dom = l.dom.nextSibling ?? undefined

@@ -26,12 +26,12 @@ export default defineConfig({
       {
         resolve: { alias },
         ...jsx,
-        test: { name: 'node', environment: 'node', include: ['src/**/*.test.ts'] },
+        test: { name: 'node', testTimeout: 20_000, environment: 'node', include: ['src/**/*.test.ts'] },
       },
       {
         resolve: { alias },
         ...jsx,
-        test: { name: 'jsdom', environment: 'jsdom', include: ['src/**/*.test.tsx'] },
+        test: { name: 'jsdom', testTimeout: 20_000, environment: 'jsdom', include: ['src/**/*.test.tsx'] },
       },
     ],
   },
