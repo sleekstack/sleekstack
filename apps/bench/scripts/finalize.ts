@@ -45,6 +45,7 @@ const results: Results = {
       '@sleekstack/core',
       '@sleekstack/ui',
       'jotai',
+      'solid-js',
       '@effect-atom/atom',
       'effect',
       'react',

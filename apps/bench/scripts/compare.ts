@@ -7,6 +7,8 @@ import { type CaseResult, InputError, readResults, type Results } from './result
 /** Reference library per suite (the part of the case name before `/`). */
 export const REFERENCE: Record<string, string> = {
   atoms: 'jotai',
+  reactivity: 'jotai',
+  jsfb: 'react',
   'render-string': 'react',
   'render-dom': 'react',
   'jsx-overhead': 'direct',
