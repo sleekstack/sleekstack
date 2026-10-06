@@ -1,12 +1,12 @@
 import { Layer } from 'effect'
 import { UiQueryClientLive } from '@sleekstack/query/ui'
-import { UserRepoLive } from './modules/identity/infrastructure'
-import { ProjectRepoLive } from './modules/projects/infrastructure'
-import { TaskRepoLive } from './modules/tasks/infrastructure'
+import { IdentityLive } from './modules/identity/infrastructure'
+import { ProjectsLive } from './modules/projects/infrastructure'
+import { TasksLive } from './modules/tasks/infrastructure'
 
 export { ViewerLive } from './modules/identity/infrastructure'
 
-export const AppLive = Layer.mergeAll(UserRepoLive, ProjectRepoLive, TaskRepoLive)
+export const AppLive = Layer.mergeAll(IdentityLive, ProjectsLive, TasksLive)
 
 /** `AppLive` plus the scope's QueryClient, built over it so `effectFn` queries see the repos. */
 export const AppWithQueriesLive = (config?: Parameters<typeof UiQueryClientLive>[0]) =>
