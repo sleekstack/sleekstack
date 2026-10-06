@@ -331,6 +331,7 @@ export const guestElement = (node: GuestNode, env: Env): ReactNode =>
 export const renderGuest = (root: Root, node: GuestNode, env: Env): void =>
   flushSync(() => root.render(guestElement(node, env)))
 
+const NONE: ReadonlyArray<Live> = []
 export const build = (
   node: Leaf,
   key: string | undefined,
@@ -341,7 +342,7 @@ export const build = (
     const keyed = key === undefined ? {} : { key }
     switch (node._tag) {
       case 'Text':
-        return { node, dom: env.doc.createTextNode(node.text), kids: [] }
+        return { node, dom: env.doc.createTextNode(node.text), kids: NONE }
       case 'Bind': {
         // Live on its own: the text follows the atom without re-running the enclosing component.
         const dom = env.doc.createTextNode(String(read(env.store, node.atom)))
@@ -414,12 +415,14 @@ const buildAll = (
 ): Array<Live> => {
   const list = leaves(nodes, scopes)
   const keys = keysOf(list, env)
-  return list.flatMap((n, i) => {
-    const l = build(n, keys?.[i], env, scopes)
-    if (!l) return []
+  const out: Array<Live> = []
+  for (let i = 0; i < list.length; i++) {
+    const l = build(list[i]!, keys?.[i], env, scopes)
+    if (!l) continue
     parent.appendChild(l.dom)
-    return [l]
-  })
+    out.push(l)
+  }
+  return out
 }
 
 // Plan phase for one element or text node matched in place: validates, reads the DOM, queues ops; mutates nothing.
