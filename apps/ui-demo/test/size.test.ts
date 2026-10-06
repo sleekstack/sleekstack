@@ -64,6 +64,6 @@ describe('size budget (ADR 0022)', () => {
     expect(code).not.toContain('QueryFailed')
     // The tags do survive minification where they are used.
     expect((await measure('resume/entry.ts')).code).toContain('ManifestDecodeFailed')
-    expect(readFileSync(pkg('ui/dist/query.js'), 'utf8')).toContain('QueryFailed')
+    expect(readFileSync(pkg('query/dist/ui.js'), 'utf8')).toContain('QueryFailed')
   })
 })
