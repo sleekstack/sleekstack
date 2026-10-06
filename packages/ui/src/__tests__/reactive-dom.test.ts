@@ -15,6 +15,7 @@ import {
   useAtomValue,
   useLocal,
   useEffect as useUiEffect,
+  useRef,
   useSetAtom,
 } from '../index'
 import type { Node } from '../node'
@@ -993,6 +994,64 @@ describe('host events', () => {
       await tick()
       await act(() => handle.dispose())
       expect(errors).toHaveLength(3)
+    })
+
+    it('runs after the DOM is committed: the ref is set and the element is attached', async () => {
+      const seen: Array<string> = []
+      const C = () =>
+        Effect.flatMap(useRef<HTMLInputElement>(), (ref) =>
+          Effect.zipRight(
+            useUiEffect(() => {
+              seen.push(`${ref.current?.tagName} in ${ref.current?.parentElement?.tagName}`)
+            }, []),
+            jsx('input', { ref }),
+          ),
+        )
+      await go(jsx(C, {}))
+      expect(seen).toEqual(['INPUT in SLEEK-REACTIVE'])
+    })
+
+    it('a component that reads no atom still runs its effect, and a child runs before its parent', async () => {
+      const log: Array<string> = []
+      const Child = () =>
+        Effect.as(
+          useUiEffect(() => void log.push('child'), []),
+          el('i'),
+        )
+      const Parent = () =>
+        Effect.zipRight(
+          useUiEffect(() => void log.push('parent'), []),
+          jsx('div', { children: jsx(Child, {}) }),
+        )
+      await go(jsx(Parent, {}))
+      expect(log).toEqual(['child', 'parent'])
+    })
+
+    it('the ref is set to null when its element is removed', async () => {
+      const show = Atom.make(true)
+      let ref!: { current: Element | null }
+      const P = () =>
+        Effect.flatMap(useRef<Element>(), (r) => {
+          ref = r
+          return Effect.flatMap(useAtomValue(show), (s) => jsx('div', { children: s ? jsx('b', { ref: r }) : null }))
+        })
+      const { store } = await go(jsx(P, {}))
+      expect(ref.current?.tagName).toBe('B')
+      store.set(show, false)
+      await tick()
+      expect(ref.current).toBeNull()
+    })
+
+    it('a run that fails never runs its effect', async () => {
+      const log: Array<string> = []
+      const C = () =>
+        Effect.zipRight(
+          useUiEffect(() => void log.push('ran'), []),
+          Effect.fail(new Boom()) as Effect.Effect<any, Boom>,
+        )
+      await go(jsx(Boundary, { tag: 'Boom', fallback: () => Effect.succeed(el('p', {}, 'fb')), children: jsx(C, {}) }))
+      await tick()
+      expect(log).toEqual([])
     })
 
     it('does not run on the server', async () => {

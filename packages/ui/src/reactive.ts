@@ -1,7 +1,7 @@
 import { Atom, type AtomStore, MissingDependency } from '@sleekstack/core'
 import { Cause, Context, Data, Effect, ExecutionStrategy, Exit, Fiber, Option, Scope } from 'effect'
 import type { YieldWrap } from 'effect/Utils'
-import type { Node, ReactiveNode } from './node'
+import type { Node, ReactiveNode, Ref } from './node'
 
 /** What a component returns: an Effect, or a generator that `yield*`s Effects and returns the element (run as `Effect.gen`). */
 export type ComponentResult =
@@ -100,6 +100,10 @@ export interface RunFrame {
   pending?: Array<readonly [string, Slots]>
   /** Scopes lent to the mount by this run's children; closed if this run fails, forgotten once it succeeds (the node tree owns them). */
   leased?: Array<Scope.CloseableScope>
+  /** `useEffect` work this run queued; the renderer runs it after the run's DOM is committed, and `dropSlots` discards it. */
+  effects?: Array<() => void>
+  /** The run called `useEffect` (on the server too), so its result is an instance node there as well as on the client. */
+  effectful?: boolean
 }
 
 export class Frame extends Context.Reference<Frame>()('@sleekstack/ui/Frame', {
@@ -148,8 +152,16 @@ export const commitSlots = (frame: RunFrame): void => {
   })
 }
 
+/** Runs (once) the `useEffect` work a committed run queued. */
+export const flushEffects = (frame: RunFrame): void => {
+  const queued = frame.effects
+  frame.effects = undefined
+  if (queued) for (const run of queued) run()
+}
+
 /** The run was dropped: dispose the slots it created; earlier slots stay. */
 export const dropSlots = (frame: RunFrame): void => {
+  frame.effects = undefined
   for (const scope of frame.leased ?? []) closeNow(scope)
   frame.leased = undefined
   for (const [id, s] of frame.pending ?? []) {
@@ -256,23 +268,25 @@ const sameDeps = (a: ReadonlyArray<unknown>, b: ReadonlyArray<unknown>): boolean
   a.length === b.length && a.every((x, i) => Object.is(x, b[i]))
 
 /**
- * `useEffect(fn, deps?)`, as in React: `fn` runs on an instance's first run and again when `deps` change (every run when
+ * `useEffect(fn, deps?)`, as in React: `fn` runs after the DOM of an instance's first run is committed and again when `deps` change (every run when
  * omitted; once for `[]`). Its returned cleanup runs before the next `fn` and when the instance is removed or the mount
  * disposed (not awaited). `fn` may return an Effect instead: it runs with the run's context in its own `Scope`
  * (`Effect.addFinalizer` / `acquireRelease` work), and is interrupted as the cleanup. A throw or failure goes to `onError`.
- * Not run by `renderToString` / `renderToStream`. Takes a slot like `useLocal`, so call it unconditionally. It runs during
- * the component's run, not after the DOM is attached.
+ * Not run by `renderToString` / `renderToStream`. Takes a slot like `useLocal`, so call it unconditionally.
+ * A run that is dropped (it failed, or a newer one replaced it) never runs its effects.
  */
 export const useEffect = <E = never, R = never>(
   fn: () => EffectResult<E, R>,
   deps?: ReadonlyArray<unknown>,
 ): Effect.Effect<void, never, Exclude<R, Scope.Scope> | Store> =>
   Effect.flatMap(Effect.context<never>(), (ctx) => {
+    if (Context.get(ctx, Collector) === undefined) return Effect.void
+    const f = Context.get(ctx, Frame)!
+    f.effectful = true
     // Only a mount provides `MountScope`: a string or stream render never runs it.
-    if (Context.get(ctx, Collector) === undefined || Context.get(ctx, MountScope) === undefined) return Effect.void
+    if (Context.get(ctx, MountScope) === undefined) return Effect.void
     const so = Context.getOption(ctx, Store)
     if (Option.isNone(so)) return missingStore('useEffect') as Effect.Effect<never>
-    const f = Context.get(ctx, Frame)!
     const slots = f.owner
     const i = f.cursor++
     const first = i >= slots.atoms.length
@@ -294,30 +308,57 @@ export const useEffect = <E = never, R = never>(
       }
     }
     if (first) slots.releases.push(end)
-    if (slot.started && deps !== undefined && slot.deps !== undefined && sameDeps(slot.deps, deps)) return Effect.void
-    end()
-    slot.started = true
-    slot.deps = deps
-    try {
-      const r = fn()
-      if (typeof r === 'function') slot.cleanup = r
-      else if (Effect.isEffect(r)) {
-        const scope = Effect.runSync(Scope.make())
-        const fiber = Effect.runFork(
-          (r as Effect.Effect<void, E, R>).pipe(
-            Effect.provideService(Scope.Scope, scope),
-            Effect.provide(ctx as Context.Context<R>),
-            Effect.catchAllCause((cause) =>
-              Cause.isInterruptedOnly(cause) ? Effect.void : Effect.sync(() => report?.(cause)),
-            ),
-          ) as Effect.Effect<void>,
-        )
-        slot.cleanup = () => void Effect.runFork(Effect.zipRight(Fiber.interrupt(fiber), Scope.close(scope, Exit.void)))
+    // Queued, not run: the renderer runs it once this run's DOM is committed; a dropped run never does.
+    ;(f.effects ??= []).push(() => {
+      if (slot.started && deps !== undefined && slot.deps !== undefined && sameDeps(slot.deps, deps)) return
+      end()
+      slot.started = true
+      slot.deps = deps
+      try {
+        const r = fn()
+        if (typeof r === 'function') slot.cleanup = r
+        else if (Effect.isEffect(r)) {
+          const scope = Effect.runSync(Scope.make())
+          const fiber = Effect.runFork(
+            (r as Effect.Effect<void, E, R>).pipe(
+              Effect.provideService(Scope.Scope, scope),
+              Effect.provide(ctx as Context.Context<R>),
+              Effect.catchAllCause((cause) =>
+                Cause.isInterruptedOnly(cause) ? Effect.void : Effect.sync(() => report?.(cause)),
+              ),
+            ) as Effect.Effect<void>,
+          )
+          slot.cleanup = () =>
+            void Effect.runFork(Effect.zipRight(Fiber.interrupt(fiber), Scope.close(scope, Exit.void)))
+        }
+      } catch (e) {
+        report?.(Cause.die(e))
       }
-    } catch (e) {
-      report?.(Cause.die(e))
-    }
+    })
     return Effect.void
+  })
+
+/**
+ * `useRef(initial?)`, as in React: a `{ current }` box that is the same object on every run of the instance and that
+ * changing never re-runs it. Pass it as a host element's `ref` prop: `current` is the DOM element once it is attached
+ * (before this commit's effects run) and `null` after it is removed. Takes a slot like `useLocal`, so call it unconditionally.
+ */
+export const useRef = <T = null>(initial: T | null = null): Effect.Effect<Ref<T>, never, Store> =>
+  Effect.flatMap(Effect.context<never>(), (ctx) => {
+    if (Context.get(ctx, Collector) === undefined) return Effect.succeed<Ref<T>>({ current: initial })
+    const so = Context.getOption(ctx, Store)
+    if (Option.isNone(so)) return missingStore('useRef') as Effect.Effect<never>
+    const f = Context.get(ctx, Frame)!
+    const slots = f.owner
+    const i = f.cursor++
+    if (i >= slots.atoms.length) {
+      if (slots.done)
+        return Effect.fail(
+          new SlotMismatch({ id: f.id, expected: slots.atoms.length, actual: i + 1 }),
+        ) as unknown as Effect.Effect<never>
+      slots.atoms.push(Atom.make<Ref<T>>({ current: initial }))
+    }
+    return Effect.succeed(so.value.get(slots.atoms[i] as Atom.Atom<Ref<T>>))
   })
 
 /** Returns a setter for `atom`; registers nothing. */
@@ -660,7 +701,7 @@ export const instance = <P>(
           frame.leased = undefined
           const read = reads.size > 0
           // A run that read no atom and has no key is a plain subtree owned through its scope; anything else is an instance node.
-          const plain = !read && key === undefined
+          const plain = !read && key === undefined && !frame.effectful
           // A run that read no atom is never re-run by the renderer, so its `rerun` is built only if asked for.
           const node: Node = plain
             ? own

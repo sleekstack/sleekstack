@@ -11,6 +11,7 @@ import {
   commitSlots,
   disposeSlots,
   dropSlots,
+  flushEffects,
   DuplicateKey,
   fallbacks,
   Frame,
@@ -123,6 +124,7 @@ const dropScopes = (node: Node): void => {
 
 // Releases what a live subtree holds (instances, guest roots); its DOM is the caller's.
 const drop = (l: Live): void => {
+  if (l.node._tag === 'Element' && l.node.ref?.current === l.dom) l.node.ref.current = null
   if (l.inst) kill(l.inst)
   l.off?.()
   l.bnd?.off()
@@ -177,6 +179,8 @@ export interface Env {
   defect: (error: unknown) => void
   /** Reports `DuplicateKey`; once per patch. */
   duplicate: (key: string) => void
+  /** The plan's refs and effects, run once it is committed. */
+  post?: Post
 }
 
 const once = (onError?: OnError) => {
@@ -187,6 +191,25 @@ const once = (onError?: OnError) => {
   }
 }
 
+// What a commit hands to the code after it: element refs to set, then the effects of the runs it committed (children first).
+export interface Post {
+  readonly refs: Array<() => void>
+  readonly frames: Array<RunFrame>
+}
+export const post = (): Post => ({ refs: [], frames: [] })
+/** Runs a committed plan's refs (so every `ref.current` is set), then its effects. */
+export const flush = (p: Post | undefined): void => {
+  if (!p) return
+  for (const r of p.refs.splice(0)) r()
+  for (const f of p.frames.splice(0)) flushEffects(f)
+}
+/** A run's effects wait for the commit of the plan that holds its node. */
+export const collect = (p: Post | undefined, n: ReactiveNode): void => {
+  if (!p) return
+  if (n.pending?.frame) p.frames.push(n.pending.frame)
+  if (n.frame) p.frames.push(n.frame)
+}
+
 // Plan output: deferred infallible DOM ops, fresh lives (released if the plan is dropped), old lives to release on commit,
 // and adoptions applied after them.
 interface Plan {
@@ -195,8 +218,9 @@ interface Plan {
   readonly created: Array<Live>
   readonly dropped: Array<Live>
   readonly scopes: Array<Scope.CloseableScope>
+  readonly post: Post
 }
-const plan = (): Plan => ({ ops: [], after: [], created: [], dropped: [], scopes: [] })
+const plan = (p: Post = post()): Plan => ({ ops: [], after: [], created: [], dropped: [], scopes: [], post: p })
 const abort = (p: Plan): void => {
   p.created.forEach(drop)
   p.scopes.forEach(closeScope)
@@ -370,6 +394,8 @@ export const build = (
           for (const k of ['value', 'checked']) if (Object.hasOwn(node.attrs, k)) setProp(el, k, node.attrs[k])
         const bnd: BoundAttrs | undefined = node.bound && { atoms: {}, off: () => {} }
         if (bnd) bindAttrs(el, node.bound!, env, bnd)
+        const ref = node.ref
+        if (ref) env.post?.refs.push(() => void (ref.current = el))
         if (!node.events) return { node, dom: el, kids, ...(bnd && { bnd }), ...keyed }
         const ev: Events = { bindings: node.events, listeners: new Map(), fibers: new Set(), dead: false }
         listen(el, ev, Object.keys(node.events), env.onError)
@@ -394,6 +420,7 @@ export const build = (
         }
         installed.add(node)
         inst.lives = buildAll([node.child], env, inst.scopes, host)
+        collect(env.post, node)
         watch(inst, node, env)
         return { node, dom: host, kids: [], inst, ...keyed }
       }
@@ -484,6 +511,12 @@ const patch = (prev: Live, node: Leaf, key: string | undefined, env: Env, p: Pla
         })
       }
     }
+    const oldRef = (prev.node as ElementNode).ref
+    const newRef = (node as ElementNode).ref
+    if (oldRef !== newRef) {
+      if (oldRef) p.ops.push(() => void (oldRef.current === el && (oldRef.current = null)))
+      if (newRef) p.post.refs.push(() => void (newRef.current = el))
+    }
     const events = (node as ElementNode).events
     let ev = prev.ev
     if (ev || (events && Object.keys(events).length > 0)) {
@@ -506,6 +539,7 @@ const adopt = (prev: Live, node: ReactiveNode, key: string | undefined, env: Env
   const inst = prev.inst!
   const sub: Plan = { ...p, scopes: [] }
   const lives = patchChildren(inst.host, inst.lives, [node.child], env, sub)
+  collect(p.post, node)
   p.after.push(() => {
     if (inst.fiber) Effect.runFork(Fiber.interrupt(inst.fiber))
     inst.fiber = undefined
@@ -746,9 +780,10 @@ const swap = (inst: Instance, node: Node, env: Env): void => {
     inst.host,
     inst.lives,
     [own ? own.child : node],
-    { ...env, defect: (e) => errors.push(e), duplicate: once(env.onError) },
+    { ...env, defect: (e) => errors.push(e), duplicate: once(env.onError), post: p.post },
     p,
   )
+  if (own) collect(p.post, own)
   if (errors.length > 0 || inst.dead || !env.live()) {
     abort(p)
     dropScopes(node)
@@ -774,6 +809,7 @@ const swap = (inst: Instance, node: Node, env: Env): void => {
     inst.scope = undefined
   }
   if (inst.scope !== previous) closeScope(previous)
+  flush(p.post)
 }
 
 const safeReport = (cause: Cause.Cause<unknown>, onError?: OnError): void => {
@@ -859,6 +895,7 @@ export const start = async <E, A, LE = never>(
     live: current,
     defect: (e) => reportRenderError(e, onError),
     duplicate: once(onError),
+    post: post(),
   }
   if (adoptWith) {
     const top: Owner = { lives: [], scopes: [] }
@@ -869,9 +906,10 @@ export const start = async <E, A, LE = never>(
     }
     commitSlots(frame)
     state.top = top
+    flush(env.post)
     return { dispose: async () => void (current() && (await teardown(container, state))) }
   }
-  const p = plan()
+  const p = plan(env.post)
   const lives = patchChildren(container, [], [node], env, p)
   // Guest callbacks (`onError`) may start a newer mount while building.
   if (!current()) {
@@ -881,6 +919,7 @@ export const start = async <E, A, LE = never>(
   commit(p)
   commitSlots(frame)
   state.top = { lives, scopes: p.scopes }
+  flush(p.post)
   return {
     dispose: async () => {
       if (current()) await teardown(container, state)

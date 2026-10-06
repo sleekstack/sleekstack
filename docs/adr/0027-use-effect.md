@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted.
+Accepted. Amended by ADR 0028: effects run after the DOM is committed.
 
 ## Context
 
@@ -26,7 +26,7 @@ A component body runs again whenever an atom it reads changes, and each run's `S
 
 ## Consequences
 
-- No post-commit timing: `fn` runs during the run, not after the DOM is attached.
+- Timing: see ADR 0028 (originally `fn` ran during the run).
 - If a run runs `fn` and then fails, the effect has still run; the next successful run compares against its `deps`.
 - A first run that is dropped runs the cleanup through the disposed slots.
 - Unlike React, `deps` are compared on each run of the instance, which happens when an atom it reads changes, not on every parent render.

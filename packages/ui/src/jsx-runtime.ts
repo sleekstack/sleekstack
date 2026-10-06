@@ -1,7 +1,7 @@
 import { Atom } from '@sleekstack/core'
 import { type Context, Effect, Layer } from 'effect'
 import { bind, type Handler, isHandler, on } from './handler'
-import { el, type ElementNode, type EventBinding, fragment, type Node } from './node'
+import { el, type ElementNode, type EventBinding, fragment, type Node, type Ref } from './node'
 import {
   type ComponentResult,
   type HostDescriptor,
@@ -69,12 +69,18 @@ interface Split {
   events?: Record<string, EventBinding>
   handlers?: Record<string, Handler<any, any>>
   bound?: Record<string, Atom.Atom<any>>
+  ref?: Ref<any>
 }
 const split = (props: Props, context: Context.Context<any> | undefined): Split => {
   const out: Split = { attrs: {} }
   for (const k in props) {
     if (k === 'children' || k === 'key') continue
     const v = props[k]
+    // A `useRef` box on `ref` is not an attribute: the renderer fills it with the element.
+    if (k === 'ref' && v !== null && typeof v === 'object' && 'current' in v) {
+      out.ref = v as Ref<any>
+      continue
+    }
     if (ON_PROP.test(k)) {
       if (typeof v === 'function' || Effect.isEffect(v)) {
         const run = typeof v === 'function' ? (v as EventBinding['run']) : () => v as Effect.Effect<void>
@@ -101,10 +107,16 @@ const attrs = (props: Props): Record<string, string> => split(props, undefined).
 
 const element = (type: string, props: Props, key: string | undefined): Effect.Effect<Node, any, any> => {
   const build = (kids: Array<Node | string>, ctx: Context.Context<any> | undefined): Node => {
-    const { attrs: a, events: evs, handlers: hs, bound: bd } = split(props, ctx)
+    const { attrs: a, events: evs, handlers: hs, bound: bd, ref } = split(props, ctx)
     const base = el(type, a, ...kids) as ElementNode
     const node = (hs ? on(base, hs) : base) as ElementNode
-    return { ...node, ...(evs && { events: evs }), ...(bd && { bound: bd }), ...(key !== undefined && { key }) }
+    return {
+      ...node,
+      ...(evs && { events: evs }),
+      ...(bd && { bound: bd }),
+      ...(ref && { ref }),
+      ...(key !== undefined && { key }),
+    }
   }
   // The context is only captured for event closures.
   return hasEvent(props)

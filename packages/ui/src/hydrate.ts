@@ -6,8 +6,10 @@ import { Transfer } from './transfer'
 import {
   build,
   mount,
+  collect,
   type Env,
   type Events,
+  flush as flushPost,
   guestElement,
   type Instance,
   keysOf,
@@ -176,6 +178,8 @@ const adoptOne = (
           return mismatch(n, key, dom, parent, env, scopes)
         const el = dom as Element
         for (const [k, v] of Object.entries(n.attrs)) checkAttr(k, v)
+        const ref = n.ref
+        if (ref) env.post?.refs.push(() => void (ref.current = el))
         // Attributes and form `value` / `checked` are left as the server (or the user) left them.
         const kids = adoptAll(n.children, el, env, scopes)
         if (!n.events) return { node: n, dom: el, kids, ...keyed }
@@ -201,6 +205,7 @@ const adoptOne = (
           frame: n.frame,
         }
         inst.lives = adoptAll([n.child], host, env, inst.scopes)
+        collect(env.post, n)
         watch(inst, n, env)
         return { node: n, dom: host, kids: [], inst, ...keyed }
       }
@@ -440,6 +445,7 @@ const landing = (
       parent.insertBefore(frag, anchor)
       m.lives.splice(idx, m.fallback.length, ...lives)
       release({ lives: m.fallback, scopes: [] })
+      flushPost(e.post)
     } finally {
       busy--
       flush()
