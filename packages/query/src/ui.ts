@@ -1,13 +1,17 @@
 /**
- * packages/ui/src/query.ts
+ * packages/query/src/ui.ts
  *
- * `@sleekstack/ui/query`: TanStack query bindings. Each observed query's result lives in a writable atom so the
+ * `@sleekstack/query/ui`: TanStack query bindings for `@sleekstack/ui` components. Each observed query's result lives in a writable atom so the
  * existing re-run path re-renders its readers; observers are shared per store and query hash, ref-counted by run scopes.
  */
 import { Atom, type AtomStore } from '@sleekstack/core'
-import { QueryClientTag } from '@sleekstack/query'
+import { Store, Transfer, type StateTransfer, useAtomValue } from '@sleekstack/ui'
+import { Collector, RenderScope } from '@sleekstack/ui/internal'
 import {
+  dehydrate,
+  hydrate,
   type DefaultedQueryObserverOptions,
+  type DehydratedState,
   type MutateOptions,
   MutationObserver,
   type MutationObserverOptions,
@@ -18,8 +22,8 @@ import {
   type QueryObserverOptions,
   type QueryObserverResult,
 } from '@tanstack/query-core'
-import { Data, Effect, Scope } from 'effect'
-import { Collector, RenderScope, Store, useAtomValue } from './reactive'
+import { Data, Effect, Layer, Scope } from 'effect'
+import { QueryClientLive, QueryClientTag } from './client'
 
 type Entry = {
   observer: QueryObserver<any, any, any, any, any>
@@ -226,3 +230,36 @@ export const useMutation = <TData = unknown, TError = Error, TVariables = void, 
     )
     return (yield* useAtomValue(e.atom)) as UseMutationResult<TData, TError, TVariables, TContext>
   })
+
+// What the server render hands the client: the scope's cache, as TanStack's `DehydratedState`. A stream asks once per flush and
+// gets the queries that changed since the last ask (mutations are sent whole each time).
+const transfer = (client: QueryClient): StateTransfer => {
+  const sent = new Map<string, number>()
+  return {
+    dehydrate: () => {
+      const all = dehydrate(client)
+      const queries = all.queries.filter(
+        (q) => sent.get(q.queryHash) !== q.state.dataUpdatedAt && (sent.set(q.queryHash, q.state.dataUpdatedAt), true),
+      )
+      return queries.length > 0 || all.mutations.length > 0 ? { ...all, queries } : undefined
+    },
+    hydrate: (state) => {
+      const s = state as DehydratedState | null
+      if (typeof s !== 'object' || s === null || !Array.isArray(s.queries) || !Array.isArray(s.mutations))
+        throw new Error('queries is not a DehydratedState')
+      hydrate(client, s)
+    },
+  }
+}
+
+/** Makes the scope's `QueryClient` travel with a server render: `renderToString` / `renderToStream` send it, `hydrateMount` seeds from it. */
+export const QueryTransferLive: Layer.Layer<Transfer, never, QueryClientTag> = Layer.effect(
+  Transfer,
+  Effect.map(QueryClientTag, transfer),
+)
+
+/** `QueryClientLive` plus `QueryTransferLive`: the layer for an app that renders on the server. */
+export const UiQueryClientLive = (
+  config?: Parameters<typeof QueryClientLive>[0],
+): Layer.Layer<QueryClientTag | Transfer, unknown> =>
+  QueryTransferLive.pipe(Layer.provideMerge(QueryClientLive(config)))

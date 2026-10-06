@@ -20,9 +20,9 @@ const rules: Record<string, Rule> = {
   'domain/': { local: ['domain/'], packages: ['effect'] },
   'application/': {
     local: ['domain/', 'application/'],
-    packages: ['effect', '@sleekstack/core', '@sleekstack/query', '@sleekstack/ui/query'],
+    packages: ['effect', '@sleekstack/core', '@sleekstack/query', '@sleekstack/query/ui'],
   },
-  'infrastructure/': { local: ['domain/', 'infrastructure/'], packages: ['effect', '@sleekstack/query'] },
+  'infrastructure/': { local: ['domain/', 'infrastructure/'], packages: ['effect', '@sleekstack/query/ui'] },
   'presentation/': { local: ['domain/', 'application/', 'presentation/'], packages: ['effect', '@sleekstack/ui'] },
   'presentation/guests': { local: [], packages: ['react', '@sleekstack/ui'] },
   app: { local: ['presentation/', 'infrastructure/'], packages: ['@sleekstack/ui'] },

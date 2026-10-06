@@ -1,10 +1,9 @@
 import { type Cause, Context, Effect, Exit, Fiber, Layer, Option, Scope } from 'effect'
 import { type AtomStore, dehydrate, makeAtomStore } from '@sleekstack/core'
-import { QueryClientTag } from '@sleekstack/query'
-import { dehydrate as dehydrateQueries, type QueryClient } from '@tanstack/query-core'
 import { nodeOrThrow, reportRenderError } from './component'
 import type { Node, ReactiveNode } from './node'
 import { disposeSlots, Frame, makeFrame, RenderScope, Store } from './reactive'
+import { Transfer, type StateTransfer } from './transfer'
 import { type Around, checkId, type Collector, escape, payload, scriptJson, serialize, serializeAll } from './string'
 
 // Swap runtime, emitted once in the shell: replaces `<!--sleek-p:ID-->fallback<!--/sleek-p-->` with the chunk's template.
@@ -68,10 +67,9 @@ export const renderToStream = <E, A, LE = never>(
   const waiting: Array<Promise<void>> = []
   const c: Collector = { store, onError: opts.onError, handlers: new Map(), events: new Set(), atoms: new Map() }
   let emit: (html: string) => void = () => {}
-  let client: QueryClient | undefined
-  // State sent so far: atom key -> encoded JSON, query hash -> dataUpdatedAt. One Collector spans the stream.
+  let transfer: StateTransfer | undefined
+  // Atom state sent so far: key -> encoded JSON (the `Transfer` tracks its own). One Collector spans the stream.
   const sentAtoms = new Map<string, string>()
-  const sentQueries = new Map<string, number>()
   // Boundary paths: Pendings numbered per enclosing boundary in serialize order (`hydrateMount` numbers them alike).
   let parent = ''
   const counts = new Map<string, number>()
@@ -84,19 +82,11 @@ export const renderToStream = <E, A, LE = never>(
         return sentAtoms.get(k) !== json && (sentAtoms.set(k, json), true)
       }),
     )
-    const all = client ? dehydrateQueries(client) : undefined
-    const queries = all && {
-      ...all,
-      queries: all.queries.filter(
-        (q) =>
-          sentQueries.get(q.queryHash) !== q.state.dataUpdatedAt &&
-          (sentQueries.set(q.queryHash, q.state.dataUpdatedAt), true),
-      ),
-    }
+    const sent = transfer?.dehydrate()
     const b = paths
     paths = {}
     // The nonce goes on the data script too, so every script in the stream carries it.
-    return payload(atoms, queries, b).replace('<script ', `<script${nonce} `)
+    return payload(atoms, sent, b).replace('<script ', `<script${nonce} `)
   }
 
   // Placeholder now; the chunk when the boundary's content resolves. A failure streams the nearest `Boundary` fallback
@@ -141,7 +131,7 @@ export const renderToStream = <E, A, LE = never>(
   return new ReadableStream<Uint8Array>({
     async start(controller) {
       const run = Effect.flatMap(Layer.buildWithScope(opts.layer, scope), (ctx) => {
-        client = Option.getOrUndefined(Context.getOption(ctx, QueryClientTag))
+        transfer = Option.getOrUndefined(Context.getOption(ctx, Transfer))
         return Effect.provide(app, ctx)
       }).pipe(
         Effect.provideService(Store, store),

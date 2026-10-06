@@ -1,6 +1,6 @@
 /**
  * R2/R4: core, query and ui packed as tarballs install into a fresh bundler-style project,
- * typecheck a JSX component, and run `mount`, `renderToString` and `./query` under jsdom.
+ * typecheck a JSX component, and run `mount`, `renderToString` and `@sleekstack/query/ui` under jsdom.
  */
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url'
 import { afterAll, describe, expect, it } from 'vitest'
 
 const packages = fileURLToPath(new URL('../../..', import.meta.url))
-const ui = JSON.parse(readFileSync(path.join(packages, 'ui/package.json'), 'utf8'))
+const query = JSON.parse(readFileSync(path.join(packages, 'query/package.json'), 'utf8'))
 const dir = mkdtempSync(path.join(tmpdir(), 'sleekstack-pack-'))
 const run = (cmd: string, args: string[], cwd: string) => {
   try {
@@ -28,8 +28,7 @@ const manifest = (name: string) => JSON.parse(run('tar', ['-xzOf', tgz[name]!, '
 const APP = `/** @jsxImportSource @sleekstack/ui */
 import { Effect, Layer } from 'effect'
 import { fromReact, mount, renderToString } from '@sleekstack/ui'
-import { useQuery } from '@sleekstack/ui/query'
-import { QueryClientLive } from '@sleekstack/query'
+import { UiQueryClientLive, useQuery } from '@sleekstack/query/ui'
 import { Hello } from './guest'
 
 const Card = (props: { name: string }) => <div class="card"><h1>{props.name}</h1></div>
@@ -38,7 +37,7 @@ const Answer = () => Effect.flatMap(useQuery({ queryKey: ['a'], queryFn: async (
 
 export const ssr = await renderToString(<main><Card name="Ada" /><Guest who="Bo" /></main>, { layer: Layer.empty })
 const container = document.createElement('div')
-await mount(<section><Card name="Cy" /><Answer /></section>, { layer: QueryClientLive(), container })
+await mount(<section><Card name="Cy" /><Answer /></section>, { layer: UiQueryClientLive(), container })
 for (let i = 0; i < 100 && !container.textContent!.includes('success'); i++) await new Promise((r) => setTimeout(r, 10))
 export const dom = container.innerHTML
 `
@@ -67,10 +66,10 @@ describe('tarball consumer (R2, R4)', () => {
     }
   }, 120_000)
 
-  it('installs, typechecks and runs mount, renderToString and ./query in jsdom', () => {
+  it('installs, typechecks and runs mount, renderToString and @sleekstack/query/ui in jsdom', () => {
     const app = path.join(dir, 'app')
     run('mkdir', ['-p', path.join(app, 'src')], dir)
-    const dev = ui.devDependencies
+    const dev = query.devDependencies
     writeFileSync(
       path.join(app, 'package.json'),
       JSON.stringify({
@@ -97,7 +96,7 @@ describe('tarball consumer (R2, R4)', () => {
     // pnpm 11 reads overrides from pnpm-workspace.yaml; packed ui depends on core/query at 0.0.1, which is not on the registry.
     writeFileSync(
       path.join(app, 'pnpm-workspace.yaml'),
-      `overrides:\n  "@sleekstack/core": "file:${tgz.core}"\n  "@sleekstack/query": "file:${tgz.query}"\nallowBuilds:\n  esbuild: true\n`,
+      `overrides:\n  "@sleekstack/core": "file:${tgz.core}"\n  "@sleekstack/query": "file:${tgz.query}"\n  "@sleekstack/ui": "file:${tgz.ui}"\nallowBuilds:\n  esbuild: true\n`,
     )
     writeFileSync(
       path.join(app, 'tsconfig.json'),

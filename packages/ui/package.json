@@ -18,9 +18,9 @@
       "types": "./dist/jsx-dev-runtime.d.ts",
       "default": "./dist/jsx-dev-runtime.js"
     },
-    "./query": {
-      "types": "./dist/query.d.ts",
-      "default": "./dist/query.js"
+    "./internal": {
+      "types": "./dist/internal.d.ts",
+      "default": "./dist/internal.js"
     }
   },
   "scripts": {
@@ -31,15 +31,12 @@
   "peerDependencies": {
     "react": ">=19.0.0",
     "react-dom": ">=19.0.0",
-    "@tanstack/query-core": "^5.104.1",
     "effect": "^3.15.0"
   },
   "dependencies": {
-    "@sleekstack/core": "workspace:*",
-    "@sleekstack/query": "workspace:*"
+    "@sleekstack/core": "workspace:*"
   },
   "devDependencies": {
-    "@tanstack/query-core": "^5.104.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "jsdom": "^29.1.1",

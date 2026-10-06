@@ -210,7 +210,7 @@ _Avoid_: Inspector, debug panel
 ### Query cache concepts
 
 **Cached Query**:
-A keyed, cached async read: TanStack Query (ADR 0018). In Effect code it is a `queryOptions({ queryKey, queryFn: effectFn(effect) })` read with TanStack's hooks under `QueryProvider`. The kit form is `cachedQuery()` from `@sleekstack/kit`, read with `useQuery` from `@sleekstack/kit/react`; `@sleekstack/ui/query` has `useQuery` for ui components. Not the server-side Query of `@sleekstack/kit/next`.
+A keyed, cached async read: TanStack Query (ADR 0018). In Effect code it is a `queryOptions({ queryKey, queryFn: effectFn(effect) })` read with TanStack's hooks under `QueryProvider`. The kit form is `cachedQuery()` from `@sleekstack/kit`, read with `useQuery` from `@sleekstack/kit/react`; `@sleekstack/query/ui` has `useQuery` for ui components. Not the server-side Query of `@sleekstack/kit/next`.
 _Avoid_: resource, loader
 
 **Query Client**:
@@ -218,7 +218,7 @@ The TanStack `QueryClient` behind `QueryClientTag`, built by the scoped `QueryCl
 _Avoid_: Query store
 
 **Mutation**:
-A write through TanStack's `useMutation` (or kit `mutation()` + `useMutation`, or `@sleekstack/ui/query`'s `useMutation`). Optimistic writes are TanStack's `onMutate` / `onError` / `onSettled`. Distinct from an Action, the server operation a mutation often calls.
+A write through TanStack's `useMutation` (or kit `mutation()` + `useMutation`, or `@sleekstack/query/ui`'s `useMutation`). Optimistic writes are TanStack's `onMutate` / `onError` / `onSettled`. Distinct from an Action, the server operation a mutation often calls.
 _Avoid_: Command, action (for the client write)
 
 **Dehydrated State**:

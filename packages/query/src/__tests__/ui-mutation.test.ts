@@ -1,13 +1,15 @@
 // @vitest-environment jsdom
 import { makeAtomStore } from '@sleekstack/core'
-import { QueryClientLive, QueryClientTag } from '@sleekstack/query'
+import { QueryClientTag } from '../client'
 import { QueryClient as Client } from '@tanstack/query-core'
 import { Effect, Layer } from 'effect'
 import { act, createElement } from 'react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { el, fromReact, mount, type Mounted, renderToString } from '../index'
-import { jsx as rawJsx } from '../jsx-runtime'
-import { useMutation, useQuery } from '../query'
+import { el, fromReact, mount, type Mounted, renderToString } from '@sleekstack/ui'
+import { jsx as rawJsx } from '@sleekstack/ui/jsx-runtime'
+import { useMutation, useQuery, UiQueryClientLive } from '../ui'
+
+import { withTransfer } from './helpers/transfer'
 
 const jsx = (type: any, props: any) => rawJsx(type, props)
 const tick = () => act(async () => void (await new Promise((r) => setTimeout(r, 0))))
@@ -23,7 +25,7 @@ afterEach(async () => {
 const go = async (app: any, container = document.createElement('div')) => {
   await act(
     async () =>
-      void handles.push(await mount(app, { layer: QueryClientLive(), container, store: makeAtomStore() } as any)),
+      void handles.push(await mount(app, { layer: UiQueryClientLive(), container, store: makeAtomStore() } as any)),
   )
   return container
 }
@@ -73,7 +75,7 @@ describe('server render', () => {
       Effect.map(useQuery({ queryKey: [key], queryFn }), (r) => el('b', {}, `${r.status}:${r.data ?? ''}`))
     const M = () => Effect.map(useMutation({ mutationFn: async () => 1 }), (m) => el('i', {}, m.status))
     const html = await renderToString(jsx('div', { children: [jsx(Q('pre'), {}), jsx(Q('none'), {}), jsx(M, {})] }), {
-      layer: Layer.succeed(QueryClientTag, client),
+      layer: withTransfer(client),
     })
     const r = (inner: string) => `<sleek-reactive style="display: contents;">${inner}</sleek-reactive>`
     expect(html.slice(0, html.indexOf('<script'))).toBe(
@@ -112,7 +114,7 @@ describe('dispose', () => {
         (q, m) => ((mutate = m.mutate), el('b', {}, `${q.status}:${m.status}`)),
       )
     const container = document.createElement('div')
-    const opts = { layer: Layer.succeed(QueryClientTag, client), container, store: makeAtomStore() } as any
+    const opts = { layer: withTransfer(client), container, store: makeAtomStore() } as any
     const h1 = await act(async () => await mount(jsx(App, {}), opts))
     await act(async () => void (mutate(), await vi.advanceTimersByTimeAsync(0)))
     expect(observers()).toBe(2)

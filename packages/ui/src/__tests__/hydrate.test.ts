@@ -10,19 +10,18 @@ import {
   Pending,
   fromReact,
   HydrateConflict,
+  HydratePayloadInvalid,
   HydrationMismatch,
   hydrateMount,
   mount,
   type Mounted,
   renderToString,
   Store,
+  Transfer,
   useAtomValue,
   useLocal,
 } from '../index'
 import { jsx as rawJsx } from '../jsx-runtime'
-import { useQuery } from '../query'
-import { QueryClientTag } from '@sleekstack/query'
-import { QueryClient } from '@tanstack/query-core'
 
 const jsx = (type: any, props: any) => rawJsx(type, props)
 const tick = () => new Promise((r) => setTimeout(r, 0))
@@ -451,35 +450,6 @@ describe('hydrateMount state payload (R5)', () => {
     expect(container.querySelector('script')).toBeNull()
   })
 
-  it('server query state is the client initial value with no refetch', async () => {
-    let calls = 0
-    const queryFn = async () => (calls++, 'srv')
-    const Q = () =>
-      Effect.map(useQuery({ queryKey: ['q'], queryFn, staleTime: 60_000 }), (r) =>
-        el('b', {}, `${r.status}:${r.data ?? ''}`),
-      )
-    const server = new QueryClient()
-    await server.prefetchQuery({ queryKey: ['q'], queryFn })
-    const container = document.createElement('div')
-    container.innerHTML = await renderToString(jsx(Q, {}), { layer: Layer.succeed(QueryClientTag, server) })
-    expect(calls).toBe(1)
-    const onError = vi.fn()
-    await act(
-      async () =>
-        void handles.push(
-          await hydrateMount(jsx(Q, {}), {
-            layer: Layer.succeed(QueryClientTag, new QueryClient()),
-            container,
-            onError,
-          }),
-        ),
-    )
-    await act(tick)
-    expect(onError).not.toHaveBeenCalled()
-    expect(container.querySelector('b')!.textContent).toBe('success:srv')
-    expect(calls).toBe(1)
-  })
-
   it.each([
     ['missing', '', 0],
     ['malformed JSON', '<script type="application/json" data-sleek-hydrate>{nope</script>', 1],
@@ -495,5 +465,61 @@ describe('hydrateMount state payload (R5)', () => {
     expect(tags.filter((t) => t === 'HydratePayloadInvalid')).toHaveLength(reports)
     expect(container.querySelector('b')!.textContent).toBe('n=0')
     expect(container.querySelector('script')).toBeNull()
+  })
+})
+
+describe('hydrateMount Transfer', () => {
+  // A stand-in for outside state (a query cache): what the server `dehydrate`s, the client `hydrate`s.
+  const transfer = (state: { value: string }) => ({
+    dehydrate: () => ({ value: state.value }),
+    hydrate: (s: unknown) => {
+      if (typeof (s as { value?: unknown })?.value !== 'string') throw new Error('not a transfer state')
+      state.value = (s as { value: string }).value
+    },
+  })
+  const Read = (state: { value: string }) => () => jsx('b', { children: state.value })
+
+  it("the server's Transfer state seeds the client's before the first run", async () => {
+    const server = { value: 'srv' }
+    const container = document.createElement('div')
+    container.innerHTML = await renderToString(jsx(Read(server), {}), {
+      layer: Layer.succeed(Transfer, transfer(server)),
+    })
+    expect(container.querySelector('script[data-sleek-hydrate]')!.textContent).toContain('"transfer":{"value":"srv"}')
+    const client = { value: 'client' }
+    const onError = vi.fn()
+    await act(
+      async () =>
+        void handles.push(
+          await hydrateMount(jsx(Read(client), {}), {
+            layer: Layer.succeed(Transfer, transfer(client)),
+            container,
+            onError,
+          }),
+        ),
+    )
+    expect(onError).not.toHaveBeenCalled()
+    expect(container.querySelector('b')!.textContent).toBe('srv')
+  })
+
+  it('a state its Transfer rejects is reported as HydratePayloadInvalid', async () => {
+    const container = document.createElement('div')
+    const client = { value: 'client' }
+    container.innerHTML =
+      (await renderToString(jsx(Read(client), {}), { layer: Layer.empty })) +
+      '<script type="application/json" data-sleek-hydrate>{"v":1,"atoms":{},"transfer":{"value":1}}</script>'
+    const errors: Array<Cause.Cause<unknown>> = []
+    await act(
+      async () =>
+        void handles.push(
+          await hydrateMount(jsx(Read(client), {}), {
+            layer: Layer.succeed(Transfer, transfer(client)),
+            container,
+            onError: (c) => void errors.push(c),
+          }),
+        ),
+    )
+    expect(errors.map((c) => Cause.squash(c))).toEqual([expect.any(HydratePayloadInvalid)])
+    expect(client.value).toBe('client')
   })
 })

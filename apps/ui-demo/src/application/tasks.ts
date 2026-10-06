@@ -1,10 +1,10 @@
 import { Effect } from 'effect'
-import { useMutation, useSuspenseQuery } from '@sleekstack/ui/query'
 import { effectFn, QueryClientTag } from '@sleekstack/query'
+import { useMutation, useSuspenseQuery } from '@sleekstack/query/ui'
 import { TaskRepo } from '../domain/ports'
 import type { NewTask, Status } from '../domain/model'
 
-export type { QueryFailed } from '@sleekstack/ui/query'
+export type { QueryFailed } from '@sleekstack/query/ui'
 
 // The cache key lives here only: the read and the invalidation after a write cannot drift apart.
 const key = (projectId: string) => ['tasks', projectId]

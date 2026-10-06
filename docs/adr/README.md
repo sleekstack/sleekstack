@@ -26,3 +26,4 @@
 | [0022](0022-ui-size-budget-and-publish-gate.md) | `@sleekstack/ui` size budget (measured on built output, asserted in a test) and the publish gate; the package stays private | Accepted |
 | [0023](0023-streaming-ssr-protocol.md) | `@sleekstack/ui` streaming SSR: comment placeholders, template chunks swapped by an inline runtime, `b` map, `__sleekEnd`, `nonce`, distinct `idPrefix` per stream | Accepted |
 | [0024](0024-generator-components.md) | A component may be a `function*` that `yield*`s Effects and returns its element; the framework runs it as `Effect.gen` | Accepted |
+| [0025](0025-ui-does-not-depend-on-query.md) | `@sleekstack/ui` has no dependency on `@sleekstack/query`: SSR state travels through a `Transfer` service, the query bindings live in `@sleekstack/query/ui` | Accepted |

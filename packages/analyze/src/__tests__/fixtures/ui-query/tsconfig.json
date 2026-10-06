@@ -1,5 +1,5 @@
 {
   "extends": "../../../../../../tsconfig.base.json",
-  "compilerOptions": { "jsx": "preserve", "paths": { "@sleekstack/ui": ["../../../../../ui/src/index.ts"], "@sleekstack/ui/query": ["../../../../../ui/src/query.ts"], "@sleekstack/query": ["../../../../../query/src/index.ts"] } },
+  "compilerOptions": { "jsx": "preserve", "paths": { "@sleekstack/ui": ["../../../../../ui/src/index.ts"], "@sleekstack/ui/internal": ["../../../../../ui/src/internal.ts"], "@sleekstack/query/ui": ["../../../../../query/src/ui.ts"], "@sleekstack/query": ["../../../../../query/src/index.ts"] } },
   "include": ["."]
 }

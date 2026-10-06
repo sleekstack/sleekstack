@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
-import { QueryClientLive } from '@sleekstack/query'
-import type { QueryClient } from '@tanstack/query-core'
 import { type Cause, Data, Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 import { Boundary, el, fragment, Pending, renderToStream, renderToString } from '../index'
-import { useQuery, useQueryClient } from '../query'
 import { jsx as rawJsx } from '../jsx-runtime'
 import { normalize } from './helpers/normalize'
 
@@ -231,107 +228,6 @@ describe('renderToStream errors and cancel (R2, R4)', () => {
     expect(normalize(apply(first + rest))).toContain('wait')
     expect(errors).toHaveLength(1)
   })
-
-  it('cancel interrupts pending content, closes its scope (observer retain count 0) and drops late errors', async () => {
-    const g = gate()
-    let client: QueryClient | undefined
-    const observers = () =>
-      client
-        ?.getQueryCache()
-        .find({ queryKey: ['s'] })
-        ?.getObserversCount() ?? 0
-    const Q = () =>
-      Effect.flatMap(
-        useQueryClient(),
-        (c) => (
-          (client = c),
-          Effect.flatMap(useQuery({ queryKey: ['s'], queryFn: async () => 'q', retry: false }), () =>
-            Effect.flatMap(
-              Effect.promise(() => g.promise),
-              () => Effect.fail(new Boom()),
-            ),
-          )
-        ),
-      )
-    const errors: Array<Cause.Cause<unknown>> = []
-    const reader = renderToStream(jsx(Pending, { fallback: 'wait', children: jsx(Q, {}) }), {
-      layer: QueryClientLive(),
-      onError: (c) => errors.push(c),
-    }).getReader()
-    await reader.read()
-    expect(observers()).toBe(1)
-    await reader.cancel()
-    expect(observers()).toBe(0)
-    g.open()
-    await new Promise((r) => setTimeout(r, 10))
-    expect(errors).toEqual([])
-  })
-})
-
-describe('renderToStream per-boundary state (R3)', () => {
-  it('each chunk carries its new atom and query state; hydrating the streamed DOM does not refetch', async () => {
-    const { Atom, makeAtomStore } = await import('@sleekstack/core')
-    const { Schema } = await import('effect')
-    const { QueryClientTag } = await import('@sleekstack/query')
-    const { QueryClient } = await import('@tanstack/query-core')
-    const { act } = await import('react')
-    const { hydrateMount, Store, useAtomValue } = await import('../index')
-    const { useSuspenseQuery } = await import('../query')
-    ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
-    const count = Atom.serializable(Atom.make(0), { key: 'count', schema: Schema.Number })
-    let calls = 0
-    const queryFn = async () => (calls++, 'srv')
-    const Q = () =>
-      Effect.flatMap(useSuspenseQuery({ queryKey: ['q'], queryFn, staleTime: 60_000 }), (data) =>
-        Effect.flatMap(useAtomValue(count), (n) => jsx('b', { children: `${data}:${n}` })),
-      )
-    const Set7 = () =>
-      Effect.flatMap(Store, (s) =>
-        Effect.flatMap(
-          Effect.promise(() => Promise.resolve()),
-          () => (s.set(count, 7), jsx(Q, {})),
-        ),
-      )
-    const app = () =>
-      jsx('div', { children: jsx(Pending, { fallback: jsx('i', { children: 'wait' }), children: jsx(Set7, {}) }) })
-
-    const html = await new Response(
-      renderToStream(app(), { layer: Layer.succeed(QueryClientTag, new QueryClient()) }),
-    ).text()
-    // The shell's payload carries the atom set before flush; the chunk carries only what is new since: the query.
-    const [shell, chunk] = html.split('</div>')
-    expect(shell).not.toContain('data-sleek-hydrate')
-    const payloads = [...chunk!.matchAll(/data-sleek-hydrate>([^<]*)</g)].map((m) => JSON.parse(m[1]!))
-    expect(payloads.map((p) => [p.atoms, p.queries?.queries.map((q: any) => q.queryHash)])).toEqual([
-      [{ count: 7 }, undefined],
-      [{}, ['["q"]']],
-    ])
-    expect(chunk!.indexOf('data-sleek-hydrate', chunk!.indexOf('"count"'))).toBeLessThan(chunk!.indexOf('<template'))
-    expect(calls).toBe(1)
-
-    const container = document.createElement('div')
-    document.body.replaceChildren(container)
-    container.innerHTML = html
-    for (const s of [...container.querySelectorAll('script:not([type])')]) (s.remove(), new Function(s.textContent!)())
-    const store = makeAtomStore()
-    const errors: Array<unknown> = []
-    let h: any
-    await act(
-      async () =>
-        void (h = await hydrateMount(app(), {
-          layer: Layer.succeed(QueryClientTag, new QueryClient()),
-          container,
-          store,
-          onError: (c) => errors.push(c),
-        })),
-    )
-    await act(() => new Promise((r) => setTimeout(r, 0)))
-    expect(errors).toEqual([])
-    expect(container.querySelector('b')!.textContent).toBe('srv:7')
-    expect(store.get(count)).toBe(7)
-    expect(calls).toBe(1)
-    await act(async () => void (await h.dispose()))
-  })
 })
 
 describe('renderToStream late boundaries (R3)', () => {
@@ -346,90 +242,6 @@ describe('renderToStream late boundaries (R3)', () => {
   }
   const settle = async (act: (f: () => Promise<void>) => Promise<void>) =>
     act(() => new Promise((r) => setTimeout(r, 10)))
-
-  it('hydrating mid-stream adopts each boundary as its chunk lands: same DOM as a fully loaded hydrate, no refetch', async () => {
-    const { QueryClientTag } = await import('@sleekstack/query')
-    const { QueryClient } = await import('@tanstack/query-core')
-    const { act } = await import('react')
-    const { hydrateMount } = await import('../index')
-    const { useSuspenseQuery } = await import('../query')
-    ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
-    delete (globalThis as { __sleekGone?: unknown }).__sleekGone
-    const [ga, gb, gc] = [gate(), gate(), gate()]
-    let calls = 0
-    const queryFn = async () => (calls++, 'srv')
-    const C = () =>
-      Effect.flatMap(
-        Effect.promise(() => gc.promise),
-        () => jsx('u', { children: 'c' }),
-      )
-    const B = () =>
-      Effect.flatMap(
-        Effect.promise(() => gb.promise),
-        () =>
-          Effect.flatMap(useSuspenseQuery({ queryKey: ['b'], queryFn, staleTime: 60_000 }), (d) =>
-            jsx('section', {
-              children: [
-                jsx('b', { children: d }),
-                jsx(Pending, { fallback: jsx('i', { children: 'wait c' }), children: jsx(C, {}) }),
-              ],
-            }),
-          ),
-      )
-    const A = () =>
-      Effect.flatMap(
-        Effect.promise(() => ga.promise),
-        () => jsx('a', { children: 'a' }),
-      )
-    const app = () =>
-      jsx('div', {
-        children: [
-          jsx(Pending, { fallback: jsx('i', { children: 'wait a' }), children: jsx(A, {}) }),
-          jsx(Pending, { fallback: jsx('i', { children: 'wait b' }), children: jsx(B, {}) }),
-        ],
-      })
-    const qc = () => Layer.succeed(QueryClientTag, new QueryClient())
-
-    const reader = renderToStream(app(), { layer: qc() }).getReader()
-    const next = async () => decoder.decode((await reader.read()).value)
-    const chunks = [await next()]
-    ga.open()
-    chunks.push(await next())
-    const container = document.createElement('div')
-    document.body.replaceChildren(container)
-    feed(container, chunks.join(''))
-    const errors: Array<unknown> = []
-    let h: any
-    await act(
-      async () => void (h = await hydrateMount(app(), { layer: qc(), container, onError: (c) => errors.push(c) })),
-    )
-    expect(container.querySelector('a')!.textContent).toBe('a')
-    expect(container.textContent).toContain('wait b')
-    gb.open()
-    const b = await next()
-    await act(async () => feed(container, b))
-    await settle(act)
-    expect(container.querySelector('b')!.textContent).toBe('srv')
-    expect(container.textContent).toContain('wait c')
-    gc.open()
-    const rest = await drain(reader)
-    await act(async () => feed(container, rest))
-    await settle(act)
-
-    const full = document.createElement('div')
-    document.body.append(full)
-    feed(full, [...chunks, b, rest].join(''))
-    let h2: any
-    await act(
-      async () =>
-        void (h2 = await hydrateMount(app(), { layer: qc(), container: full, onError: (c) => errors.push(c) })),
-    )
-    expect(errors).toEqual([])
-    expect(container.innerHTML).toBe(full.innerHTML)
-    expect(container.querySelector('u')!.textContent).toBe('c')
-    expect(calls).toBe(1)
-    await act(async () => void (await h.dispose(), await h2.dispose()))
-  })
 
   it('a chunk that never arrives leaves the fallback and reports BoundaryChunkMissing', async () => {
     const { act } = await import('react')

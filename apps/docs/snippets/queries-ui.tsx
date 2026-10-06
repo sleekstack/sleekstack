@@ -1,8 +1,8 @@
 import { createElement } from 'react'
 import { Effect } from 'effect'
 import { el, fromReact, mount } from '@sleekstack/ui'
-import { useMutation, useQuery } from '@sleekstack/ui/query'
-import { QueryClientLive, QueryClientTag } from '@sleekstack/query'
+import { UiQueryClientLive, useMutation, useQuery } from '@sleekstack/query/ui'
+import { QueryClientTag } from '@sleekstack/query'
 
 let todos = ['Write docs']
 
@@ -31,5 +31,5 @@ const Add = () =>
 export const start = (container: Element) =>
   mount(
     Effect.map(Effect.all([List(), Add()]), (nodes) => el('div', {}, ...nodes)),
-    { layer: QueryClientLive(), container },
+    { layer: UiQueryClientLive(), container },
   )
