@@ -728,6 +728,26 @@ describe('reconciler', () => {
     expect(first.a!.isConnected).toBe(false)
   })
 
+  it('any sequence of reorders, inserts and removals leaves the DOM in order and keeps surviving nodes', async () => {
+    const universe = Array.from({ length: 12 }, (_, i) => `k${i}`)
+    let seed = 7
+    const rand = (n: number) => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) % n
+    const order = Atom.make<ReadonlyArray<string>>([])
+    const { container, store } = await go(view(order, (ks) => el('ul', {}, ...ks.map((k) => keyed('li', k, k)))))
+    const nodes = () => new Map([...container.querySelectorAll('li')].map((li) => [li.textContent!, li]))
+    let before = nodes()
+    for (let step = 0; step < 40; step++) {
+      const shuffled = [...universe].sort(() => rand(3) - 1)
+      const next = shuffled.slice(0, rand(universe.length + 1))
+      store.set(order, next)
+      await tick()
+      expect(container.querySelector('ul')!.textContent).toBe(next.join(''))
+      const after = nodes()
+      for (const k of next) if (before.has(k)) expect(after.get(k)).toBe(before.get(k))
+      before = after
+    }
+  })
+
   it('mixed keyed/unkeyed use separate pools; a duplicate key reports once and the later one is unkeyed', async () => {
     const step = Atom.make(0)
     const onError = vi.fn()

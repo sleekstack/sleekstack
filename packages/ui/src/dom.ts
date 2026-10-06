@@ -590,7 +590,7 @@ const patchChildren = (
   if (byId) for (const rest of byId.values()) gone.push(...rest)
   if (gone.length > 0) p.dropped.push(...gone)
   // Same nodes in the same order and nothing removed: the DOM is already right.
-  if (gone.length > 0 || !sameDoms(old, lives)) p.ops.push(() => place(parent, gone, lives))
+  if (gone.length > 0 || !sameDoms(old, lives)) p.ops.push(() => place(parent, gone, lives, old))
   return lives
 }
 
@@ -600,8 +600,39 @@ const sameDoms = (a: ReadonlyArray<Live>, b: ReadonlyArray<Live>): boolean => {
   return true
 }
 
-// Apply: removes what went, then inserts or moves only nodes out of order (in-place runs stay); a displaced focus is restored.
-const place = (parent: globalThis.Node, gone: ReadonlyArray<Live>, lives: ReadonlyArray<Live>): void => {
+// For each entry of `positions` (an old index, or -1 for a node not in the parent yet): whether it belongs to a longest increasing
+// subsequence of the old indices. Those nodes are already in their relative order and stay; every other node moves.
+const staying = (positions: ReadonlyArray<number>): Uint8Array => {
+  const n = positions.length
+  const stay = new Uint8Array(n)
+  const tails: Array<number> = [] // tails[k]: index in `positions` ending the best increasing run of length k + 1
+  const prev = new Int32Array(n).fill(-1)
+  for (let i = 0; i < n; i++) {
+    const p = positions[i]!
+    if (p < 0) continue
+    let lo = 0
+    let hi = tails.length
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1
+      if (positions[tails[mid]!]! < p) lo = mid + 1
+      else hi = mid
+    }
+    if (lo > 0) prev[i] = tails[lo - 1]!
+    tails[lo] = i
+  }
+  for (let i = tails.length > 0 ? tails[tails.length - 1]! : -1; i >= 0; i = prev[i]!) stay[i] = 1
+  return stay
+}
+
+// Apply: removes what went, then inserts new nodes and moves only the ones out of order (a longest increasing run stays put);
+// a displaced focus is restored.
+const place = (
+  parent: globalThis.Node,
+  gone: ReadonlyArray<Live>,
+  lives: ReadonlyArray<Live>,
+  old: ReadonlyArray<Live>,
+): void => {
+  // Every child goes: one call instead of one removal per row.
   for (const l of gone) l.dom.remove()
   // Already in order (the common case): nothing moves, so no focus to restore.
   let at = parent.firstChild
@@ -617,11 +648,23 @@ const place = (parent: globalThis.Node, gone: ReadonlyArray<Live>, lives: Readon
   const doc = parent.ownerDocument ?? (parent as Document)
   const focused = doc.activeElement as HTMLInputElement | null
   const sel = focused && parent.contains(focused) ? selection(focused) : undefined
-  let cur = parent.firstChild
-  for (const l of lives) {
-    if (l.dom === cur) cur = cur.nextSibling
-    else parent.insertBefore(l.dom, cur)
+  // The parent's children are its previous lives, in order: positions come from that list, not from walking the DOM.
+  const index = new Map<globalThis.Node, number>()
+  for (let i = 0; i < old.length; i++) index.set(old[i]!.dom, i)
+  const stay = staying(lives.map((l) => index.get(l.dom) ?? -1))
+  // Back to front: each run of consecutive nodes that must move goes in one insertion before the staying node after it (or at the end).
+  let runEnd = -1
+  const insertRun = (first: number) => {
+    const before = runEnd + 1 < lives.length ? lives[runEnd + 1]!.dom : null
+    for (let j = first; j <= runEnd; j++) parent.insertBefore(lives[j]!.dom, before)
+    runEnd = -1
   }
+  for (let k = lives.length - 1; k >= 0; k--) {
+    if (stay[k]) {
+      if (runEnd >= 0) insertRun(k + 1)
+    } else if (runEnd < 0) runEnd = k
+  }
+  if (runEnd >= 0) insertRun(0)
   if (sel && doc.activeElement !== focused && focused!.isConnected) {
     focused!.focus()
     if (sel[0] !== null) focused!.setSelectionRange(sel[0], sel[1])
