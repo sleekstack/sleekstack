@@ -14,6 +14,7 @@ import {
   Store,
   useAtomValue,
   useLocal,
+  useDerivedAtom as useUiEffectDerived,
   useEffect as useUiEffect,
   useRef,
   useSetAtom,
@@ -864,6 +865,58 @@ describe('host events', () => {
     for (const b of container.querySelectorAll('button')) b.click()
     await tick()
     expect(log).toEqual(['plain', 'gen', 'value'])
+  })
+
+  describe('useDerivedAtom', () => {
+    const text = (r: any) => (r._tag === 'Success' ? String(r.value) : r._tag)
+
+    it('an Effect runs in the component context; the atom is the same object on every run', async () => {
+      const other = Atom.make(0)
+      const atoms = new Set<unknown>()
+      const C = () =>
+        Effect.flatMap(useUiEffectDerived(Effect.map(Greeting, (g) => g.toUpperCase())), (a) => {
+          atoms.add(a)
+          return Effect.flatMap(useAtomValue(other), () =>
+            Effect.flatMap(useAtomValue(a), (r) => Effect.succeed(el('b', {}, text(r)))),
+          )
+        })
+      const { container, store } = await go(jsx(C, {}), { layer: Layer.succeed(Greeting, 'hi') as any })
+      await vi.waitFor(() => expect(container.textContent).toBe('HI'))
+      store.set(other, 1) // the component re-runs
+      await tick()
+      expect(atoms.size).toBe(1)
+    })
+
+    it('a generator reads atoms with get and services with yield*, and follows the atoms', async () => {
+      const count = Atom.make(1)
+      const C = () =>
+        Effect.flatMap(
+          useUiEffectDerived(function* (get) {
+            const n = get(count)
+            const g = yield* Greeting
+            return `${g}${n}`
+          }),
+          (a) => Effect.flatMap(useAtomValue(a), (r) => Effect.succeed(el('b', {}, text(r)))),
+        )
+      const { container, store } = await go(jsx(C, {}), { layer: Layer.succeed(Greeting, 'hi') as any })
+      await vi.waitFor(() => expect(container.textContent).toBe('hi1'))
+      store.set(count, 2)
+      await vi.waitFor(() => expect(container.textContent).toBe('hi2'))
+    })
+
+    it('a plain function is a plain derived atom', async () => {
+      const count = Atom.make(2)
+      const C = () =>
+        Effect.flatMap(
+          useUiEffectDerived((get) => get(count) * 2),
+          (a) => Effect.flatMap(useAtomValue(a), (v) => Effect.succeed(el('b', {}, String(v)))),
+        )
+      const { container, store } = await go(jsx(C, {}))
+      expect(container.textContent).toBe('4')
+      store.set(count, 3)
+      await tick()
+      expect(container.textContent).toBe('6')
+    })
   })
 
   describe('useEffect', () => {
