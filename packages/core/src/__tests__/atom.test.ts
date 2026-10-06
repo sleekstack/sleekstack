@@ -9,6 +9,24 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+describe('Atom + AtomStore: subscribe', () => {
+  it('the same listener subscribed twice is called twice, and each unsubscribe removes one entry', () => {
+    const store = makeAtomStore()
+    const a = Atom.make(0)
+    const calls = vi.fn()
+    const off1 = store.subscribe(a, calls)
+    const off2 = store.subscribe(a, calls)
+    store.set(a, 1)
+    expect(calls).toHaveBeenCalledTimes(2)
+    off1()
+    store.set(a, 2)
+    expect(calls).toHaveBeenCalledTimes(3)
+    off2()
+    store.set(a, 3)
+    expect(calls).toHaveBeenCalledTimes(3)
+  })
+})
+
 describe('Atom + AtomStore: derivation', () => {
   it('recomputes only on change; a diamond computes each node once per change', () => {
     const store = makeAtomStore()
