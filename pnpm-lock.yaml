@@ -322,6 +322,31 @@ importers:
         specifier: ^4.1.9
         version: 4.1.9(@types/node@22.20.1)(jsdom@29.1.1)(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
 
+  apps/sleek-codes:
+    dependencies:
+      next:
+        specifier: ^15.3.0
+        version: 15.5.20(@playwright/test@1.63.0)(@types/node@22.20.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      react:
+        specifier: ^19.2.6
+        version: 19.2.6
+      react-dom:
+        specifier: ^19.2.6
+        version: 19.2.6(react@19.2.6)
+    devDependencies:
+      '@types/node':
+        specifier: ^22.15.0
+        version: 22.20.1
+      '@types/react':
+        specifier: ^19.2.17
+        version: 19.2.17
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.17)
+      typescript:
+        specifier: ^5.8.0
+        version: 5.9.3
+
   apps/ui-demo:
     dependencies:
       '@sleekstack/core':
@@ -570,15 +595,36 @@ importers:
 
   packages/query:
     devDependencies:
+      '@sleekstack/core':
+        specifier: workspace:*
+        version: link:../core
+      '@sleekstack/ui':
+        specifier: workspace:*
+        version: link:../ui
       '@tanstack/query-core':
         specifier: ^5.104.1
         version: 5.104.1
       '@types/node':
         specifier: ^22.20.1
         version: 22.20.1
+      '@types/react':
+        specifier: ^19.2.17
+        version: 19.2.17
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.17)
       effect:
         specifier: ^3.15.0
         version: 3.21.2
+      jsdom:
+        specifier: ^29.1.1
+        version: 29.1.1
+      react:
+        specifier: ^19.2.6
+        version: 19.2.6
+      react-dom:
+        specifier: ^19.2.6
+        version: 19.2.6(react@19.2.6)
       vitest:
         specifier: ^4.1.9
         version: 4.1.9(@types/node@22.20.1)(jsdom@29.1.1)(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
@@ -635,13 +681,7 @@ importers:
       '@sleekstack/core':
         specifier: workspace:*
         version: link:../core
-      '@sleekstack/query':
-        specifier: workspace:*
-        version: link:../query
     devDependencies:
-      '@tanstack/query-core':
-        specifier: ^5.104.1
-        version: 5.104.1
       '@types/node':
         specifier: ^22.20.1
         version: 22.20.1

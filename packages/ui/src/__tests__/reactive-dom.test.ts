@@ -18,9 +18,6 @@ import {
 } from '../index'
 import type { Node } from '../node'
 import { Fragment, jsx as rawJsx } from '../jsx-runtime'
-import { useMutation, useQuery, useQueryClient } from '../query'
-import { QueryClientLive } from '@sleekstack/query'
-import type { QueryClient } from '@tanstack/query-core'
 
 const useEffectLog = (log: (e: string) => void) => useEffect(() => (log('mount'), () => log('unmount')), [])
 
@@ -297,47 +294,6 @@ describe('reactive DOM', () => {
     store.set(show, 0)
     await tick()
     expect(held).toBe(base - 1)
-  })
-
-  it('a useQuery / useMutation observer keeps its retain across an adopt and is released on kill', async () => {
-    const outer = Atom.make(0)
-    let client: QueryClient | undefined
-    let mutate: (() => void) | undefined
-    const Q = () =>
-      Effect.zipWith(
-        useQuery({ queryKey: ['adopt'], queryFn: async () => 'v' }),
-        useMutation({ mutationFn: async () => 1 }),
-        (q, m) => ((mutate = m.mutate), el('b', {}, `${q.status}:${m.status}`)),
-      )
-    const Outer = () =>
-      Effect.flatMap(useAtomValue(outer), (o) =>
-        Effect.flatMap(
-          useQueryClient(),
-          (c) => (
-            (client = c),
-            o < 2 ? Effect.map(jsx(Q, {}), (q) => el('div', {}, String(o), q)) : Effect.succeed(el('div', {}, 'gone'))
-          ),
-        ),
-      )
-    const { container, store } = await go(jsx(Outer, {}), { layer: QueryClientLive() as any })
-    await tick()
-    mutate!()
-    await tick()
-    expect(container.textContent).toBe('0success:success')
-    const observers = () =>
-      client!
-        .getQueryCache()
-        .find({ queryKey: ['adopt'] })!
-        .getObserversCount()
-    expect(observers()).toBe(1)
-    store.set(outer, 1)
-    await tick()
-    expect(container.textContent).toBe('1success:success')
-    expect(observers()).toBe(1)
-    store.set(outer, 2)
-    await tick()
-    expect(container.textContent).toBe('gone')
-    expect(observers()).toBe(0)
   })
 
   it('a renderer defect on re-run keeps the old DOM and reports; a run that reads no atoms unsubscribes', async () => {
@@ -726,6 +682,26 @@ describe('reconciler', () => {
     expect(after.c).toBe(first.c)
     expect(after.b).toBe(first.b)
     expect(first.a!.isConnected).toBe(false)
+  })
+
+  it('any sequence of reorders, inserts and removals leaves the DOM in order and keeps surviving nodes', async () => {
+    const universe = Array.from({ length: 12 }, (_, i) => `k${i}`)
+    let seed = 7
+    const rand = (n: number) => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) % n
+    const order = Atom.make<ReadonlyArray<string>>([])
+    const { container, store } = await go(view(order, (ks) => el('ul', {}, ...ks.map((k) => keyed('li', k, k)))))
+    const nodes = () => new Map([...container.querySelectorAll('li')].map((li) => [li.textContent!, li]))
+    let before = nodes()
+    for (let step = 0; step < 40; step++) {
+      const shuffled = [...universe].sort(() => rand(3) - 1)
+      const next = shuffled.slice(0, rand(universe.length + 1))
+      store.set(order, next)
+      await tick()
+      expect(container.querySelector('ul')!.textContent).toBe(next.join(''))
+      const after = nodes()
+      for (const k of next) if (before.has(k)) expect(after.get(k)).toBe(before.get(k))
+      before = after
+    }
   })
 
   it('mixed keyed/unkeyed use separate pools; a duplicate key reports once and the later one is unkeyed', async () => {

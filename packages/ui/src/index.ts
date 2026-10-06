@@ -16,6 +16,9 @@ export { renderToStream } from './stream'
 export type { StreamOptions } from './stream'
 export { Boundary, Pending, Provider } from './jsx-runtime'
 export type { Child } from './jsx-runtime'
+export type { ComponentResult } from './reactive'
+export { Transfer } from './transfer'
+export type { StateTransfer } from './transfer'
 export { DuplicateKey, SlotMismatch, Store, useAtom, useAtomValue, useLocal, useSetAtom } from './reactive'
 export {
   bind,

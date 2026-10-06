@@ -30,7 +30,7 @@ Provide `QueryClientLive()` in a `LayerProvider` and wrap the tree in `QueryProv
 
 ## `@sleekstack/ui`
 
-`useQuery` and `useMutation` from `@sleekstack/ui/query` read the `QueryClientTag` of the mount layer.
+`useQuery` and `useMutation` from `@sleekstack/query/ui` read the `QueryClientTag` of the mount layer. `UiQueryClientLive()` is `QueryClientLive()` plus the `Transfer` that carries the cache through `renderToString` / `renderToStream` and `hydrateMount`; a layer without it renders and hydrates without query state.
 
 <include>../../snippets/queries-ui.tsx</include>
 

@@ -45,13 +45,54 @@ export function analyzeComponents(opts: { readonly project: string }): Component
   const isAny = (t: ts.Type) => !!(t.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown))
   const members = (t: ts.Type | undefined) => (!t || t.flags & ts.TypeFlags.Never ? [] : t.isUnion() ? t.types : [t])
 
-  /** `[A, E, R]` members of an `Effect<A, E, R>` type (or a union of them, as a ternary returns), else undefined. */
+  /**
+   * `[A, E, R]` members of an `Effect<A, E, R>` type (or a union of them, as a ternary returns), else undefined. A generator
+   * component's type reads the same way: its yielded `YieldWrap<Effect<_, E, R>>`s add to `E` / `R`, and what it returns
+   * (an `Effect<A, E, R>`, or a plain `A`) gives `A`.
+   */
   const effectArgs = (t: ts.Type): [ts.Type[], ts.Type[], ts.Type[]] | undefined => {
     const out: [ts.Type[], ts.Type[], ts.Type[]] = [[], [], []]
     for (const m of t.isUnion() ? t.types : [t]) {
-      if (libId(m.getSymbol(), checker) !== 'effect/Effect#Effect') return undefined
-      checker.getTypeArguments(m as ts.TypeReference).forEach((a, i) => out[i]?.push(...members(a)))
+      if (m.getSymbol()?.getName() === 'Generator') {
+        const [y, r] = checker.getTypeArguments(m as ts.TypeReference)
+        for (const w of members(y)) {
+          const inner =
+            w.getSymbol()?.getName() === 'YieldWrap' ? checker.getTypeArguments(w as ts.TypeReference)[0] : undefined
+          const a = inner && (effectArgsOf(inner) ?? varianceArgs(inner))
+          if (!a) return undefined
+          out[1].push(...a[1])
+          out[2].push(...a[2])
+        }
+        for (const x of members(r)) {
+          const a = effectArgsOf(x)
+          if (a) a.forEach((l, i) => out[i]!.push(...l))
+          else out[0].push(x)
+        }
+        continue
+      }
+      const a = effectArgsOf(m)
+      if (!a) return undefined
+      a.forEach((l, i) => out[i]!.push(...l))
     }
+    return out
+  }
+  /** `[A, E, R]` of anything Effect-shaped that is not an `Effect` itself (a Tag, an Option, ...), from its variance struct. */
+  const varianceArgs = (m: ts.Type): [ts.Type[], ts.Type[], ts.Type[]] | undefined => {
+    const v = m.getProperties().find((p) => p.getName().startsWith('__@EffectTypeId'))
+    const struct = v && checker.getTypeOfSymbol(v)
+    if (!struct) return undefined
+    const arg = (name: string) => {
+      const p = struct.getProperty(name)
+      const sig = p && checker.getTypeOfSymbol(p).getCallSignatures()[0]
+      return sig ? members(checker.getReturnTypeOfSignature(sig)) : undefined
+    }
+    const [a, e, r] = [arg('_A'), arg('_E'), arg('_R')]
+    return a && e && r ? [a, e, r] : undefined
+  }
+  const effectArgsOf = (m: ts.Type): [ts.Type[], ts.Type[], ts.Type[]] | undefined => {
+    if (libId(m.getSymbol(), checker) !== 'effect/Effect#Effect') return undefined
+    const out: [ts.Type[], ts.Type[], ts.Type[]] = [[], [], []]
+    checker.getTypeArguments(m as ts.TypeReference).forEach((a, i) => out[i]?.push(...members(a)))
     return out
   }
   const isNodeMember = (m: ts.Type) =>
@@ -110,6 +151,23 @@ export function analyzeComponents(opts: { readonly project: string }): Component
   }
 
   const stack = new Set<ts.Node>()
+  /** A `function*` component: it `yield*`s its Effects and returns the element. */
+  const isGeneratorFn = (f: ts.FunctionLikeDeclaration) =>
+    (ts.isFunctionExpression(f) || ts.isFunctionDeclaration(f)) && !!f.asteriskToken
+  /** What a component declaration renders: an Effect component's returns, or a generator component's `yield*`ed elements plus the elements it returns. */
+  const rendered = (f: ts.FunctionLikeDeclaration): UiNode[] =>
+    isGeneratorFn(f)
+      ? [
+          ...yields(f),
+          // A returned plain node renders nothing to analyze; an unreadable one fails closed in `build`.
+          ...bodyReturns(f)
+            .filter((r) => {
+              const t = checker.getTypeAtLocation(r)
+              return !ts.isYieldExpression(unwrap(r)) && (isAny(t) || !!effectArgs(t))
+            })
+            .flatMap(build),
+        ]
+      : bodyReturns(f).flatMap(build)
   /** Every node an `Effect<Node>`-valued expression renders. */
   const build = (expr: ts.Expression): UiNode[] => {
     try {
@@ -191,7 +249,7 @@ export function analyzeComponents(opts: { readonly project: string }): Component
     if (stack.has(target)) return component(e, text(e.expression), () => [])
     stack.add(target)
     try {
-      return component(e, text(e.expression), () => bodyReturns(target).flatMap(build))
+      return component(e, text(e.expression), () => rendered(target))
     } finally {
       stack.delete(target)
     }
@@ -257,7 +315,7 @@ export function analyzeComponents(opts: { readonly project: string }): Component
       // The fallback renders outside the boundary: its components are siblings, not caught children.
       return [
         { kind: 'catch', tag: tt.value, children: kids, ...loc(e) },
-        ...(target && !ts.isCallExpression(target) ? bodyReturns(target).flatMap(build) : []),
+        ...(target && !ts.isCallExpression(target) ? rendered(target) : []),
       ]
     }
     if (ts.isJsxNamespacedName(tag)) return fail(tag, `"${text(tag)}" is not a component`)
@@ -279,7 +337,7 @@ export function analyzeComponents(opts: { readonly project: string }): Component
     if (stack.has(target)) return component(e, text(tag), () => kids, type)
     stack.add(target)
     try {
-      return component(e, text(tag), () => [...bodyReturns(target).flatMap(build), ...kids], type)
+      return component(e, text(tag), () => [...rendered(target), ...kids], type)
     } finally {
       stack.delete(target)
     }
@@ -599,7 +657,7 @@ export function analyzeComponents(opts: { readonly project: string }): Component
     }
   }
   const rules: AnalyzeError[] = []
-  /** `useLocal` must be a statement-level `yield*` in a component's `Effect.gen` body, before any `return`; anything else fails closed. */
+  /** `useLocal` must be a statement-level `yield*` in a component's generator body (`function*` or `Effect.gen`), before any `return`; anything else fails closed. */
   const checkSlot = (call: ts.CallExpression) => {
     const bad = (why: string) =>
       rules.push(
@@ -611,7 +669,7 @@ export function analyzeComponents(opts: { readonly project: string }): Component
       )
     let n: ts.Node = call.parent
     while (ts.isParenthesizedExpression(n)) n = n.parent
-    if (!ts.isYieldExpression(n) || !n.asteriskToken) return bad('is not a plain yield* in an Effect.gen body')
+    if (!ts.isYieldExpression(n) || !n.asteriskToken) return bad('is not a plain yield* in a component generator body')
     n = n.parent
     if (ts.isVariableDeclaration(n) && n.parent.parent && ts.isVariableStatement(n.parent.parent)) n = n.parent.parent
     else if (!ts.isExpressionStatement(n))
@@ -619,15 +677,27 @@ export function analyzeComponents(opts: { readonly project: string }): Component
     const stmt = n as ts.Statement
     const block = stmt.parent
     const fn = block.parent
-    if (!ts.isBlock(block) || !fn || !ts.isFunctionExpression(fn) || !fn.asteriskToken || fn.body !== block)
+    if (
+      !ts.isBlock(block) ||
+      !fn ||
+      !(ts.isFunctionExpression(fn) || ts.isFunctionDeclaration(fn)) ||
+      !fn.asteriskToken ||
+      fn.body !== block
+    )
       return bad('is inside a condition, loop or nested block')
     const gen = fn.parent
+    // A component's own `function*` (it renders a Node), or the `function*` of a component's `Effect.gen`.
+    const own = (() => {
+      const sig = checker.getSignatureFromDeclaration(fn)
+      return !!sig && isNodeEffect(checker.getReturnTypeOfSignature(sig))
+    })()
     if (
-      !ts.isCallExpression(gen) ||
-      calleeOf(gen) !== 'effect/Effect#gen' ||
-      !isNodeEffect(checker.getTypeAtLocation(gen))
+      !own &&
+      (!ts.isCallExpression(gen) ||
+        calleeOf(gen) !== 'effect/Effect#gen' ||
+        !isNodeEffect(checker.getTypeAtLocation(gen)))
     )
-      return bad("is not in a component's Effect.gen body (a helper or nested function)")
+      return bad("is not in a component's generator body (a helper or nested function)")
     let returned = false
     const scan = (x: ts.Node): void => {
       if (ts.isFunctionLike(x)) return

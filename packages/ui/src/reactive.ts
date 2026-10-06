@@ -1,6 +1,25 @@
 import { Atom, type AtomStore, MissingDependency } from '@sleekstack/core'
 import { Context, Data, Effect, ExecutionStrategy, Exit, Option, Scope } from 'effect'
+import type { YieldWrap } from 'effect/Utils'
 import type { Node, ReactiveNode } from './node'
+
+/** What a component returns: an Effect, or a generator that `yield*`s Effects and returns the element (run as `Effect.gen`). */
+export type ComponentResult =
+  | Effect.Effect<Node, any, any>
+  | Generator<YieldWrap<Effect.Effect<any, any, any>>, Effect.Effect<Node, any, any> | Node, any>
+
+const isGenerator = (r: unknown): r is Generator<unknown, unknown, unknown> =>
+  typeof r === 'object' && r !== null && typeof (r as { next?: unknown }).next === 'function' && !Effect.isEffect(r)
+
+// A generator component is run as `Effect.gen`; the element it returns (an Effect, as every JSX expression is) is run in turn.
+const call = <P>(type: (props: P) => ComponentResult, props: P): Effect.Effect<Node, any, any> => {
+  const r = type(props)
+  if (!isGenerator(r)) return r as Effect.Effect<Node, any, any>
+  return Effect.gen(function* () {
+    const out: unknown = yield* r as Generator<any, unknown, any>
+    return (Effect.isEffect(out) ? yield* out : out) as Node
+  })
+}
 
 /** The mount's atom store. `mount` and `renderToString` provide it. */
 export class Store extends Effect.Tag('Store')<Store, AtomStore>() {}
@@ -435,7 +454,7 @@ const stableHandlers = <P extends object>(slots: Slots, props: P): P => {
  * Under a `RenderScope` the node carries its run's scope: a failed run closes it, otherwise its owner (the DOM renderer) does.
  */
 export const instance = <P>(
-  type: (props: P) => Effect.Effect<Node, any, any>,
+  type: (props: P) => ComponentResult,
   props: P,
   key?: string,
 ): Effect.Effect<Node, any, any> => {
@@ -490,7 +509,7 @@ export const instance = <P>(
       if (hostBuilder.build && slots.atoms.length === 0 && slots.kids === undefined) {
         slots.running = true
         slots.called = false
-        const eff = type(effProps)
+        const eff = call(type, effProps)
         slots.running = false
         const d = hostOf(eff)
         if (d) {
@@ -544,7 +563,7 @@ export const instance = <P>(
       const inner = Context.unsafeMake(map)
       // One continuation: check the slot count, then build the node.
       return Effect.flatMap(
-        Effect.provide(((e) => ((pre = undefined), e))(pre ?? type(effProps)), inner),
+        Effect.provide(((e) => ((pre = undefined), e))(pre ?? call(type, effProps)), inner),
         (child): Effect.Effect<Node, SlotMismatch> => {
           if (slots.done && frame.cursor !== slots.atoms.length)
             return Effect.fail(

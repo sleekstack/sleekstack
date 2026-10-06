@@ -16,4 +16,4 @@ import { effectFn } from '@sleekstack/query'
 const todo = (id: string) => queryOptions({ queryKey: ['todo', id], queryFn: effectFn(Effect.flatMap(TodoApi, (api) => api.get(id))) })
 ```
 
-`QueryProvider` is in `@sleekstack/react`, server `prefetchQueries` in `@sleekstack/next`, ui hooks in `@sleekstack/ui/query`, and an Effect-free facade (`cachedQuery`, `mutation`) in `@sleekstack/kit`. See the Queries guides in [`apps/docs`](../../apps/docs/README.md).
+`QueryProvider` is in `@sleekstack/react`, server `prefetchQueries` in `@sleekstack/next`, ui hooks in `@sleekstack/query/ui`, and an Effect-free facade (`cachedQuery`, `mutation`) in `@sleekstack/kit`. See the Queries guides in [`apps/docs`](../../apps/docs/README.md).

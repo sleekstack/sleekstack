@@ -2,7 +2,15 @@ import { Atom } from '@sleekstack/core'
 import { type Context, Effect, Layer } from 'effect'
 import { bind, type Handler, isHandler, on } from './handler'
 import { el, type ElementNode, type EventBinding, fragment, type Node } from './node'
-import { type HostDescriptor, Handlers, hostBuilder, hostOf, instance, RenderScope } from './reactive'
+import {
+  type ComponentResult,
+  type HostDescriptor,
+  Handlers,
+  hostBuilder,
+  hostOf,
+  instance,
+  RenderScope,
+} from './reactive'
 
 /** What a JSX expression may hold between its tags. An atom renders its current value as text and follows it; a serializable one is also bound for `resume` under `renderToString`. */
 export type Child =
@@ -48,53 +56,51 @@ const renderChildren = (c: Child): Effect.Effect<Array<Node | string>, any, any>
 
 // Attributes are strings in the Node tree: `className` / `htmlFor` map to `class` / `for`, `true` is an empty value, nullish and `false` are dropped.
 const RENAME: Record<string, string> = { className: 'class', htmlFor: 'for' }
-const attrs = (props: Props): Record<string, string> =>
-  Object.fromEntries(
-    Object.entries(props).flatMap(([k, v]) =>
-      k === 'children' ||
-      k === 'key' ||
-      isEvent(k, v) ||
-      isHandlerProp(k, v) ||
-      v == null ||
-      v === false ||
-      Atom.isAtom(v)
-        ? []
-        : [[RENAME[k] ?? k, v === true ? '' : String(v)]],
-    ),
-  )
-
 // A function-valued `onXxx` prop is an event closure, not an attribute; non-function `on*` still reaches `checkAttr`.
 const ON_PROP = /^on[A-Z]/
-const isEvent = (k: string, v: unknown): v is EventBinding['run'] => typeof v === 'function' && ON_PROP.test(k)
 // A `defineHandler` value on `onXxx` is a resumable handler: it goes to the node's `on`, which `renderToString` emits as `data-sleek-on-<event>`.
-const isHandlerProp = (k: string, v: unknown): v is Handler<any, any> => ON_PROP.test(k) && isHandler(v)
-const recordOrUndefined = <V>(entries: ReadonlyArray<readonly [string, V]>): Record<string, V> | undefined =>
-  entries.length ? Object.fromEntries(entries) : undefined
-const handlers = (props: Props): Record<string, Handler<any, any>> | undefined =>
-  recordOrUndefined(
-    Object.entries(props).flatMap(([k, v]) => (isHandlerProp(k, v) ? [[k.slice(2).toLowerCase(), v] as const] : [])),
-  )
-// Atom-valued props (not `children`/`key`/events) are bound: the renderer keeps the attribute current.
-const bound = (props: Props): Record<string, Atom.Atom<any>> | undefined =>
-  recordOrUndefined(
-    Object.entries(props).flatMap(([k, v]) =>
-      k !== 'children' && k !== 'key' && !ON_PROP.test(k) && Atom.isAtom(v) ? [[RENAME[k] ?? k, v] as const] : [],
-    ),
-  )
-const events = (props: Props, context: Context.Context<any>): Record<string, EventBinding> | undefined =>
-  recordOrUndefined(
-    Object.entries(props).flatMap(([k, v]) =>
-      isEvent(k, v) ? [[k.slice(2).toLowerCase(), { run: v, context }] as const] : [],
-    ),
-  )
+const isEvent = (k: string, v: unknown): v is EventBinding['run'] => typeof v === 'function' && ON_PROP.test(k)
+
+/** One pass over an element's props: its attributes, event closures, resumable handlers and atom-bound attributes. */
+interface Split {
+  readonly attrs: Record<string, string>
+  events?: Record<string, EventBinding>
+  handlers?: Record<string, Handler<any, any>>
+  bound?: Record<string, Atom.Atom<any>>
+}
+const split = (props: Props, context: Context.Context<any> | undefined): Split => {
+  const out: Split = { attrs: {} }
+  for (const k in props) {
+    if (k === 'children' || k === 'key') continue
+    const v = props[k]
+    if (ON_PROP.test(k)) {
+      if (typeof v === 'function') {
+        if (context) (out.events ??= {})[k.slice(2).toLowerCase()] = { run: v as EventBinding['run'], context }
+        continue
+      }
+      if (isHandler(v)) {
+        ;(out.handlers ??= {})[k.slice(2).toLowerCase()] = v
+        continue
+      }
+    }
+    if (v == null || v === false) continue
+    if (Atom.isAtom(v)) {
+      // Atom-valued props (not `children`/`key`/events) are bound: the renderer keeps the attribute current.
+      if (!ON_PROP.test(k)) (out.bound ??= {})[RENAME[k] ?? k] = v
+      continue
+    }
+    out.attrs[RENAME[k] ?? k] = v === true ? '' : String(v)
+  }
+  return out
+}
+// Props with no events, handlers or atoms (the plain host tree).
+const attrs = (props: Props): Record<string, string> => split(props, undefined).attrs
 
 const element = (type: string, props: Props, key: string | undefined): Effect.Effect<Node, any, any> => {
   const build = (kids: Array<Node | string>, ctx: Context.Context<any> | undefined): Node => {
-    const base = el(type, attrs(props), ...kids) as ElementNode
-    const hs = handlers(props)
+    const { attrs: a, events: evs, handlers: hs, bound: bd } = split(props, ctx)
+    const base = el(type, a, ...kids) as ElementNode
     const node = (hs ? on(base, hs) : base) as ElementNode
-    const evs = ctx && events(props, ctx)
-    const bd = bound(props)
     return { ...node, ...(evs && { events: evs }), ...(bd && { bound: bd }), ...(key !== undefined && { key }) }
   }
   // The context is only captured for event closures.
@@ -154,12 +160,12 @@ const sameHost = (a: HostDescriptor, b: HostDescriptor): boolean => {
 hostBuilder.build = hostNode
 hostBuilder.same = sameHost
 
-export const jsx = (type: string | ((props: any) => Element), props: Props, key?: string | number): Element => {
+export const jsx = (type: string | ((props: any) => ComponentResult), props: Props, key?: string | number): Element => {
   const k = key ?? props.key
   const ks = k == null ? undefined : String(k)
   return typeof type === 'function'
     ? type === Fragment || type === Provider || type === Boundary
-      ? type(props as any)
+      ? (type as (props: any) => Element)(props as any)
       : (instance(type, props, ks) as Element)
     : hostElement(type, props, ks)
 }
@@ -218,7 +224,7 @@ export { Pending } from './pending'
 
 export declare namespace JSX {
   type Element = Effect.Effect<Node, never, never>
-  type ElementType = string | ((props: any) => Effect.Effect<Node, any, any>)
+  type ElementType = string | ((props: any) => ComponentResult)
 
   interface ElementChildrenAttribute {
     children: {}

@@ -1,12 +1,11 @@
 // @vitest-environment jsdom
 import { Atom, makeAtomStore } from '@sleekstack/core'
-import { QueryClientLive } from '@sleekstack/query'
 import { Effect } from 'effect'
 import { act } from 'react'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
-import { Boundary, el, mount, type Mounted, Pending, renderToString, useAtomValue } from '../index'
-import { jsx as rawJsx } from '../jsx-runtime'
-import { QueryFailed, useQuery, useQueryClient, useSuspenseQuery } from '../query'
+import { Boundary, el, mount, type Mounted, Pending, renderToString, useAtomValue } from '@sleekstack/ui'
+import { jsx as rawJsx } from '@sleekstack/ui/jsx-runtime'
+import { QueryFailed, useQuery, useQueryClient, useSuspenseQuery, UiQueryClientLive } from '../ui'
 import type { QueryClient } from '@tanstack/query-core'
 
 const jsx = (type: any, props: any) => rawJsx(type, props)
@@ -25,7 +24,7 @@ afterEach(async () => {
 const go = async (app: any) => {
   const container = document.createElement('div')
   const store = makeAtomStore()
-  await act(async () => void handles.push(await mount(app, { layer: QueryClientLive(), container, store } as any)))
+  await act(async () => void handles.push(await mount(app, { layer: UiQueryClientLive(), container, store } as any)))
   return { container, store, handle: handles[handles.length - 1]! }
 }
 
@@ -229,7 +228,7 @@ describe('useSuspenseQuery', () => {
           Data('r', async () => 'server'),
           {},
         ),
-        { layer: QueryClientLive() } as any,
+        { layer: UiQueryClientLive() } as any,
       ),
     ).toMatch(
       /^<sleek-reactive style="display: contents;"><b>server<\/b><\/sleek-reactive><script type="application\/json" data-sleek-hydrate>/,

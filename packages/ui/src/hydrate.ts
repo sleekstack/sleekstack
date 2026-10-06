@@ -1,9 +1,8 @@
 import { Cause, Data, Effect, Exit, type Layer, Option, type Scope } from 'effect'
 import { type AtomStore, hydrate } from '@sleekstack/core'
-import { QueryClientTag } from '@sleekstack/query'
-import { type DehydratedState, hydrate as hydrateQueries } from '@tanstack/query-core'
 import { hydrateRoot } from 'react-dom/client'
 import { reportRenderError } from './component'
+import { Transfer } from './transfer'
 import {
   build,
   mount,
@@ -48,7 +47,7 @@ export class HydratePayloadInvalid extends Data.TaggedError('HydratePayloadInval
 /** A streamed boundary's chunk never arrived (the stream ended without it); its fallback stays on screen. */
 export class BoundaryChunkMissing extends Data.TaggedError('BoundaryChunkMissing')<{ readonly id: string }> {}
 
-type Payload = { atoms: Record<string, unknown>; queries?: DehydratedState; b?: Record<string, string> }
+type Payload = { atoms: Record<string, unknown>; transfer?: ReadonlyArray<unknown>; b?: Record<string, string> }
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
 
@@ -62,21 +61,13 @@ const readPayload = (container: Element, onError?: (cause: Cause.Cause<unknown>)
     try {
       const p: unknown = JSON.parse(script.textContent ?? '')
       if (!isRecord(p) || p.v !== 1 || !isRecord(p.atoms)) throw new Error('not a v1 payload')
-      if (
-        p.queries !== undefined &&
-        !(isRecord(p.queries) && Array.isArray(p.queries.queries) && Array.isArray(p.queries.mutations))
-      )
-        throw new Error('queries is not a DehydratedState')
       if (p.b !== undefined && !(isRecord(p.b) && Object.values(p.b).every((v) => typeof v === 'string')))
         throw new Error('b is not a boundary map')
-      const q = (p as Payload).queries
       out = {
         b: { ...out?.b, ...(p as Payload).b },
         atoms: Object.assign(Object.create(null), out?.atoms, p.atoms),
-        queries:
-          out?.queries && q
-            ? { queries: [...out.queries.queries, ...q.queries], mutations: [...out.queries.mutations, ...q.mutations] }
-            : (q ?? out?.queries),
+        // One state per script (a stream writes one per flush), applied in order.
+        transfer: [...(out?.transfer ?? []), ...(p.transfer === undefined ? [] : [p.transfer])],
       }
     } catch (error) {
       sink(
@@ -97,13 +88,25 @@ const sink = (cause: Cause.Cause<unknown>, onError?: (cause: Cause.Cause<unknown
   }
 }
 
-// Seeds the store and the scope's QueryClient before the app's first run, so each component runs once with server state.
-const seed = (p: Payload | undefined): Effect.Effect<void, never, Store> =>
+// Seeds the store and the layer's `Transfer` before the app's first run, so each component runs once with server state.
+const seed = (
+  p: Payload | undefined,
+  onError?: (cause: Cause.Cause<unknown>) => void,
+): Effect.Effect<void, never, Store> =>
   Effect.flatMap(Store, (store) =>
-    Effect.map(Effect.serviceOption(QueryClientTag), (client) => {
+    Effect.map(Effect.serviceOption(Transfer), (transfer) => {
       if (!p) return
       hydrate(store, p.atoms)
-      if (p.queries && Option.isSome(client)) hydrateQueries(client.value, p.queries)
+      if (Option.isSome(transfer))
+        for (const state of p.transfer ?? [])
+          try {
+            transfer.value.hydrate(state)
+          } catch (error) {
+            sink(
+              Cause.fail(new HydratePayloadInvalid({ reason: error instanceof Error ? error.message : String(error) })),
+              onError,
+            )
+          }
     }),
   )
 
@@ -319,7 +322,7 @@ const adoptAll = (
  * (listeners, `useLocal` slots and subscriptions attach; matching nodes are kept). Same options, `onError` and
  * dispose as `mount`; a later `mount` on the container replaces it. Rejects with `HydrateConflict` when the container
  * was already mounted or hydrated. The `data-sleek-hydrate` state script seeds the store (also a given `opts.store`)
- * and the layer's QueryClient before the first run; a malformed one is reported as `HydratePayloadInvalid` and the
+ * and the layer's `Transfer` before the first run; a malformed one is reported as `HydratePayloadInvalid` and the
  * app starts from client initial values.
  */
 export const hydrateMount = async <E, A, LE = never>(
@@ -334,7 +337,7 @@ export const hydrateMount = async <E, A, LE = never>(
   const { container, onError } = opts
   if (owned(container)) throw new HydrateConflict({ container })
   const p = readPayload(container, onError)
-  if (p) app = Effect.zipRight(seed(p), app) as typeof app
+  if (p) app = Effect.zipRight(seed(p, onError), app) as typeof app
   // Mid-stream: boundaries whose placeholder is still on screen hydrate their fallback and adopt the content on landing.
   const late = new Map<string, string>()
   const onScreen = placeholders(container)
@@ -426,7 +429,7 @@ const landing = (
     swap?.(id)
     busy++
     try {
-      const exit = await m.late.land(seed(state))
+      const exit = await m.late.land(seed(state, onError))
       const idx = m.fallback.length ? m.lives.indexOf(m.fallback[0]!) : m.from
       if (Exit.isFailure(exit)) return void (Cause.isInterruptedOnly(exit.cause) || sink(exit.cause, onError))
       if (!exit.value || idx < 0 || dead || !e.live()) return

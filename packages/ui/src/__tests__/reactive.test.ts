@@ -219,3 +219,36 @@ describe('reactive components', () => {
     })
   })
 })
+
+describe('generator components', () => {
+  it('runs a function* component: yield* reads services and atoms, a returned element is run for it', async () => {
+    const Hi = function* () {
+      const g = yield* Greeting
+      const n = yield* useAtomValue(count)
+      return jsx('p', { children: `${g} ${n}` })
+    }
+    const app = jsx(Provider, { layer: Layer.succeed(Greeting, 'hi'), children: jsx(Hi, {}) })
+    expect(await renderToString(app, { layer: Layer.empty })).toBe(
+      '<sleek-reactive style="display: contents;"><p>hi 3</p></sleek-reactive>',
+    )
+  })
+
+  it('takes props, keeps useLocal slots, and may return a plain node', async () => {
+    const Label = function* ({ text }: { text: string }) {
+      const [n] = yield* useLocal(7)
+      return el('i', {}, `${text}${n}`)
+    }
+    expect(await renderToString(jsx(Label, { text: 'n=' }), { layer: Layer.empty })).toBe(
+      '<sleek-reactive style="display: contents;"><i>n=7</i></sleek-reactive>',
+    )
+  })
+
+  it('fails with the original tagged error, which a Boundary catches', async () => {
+    const boom = new Boom()
+    const Failing = function* () {
+      yield* Effect.fail(boom)
+      return el('p')
+    }
+    await expect(renderToString(jsx(Failing, {}), { layer: Layer.empty })).rejects.toBe(boom)
+  })
+})

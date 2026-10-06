@@ -13,7 +13,7 @@ Effect-native component framework (MVP). The Effect program is the host; plain R
 | `useSetAtom(atom)` | A setter `(value) => void` for a writable atom; hand it to a guest as a prop |
 | `useAtom(atom)` | `[value, set]`; reads like `useAtomValue` |
 | `<Pending fallback>` | Shows `fallback` while its children wait on an async Effect; a re-run keeps the previous content until the new one resolves |
-| `useSuspenseQuery(options)` (`@sleekstack/ui/query`) | Waits on a query under `Pending`: `Effect<T, QueryFailed, QueryClientTag \| Store>`; re-runs on result change, returns held data without refetching |
+| `useSuspenseQuery(options)` (`@sleekstack/query/ui`) | Waits on a query under `Pending`: `Effect<T, QueryFailed, QueryClientTag \| Store>`; re-runs on result change, returns held data without refetching |
 | `useLocal(initial)` | `[value, set]` local state in an ordered slot of this instance; kept across re-runs, released when the instance is removed. Call it only at the top of the component body (`ConditionalSlot`) |
 | `key` prop | Identity among siblings for elements and components; a keyed component keeps its instance and state when moved. Lists rendered with `.map` need one (`MissingKey`) |
 | `onXxx={(event) => effect}` | Event closure on a host element: runs in the DOM with the context captured at the element; `E` must be `never`, failures go to `onError`. Not run by `renderToString` or `resume`; attached by `hydrateMount` |

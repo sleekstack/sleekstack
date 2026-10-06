@@ -2,12 +2,11 @@ import { type Cause, Effect, type Layer, Option, Schema } from 'effect'
 import { createElement } from 'react'
 import { renderToString as reactRenderToString } from 'react-dom/server'
 import { type Atom, type AtomStore, dehydrate, makeAtomStore } from '@sleekstack/core'
-import { QueryClientTag } from '@sleekstack/query'
-import { dehydrate as dehydrateQueries, type DehydratedState } from '@tanstack/query-core'
 import { reportRenderError, runToNode } from './component'
 import { checkEvent, DuplicateBindKey, DuplicateHandler, type Handler, valueInfo } from './handler'
 import type { ElementNode, Node, ReactiveNode } from './node'
 import { Frame, makeFrame, Store } from './reactive'
+import { Transfer } from './transfer'
 
 const ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
 export const escape = (s: string): string => s.replace(/[&<>"']/g, (c) => ESCAPES[c]!)
@@ -68,19 +67,14 @@ const manifest = (c: Collector): string =>
       })}</script>`
 
 /**
- * Hydration state (`data-sleek-hydrate`, distinct from the resume manifest): core `dehydrate` atoms and TanStack
- * `DehydratedState` queries. Omitted when both are empty.
+ * Hydration state (`data-sleek-hydrate`, distinct from the resume manifest): core `dehydrate` atoms and the layer's
+ * `Transfer` state. Omitted when there is none of either.
  */
 // `b` (streams only): boundary id -> path, so a client hydrating mid-stream finds the Pendings still on their fallback.
-export const payload = (
-  atoms: Record<string, unknown>,
-  queries: DehydratedState | undefined,
-  b: Record<string, string> = {},
-): string => {
-  const q = queries && (queries.queries.length > 0 || queries.mutations.length > 0) ? queries : undefined
+export const payload = (atoms: Record<string, unknown>, transfer: unknown, b: Record<string, string> = {}): string => {
   const hasB = Object.keys(b).length > 0
-  if (Object.keys(atoms).length === 0 && !q && !hasB) return ''
-  return `<script type="application/json" data-sleek-hydrate>${scriptJson({ v: 1, atoms, ...(q ? { queries: q } : {}), ...(hasB ? { b } : {}) })}</script>`
+  if (Object.keys(atoms).length === 0 && transfer === undefined && !hasB) return ''
+  return `<script type="application/json" data-sleek-hydrate>${scriptJson({ v: 1, atoms, ...(transfer !== undefined ? { transfer } : {}), ...(hasB ? { b } : {}) })}</script>`
 }
 
 // Handler ids and bind keys must survive an HTML attribute round trip unchanged.
@@ -184,7 +178,7 @@ export const serialize = (node: Node, c: Collector, around: Around = NO_TEXT): s
 /**
  * String renderer (SSR and tests). Rejection contract matches `mount`. Provides a fresh `Store`, disposed afterwards.
  * Handlers (`on`) and `bind` nodes emit `data-sleek-*` attributes and one trailing manifest script; rejects with
- * `DuplicateHandler`, `DuplicateBindKey` or `UnsupportedEvent`. Serializable atom state and the layer's QueryClient
+ * `DuplicateHandler`, `DuplicateBindKey` or `UnsupportedEvent`. Serializable atom state and the layer's `Transfer` state
  * cache go into a trailing `data-sleek-hydrate` script that `hydrateMount` seeds from.
  */
 export const renderToString = async <E, A, LE = never>(
@@ -194,12 +188,12 @@ export const renderToString = async <E, A, LE = never>(
   // Idle nodes stay until dispose, so `dehydrate` sees every atom the render built.
   const store = makeAtomStore({ scheduleTask: () => {} })
   try {
-    let queries: DehydratedState | undefined
-    // The scope's QueryClient (when the layer provides one) is dehydrated after the render's fetches settled.
+    let transfer: unknown
+    // The layer's `Transfer` (when it provides one) is read after the render's fetches settled.
     const captured = Effect.tap(app, () =>
       Effect.map(
-        Effect.serviceOption(QueryClientTag),
-        (c) => void (queries = Option.isSome(c) ? dehydrateQueries(c.value) : undefined),
+        Effect.serviceOption(Transfer),
+        (t) => void (transfer = Option.isSome(t) ? t.value.dehydrate() : undefined),
       ),
     )
     const withStore = captured.pipe(
@@ -209,7 +203,7 @@ export const renderToString = async <E, A, LE = never>(
     const node = await runToNode(withStore, opts.layer, opts.onError)
     const c: Collector = { store, onError: opts.onError, handlers: new Map(), events: new Set(), atoms: new Map() }
     const html = serialize(node, c)
-    return html + manifest(c) + payload(dehydrate(store), queries)
+    return html + manifest(c) + payload(dehydrate(store), transfer)
   } finally {
     await store.dispose()
   }

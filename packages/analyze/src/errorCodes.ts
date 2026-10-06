@@ -135,7 +135,7 @@ export const ERROR_CODES: Readonly<Record<AnalyzeCode, ErrorHelp>> = {
     docs: UI,
   },
   ConditionalSlot: {
-    rule: "useLocal is called at the top level of a component's Effect.gen body: not inside a condition, loop, nested or helper function, or after an early return.",
+    rule: "useLocal is called at the top level of a component's generator body (`function*` or `Effect.gen`): not inside a condition, loop, nested or helper function, or after an early return.",
     fix: [
       'Move the useLocal call to the top of the component body, before any conditional return',
       'Keep the local state in the component and pass it to the helper as an argument',

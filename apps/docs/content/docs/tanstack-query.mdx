@@ -12,7 +12,7 @@ SleekStack uses TanStack Query directly (ADR 0018 supersedes the native query la
 | `prefetchQuery` + `dehydrate` | `prefetchQueries` from `@sleekstack/next` (runs on the configured runtime) |
 | `HydrationBoundary`, hooks, devtools | used as is |
 | `queryOptions` / `useMutation` without Effect | kit `cachedQuery` / `mutation` (generator bodies, `yield*` Tags) |
-| hooks outside React | `useQuery` / `useMutation` from `@sleekstack/ui/query` |
+| hooks outside React | `useQuery` / `useMutation` from `@sleekstack/query/ui` |
 
 ## Differences from the old native layer
 
