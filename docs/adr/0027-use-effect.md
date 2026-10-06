@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted.
+Accepted. Amended by ADR 0028 (effects run after the DOM is committed) and ADR 0029 (generator effects).
 
 ## Context
 
@@ -16,7 +16,7 @@ A component body runs again whenever an atom it reads changes, and each run's `S
 - Before `fn` runs again, its previous cleanup runs.
 - A release in the instance's `Slots.releases` runs the last cleanup when the instance is removed, when a dropped first run's slots are disposed, or when the mount is disposed; it cascades to child instances.
 
-`fn` returns nothing, a cleanup function, or an Effect. An Effect runs as a fiber with the run's context and its own `Scope` (`Effect.addFinalizer` / `acquireRelease` work); its cleanup interrupts the fiber and closes the scope. The hook's requirements exclude `Scope`.
+`fn` is an Effect itself, or a function returning nothing, a cleanup function, or an Effect. An Effect runs as a fiber with the run's context and its own `Scope` (`Effect.addFinalizer` / `acquireRelease` work); its cleanup interrupts the fiber and closes the scope. The hook's requirements exclude `Scope`.
 
 - The slot is never read, so it does not make the instance depend on anything.
 - A mount provides `MountScope`; string and stream renders do not, so `useEffect` is a no-op there.
@@ -26,7 +26,7 @@ A component body runs again whenever an atom it reads changes, and each run's `S
 
 ## Consequences
 
-- No post-commit timing: `fn` runs during the run, not after the DOM is attached.
+- Timing: see ADR 0028 (originally `fn` ran during the run).
 - If a run runs `fn` and then fails, the effect has still run; the next successful run compares against its `deps`.
 - A first run that is dropped runs the cleanup through the disposed slots.
 - Unlike React, `deps` are compared on each run of the instance, which happens when an atom it reads changes, not on every parent render.

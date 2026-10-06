@@ -19,7 +19,9 @@ import {
   Store,
   Transfer,
   useAtomValue,
+  useEffect,
   useLocal,
+  useRef,
 } from '../index'
 import { jsx as rawJsx } from '../jsx-runtime'
 
@@ -58,6 +60,21 @@ const serverThenHydrate = async (app: () => any) => {
 }
 
 describe('hydrateMount', () => {
+  it('an effectful component hydrates the server markup, then runs its effect with its ref set', async () => {
+    const seen: Array<string | undefined> = []
+    const C = () =>
+      Effect.flatMap(useRef<HTMLElement>(), (ref) =>
+        Effect.zipRight(
+          useEffect(() => void seen.push(ref.current?.tagName), []),
+          jsx('button', { ref, children: 'go' }),
+        ),
+      )
+    const { container, before } = await serverThenHydrate(() => jsx(C, {}))
+    expect(all(container)).toEqual(before)
+    expect(container.querySelector('sleek-reactive')).not.toBeNull()
+    expect(seen).toEqual(['BUTTON'])
+  })
+
   it('keeps every server DOM node, runs each component once, and wires onClick + useLocal at once', async () => {
     const runs = { counter: 0, label: 0 }
     const flag = Atom.make('x')

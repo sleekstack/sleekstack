@@ -18,8 +18,14 @@ export interface ElementNode {
   /** Event name to closure binding, from function-valued `onXxx` JSX props; ignored by `renderToString`. */
   readonly events?: Readonly<Record<string, EventBinding>>
   readonly key?: string
+  /** From a host element's `ref` prop: set to the DOM element once it is attached, and to `null` when it is removed. */
+  readonly ref?: Ref<any>
   /** Attribute name to atom, from atom-valued JSX props: set from the atom's value and kept current without re-running the component. */
   readonly bound?: Readonly<Record<string, Atom.Atom<any>>>
+}
+/** What `useRef` returns and a host element's `ref` prop takes. */
+export interface Ref<T> {
+  current: T | null
 }
 /** A JSX event closure and the context captured while its element's JSX Effect ran. */
 export interface EventBinding {

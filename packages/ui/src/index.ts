@@ -1,5 +1,15 @@
 export { el, fragment } from './node'
-export type { BindNode, ElementNode, EventBinding, FragmentNode, GuestNode, Node, ReactiveNode, TextNode } from './node'
+export type {
+  BindNode,
+  ElementNode,
+  EventBinding,
+  FragmentNode,
+  GuestNode,
+  Node,
+  ReactiveNode,
+  Ref,
+  TextNode,
+} from './node'
 export { Catch, fromReact, Provide } from './component'
 export type { Component } from './component'
 export { mount } from './dom'
@@ -19,7 +29,17 @@ export type { Child } from './jsx-runtime'
 export type { ComponentResult } from './reactive'
 export { Transfer } from './transfer'
 export type { StateTransfer } from './transfer'
-export { DuplicateKey, SlotMismatch, Store, useAtom, useAtomValue, useLocal, useEffect, useSetAtom } from './reactive'
+export {
+  DuplicateKey,
+  SlotMismatch,
+  Store,
+  useAtom,
+  useAtomValue,
+  useLocal,
+  useEffect,
+  useRef,
+  useSetAtom,
+} from './reactive'
 export {
   bind,
   defineHandler,

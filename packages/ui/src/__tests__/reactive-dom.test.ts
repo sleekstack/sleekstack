@@ -15,6 +15,7 @@ import {
   useAtomValue,
   useLocal,
   useEffect as useUiEffect,
+  useRef,
   useSetAtom,
 } from '../index'
 import type { Node } from '../node'
@@ -963,6 +964,120 @@ describe('host events', () => {
       expect(log).toEqual(['hi', 'finalized'])
     })
 
+    describe('a generator effect', () => {
+      const Tracked = (a: Atom.Atom<number>, log: Array<string>) => () =>
+        Effect.as(
+          useUiEffect(function* () {
+            const v = yield* useAtomValue(a)
+            log.push(`run${v}`)
+            yield* Effect.addFinalizer(() => Effect.sync(() => log.push(`end${v}`)))
+          }),
+          el('b'),
+        )
+
+      it('follows the atoms it reads: cleanup, then run again; once for several changes in a tick', async () => {
+        const n = Atom.make(0)
+        const log: Array<string> = []
+        const { store, handle } = await go(jsx(Tracked(n, log), {}))
+        expect(log).toEqual(['run0'])
+        store.set(n, 1)
+        store.set(n, 2)
+        await tick()
+        expect(log).toEqual(['run0', 'end0', 'run2'])
+        await act(() => handle.dispose())
+        await tick()
+        expect(log).toEqual(['run0', 'end0', 'run2', 'end2'])
+      })
+
+      it('is not re-run by the component re-running, and uses the latest closure when an atom re-runs it', async () => {
+        const tracked = Atom.make(0)
+        const other = Atom.make(0)
+        const log: Array<string> = []
+        const C = () =>
+          Effect.flatMap(useAtomValue(other), (o) =>
+            Effect.zipRight(
+              useUiEffect(function* () {
+                const v = yield* useAtomValue(tracked)
+                log.push(`t${v}/o${o}`)
+              }),
+              Effect.succeed(el('b')),
+            ),
+          )
+        const { store } = await go(jsx(C, {}))
+        store.set(other, 1) // the component re-runs; the effect does not
+        await tick()
+        expect(log).toEqual(['t0/o0'])
+        store.set(tracked, 1) // the atom re-runs it, from the newest closure
+        await tick()
+        expect(log).toEqual(['t0/o0', 't1/o1'])
+      })
+
+      it('tracks a read made after an async step, and restarts when deps change too', async () => {
+        const n = Atom.make(0)
+        const log: Array<string> = []
+        const C = (dep: Atom.Atom<number>) => () =>
+          Effect.flatMap(useAtomValue(dep), (d) =>
+            Effect.zipRight(
+              useUiEffect(
+                function* () {
+                  yield* Effect.sleep(1)
+                  const v = yield* useAtomValue(n)
+                  log.push(`n${v}/d${d}`)
+                },
+                [d],
+              ),
+              Effect.succeed(el('b')),
+            ),
+          )
+        const dep = Atom.make(0)
+        const { store } = await go(jsx(C(dep), {}))
+        await act(async () => void (await new Promise((r) => setTimeout(r, 20))))
+        store.set(n, 1)
+        await act(async () => void (await new Promise((r) => setTimeout(r, 20))))
+        store.set(dep, 1)
+        await act(async () => void (await new Promise((r) => setTimeout(r, 20))))
+        expect(log).toEqual(['n0/d0', 'n1/d0', 'n1/d1'])
+      })
+
+      it('reports a failure to onError', async () => {
+        const errors: Array<Cause.Cause<unknown>> = []
+        const C = () =>
+          Effect.as(
+            useUiEffect(function* () {
+              yield* Effect.fail(new Boom())
+            }),
+            el('b'),
+          )
+        await go(jsx(C, {}), { onError: (c) => errors.push(c) })
+        await tick()
+        expect(errors).toHaveLength(1)
+      })
+    })
+
+    it('accepts a raw Effect, run in its own scope and interrupted on dispose', async () => {
+      const log: Array<string> = []
+      const C = () =>
+        Effect.zipRight(
+          useUiEffect(
+            Effect.zipRight(
+              Effect.addFinalizer(() => Effect.sync(() => log.push('finalized'))),
+              Effect.zipRight(
+                Effect.sync(() => log.push('ran')),
+                Effect.never,
+              ),
+            ),
+            [],
+          ),
+          Effect.succeed(el('b')),
+        )
+      const { handle } = await go(jsx(C, {}))
+      await tick()
+      expect(log).toEqual(['ran'])
+      await act(() => handle.dispose())
+      await tick()
+      expect(log).toEqual(['ran', 'finalized'])
+    })
+
     it('a throw, a failed Effect and a throwing cleanup reach onError', async () => {
       const errors: Array<Cause.Cause<unknown>> = []
       const A = () =>
@@ -993,6 +1108,64 @@ describe('host events', () => {
       await tick()
       await act(() => handle.dispose())
       expect(errors).toHaveLength(3)
+    })
+
+    it('runs after the DOM is committed: the ref is set and the element is attached', async () => {
+      const seen: Array<string> = []
+      const C = () =>
+        Effect.flatMap(useRef<HTMLInputElement>(), (ref) =>
+          Effect.zipRight(
+            useUiEffect(() => {
+              seen.push(`${ref.current?.tagName} in ${ref.current?.parentElement?.tagName}`)
+            }, []),
+            jsx('input', { ref }),
+          ),
+        )
+      await go(jsx(C, {}))
+      expect(seen).toEqual(['INPUT in SLEEK-REACTIVE'])
+    })
+
+    it('a component that reads no atom still runs its effect, and a child runs before its parent', async () => {
+      const log: Array<string> = []
+      const Child = () =>
+        Effect.as(
+          useUiEffect(() => void log.push('child'), []),
+          el('i'),
+        )
+      const Parent = () =>
+        Effect.zipRight(
+          useUiEffect(() => void log.push('parent'), []),
+          jsx('div', { children: jsx(Child, {}) }),
+        )
+      await go(jsx(Parent, {}))
+      expect(log).toEqual(['child', 'parent'])
+    })
+
+    it('the ref is set to null when its element is removed', async () => {
+      const show = Atom.make(true)
+      let ref!: { current: Element | null }
+      const P = () =>
+        Effect.flatMap(useRef<Element>(), (r) => {
+          ref = r
+          return Effect.flatMap(useAtomValue(show), (s) => jsx('div', { children: s ? jsx('b', { ref: r }) : null }))
+        })
+      const { store } = await go(jsx(P, {}))
+      expect(ref.current?.tagName).toBe('B')
+      store.set(show, false)
+      await tick()
+      expect(ref.current).toBeNull()
+    })
+
+    it('a run that fails never runs its effect', async () => {
+      const log: Array<string> = []
+      const C = () =>
+        Effect.zipRight(
+          useUiEffect(() => void log.push('ran'), []),
+          Effect.fail(new Boom()) as Effect.Effect<any, Boom>,
+        )
+      await go(jsx(Boundary, { tag: 'Boom', fallback: () => Effect.succeed(el('p', {}, 'fb')), children: jsx(C, {}) }))
+      await tick()
+      expect(log).toEqual([])
     })
 
     it('does not run on the server', async () => {
