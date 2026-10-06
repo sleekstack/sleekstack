@@ -8,7 +8,8 @@ const APP_TITLE = 'SleekStack UI Demo'
 /** Needs ProjectRepo; fails with ProjectNotFound for an unknown or archived project. */
 const ProjectView = function* ({ projectId }: { projectId: string }) {
   const project = yield* ProjectRepo.get(projectId)
-  // The tab title follows the open project; put back when it closes unless another project already took it.
+  // The tab title follows the open project: this instance stays across projects, so the effect re-runs when `projectId` changes.
+  // Its cleanup puts the plain title back unless another project already took it.
   yield* useEffect(() => {
     const title = `${project.name} · ${APP_TITLE}`
     document.title = title
@@ -29,7 +30,7 @@ export const ProjectPage = function* () {
   const projectId = yield* useAtomValue(projectAtom)
   return (
     <Boundary tag="ProjectNotFound" fallback={(e: ProjectNotFound) => <p className="error">No project "{e.id}"</p>}>
-      <ProjectView key={projectId} projectId={projectId} />
+      <ProjectView projectId={projectId} />
     </Boundary>
   )
 }
