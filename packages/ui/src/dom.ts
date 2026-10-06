@@ -15,6 +15,7 @@ import {
   fallbacks,
   Frame,
   makeFrame,
+  MountError,
   MountScope,
   RenderScope,
   type RunFrame,
@@ -284,15 +285,22 @@ const sameAtoms = (
   return ka.every((k) => b![k] === a![k])
 }
 
-// Sync throw, non-Effect return, failure or defect go to `onError`; fibers end with the element.
+// A handler is a function returning an Effect, a generator (`function*` yielding Effects) or nothing (a plain function).
+const handled = (name: string, r: unknown): Effect.Effect<void, never, any> => {
+  if (Effect.isEffect(r)) return r as Effect.Effect<void, never, any>
+  if (r === undefined) return Effect.void
+  if (typeof (r as Generator | null)?.next === 'function' && typeof (r as Generator)[Symbol.iterator] === 'function')
+    return Effect.gen(() => r as Generator<any, void, any>) as Effect.Effect<void, never, any>
+  throw new TypeError(`on${name} handler returned neither an Effect, a generator nor undefined`)
+}
+
+// Sync throw, unusable return, failure or defect go to `onError`; fibers end with the element.
 const dispatch = (ev: Events, name: string, event: Event, onError?: OnError): void => {
   const b = ev.bindings[name]
   if (!b || ev.dead) return
   let fiber: Fiber.RuntimeFiber<void, unknown>
   try {
-    const eff = b.run(event)
-    if (!Effect.isEffect(eff)) throw new TypeError(`on${name} handler did not return an Effect`)
-    fiber = Effect.runFork(Effect.provide(eff, b.context))
+    fiber = Effect.runFork(Effect.provide(handled(name, b.run(event)), b.context))
   } catch (error) {
     return reportRenderError(error, onError)
   }
@@ -828,6 +836,7 @@ export const start = async <E, A, LE = never>(
     Effect.provideService(Store, store),
     Effect.provideService(RenderScope, scope),
     Effect.provideService(MountScope, scope),
+    Effect.provideService(MountError, (cause) => safeReport(cause, onError)),
     Effect.provideService(Frame, frame),
     Effect.provideService(Hydrating, hydrating),
   ) as Effect.Effect<Node, E, Exclude<A, Store>>

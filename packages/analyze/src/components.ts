@@ -357,8 +357,14 @@ export function analyzeComponents(opts: { readonly project: string }): Component
           `Event closure "${text(v)}" is typed ${checker.typeToString(t)}; its errors and requirements cannot be named`,
         )
       const sigs = t.getCallSignatures()
-      if (!sigs.length) return []
-      const args = sigs.length === 1 ? effectArgs(checker.getReturnTypeOfSignature(sigs[0]!)) : undefined
+      const direct = !sigs.length && effectArgs(t) // an Effect value as the handler
+      if (!sigs.length && !direct) return []
+      const ret = sigs.length === 1 ? checker.getReturnTypeOfSignature(sigs[0]!) : direct ? t : undefined
+      // A plain function returning nothing has no errors and no requirements.
+      const args =
+        ret && ret.flags & (ts.TypeFlags.Void | ts.TypeFlags.Undefined)
+          ? ([[], [], []] as [ts.Type[], ts.Type[], ts.Type[]])
+          : ret && effectArgs(ret)
       if (!args || [...args[1], ...args[2]].some(isAny))
         return fail(v, `Event closure "${text(v)}" does not return a readable Effect`)
       return [
@@ -657,13 +663,13 @@ export function analyzeComponents(opts: { readonly project: string }): Component
     }
   }
   const rules: AnalyzeError[] = []
-  /** `useLocal` must be a statement-level `yield*` in a component's generator body (`function*` or `Effect.gen`), before any `return`; anything else fails closed. */
-  const checkSlot = (call: ts.CallExpression) => {
+  /** `useLocal` and `useEffect` must be a statement-level `yield*` in a component's generator body (`function*` or `Effect.gen`), before any `return`; anything else fails closed. */
+  const checkSlot = (call: ts.CallExpression, hook = 'useLocal') => {
     const bad = (why: string) =>
       rules.push(
         analyzeError(
           'ConditionalSlot',
-          `useLocal "${text(call)}" ${why}; slots must run in the same order on every run`,
+          `${hook} "${text(call)}" ${why}; slots must run in the same order on every run`,
           loc(call),
         ),
       )
@@ -760,6 +766,7 @@ export function analyzeComponents(opts: { readonly project: string }): Component
   }
   const visit = (n: ts.Node): void => {
     if (ts.isCallExpression(n) && calleeOf(n) === 'ui/reactive#useLocal') checkSlot(n)
+    if (ts.isCallExpression(n) && calleeOf(n) === 'ui/reactive#useEffect') checkSlot(n, 'useEffect')
     if (ts.isCallExpression(n)) checkKeys(n)
     if (ts.isCallExpression(n) && calleeOf(n) === 'ui/handler#on') checkOn(n)
     if (ts.isJsxAttribute(n)) checkJsxHandler(n)

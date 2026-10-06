@@ -1,5 +1,5 @@
 import { Atom, type AtomStore, MissingDependency } from '@sleekstack/core'
-import { Context, Data, Effect, ExecutionStrategy, Exit, Option, Scope } from 'effect'
+import { Cause, Context, Data, Effect, ExecutionStrategy, Exit, Fiber, Option, Scope } from 'effect'
 import type { YieldWrap } from 'effect/Utils'
 import type { Node, ReactiveNode } from './node'
 
@@ -236,6 +236,88 @@ export const useLocal = <A>(
       (next: A | ((previous: A) => A)) =>
         typeof next === 'function' ? s.update(atom, next as (p: A) => A) : s.set(atom, next),
     ] as const)
+  })
+
+/** Where `useEffect` reports a failure of its effect or cleanup; set by the mount from its `onError`. */
+export class MountError extends Context.Reference<MountError>()('@sleekstack/ui/MountError', {
+  defaultValue: (): ((cause: Cause.Cause<unknown>) => void) | undefined => undefined,
+}) {}
+
+/** What an effect may return: nothing, a cleanup function, or an Effect (run in its own `Scope`, ended as the cleanup). */
+export type EffectResult<E = never, R = never> = void | (() => void) | Effect.Effect<void, E, R>
+
+interface EffectSlot {
+  started: boolean
+  deps: ReadonlyArray<unknown> | undefined
+  cleanup: (() => void) | undefined
+}
+
+const sameDeps = (a: ReadonlyArray<unknown>, b: ReadonlyArray<unknown>): boolean =>
+  a.length === b.length && a.every((x, i) => Object.is(x, b[i]))
+
+/**
+ * `useEffect(fn, deps?)`, as in React: `fn` runs on an instance's first run and again when `deps` change (every run when
+ * omitted; once for `[]`). Its returned cleanup runs before the next `fn` and when the instance is removed or the mount
+ * disposed (not awaited). `fn` may return an Effect instead: it runs with the run's context in its own `Scope`
+ * (`Effect.addFinalizer` / `acquireRelease` work), and is interrupted as the cleanup. A throw or failure goes to `onError`.
+ * Not run by `renderToString` / `renderToStream`. Takes a slot like `useLocal`, so call it unconditionally. It runs during
+ * the component's run, not after the DOM is attached.
+ */
+export const useEffect = <E = never, R = never>(
+  fn: () => EffectResult<E, R>,
+  deps?: ReadonlyArray<unknown>,
+): Effect.Effect<void, never, Exclude<R, Scope.Scope> | Store> =>
+  Effect.flatMap(Effect.context<never>(), (ctx) => {
+    // Only a mount provides `MountScope`: a string or stream render never runs it.
+    if (Context.get(ctx, Collector) === undefined || Context.get(ctx, MountScope) === undefined) return Effect.void
+    const so = Context.getOption(ctx, Store)
+    if (Option.isNone(so)) return missingStore('useEffect') as Effect.Effect<never>
+    const f = Context.get(ctx, Frame)!
+    const slots = f.owner
+    const i = f.cursor++
+    const first = i >= slots.atoms.length
+    if (first && slots.done)
+      return Effect.fail(
+        new SlotMismatch({ id: f.id, expected: slots.atoms.length, actual: i + 1 }),
+      ) as unknown as Effect.Effect<never>
+    // The slot holds one mutable record that nothing reads, so a run never makes the instance depend on it.
+    if (first) slots.atoms.push(Atom.make<EffectSlot>({ started: false, deps: undefined, cleanup: undefined }))
+    const slot = so.value.get(slots.atoms[i] as Atom.Atom<EffectSlot>)
+    const report = Context.get(ctx, MountError)
+    const end = () => {
+      const c = slot.cleanup
+      slot.cleanup = undefined
+      try {
+        c?.()
+      } catch (e) {
+        report?.(Cause.die(e))
+      }
+    }
+    if (first) slots.releases.push(end)
+    if (slot.started && deps !== undefined && slot.deps !== undefined && sameDeps(slot.deps, deps)) return Effect.void
+    end()
+    slot.started = true
+    slot.deps = deps
+    try {
+      const r = fn()
+      if (typeof r === 'function') slot.cleanup = r
+      else if (Effect.isEffect(r)) {
+        const scope = Effect.runSync(Scope.make())
+        const fiber = Effect.runFork(
+          (r as Effect.Effect<void, E, R>).pipe(
+            Effect.provideService(Scope.Scope, scope),
+            Effect.provide(ctx as Context.Context<R>),
+            Effect.catchAllCause((cause) =>
+              Cause.isInterruptedOnly(cause) ? Effect.void : Effect.sync(() => report?.(cause)),
+            ),
+          ) as Effect.Effect<void>,
+        )
+        slot.cleanup = () => void Effect.runFork(Effect.zipRight(Fiber.interrupt(fiber), Scope.close(scope, Exit.void)))
+      }
+    } catch (e) {
+      report?.(Cause.die(e))
+    }
+    return Effect.void
   })
 
 /** Returns a setter for `atom`; registers nothing. */

@@ -10,13 +10,11 @@ export const filterAtom = Atom.make<Status | 'all'>('all')
 export const selectedAtom = Atom.make<string | null>(null)
 
 /** Clears the open task and the status filter (when the project on screen changes). */
-export const useResetTaskView = () =>
-  Effect.gen(function* () {
-    const select = yield* useSetAtom(selectedAtom)
-    const setFilter = yield* useSetAtom(filterAtom)
-    return () =>
-      Effect.sync(() => {
-        select(null)
-        setFilter('all')
-      })
+export const useResetTaskView = function* () {
+  const select = yield* useSetAtom(selectedAtom)
+  const setFilter = yield* useSetAtom(filterAtom)
+  return Effect.sync(() => {
+    select(null)
+    setFilter('all')
   })
+}

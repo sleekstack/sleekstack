@@ -59,7 +59,9 @@ const RENAME: Record<string, string> = { className: 'class', htmlFor: 'for' }
 // A function-valued `onXxx` prop is an event closure, not an attribute; non-function `on*` still reaches `checkAttr`.
 const ON_PROP = /^on[A-Z]/
 // A `defineHandler` value on `onXxx` is a resumable handler: it goes to the node's `on`, which `renderToString` emits as `data-sleek-on-<event>`.
-const isEvent = (k: string, v: unknown): v is EventBinding['run'] => typeof v === 'function' && ON_PROP.test(k)
+// An Effect value (re-runnable) is an event closure too: it ignores the event.
+const isEvent = (k: string, v: unknown): v is EventBinding['run'] =>
+  (typeof v === 'function' || Effect.isEffect(v)) && ON_PROP.test(k)
 
 /** One pass over an element's props: its attributes, event closures, resumable handlers and atom-bound attributes. */
 interface Split {
@@ -74,8 +76,9 @@ const split = (props: Props, context: Context.Context<any> | undefined): Split =
     if (k === 'children' || k === 'key') continue
     const v = props[k]
     if (ON_PROP.test(k)) {
-      if (typeof v === 'function') {
-        if (context) (out.events ??= {})[k.slice(2).toLowerCase()] = { run: v as EventBinding['run'], context }
+      if (typeof v === 'function' || Effect.isEffect(v)) {
+        const run = typeof v === 'function' ? (v as EventBinding['run']) : () => v as Effect.Effect<void>
+        if (context) (out.events ??= {})[k.slice(2).toLowerCase()] = { run, context }
         continue
       }
       if (isHandler(v)) {

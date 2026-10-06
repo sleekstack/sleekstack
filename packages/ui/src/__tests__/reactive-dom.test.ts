@@ -14,6 +14,7 @@ import {
   Store,
   useAtomValue,
   useLocal,
+  useEffect as useUiEffect,
   useSetAtom,
 } from '../index'
 import type { Node } from '../node'
@@ -842,6 +843,168 @@ describe('host events', () => {
     })
     for (const b of container.querySelectorAll('button')) b.click()
     expect(errors).toHaveLength(4)
+  })
+
+  it('a handler may be a plain function, a generator or an Effect value; all run', async () => {
+    const log: Array<string> = []
+    const { container } = await go(
+      jsx('div', {
+        children: [
+          jsx('button', { onClick: () => void log.push('plain') }),
+          jsx('button', {
+            onClick: function* () {
+              yield* Effect.sync(() => log.push('gen'))
+            },
+          }),
+          jsx('button', { onClick: Effect.sync(() => log.push('value')) }),
+        ],
+      }),
+    )
+    for (const b of container.querySelectorAll('button')) b.click()
+    await tick()
+    expect(log).toEqual(['plain', 'gen', 'value'])
+  })
+
+  describe('useEffect', () => {
+    const Counter =
+      (deps: (n: number) => ReadonlyArray<unknown> | undefined, log: Array<string>, n: Atom.Atom<number>) => () =>
+        Effect.flatMap(useAtomValue(n), (v) =>
+          Effect.as(
+            useUiEffect(() => {
+              log.push(`run${v}`)
+              return () => log.push(`end${v}`)
+            }, deps(v)),
+            el('i', {}, String(v)),
+          ),
+        )
+
+    it('[] runs once across re-runs and cleans up when the instance is removed', async () => {
+      const n = Atom.make(0)
+      const show = Atom.make(true)
+      const log: Array<string> = []
+      const P = () =>
+        Effect.flatMap(useAtomValue(show), (s) =>
+          jsx('div', {
+            children: s
+              ? jsx(
+                  Counter(() => [], log, n),
+                  {},
+                )
+              : null,
+          }),
+        )
+      const { store } = await go(jsx(P, {}))
+      store.set(n, 1)
+      await tick()
+      store.set(n, 2)
+      await tick()
+      expect(log).toEqual(['run0'])
+      store.set(show, false)
+      await tick()
+      expect(log).toEqual(['run0', 'end0'])
+    })
+
+    it('re-runs, after the previous cleanup, when a dependency changes', async () => {
+      const n = Atom.make(0)
+      const log: Array<string> = []
+      const { store, handle } = await go(
+        jsx(
+          Counter((v) => [Math.floor(v / 2)], log, n),
+          {},
+        ),
+      )
+      store.set(n, 1) // 0 -> 0: same
+      await tick()
+      store.set(n, 2) // 0 -> 1: changed
+      await tick()
+      expect(log).toEqual(['run0', 'end0', 'run2'])
+      await act(() => handle.dispose())
+      expect(log).toEqual(['run0', 'end0', 'run2', 'end2'])
+    })
+
+    it('without deps it runs on every run', async () => {
+      const n = Atom.make(0)
+      const log: Array<string> = []
+      const { store } = await go(
+        jsx(
+          Counter(() => undefined, log, n),
+          {},
+        ),
+      )
+      store.set(n, 1)
+      await tick()
+      expect(log).toEqual(['run0', 'end0', 'run1'])
+    })
+
+    it('an Effect result gets the context and its own scope; it is interrupted on dispose', async () => {
+      const log: Array<string> = []
+      const C = () =>
+        Effect.as(
+          useUiEffect(
+            () =>
+              Effect.flatMap(Greeting, (g) =>
+                Effect.zipRight(
+                  Effect.addFinalizer(() => Effect.sync(() => log.push('finalized'))),
+                  Effect.zipRight(
+                    Effect.sync(() => log.push(g)),
+                    Effect.never,
+                  ),
+                ),
+              ),
+            [],
+          ),
+          el('b', {}),
+        )
+      const { handle } = await go(jsx(C, {}), { layer: Layer.succeed(Greeting, 'hi') as any })
+      await tick()
+      expect(log).toEqual(['hi'])
+      await act(() => handle.dispose())
+      await tick()
+      expect(log).toEqual(['hi', 'finalized'])
+    })
+
+    it('a throw, a failed Effect and a throwing cleanup reach onError', async () => {
+      const errors: Array<Cause.Cause<unknown>> = []
+      const A = () =>
+        Effect.as(
+          useUiEffect(() => {
+            throw new Error('t')
+          }, []),
+          el('b', {}),
+        )
+      const B = () =>
+        Effect.as(
+          useUiEffect(() => Effect.fail(new Boom()), []),
+          el('b', {}),
+        )
+      const D = () =>
+        Effect.as(
+          useUiEffect(
+            () => () => {
+              throw new Error('c')
+            },
+            [],
+          ),
+          el('b', {}),
+        )
+      const { handle } = await go(jsx('div', { children: [jsx(A, {}), jsx(B, {}), jsx(D, {})] }), {
+        onError: (c) => errors.push(c),
+      })
+      await tick()
+      await act(() => handle.dispose())
+      expect(errors).toHaveLength(3)
+    })
+
+    it('does not run on the server', async () => {
+      let ran = 0
+      const C = () =>
+        Effect.as(
+          useUiEffect(() => void ran++, []),
+          el('b', {}),
+        )
+      await renderToString(jsx(C, {}) as any, { layer: Layer.empty })
+      expect(ran).toBe(0)
+    })
   })
 
   it('in-flight fibers are interrupted on removal and dispose; no closure runs after dispose', async () => {

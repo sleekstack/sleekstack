@@ -19,7 +19,7 @@ export type { Child } from './jsx-runtime'
 export type { ComponentResult } from './reactive'
 export { Transfer } from './transfer'
 export type { StateTransfer } from './transfer'
-export { DuplicateKey, SlotMismatch, Store, useAtom, useAtomValue, useLocal, useSetAtom } from './reactive'
+export { DuplicateKey, SlotMismatch, Store, useAtom, useAtomValue, useLocal, useEffect, useSetAtom } from './reactive'
 export {
   bind,
   defineHandler,

@@ -29,12 +29,12 @@ const Detail = function* ({ projectId, tasks }: { projectId: string; tasks: Read
               type="button"
               className="move"
               data-status={s}
-              onClick={() => Effect.sync(() => move.mutate({ id: task.id, status: s }))}
+              onClick={() => move.mutate({ id: task.id, status: s })}
             >
               Move to {STATUS_LABEL[s]}
             </button>
           ))}
-          <button type="button" className="delete" onClick={() => Effect.sync(() => remove.mutate(task.id))}>
+          <button type="button" className="delete" onClick={() => remove.mutate(task.id)}>
             Delete
           </button>
         </div>
