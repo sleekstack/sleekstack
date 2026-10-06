@@ -2,7 +2,15 @@ import { Atom } from '@sleekstack/core'
 import { type Context, Effect, Layer } from 'effect'
 import { bind, type Handler, isHandler, on } from './handler'
 import { el, type ElementNode, type EventBinding, fragment, type Node } from './node'
-import { type ComponentResult, type HostDescriptor, Handlers, hostBuilder, hostOf, instance, RenderScope } from './reactive'
+import {
+  type ComponentResult,
+  type HostDescriptor,
+  Handlers,
+  hostBuilder,
+  hostOf,
+  instance,
+  RenderScope,
+} from './reactive'
 
 /** What a JSX expression may hold between its tags. An atom renders its current value as text and follows it; a serializable one is also bound for `resume` under `renderToString`. */
 export type Child =

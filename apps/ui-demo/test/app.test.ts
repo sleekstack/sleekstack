@@ -58,7 +58,8 @@ it('a status filter re-renders only the columns', async () => {
 
 it('opens a task, moves it through a mutation and the board follows; viewers cannot edit', async () => {
   const { container, q, click, dispose } = await mountApp('u1')
-  const column = (title: string) => q(`.card[data-id="${title}"]`).closest('.column')!.querySelector('h3')!.firstChild!.textContent!.trim()
+  const column = (title: string) =>
+    q(`.card[data-id="${title}"]`).closest('.column')!.querySelector('h3')!.firstChild!.textContent!.trim()
   expect(column('t3')).toBe('To do')
   await click('.card[data-id="t3"] button.open')
   await settle()
@@ -88,7 +89,10 @@ it('the form adds a task; deleting the open task shows the TaskNotFound fallback
     set.call(title, 'Rotate the API keys')
     title.dispatchEvent(new Event('input', { bubbles: true }))
   })
-  await act(async () => void q<HTMLFormElement>('form.add').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })))
+  await act(
+    async () =>
+      void q<HTMLFormElement>('form.add').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })),
+  )
   await vi.waitFor(() => expect(container.textContent).toContain('Rotate the API keys'))
   expect(container.querySelectorAll('.board .card')).toHaveLength(5)
 

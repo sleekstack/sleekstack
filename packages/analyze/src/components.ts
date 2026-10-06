@@ -56,7 +56,8 @@ export function analyzeComponents(opts: { readonly project: string }): Component
       if (m.getSymbol()?.getName() === 'Generator') {
         const [y, r] = checker.getTypeArguments(m as ts.TypeReference)
         for (const w of members(y)) {
-          const inner = w.getSymbol()?.getName() === 'YieldWrap' ? checker.getTypeArguments(w as ts.TypeReference)[0] : undefined
+          const inner =
+            w.getSymbol()?.getName() === 'YieldWrap' ? checker.getTypeArguments(w as ts.TypeReference)[0] : undefined
           const a = inner && (effectArgsOf(inner) ?? varianceArgs(inner))
           if (!a) return undefined
           out[1].push(...a[1])
