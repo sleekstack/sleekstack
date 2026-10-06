@@ -2,13 +2,6 @@
 import { useState } from 'react'
 import { fromReact } from '@sleekstack/ui'
 
-const AvatarView = ({ name }: { name: string }) => (
-  <span className="avatar" title={name}>
-    {name.slice(0, 1)}
-  </span>
-)
-export const Avatar = fromReact(AvatarView)
-
 const PRIORITIES = ['low', 'medium', 'high'] as const
 const AddView = ({ onAdd }: { onAdd: (task: { title: string; priority: 'low' | 'medium' | 'high' }) => void }) => {
   const [title, setTitle] = useState('')

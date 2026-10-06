@@ -1,14 +1,5 @@
-import type { Project, Task, User } from '../domain/model'
+import type { Task } from '../domain/model'
 
-export const users: ReadonlyArray<User> = [
-  { id: 'u1', name: 'Ada', canEdit: true },
-  { id: 'u2', name: 'Grace', canEdit: false },
-  { id: 'u3', name: 'Linus', canEdit: true },
-]
-export const projects: ReadonlyArray<Project> = [
-  { id: 'p1', name: 'Website relaunch' },
-  { id: 'p2', name: 'Mobile app' },
-]
 // `u9` left the team: tasks that name them still render.
 export const tasks: ReadonlyArray<Task> = [
   {

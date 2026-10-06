@@ -1,14 +1,13 @@
 /** @jsxImportSource @sleekstack/ui */
 import { Effect } from 'effect'
 import { Boundary, Pending, useAtomValue, useSetAtom } from '@sleekstack/ui'
-import { filterAtom, projectAtom, selectedAtom } from '../application/state'
+import { MaybeAssignee, Viewer } from '../../identity'
+import { filterAtom, selectedAtom } from '../application/state'
 import { useSuspenseTasks, useTaskActions, type QueryFailed } from '../application/tasks'
-import type { ProjectNotFound } from '../domain/errors'
 import { STATUSES, type Status, type Task } from '../domain/model'
-import { TaskRepo, Viewer } from '../domain/ports'
 import { DetailPanel } from './detail'
 import { AddTaskForm, FilterBar, Votes } from './guests'
-import { MaybeAssignee, PriorityBadge, STATUS_LABEL } from './shared'
+import { PriorityBadge, STATUS_LABEL } from './shared'
 import { Triage } from './triage'
 
 export const TaskCard = function* ({ task }: { task: Task }) {
@@ -92,28 +91,14 @@ const Workspace = function* ({ projectId }: { projectId: string }) {
   )
 }
 
-/** Needs TaskRepo; fails with ProjectNotFound for an unknown or archived project. */
-const ProjectView = function* ({ projectId }: { projectId: string }) {
-  const project = yield* TaskRepo.project(projectId)
-  return (
-    <section className="board">
-      <h2>{project.name}</h2>
-      <NewTask projectId={projectId} />
-      <Boundary tag="QueryFailed" fallback={(_: QueryFailed) => <p className="error">Tasks failed to load</p>}>
-        <Pending fallback={<p className="muted spinner">Loading tasks</p>}>
-          <Workspace projectId={projectId} />
-        </Pending>
-      </Boundary>
-    </section>
-  )
-}
-
-/** Re-runs when the project changes. */
-export const ProjectPage = function* () {
-  const projectId = yield* useAtomValue(projectAtom)
-  return (
-    <Boundary tag="ProjectNotFound" fallback={(e: ProjectNotFound) => <p className="error">No project "{e.id}"</p>}>
-      <ProjectView key={projectId} projectId={projectId} />
+/** One project's tasks: the new-task form (editors), then the board, detail panel and triage list under `Pending`. */
+export const ProjectBoard = ({ projectId }: { projectId: string }) => (
+  <>
+    <NewTask projectId={projectId} />
+    <Boundary tag="QueryFailed" fallback={(_: QueryFailed) => <p className="error">Tasks failed to load</p>}>
+      <Pending fallback={<p className="muted spinner">Loading tasks</p>}>
+        <Workspace projectId={projectId} />
+      </Pending>
     </Boundary>
-  )
-}
+  </>
+)

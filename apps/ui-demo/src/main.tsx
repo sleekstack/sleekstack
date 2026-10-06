@@ -1,7 +1,7 @@
 /** @jsxImportSource @sleekstack/ui */
 import { mount } from '@sleekstack/ui'
 import { App } from './app'
-import { AppWithQueriesLive } from './infrastructure'
+import { AppWithQueriesLive } from './layers'
 
 for (const [id, viewer] of [
   ['ada', 'u1'],

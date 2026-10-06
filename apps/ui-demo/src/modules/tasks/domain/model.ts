@@ -1,15 +1,6 @@
 export type Status = 'todo' | 'in_progress' | 'done'
 export const STATUSES: ReadonlyArray<Status> = ['todo', 'in_progress', 'done']
 export type Priority = 'low' | 'medium' | 'high'
-export interface User {
-  readonly id: string
-  readonly name: string
-  readonly canEdit: boolean
-}
-export interface Project {
-  readonly id: string
-  readonly name: string
-}
 export interface Task {
   readonly id: string
   readonly projectId: string

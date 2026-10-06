@@ -5,8 +5,8 @@ import { selectedAtom } from '../application/state'
 import { useTaskActions } from '../application/tasks'
 import { TaskNotFound } from '../domain/errors'
 import { STATUSES, type Task } from '../domain/model'
-import { Viewer } from '../domain/ports'
-import { MaybeAssignee, STATUS_LABEL, StatusBadge } from './shared'
+import { MaybeAssignee, Viewer } from '../../identity'
+import { STATUS_LABEL, StatusBadge } from './shared'
 
 /** The open task, from the project's tasks; only editors can move or delete it. Fails with `TaskNotFound` when it is gone. */
 const Detail = function* ({ projectId, tasks }: { projectId: string; tasks: ReadonlyArray<Task> }) {
