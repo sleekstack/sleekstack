@@ -219,7 +219,7 @@ const adoptAll = (
   const lives: Array<Live> = []
   let dom = parent.firstChild ?? undefined
   list.forEach((n, i) => {
-    const l = adoptOne(n, keys[i], dom, parent, env, scopes)
+    const l = adoptOne(n, keys?.[i], dom, parent, env, scopes)
     if (!l) return
     lives.push(l)
     dom = l.dom.nextSibling ?? undefined

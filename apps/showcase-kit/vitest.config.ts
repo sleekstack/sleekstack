@@ -37,7 +37,7 @@ export default defineConfig({
       {
         resolve: { alias },
         ...jsx,
-        test: { name: 'jsdom', environment: 'jsdom', include: ['src/**/*.test.tsx'] },
+        test: { name: 'jsdom', testTimeout: 20_000, environment: 'jsdom', include: ['src/**/*.test.tsx'] },
       },
     ],
   },

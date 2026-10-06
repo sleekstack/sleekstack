@@ -26,6 +26,7 @@
     "jsdom": "29.1.1",
     "react": "19.2.6",
     "react-dom": "19.2.6",
+    "solid-js": "1.9.15",
     "tsx": "4.23.15",
     "typescript": "^5.8.0",
     "vitest": "^4.1.9"
