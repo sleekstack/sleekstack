@@ -28,4 +28,4 @@
 | [0024](0024-generator-components.md) | A component may be a `function*` that `yield*`s Effects and returns its element; the framework runs it as `Effect.gen` | Accepted |
 | [0025](0025-ui-does-not-depend-on-query.md) | `@sleekstack/ui` has no dependency on `@sleekstack/query`: SSR state travels through a `Transfer` service, the query bindings live in `@sleekstack/query/ui` | Accepted |
 | [0026](0026-plain-event-handlers.md) | Event handlers: a function, a generator or an Effect | Accepted |
-| [0027](0027-use-mount.md) | `useMount`: an effect that runs once per instance and ends with it | Accepted |
+| [0027](0027-use-effect.md) | `useEffect`: an effect tied to an instance, re-run when its deps change | Accepted |

@@ -109,7 +109,7 @@ it('switching project loads its tasks; an archived bookmark shows ProjectNotFoun
   const header = q('header')
   await click('button[data-project="p2"]')
   await vi.waitFor(() => expect(q('.board h2').textContent).toBe('Mobile app'))
-  await vi.waitFor(() => expect(document.title).toBe('Mobile app · SleekStack UI Demo')) // useMount: the old project's cleanup does not undo it
+  await vi.waitFor(() => expect(document.title).toBe('Mobile app · SleekStack UI Demo')) // useEffect: the old project's cleanup does not undo it
   await vi.waitFor(() => expect(container.querySelectorAll('.board .card')).toHaveLength(2))
   await click('button[data-project="p0"]')
   await vi.waitFor(() => expect(container.querySelector('.error')!.textContent).toBe('No project "p0"'))
