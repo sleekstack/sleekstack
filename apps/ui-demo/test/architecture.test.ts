@@ -5,7 +5,7 @@ import { expect, it } from 'vitest'
 // Layering for src/: each module lists the local modules and packages it may import. Everything else fails.
 //   domain          pure model: types, errors, service Tags (no framework)
 //   infrastructure  adapters for the domain's Tags: seed data, Layers
-//   state/backlog   UI state and data access, built on the domain
+//   state/tasks     UI state and data access, built on the domain
 //   guests          plain React; knows nothing of the app
 //   components      the UI; never touches infrastructure
 //   app, main       composition roots: wire UI to infrastructure
@@ -19,9 +19,9 @@ const rules: Record<string, Rule> = {
   domain: { local: [], packages: ['effect'] },
   infrastructure: { local: ['domain'], packages: ['effect', '@sleekstack/query'] },
   state: { local: ['domain'], packages: ['@sleekstack/core'] },
-  backlog: { local: ['domain'], packages: ['effect', '@sleekstack/query', '@sleekstack/ui/query'] },
+  tasks: { local: ['domain'], packages: ['effect', '@sleekstack/query', '@sleekstack/ui/query'] },
   guests: { local: [], packages: ['react', '@sleekstack/ui'] },
-  components: { local: ['domain', 'state', 'guests', 'backlog'], packages: ['effect', '@sleekstack/ui'] },
+  components: { local: ['domain', 'state', 'guests', 'tasks'], packages: ['effect', '@sleekstack/ui'] },
   app: { local: ['components', 'domain', 'infrastructure'], packages: ['@sleekstack/ui'] },
   main: { local: ['app', 'infrastructure'], packages: ['@sleekstack/ui'] },
   'size/mount': { local: [], packages: ['@sleekstack/ui', 'effect'] },

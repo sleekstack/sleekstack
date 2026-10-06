@@ -1,21 +1,16 @@
 /** @jsxImportSource @sleekstack/ui */
 import { Provider } from '@sleekstack/ui'
-import { Backlog, DetailPanel, Header, ProjectBoard, Selected, Team, Toolbar } from './components'
-import { MISSING_TASK } from './domain'
+import { Header, ProjectNav, ProjectPage, Team } from './components'
 import { ViewerLive } from './infrastructure'
 
 /** The whole page, viewed as `viewer`: one `Provider` scopes the Viewer for every component under it. */
 export const App = ({ viewer }: { viewer: string }) => (
   <Provider layer={ViewerLive(viewer)}>
     <Header />
-    <Toolbar />
+    <Team />
+    <ProjectNav />
     <main>
-      <Team />
-      <ProjectBoard projectId="p1" />
-      <ProjectBoard projectId="missing" />
-      <Selected />
-      <DetailPanel id={MISSING_TASK} />
-      <Backlog projectId="p2" />
+      <ProjectPage />
     </main>
   </Provider>
 )

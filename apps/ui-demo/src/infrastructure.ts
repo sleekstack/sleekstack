@@ -18,15 +18,17 @@ const users: ReadonlyArray<User> = [
   { id: 'u3', name: 'Linus', canEdit: true },
 ]
 const projects: ReadonlyArray<Project> = [
-  { id: 'p1', name: 'Launch' },
-  { id: 'p2', name: 'Docs' },
+  { id: 'p1', name: 'Website relaunch' },
+  { id: 'p2', name: 'Mobile app' },
 ]
+// `u9` left the team: tasks that name them still render.
 const tasks: ReadonlyArray<Task> = [
-  { id: 't1', projectId: 'p1', title: 'Wire the mount layer', status: 'done', assigneeId: 'u1', votes: 3 },
-  { id: 't2', projectId: 'p1', title: 'Write the analyzer pass', status: 'in_progress', assigneeId: 'u3', votes: 5 },
-  { id: 't3', projectId: 'p1', title: 'Pick a package name', status: 'todo', assigneeId: null, votes: 0 },
-  { id: 't4', projectId: 'p1', title: 'Review the ADR', status: 'todo', assigneeId: 'ghost', votes: 1 },
-  { id: 't5', projectId: 'p2', title: 'Document Boundary', status: 'todo', assigneeId: 'u2', votes: 2 },
+  { id: 't1', projectId: 'p1', title: 'Migrate the blog to the new CMS', status: 'done', priority: 'medium', labels: ['content'], due: '2026-10-02', assigneeId: 'u1', votes: 3 },
+  { id: 't2', projectId: 'p1', title: 'Fix the checkout redirect loop', status: 'in_progress', priority: 'high', labels: ['bug', 'payments'], due: '2026-10-09', assigneeId: 'u3', votes: 5 },
+  { id: 't3', projectId: 'p1', title: 'Pick a cookie consent provider', status: 'todo', priority: 'low', labels: ['legal'], due: null, assigneeId: null, votes: 0 },
+  { id: 't4', projectId: 'p1', title: 'Audit the image sizes on the landing page', status: 'todo', priority: 'medium', labels: ['performance'], due: '2026-10-16', assigneeId: 'u9', votes: 1 },
+  { id: 't5', projectId: 'p2', title: 'Ship offline mode for the task list', status: 'todo', priority: 'high', labels: ['feature'], due: '2026-11-01', assigneeId: 'u2', votes: 2 },
+  { id: 't6', projectId: 'p2', title: 'Crash on rotating the settings screen', status: 'in_progress', priority: 'high', labels: ['bug'], due: '2026-10-08', assigneeId: 'u1', votes: 4 },
 ]
 
 const find = <A extends { id: string }, E>(
@@ -37,6 +39,8 @@ const find = <A extends { id: string }, E>(
   const hit = xs.find((x) => x.id === id)
   return hit ? Effect.succeed(hit) : Effect.fail(fail(id))
 }
+const noProject = (id: string) => new ProjectNotFound({ id })
+const noTask = (id: string) => new TaskNotFound({ id })
 
 export const UserRepoLive = Layer.succeed(UserRepo, {
   all: () => Effect.succeed(users),
@@ -46,20 +50,42 @@ export const UserRepoLive = Layer.succeed(UserRepo, {
 /** In memory, fresh per build of the layer (so per mount). */
 export const TaskRepoLive = Layer.sync(TaskRepo, () => {
   let all = tasks
+  let next = tasks.length
   return {
-    project: (id) => find(projects, id, (id) => new ProjectNotFound({ id })),
+    projects: () => Effect.succeed(projects),
+    project: (id) => find(projects, id, noProject),
     byProject: (id) =>
-      find(projects, id, (id) => new ProjectNotFound({ id })).pipe(
-        Effect.map((p) => all.filter((t) => t.projectId === p.id)),
-      ),
-    get: (id) => find(all, id, (id) => new TaskNotFound({ id })),
-    ids: () => Effect.sync(() => all.map((t) => t.id)),
-    add: (projectId, title) =>
-      find(projects, projectId, (id) => new ProjectNotFound({ id })).pipe(
+      find(projects, id, noProject).pipe(Effect.map((p) => all.filter((t) => t.projectId === p.id))),
+    add: (projectId, { title, priority }) =>
+      find(projects, projectId, noProject).pipe(
         Effect.map(() => {
-          const task: Task = { id: `t${all.length + 1}`, projectId, title, status: 'todo', assigneeId: null, votes: 0 }
+          const task: Task = {
+            id: `t${++next}`,
+            projectId,
+            title,
+            status: 'todo',
+            priority,
+            labels: [],
+            due: null,
+            assigneeId: null,
+            votes: 0,
+          }
           all = [...all, task]
           return task
+        }),
+      ),
+    move: (id, status) =>
+      find(all, id, noTask).pipe(
+        Effect.map((t) => {
+          const moved = { ...t, status }
+          all = all.map((x) => (x.id === id ? moved : x))
+          return moved
+        }),
+      ),
+    remove: (id) =>
+      find(all, id, noTask).pipe(
+        Effect.map(() => {
+          all = all.filter((x) => x.id !== id)
         }),
       ),
   }
