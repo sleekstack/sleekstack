@@ -140,6 +140,16 @@ export const disposeSlots = (s: Slots): void => {
   s.handlers = undefined
 }
 
+// Every slot hook takes its slot the same way: the next index, and whether this run creates it. A first run past a settled slot list is a mismatch.
+const takeSlot = (f: RunFrame): { readonly i: number; readonly first: boolean } | SlotMismatch => {
+  const slots = f.owner
+  const i = f.cursor++
+  const first = i >= slots.atoms.length
+  return first && slots.done
+    ? new SlotMismatch({ id: f.id, expected: slots.atoms.length, actual: i + 1 })
+    : { i, first }
+}
+
 /** The run's result committed: its pending slots become permanent; slots of child ids it did not run are disposed. */
 export const commitSlots = (frame: RunFrame): void => {
   frame.pending = undefined
@@ -226,12 +236,10 @@ export const useLocal = <A>(
     const s = so.value
     const f = Context.get(ctx, Frame)!
     const slots = f.owner
-    const i = f.cursor++
-    if (i >= slots.atoms.length) {
-      if (slots.done)
-        return Effect.fail(
-          new SlotMismatch({ id: f.id, expected: slots.atoms.length, actual: i + 1 }),
-        ) as unknown as Effect.Effect<never>
+    const taken = takeSlot(f)
+    if (taken instanceof SlotMismatch) return Effect.fail(taken) as unknown as Effect.Effect<never>
+    const { i, first } = taken
+    if (first) {
       const a = Atom.writable<A, A>(
         () => initial,
         (cx, v) => cx.setSelf(v),
@@ -405,12 +413,9 @@ export function useEffect(fn: any, deps?: ReadonlyArray<unknown>): Effect.Effect
     const so = Context.getOption(ctx, Store)
     if (Option.isNone(so)) return missingStore('useEffect') as Effect.Effect<never>
     const slots = f.owner
-    const i = f.cursor++
-    const first = i >= slots.atoms.length
-    if (first && slots.done)
-      return Effect.fail(
-        new SlotMismatch({ id: f.id, expected: slots.atoms.length, actual: i + 1 }),
-      ) as unknown as Effect.Effect<never>
+    const taken = takeSlot(f)
+    if (taken instanceof SlotMismatch) return Effect.fail(taken) as unknown as Effect.Effect<never>
+    const { i, first } = taken
     // The slot holds one mutable record that nothing reads, so a run never makes the instance depend on it.
     if (first)
       slots.atoms.push(
@@ -533,12 +538,10 @@ export function useDerivedAtom(source: any): Effect.Effect<Atom.Atom<any>, never
     const so = Context.getOption(ctx, Store)
     if (Option.isNone(so)) return missingStore('useDerivedAtom') as Effect.Effect<never>
     const slots = f.owner
-    const i = f.cursor++
-    if (i >= slots.atoms.length) {
-      if (slots.done)
-        return Effect.fail(
-          new SlotMismatch({ id: f.id, expected: slots.atoms.length, actual: i + 1 }),
-        ) as unknown as Effect.Effect<never>
+    const taken = takeSlot(f)
+    if (taken instanceof SlotMismatch) return Effect.fail(taken) as unknown as Effect.Effect<never>
+    const { i, first } = taken
+    if (first) {
       const atom = deriveAtom({ source: wrapped }, ctx)
       slots.atoms.push(atom as unknown as Atom.Writable<any>)
       slots.releases.push(so.value.retain(atom))
@@ -561,12 +564,10 @@ export const useRef = <T = null>(initial: T | null = null): Effect.Effect<Ref<T>
     if (Option.isNone(so)) return missingStore('useRef') as Effect.Effect<never>
     const f = Context.get(ctx, Frame)!
     const slots = f.owner
-    const i = f.cursor++
-    if (i >= slots.atoms.length) {
-      if (slots.done)
-        return Effect.fail(
-          new SlotMismatch({ id: f.id, expected: slots.atoms.length, actual: i + 1 }),
-        ) as unknown as Effect.Effect<never>
+    const taken = takeSlot(f)
+    if (taken instanceof SlotMismatch) return Effect.fail(taken) as unknown as Effect.Effect<never>
+    const { i, first } = taken
+    if (first) {
       slots.atoms.push(Atom.make<Ref<T>>({ current: initial }))
     }
     return Effect.succeed(so.value.get(slots.atoms[i] as Atom.Atom<Ref<T>>))
