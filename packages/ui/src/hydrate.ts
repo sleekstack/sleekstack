@@ -7,6 +7,7 @@ import {
   build,
   mount,
   collect,
+  bindAttrs,
   type Env,
   type Events,
   flush as flushPost,
@@ -182,10 +183,12 @@ const adoptOne = (
         if (ref) env.post?.refs.push(() => void (ref.current = el))
         // Attributes and form `value` / `checked` are left as the server (or the user) left them.
         const kids = adoptAll(n.children, el, env, scopes)
-        if (!n.events) return { node: n, dom: el, kids, ...keyed }
+        const bnd = n.bound && { atoms: {}, off: () => {} }
+        if (bnd) bindAttrs(el, n.bound!, env, bnd, true)
+        if (!n.events) return { node: n, dom: el, kids, ...(bnd && { bnd }), ...keyed }
         const ev: Events = { bindings: n.events, listeners: new Map(), fibers: new Set(), dead: false }
         listen(el, ev, Object.keys(n.events), env.onError)
-        return { node: n, dom: el, kids, ev, ...keyed }
+        return { node: n, dom: el, kids, ev, ...(bnd && { bnd }), ...keyed }
       }
       case 'Reactive': {
         if (dom?.nodeName !== 'SLEEK-REACTIVE') return mismatch(n, key, dom, parent, env, scopes)

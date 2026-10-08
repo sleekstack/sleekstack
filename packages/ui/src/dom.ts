@@ -289,10 +289,17 @@ const applyAttr = (el: Element, k: string, v: unknown): void => {
   if (FORM.has(el.tagName) && (k === 'value' || k === 'checked')) setProp(el, k, s)
 }
 // Sets each atom-valued attribute now and follows the atom without re-running anything; `off` releases the holds.
-const bindAttrs = (el: Element, atoms: Readonly<Record<string, Atom.Atom<any>>>, env: Env, box: BoundAttrs): void => {
+// `adopt` follows without the first write: the server already rendered it, and the user may have edited a form value since.
+export const bindAttrs = (
+  el: Element,
+  atoms: Readonly<Record<string, Atom.Atom<any>>>,
+  env: Env,
+  box: BoundAttrs,
+  adopt = false,
+): void => {
   const offs: Array<() => void> = []
   for (const [k, a] of Object.entries(atoms)) {
-    applyAttr(el, k, read(env.store, a))
+    if (!adopt) applyAttr(el, k, read(env.store, a))
     const release = env.store.retain(a)
     const unsub = env.store.subscribe(a, () => applyAttr(el, k, read(env.store, a)))
     offs.push(unsub, release)
