@@ -371,6 +371,25 @@ export const renderGuest = (root: Root, node: GuestNode, env: Env): void =>
   flushSync(() => root.render(guestElement(node, env)))
 
 const NONE: ReadonlyArray<Live> = []
+// What a built or adopted element gets once its children exist: followed atom attributes, its ref and its listeners.
+// `adopt` is hydration: the DOM already shows the attributes, so atoms are followed without a first write.
+export const wire = (
+  el: Element,
+  node: ElementNode,
+  env: Env,
+  adopt = false,
+): { readonly bnd?: BoundAttrs; readonly ev?: Events } => {
+  const bnd: BoundAttrs | undefined = node.bound && { atoms: {}, off: () => {} }
+  if (bnd) bindAttrs(el, node.bound!, env, bnd, adopt)
+  const ref = node.ref
+  if (ref) env.post?.refs.push(() => void (ref.current = el))
+  let ev: Events | undefined
+  if (node.events) {
+    ev = { bindings: node.events, listeners: new Map(), fibers: new Set(), dead: false }
+    listen(el, ev, Object.keys(node.events), env.onError)
+  }
+  return { ...(bnd && { bnd }), ...(ev && { ev }) }
+}
 export const build = (
   node: Leaf,
   key: string | undefined,
@@ -399,14 +418,7 @@ export const build = (
         // After the options, so a `<select>` value finds its option.
         if (FORM.has(el.tagName))
           for (const k of ['value', 'checked']) if (Object.hasOwn(node.attrs, k)) setProp(el, k, node.attrs[k])
-        const bnd: BoundAttrs | undefined = node.bound && { atoms: {}, off: () => {} }
-        if (bnd) bindAttrs(el, node.bound!, env, bnd)
-        const ref = node.ref
-        if (ref) env.post?.refs.push(() => void (ref.current = el))
-        if (!node.events) return { node, dom: el, kids, ...(bnd && { bnd }), ...keyed }
-        const ev: Events = { bindings: node.events, listeners: new Map(), fibers: new Set(), dead: false }
-        listen(el, ev, Object.keys(node.events), env.onError)
-        return { node, dom: el, kids, ev, ...(bnd && { bnd }), ...keyed }
+        return { node, dom: el, kids, ...wire(el, node, env), ...keyed }
       }
       case 'Reactive': {
         const host = env.doc.createElement('sleek-reactive')
