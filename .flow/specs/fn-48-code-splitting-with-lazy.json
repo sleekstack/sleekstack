@@ -1,11 +1,72 @@
 {
   "branch_name": "fn-48-code-splitting-with-lazy",
+  "completion_review_status": "unknown",
+  "completion_reviewed_at": null,
   "created_at": "2026-10-09T14:48:10.403568Z",
+  "default_impl": null,
+  "default_review": null,
+  "default_sync": null,
   "depends_on_epics": [],
   "id": "fn-48-code-splitting-with-lazy",
+  "impl_review_rounds": {
+    "fn-48-code-splitting-with-lazy.1": 1
+  },
   "next_task": 1,
+  "plan_review_rounds": 0,
   "plan_review_status": "unknown",
   "plan_reviewed_at": null,
+  "review_attempts": [
+    {
+      "artifact_sha256": "42d90b0ec5d3e27c4c7ff4b0cc593f1dcb0b862f0af86c329680230a1a403339",
+      "backend": "codex",
+      "base_sha": "b7ac9c4acb4afa204cf19e63e0d80bd6f17ce7b3",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-d94c1d7164573c76d59742478f20b26e",
+            "classification": "introduced",
+            "findingId": "finding-d94c1d7164573c76d59742478f20b26e",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "ab6312efbf9436eef559e7025e9aaa6a1f43f616",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 980,
+      "output_sha256": "50aed00971355535baa40bbb7b1e1f62c4b5de17c2e8d20da1e6eb653272b568",
+      "reservation_id": "2a7caaab203b48cfa36bf63c8243e6fa",
+      "round_consumed": true,
+      "scope": "impl:fn-48-code-splitting-with-lazy.1",
+      "superseded_by": null,
+      "task": "fn-48-code-splitting-with-lazy.1",
+      "timestamp": "2026-10-09T17:36:34.912824Z",
+      "verdict": "NEEDS_WORK"
+    }
+  ],
+  "review_hash_epoch": {},
+  "review_pending_rounds": {},
+  "review_reservations": {},
+  "review_transport_failures": {
+    "impl:fn-48-code-splitting-with-lazy.1": 0
+  },
   "spec_path": ".flow/specs/fn-48-code-splitting-with-lazy.md",
   "status": "open",
   "title": "Code splitting with lazy",
@@ -20,5 +81,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-09T15:01:50.033081Z"
+  "updated_at": "2026-10-09T17:36:34.914402Z"
 }

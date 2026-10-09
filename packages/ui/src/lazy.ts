@@ -1,6 +1,7 @@
 import { Data, Effect } from 'effect'
 import { jsx } from './jsx-runtime'
 import type { Node } from './node'
+import type { ComponentResult } from './reactive'
 
 /** A `lazy` import rejected, or its module had no default export component. Catch it with `<Boundary tag="LazyLoadError">`. */
 export class LazyLoadError extends Data.TaggedError('LazyLoadError')<{ readonly cause: unknown }> {}
@@ -10,10 +11,10 @@ export class LazyLoadError extends Data.TaggedError('LazyLoadError')<{ readonly 
  * meanwhile. The module loads once; a failed import is not cached, so the next render retries it.
  */
 export const lazy = <P>(
-  load: () => Promise<{ readonly default: (props: P) => unknown }>,
+  load: () => Promise<{ readonly default: (props: P) => ComponentResult }>,
 ): ((props: P) => Effect.Effect<Node, LazyLoadError, never>) => {
-  let loaded: ((props: P) => unknown) | undefined
-  let loading: Promise<(props: P) => unknown> | undefined
+  let loaded: ((props: P) => ComponentResult) | undefined
+  let loading: Promise<(props: P) => ComponentResult> | undefined
   const get = () =>
     (loading ??= load()
       .then((m) => {
@@ -27,5 +28,5 @@ export const lazy = <P>(
   const component = Effect.suspend(() =>
     loaded ? Effect.succeed(loaded) : Effect.tryPromise({ try: get, catch: (cause) => new LazyLoadError({ cause }) }),
   )
-  return (props) => Effect.flatMap(component, (C) => jsx(C as never, props as never))
+  return (props) => Effect.flatMap(component, (C) => jsx(C, props as never))
 }
