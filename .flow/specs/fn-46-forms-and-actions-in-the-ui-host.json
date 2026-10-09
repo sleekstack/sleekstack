@@ -1,7 +1,9 @@
 {
   "branch_name": "fn-46-forms-and-actions-in-the-ui-host",
   "created_at": "2026-10-09T14:48:09.037729Z",
-  "depends_on_epics": [],
+  "depends_on_epics": [
+    "fn-43-typed-dom-for-sleekstackui"
+  ],
   "id": "fn-46-forms-and-actions-in-the-ui-host",
   "next_task": 1,
   "plan_review_status": "unknown",
@@ -20,5 +22,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-09T14:48:09.040323Z"
+  "updated_at": "2026-10-09T15:01:57.825538Z"
 }

@@ -38,6 +38,13 @@ React developers test components with a render helper and Testing Library querie
 - **R6:** The package's own tests cover rendering, a click through user-event, an effect cleanup on dispose, and an async component under `Pending`. [inferred]
 - **R7:** The ui README or docs describe the package with one example test. [inferred]
 
+- **R8:** `render` turns on React's act environment for the test and restores the previous value afterwards, so nothing leaks into other tests. [inferred]
+- **R9:** Auto-dispose registers a single runner `afterEach` only when one exists globally; with no runner hook, the handle's manual `dispose` is the way. [inferred]
+- **R10:** `flush` stops after a bounded number of rounds and fails with a tagged error when work never settles. [inferred]
+- **R11:** Calling a service method that a mock Layer did not supply throws a defect that names the method. [inferred]
+- **R12:** The package is registered in CI's package list and in AGENTS.md's "Verify this change" table. [inferred]
+- **R13:** `render` accepts server HTML to hydrate instead of mounting fresh. [inferred]
+
 ## Boundaries
 
 - Not in scope: a custom query API, snapshot tooling, or end-to-end browser testing. [paraphrase]
@@ -49,12 +56,18 @@ React developers test components with a render helper and Testing Library querie
 
 ## Requirement coverage
 
-| R-ID | Owner |
-| --- | --- |
-| R1 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R2 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R3 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R4 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R5 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R6 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R7 | fn-N.M (TBD - populate via /flow-next:plan) |
+| Req | Description | Task(s) | Gap justification |
+| --- | --- | --- | --- |
+| R1 | A host component renders in a test with one call that takes a Layer, and the returned handle exposes the container and a dispose. | fn-44-sleekstacktesting.2 | — |
+| R2 | Testing Library queries (by role and text) and user-event work against the rendered container without adapter code. | fn-44-sleekstacktesting.3 | — |
+| R3 | `flush` resolves after pending re-runs and post-commit effects have run, so assertions after it see the settled DOM. | fn-44-sleekstacktesting.2 | — |
+| R4 | Rendered trees are disposed automatically after each test when the test runner supports an after-each hook. | fn-44-sleekstacktesting.2 | — |
+| R5 | A mock-Layer helper provides services from partial implementations, so a test supplies only what the component uses. | fn-44-sleekstacktesting.2 | — |
+| R6 | The package's own tests cover rendering, a click through user-event, an effect cleanup on dispose, and an async component under `Pending`. | fn-44-sleekstacktesting.3 | — |
+| R7 | The ui README or docs describe the package with one example test. | fn-44-sleekstacktesting.3 | — |
+| R8 | `render` turns on React's act environment for the test and restores the previous value afterwards, so nothing leaks into other tests. | fn-44-sleekstacktesting.2 | — |
+| R9 | Auto-dispose registers a single runner `afterEach` only when one exists globally; with no runner hook, the handle's manual `dispose` is the way. | fn-44-sleekstacktesting.2 | — |
+| R10 | `flush` stops after a bounded number of rounds and fails with a tagged error when work never settles. | fn-44-sleekstacktesting.2 | — |
+| R11 | Calling a service method that a mock Layer did not supply throws a defect that names the method. | fn-44-sleekstacktesting.2 | — |
+| R12 | The package is registered in CI's package list and in AGENTS.md's "Verify this change" table. | fn-44-sleekstacktesting.1 | — |
+| R13 | `render` accepts server HTML to hydrate instead of mounting fresh. | fn-44-sleekstacktesting.2 | — |

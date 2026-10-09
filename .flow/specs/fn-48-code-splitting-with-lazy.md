@@ -33,6 +33,10 @@ Large apps need code splitting. A probe in this chart showed that a thin wrapper
 - **R5:** Chunk splitting works with the repo's bundler setup, and the ADR 0022 size budget is checked and not exceeded without a recorded decision. [inferred]
 - **R6:** The ui README documents `lazy` with one example. [inferred]
 
+- **R7:** A failed import is not cached: a later render, or a reset, retries it. [inferred]
+- **R8:** A failed import, or a module without a default export, fails with an exported tagged error that a `Boundary` can catch. [inferred]
+- **R9:** A build test shows the lazy module is split out of the entry bundle. [inferred]
+
 ## Boundaries
 
 - Not in scope: route-level splitting (router) and preloading. [inferred]
@@ -44,11 +48,14 @@ Large apps need code splitting. A probe in this chart showed that a thin wrapper
 
 ## Requirement coverage
 
-| R-ID | Owner |
-| --- | --- |
-| R1 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R2 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R3 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R4 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R5 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R6 | fn-N.M (TBD - populate via /flow-next:plan) |
+| Req | Description | Task(s) | Gap justification |
+| --- | --- | --- | --- |
+| R1 | `lazy(() => import(...))` is a component that shows the `Pending` fallback until the module loads, then the loaded component. | fn-48-code-splitting-with-lazy.1 | — |
+| R2 | The string renderer output contains the loaded content, and `hydrateMount` adopts the server nodes without replacing them. | fn-48-code-splitting-with-lazy.1 | — |
+| R3 | A re-run does not import the module again. | fn-48-code-splitting-with-lazy.1 | — |
+| R4 | A failed import reaches the nearest `Boundary`, or `onError` when none matches. | fn-48-code-splitting-with-lazy.1 | — |
+| R5 | Chunk splitting works with the repo's bundler setup, and the ADR 0022 size budget is checked and not exceeded without a recorded decision. | fn-48-code-splitting-with-lazy.2 | — |
+| R6 | The ui README documents `lazy` with one example. | fn-48-code-splitting-with-lazy.2 | — |
+| R7 | A failed import is not cached: a later render, or a reset, retries it. | fn-48-code-splitting-with-lazy.1 | — |
+| R8 | A failed import, or a module without a default export, fails with an exported tagged error that a `Boundary` can catch. | fn-48-code-splitting-with-lazy.1 | — |
+| R9 | A build test shows the lazy module is split out of the entry bundle. | fn-48-code-splitting-with-lazy.2 | — |

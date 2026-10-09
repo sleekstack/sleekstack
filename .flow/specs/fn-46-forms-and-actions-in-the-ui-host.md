@@ -39,6 +39,16 @@ React 19 made form actions, pending state and optimistic updates first-class. Ho
 - **R7:** `sleekstack check` reports an action's error and requirement types the same way as for other handlers. [inferred]
 - **R8:** The ui README documents the form action, status and optimistic APIs, and ui-demo has one form using them. [inferred]
 
+- **R9:** A closure action and a resumed (`defineHandler`) action receive the same FormData-derived value. [inferred]
+- **R10:** FormData is built at dispatch time on the client and never enters the resume manifest. [inferred]
+- **R11:** The submitter button's name and value are included; file inputs are out of scope. [inferred]
+- **R12:** An action that returns a Promise is rejected with a clear error (use a generator or an Effect). [inferred]
+- **R13:** A second submit while one is running interrupts the first (latest wins). [inferred]
+- **R14:** Setting `action` prevents the browser's default submit; if `onSubmit` is also set, it runs first. [inferred]
+- **R15:** On a failed action the optimistic value reverts before resume's store rollback applies. [inferred]
+- **R16:** The form is not reset automatically after success. [inferred]
+- **R17:** The action and `Result` types are exported for the router (fn-50). [inferred]
+
 ## Boundaries
 
 - Not in scope: submission with no JS at all (needs a server endpoint; router chart). [paraphrase]
@@ -51,13 +61,22 @@ React 19 made form actions, pending state and optimistic updates first-class. Ho
 
 ## Requirement coverage
 
-| R-ID | Owner |
-| --- | --- |
-| R1 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R2 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R3 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R4 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R5 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R6 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R7 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R8 | fn-N.M (TBD - populate via /flow-next:plan) |
+| Req | Description | Task(s) | Gap justification |
+| --- | --- | --- | --- |
+| R1 | A form's `action` accepts a function, a generator or an Effect, and runs it with the form's FormData on submit. | fn-46-forms-and-actions-in-the-ui-host.1 | — |
+| R2 | A form status derived atom reports pending while the action runs and settles when it ends. | fn-46-forms-and-actions-in-the-ui-host.2 | — |
+| R3 | An action's outcome is a `Result` atom readable by the form and its children: initial, waiting, success or failure. | fn-46-forms-and-actions-in-the-ui-host.2 | — |
+| R4 | An optimistic value shows immediately and reverts to the source value when the action fails or settles. | fn-46-forms-and-actions-in-the-ui-host.2 | — |
+| R5 | FormData can be decoded with an Effect Schema inside the action, and a decode failure appears as a typed failure in the `Result`. | fn-46-forms-and-actions-in-the-ui-host.2 | — |
+| R6 | A form whose server HTML was resumed or hydrated submits through its action before and after hydration without a page reload. | fn-46-forms-and-actions-in-the-ui-host.4 | — |
+| R7 | `sleekstack check` reports an action's error and requirement types the same way as for other handlers. | fn-46-forms-and-actions-in-the-ui-host.3 | — |
+| R8 | The ui README documents the form action, status and optimistic APIs, and ui-demo has one form using them. | fn-46-forms-and-actions-in-the-ui-host.4 | — |
+| R9 | A closure action and a resumed (`defineHandler`) action receive the same FormData-derived value. | fn-46-forms-and-actions-in-the-ui-host.1 | — |
+| R10 | FormData is built at dispatch time on the client and never enters the resume manifest. | fn-46-forms-and-actions-in-the-ui-host.1 | — |
+| R11 | The submitter button's name and value are included; file inputs are out of scope. | fn-46-forms-and-actions-in-the-ui-host.1 | — |
+| R12 | An action that returns a Promise is rejected with a clear error (use a generator or an Effect). | fn-46-forms-and-actions-in-the-ui-host.1 | — |
+| R13 | A second submit while one is running interrupts the first (latest wins). | fn-46-forms-and-actions-in-the-ui-host.1 | — |
+| R14 | Setting `action` prevents the browser's default submit; if `onSubmit` is also set, it runs first. | fn-46-forms-and-actions-in-the-ui-host.1 | — |
+| R15 | On a failed action the optimistic value reverts before resume's store rollback applies. | fn-46-forms-and-actions-in-the-ui-host.2 | — |
+| R16 | The form is not reset automatically after success. | fn-46-forms-and-actions-in-the-ui-host.1 | — |
+| R17 | The action and `Result` types are exported for the router (fn-50). | fn-46-forms-and-actions-in-the-ui-host.2 | — |

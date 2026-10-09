@@ -39,7 +39,14 @@ Apps built on the ui host have no router. This spec adds a separate package, `@s
 - **R5:** A route's action accepts the same function, generator or Effect forms as a form action. [paraphrase]
 - **R6:** A link prefetches the route's code and loader on hover or focus unless it sets `prefetch={false}`. [paraphrase]
 - **R7:** Server rendering, streaming and hydration produce and adopt the same DOM for a routed page. [inferred]
-- **R8:** The relation to open specs fn-28 and fn-32 is resolved in planning, by merging, superseding or splitting scope, before any task starts. [inferred]
+- **R8:** fn-28 is closed as superseded by this spec, and fn-32's loader, redirect, not-found and server-handler scope is part of it; fn-29 and fn-30 point at `@sleekstack/router`. This was decided before planning. [paraphrase]
+
+- **R9:** Redirect and not-found raised by a loader or action are control flow, not failures, in the DOM, string and stream renderers. [inferred]
+- **R10:** A server entry turns a request into a response (rendered page, redirect or not-found). [inferred]
+- **R11:** Back and forward navigation and scroll restoration work; a newer navigation interrupts a pending loader (latest wins). [inferred]
+- **R12:** Loader data is serializable and reaches the client through the Transfer extension without a refetch. [inferred]
+- **R13:** Prefetched loader results are deduplicated and cached for a bounded time, and a prefetch error is silent. [inferred]
+- **R14:** An ADR records dropping TanStack router-core for the const-table design. [inferred]
 
 ## Boundaries
 
@@ -52,13 +59,19 @@ Apps built on the ui host have no router. This spec adds a separate package, `@s
 
 ## Requirement coverage
 
-| R-ID | Owner |
-| --- | --- |
-| R1 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R2 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R3 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R4 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R5 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R6 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R7 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R8 | fn-N.M (TBD - populate via /flow-next:plan) |
+| Req | Description | Task(s) | Gap justification |
+| --- | --- | --- | --- |
+| R1 | The router is a separate package named `@sleekstack/router` and `@sleekstack/ui` does not depend on it. | fn-50-sleekstackrouter.2 | — |
+| R2 | A route table defines paths, and the params of a path are typed from the path string without code generation. | fn-50-sleekstackrouter.2 | — |
+| R3 | The matched route is available to the page as a Layer service. | fn-50-sleekstackrouter.2 | — |
+| R4 | A route's loader is an Effect whose result the page reads with `useLoader`, shown under `Pending` until it resolves. | fn-50-sleekstackrouter.3 | — |
+| R5 | A route's action accepts the same function, generator or Effect forms as a form action. | fn-50-sleekstackrouter.4 | — |
+| R6 | A link prefetches the route's code and loader on hover or focus unless it sets `prefetch={false}`. | fn-50-sleekstackrouter.4 | — |
+| R7 | Server rendering, streaming and hydration produce and adopt the same DOM for a routed page. | fn-50-sleekstackrouter.3 | — |
+| R8 | fn-28 is closed as superseded by this spec, and fn-32's loader, redirect, not-found and server-handler scope is part of it; fn-29 and fn-30 point at `@sleekstack/router`. This was decided before planning. | fn-50-sleekstackrouter.1 | — |
+| R9 | Redirect and not-found raised by a loader or action are control flow, not failures, in the DOM, string and stream renderers. | fn-50-sleekstackrouter.5 | — |
+| R10 | A server entry turns a request into a response (rendered page, redirect or not-found). | fn-50-sleekstackrouter.5 | — |
+| R11 | Back and forward navigation and scroll restoration work; a newer navigation interrupts a pending loader (latest wins). | fn-50-sleekstackrouter.5 | — |
+| R12 | Loader data is serializable and reaches the client through the Transfer extension without a refetch. | fn-50-sleekstackrouter.3 | — |
+| R13 | Prefetched loader results are deduplicated and cached for a bounded time, and a prefetch error is silent. | fn-50-sleekstackrouter.4 | — |
+| R14 | An ADR records dropping TanStack router-core for the const-table design. | fn-50-sleekstackrouter.1 | — |

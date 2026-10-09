@@ -37,6 +37,12 @@ React users expect `startTransition` and `useDeferredValue` to keep the UI respo
 - **R7:** An ADR records transition semantics without concurrent lanes and the limit above. [inferred]
 - **R8:** The ui README documents both APIs. [inferred]
 
+- **R9:** A transition changes behavior only where a `Pending` has no resolved content yet (a new key or branch); where content exists it behaves as today. [inferred]
+- **R10:** The transition flag is captured per write, so a transition write and an ordinary write in the same tick each behave as their own. [inferred]
+- **R11:** A nested `startTransition`, or one whose write throws, leaves no marker behind. [inferred]
+- **R12:** A transition does not defeat ADR 0020's skip of unchanged keyed runs. [inferred]
+- **R13:** A deferred atom emits nothing while its source is unchanged, and under string rendering equals its source. [inferred]
+
 ## Boundaries
 
 - Not in scope: a priority scheduler or interruptible rendering. [inferred]
@@ -49,13 +55,18 @@ React users expect `startTransition` and `useDeferredValue` to keep the UI respo
 
 ## Requirement coverage
 
-| R-ID | Owner |
-| --- | --- |
-| R1 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R2 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R3 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R4 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R5 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R6 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R7 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R8 | fn-N.M (TBD - populate via /flow-next:plan) |
+| Req | Description | Task(s) | Gap justification |
+| --- | --- | --- | --- |
+| R1 | A write inside `startTransition` keeps the previous content of a `Pending` on the triggered re-runs until the new content resolves. | fn-47-transitions-and-deferred-atoms.1 | — |
+| R2 | A write outside a transition shows the fallback exactly as today. | fn-47-transitions-and-deferred-atoms.1 | — |
+| R3 | A failed or superseded transition leaves no marker on later re-runs. | fn-47-transitions-and-deferred-atoms.1 | — |
+| R4 | `useDeferredAtom(source)` returns an atom whose value follows `source` after the commit settles, and the instance owns and releases it. | fn-47-transitions-and-deferred-atoms.2 | — |
+| R5 | The deferred atom is created the same way on every run of a component (same slot rule as the other hooks) and the analyzer's slot-hook check covers it. | fn-47-transitions-and-deferred-atoms.2 | — |
+| R6 | A bench scenario measures a transition and a deferred read, and the ui size budget of ADR 0022 is checked and not exceeded without a recorded decision. | fn-47-transitions-and-deferred-atoms.3 | — |
+| R7 | An ADR records transition semantics without concurrent lanes and the limit above. | fn-47-transitions-and-deferred-atoms.3 | — |
+| R8 | The ui README documents both APIs. | fn-47-transitions-and-deferred-atoms.3 | — |
+| R9 | A transition changes behavior only where a `Pending` has no resolved content yet (a new key or branch); where content exists it behaves as today. | fn-47-transitions-and-deferred-atoms.1 | — |
+| R10 | The transition flag is captured per write, so a transition write and an ordinary write in the same tick each behave as their own. | fn-47-transitions-and-deferred-atoms.1 | — |
+| R11 | A nested `startTransition`, or one whose write throws, leaves no marker behind. | fn-47-transitions-and-deferred-atoms.1 | — |
+| R12 | A transition does not defeat ADR 0020's skip of unchanged keyed runs. | fn-47-transitions-and-deferred-atoms.1 | — |
+| R13 | A deferred atom emits nothing while its source is unchanged, and under string rendering equals its source. | fn-47-transitions-and-deferred-atoms.2 | — |
