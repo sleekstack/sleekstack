@@ -1,6 +1,7 @@
 import { Atom } from '@sleekstack/core'
 import { type Context, Effect, Layer } from 'effect'
 import { bind, type Handler, isHandler, on } from './handler'
+import type { IntrinsicElementMap } from './jsx-types'
 import { el, type ElementNode, type EventBinding, fragment, type Node, type Ref } from './node'
 import {
   type ComponentResult,
@@ -250,7 +251,5 @@ export declare namespace JSX {
     key?: string | number
   }
 
-  interface IntrinsicElements {
-    [tag: string]: Props
-  }
+  interface IntrinsicElements extends IntrinsicElementMap {}
 }
