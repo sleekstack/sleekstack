@@ -19,3 +19,11 @@ A declaration the analyzer cannot read (`any`, a widened `Layer<any>[]`, a non-l
 When the project's package.json lists `@sleekstack/ui` (in any dependency field), `sleekstack check` also runs the component pass: each `mount` call is a root, and `MissingDependency`, `UnhandledError`, `EffectInsideReact`, `Unresolved`, `NonResumableHandler`, `ConditionalSlot` and `MissingKey` are reported with file:line (see [Errors](/docs/errors)). `--json` then adds a `components` key. Projects without `@sleekstack/ui` are checked exactly as before.
 
 The Next.js runtime is one slot per process, so configure it once in a setup file and keep tests that need an unconfigured runtime first in their file.
+
+## Component tests
+
+`@sleekstack/testing` renders a host component from `@sleekstack/ui` under Vitest with jsdom. `render(app, { layer })` mounts it inside React's act environment into a container attached to `document.body`, and disposes it after each test (or call `dispose()` yourself). `flush()` waits until re-runs and post-commit effects have settled. `mockLayer(Tag, impl)` provides a service from a partial implementation; calling a method you left out is a defect that names it. Queries come from Testing Library: install `@testing-library/dom` and `@testing-library/user-event` in your app and use them on the container.
+
+<include>../../snippets/testing/component.test-example.ts</include>
+
+Set `globals: true` in the Vitest config so the automatic after-each disposal can register.
