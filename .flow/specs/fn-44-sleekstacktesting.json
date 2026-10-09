@@ -1,11 +1,65 @@
 {
   "branch_name": "fn-44-sleekstacktesting",
+  "completion_review_status": "unknown",
+  "completion_reviewed_at": null,
   "created_at": "2026-10-09T14:41:04.605878Z",
+  "default_impl": null,
+  "default_review": null,
+  "default_sync": null,
   "depends_on_epics": [],
   "id": "fn-44-sleekstacktesting",
+  "impl_review_rounds": {
+    "fn-44-sleekstacktesting.1": 0
+  },
   "next_task": 1,
+  "plan_review_rounds": 0,
   "plan_review_status": "unknown",
   "plan_reviewed_at": null,
+  "review_attempts": [
+    {
+      "artifact_sha256": "6e7bcc20a8a5fbe20eeb6b54821921a73251cba699a552406851ebc24e811fc0",
+      "backend": "codex",
+      "base_sha": "b7ac9c4acb4afa204cf19e63e0d80bd6f17ce7b3",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "47546618438232826c3ccb02a72b0a13854d4987",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 158,
+      "output_sha256": "6ff70da3d83706800ca3cabc6ba62603ba0485fcf5259d27f1be54ce68686975",
+      "reservation_id": "f41ad6a191b74243a8858b75957d3e94",
+      "round_consumed": true,
+      "scope": "impl:fn-44-sleekstacktesting.1",
+      "superseded_by": null,
+      "task": "fn-44-sleekstacktesting.1",
+      "timestamp": "2026-10-09T19:43:25.726517Z",
+      "verdict": "SHIP"
+    }
+  ],
+  "review_hash_epoch": {
+    "impl:fn-44-sleekstacktesting.1": 1
+  },
+  "review_pending_rounds": {},
+  "review_reservations": {},
+  "review_transport_failures": {
+    "impl:fn-44-sleekstacktesting.1": 0
+  },
   "spec_path": ".flow/specs/fn-44-sleekstacktesting.md",
   "status": "open",
   "title": "@sleekstack/testing",
@@ -20,5 +74,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-09T15:01:46.361202Z"
+  "updated_at": "2026-10-09T19:43:25.727902Z"
 }
