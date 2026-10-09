@@ -1,6 +1,42 @@
 {
-  "briefings": [],
-  "claim_events": [],
+  "briefings": [
+    {
+      "chart_revision": "ae7847d99f037a9a2a12d09f6a71d5d8593654fe5b33feeac470371087aa7640",
+      "clusters": [
+        {
+          "decisions": [
+            "fn-35.D1",
+            "fn-35.D2",
+            "fn-35.D3"
+          ],
+          "key": "1",
+          "latest_path": ".flow/charts/fn-35-briefing.md",
+          "path": ".flow/charts/fn-35-briefing-B1.md",
+          "rationale": "Single surface (typing of host JSX); all three decisions share one Outcome"
+        }
+      ],
+      "created": "2026-10-09T14:38:59.519216Z",
+      "created_by": "ubtik@outlook.com",
+      "fingerprint": "cbacde0e8e0c48a5b7264710047ef60e6042f487de7d10bbca33298367e0f8c7",
+      "force": false,
+      "id": "B1",
+      "paths": {
+        "index": ".flow/charts/fn-35-briefing-B1.md",
+        "latest_index": ".flow/charts/fn-35-briefing.md"
+      },
+      "shared_context": [],
+      "status": "final"
+    }
+  ],
+  "claim_events": [
+    {
+      "actor": "ubtik@outlook.com",
+      "briefing": "B1",
+      "chart": "fn-35",
+      "kind": "briefing_done",
+      "timestamp": "2026-10-09T14:38:59.519216Z"
+    }
+  ],
   "created": "2026-10-09T07:26:22.109499Z",
   "decisions": [
     {
@@ -40,11 +76,28 @@
       "type": "probe"
     }
   ],
+  "done_at": "2026-10-09T14:38:59.519216Z",
+  "done_by": "ubtik@outlook.com",
+  "done_via_briefing": "B1",
   "id": "fn-35",
   "outcome": "Host JSX elements are typed per tag: attributes, aria/data, class and style, typed ref and typed on* events, with no runtime change.",
   "parked_questions": [],
-  "produced_specs": [],
-  "status": "open",
+  "produced_specs": [
+    {
+      "briefing": "B1",
+      "cluster": null,
+      "decisions": [
+        "fn-35.D1",
+        "fn-35.D2",
+        "fn-35.D3"
+      ],
+      "linked_at": "2026-10-09T14:41:04.271943Z",
+      "linked_by": "ubtik@outlook.com",
+      "spec": "fn-43-typed-dom-for-sleekstackui",
+      "status": "linked"
+    }
+  ],
+  "status": "done",
   "title": "Typed DOM for @sleekstack/ui",
   "tracker": {
     "depRelations": [],
@@ -58,5 +111,5 @@
     },
     "url": null
   },
-  "updated_at": "2026-10-09T07:35:41.957612Z"
+  "updated_at": "2026-10-09T14:41:04.271943Z"
 }

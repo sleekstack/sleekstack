@@ -1,6 +1,41 @@
 {
-  "briefings": [],
-  "claim_events": [],
+  "briefings": [
+    {
+      "chart_revision": "1a8f9c7beabe2301527bc4752795c309951d0fca3186aa4106af700906c81c23",
+      "clusters": [
+        {
+          "decisions": [
+            "fn-41.D1",
+            "fn-41.D2"
+          ],
+          "key": "1",
+          "latest_path": ".flow/charts/fn-41-briefing.md",
+          "path": ".flow/charts/fn-41-briefing-B1.md",
+          "rationale": "Single surface: ui devtools views and their Env observer hook share one Outcome"
+        }
+      ],
+      "created": "2026-10-09T14:39:44.047272Z",
+      "created_by": "ubtik@outlook.com",
+      "fingerprint": "0b492121ce1b7eb4ebf50b7727eca798e397da4e3acad27b9e641dd01f4818d5",
+      "force": false,
+      "id": "B1",
+      "paths": {
+        "index": ".flow/charts/fn-41-briefing-B1.md",
+        "latest_index": ".flow/charts/fn-41-briefing.md"
+      },
+      "shared_context": [],
+      "status": "final"
+    }
+  ],
+  "claim_events": [
+    {
+      "actor": "ubtik@outlook.com",
+      "briefing": "B1",
+      "chart": "fn-41",
+      "kind": "briefing_done",
+      "timestamp": "2026-10-09T14:39:44.047272Z"
+    }
+  ],
   "created": "2026-10-09T07:26:24.466236Z",
   "decisions": [
     {
@@ -28,11 +63,27 @@
       "type": "research"
     }
   ],
+  "done_at": "2026-10-09T14:39:44.047272Z",
+  "done_by": "ubtik@outlook.com",
+  "done_via_briefing": "B1",
   "id": "fn-41",
   "outcome": "Inspect the live tree, slots, atoms and re-run reasons.",
   "parked_questions": [],
-  "produced_specs": [],
-  "status": "open",
+  "produced_specs": [
+    {
+      "briefing": "B1",
+      "cluster": null,
+      "decisions": [
+        "fn-41.D1",
+        "fn-41.D2"
+      ],
+      "linked_at": "2026-10-09T14:41:05.746524Z",
+      "linked_by": "ubtik@outlook.com",
+      "spec": "fn-45-devtools-for-ui",
+      "status": "linked"
+    }
+  ],
+  "status": "done",
   "title": "Devtools for ui",
   "tracker": {
     "depRelations": [],
@@ -46,5 +97,5 @@
     },
     "url": null
   },
-  "updated_at": "2026-10-09T07:37:06.911052Z"
+  "updated_at": "2026-10-09T14:41:05.746524Z"
 }
