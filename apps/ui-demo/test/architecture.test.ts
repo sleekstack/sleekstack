@@ -51,6 +51,8 @@ const ruleOf = (mod: string): Rule | undefined => {
     main: { local: ['app', 'layers'], packages: [UI] },
     'size/mount': { local: [], packages: [UI, 'effect'] },
     'size/hydrate': { local: [], packages: ['@sleekstack/core', UI, 'effect'] },
+    'size/lazy': { local: ['size/heavy'], packages: [UI, 'effect'] },
+    'size/heavy': { local: [], packages: [] },
     'resume/count': { local: [], packages: ['@sleekstack/core', 'effect'] },
     'resume/increment': { local: ['resume/count'], packages: [UI, 'effect'] },
     'resume/counter': { local: ['resume/count', 'resume/increment'], packages: [UI] },

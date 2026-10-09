@@ -28,7 +28,7 @@ import { analyzeComponents } from '@sleekstack/analyze'
 const { trees, errors } = analyzeComponents({ project: 'tsconfig.json' })
 ```
 
-It builds one tree per `mount` call (nodes `component`, `provide`, `catch`, `unresolved`) and walks it once, carrying provided Tags and caught errors downward. Every branch counts as rendered. It reports, with file:line:
+It builds one tree per `mount` call (nodes `component`, `provide`, `catch`, `unresolved`) and walks it once, carrying provided Tags and caught errors downward. Every branch counts as rendered. A `lazy(() => import('./x'))` component is read through the module's default export, plus its `LazyLoadError`. It reports, with file:line:
 
 - `MissingDependency`: a Component needs a Tag no `Provide` or mount layer supplies. `@sleekstack/ui`'s `Store` (used by the atom hooks) is always provided at `mount`; another Tag that prints as `Store` is shown as `<file>#Store` and is not.
 - `UnhandledError`: a tagged error reaches `mount` without a `Catch`, or a host event closure (`onXxx`) has a non-`never` `E` (even under a matching `Boundary`). Closures are component nodes with `closure: true`; their `R` is checked like any component's and an unreadable closure type is `Unresolved`.

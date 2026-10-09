@@ -34,6 +34,8 @@ const measure = async (entry: string, source = false) => {
     .join('\n')
   return {
     code: chunks.map((c) => c.code).join('\n'),
+    eager,
+    lazy,
     min: Buffer.byteLength(eager),
     gz: gzipSync(eager).length,
     lazyGz: lazy ? gzipSync(lazy).length : 0,
@@ -45,6 +47,7 @@ const budgets = [
   { name: 'mount hello-world', entry: 'size/mount.tsx', limit: 203_000 },
   { name: 'hydrating app', entry: 'size/hydrate.tsx', limit: 225_000 },
   { name: 'resume', entry: 'resume/entry.ts', limit: 83_000 },
+  { name: 'lazy mount', entry: 'size/lazy.tsx', limit: 209_000 },
 ]
 
 describe('size budget (ADR 0022)', () => {
@@ -57,6 +60,13 @@ describe('size budget (ADR 0022)', () => {
       )
       expect(dist.gz).toBeLessThanOrEqual(limit)
     })
+
+  it('a lazy component lands in its own chunk', { timeout: 60_000 }, async () => {
+    const { eager, lazy, lazyGz } = await measure('size/lazy.tsx')
+    expect(lazyGz).toBeGreaterThan(0)
+    expect(lazy).toContain('heavy-lazy-chunk-marker')
+    expect(eager).not.toContain('heavy-lazy-chunk-marker')
+  })
 
   it('a mount-only bundle tree-shakes resume and query', { timeout: 60_000 }, async () => {
     const { code } = await measure('size/mount.tsx')

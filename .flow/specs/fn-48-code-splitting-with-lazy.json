@@ -1,11 +1,263 @@
 {
   "branch_name": "fn-48-code-splitting-with-lazy",
+  "completion_review_status": "ship",
+  "completion_reviewed_at": "2026-10-09T17:55:40.379580Z",
   "created_at": "2026-10-09T14:48:10.403568Z",
+  "default_impl": null,
+  "default_review": null,
+  "default_sync": null,
   "depends_on_epics": [],
   "id": "fn-48-code-splitting-with-lazy",
+  "impl_review_rounds": {
+    "fn-48-code-splitting-with-lazy.1": 0,
+    "fn-48-code-splitting-with-lazy.2": 0
+  },
   "next_task": 1,
+  "plan_review_rounds": 0,
   "plan_review_status": "unknown",
   "plan_reviewed_at": null,
+  "review_attempts": [
+    {
+      "artifact_sha256": "42d90b0ec5d3e27c4c7ff4b0cc593f1dcb0b862f0af86c329680230a1a403339",
+      "backend": "codex",
+      "base_sha": "b7ac9c4acb4afa204cf19e63e0d80bd6f17ce7b3",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-d94c1d7164573c76d59742478f20b26e",
+            "classification": "introduced",
+            "findingId": "finding-d94c1d7164573c76d59742478f20b26e",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "ab6312efbf9436eef559e7025e9aaa6a1f43f616",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 980,
+      "output_sha256": "50aed00971355535baa40bbb7b1e1f62c4b5de17c2e8d20da1e6eb653272b568",
+      "reservation_id": "2a7caaab203b48cfa36bf63c8243e6fa",
+      "round_consumed": true,
+      "scope": "impl:fn-48-code-splitting-with-lazy.1",
+      "superseded_by": null,
+      "task": "fn-48-code-splitting-with-lazy.1",
+      "timestamp": "2026-10-09T17:36:34.912824Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "664e556732d9b9fdcc0849d895d96254e29526938ebef560b1bbe6c1bda755b5",
+      "backend": "codex",
+      "base_sha": "b7ac9c4acb4afa204cf19e63e0d80bd6f17ce7b3",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-d94c1d7164573c76d59742478f20b26e",
+            "classification": "introduced",
+            "findingId": "finding-d94c1d7164573c76d59742478f20b26e",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "f58bd0bbb33545214ccf6e26da25d28c748d171d",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 909,
+      "output_sha256": "7f3437140b2dd0c91ec21d5b8cf7d893042d9c0cfb29515f37ec87c6a93cb5c8",
+      "reservation_id": "7490e29564984b31bbb1e53f4bb62a53",
+      "round_consumed": true,
+      "scope": "impl:fn-48-code-splitting-with-lazy.1",
+      "superseded_by": null,
+      "task": "fn-48-code-splitting-with-lazy.1",
+      "timestamp": "2026-10-09T17:37:39.391400Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "0834a53411629cb1adc47ff2ed8c3575f01fd6fa5b06c6b3c517b0cb2e7654cf",
+      "backend": "codex",
+      "base_sha": "b7ac9c4acb4afa204cf19e63e0d80bd6f17ce7b3",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-757657483fcf66074c523d7c6afed50a",
+            "classification": "introduced",
+            "findingId": "finding-757657483fcf66074c523d7c6afed50a",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-3f89a2eb7fb0556125db8bd800523402",
+            "classification": "introduced",
+            "findingId": "finding-3f89a2eb7fb0556125db8bd800523402",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "24b50cdf34700652425139482976468890cf3114",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1836,
+      "output_sha256": "fafa89514ea80a3cebdf79582b1b2031fb2a29db4a2e1c6417bcf59ce826ee3b",
+      "reservation_id": "9963576997ae469dad0ca62346123410",
+      "round_consumed": true,
+      "scope": "impl:fn-48-code-splitting-with-lazy.2",
+      "superseded_by": null,
+      "task": "fn-48-code-splitting-with-lazy.2",
+      "timestamp": "2026-10-09T17:45:32.208460Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "1eceb777d8893aa8370c04766ea8d707f4671027f4079808d54e76c97187f954",
+      "backend": "codex",
+      "base_sha": "b7ac9c4acb4afa204cf19e63e0d80bd6f17ce7b3",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-757657483fcf66074c523d7c6afed50a",
+            "classification": "introduced",
+            "findingId": "finding-757657483fcf66074c523d7c6afed50a",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-3f89a2eb7fb0556125db8bd800523402",
+            "classification": "introduced",
+            "findingId": "finding-3f89a2eb7fb0556125db8bd800523402",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "65b2ee4204c6886e0dd9122ca0aeb6eb34034abe",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1070,
+      "output_sha256": "a4c25adcb8c64e6cbe0933ded790963af58fe6ce06ae7b8b05d468b10db947a5",
+      "reservation_id": "4d1f14e2c0274160992eef384d1b5f9e",
+      "round_consumed": true,
+      "scope": "impl:fn-48-code-splitting-with-lazy.2",
+      "superseded_by": null,
+      "task": "fn-48-code-splitting-with-lazy.2",
+      "timestamp": "2026-10-09T17:53:22.996128Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "2b795c9517e47bd2cc0363c730de353768fe23a32be97653efc74b9c27805475",
+      "backend": "codex",
+      "base_sha": "b7ac9c4acb4afa204cf19e63e0d80bd6f17ce7b3",
+      "counter_kind": "plan",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "043906b767c8a192e96c4856feb4c390cee07f61",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 275213,
+      "output_sha256": "8cdb6b305384d3a591a9ddcf1ff049d85a1a0f2bec149327c7bd7919f4533760",
+      "reservation_id": "1f9d5615a85144309bf908e3baf5e7c5",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-10-09T17:55:40.372930Z",
+      "tool_calls": 6,
+      "verdict": "SHIP"
+    }
+  ],
+  "review_hash_epoch": {
+    "impl:fn-48-code-splitting-with-lazy.1": 1,
+    "impl:fn-48-code-splitting-with-lazy.2": 1,
+    "plan#completion": 1
+  },
+  "review_pending_rounds": {},
+  "review_reservations": {},
+  "review_transport_failures": {
+    "completion": 0,
+    "impl:fn-48-code-splitting-with-lazy.1": 0,
+    "impl:fn-48-code-splitting-with-lazy.2": 0
+  },
   "spec_path": ".flow/specs/fn-48-code-splitting-with-lazy.md",
   "status": "open",
   "title": "Code splitting with lazy",
@@ -20,5 +272,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-09T15:01:50.033081Z"
+  "updated_at": "2026-10-09T17:55:40.381576Z"
 }

@@ -23,9 +23,11 @@ lazy and LazyLoadError. Contract and rationale are in the parent spec (R-IDs abo
 
 
 ## Done summary
-TBD
+Added `lazy(load)` and the tagged `LazyLoadError` to @sleekstack/ui. The import is memoized per loader and evicted when it rejects. A rejected import or a missing default export becomes a `LazyLoadError`. The default export is typed as `ComponentResult`. Tests cover the mount fallback followed by content, string render, hydration node adoption, no re-import, Boundary/onError delivery and retry, plus a type test.
 
+stage: impl-review - ran (codex fan-out NEEDS_WORK on the loose default-export type, fixed; re-review SHIP)
+Tier: opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: ab6312efbf9436eef559e7025e9aaa6a1f43f616, f58bd0bbb33545214ccf6e26da25d28c748d171d
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/ui...
 - PRs:

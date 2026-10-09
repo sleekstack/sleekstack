@@ -128,6 +128,23 @@ export function analyzeComponents(opts: { readonly project: string }): Component
       const tt = tag && checker.getTypeOfSymbolAtLocation(tag, at)
       return tt?.isStringLiteral() ? tt.value : checker.typeToString(m) // untagged: no Catch can handle it
     })
+  /** The default export a `lazy(() => import('./x'))` call loads. */
+  const lazyTarget = (tag: ts.Node, call: ts.CallExpression): ts.FunctionLikeDeclaration => {
+    const load = call.arguments[0] && unwrap(call.arguments[0])
+    const body = load && (ts.isArrowFunction(load) || ts.isFunctionExpression(load)) ? load.body : undefined
+    const imp = body && ts.isBlock(body) ? undefined : body && unwrap(body)
+    const spec =
+      imp && ts.isCallExpression(imp) && imp.expression.kind === ts.SyntaxKind.ImportKeyword
+        ? imp.arguments[0]
+        : undefined
+    const mod = spec && checker.getSymbolAtLocation(spec)
+    const def = mod && checker.getExportsOfModule(mod).find((x) => x.escapedName === 'default')
+    const d = aliased(def)
+    if (d && ts.isFunctionDeclaration(d) && d.body) return d
+    const t = d && ts.isExportAssignment(d) ? calleeTarget(d.expression) : undefined
+    if (t && !ts.isCallExpression(t)) return t
+    return fail(tag, `"${text(tag)}" is a lazy component whose \`() => import('…')\` default export cannot be read`)
+  }
   /** The Tags a Layer-typed expression provides (`ROut`) and requires (`RIn`). */
   const layerTags = (at: ts.Node, t: ts.Type) => {
     if (isAny(t) || libId(t.getSymbol(), checker) !== 'effect/Layer#Layer')
@@ -323,6 +340,11 @@ export function analyzeComponents(opts: { readonly project: string }): Component
     const sig = checker.getTypeAtLocation(tag).getCallSignatures()[0]
     if (!sig) return fail(tag, `"${text(tag)}" is not a component`)
     const type = checker.getReturnTypeOfSignature(sig)
+    if (ts.isCallExpression(target) && calleeOf(target) === 'ui/lazy#lazy') {
+      // The loaded component's tree gives its E / R; the type adds `LazyLoadError`, and its `any` members are that tree's.
+      const loaded = lazyTarget(tag, target)
+      return component(e, text(tag), () => [...rendered(loaded), ...kids], type).slice(0, 1)
+    }
     if (ts.isCallExpression(target)) {
       if (calleeOf(target) !== 'ui/component#fromReact' || !target.arguments[0])
         return fail(tag, `"${text(tag)}" is a dynamic component; its declaration cannot be read`)
