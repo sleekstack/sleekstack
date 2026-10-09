@@ -1,6 +1,40 @@
 {
-  "briefings": [],
-  "claim_events": [],
+  "briefings": [
+    {
+      "chart_revision": "deb986dd3e87ee6d85635b00880c7ef93227177fbeceb4a2fb1ba08281b88f16",
+      "clusters": [
+        {
+          "decisions": [
+            "fn-38.D1"
+          ],
+          "key": "1",
+          "latest_path": ".flow/charts/fn-38-briefing.md",
+          "path": ".flow/charts/fn-38-briefing-B1.md",
+          "rationale": "Single surface: lazy components under Pending; one Outcome"
+        }
+      ],
+      "created": "2026-10-09T14:47:01.918596Z",
+      "created_by": "ubtik@outlook.com",
+      "fingerprint": "367fdaf610fdc5b8357f89630ffe4698182a6b0616db37aa74f16709b9bb4f11",
+      "force": false,
+      "id": "B1",
+      "paths": {
+        "index": ".flow/charts/fn-38-briefing-B1.md",
+        "latest_index": ".flow/charts/fn-38-briefing.md"
+      },
+      "shared_context": [],
+      "status": "final"
+    }
+  ],
+  "claim_events": [
+    {
+      "actor": "ubtik@outlook.com",
+      "briefing": "B1",
+      "chart": "fn-38",
+      "kind": "briefing_done",
+      "timestamp": "2026-10-09T14:47:01.918596Z"
+    }
+  ],
   "created": "2026-10-09T07:26:23.391946Z",
   "decisions": [
     {
@@ -23,16 +57,31 @@
       "depends_on": [],
       "id": "fn-38.D2",
       "record_path": ".flow/charts/fn-38/2.md",
-      "status": "open",
+      "status": "out-of-scope",
       "title": "Bundler chunks and size budget",
       "type": "eval"
     }
   ],
+  "done_at": "2026-10-09T14:47:01.918596Z",
+  "done_by": "ubtik@outlook.com",
+  "done_via_briefing": "B1",
   "id": "fn-38",
   "outcome": "lazy(() => import(...)) components render under Pending in the DOM, string and streaming renderers.",
   "parked_questions": [],
-  "produced_specs": [],
-  "status": "open",
+  "produced_specs": [
+    {
+      "briefing": "B1",
+      "cluster": null,
+      "decisions": [
+        "fn-38.D1"
+      ],
+      "linked_at": "2026-10-09T14:48:10.724289Z",
+      "linked_by": "ubtik@outlook.com",
+      "spec": "fn-48-code-splitting-with-lazy",
+      "status": "linked"
+    }
+  ],
+  "status": "done",
   "title": "Code splitting with lazy",
   "tracker": {
     "depRelations": [],
@@ -46,5 +95,5 @@
     },
     "url": null
   },
-  "updated_at": "2026-10-09T07:32:40.720270Z"
+  "updated_at": "2026-10-09T14:48:10.724289Z"
 }

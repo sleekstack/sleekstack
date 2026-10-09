@@ -11,9 +11,10 @@
   "depends_on": [],
   "id": "fn-37.D3",
   "n": 3,
+  "out_of_scope_reason": "Cost of transitions is measured during build: add a bench scenario and keep the ADR 0022 size budget",
   "question": "What does it add to the bench scenarios and the ADR 0022 size budget?",
   "record_path": ".flow/charts/fn-37/3.md",
-  "status": "open",
+  "status": "out-of-scope",
   "superseded_by": null,
   "supersedes": [],
   "title": "Cost",
@@ -24,7 +25,15 @@
     "linkState": "unlinked",
     "url": null
   },
-  "transition_notes": [],
+  "transition_notes": [
+    {
+      "actor": "ubtik@outlook.com",
+      "at": "2026-10-09T14:45:48.841311Z",
+      "kind": "out_of_scope",
+      "reason": "Cost of transitions is measured during build: add a bench scenario and keep the ADR 0022 size budget",
+      "text": "out-of-scope: Cost of transitions is measured during build: add a bench scenario and keep the ADR 0022 size budget"
+    }
+  ],
   "type": "eval",
-  "updated_at": "2026-10-09T07:26:23.031182Z"
+  "updated_at": "2026-10-09T14:45:48.841167Z"
 }

@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-09T15:01:15.082722Z",
+  "depends_on": [
+    "fn-48-code-splitting-with-lazy.1"
+  ],
+  "id": "fn-48-code-splitting-with-lazy.2",
+  "priority": null,
+  "spec": "fn-48-code-splitting-with-lazy",
+  "spec_path": ".flow/tasks/fn-48-code-splitting-with-lazy.2.md",
+  "status": "todo",
+  "title": "Chunk-split proof, size budget and README",
+  "updated_at": "2026-10-09T15:01:15.082722Z"
+}

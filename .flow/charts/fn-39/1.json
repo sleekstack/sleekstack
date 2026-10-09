@@ -11,9 +11,10 @@
   "depends_on": [],
   "id": "fn-39.D1",
   "n": 1,
+  "out_of_scope_reason": "Portal context is verified during build: a test that Layers and Store survive a portal, in DOM, SSR and hydration",
   "question": "Do Layers and Store survive a portal, and what do SSR and hydration do with it?",
   "record_path": ".flow/charts/fn-39/1.md",
-  "status": "open",
+  "status": "out-of-scope",
   "superseded_by": null,
   "supersedes": [],
   "title": "Context across a portal",
@@ -24,7 +25,15 @@
     "linkState": "unlinked",
     "url": null
   },
-  "transition_notes": [],
+  "transition_notes": [
+    {
+      "actor": "ubtik@outlook.com",
+      "at": "2026-10-09T14:45:50.188664Z",
+      "kind": "out_of_scope",
+      "reason": "Portal context is verified during build: a test that Layers and Store survive a portal, in DOM, SSR and hydration",
+      "text": "out-of-scope: Portal context is verified during build: a test that Layers and Store survive a portal, in DOM, SSR and hydration"
+    }
+  ],
   "type": "probe",
-  "updated_at": "2026-10-09T07:26:23.750067Z"
+  "updated_at": "2026-10-09T14:45:50.188489Z"
 }

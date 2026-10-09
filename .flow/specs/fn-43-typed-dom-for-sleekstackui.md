@@ -40,6 +40,13 @@ Host JSX elements are untyped today: any tag accepts any prop, so a misspelled a
 - **R8:** No runtime behavior changes; the existing ui test suite passes unchanged. [paraphrase]
 - **R9:** The ui README documents `class` and the typed attributes, events and refs. [inferred]
 
+- **R10:** Attribute values accept an atom (bound attribute), a number, a boolean, a string, and `null`/`undefined` (the attribute is removed). [inferred]
+- **R11:** `on*` props also accept a `defineHandler` value, in addition to a function, a generator and an Effect. [inferred]
+- **R12:** A string value on an `on*` prop is a type error (inline handler attributes are not supported). Existing repo code that relied on one is fixed. [inferred]
+- **R13:** Tags that exist in both HTML and SVG are typed as HTML; SVG-only tags are typed from the SVG map. A test covers one shared tag. [inferred]
+- **R14:** A tag name containing a hyphen accepts any props, proven by a type test. [inferred]
+- **R15:** Passing both `class` and `className`, or both `for` and `htmlFor`, is a type error; there is no runtime change. [inferred]
+
 ## Boundaries
 
 - Not in scope: `style` as an object (runtime change), `className`-only or `class`-only variants, generating types from external data. [paraphrase]
@@ -52,14 +59,20 @@ Host JSX elements are untyped today: any tag accepts any prop, so a misspelled a
 
 ## Requirement coverage
 
-| R-ID | Owner |
-| --- | --- |
-| R1 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R2 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R3 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R4 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R5 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R6 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R7 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R8 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R9 | fn-N.M (TBD - populate via /flow-next:plan) |
+| Req | Description | Task(s) | Gap justification |
+| --- | --- | --- | --- |
+| R1 | A host element's attributes are checked per tag: an unknown attribute or a wrong value type on a known tag is a type error. | fn-43-typed-dom-for-sleekstackui.1 | — |
+| R2 | `class` is the documented and typed name for CSS classes, and `className` is also accepted and typed; likewise `for` and `htmlFor`. | fn-43-typed-dom-for-sleekstackui.1 | — |
+| R3 | `on*` props are typed by event: the handler's parameter is the real event with `currentTarget` narrowed to the element, and a wrong member access is a type error. | fn-43-typed-dom-for-sleekstackui.2 | — |
+| R4 | An `on*` prop accepts a plain function, a generator function or an Effect value, and does not constrain their error or requirement types. | fn-43-typed-dom-for-sleekstackui.2 | — |
+| R5 | `ref` on a host element accepts a `useRef` box of the matching element type, and a box of a different element type is a type error. | fn-43-typed-dom-for-sleekstackui.2 | — |
+| R6 | `aria-*` and `data-*` attributes are accepted on every host element. | fn-43-typed-dom-for-sleekstackui.1 | — |
+| R7 | Existing code in the repo that uses host JSX (ui-demo, showcase, tests) type-checks, with any real mistakes it exposes fixed. | fn-43-typed-dom-for-sleekstackui.3 | — |
+| R8 | No runtime behavior changes; the existing ui test suite passes unchanged. | fn-43-typed-dom-for-sleekstackui.3 | — |
+| R9 | The ui README documents `class` and the typed attributes, events and refs. | fn-43-typed-dom-for-sleekstackui.3 | — |
+| R10 | Attribute values accept an atom (bound attribute), a number, a boolean, a string, and `null`/`undefined` (the attribute is removed). | fn-43-typed-dom-for-sleekstackui.1 | — |
+| R11 | `on*` props also accept a `defineHandler` value, in addition to a function, a generator and an Effect. | fn-43-typed-dom-for-sleekstackui.2 | — |
+| R12 | A string value on an `on*` prop is a type error (inline handler attributes are not supported). Existing repo code that relied on one is fixed. | fn-43-typed-dom-for-sleekstackui.2 | — |
+| R13 | Tags that exist in both HTML and SVG are typed as HTML; SVG-only tags are typed from the SVG map. A test covers one shared tag. | fn-43-typed-dom-for-sleekstackui.1 | — |
+| R14 | A tag name containing a hyphen accepts any props, proven by a type test. | fn-43-typed-dom-for-sleekstackui.1 | — |
+| R15 | Passing both `class` and `className`, or both `for` and `htmlFor`, is a type error; there is no runtime change. | fn-43-typed-dom-for-sleekstackui.1 | — |

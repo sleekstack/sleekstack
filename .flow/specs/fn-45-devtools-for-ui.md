@@ -38,6 +38,12 @@ A developer debugging a host UI cannot see which instances are mounted, why one 
 - **R7:** A disposed instance is released: the observer retains no reference to it (verified by a test). [inferred]
 - **R8:** The ui-demo app can open the panels in development. [inferred]
 
+- **R9:** Every observer event carries the id of the mount it came from, so several mounts on a page are distinguishable. [inferred]
+- **R10:** A re-run reason names the atom that changed (id or label) and lists all causes when several coalesce into one run. [inferred]
+- **R11:** Instances adopted during hydration or resume are reported as a distinct adopt event, not as a create. [inferred]
+- **R12:** The devtools package depends on ui as a peer; ui never depends on devtools. [inferred]
+- **R13:** With no observer attached the bench scenarios and the ADR 0022 size budget are unchanged. [inferred]
+
 ## Boundaries
 
 - Not in scope: time travel, editing atom values from the panel, or a browser extension. [inferred]
@@ -49,13 +55,18 @@ A developer debugging a host UI cannot see which instances are mounted, why one 
 
 ## Requirement coverage
 
-| R-ID | Owner |
-| --- | --- |
-| R1 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R2 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R3 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R4 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R5 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R6 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R7 | fn-N.M (TBD - populate via /flow-next:plan) |
-| R8 | fn-N.M (TBD - populate via /flow-next:plan) |
+| Req | Description | Task(s) | Gap justification |
+| --- | --- | --- | --- |
+| R1 | With no observer, rendering output and the existing ui tests are unchanged. | fn-45-devtools-for-ui.1 | — |
+| R2 | An attached observer receives events for instance create, re-run (with the reason), dispose and slot creation. | fn-45-devtools-for-ui.1 | — |
+| R3 | The observer receives effect start, restart and cleanup events for each effect with an instance id. | fn-45-devtools-for-ui.2 | — |
+| R4 | The devtools package shows the live instance tree with keys and slots for a mount. | fn-45-devtools-for-ui.3 | — |
+| R5 | The devtools package shows, per instance, the atoms it owns with current values. | fn-45-devtools-for-ui.3 | — |
+| R6 | The devtools package shows why an instance re-ran and when its effects ran. | fn-45-devtools-for-ui.3 | — |
+| R7 | A disposed instance is released: the observer retains no reference to it (verified by a test). | fn-45-devtools-for-ui.1 | — |
+| R8 | The ui-demo app can open the panels in development. | fn-45-devtools-for-ui.4 | — |
+| R9 | Every observer event carries the id of the mount it came from, so several mounts on a page are distinguishable. | fn-45-devtools-for-ui.1 | — |
+| R10 | A re-run reason names the atom that changed (id or label) and lists all causes when several coalesce into one run. | fn-45-devtools-for-ui.1 | — |
+| R11 | Instances adopted during hydration or resume are reported as a distinct adopt event, not as a create. | fn-45-devtools-for-ui.1 | — |
+| R12 | The devtools package depends on ui as a peer; ui never depends on devtools. | fn-45-devtools-for-ui.3 | — |
+| R13 | With no observer attached the bench scenarios and the ADR 0022 size budget are unchanged. | fn-45-devtools-for-ui.1 | — |

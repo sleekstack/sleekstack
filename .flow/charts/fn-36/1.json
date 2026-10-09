@@ -1,6 +1,13 @@
 {
-  "answer": null,
-  "assets": [],
+  "answer": "Chosen by the user after seeing the sketch: a handler on the form. `<form action={handler}>` runs a function, generator or Effect with the decoded FormData (same handler forms as ADR 0026); `useFormStatus` is a derived atom for pending; result and optimistic state per fn-36.D2. Explicit `useAction` was rejected. No-JS submission is out of this chart (see fn-36.D3).\n",
+  "answer_gist": "Chosen by the user after seeing the sketch: a handler on the form. `<form action={handler}>` runs a function, generat...",
+  "assets": [
+    {
+      "display": "option sketch shown to the user",
+      "kind": "path",
+      "reference": ".flow/charts/assets/fn-36-D1-form-action-sketch.md"
+    }
+  ],
   "attendance": "attended",
   "blocked_by": [],
   "chart": "fn-36",
@@ -13,7 +20,7 @@
   "n": 1,
   "question": "What does <form action={handler}> look like for a generator action, and does it feel like React 19?",
   "record_path": ".flow/charts/fn-36/1.md",
-  "status": "open",
+  "status": "resolved",
   "superseded_by": null,
   "supersedes": [],
   "title": "Shape of form actions",
@@ -24,7 +31,16 @@
     "linkState": "unlinked",
     "url": null
   },
-  "transition_notes": [],
+  "transition_notes": [
+    {
+      "actor": "ubtik@outlook.com",
+      "at": "2026-10-09T14:45:46.143754Z",
+      "keep_dependents": false,
+      "kind": "resolved",
+      "supersedes": [],
+      "text": "resolved by ubtik@outlook.com"
+    }
+  ],
   "type": "prototype",
-  "updated_at": "2026-10-09T07:26:22.669273Z"
+  "updated_at": "2026-10-09T14:45:46.142077Z"
 }
