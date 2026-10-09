@@ -35,7 +35,7 @@ jobs:
 
       - name: Require test/typecheck scripts
         run: |
-          for pkg in packages/core packages/react packages/islands packages/query packages/runtime packages/next packages/kit packages/devtools apps/showcase apps/showcase-kit apps/docs apps/bench; do
+          for pkg in packages/core packages/react packages/islands packages/query packages/runtime packages/next packages/kit packages/devtools packages/testing apps/showcase apps/showcase-kit apps/docs apps/bench; do
             node -e "const s=require('./$pkg/package.json').scripts||{};for(const k of ['test','typecheck'])if(!s[k]){console.error('$pkg missing script: '+k);process.exit(1)}"
           done
 
