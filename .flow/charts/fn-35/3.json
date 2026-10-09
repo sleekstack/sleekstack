@@ -1,5 +1,6 @@
 {
-  "answer": null,
+  "answer": "Typed events work with a mapped type over `GlobalEventHandlersEventMap`; no runtime change.\nProbe (scratch tsc in packages/ui, removed afterwards): `Handler<E> = (e: E) => void | Effect<void, any, any> | Generator<any, void, any>` plus `onX?: Handler<...> | Effect<void, any, any>` type-checked for a plain closure using `e.currentTarget.value`, a `function*` handler yielding an Effect, and a raw `Effect.void`; a wrong member (`e.key` on a click) was rejected.\nFindings: (1) E and R stay `any`, since `E` must be `never` is checked by `sleekstack check`, not tsc (README); (2) runtime lowercases `k.slice(2)`, so users write `onClick`: key names need `on${Capitalize<event>}`, not the lowercase DOM names; (3) `currentTarget` needs narrowing per tag, which the probe did with an intersection.\n",
+  "answer_gist": "Typed events work with a mapped type over `GlobalEventHandlersEventMap`; no runtime change.",
   "assets": [],
   "attendance": "unattended",
   "blocked_by": [],
@@ -13,7 +14,7 @@
   "n": 3,
   "question": "How do event types combine with the ADR 0026 handler return forms in JSX.IntrinsicElements?",
   "record_path": ".flow/charts/fn-35/3.md",
-  "status": "open",
+  "status": "resolved",
   "superseded_by": null,
   "supersedes": [],
   "title": "Typed on* events with plain/generator/Effect handlers",
@@ -24,7 +25,16 @@
     "linkState": "unlinked",
     "url": null
   },
-  "transition_notes": [],
+  "transition_notes": [
+    {
+      "actor": "ubtik@outlook.com",
+      "at": "2026-10-09T07:30:39.653886Z",
+      "keep_dependents": false,
+      "kind": "resolved",
+      "supersedes": [],
+      "text": "resolved by ubtik@outlook.com"
+    }
+  ],
   "type": "probe",
-  "updated_at": "2026-10-09T07:26:22.109929Z"
+  "updated_at": "2026-10-09T07:30:39.653491Z"
 }

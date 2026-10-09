@@ -23,7 +23,7 @@
       "depends_on": [],
       "id": "fn-41.D2",
       "record_path": ".flow/charts/fn-41/2.md",
-      "status": "open",
+      "status": "resolved",
       "title": "Hook point",
       "type": "research"
     }
@@ -45,5 +45,6 @@
       "revision": null
     },
     "url": null
-  }
+  },
+  "updated_at": "2026-10-09T07:32:42.139981Z"
 }

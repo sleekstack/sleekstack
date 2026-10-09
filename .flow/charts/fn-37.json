@@ -11,7 +11,7 @@
       "depends_on": [],
       "id": "fn-37.D1",
       "record_path": ".flow/charts/fn-37/1.md",
-      "status": "open",
+      "status": "resolved",
       "title": "What keep-old-UI means here",
       "type": "research"
     },
@@ -57,5 +57,6 @@
       "revision": null
     },
     "url": null
-  }
+  },
+  "updated_at": "2026-10-09T07:32:26.785786Z"
 }

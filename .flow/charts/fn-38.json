@@ -11,7 +11,7 @@
       "depends_on": [],
       "id": "fn-38.D1",
       "record_path": ".flow/charts/fn-38/1.md",
-      "status": "open",
+      "status": "resolved",
       "title": "Async component under Pending",
       "type": "probe"
     },
@@ -45,5 +45,6 @@
       "revision": null
     },
     "url": null
-  }
+  },
+  "updated_at": "2026-10-09T07:32:40.720270Z"
 }

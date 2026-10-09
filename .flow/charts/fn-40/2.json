@@ -1,5 +1,6 @@
 {
-  "answer": null,
+  "answer": "Vitest + jsdom already covers mount, effects, refs, hydration and streaming; the harness needs only small helpers.\nEvidence: this session's scratch probes and packages/ui/src/__tests__/hydrate.test.ts run `mount`/`hydrateMount` in `@vitest-environment jsdom` with React's `act`, `IS_REACT_ACT_ENVIRONMENT`, a per-test `dispose`, and a `tick` to wait for async runs.\nHelpers worth shipping: a `render(app, { layer })` that sets act mode, wraps mount in act and registers disposal in afterEach; `flush()` that awaits pending re-runs and post-commit effects; a mock-Layer helper. Everything else is plain DOM, so Testing Library queries can sit on top.\n",
+  "answer_gist": "Vitest + jsdom already covers mount, effects, refs, hydration and streaming; the harness needs only small helpers.",
   "assets": [],
   "attendance": "unattended",
   "blocked_by": [],
@@ -13,7 +14,7 @@
   "n": 2,
   "question": "Does Vitest + jsdom with mount/Store cover effects, refs and streaming, or are helpers needed?",
   "record_path": ".flow/charts/fn-40/2.md",
-  "status": "open",
+  "status": "resolved",
   "superseded_by": null,
   "supersedes": [],
   "title": "Harness",
@@ -24,7 +25,16 @@
     "linkState": "unlinked",
     "url": null
   },
-  "transition_notes": [],
+  "transition_notes": [
+    {
+      "actor": "ubtik@outlook.com",
+      "at": "2026-10-09T07:32:41.456392Z",
+      "keep_dependents": false,
+      "kind": "resolved",
+      "supersedes": [],
+      "text": "resolved by ubtik@outlook.com"
+    }
+  ],
   "type": "probe",
-  "updated_at": "2026-10-09T07:26:24.106309Z"
+  "updated_at": "2026-10-09T07:32:41.455807Z"
 }

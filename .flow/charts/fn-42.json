@@ -35,7 +35,7 @@
       "depends_on": [],
       "id": "fn-42.D3",
       "record_path": ".flow/charts/fn-42/3.md",
-      "status": "open",
+      "status": "resolved",
       "title": "Typed routes as a Layer",
       "type": "research"
     }
@@ -63,5 +63,6 @@
       "revision": null
     },
     "url": null
-  }
+  },
+  "updated_at": "2026-10-09T07:32:42.800633Z"
 }

@@ -23,7 +23,7 @@
       "depends_on": [],
       "id": "fn-36.D2",
       "record_path": ".flow/charts/fn-36/2.md",
-      "status": "open",
+      "status": "resolved",
       "title": "Pending, result and optimistic as atoms",
       "type": "research"
     },
@@ -35,7 +35,7 @@
       "depends_on": [],
       "id": "fn-36.D3",
       "record_path": ".flow/charts/fn-36/3.md",
-      "status": "open",
+      "status": "resolved",
       "title": "No-JS submission",
       "type": "probe"
     }
@@ -63,5 +63,6 @@
       "revision": null
     },
     "url": null
-  }
+  },
+  "updated_at": "2026-10-09T07:31:15.307770Z"
 }

@@ -11,7 +11,7 @@
       "depends_on": [],
       "id": "fn-35.D1",
       "record_path": ".flow/charts/fn-35/1.md",
-      "status": "open",
+      "status": "resolved",
       "title": "Source of per-tag types",
       "type": "research"
     },
@@ -35,7 +35,7 @@
       "depends_on": [],
       "id": "fn-35.D3",
       "record_path": ".flow/charts/fn-35/3.md",
-      "status": "open",
+      "status": "resolved",
       "title": "Typed on* events with plain/generator/Effect handlers",
       "type": "probe"
     }
@@ -57,5 +57,6 @@
       "revision": null
     },
     "url": null
-  }
+  },
+  "updated_at": "2026-10-09T07:30:39.653491Z"
 }

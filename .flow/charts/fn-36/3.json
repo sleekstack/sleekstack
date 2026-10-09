@@ -1,5 +1,6 @@
 {
-  "answer": null,
+  "answer": "Three cases, only two reachable from ui today.\n1. Hydrated or `resume`d page: `resume.ts` delegates events from the container; `submit` bubbles, so it is accepted by `checkEvent`, and `HandlerOptions.preventDefault` is emitted statically as `data-sleek-pd-<event>` (resume.ts:212). A submit handler can therefore run before hydration. Works with no new code beyond typing.\n2. No JS at all: a native form POST needs an HTTP endpoint. ui has no request handler and no server entry; only the Next adapter has actions. So a true no-JS form needs a server route outside ui, or a router (fn-42), not a ui feature alone.\n3. Form values: `HandlerEvent` carries `value`/`checked`/`key` but not the form's FormData; a form action needs FormData (or an Effect Schema decode of it) added to the event shape.\nConsequence: scope the first slice to cases 1 and 3; make no-JS a router-chart concern.\n",
+  "answer_gist": "Three cases, only two reachable from ui today.",
   "assets": [],
   "attendance": "unattended",
   "blocked_by": [],
@@ -13,7 +14,7 @@
   "n": 3,
   "question": "Can a server-rendered form submit through resume (ADR 0023 stream, resume.ts) without hydrating?",
   "record_path": ".flow/charts/fn-36/3.md",
-  "status": "open",
+  "status": "resolved",
   "superseded_by": null,
   "supersedes": [],
   "title": "No-JS submission",
@@ -24,7 +25,16 @@
     "linkState": "unlinked",
     "url": null
   },
-  "transition_notes": [],
+  "transition_notes": [
+    {
+      "actor": "ubtik@outlook.com",
+      "at": "2026-10-09T07:31:15.308233Z",
+      "keep_dependents": false,
+      "kind": "resolved",
+      "supersedes": [],
+      "text": "resolved by ubtik@outlook.com"
+    }
+  ],
   "type": "probe",
-  "updated_at": "2026-10-09T07:26:22.669328Z"
+  "updated_at": "2026-10-09T07:31:15.307770Z"
 }

@@ -1,5 +1,6 @@
 {
-  "answer": null,
+  "answer": "Use an optional observer on the renderer's `Env`; atoms are already inspectable.\n- Atoms: `AtomStore` exposes a read-only internal snapshot for devtools (AtomStore.ts:59), and `subscribe` for changes.\n- Tree, slots and re-run reasons: the Live tree, `Instance` and `Slots` are internal to dom.ts/reactive.ts, one per mount. There is no observer today.\n- Precedent for a zero-cost-when-off hook: `Env.post` is optional and checked with `?.` (dom.ts build/patch). An optional `observe` on `Env` called at instance create/rerun/dispose and slot create costs nothing when absent.\nRisk: tree snapshots must not retain disposed instances; hand out ids, not references.\n",
+  "answer_gist": "Use an optional observer on the renderer's `Env`; atoms are already inspectable.",
   "assets": [],
   "attendance": "unattended",
   "blocked_by": [],
@@ -13,7 +14,7 @@
   "n": 2,
   "question": "Where does the Reconciler/RunFrame expose data without a runtime cost when off?",
   "record_path": ".flow/charts/fn-41/2.md",
-  "status": "open",
+  "status": "resolved",
   "superseded_by": null,
   "supersedes": [],
   "title": "Hook point",
@@ -24,7 +25,16 @@
     "linkState": "unlinked",
     "url": null
   },
-  "transition_notes": [],
+  "transition_notes": [
+    {
+      "actor": "ubtik@outlook.com",
+      "at": "2026-10-09T07:32:42.140549Z",
+      "keep_dependents": false,
+      "kind": "resolved",
+      "supersedes": [],
+      "text": "resolved by ubtik@outlook.com"
+    }
+  ],
   "type": "research",
-  "updated_at": "2026-10-09T07:26:24.466404Z"
+  "updated_at": "2026-10-09T07:32:42.139981Z"
 }
