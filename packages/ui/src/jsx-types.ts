@@ -70,6 +70,7 @@ type InputType =
   | 'time'
   | 'url'
   | 'week'
+type PopoverInvoker = { popovertarget?: V<string>; popovertargetaction?: V<'hide' | 'show' | 'toggle'> }
 type FormControl = { disabled?: V<boolean>; form?: V<string>; name?: V<string> }
 type Media = {
   autoplay?: V<boolean>
@@ -106,17 +107,16 @@ interface HtmlAttrs {
   audio: Media
   base: { href?: V<string>; target?: Target }
   blockquote: { cite?: V<string> }
-  button: FormControl & {
-    formaction?: V<string>
-    formenctype?: V<string>
-    formmethod?: V<string>
-    formnovalidate?: V<boolean>
-    formtarget?: Target
-    popovertarget?: V<string>
-    popovertargetaction?: V<'hide' | 'show' | 'toggle'>
-    type?: V<'submit' | 'reset' | 'button'>
-    value?: V<string | number>
-  }
+  button: FormControl &
+    PopoverInvoker & {
+      formaction?: V<string>
+      formenctype?: V<string>
+      formmethod?: V<string>
+      formnovalidate?: V<boolean>
+      formtarget?: Target
+      type?: V<'submit' | 'reset' | 'button'>
+      value?: V<string | number>
+    }
   canvas: { height?: V<number | string>; width?: V<number | string> }
   col: { span?: V<number | string> }
   colgroup: { span?: V<number | string> }
@@ -164,37 +164,37 @@ interface HtmlAttrs {
     usemap?: V<string>
     width?: V<number | string>
   }
-  input: FormControl & {
-    accept?: V<string>
-    alt?: V<string>
-    autocomplete?: V<string>
-    capture?: V<string>
-    checked?: V<boolean>
-    dirname?: V<string>
-    formaction?: V<string>
-    formenctype?: V<string>
-    formmethod?: V<string>
-    formnovalidate?: V<boolean>
-    formtarget?: Target
-    height?: V<number | string>
-    list?: V<string>
-    max?: V<number | string>
-    maxlength?: V<number | string>
-    min?: V<number | string>
-    minlength?: V<number | string>
-    multiple?: V<boolean>
-    pattern?: V<string>
-    placeholder?: V<string>
-    popovertarget?: V<string>
-    readonly?: V<boolean>
-    required?: V<boolean>
-    size?: V<number | string>
-    src?: V<string>
-    step?: V<number | string>
-    type?: V<InputType>
-    value?: V<string | number>
-    width?: V<number | string>
-  }
+  input: FormControl &
+    PopoverInvoker & {
+      accept?: V<string>
+      alt?: V<string>
+      autocomplete?: V<string>
+      capture?: V<string>
+      checked?: V<boolean>
+      dirname?: V<string>
+      formaction?: V<string>
+      formenctype?: V<string>
+      formmethod?: V<string>
+      formnovalidate?: V<boolean>
+      formtarget?: Target
+      height?: V<number | string>
+      list?: V<string>
+      max?: V<number | string>
+      maxlength?: V<number | string>
+      min?: V<number | string>
+      minlength?: V<number | string>
+      multiple?: V<boolean>
+      pattern?: V<string>
+      placeholder?: V<string>
+      readonly?: V<boolean>
+      required?: V<boolean>
+      size?: V<number | string>
+      src?: V<string>
+      step?: V<number | string>
+      type?: V<InputType>
+      value?: V<string | number>
+      width?: V<number | string>
+    }
   ins: { cite?: V<string>; datetime?: V<string> }
   label: {}
   li: { value?: V<number | string> }
@@ -239,7 +239,7 @@ interface HtmlAttrs {
   ol: { reversed?: V<boolean>; start?: V<number | string>; type?: V<'1' | 'a' | 'A' | 'i' | 'I'> }
   optgroup: { disabled?: V<boolean>; label?: V<string> }
   option: { disabled?: V<boolean>; label?: V<string>; selected?: V<boolean>; value?: V<string | number> }
-  output: FormControl
+  output: { form?: V<string>; name?: V<string> }
   progress: { max?: V<number | string>; value?: V<number | string> }
   q: { cite?: V<string> }
   script: {
@@ -295,88 +295,98 @@ interface HtmlAttrs {
   }
 }
 
-/** Presentation and geometry attributes shared by every SVG-only tag. */
-type SvgAttrs = {
-  [
-    K in
-      | 'clip-path'
-      | 'clip-rule'
-      | 'clipPathUnits'
-      | 'color'
-      | 'cx'
-      | 'cy'
-      | 'd'
-      | 'dominant-baseline'
-      | 'dx'
-      | 'dy'
-      | 'fill'
-      | 'fill-opacity'
-      | 'fill-rule'
-      | 'filter'
-      | 'font-family'
-      | 'font-size'
-      | 'font-weight'
-      | 'fr'
-      | 'fx'
-      | 'fy'
-      | 'gradientTransform'
-      | 'gradientUnits'
-      | 'height'
-      | 'href'
-      | 'in'
-      | 'in2'
-      | 'marker-end'
-      | 'marker-mid'
-      | 'marker-start'
-      | 'markerHeight'
-      | 'markerUnits'
-      | 'markerWidth'
-      | 'mask'
-      | 'maskUnits'
-      | 'offset'
-      | 'opacity'
-      | 'orient'
-      | 'pathLength'
-      | 'patternTransform'
-      | 'patternUnits'
-      | 'points'
-      | 'preserveAspectRatio'
-      | 'r'
-      | 'refX'
-      | 'refY'
-      | 'result'
-      | 'rx'
-      | 'ry'
-      | 'shape-rendering'
-      | 'stdDeviation'
-      | 'stop-color'
-      | 'stop-opacity'
-      | 'stroke'
-      | 'stroke-dasharray'
-      | 'stroke-dashoffset'
-      | 'stroke-linecap'
-      | 'stroke-linejoin'
-      | 'stroke-miterlimit'
-      | 'stroke-opacity'
-      | 'stroke-width'
-      | 'text-anchor'
-      | 'textLength'
-      | 'transform'
-      | 'transform-origin'
-      | 'vector-effect'
-      | 'viewBox'
-      | 'visibility'
-      | 'width'
-      | 'x'
-      | 'x1'
-      | 'x2'
-      | 'xmlns'
-      | 'xmlns:xlink'
-      | 'xlink:href'
-      | 'y'
-      | 'y1'
-      | 'y2'
-  ]?: V
+type Attrs<K extends string> = { [A in K]?: V }
+
+/** Presentation attributes: valid on every SVG-only tag. */
+type SvgPresentation = Attrs<
+  | 'clip-path'
+  | 'clip-rule'
+  | 'color'
+  | 'display'
+  | 'dominant-baseline'
+  | 'fill'
+  | 'fill-opacity'
+  | 'fill-rule'
+  | 'filter'
+  | 'flood-color'
+  | 'flood-opacity'
+  | 'font-family'
+  | 'font-size'
+  | 'font-style'
+  | 'font-weight'
+  | 'lighting-color'
+  | 'marker-end'
+  | 'marker-mid'
+  | 'marker-start'
+  | 'mask'
+  | 'opacity'
+  | 'paint-order'
+  | 'pointer-events'
+  | 'shape-rendering'
+  | 'stop-color'
+  | 'stop-opacity'
+  | 'stroke'
+  | 'stroke-dasharray'
+  | 'stroke-dashoffset'
+  | 'stroke-linecap'
+  | 'stroke-linejoin'
+  | 'stroke-miterlimit'
+  | 'stroke-opacity'
+  | 'stroke-width'
+  | 'text-anchor'
+  | 'transform'
+  | 'transform-origin'
+  | 'vector-effect'
+  | 'visibility'
+>
+type Box = 'x' | 'y' | 'width' | 'height'
+type Link = 'href' | 'xlink:href'
+type Gradient = Link | 'gradientTransform' | 'gradientUnits' | 'spreadMethod'
+type TextPos = 'x' | 'y' | 'dx' | 'dy' | 'rotate' | 'textLength' | 'lengthAdjust'
+type Primitive = Box | 'result'
+
+/** Per-tag SVG geometry attributes. SVG-only tags not listed take the presentation attributes only. */
+interface SvgOwn {
+  svg: Attrs<Box | 'viewBox' | 'preserveAspectRatio' | 'xmlns' | 'xmlns:xlink'>
+  circle: Attrs<'cx' | 'cy' | 'r' | 'pathLength'>
+  ellipse: Attrs<'cx' | 'cy' | 'rx' | 'ry' | 'pathLength'>
+  line: Attrs<'x1' | 'y1' | 'x2' | 'y2' | 'pathLength'>
+  path: Attrs<'d' | 'pathLength'>
+  polygon: Attrs<'points' | 'pathLength'>
+  polyline: Attrs<'points' | 'pathLength'>
+  rect: Attrs<Box | 'rx' | 'ry' | 'pathLength'>
+  use: Attrs<Box | Link>
+  image: Attrs<Box | Link | 'preserveAspectRatio' | 'crossorigin' | 'decoding'>
+  foreignObject: Attrs<Box>
+  text: Attrs<TextPos>
+  tspan: Attrs<TextPos>
+  textPath: Attrs<Link | 'startOffset' | 'method' | 'spacing' | 'side' | 'path' | 'textLength' | 'lengthAdjust'>
+  linearGradient: Attrs<Gradient | 'x1' | 'y1' | 'x2' | 'y2'>
+  radialGradient: Attrs<Gradient | 'cx' | 'cy' | 'r' | 'fx' | 'fy' | 'fr'>
+  stop: Attrs<'offset'>
+  clipPath: Attrs<'clipPathUnits'>
+  mask: Attrs<Box | 'maskUnits' | 'maskContentUnits'>
+  marker: Attrs<
+    'markerHeight' | 'markerWidth' | 'markerUnits' | 'orient' | 'refX' | 'refY' | 'viewBox' | 'preserveAspectRatio'
+  >
+  pattern: Attrs<
+    Box | Link | 'patternUnits' | 'patternContentUnits' | 'patternTransform' | 'viewBox' | 'preserveAspectRatio'
+  >
+  symbol: Attrs<Box | 'viewBox' | 'preserveAspectRatio' | 'refX' | 'refY'>
+  view: Attrs<'viewBox' | 'preserveAspectRatio'>
+  filter: Attrs<Box | 'filterUnits' | 'primitiveUnits'>
+  feBlend: Attrs<Primitive | 'in' | 'in2' | 'mode'>
+  feColorMatrix: Attrs<Primitive | 'in' | 'type' | 'values'>
+  feComposite: Attrs<Primitive | 'in' | 'in2' | 'operator' | 'k1' | 'k2' | 'k3' | 'k4'>
+  feDropShadow: Attrs<Primitive | 'in' | 'dx' | 'dy' | 'stdDeviation'>
+  feFlood: Attrs<Primitive>
+  feGaussianBlur: Attrs<Primitive | 'in' | 'stdDeviation' | 'edgeMode'>
+  feImage: Attrs<Primitive | Link | 'preserveAspectRatio' | 'crossorigin'>
+  feMerge: Attrs<Primitive>
+  feMergeNode: Attrs<'in'>
+  feMorphology: Attrs<Primitive | 'in' | 'operator' | 'radius'>
+  feOffset: Attrs<Primitive | 'in' | 'dx' | 'dy'>
+  feTurbulence: Attrs<Primitive | 'baseFrequency' | 'numOctaves' | 'seed' | 'stitchTiles' | 'type'>
 }
 
 type ForTags = 'label' | 'output'
@@ -390,7 +400,7 @@ type HtmlProps<T extends HtmlTag> = GlobalAttrs &
 
 /** `JSX.IntrinsicElements`: HTML tags (shared HTML/SVG names resolve to HTML), SVG-only tags, and any hyphenated custom-element tag. */
 export type IntrinsicElementMap = { [T in HtmlTag]: HtmlProps<T> } & {
-  [T in SvgOnlyTag]: GlobalAttrs & SvgAttrs & ClassAttr
+  [T in SvgOnlyTag]: GlobalAttrs & SvgPresentation & (T extends keyof SvgOwn ? SvgOwn[T] : {}) & ClassAttr
 } & {
   [custom: `${string}-${string}`]: Record<string, unknown>
 }

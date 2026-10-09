@@ -44,3 +44,14 @@ void (<a viewBox="0 0 1 1" />)
 
 // R14: a hyphenated tag takes any props
 void (<my-widget anything={{ x: 1 }} flag />)
+
+// R1 on SVG: geometry attributes are per tag
+// @ts-expect-error `cx` is a circle attribute, not a path one
+void (<path cx={1} />)
+// @ts-expect-error `d` is a path attribute, not a circle one
+void (<circle d="M0 0" />)
+
+// R1: shared attribute groups land where the platform has them, and nowhere else
+void (<input type="button" popovertarget="p" popovertargetaction="show" />)
+// @ts-expect-error `output` has no `disabled`
+void (<output disabled />)
