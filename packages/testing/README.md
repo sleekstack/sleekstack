@@ -20,4 +20,4 @@ await flush()
 
 Streamed HTML: run its inline scripts first (as a browser would), then pass the result as `hydrate`. Refs: a `useRef` passed as a host `ref` holds the element after `render` and `null` after `dispose`.
 
-Limit: `flush` judges settledness by the DOM. Work that waits longer than the quiet window (a long `Effect.sleep`, a slow request) is not awaited; use Testing Library's `findBy*` / `waitFor`. Design: ADR 0031.
+Limit: `flush` judges settledness by the DOM. Work that waits longer than the quiet window (a long `Effect.sleep`, a slow request) is not awaited; use Testing Library's `findBy*` / `waitFor`. Design: ADR 0032.

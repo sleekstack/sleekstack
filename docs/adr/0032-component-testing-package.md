@@ -1,4 +1,4 @@
-# 0031. `@sleekstack/testing`: jsdom, Testing Library, global `afterEach`
+# 0032. `@sleekstack/testing`: jsdom, Testing Library, global `afterEach`
 
 ## Status
 
