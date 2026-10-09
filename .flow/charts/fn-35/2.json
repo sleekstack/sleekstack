@@ -1,0 +1,40 @@
+{
+  "answer": "Chosen by the user: document and type `class`; also accept and type `className` (and `htmlFor` alongside `for`) for React migrants. The runtime already renames className and htmlFor (jsx-runtime.ts RENAME), so this is typing and docs only.\nNote: `style` objects are not supported at runtime today (String(v)); typing `style` as an object is a separate runtime change and stays out of this chart's first slice.\n",
+  "answer_gist": "Chosen by the user: document and type `class`; also accept and type `className` (and `htmlFor` alongside `for`) for R...",
+  "assets": [],
+  "attendance": "attended",
+  "blocked_by": [],
+  "chart": "fn-35",
+  "claim_note": null,
+  "claimed_at": null,
+  "claimed_by": null,
+  "created": "2026-10-09T07:26:22.109910Z",
+  "depends_on": [],
+  "id": "fn-35.D2",
+  "n": 2,
+  "question": "Document `class`, accept `className` too, or only one?",
+  "record_path": ".flow/charts/fn-35/2.md",
+  "status": "resolved",
+  "superseded_by": null,
+  "supersedes": [],
+  "title": "class vs className",
+  "tracker": {
+    "depRelations": [],
+    "id": null,
+    "identifier": null,
+    "linkState": "unlinked",
+    "url": null
+  },
+  "transition_notes": [
+    {
+      "actor": "ubtik@outlook.com",
+      "at": "2026-10-09T07:35:41.958309Z",
+      "keep_dependents": false,
+      "kind": "resolved",
+      "supersedes": [],
+      "text": "resolved by ubtik@outlook.com"
+    }
+  ],
+  "type": "interview",
+  "updated_at": "2026-10-09T07:35:41.957612Z"
+}

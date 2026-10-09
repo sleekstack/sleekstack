@@ -1,0 +1,50 @@
+{
+  "briefings": [],
+  "claim_events": [],
+  "created": "2026-10-09T07:26:24.106143Z",
+  "decisions": [
+    {
+      "attendance": "attended",
+      "blocked_by": [],
+      "claimed_at": null,
+      "claimed_by": null,
+      "depends_on": [],
+      "id": "fn-40.D1",
+      "record_path": ".flow/charts/fn-40/1.md",
+      "status": "resolved",
+      "title": "Query style",
+      "type": "interview"
+    },
+    {
+      "attendance": "unattended",
+      "blocked_by": [],
+      "claimed_at": null,
+      "claimed_by": null,
+      "depends_on": [],
+      "id": "fn-40.D2",
+      "record_path": ".flow/charts/fn-40/2.md",
+      "status": "resolved",
+      "title": "Harness",
+      "type": "probe"
+    }
+  ],
+  "id": "fn-40",
+  "outcome": "A test render for host components with mock Layers and queries.",
+  "parked_questions": [],
+  "produced_specs": [],
+  "status": "open",
+  "title": "@sleekstack/testing",
+  "tracker": {
+    "depRelations": [],
+    "id": null,
+    "identifier": null,
+    "linkState": "unlinked",
+    "projection": {
+      "completed_steps": [],
+      "event_markers": [],
+      "revision": null
+    },
+    "url": null
+  },
+  "updated_at": "2026-10-09T07:36:42.444875Z"
+}

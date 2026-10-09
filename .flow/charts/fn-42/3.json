@@ -1,0 +1,40 @@
+{
+  "answer": "Yes, with no codegen: route definitions as a const table, params inferred from path strings, the matched route provided as a Layer.\n- Params typing: template-literal inference over `\"/projects/:id\"` is established TypeScript practice (no codegen); verify against the repo's TS version when prototyping.\n- Provision: `Provide(layer, children)` / `<Provider layer>` already scope a Layer to a subtree and remove its Tags from R (packages/ui/src/component.ts), so the matched route is a `Route` Tag provided around the page, readable with `yield* Route`.\n- Search params and loaders as Effects fit the same Layer.\nOpen and attended (fn-42.D1, D2): package placement and how loaders meet Pending.\n",
+  "answer_gist": "Yes, with no codegen: route definitions as a const table, params inferred from path strings, the matched route provid...",
+  "assets": [],
+  "attendance": "unattended",
+  "blocked_by": [],
+  "chart": "fn-42",
+  "claim_note": null,
+  "claimed_at": null,
+  "claimed_by": null,
+  "created": "2026-10-09T07:26:24.829749Z",
+  "depends_on": [],
+  "id": "fn-42.D3",
+  "n": 3,
+  "question": "Can routes and params be a Layer/Tag without a codegen step?",
+  "record_path": ".flow/charts/fn-42/3.md",
+  "status": "resolved",
+  "superseded_by": null,
+  "supersedes": [],
+  "title": "Typed routes as a Layer",
+  "tracker": {
+    "depRelations": [],
+    "id": null,
+    "identifier": null,
+    "linkState": "unlinked",
+    "url": null
+  },
+  "transition_notes": [
+    {
+      "actor": "ubtik@outlook.com",
+      "at": "2026-10-09T07:32:42.801352Z",
+      "keep_dependents": false,
+      "kind": "resolved",
+      "supersedes": [],
+      "text": "resolved by ubtik@outlook.com"
+    }
+  ],
+  "type": "research",
+  "updated_at": "2026-10-09T07:32:42.800633Z"
+}

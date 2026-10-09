@@ -1,0 +1,50 @@
+{
+  "briefings": [],
+  "claim_events": [],
+  "created": "2026-10-09T07:26:23.749916Z",
+  "decisions": [
+    {
+      "attendance": "unattended",
+      "blocked_by": [],
+      "claimed_at": null,
+      "claimed_by": null,
+      "depends_on": [],
+      "id": "fn-39.D1",
+      "record_path": ".flow/charts/fn-39/1.md",
+      "status": "open",
+      "title": "Context across a portal",
+      "type": "probe"
+    },
+    {
+      "attendance": "attended",
+      "blocked_by": [],
+      "claimed_at": null,
+      "claimed_by": null,
+      "depends_on": [],
+      "id": "fn-39.D2",
+      "record_path": ".flow/charts/fn-39/2.md",
+      "status": "resolved",
+      "title": "Reset API",
+      "type": "interview"
+    }
+  ],
+  "id": "fn-39",
+  "outcome": "A Portal renders into another container keeping Layer context; Boundary can retry a failed subtree.",
+  "parked_questions": [],
+  "produced_specs": [],
+  "status": "open",
+  "title": "Portals and Boundary reset",
+  "tracker": {
+    "depRelations": [],
+    "id": null,
+    "identifier": null,
+    "linkState": "unlinked",
+    "projection": {
+      "completed_steps": [],
+      "event_markers": [],
+      "revision": null
+    },
+    "url": null
+  },
+  "updated_at": "2026-10-09T07:36:20.567316Z"
+}

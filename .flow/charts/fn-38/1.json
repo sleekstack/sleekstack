@@ -1,0 +1,40 @@
+{
+  "answer": "Works in all three renderers with a thin wrapper; no renderer change.\nProbe (scratch vitest + jsdom, removed afterwards), `lazy = load => () => Effect.flatMap(Effect.promise(load), C => C())` under `<Pending fallback>`:\n- `renderToString`: awaits the import and emits `<b>loaded</b>`.\n- `mount`: first paint is the fallback (`<i>wait</i>`), then the loaded content, inside `<sleek-reactive>`.\n- `hydrateMount` over the server HTML: the server `<b>` node is adopted (same node), no flash.\nRemaining for a real `lazy`: caching the module per `load`, so a re-run does not re-import, and typing the default export. Both are inside `lazy`.\n",
+  "answer_gist": "Works in all three renderers with a thin wrapper; no renderer change.",
+  "assets": [],
+  "attendance": "unattended",
+  "blocked_by": [],
+  "chart": "fn-38",
+  "claim_note": null,
+  "claimed_at": null,
+  "claimed_by": null,
+  "created": "2026-10-09T07:26:23.392089Z",
+  "depends_on": [],
+  "id": "fn-38.D1",
+  "n": 1,
+  "question": "How does a lazy component behave in renderToString, renderToStream and hydrateMount?",
+  "record_path": ".flow/charts/fn-38/1.md",
+  "status": "resolved",
+  "superseded_by": null,
+  "supersedes": [],
+  "title": "Async component under Pending",
+  "tracker": {
+    "depRelations": [],
+    "id": null,
+    "identifier": null,
+    "linkState": "unlinked",
+    "url": null
+  },
+  "transition_notes": [
+    {
+      "actor": "ubtik@outlook.com",
+      "at": "2026-10-09T07:32:40.720793Z",
+      "keep_dependents": false,
+      "kind": "resolved",
+      "supersedes": [],
+      "text": "resolved by ubtik@outlook.com"
+    }
+  ],
+  "type": "probe",
+  "updated_at": "2026-10-09T07:32:40.720270Z"
+}

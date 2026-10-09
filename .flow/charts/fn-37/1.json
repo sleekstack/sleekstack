@@ -1,0 +1,40 @@
+{
+  "answer": "Pending already is the keep-old-UI mechanism; a transition adds scoping, not a new renderer feature.\n- Today: `Pending` keeps its previous content on a re-run until the new run resolves, latest run wins, unmount interrupts (README, pending.ts `Fork`/`Content`). A nested instance that re-runs on its own never shows the fallback.\n- Re-runs are queued per instance with an epoch (dom.ts `queued`/`epoch`) and run to completion; there are no priority lanes, and none are needed for the model below.\n- So `startTransition(write)` can only mean: apply the atom write, and mark the re-runs it triggers so a `Pending` they pass through keeps old content instead of showing its fallback. That is a flag carried by the triggered re-run, not a scheduler.\n- What it cannot do without lanes: interrupt a long synchronous render or prioritise urgent input. State that limit in the ADR.\n",
+  "answer_gist": "Pending already is the keep-old-UI mechanism; a transition adds scoping, not a new renderer feature.",
+  "assets": [],
+  "attendance": "unattended",
+  "blocked_by": [],
+  "chart": "fn-37",
+  "claim_note": null,
+  "claimed_at": null,
+  "claimed_by": null,
+  "created": "2026-10-09T07:26:23.031121Z",
+  "depends_on": [],
+  "id": "fn-37.D1",
+  "n": 1,
+  "question": "Pending already keeps previous content on re-run; what extra guarantee does startTransition give with no lanes?",
+  "record_path": ".flow/charts/fn-37/1.md",
+  "status": "resolved",
+  "superseded_by": null,
+  "supersedes": [],
+  "title": "What keep-old-UI means here",
+  "tracker": {
+    "depRelations": [],
+    "id": null,
+    "identifier": null,
+    "linkState": "unlinked",
+    "url": null
+  },
+  "transition_notes": [
+    {
+      "actor": "ubtik@outlook.com",
+      "at": "2026-10-09T07:32:26.787561Z",
+      "keep_dependents": false,
+      "kind": "resolved",
+      "supersedes": [],
+      "text": "resolved by ubtik@outlook.com"
+    }
+  ],
+  "type": "research",
+  "updated_at": "2026-10-09T07:32:26.785786Z"
+}

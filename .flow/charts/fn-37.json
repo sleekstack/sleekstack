@@ -1,0 +1,62 @@
+{
+  "briefings": [],
+  "claim_events": [],
+  "created": "2026-10-09T07:26:23.030994Z",
+  "decisions": [
+    {
+      "attendance": "unattended",
+      "blocked_by": [],
+      "claimed_at": null,
+      "claimed_by": null,
+      "depends_on": [],
+      "id": "fn-37.D1",
+      "record_path": ".flow/charts/fn-37/1.md",
+      "status": "resolved",
+      "title": "What keep-old-UI means here",
+      "type": "research"
+    },
+    {
+      "attendance": "attended",
+      "blocked_by": [],
+      "claimed_at": null,
+      "claimed_by": null,
+      "depends_on": [],
+      "id": "fn-37.D2",
+      "record_path": ".flow/charts/fn-37/2.md",
+      "status": "open",
+      "title": "useDeferredValue as a lagging derived atom",
+      "type": "prototype"
+    },
+    {
+      "attendance": "unattended",
+      "blocked_by": [],
+      "claimed_at": null,
+      "claimed_by": null,
+      "depends_on": [],
+      "id": "fn-37.D3",
+      "record_path": ".flow/charts/fn-37/3.md",
+      "status": "open",
+      "title": "Cost",
+      "type": "eval"
+    }
+  ],
+  "id": "fn-37",
+  "outcome": "useTransition and useDeferredValue equivalents on the atom store and Reconciler.",
+  "parked_questions": [],
+  "produced_specs": [],
+  "status": "open",
+  "title": "Transitions without concurrent rendering",
+  "tracker": {
+    "depRelations": [],
+    "id": null,
+    "identifier": null,
+    "linkState": "unlinked",
+    "projection": {
+      "completed_steps": [],
+      "event_markers": [],
+      "revision": null
+    },
+    "url": null
+  },
+  "updated_at": "2026-10-09T07:32:26.785786Z"
+}

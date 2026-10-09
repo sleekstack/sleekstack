@@ -1,0 +1,40 @@
+{
+  "answer": "Chosen by the user: the Boundary fallback receives a `reset` it can call (as a function or Effect, wired to a handler); running it re-runs the failed subtree. No `resetKey` prop in the first slice.\n",
+  "answer_gist": "Chosen by the user: the Boundary fallback receives a `reset` it can call (as a function or Effect, wired to a handler...",
+  "assets": [],
+  "attendance": "attended",
+  "blocked_by": [],
+  "chart": "fn-39",
+  "claim_note": null,
+  "claimed_at": null,
+  "claimed_by": null,
+  "created": "2026-10-09T07:26:23.750120Z",
+  "depends_on": [],
+  "id": "fn-39.D2",
+  "n": 2,
+  "question": "How does a user retry a failed Boundary: prop, hook or handler?",
+  "record_path": ".flow/charts/fn-39/2.md",
+  "status": "resolved",
+  "superseded_by": null,
+  "supersedes": [],
+  "title": "Reset API",
+  "tracker": {
+    "depRelations": [],
+    "id": null,
+    "identifier": null,
+    "linkState": "unlinked",
+    "url": null
+  },
+  "transition_notes": [
+    {
+      "actor": "ubtik@outlook.com",
+      "at": "2026-10-09T07:36:20.568110Z",
+      "keep_dependents": false,
+      "kind": "resolved",
+      "supersedes": [],
+      "text": "resolved by ubtik@outlook.com"
+    }
+  ],
+  "type": "interview",
+  "updated_at": "2026-10-09T07:36:20.567316Z"
+}

@@ -1,0 +1,40 @@
+{
+  "answer": "Derive from lib.dom plus one small hand-written table; do not generate from external data.\n- ui has react/react-dom as peer dependencies and @types/react only as a devDependency, so React's JSX types are not a safe source (and use camelCase props and synthetic events, not our closures).\n- `HTMLElementTagNameMap` and `GlobalEventHandlersEventMap` (lib.dom) give tags and event payloads with no dependency. A mapped type over them types events for free (see the probe on fn-35.D3).\n- Attributes are the exception: DOM property names differ from attribute names, and runtime sets attributes as strings (`jsx-runtime.ts` RENAME maps only className and htmlFor). So type a curated attribute table per tag group (global, form, link, media...) by hand, with `aria-*` and `data-*` as template-literal index signatures.\n- `style` is not supported today (`String(v)` would print \"[object Object]\"); an object form is a runtime change, so it is a separate decision.\nSource: packages/ui/src/jsx-runtime.ts lines 57-58, 101; packages/ui/package.json devDependencies.\n",
+  "answer_gist": "Derive from lib.dom plus one small hand-written table; do not generate from external data.",
+  "assets": [],
+  "attendance": "unattended",
+  "blocked_by": [],
+  "chart": "fn-35",
+  "claim_note": null,
+  "claimed_at": null,
+  "claimed_by": null,
+  "created": "2026-10-09T07:26:22.109871Z",
+  "depends_on": [],
+  "id": "fn-35.D1",
+  "n": 1,
+  "question": "Generate attribute and event maps from lib.dom data, or hand-write them? Which source stays maintainable?",
+  "record_path": ".flow/charts/fn-35/1.md",
+  "status": "resolved",
+  "superseded_by": null,
+  "supersedes": [],
+  "title": "Source of per-tag types",
+  "tracker": {
+    "depRelations": [],
+    "id": null,
+    "identifier": null,
+    "linkState": "unlinked",
+    "url": null
+  },
+  "transition_notes": [
+    {
+      "actor": "ubtik@outlook.com",
+      "at": "2026-10-09T07:30:33.770711Z",
+      "keep_dependents": false,
+      "kind": "resolved",
+      "supersedes": [],
+      "text": "resolved by ubtik@outlook.com"
+    }
+  ],
+  "type": "research",
+  "updated_at": "2026-10-09T07:30:33.769441Z"
+}
