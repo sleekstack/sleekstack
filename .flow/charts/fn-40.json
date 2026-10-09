@@ -1,6 +1,41 @@
 {
-  "briefings": [],
-  "claim_events": [],
+  "briefings": [
+    {
+      "chart_revision": "480137da25ae3620de94f6859cfa72f6b9fe1a491b9b23bb5d767eebc1b67eba",
+      "clusters": [
+        {
+          "decisions": [
+            "fn-40.D1",
+            "fn-40.D2"
+          ],
+          "key": "1",
+          "latest_path": ".flow/charts/fn-40-briefing.md",
+          "path": ".flow/charts/fn-40-briefing-B1.md",
+          "rationale": "Single surface: a test render for host components; both decisions share one Outcome"
+        }
+      ],
+      "created": "2026-10-09T14:39:43.687783Z",
+      "created_by": "ubtik@outlook.com",
+      "fingerprint": "5e4695fdb7caeb121f5a750a9e27ac5f142b6903e45ea8e369483dc45bcec9c2",
+      "force": false,
+      "id": "B1",
+      "paths": {
+        "index": ".flow/charts/fn-40-briefing-B1.md",
+        "latest_index": ".flow/charts/fn-40-briefing.md"
+      },
+      "shared_context": [],
+      "status": "final"
+    }
+  ],
+  "claim_events": [
+    {
+      "actor": "ubtik@outlook.com",
+      "briefing": "B1",
+      "chart": "fn-40",
+      "kind": "briefing_done",
+      "timestamp": "2026-10-09T14:39:43.687783Z"
+    }
+  ],
   "created": "2026-10-09T07:26:24.106143Z",
   "decisions": [
     {
@@ -28,11 +63,27 @@
       "type": "probe"
     }
   ],
+  "done_at": "2026-10-09T14:39:43.687783Z",
+  "done_by": "ubtik@outlook.com",
+  "done_via_briefing": "B1",
   "id": "fn-40",
   "outcome": "A test render for host components with mock Layers and queries.",
   "parked_questions": [],
-  "produced_specs": [],
-  "status": "open",
+  "produced_specs": [
+    {
+      "briefing": "B1",
+      "cluster": null,
+      "decisions": [
+        "fn-40.D1",
+        "fn-40.D2"
+      ],
+      "linked_at": "2026-10-09T14:41:04.932567Z",
+      "linked_by": "ubtik@outlook.com",
+      "spec": "fn-44-sleekstacktesting",
+      "status": "linked"
+    }
+  ],
+  "status": "done",
   "title": "@sleekstack/testing",
   "tracker": {
     "depRelations": [],
@@ -46,5 +97,5 @@
     },
     "url": null
   },
-  "updated_at": "2026-10-09T07:36:42.444875Z"
+  "updated_at": "2026-10-09T14:41:04.932567Z"
 }
