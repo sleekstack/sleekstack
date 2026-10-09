@@ -6,7 +6,11 @@ import { flush, FlushTimeout, mockLayer, render } from '../index'
 
 class Repo extends Context.Tag('Repo')<
   Repo,
-  { readonly name: () => Effect.Effect<string>; readonly save: (name: string) => Effect.Effect<void> }
+  {
+    readonly name: () => Effect.Effect<string>
+    readonly save: (name: string) => Effect.Effect<void>
+    readonly toString: () => string
+  }
 >() {}
 
 const Name = Effect.flatMap(Repo, (repo) => Effect.map(repo.name(), (name) => el('h1', {}, name)))
@@ -30,6 +34,25 @@ describe('render', () => {
     await first.dispose()
     expect(actFlag()).toBe(true)
     await second.dispose()
+    expect(actFlag()).toBeUndefined()
+  })
+
+  it('keeps the act flag on while another render is in flight when one render fails', async () => {
+    let open!: () => void
+    const gate = new Promise<void>((r) => (open = r))
+    const slow = render(Effect.succeed(el('p', {})), { layer: Layer.effectDiscard(Effect.promise(() => gate)) })
+    await expect(render(Effect.succeed(el('p', {})), { layer: Layer.fail('boom') })).rejects.toBeDefined()
+    expect(actFlag()).toBe(true)
+    open()
+    await (await slow).dispose()
+    expect(actFlag()).toBeUndefined()
+  })
+
+  it('a rejecting dispose still detaches the container and restores the act flag', async () => {
+    const layer = Layer.scopedDiscard(Effect.addFinalizer(() => Effect.die('finalizer failed')))
+    const { container, dispose } = await render(Effect.succeed(el('p', {})), { layer })
+    await dispose().catch(() => {})
+    expect(document.body.contains(container)).toBe(false)
     expect(actFlag()).toBeUndefined()
   })
 
@@ -87,6 +110,13 @@ describe('mockLayer', () => {
         mockLayer(Repo, {}),
       ),
     )
+    const missing = Effect.runSyncExit(
+      Effect.provide(
+        Effect.flatMap(Repo, (repo) => Effect.sync(() => repo.toString())),
+        mockLayer(Repo, {}),
+      ),
+    )
+    expect(String(Exit.isFailure(missing) && Cause.squash(missing.cause))).toContain('Repo.toString is not implemented')
     const defect = Exit.isFailure(exit) ? Cause.squash(exit.cause) : undefined
     expect(String(defect)).toContain('mockLayer: Repo.save is not implemented')
   })

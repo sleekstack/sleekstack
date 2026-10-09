@@ -22,10 +22,12 @@ type ActGlobal = { IS_REACT_ACT_ENVIRONMENT?: boolean }
 const actGlobal = globalThis as ActGlobal
 
 const live = new Set<Rendered>()
+// Renders in flight or not yet disposed; the act flag is restored when this reaches zero.
+let active = 0
 let savedActFlag: { value: boolean | undefined } | undefined
 
-const restoreActFlag = () => {
-  if (!savedActFlag || live.size > 0) return
+const release = () => {
+  if (--active > 0 || !savedActFlag) return
   if (savedActFlag.value === undefined) delete actGlobal.IS_REACT_ACT_ENVIRONMENT
   else actGlobal.IS_REACT_ACT_ENVIRONMENT = savedActFlag.value
   savedActFlag = undefined
@@ -33,7 +35,8 @@ const restoreActFlag = () => {
 
 // Disposes every live render; registered once per module instance on the runner's global `afterEach`, when there is one.
 const cleanup = async (): Promise<void> => {
-  for (const r of [...live]) await r.dispose()
+  const failed = (await Promise.allSettled([...live].map((r) => r.dispose()))).find((r) => r.status === 'rejected')
+  if (failed) throw failed.reason
 }
 
 const runnerAfterEach = (globalThis as { afterEach?: (fn: () => Promise<void>) => void }).afterEach
@@ -47,6 +50,7 @@ export const render = async <E, A, LE = never>(
   app: Effect.Effect<Node, E, A>,
   options: RenderOptions<A, LE>,
 ): Promise<Rendered> => {
+  active++
   if (!savedActFlag) savedActFlag = { value: actGlobal.IS_REACT_ACT_ENVIRONMENT }
   actGlobal.IS_REACT_ACT_ENVIRONMENT = true
   const container = document.body.appendChild(document.createElement('div'))
@@ -57,7 +61,7 @@ export const render = async <E, A, LE = never>(
     await act(async () => void (mounted = await (options.hydrate === undefined ? mount : hydrateMount)(app, opts)))
   } catch (error) {
     container.remove()
-    restoreActFlag()
+    release()
     throw error
   }
   let disposed = false
@@ -66,10 +70,13 @@ export const render = async <E, A, LE = never>(
     dispose: async () => {
       if (disposed) return
       disposed = true
-      await act(() => mounted.dispose())
-      container.remove()
-      live.delete(rendered)
-      restoreActFlag()
+      try {
+        await act(() => mounted.dispose())
+      } finally {
+        container.remove()
+        live.delete(rendered)
+        release()
+      }
     },
   }
   live.add(rendered)

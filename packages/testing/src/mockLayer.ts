@@ -9,7 +9,7 @@ export const mockLayer = <I, S extends object>(tag: Context.Tag<I, S>, partial: 
     tag,
     new Proxy(partial, {
       get: (target, key) =>
-        key in target || typeof key === 'symbol' || key === 'then'
+        Object.hasOwn(target, key) || typeof key === 'symbol' || key === 'then'
           ? Reflect.get(target, key)
           : () => {
               throw new Error(`mockLayer: ${tag.key}.${key} is not implemented`)
