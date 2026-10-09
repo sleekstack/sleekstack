@@ -95,7 +95,22 @@
   "id": "fn-42",
   "outcome": "Typed routes, loaders and actions as Effects with Pending and streaming.",
   "parked_questions": [],
-  "produced_specs": [],
+  "produced_specs": [
+    {
+      "briefing": "B1",
+      "cluster": null,
+      "decisions": [
+        "fn-42.D1",
+        "fn-42.D2",
+        "fn-42.D3",
+        "fn-42.D4"
+      ],
+      "linked_at": "2026-10-09T14:48:12.038987Z",
+      "linked_by": "ubtik@outlook.com",
+      "spec": "fn-50-sleekstackrouter",
+      "status": "linked"
+    }
+  ],
   "status": "done",
   "title": "Router and data loading for ui",
   "tracker": {
@@ -110,5 +125,5 @@
     },
     "url": null
   },
-  "updated_at": "2026-10-09T14:47:02.670731Z"
+  "updated_at": "2026-10-09T14:48:12.038987Z"
 }

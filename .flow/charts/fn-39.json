@@ -68,7 +68,19 @@
   "id": "fn-39",
   "outcome": "A Portal renders into another container keeping Layer context; Boundary can retry a failed subtree.",
   "parked_questions": [],
-  "produced_specs": [],
+  "produced_specs": [
+    {
+      "briefing": "B1",
+      "cluster": null,
+      "decisions": [
+        "fn-39.D2"
+      ],
+      "linked_at": "2026-10-09T14:48:11.381462Z",
+      "linked_by": "ubtik@outlook.com",
+      "spec": "fn-49-portals-and-boundary-reset",
+      "status": "linked"
+    }
+  ],
   "status": "done",
   "title": "Portals and Boundary reset",
   "tracker": {
@@ -83,5 +95,5 @@
     },
     "url": null
   },
-  "updated_at": "2026-10-09T14:47:02.257363Z"
+  "updated_at": "2026-10-09T14:48:11.381462Z"
 }

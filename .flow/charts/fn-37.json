@@ -81,7 +81,20 @@
   "id": "fn-37",
   "outcome": "useTransition and useDeferredValue equivalents on the atom store and Reconciler.",
   "parked_questions": [],
-  "produced_specs": [],
+  "produced_specs": [
+    {
+      "briefing": "B1",
+      "cluster": null,
+      "decisions": [
+        "fn-37.D1",
+        "fn-37.D2"
+      ],
+      "linked_at": "2026-10-09T14:48:10.042775Z",
+      "linked_by": "ubtik@outlook.com",
+      "spec": "fn-47-transitions-and-deferred-atoms",
+      "status": "linked"
+    }
+  ],
   "status": "done",
   "title": "Transitions without concurrent rendering",
   "tracker": {
@@ -96,5 +109,5 @@
     },
     "url": null
   },
-  "updated_at": "2026-10-09T14:47:01.572496Z"
+  "updated_at": "2026-10-09T14:48:10.042775Z"
 }

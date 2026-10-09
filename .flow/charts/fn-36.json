@@ -95,7 +95,22 @@
   "id": "fn-36",
   "outcome": "A form submits an Effect/generator action with pending, result and optimistic state as atoms, and works without JS.",
   "parked_questions": [],
-  "produced_specs": [],
+  "produced_specs": [
+    {
+      "briefing": "B1",
+      "cluster": null,
+      "decisions": [
+        "fn-36.D1",
+        "fn-36.D2",
+        "fn-36.D3",
+        "fn-36.D4"
+      ],
+      "linked_at": "2026-10-09T14:48:09.362665Z",
+      "linked_by": "ubtik@outlook.com",
+      "spec": "fn-46-forms-and-actions-in-the-ui-host",
+      "status": "linked"
+    }
+  ],
   "status": "done",
   "title": "Forms and actions in the ui host",
   "tracker": {
@@ -110,5 +125,5 @@
     },
     "url": null
   },
-  "updated_at": "2026-10-09T14:47:01.222544Z"
+  "updated_at": "2026-10-09T14:48:09.362665Z"
 }
