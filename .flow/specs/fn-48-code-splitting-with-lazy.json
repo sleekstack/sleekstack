@@ -1,7 +1,7 @@
 {
   "branch_name": "fn-48-code-splitting-with-lazy",
-  "completion_review_status": "unknown",
-  "completion_reviewed_at": null,
+  "completion_review_status": "ship",
+  "completion_reviewed_at": "2026-10-09T17:55:40.379580Z",
   "created_at": "2026-10-09T14:48:10.403568Z",
   "default_impl": null,
   "default_review": null,
@@ -208,15 +208,53 @@
       "task": "fn-48-code-splitting-with-lazy.2",
       "timestamp": "2026-10-09T17:53:22.996128Z",
       "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "2b795c9517e47bd2cc0363c730de353768fe23a32be97653efc74b9c27805475",
+      "backend": "codex",
+      "base_sha": "b7ac9c4acb4afa204cf19e63e0d80bd6f17ce7b3",
+      "counter_kind": "plan",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "043906b767c8a192e96c4856feb4c390cee07f61",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 275213,
+      "output_sha256": "8cdb6b305384d3a591a9ddcf1ff049d85a1a0f2bec149327c7bd7919f4533760",
+      "reservation_id": "1f9d5615a85144309bf908e3baf5e7c5",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-10-09T17:55:40.372930Z",
+      "tool_calls": 6,
+      "verdict": "SHIP"
     }
   ],
   "review_hash_epoch": {
     "impl:fn-48-code-splitting-with-lazy.1": 1,
-    "impl:fn-48-code-splitting-with-lazy.2": 1
+    "impl:fn-48-code-splitting-with-lazy.2": 1,
+    "plan#completion": 1
   },
   "review_pending_rounds": {},
   "review_reservations": {},
   "review_transport_failures": {
+    "completion": 0,
     "impl:fn-48-code-splitting-with-lazy.1": 0,
     "impl:fn-48-code-splitting-with-lazy.2": 0
   },
@@ -234,5 +272,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-09T17:53:23.000817Z"
+  "updated_at": "2026-10-09T17:55:40.381576Z"
 }
