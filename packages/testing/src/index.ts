@@ -1,4 +1,5 @@
 export { render } from './render'
 export type { Rendered, RenderOptions } from './render'
 export { flush, FlushTimeout } from './flush'
+export type { FlushOptions } from './flush'
 export { mockLayer } from './mockLayer'

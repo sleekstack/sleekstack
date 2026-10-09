@@ -94,7 +94,7 @@ describe('flush', () => {
   it('fails with FlushTimeout when the DOM never settles', async () => {
     const churn = setInterval(() => document.body.append('x'), 0)
     try {
-      await expect(flush(5)).rejects.toEqual(new FlushTimeout({ rounds: 5 }))
+      await expect(flush({ maxRounds: 5 })).rejects.toEqual(new FlushTimeout({ rounds: 5 }))
     } finally {
       clearInterval(churn)
       document.body.textContent = ''

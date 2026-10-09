@@ -22,7 +22,7 @@ The Next.js runtime is one slot per process, so configure it once in a setup fil
 
 ## Component tests
 
-`@sleekstack/testing` renders a host component from `@sleekstack/ui` under Vitest with jsdom. `render(app, { layer })` mounts it inside React's act environment into a container attached to `document.body`, and disposes it after each test (or call `dispose()` yourself). `flush()` waits until re-runs and post-commit effects have settled. `mockLayer(Tag, impl)` provides a service from a partial implementation; calling a method you left out is a defect that names it. Queries come from Testing Library: install `@testing-library/dom` and `@testing-library/user-event` in your app and use them on the container.
+`@sleekstack/testing` renders a host component from `@sleekstack/ui` under Vitest with jsdom. `render(app, { layer })` mounts it inside React's act environment into a container attached to `document.body`, and disposes it after each test (or call `dispose()` yourself). `flush()` waits until re-runs, post-commit effects and the short timers they schedule have settled: three consecutive 5 ms ticks with no DOM change (`flush({ quietTicks, tickMs, maxRounds })` tunes this; it rejects with `FlushTimeout` when the DOM never goes quiet). Work that takes longer, such as a long `Effect.sleep` or a slow request, is not awaited; use Testing Library's `findBy*` or `waitFor` for it. `mockLayer(Tag, impl)` provides a service from a partial implementation; calling a method you left out is a defect that names it. Queries come from Testing Library: install `@testing-library/dom` and `@testing-library/user-event` in your app and use them on the container.
 
 <include>../../snippets/testing/component.test-example.ts</include>
 
