@@ -5,6 +5,6 @@ export default defineConfig({
     // CI runs many suites in parallel: the 5s default is below a slow runner's worst case.
     testTimeout: 20_000,
     environment: 'jsdom',
-    passWithNoTests: true,
+    globals: true,
   },
 })
