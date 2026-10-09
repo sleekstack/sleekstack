@@ -32,3 +32,4 @@
 | [0028](0028-commit-effects-and-refs.md) | Effects run after the DOM commit; `useRef` and the `ref` prop | Accepted |
 | [0029](0029-generator-effects.md) | Generator effects follow the atoms they read, no `deps` needed | Accepted |
 | [0030](0030-derived-atom-hook.md) | `useDerivedAtom`: a derived atom in the component's context | Accepted |
+| [0031](0031-typed-host-elements.md) | Host JSX elements are typed per tag: attributes, `on*` events and `ref`; `class` canonical, `className` accepted | Accepted |

@@ -24,9 +24,13 @@ Per-tag attribute types. Contract and rationale are in the parent spec (R-IDs ab
 
 
 ## Done summary
-TBD
+Host JSX is typed per tag: `JSX.IntrinsicElements` is a map over HTML tags (shared HTML/SVG names resolve to HTML) and SVG-only tags from the platform tag maps, plus a hand-written attribute table in packages/ui/src/jsx-types.ts. Values accept primitives, null/undefined and atoms; class/className and for/htmlFor are mutually exclusive; aria-*/data-* are global; hyphenated tags take any props. `on*` and `ref` are left loose for fn-43.2. Type tests: packages/ui/src/__tests__/jsx-types.test-d.tsx (.tsx, needed for JSX; checked by `tsc --noEmit`). The new types exposed one real mistake, fixed: ui-demo board.tsx `dateTime` -> `datetime`.
 
+Known limit: without exactOptionalPropertyTypes, `class="a" className={undefined}` type-checks (undefined removes the attribute, so it is harmless).
+
+stage: impl-review - ran (codex fan-out NEEDS_WORK, 3 findings fixed, re-review SHIP)
+Tier: implementer opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: ac9ba9713358aded5cacee7cd1660157c3bd2578, 43b5bcdf2e2f9a670b4254a2eabbad13f037394e
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/ui --filter=ui-demo
 - PRs:

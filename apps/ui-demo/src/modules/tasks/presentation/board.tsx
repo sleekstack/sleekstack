@@ -20,7 +20,7 @@ export const TaskCard = function* ({ task }: { task: Task }) {
       </h4>
       <div className="row">
         <PriorityBadge priority={task.priority} />
-        {task.due && <time dateTime={task.due}>{task.due}</time>}
+        {task.due && <time datetime={task.due}>{task.due}</time>}
         {task.labels.map((l) => (
           <span key={l} className="label">
             {l}

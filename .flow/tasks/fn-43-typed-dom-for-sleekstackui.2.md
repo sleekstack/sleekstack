@@ -23,9 +23,12 @@ Typed events and refs. Contract and rationale are in the parent spec (R-IDs abov
 
 
 ## Done summary
-TBD
+Host JSX `on*` props are typed over the element's event map: `currentTarget` is narrowed, multi-word names are camel-cased, values may be a function, generator, Effect, or `defineHandler` (only on bubbling events), and strings are rejected. `ref` takes only the matching element's `Ref`, which is now invariant. Tests are in packages/ui/src/__tests__/jsx-types.test-d.tsx.
 
+Follow-up: the analyzer does not read generator event closures. The integration draw flagged this, but it predates this task.
+
+stage: impl-review - ran (codex fan-out NEEDS_WORK -> re-review SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 00cf61608a8e6a3628b123d51e5b6642bd49f546, 557db09f80b4468c8a166d3fa11823df15e8ddf0
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/ui..., pnpm typecheck
 - PRs:

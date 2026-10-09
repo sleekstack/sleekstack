@@ -24,7 +24,7 @@ export interface ElementNode {
   readonly bound?: Readonly<Record<string, Atom.Atom<any>>>
 }
 /** What `useRef` returns and a host element's `ref` prop takes. */
-export interface Ref<T> {
+export interface Ref<in out T> {
   current: T | null
 }
 /** A JSX event closure and the context captured while its element's JSX Effect ran. */

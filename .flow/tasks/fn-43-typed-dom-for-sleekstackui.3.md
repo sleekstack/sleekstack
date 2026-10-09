@@ -22,9 +22,11 @@ Fix consumers, docs and verify. Contract and rationale are in the parent spec (R
 
 
 ## Done summary
-TBD
+Consumers already type-check under the new host JSX types (ui-demo's dateTime fix landed in .1); no code change needed. README documents per-tag attributes, class/className, typed on* events and element refs; ADR 0031 (typed host elements, referencing 0026/0028) added and indexed. No public export names changed; generate:api produced no diff.
 
+stage: impl-review - ran (triage_skip SHIP: docs-only)
+Tier: implementer opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 5038018b4d8f40beb1ee5b78a9d3025803541e88, 254d58d38914921c189991a3b47c54eb183f574b
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/ui... --filter=@sleekstack/analyze --filter=sleekstack (11/11 green at ea716e4; later diff docs-only)
 - PRs:
