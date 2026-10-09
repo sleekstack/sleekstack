@@ -22,9 +22,11 @@ Component tests with Testing Library, docs. Contract and rationale are in the pa
 
 
 ## Done summary
-TBD
+Added four component tests in packages/testing/src/__tests__/components.test.ts (role/text queries via @testing-library/dom, a user-event click, effect cleanup on dispose, async component under Pending) and a "Component tests" section in apps/docs/content/docs/testing.mdx with a typechecked snippet (apps/docs/snippets/testing/component.test-example.ts; docs guide test forbids inline fences). Testing Library + user-event are devDependencies of @sleekstack/testing and docs. No public exports changed, so generate:api/ADR/demo not needed.
 
+Tier: implementer opus at medium
+stage: impl-review - ran (codex fan-out: 3/3 SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: aea169ff272bc58831c6ec6826983a6848a8b5fd
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/testing --filter=docs
 - PRs:
