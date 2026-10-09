@@ -1,6 +1,43 @@
 {
-  "briefings": [],
-  "claim_events": [],
+  "briefings": [
+    {
+      "chart_revision": "cbfebd2bcf7f15bb5bdf8b0181210e4aee1d61040f9e2a6f27a9fbd771a74ae9",
+      "clusters": [
+        {
+          "decisions": [
+            "fn-42.D1",
+            "fn-42.D2",
+            "fn-42.D3",
+            "fn-42.D4"
+          ],
+          "key": "1",
+          "latest_path": ".flow/charts/fn-42-briefing.md",
+          "path": ".flow/charts/fn-42-briefing-B1.md",
+          "rationale": "Single surface: the router, its loaders and actions; one Outcome"
+        }
+      ],
+      "created": "2026-10-09T14:47:02.670731Z",
+      "created_by": "ubtik@outlook.com",
+      "fingerprint": "530bcffd399b7b8e1af612bb8c545d6e098541f4d134ca14de043603a097c772",
+      "force": false,
+      "id": "B1",
+      "paths": {
+        "index": ".flow/charts/fn-42-briefing-B1.md",
+        "latest_index": ".flow/charts/fn-42-briefing.md"
+      },
+      "shared_context": [],
+      "status": "final"
+    }
+  ],
+  "claim_events": [
+    {
+      "actor": "ubtik@outlook.com",
+      "briefing": "B1",
+      "chart": "fn-42",
+      "kind": "briefing_done",
+      "timestamp": "2026-10-09T14:47:02.670731Z"
+    }
+  ],
   "created": "2026-10-09T07:26:24.829683Z",
   "decisions": [
     {
@@ -23,7 +60,7 @@
       "depends_on": [],
       "id": "fn-42.D2",
       "record_path": ".flow/charts/fn-42/2.md",
-      "status": "open",
+      "status": "resolved",
       "title": "Loader and action integration",
       "type": "prototype"
     },
@@ -38,19 +75,28 @@
       "status": "resolved",
       "title": "Typed routes as a Layer",
       "type": "research"
+    },
+    {
+      "attendance": "attended",
+      "blocked_by": [],
+      "claimed_at": null,
+      "claimed_by": null,
+      "depends_on": [],
+      "id": "fn-42.D4",
+      "record_path": ".flow/charts/fn-42/4.md",
+      "status": "resolved",
+      "title": "Link prefetch policy",
+      "type": "interview"
     }
   ],
+  "done_at": "2026-10-09T14:47:02.670731Z",
+  "done_by": "ubtik@outlook.com",
+  "done_via_briefing": "B1",
   "id": "fn-42",
   "outcome": "Typed routes, loaders and actions as Effects with Pending and streaming.",
-  "parked_questions": [
-    {
-      "body": "Link prefetch policy",
-      "created": "2026-10-09T07:26:24.829594Z",
-      "key": "9b0a8736161a0e6b"
-    }
-  ],
+  "parked_questions": [],
   "produced_specs": [],
-  "status": "open",
+  "status": "done",
   "title": "Router and data loading for ui",
   "tracker": {
     "depRelations": [],
@@ -64,5 +110,5 @@
     },
     "url": null
   },
-  "updated_at": "2026-10-09T07:37:40.008122Z"
+  "updated_at": "2026-10-09T14:47:02.670731Z"
 }

@@ -11,9 +11,10 @@
   "depends_on": [],
   "id": "fn-38.D2",
   "n": 2,
+  "out_of_scope_reason": "lazy bundle size is measured during build: check chunk splitting and the ADR 0022 size budget",
   "question": "Do Vite and esbuild split as expected, and does it fit ADR 0022?",
   "record_path": ".flow/charts/fn-38/2.md",
-  "status": "open",
+  "status": "out-of-scope",
   "superseded_by": null,
   "supersedes": [],
   "title": "Bundler chunks and size budget",
@@ -24,7 +25,15 @@
     "linkState": "unlinked",
     "url": null
   },
-  "transition_notes": [],
+  "transition_notes": [
+    {
+      "actor": "ubtik@outlook.com",
+      "at": "2026-10-09T14:45:49.513717Z",
+      "kind": "out_of_scope",
+      "reason": "lazy bundle size is measured during build: check chunk splitting and the ADR 0022 size budget",
+      "text": "out-of-scope: lazy bundle size is measured during build: check chunk splitting and the ADR 0022 size budget"
+    }
+  ],
   "type": "eval",
-  "updated_at": "2026-10-09T07:26:23.392131Z"
+  "updated_at": "2026-10-09T14:45:49.513588Z"
 }

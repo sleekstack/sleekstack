@@ -1,6 +1,13 @@
 {
-  "answer": null,
-  "assets": [],
+  "answer": "Chosen by the user after seeing the sketch: a route's loader is an Effect run under the Pending the router wraps around the page, read with `useLoader(route)`; a route's action has the same shape as a form action (fn-36.D1). Loaders as atoms were rejected.\n",
+  "answer_gist": "Chosen by the user after seeing the sketch: a route's loader is an Effect run under the Pending the router wraps arou...",
+  "assets": [
+    {
+      "display": "option sketch shown to the user",
+      "kind": "path",
+      "reference": ".flow/charts/assets/fn-42-D2-loader-sketch.md"
+    }
+  ],
   "attendance": "attended",
   "blocked_by": [],
   "chart": "fn-42",
@@ -13,7 +20,7 @@
   "n": 2,
   "question": "How do loaders map to Pending and actions to form actions?",
   "record_path": ".flow/charts/fn-42/2.md",
-  "status": "open",
+  "status": "resolved",
   "superseded_by": null,
   "supersedes": [],
   "title": "Loader and action integration",
@@ -24,7 +31,16 @@
     "linkState": "unlinked",
     "url": null
   },
-  "transition_notes": [],
+  "transition_notes": [
+    {
+      "actor": "ubtik@outlook.com",
+      "at": "2026-10-09T14:45:48.166995Z",
+      "keep_dependents": false,
+      "kind": "resolved",
+      "supersedes": [],
+      "text": "resolved by ubtik@outlook.com"
+    }
+  ],
   "type": "prototype",
-  "updated_at": "2026-10-09T07:26:24.829730Z"
+  "updated_at": "2026-10-09T14:45:48.165348Z"
 }

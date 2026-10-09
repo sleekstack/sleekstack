@@ -1,6 +1,13 @@
 {
-  "answer": null,
-  "assets": [],
+  "answer": "Chosen by the user after seeing the sketch: `useDeferredAtom(source)` returns an atom that follows `source` after the current commit settles; no scheduler. Skipping the feature was rejected.\n",
+  "answer_gist": "Chosen by the user after seeing the sketch: `useDeferredAtom(source)` returns an atom that follows `source` after the...",
+  "assets": [
+    {
+      "display": "option sketch shown to the user",
+      "kind": "path",
+      "reference": ".flow/charts/assets/fn-37-D2-deferred-atom-sketch.md"
+    }
+  ],
   "attendance": "attended",
   "blocked_by": [],
   "chart": "fn-37",
@@ -13,7 +20,7 @@
   "n": 2,
   "question": "Is a derived atom with lag enough, and how does it feel?",
   "record_path": ".flow/charts/fn-37/2.md",
-  "status": "open",
+  "status": "resolved",
   "superseded_by": null,
   "supersedes": [],
   "title": "useDeferredValue as a lagging derived atom",
@@ -24,7 +31,16 @@
     "linkState": "unlinked",
     "url": null
   },
-  "transition_notes": [],
+  "transition_notes": [
+    {
+      "actor": "ubtik@outlook.com",
+      "at": "2026-10-09T14:45:47.157621Z",
+      "keep_dependents": false,
+      "kind": "resolved",
+      "supersedes": [],
+      "text": "resolved by ubtik@outlook.com"
+    }
+  ],
   "type": "prototype",
-  "updated_at": "2026-10-09T07:26:23.031161Z"
+  "updated_at": "2026-10-09T14:45:47.156028Z"
 }

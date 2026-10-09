@@ -1,6 +1,40 @@
 {
-  "briefings": [],
-  "claim_events": [],
+  "briefings": [
+    {
+      "chart_revision": "0d2137f281cf0d99c923b8fee0049076b76bf122cb37be454f6ff173cce2c0bd",
+      "clusters": [
+        {
+          "decisions": [
+            "fn-39.D2"
+          ],
+          "key": "1",
+          "latest_path": ".flow/charts/fn-39-briefing.md",
+          "path": ".flow/charts/fn-39-briefing-B1.md",
+          "rationale": "Single surface: portals and Boundary reset; one Outcome"
+        }
+      ],
+      "created": "2026-10-09T14:47:02.257363Z",
+      "created_by": "ubtik@outlook.com",
+      "fingerprint": "9b857361a8b10cd907c9e1d2e01d5bfc2f99395ea13c2dd9a8a8ed09d4865955",
+      "force": false,
+      "id": "B1",
+      "paths": {
+        "index": ".flow/charts/fn-39-briefing-B1.md",
+        "latest_index": ".flow/charts/fn-39-briefing.md"
+      },
+      "shared_context": [],
+      "status": "final"
+    }
+  ],
+  "claim_events": [
+    {
+      "actor": "ubtik@outlook.com",
+      "briefing": "B1",
+      "chart": "fn-39",
+      "kind": "briefing_done",
+      "timestamp": "2026-10-09T14:47:02.257363Z"
+    }
+  ],
   "created": "2026-10-09T07:26:23.749916Z",
   "decisions": [
     {
@@ -11,7 +45,7 @@
       "depends_on": [],
       "id": "fn-39.D1",
       "record_path": ".flow/charts/fn-39/1.md",
-      "status": "open",
+      "status": "out-of-scope",
       "title": "Context across a portal",
       "type": "probe"
     },
@@ -28,11 +62,14 @@
       "type": "interview"
     }
   ],
+  "done_at": "2026-10-09T14:47:02.257363Z",
+  "done_by": "ubtik@outlook.com",
+  "done_via_briefing": "B1",
   "id": "fn-39",
   "outcome": "A Portal renders into another container keeping Layer context; Boundary can retry a failed subtree.",
   "parked_questions": [],
   "produced_specs": [],
-  "status": "open",
+  "status": "done",
   "title": "Portals and Boundary reset",
   "tracker": {
     "depRelations": [],
@@ -46,5 +83,5 @@
     },
     "url": null
   },
-  "updated_at": "2026-10-09T07:36:20.567316Z"
+  "updated_at": "2026-10-09T14:47:02.257363Z"
 }

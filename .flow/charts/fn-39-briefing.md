@@ -1,17 +1,44 @@
-# fn-39 Portals and Boundary reset
+# fn-39 briefing B1
+
+**Briefing:** B1
+**Status:** final
+**Chart:** fn-39 - Portals and Boundary reset
+**Chart status:** done
 
 ## Outcome
+
 A Portal renders into another container keeping Layer context; Boundary can retry a failed subtree.
 
 ## Notes
+
 - Boundary renders a fallback for one tagged error [ref: CONTEXT.md Catch]
 
 ## Decisions
+
+- **fn-39.D2:** Reset API - Chosen by the user: the Boundary fallback receives a `reset` it can call (as a function or Effect, wired to a handler... - [record](.flow/charts/fn-39/2.md)
+
+## Superseded decisions
+
+(none)
+
+## Ledger (chart)
+
 <!-- the ledger: one line per resolved decision, append-only, D-IDs never reused -->
 
 - **D2:** Chosen by the user: the Boundary fallback receives a `reset` it can call (as a function or Effect, wired to a handler... -- [record](.flow/charts/fn-39/2.md)
-## Open Questions
 
 ## Boundaries
 
 - **D1:** out of scope - Portal context is verified during build: a test that Layers and Store survive a portal, in DOM, SSR and hydration
+
+## Assets
+
+(none)
+
+## Clusters
+
+- **cluster 1:** Single surface: portals and Boundary reset; one Outcome - decisions: fn-39.D2
+
+## Shared context
+
+(none)

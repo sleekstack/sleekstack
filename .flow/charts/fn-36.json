@@ -1,6 +1,43 @@
 {
-  "briefings": [],
-  "claim_events": [],
+  "briefings": [
+    {
+      "chart_revision": "c5d196c5257425ab78362667b6bfc0ede01153a62da31886409ef3f94efd5197",
+      "clusters": [
+        {
+          "decisions": [
+            "fn-36.D1",
+            "fn-36.D2",
+            "fn-36.D3",
+            "fn-36.D4"
+          ],
+          "key": "1",
+          "latest_path": ".flow/charts/fn-36-briefing.md",
+          "path": ".flow/charts/fn-36-briefing-B1.md",
+          "rationale": "Single surface: form actions in the ui host; all decisions share one Outcome"
+        }
+      ],
+      "created": "2026-10-09T14:47:01.222544Z",
+      "created_by": "ubtik@outlook.com",
+      "fingerprint": "b1090e6497127bbdd01b57e97254f758f67bcef76caf8c38950f0e534ae62c1c",
+      "force": false,
+      "id": "B1",
+      "paths": {
+        "index": ".flow/charts/fn-36-briefing-B1.md",
+        "latest_index": ".flow/charts/fn-36-briefing.md"
+      },
+      "shared_context": [],
+      "status": "final"
+    }
+  ],
+  "claim_events": [
+    {
+      "actor": "ubtik@outlook.com",
+      "briefing": "B1",
+      "chart": "fn-36",
+      "kind": "briefing_done",
+      "timestamp": "2026-10-09T14:47:01.222544Z"
+    }
+  ],
   "created": "2026-10-09T07:26:22.669266Z",
   "decisions": [
     {
@@ -11,7 +48,7 @@
       "depends_on": [],
       "id": "fn-36.D1",
       "record_path": ".flow/charts/fn-36/1.md",
-      "status": "open",
+      "status": "resolved",
       "title": "Shape of form actions",
       "type": "prototype"
     },
@@ -38,19 +75,28 @@
       "status": "resolved",
       "title": "No-JS submission",
       "type": "probe"
+    },
+    {
+      "attendance": "attended",
+      "blocked_by": [],
+      "claimed_at": null,
+      "claimed_by": null,
+      "depends_on": [],
+      "id": "fn-36.D4",
+      "record_path": ".flow/charts/fn-36/4.md",
+      "status": "resolved",
+      "title": "Validation convention for form actions",
+      "type": "interview"
     }
   ],
+  "done_at": "2026-10-09T14:47:01.222544Z",
+  "done_by": "ubtik@outlook.com",
+  "done_via_briefing": "B1",
   "id": "fn-36",
   "outcome": "A form submits an Effect/generator action with pending, result and optimistic state as atoms, and works without JS.",
-  "parked_questions": [
-    {
-      "body": "Validation library convention (Effect Schema vs Zod/Valibot)",
-      "created": "2026-10-09T07:26:22.669182Z",
-      "key": "613830afe50f5b7d"
-    }
-  ],
+  "parked_questions": [],
   "produced_specs": [],
-  "status": "open",
+  "status": "done",
   "title": "Forms and actions in the ui host",
   "tracker": {
     "depRelations": [],
@@ -64,5 +110,5 @@
     },
     "url": null
   },
-  "updated_at": "2026-10-09T07:31:15.307770Z"
+  "updated_at": "2026-10-09T14:47:01.222544Z"
 }

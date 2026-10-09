@@ -1,6 +1,41 @@
 {
-  "briefings": [],
-  "claim_events": [],
+  "briefings": [
+    {
+      "chart_revision": "f7a8e90a487500030e3b56a8b39025195555528492d0a75c4abf94a086c592d8",
+      "clusters": [
+        {
+          "decisions": [
+            "fn-37.D1",
+            "fn-37.D2"
+          ],
+          "key": "1",
+          "latest_path": ".flow/charts/fn-37-briefing.md",
+          "path": ".flow/charts/fn-37-briefing-B1.md",
+          "rationale": "Single surface: transitions and deferred values on atoms; one Outcome"
+        }
+      ],
+      "created": "2026-10-09T14:47:01.572496Z",
+      "created_by": "ubtik@outlook.com",
+      "fingerprint": "7d7ccaab712f91aa8568023aff59e28ce310cc4f7ea92e25a794de681ae57cda",
+      "force": false,
+      "id": "B1",
+      "paths": {
+        "index": ".flow/charts/fn-37-briefing-B1.md",
+        "latest_index": ".flow/charts/fn-37-briefing.md"
+      },
+      "shared_context": [],
+      "status": "final"
+    }
+  ],
+  "claim_events": [
+    {
+      "actor": "ubtik@outlook.com",
+      "briefing": "B1",
+      "chart": "fn-37",
+      "kind": "briefing_done",
+      "timestamp": "2026-10-09T14:47:01.572496Z"
+    }
+  ],
   "created": "2026-10-09T07:26:23.030994Z",
   "decisions": [
     {
@@ -23,7 +58,7 @@
       "depends_on": [],
       "id": "fn-37.D2",
       "record_path": ".flow/charts/fn-37/2.md",
-      "status": "open",
+      "status": "resolved",
       "title": "useDeferredValue as a lagging derived atom",
       "type": "prototype"
     },
@@ -35,16 +70,19 @@
       "depends_on": [],
       "id": "fn-37.D3",
       "record_path": ".flow/charts/fn-37/3.md",
-      "status": "open",
+      "status": "out-of-scope",
       "title": "Cost",
       "type": "eval"
     }
   ],
+  "done_at": "2026-10-09T14:47:01.572496Z",
+  "done_by": "ubtik@outlook.com",
+  "done_via_briefing": "B1",
   "id": "fn-37",
   "outcome": "useTransition and useDeferredValue equivalents on the atom store and Reconciler.",
   "parked_questions": [],
   "produced_specs": [],
-  "status": "open",
+  "status": "done",
   "title": "Transitions without concurrent rendering",
   "tracker": {
     "depRelations": [],
@@ -58,5 +96,5 @@
     },
     "url": null
   },
-  "updated_at": "2026-10-09T07:32:26.785786Z"
+  "updated_at": "2026-10-09T14:47:01.572496Z"
 }
