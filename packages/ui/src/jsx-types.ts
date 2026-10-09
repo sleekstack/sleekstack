@@ -1,4 +1,6 @@
 import type { Atom } from '@sleekstack/core'
+import type { Effect } from 'effect'
+import type { Handler } from './handler'
 import type { Child } from './jsx-runtime'
 import type { Ref } from './node'
 
@@ -12,14 +14,102 @@ type ClassAttr = { class?: V; className?: never } | { className?: V; class?: nev
 /** `for` is canonical; `htmlFor` is accepted, never both. */
 type ForAttr = { for?: V; htmlFor?: never } | { htmlFor?: V; for?: never }
 
+/** Event names whose `on*` prop is camel-cased past the first word; the runtime lowercases it back. */
+interface CamelEvents {
+  animationcancel: 'AnimationCancel'
+  animationend: 'AnimationEnd'
+  animationiteration: 'AnimationIteration'
+  animationstart: 'AnimationStart'
+  auxclick: 'AuxClick'
+  beforeinput: 'BeforeInput'
+  beforematch: 'BeforeMatch'
+  beforetoggle: 'BeforeToggle'
+  canplay: 'CanPlay'
+  canplaythrough: 'CanPlayThrough'
+  compositionend: 'CompositionEnd'
+  compositionstart: 'CompositionStart'
+  compositionupdate: 'CompositionUpdate'
+  contextlost: 'ContextLost'
+  contextmenu: 'ContextMenu'
+  contextrestored: 'ContextRestored'
+  cuechange: 'CueChange'
+  dblclick: 'DblClick'
+  dragend: 'DragEnd'
+  dragenter: 'DragEnter'
+  dragleave: 'DragLeave'
+  dragover: 'DragOver'
+  dragstart: 'DragStart'
+  durationchange: 'DurationChange'
+  focusin: 'FocusIn'
+  focusout: 'FocusOut'
+  formdata: 'FormData'
+  fullscreenchange: 'FullscreenChange'
+  fullscreenerror: 'FullscreenError'
+  gotpointercapture: 'GotPointerCapture'
+  keydown: 'KeyDown'
+  keypress: 'KeyPress'
+  keyup: 'KeyUp'
+  loadeddata: 'LoadedData'
+  loadedmetadata: 'LoadedMetadata'
+  loadstart: 'LoadStart'
+  lostpointercapture: 'LostPointerCapture'
+  mousedown: 'MouseDown'
+  mouseenter: 'MouseEnter'
+  mouseleave: 'MouseLeave'
+  mousemove: 'MouseMove'
+  mouseout: 'MouseOut'
+  mouseover: 'MouseOver'
+  mouseup: 'MouseUp'
+  pointercancel: 'PointerCancel'
+  pointerdown: 'PointerDown'
+  pointerenter: 'PointerEnter'
+  pointerleave: 'PointerLeave'
+  pointermove: 'PointerMove'
+  pointerout: 'PointerOut'
+  pointerover: 'PointerOver'
+  pointerrawupdate: 'PointerRawUpdate'
+  pointerup: 'PointerUp'
+  ratechange: 'RateChange'
+  scrollend: 'ScrollEnd'
+  securitypolicyviolation: 'SecurityPolicyViolation'
+  selectionchange: 'SelectionChange'
+  selectstart: 'SelectStart'
+  slotchange: 'SlotChange'
+  timeupdate: 'TimeUpdate'
+  touchcancel: 'TouchCancel'
+  touchend: 'TouchEnd'
+  touchmove: 'TouchMove'
+  touchstart: 'TouchStart'
+  transitioncancel: 'TransitionCancel'
+  transitionend: 'TransitionEnd'
+  transitionrun: 'TransitionRun'
+  transitionstart: 'TransitionStart'
+  volumechange: 'VolumeChange'
+}
+type EventProp<K extends string> = `on${K extends keyof CamelEvents ? CamelEvents[K] : Capitalize<K>}`
+
+/**
+ * An `on*` value: a function (returning an Effect, a generator, or nothing), an Effect, or a `defineHandler` value.
+ * Error and requirement types stay open; `sleekstack check` reads them (ADR 0026).
+ */
+export type EventHandler<Ev> =
+  | ((event: Ev) => Effect.Effect<unknown, any, any> | Generator<any, unknown, any> | void)
+  | Effect.Effect<unknown, any, any>
+  | Handler<any, any>
+
+/** `on*` props over an element's event map, each event's `currentTarget` narrowed to the element. */
+type EventAttrs<El, Map> = {
+  [K in keyof Map & string as EventProp<K>]?: EventHandler<Map[K] & { readonly currentTarget: El }>
+}
+
+/** Global attributes plus the element's typed events and `ref`. */
+type ElementAttrs<El, Map> = GlobalAttrs & EventAttrs<El, Map> & { ref?: Ref<El> }
+
 interface GlobalAttrs {
-  // Events and refs are typed per element in a later step; any `on*` value reaches the runtime as today.
-  [event: `on${string}`]: unknown
   [aria: `aria-${string}`]: V
   [data: `data-${string}`]: V
   children?: Child
   key?: string | number
-  ref?: Ref<any>
   accesskey?: V<string>
   autocapitalize?: V<string>
   autofocus?: V<boolean>
@@ -393,14 +483,17 @@ type ForTags = 'label' | 'output'
 type HtmlTag = keyof HTMLElementTagNameMap
 type SvgOnlyTag = Exclude<keyof SVGElementTagNameMap, HtmlTag>
 
-type HtmlProps<T extends HtmlTag> = GlobalAttrs &
+type HtmlProps<T extends HtmlTag> = ElementAttrs<HTMLElementTagNameMap[T], HTMLElementEventMap> &
   (T extends keyof HtmlAttrs ? HtmlAttrs[T] : {}) &
   ClassAttr &
   (T extends ForTags ? ForAttr : {})
 
 /** `JSX.IntrinsicElements`: HTML tags (shared HTML/SVG names resolve to HTML), SVG-only tags, and any hyphenated custom-element tag. */
 export type IntrinsicElementMap = { [T in HtmlTag]: HtmlProps<T> } & {
-  [T in SvgOnlyTag]: GlobalAttrs & SvgPresentation & (T extends keyof SvgOwn ? SvgOwn[T] : {}) & ClassAttr
+  [T in SvgOnlyTag]: ElementAttrs<SVGElementTagNameMap[T], SVGElementEventMap> &
+    SvgPresentation &
+    (T extends keyof SvgOwn ? SvgOwn[T] : {}) &
+    ClassAttr
 } & {
   [custom: `${string}-${string}`]: Record<string, unknown>
 }

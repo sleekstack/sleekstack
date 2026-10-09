@@ -1,5 +1,8 @@
 /** @jsxImportSource .. */
 import { Atom } from '@sleekstack/core'
+import type { Effect } from 'effect'
+import { defineHandler } from '../handler'
+import type { Ref } from '../node'
 
 declare const label: Atom.Atom<string>
 declare const count: Atom.Atom<number>
@@ -55,3 +58,30 @@ void (<circle d="M0 0" />)
 void (<input type="button" popovertarget="p" popovertargetaction="show" />)
 // @ts-expect-error `output` has no `disabled`
 void (<output disabled />)
+
+// R3: the handler gets the real event with currentTarget narrowed; multi-word events map back to their map key
+void (<input onInput={(e) => void e.currentTarget.value} />)
+void (<div onPointerDown={(e) => void e.pointerId} onKeyDown={(e) => void e.key} />)
+void (<circle onClick={(e) => void e.currentTarget.r} />)
+// @ts-expect-error a div has no value
+void (<div onClick={(e) => void e.currentTarget.value} />)
+// @ts-expect-error a MouseEvent has no key
+void (<div onClick={(e) => void e.key} />)
+
+// R4, R11: function, generator, Effect and defineHandler values, with open error and requirement types
+declare const failing: Effect.Effect<void, Error, { readonly svc: true }>
+const saved = defineHandler('t.saved', () => failing)
+void (<button onClick={() => failing} />)
+void (<button onClick={function* () {}} />)
+void (<button onClick={failing} />)
+void (<button onClick={saved} />)
+
+// R5: ref takes the matching useRef box only
+declare const inputRef: Ref<HTMLInputElement>
+void (<input ref={inputRef} />)
+// @ts-expect-error a div box on an input
+void (<div ref={inputRef} />)
+
+// R12: inline handler strings are not supported
+// @ts-expect-error string on an on* prop
+void (<button onClick="go()" />)
