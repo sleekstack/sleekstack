@@ -42,7 +42,7 @@ describe('lazy', () => {
   it('R1: mount shows the Pending fallback, then the loaded component', async () => {
     let open!: () => void
     const gate = new Promise<void>((r) => (open = r))
-    const L = lazy<{ name: string }>(() => gate.then(() => ({ default: Hello })))
+    const L = lazy(() => gate.then(() => ({ default: Hello })))
     const { container } = await go(jsx(Pending, { fallback: 'loading', children: jsx(L, { name: 'a' }) }))
     expect(container.textContent).toBe('loading')
     open()
