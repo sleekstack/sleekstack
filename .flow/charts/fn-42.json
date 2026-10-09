@@ -11,7 +11,7 @@
       "depends_on": [],
       "id": "fn-42.D1",
       "record_path": ".flow/charts/fn-42/1.md",
-      "status": "open",
+      "status": "resolved",
       "title": "Package placement",
       "type": "interview"
     },
@@ -64,5 +64,5 @@
     },
     "url": null
   },
-  "updated_at": "2026-10-09T07:32:42.800633Z"
+  "updated_at": "2026-10-09T07:37:40.008122Z"
 }

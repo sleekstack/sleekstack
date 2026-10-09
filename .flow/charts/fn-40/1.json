@@ -1,5 +1,6 @@
 {
-  "answer": null,
+  "answer": "Chosen by the user: Testing Library compatible. `@sleekstack/testing` ships render, flush and mock-Layer helpers; `@testing-library/dom` queries and user-event are used on the container (a dependency of the user's tests, not of the package). No own query API.\n",
+  "answer_gist": "Chosen by the user: Testing Library compatible. `@sleekstack/testing` ships render, flush and mock-Layer helpers; `@t...",
   "assets": [],
   "attendance": "attended",
   "blocked_by": [],
@@ -13,7 +14,7 @@
   "n": 1,
   "question": "Testing Library-compatible queries by role/text, or a smaller own API?",
   "record_path": ".flow/charts/fn-40/1.md",
-  "status": "open",
+  "status": "resolved",
   "superseded_by": null,
   "supersedes": [],
   "title": "Query style",
@@ -24,7 +25,16 @@
     "linkState": "unlinked",
     "url": null
   },
-  "transition_notes": [],
+  "transition_notes": [
+    {
+      "actor": "ubtik@outlook.com",
+      "at": "2026-10-09T07:36:42.445533Z",
+      "keep_dependents": false,
+      "kind": "resolved",
+      "supersedes": [],
+      "text": "resolved by ubtik@outlook.com"
+    }
+  ],
   "type": "interview",
-  "updated_at": "2026-10-09T07:26:24.106265Z"
+  "updated_at": "2026-10-09T07:36:42.444875Z"
 }

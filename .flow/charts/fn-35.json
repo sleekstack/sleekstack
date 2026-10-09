@@ -23,7 +23,7 @@
       "depends_on": [],
       "id": "fn-35.D2",
       "record_path": ".flow/charts/fn-35/2.md",
-      "status": "open",
+      "status": "resolved",
       "title": "class vs className",
       "type": "interview"
     },
@@ -58,5 +58,5 @@
     },
     "url": null
   },
-  "updated_at": "2026-10-09T07:30:39.653491Z"
+  "updated_at": "2026-10-09T07:35:41.957612Z"
 }

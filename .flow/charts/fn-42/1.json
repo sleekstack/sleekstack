@@ -1,5 +1,6 @@
 {
-  "answer": null,
+  "answer": "Chosen by the user: a separate package named `@sleekstack/router` (not `@sleekstack/ui-router`). It stays out of `@sleekstack/ui` to protect the ADR 0022 size budget, like query (ADR 0025). The queued React Router 7 / TanStack Start adapters are for React guests and are unaffected.\n",
+  "answer_gist": "Chosen by the user: a separate package named `@sleekstack/router` (not `@sleekstack/ui-router`). It stays out of `@sl...",
   "assets": [],
   "attendance": "attended",
   "blocked_by": [],
@@ -13,7 +14,7 @@
   "n": 1,
   "question": "In @sleekstack/ui or a separate ui-router package (ADR 0022 size budget)?",
   "record_path": ".flow/charts/fn-42/1.md",
-  "status": "open",
+  "status": "resolved",
   "superseded_by": null,
   "supersedes": [],
   "title": "Package placement",
@@ -24,7 +25,16 @@
     "linkState": "unlinked",
     "url": null
   },
-  "transition_notes": [],
+  "transition_notes": [
+    {
+      "actor": "ubtik@outlook.com",
+      "at": "2026-10-09T07:37:40.009093Z",
+      "keep_dependents": false,
+      "kind": "resolved",
+      "supersedes": [],
+      "text": "resolved by ubtik@outlook.com"
+    }
+  ],
   "type": "interview",
-  "updated_at": "2026-10-09T07:26:24.829689Z"
+  "updated_at": "2026-10-09T07:37:40.008122Z"
 }

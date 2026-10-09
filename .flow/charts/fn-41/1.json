@@ -1,5 +1,6 @@
 {
-  "answer": null,
+  "answer": "Chosen by the user: all four views in the first slice: instance tree (keys, slots), re-run reasons, atoms per instance, and effect runs (start, restart, cleanup). All hang off the optional Env observer from fn-41.D2; the atoms view can reuse the existing AtomStore snapshot.\n",
+  "answer_gist": "Chosen by the user: all four views in the first slice: instance tree (keys, slots), re-run reasons, atoms per instanc...",
   "assets": [],
   "attendance": "attended",
   "blocked_by": [],
@@ -13,7 +14,7 @@
   "n": 1,
   "question": "Which views matter first: tree, slots, atoms, effect runs, re-run reasons?",
   "record_path": ".flow/charts/fn-41/1.md",
-  "status": "open",
+  "status": "resolved",
   "superseded_by": null,
   "supersedes": [],
   "title": "What to expose",
@@ -24,7 +25,16 @@
     "linkState": "unlinked",
     "url": null
   },
-  "transition_notes": [],
+  "transition_notes": [
+    {
+      "actor": "ubtik@outlook.com",
+      "at": "2026-10-09T07:37:06.911601Z",
+      "keep_dependents": false,
+      "kind": "resolved",
+      "supersedes": [],
+      "text": "resolved by ubtik@outlook.com"
+    }
+  ],
   "type": "interview",
-  "updated_at": "2026-10-09T07:26:24.466362Z"
+  "updated_at": "2026-10-09T07:37:06.911052Z"
 }

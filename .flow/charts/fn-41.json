@@ -11,7 +11,7 @@
       "depends_on": [],
       "id": "fn-41.D1",
       "record_path": ".flow/charts/fn-41/1.md",
-      "status": "open",
+      "status": "resolved",
       "title": "What to expose",
       "type": "interview"
     },
@@ -46,5 +46,5 @@
     },
     "url": null
   },
-  "updated_at": "2026-10-09T07:32:42.139981Z"
+  "updated_at": "2026-10-09T07:37:06.911052Z"
 }

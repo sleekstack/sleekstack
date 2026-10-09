@@ -11,7 +11,7 @@
       "depends_on": [],
       "id": "fn-40.D1",
       "record_path": ".flow/charts/fn-40/1.md",
-      "status": "open",
+      "status": "resolved",
       "title": "Query style",
       "type": "interview"
     },
@@ -46,5 +46,5 @@
     },
     "url": null
   },
-  "updated_at": "2026-10-09T07:32:41.455807Z"
+  "updated_at": "2026-10-09T07:36:42.444875Z"
 }
