@@ -548,9 +548,7 @@ describe('hydrateMount Transfer', () => {
     const p = container.querySelector('p')!
     p.setAttribute('data-tone', 'edited')
     const store = makeAtomStore()
-    await act(
-      async () => void handles.push(await hydrateMount(jsx(App, {}), { layer: Layer.empty, container, store })),
-    )
+    await act(async () => void handles.push(await hydrateMount(jsx(App, {}), { layer: Layer.empty, container, store })))
     expect(p.getAttribute('data-tone')).toBe('edited')
     await act(async () => store.set(tone, 'b'))
     expect(p.getAttribute('data-tone')).toBe('b')
