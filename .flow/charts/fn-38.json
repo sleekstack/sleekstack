@@ -1,0 +1,49 @@
+{
+  "briefings": [],
+  "claim_events": [],
+  "created": "2026-10-09T07:26:23.391946Z",
+  "decisions": [
+    {
+      "attendance": "unattended",
+      "blocked_by": [],
+      "claimed_at": null,
+      "claimed_by": null,
+      "depends_on": [],
+      "id": "fn-38.D1",
+      "record_path": ".flow/charts/fn-38/1.md",
+      "status": "open",
+      "title": "Async component under Pending",
+      "type": "probe"
+    },
+    {
+      "attendance": "unattended",
+      "blocked_by": [],
+      "claimed_at": null,
+      "claimed_by": null,
+      "depends_on": [],
+      "id": "fn-38.D2",
+      "record_path": ".flow/charts/fn-38/2.md",
+      "status": "open",
+      "title": "Bundler chunks and size budget",
+      "type": "eval"
+    }
+  ],
+  "id": "fn-38",
+  "outcome": "lazy(() => import(...)) components render under Pending in the DOM, string and streaming renderers.",
+  "parked_questions": [],
+  "produced_specs": [],
+  "status": "open",
+  "title": "Code splitting with lazy",
+  "tracker": {
+    "depRelations": [],
+    "id": null,
+    "identifier": null,
+    "linkState": "unlinked",
+    "projection": {
+      "completed_steps": [],
+      "event_markers": [],
+      "revision": null
+    },
+    "url": null
+  }
+}

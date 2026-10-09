@@ -1,0 +1,67 @@
+{
+  "briefings": [],
+  "claim_events": [],
+  "created": "2026-10-09T07:26:24.829683Z",
+  "decisions": [
+    {
+      "attendance": "attended",
+      "blocked_by": [],
+      "claimed_at": null,
+      "claimed_by": null,
+      "depends_on": [],
+      "id": "fn-42.D1",
+      "record_path": ".flow/charts/fn-42/1.md",
+      "status": "open",
+      "title": "Package placement",
+      "type": "interview"
+    },
+    {
+      "attendance": "attended",
+      "blocked_by": [],
+      "claimed_at": null,
+      "claimed_by": null,
+      "depends_on": [],
+      "id": "fn-42.D2",
+      "record_path": ".flow/charts/fn-42/2.md",
+      "status": "open",
+      "title": "Loader and action integration",
+      "type": "prototype"
+    },
+    {
+      "attendance": "unattended",
+      "blocked_by": [],
+      "claimed_at": null,
+      "claimed_by": null,
+      "depends_on": [],
+      "id": "fn-42.D3",
+      "record_path": ".flow/charts/fn-42/3.md",
+      "status": "open",
+      "title": "Typed routes as a Layer",
+      "type": "research"
+    }
+  ],
+  "id": "fn-42",
+  "outcome": "Typed routes, loaders and actions as Effects with Pending and streaming.",
+  "parked_questions": [
+    {
+      "body": "Link prefetch policy",
+      "created": "2026-10-09T07:26:24.829594Z",
+      "key": "9b0a8736161a0e6b"
+    }
+  ],
+  "produced_specs": [],
+  "status": "open",
+  "title": "Router and data loading for ui",
+  "tracker": {
+    "depRelations": [],
+    "id": null,
+    "identifier": null,
+    "linkState": "unlinked",
+    "projection": {
+      "completed_steps": [],
+      "event_markers": [],
+      "revision": null
+    },
+    "url": null
+  }
+}

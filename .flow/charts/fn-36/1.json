@@ -1,0 +1,30 @@
+{
+  "answer": null,
+  "assets": [],
+  "attendance": "attended",
+  "blocked_by": [],
+  "chart": "fn-36",
+  "claim_note": null,
+  "claimed_at": null,
+  "claimed_by": null,
+  "created": "2026-10-09T07:26:22.669273Z",
+  "depends_on": [],
+  "id": "fn-36.D1",
+  "n": 1,
+  "question": "What does <form action={handler}> look like for a generator action, and does it feel like React 19?",
+  "record_path": ".flow/charts/fn-36/1.md",
+  "status": "open",
+  "superseded_by": null,
+  "supersedes": [],
+  "title": "Shape of form actions",
+  "tracker": {
+    "depRelations": [],
+    "id": null,
+    "identifier": null,
+    "linkState": "unlinked",
+    "url": null
+  },
+  "transition_notes": [],
+  "type": "prototype",
+  "updated_at": "2026-10-09T07:26:22.669273Z"
+}

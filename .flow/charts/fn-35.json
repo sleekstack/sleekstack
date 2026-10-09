@@ -1,0 +1,61 @@
+{
+  "briefings": [],
+  "claim_events": [],
+  "created": "2026-10-09T07:26:22.109499Z",
+  "decisions": [
+    {
+      "attendance": "unattended",
+      "blocked_by": [],
+      "claimed_at": null,
+      "claimed_by": null,
+      "depends_on": [],
+      "id": "fn-35.D1",
+      "record_path": ".flow/charts/fn-35/1.md",
+      "status": "open",
+      "title": "Source of per-tag types",
+      "type": "research"
+    },
+    {
+      "attendance": "attended",
+      "blocked_by": [],
+      "claimed_at": null,
+      "claimed_by": null,
+      "depends_on": [],
+      "id": "fn-35.D2",
+      "record_path": ".flow/charts/fn-35/2.md",
+      "status": "open",
+      "title": "class vs className",
+      "type": "interview"
+    },
+    {
+      "attendance": "unattended",
+      "blocked_by": [],
+      "claimed_at": null,
+      "claimed_by": null,
+      "depends_on": [],
+      "id": "fn-35.D3",
+      "record_path": ".flow/charts/fn-35/3.md",
+      "status": "open",
+      "title": "Typed on* events with plain/generator/Effect handlers",
+      "type": "probe"
+    }
+  ],
+  "id": "fn-35",
+  "outcome": "Host JSX elements are typed per tag: attributes, aria/data, class and style, typed ref and typed on* events, with no runtime change.",
+  "parked_questions": [],
+  "produced_specs": [],
+  "status": "open",
+  "title": "Typed DOM for @sleekstack/ui",
+  "tracker": {
+    "depRelations": [],
+    "id": null,
+    "identifier": null,
+    "linkState": "unlinked",
+    "projection": {
+      "completed_steps": [],
+      "event_markers": [],
+      "revision": null
+    },
+    "url": null
+  }
+}
