@@ -1,6 +1,6 @@
 import type { Atom } from '@sleekstack/core'
 import type { Effect } from 'effect'
-import type { Handler } from './handler'
+import type { Handler, NonBubblingEvent } from './handler'
 import type { Child } from './jsx-runtime'
 import type { Ref } from './node'
 
@@ -85,21 +85,26 @@ interface CamelEvents {
   transitionrun: 'TransitionRun'
   transitionstart: 'TransitionStart'
   volumechange: 'VolumeChange'
+  webkitanimationend: 'WebkitAnimationEnd'
+  webkitanimationiteration: 'WebkitAnimationIteration'
+  webkitanimationstart: 'WebkitAnimationStart'
+  webkittransitionend: 'WebkitTransitionEnd'
 }
 type EventProp<K extends string> = `on${K extends keyof CamelEvents ? CamelEvents[K] : Capitalize<K>}`
 
 /**
- * An `on*` value: a function (returning an Effect, a generator, or nothing), an Effect, or a `defineHandler` value.
+ * An `on*` value: a function (returning an Effect, a generator, or nothing), an Effect, or a `defineHandler` value
+ * (bubbling events only: the runtime delegates those).
  * Error and requirement types stay open; `sleekstack check` reads them (ADR 0026).
  */
-export type EventHandler<Ev> =
+export type EventHandler<Ev, K extends string = string> =
   | ((event: Ev) => Effect.Effect<unknown, any, any> | Generator<any, unknown, any> | void)
   | Effect.Effect<unknown, any, any>
-  | Handler<any, any>
+  | (K extends NonBubblingEvent ? never : Handler<any, any>)
 
 /** `on*` props over an element's event map, each event's `currentTarget` narrowed to the element. */
 type EventAttrs<El, Map> = {
-  [K in keyof Map & string as EventProp<K>]?: EventHandler<Map[K] & { readonly currentTarget: El }>
+  [K in keyof Map & string as EventProp<K>]?: EventHandler<Map[K] & { readonly currentTarget: El }, K>
 }
 
 /** Global attributes plus the element's typed events and `ref`. */

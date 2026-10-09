@@ -75,6 +75,10 @@ void (<button onClick={() => failing} />)
 void (<button onClick={function* () {}} />)
 void (<button onClick={failing} />)
 void (<button onClick={saved} />)
+void (<button onFocus={() => failing} />)
+// @ts-expect-error a defineHandler value on a non-bubbling event
+void (<button onFocus={saved} />)
+void (<div onWebkitAnimationEnd={(e) => void e.type} />)
 
 // R5: ref takes the matching useRef box only
 declare const inputRef: Ref<HTMLInputElement>
