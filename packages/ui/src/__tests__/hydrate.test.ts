@@ -539,4 +539,18 @@ describe('hydrateMount Transfer', () => {
     expect(errors.map((c) => Cause.squash(c))).toEqual([expect.any(HydratePayloadInvalid)])
     expect(client.value).toBe('client')
   })
+
+  it('an atom-valued attribute follows its atom after hydration, without rewriting the server value', async () => {
+    const tone = Atom.make('a')
+    const App = () => jsx('p', { 'data-tone': tone, children: 'x' })
+    const container = document.createElement('div')
+    container.innerHTML = await renderToString(jsx(App, {}), { layer: Layer.empty })
+    const p = container.querySelector('p')!
+    p.setAttribute('data-tone', 'edited')
+    const store = makeAtomStore()
+    await act(async () => void handles.push(await hydrateMount(jsx(App, {}), { layer: Layer.empty, container, store })))
+    expect(p.getAttribute('data-tone')).toBe('edited')
+    await act(async () => store.set(tone, 'b'))
+    expect(p.getAttribute('data-tone')).toBe('b')
+  })
 })
