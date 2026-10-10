@@ -69,13 +69,13 @@ This enables:
 | [`@sleekstack/react`](packages/react/README.md) | Suspense-native `LayerProvider` / `useService`, and atoms (`useAtom`, `useAtomValue`) whose state lives per provider |
 | [`@sleekstack/kit`](packages/kit/README.md) | Effect-free facade over core, runtime, next and react (`tag`, `layer`, `effect`, `module`) |
 | [`@sleekstack/ui`](packages/ui/README.md) | MVP spike: Effect-native components (`Component<P, E, R>`, `Provide`, `Catch`) with React guests, typed requirements and errors checked by `sleekstack check`; demo in [`apps/ui-demo`](apps/ui-demo) |
+| [`@sleekstack/testing`](packages/testing/README.md) | Vitest + jsdom component tests for `@sleekstack/ui`: `render`, `flush`, `mockLayer`, used with Testing Library |
 
 Planned:
 
 ```txt
 @sleekstack/rpc
 @sleekstack/query
-@sleekstack/testing
 ```
 
 ---
