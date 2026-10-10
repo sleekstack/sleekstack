@@ -793,6 +793,9 @@ class LazyScope {
   private inner: Scope.CloseableScope | undefined
   private closed = false
   private lent = false
+  // Handler fibers running in this scope's context; a close waits for them.
+  private holds = 0
+  private deferred: Exit.Exit<unknown, unknown> | undefined
 
   constructor(
     private parent: Scope.Scope,
@@ -810,12 +813,30 @@ class LazyScope {
 
   close(exit: Exit.Exit<unknown, unknown>) {
     this.closed = true
+    if (this.holds > 0) {
+      this.deferred = exit
+      return Effect.void
+    }
     return this.inner ? Scope.close(this.inner, exit) : Effect.void
+  }
+
+  /** Keeps this scope and its lazy ancestors open until the returned release runs. */
+  hold(): () => void {
+    this.holds++
+    const up = this.parent instanceof LazyScope ? this.parent.hold() : undefined
+    return () => {
+      if (--this.holds === 0 && this.deferred) {
+        const exit = this.deferred
+        this.deferred = undefined
+        Effect.runFork(this.close(exit))
+      }
+      up?.()
+    }
   }
 
   /** Closes without a fiber when nothing ever used the scope; false when it was used (close it normally). */
   closeIfIdle(): boolean {
-    if (this.inner) return false
+    if (this.inner || this.holds > 0) return false
     this.closed = true
     return true
   }
@@ -852,6 +873,9 @@ const lazyScope = (parent: Scope.Scope, lease?: Scope.Scope, frame?: RunFrame): 
 export const lend = (scope: Scope.Scope | undefined): void => {
   if (scope instanceof LazyScope) scope.lend()
 }
+/** Keeps a run scope (and the run scopes around it) open while a handler fiber uses its services; returns the release. */
+export const holdScope = (scope: Scope.Scope | undefined): (() => void) =>
+  scope instanceof LazyScope ? scope.hold() : () => {}
 /** Closes `scope` without a fiber when it is a lazy scope nothing used; true when that handled it. */
 export const closeIdle = (scope: Scope.CloseableScope): boolean =>
   (scope as unknown) instanceof LazyScope && (scope as unknown as LazyScope).closeIfIdle()

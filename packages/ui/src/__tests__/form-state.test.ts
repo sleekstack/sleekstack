@@ -1,11 +1,21 @@
 // @vitest-environment jsdom
 import { Atom, makeAtomStore, Result } from '@sleekstack/core'
-import { Cause, Deferred, Effect, Layer, Option, ParseResult, Schema } from 'effect'
+import { Cause, Context, Deferred, Effect, Layer, Option, ParseResult, Schema } from 'effect'
 import { act } from 'react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { type ActionEvent, mount, type Mounted, useAction, useAtomValue, useFormStatus, useOptimistic } from '../index'
+import {
+  type ActionEvent,
+  mount,
+  type Mounted,
+  Provider,
+  useAction,
+  useAtomValue,
+  useFormStatus,
+  useOptimistic,
+} from '../index'
 import { jsx as rawJsx } from '../jsx-runtime'
 
+class Svc extends Context.Tag('Svc')<Svc, { alive: boolean }>() {}
 const jsx = (type: any, props: any) => rawJsx(type, props)
 const flush = () => act(async () => void (await new Promise((r) => setTimeout(r, 0))))
 
@@ -93,6 +103,36 @@ describe('useAction / useFormStatus', () => {
     await act(() => Effect.runPromise(Deferred.succeed(gate, undefined)))
     await flush()
     expect(container.querySelector('output')!.textContent).toBe('Success:false')
+  })
+
+  it('a re-run of the form under its own Provider keeps the services the running action uses', async () => {
+    const log: Array<string> = []
+    const svc = Layer.scoped(
+      Svc,
+      Effect.acquireRelease(
+        Effect.sync(() => ({ alive: true as boolean })),
+        (s) => Effect.sync(() => void ((s.alive = false), log.push('release'))),
+      ),
+    )
+    const gate = Effect.runSync(Deferred.make<void>())
+    const C = function* () {
+      const [result, action] = yield* useAction(() =>
+        Effect.flatMap(Svc, (s) =>
+          Effect.zipRight(
+            Deferred.await(gate),
+            Effect.sync(() => void log.push(`alive=${s.alive}`)),
+          ),
+        ),
+      )
+      yield* useAtomValue(result) // waiting re-runs this component, and its Provider
+      return jsx(Provider, { layer: svc, children: jsx('form', { action }) })
+    }
+    const { submit } = await go(jsx(C, {}))
+    await submit()
+    await flush()
+    await act(() => Effect.runPromise(Deferred.succeed(gate, undefined)))
+    await flush()
+    expect(log).toEqual(['alive=true', 'release', 'release']) // the waiting and the settled re-runs each replaced a Provider
   })
 
   it('a failure lands in the Result with the previous value, not in onError', async () => {

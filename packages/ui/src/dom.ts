@@ -1,5 +1,5 @@
 import { type Atom, type AtomStore, makeAtomStore } from '@sleekstack/core'
-import { Cause, Effect, Exit, Fiber, Layer, Scope } from 'effect'
+import { Cause, Context, Effect, Exit, Fiber, Layer, Scope } from 'effect'
 import { Component, createElement, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { createRoot, type Root } from 'react-dom/client'
@@ -9,6 +9,7 @@ import { type ActionEvent, handled, submitData } from './handler'
 import { Hydrating, type HydratingCell } from './pending'
 import {
   closeNow,
+  holdScope,
   commitSlots,
   disposeSlots,
   dropSlots,
@@ -335,7 +336,10 @@ const fork = (
     return undefined
   }
   ev.fibers.add(fiber)
+  // A re-run that replaces this element's run must not release the services the handler is still using.
+  const release = holdScope(Context.get(context, RenderScope))
   fiber.addObserver((exit) => {
+    release()
     ev.fibers.delete(fiber)
     if (Exit.isFailure(exit) && !Cause.isInterruptedOnly(exit.cause)) safeReport(exit.cause, onError)
   })
