@@ -70,6 +70,8 @@ export interface Live {
   readonly off?: () => void
   /** An element's atom-valued attributes: shared by every Live of that element across patches. */
   readonly bnd?: BoundAttrs
+  /** A `Portal`'s host in its container: holds the portal's lives; the Live's own `dom` is an empty placeholder. */
+  readonly portal?: HTMLElement
 }
 interface BoundAttrs {
   atoms: Readonly<Record<string, Atom.Atom<any>>>
@@ -140,8 +142,8 @@ const drop = (l: Live): void => {
   l.off?.()
   l.bnd?.off()
   if (l.root) l.root.unmount()
-  // A portal's children live in its container, not under its placeholder.
-  if (l.node._tag === 'Portal') for (const k of l.kids) k.dom.remove()
+  // A portal's children live in its host in the container, not under its placeholder.
+  l.portal?.remove()
   if (l.ev) {
     l.ev.dead = true
     for (const f of l.ev.fibers) Effect.runFork(Fiber.interrupt(f))
@@ -384,6 +386,10 @@ export const renderGuest = (root: Root, node: GuestNode, env: Env): void =>
   flushSync(() => root.render(guestElement(node, env)))
 
 const NONE: ReadonlyArray<Live> = []
+const connected = (node: PortalNode): Element => {
+  if (!node.container?.isConnected) throw new PortalContainerMissing()
+  return node.container
+}
 // What a built or adopted element gets once its children exist: followed atom attributes, its ref and its listeners.
 // `adopt` is hydration: the DOM already shows the attributes, so atoms are followed without a first write.
 export const wire = (
@@ -457,9 +463,16 @@ export const build = (
         return { node, dom: host, kids: [], inst, ...keyed }
       }
       case 'Portal': {
-        if (!node.container?.isConnected) throw new PortalContainerMissing()
-        const kids = buildAll([node.child], env, scopes, node.container)
-        return { node, dom: env.doc.createTextNode(''), kids, ...keyed }
+        const container = connected(node)
+        // Built off-DOM into its own host (so sibling portals and foreign children never mix with its lives),
+        // attached on commit: an aborted plan never shows it.
+        const portal = env.doc.createElement('sleek-portal')
+        portal.style.display = 'contents'
+        const kids = buildAll([node.child], env, scopes, portal)
+        const attach = () => void container.appendChild(portal)
+        if (env.post) env.post.refs.push(attach)
+        else attach()
+        return { node, dom: env.doc.createTextNode(''), kids, portal, ...keyed }
       }
       case 'Guest': {
         // One React root per guest host; `display: contents` keeps the host out of layout.
@@ -499,9 +512,11 @@ const buildAll = (
 
 // Plan phase for one element or text node matched in place: validates, reads the DOM, queues ops; mutates nothing.
 const patch = (prev: Live, node: Leaf, key: string | undefined, env: Env, p: Plan): Live => {
-  // The same node as the live one (a reused subtree): nodes are immutable, so there is nothing to patch.
-  if (prev.node === node) return prev
   try {
+    // A matched portal whose container left the document fails the patch.
+    if (node._tag === 'Portal') connected(node)
+    // The same node as the live one (a reused subtree): nodes are immutable, so there is nothing to patch.
+    if (prev.node === node) return prev
     if (node._tag === 'Bind') return prev
     if (node._tag === 'Text') {
       if (prev.dom.nodeValue !== node.text) p.ops.push(() => void (prev.dom.nodeValue = node.text))
@@ -509,8 +524,8 @@ const patch = (prev: Live, node: Leaf, key: string | undefined, env: Env, p: Pla
     }
     const keyed = key === undefined ? {} : { key }
     if (node._tag === 'Portal') {
-      const kids = patchChildren(node.container!, prev.kids, [node.child], env, p)
-      return { node, dom: prev.dom, kids, ...keyed }
+      const kids = patchChildren(prev.portal!, prev.kids, [node.child], env, p)
+      return { node, dom: prev.dom, kids, portal: prev.portal!, ...keyed }
     }
     if (node._tag === 'Guest') {
       // Same component: the root and its React state stay; only the props re-render on commit.

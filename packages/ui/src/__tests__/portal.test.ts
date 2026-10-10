@@ -67,7 +67,9 @@ describe('Portal', () => {
         ),
     )
     expect(container.innerHTML).toBe('<main></main>')
-    expect(target.innerHTML).toBe('<sleek-reactive style="display: contents;"><p>hi ada</p></sleek-reactive>')
+    expect(target.innerHTML).toBe(
+      '<sleek-portal style="display: contents;"><sleek-reactive style="display: contents;"><p>hi ada</p></sleek-reactive></sleek-portal>',
+    )
     store.set(name, 'grace')
     await tick()
     expect(target.textContent).toBe('hi grace')
@@ -141,7 +143,7 @@ describe('Portal', () => {
     )
     expect(onError).not.toHaveBeenCalled()
     expect(container.querySelector('main')!.textContent).toBe('ab')
-    expect(target.innerHTML).toBe('<button></button>')
+    expect(target.innerHTML).toBe('<sleek-portal style="display: contents;"><button></button></sleek-portal>')
 
     setup()
     const c2 = document.createElement('div')
@@ -161,5 +163,53 @@ describe('Portal', () => {
     )
     expect(onError).not.toHaveBeenCalled()
     expect(target.textContent).toBe('hi ada')
+  })
+
+  it('portals sharing a container keep their order across updates', async () => {
+    setup()
+    const store = makeAtomStore()
+    const tag = Atom.make('a')
+    const App = () =>
+      Effect.flatMap(useAtomValue(tag), (t) =>
+        jsx('main', {
+          children: [
+            jsx(Portal, { container: target, children: jsx(t, {}) }),
+            jsx(Portal, { container: target, children: jsx('b', {}) }),
+          ],
+        }),
+      )
+    await act(
+      async () =>
+        void handles.push(
+          await mount(jsx(App, {}), { layer: Layer.empty, container: document.createElement('div'), store }),
+        ),
+    )
+    const order = () => [...target.querySelectorAll('a, b, s')].map((e) => e.localName)
+    expect(order()).toEqual(['a', 'b'])
+    store.set(tag, 's')
+    await tick()
+    expect(order()).toEqual(['s', 'b'])
+  })
+
+  it('a container detached after mount fails the next patch with the typed error', async () => {
+    setup()
+    const store = makeAtomStore()
+    const n = Atom.make(0)
+    const App = () =>
+      Effect.flatMap(useAtomValue(n), (v) =>
+        jsx(Portal, { container: target, children: jsx('p', { children: String(v) }) }),
+      )
+    const onError = vi.fn()
+    await act(
+      async () =>
+        void handles.push(
+          await mount(jsx(App, {}), { layer: Layer.empty, container: document.createElement('div'), store, onError }),
+        ),
+    )
+    target.remove()
+    store.set(n, 1)
+    await tick()
+    expect(Cause.squash(onError.mock.calls[0]![0] as Cause.Cause<unknown>)).toBeInstanceOf(PortalContainerMissing)
+    expect(target.textContent).toBe('0')
   })
 })
