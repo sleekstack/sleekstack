@@ -364,10 +364,12 @@ export function analyzeComponents(opts: { readonly project: string }): Component
       stack.delete(target)
     }
   }
-  /** A host `onXxx` closure: a node carrying its `R` and its `E`, which no enclosing `Catch` can handle. */
+  /** A handler slot: an `onXxx` event attribute, or a form's `action`. */
+  const isHandlerAttr = (name: string) => /^on[A-Z]/.test(name) || name === 'action'
+  /** A host `onXxx` or `action` closure: a node carrying its `R` and its `E`, which no enclosing `Catch` can handle. */
   const closure = (p: ts.JsxAttributeLike): UiNode[] => {
     const v =
-      ts.isJsxAttribute(p) && /^on[A-Z]/.test(p.name.getText()) && p.initializer && ts.isJsxExpression(p.initializer)
+      ts.isJsxAttribute(p) && isHandlerAttr(p.name.getText()) && p.initializer && ts.isJsxExpression(p.initializer)
         ? p.initializer.expression
         : undefined
     if (!v) return []
@@ -600,13 +602,13 @@ export function analyzeComponents(opts: { readonly project: string }): Component
       )
     }
   }
-  /** A JSX `onXxx={h}` whose value is a `Handler` (not a closure) is a resumable handler: same rule as `on()`. */
+  /** A JSX `onXxx={h}` (or `action={h}`) whose value is a `Handler` (not a closure) is a resumable handler: same rule as `on()`. */
   const checkJsxHandler = (attr: ts.JsxAttribute) => {
     const init = attr.initializer
     const v = init && ts.isJsxExpression(init) && init.expression ? unwrap(init.expression) : undefined
     if (
       !v ||
-      !/^on[A-Z]/.test(attr.name.getText()) ||
+      !isHandlerAttr(attr.name.getText()) ||
       libId(checker.getTypeAtLocation(v).getSymbol(), checker) !== 'ui/handler#Handler'
     )
       return

@@ -32,3 +32,4 @@ Submitting with no JavaScript needs a server endpoint and is out of scope.
 ## Consequences
 
 - One submit path for closures and resumed handlers; the action's `E` / `R` are read like any handler's.
+- `sleekstack check` treats `action` as a handler slot: a closure action's `R` / `E` are checked like an `onXxx` closure's, and a `Handler` action like a JSX `onXxx={h}`.
