@@ -940,6 +940,8 @@ const rerun = (inst: Instance, env: Env): void => {
 const unwatch = (inst: Instance): void => {
   inst.epoch++
   inst.transition = false
+  // Causes queued under the old subscriptions go with them.
+  if (inst.reasons) inst.reasons.length = 0
   for (const u of inst.unsubs.splice(0)) u()
 }
 

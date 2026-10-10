@@ -104,6 +104,26 @@ describe('render observer', () => {
     })
   })
 
+  it('drops the causes of a re-run a parent commit superseded', async () => {
+    const p = Atom.make(0)
+    const x = Atom.make(0)
+    const y = Atom.make(0)
+    const Child = (props: { n: number }) =>
+      Effect.map(useAtomValue(props.n === 0 ? x : y), (v) => el('b', {}, `${props.n}${v}`))
+    const Parent = () => Effect.flatMap(useAtomValue(p), (n) => jsx('div', { children: jsx(Child, { n }) }))
+    const { events, store } = await observed(jsx(Parent, {}))
+    const child = events.filter((e) => e.type === 'create')[1]!
+    store.set(p, 1)
+    store.set(x, 1)
+    await tick()
+    events.length = 0
+    store.set(y, 1)
+    await tick()
+    expect(events).toEqual([
+      { type: 'rerun', mount: child.mount, instance: child.instance, reasons: [{ cause: 'atom', atom: y.label }] },
+    ])
+  })
+
   it('stamps each mount with its own id', async () => {
     const one = await observed(jsx(Leaf, {}))
     const two = await observed(jsx(Leaf, {}))
