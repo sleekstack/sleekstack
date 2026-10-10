@@ -143,6 +143,20 @@ describe('startTransition', () => {
     expect(container.textContent).toBe('tab1:loading')
   })
 
+  it('R10: per write inside an outer store batch', async () => {
+    const a = tabs('a')
+    const b = tabs('b')
+    const { container, store } = await go(jsx('div', { children: [jsx(a.Tab, {}), jsx(b.Tab, {})] }))
+    await a.gateOf(0).open()
+    await b.gateOf(0).open()
+    store.batch(() => {
+      startTransition(() => store.set(a.tab, 1))
+      store.set(b.tab, 1)
+    })
+    await tick()
+    expect(container.textContent).toBe('a0:c0b1:loading')
+  })
+
   it.each([
     ['nested', (set: () => void) => startTransition(() => startTransition(set))],
     [

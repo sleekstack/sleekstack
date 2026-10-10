@@ -1,4 +1,4 @@
-import { Atom, type AtomStore, MissingDependency, type Result } from '@sleekstack/core'
+import { Atom, type AtomStore, markedWrites, MissingDependency, type Result } from '@sleekstack/core'
 import { Cause, Context, Data, Effect, ExecutionStrategy, Exit, Fiber, Option, Scope } from 'effect'
 import type { YieldWrap } from 'effect/Utils'
 import type { Node, ReactiveNode, Ref } from './node'
@@ -58,25 +58,13 @@ export class Transition extends Context.Reference<Transition>()('@sleekstack/ui/
   defaultValue: () => false,
 }) {}
 
-let transitioning = false
-/** Whether a write happening now is inside `startTransition`; read when an atom change is notified. */
-export const inTransition = (): boolean => transitioning
-
 /**
- * Runs `write` (atom writes) as a transition: the re-runs it triggers keep the previous DOM where a `Pending` has no
- * resolved content yet (a new key or branch), until that content resolves, instead of showing the fallback. Where
- * content exists, and for writes outside, nothing changes. A flag carried by those re-runs, not a scheduler: it cannot
- * interrupt a long synchronous render. Writes notified later (an outer `store.batch`) are ordinary.
+ * Runs `write` (atom writes) as a transition: the re-runs those writes trigger keep the previous DOM where a `Pending`
+ * has no resolved content yet (a new key or branch), until that content resolves, instead of showing the fallback.
+ * Where content exists, and for writes outside, nothing changes. A flag carried by those re-runs, not a scheduler: it
+ * cannot interrupt a long synchronous render.
  */
-export const startTransition = (write: () => void): void => {
-  const outer = transitioning
-  transitioning = true
-  try {
-    write()
-  } finally {
-    transitioning = outer
-  }
-}
+export const startTransition: (write: () => void) => void = markedWrites
 
 /**
  * The mount's own scope. A component run's scope normally forks `RenderScope` (the enclosing run's scope) and closes with it;

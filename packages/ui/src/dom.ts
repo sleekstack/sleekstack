@@ -1,4 +1,4 @@
-import { type Atom, type AtomStore, makeAtomStore } from '@sleekstack/core'
+import { type Atom, type AtomStore, makeAtomStore, notifyMarked } from '@sleekstack/core'
 import { Cause, Effect, Exit, Fiber, Layer, Scope } from 'effect'
 import { Component, createElement, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
@@ -15,7 +15,6 @@ import {
   DuplicateKey,
   fallbacks,
   Frame,
-  inTransition,
   makeFrame,
   MountError,
   MountScope,
@@ -754,9 +753,9 @@ export const watch = (inst: Instance, node: ReactiveNode, env: Env): void => {
   const changed = () => {
     if (inst.epoch !== epoch) return
     // Per write: one ordinary change in the tick makes the coalesced re-run ordinary.
-    if (inst.queued === epoch) return void (inst.transition &&= inTransition())
+    if (inst.queued === epoch) return void (inst.transition &&= notifyMarked())
     inst.queued = epoch
-    inst.transition = inTransition()
+    inst.transition = notifyMarked()
     queueMicrotask(() => {
       if (inst.queued === epoch) inst.queued = -1
       if (!inst.dead && inst.epoch === epoch && env.live()) rerun(inst, env)
