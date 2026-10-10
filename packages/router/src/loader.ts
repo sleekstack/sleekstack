@@ -1,6 +1,6 @@
 import { Transfer, type StateTransfer } from '@sleekstack/ui'
 import { Context, Effect, Exit, Fiber, Layer, Option, Schema } from 'effect'
-import { Route } from './index'
+import { Route, routeLayer, type Match } from './index'
 
 /** A route's loader: an Effect run for the matched route, its result read by the page with `useLoader`. */
 export interface Loader<A, I, E = never, R = never> {
@@ -23,7 +23,39 @@ interface Held {
   encoded?: unknown
   load?: Fiber.RuntimeFiber<unknown, unknown>
   readers: number
+  // Set while a prefetched result is unread: past it the result is dropped. A page read keeps it for good.
+  expires?: number
 }
+
+/** How long a prefetched loader result waits for a page to read it (R13). */
+const PREFETCH_TTL = 30_000
+
+// Forks `l`'s load into a new entry under `key`; a failed or interrupted load removes it.
+const start = <A, I, E, R>(
+  all: Map<string, Held>,
+  key: string,
+  load: Effect.Effect<A, E, R>,
+  schema: Schema.Schema<A, I>,
+  ttl?: number,
+) =>
+  Effect.gen(function* () {
+    const e: Held = { readers: 0 }
+    all.set(key, e)
+    e.load = yield* Effect.forkDaemon(
+      Effect.flatMap(load, (value) =>
+        Effect.map(Effect.orDie(Schema.encode(schema)(value)), (encoded) => {
+          Object.assign(e, { value, encoded, load: undefined })
+          if (ttl !== undefined) e.expires = Date.now() + ttl
+          return value
+        }),
+      ).pipe(
+        Effect.onExit((exit) =>
+          Effect.sync(() => void (Exit.isSuccess(exit) || all.get(key) !== e || all.delete(key))),
+        ),
+      ),
+    )
+    return e
+  })
 
 /** Loader results of one render (server) or app (client), keyed by loader key and pathname. */
 export class Loaders extends Context.Tag('@sleekstack/router/Loaders')<Loaders, Map<string, Held>>() {}
@@ -40,28 +72,38 @@ export const useLoader = <A, I, E, R>(l: Loader<A, I, E, R>): Effect.Effect<A, E
     const all = yield* Loaders
     const key = JSON.stringify([l.key, pathname])
     let held = all.get(key)
+    if (held?.expires !== undefined) {
+      if (held.expires < Date.now()) (all.delete(key), (held = undefined))
+      else delete held.expires
+    }
     if (held && !held.load) {
       if (!('value' in held)) held.value = yield* Effect.orDie(Schema.decodeUnknown(l.schema)(held.encoded))
       return held.value as A
     }
-    if (!held) {
-      const e: Held = { readers: 0 }
-      all.set(key, (held = e))
-      e.load = yield* Effect.forkDaemon(
-        Effect.flatMap(l.load, (value) =>
-          Effect.map(Effect.orDie(Schema.encode(l.schema)(value)), (encoded) => {
-            Object.assign(e, { value, encoded, load: undefined })
-            return value
-          }),
-        ).pipe(Effect.onExit((exit) => Effect.sync(() => void (Exit.isSuccess(exit) || all.delete(key))))),
-      )
-    }
+    held ??= yield* start(all, key, l.load, l.schema)
     const e = held
     e.readers++
     return yield* (Fiber.join(e.load!) as Effect.Effect<A, E>).pipe(
       Effect.ensuring(Effect.sync(() => e.readers--)),
       Effect.onInterrupt(() => (e.readers > 0 || !e.load ? Effect.void : (all.delete(key), Fiber.interrupt(e.load)))),
     )
+  })
+
+/**
+ * Starts `l` for the route `m` unless its result is held or loading, and holds the result for a page to read within
+ * a bounded time. A failure is silent: the page's own read runs the loader again.
+ */
+export const prefetchLoader = <A, I, E, R>(
+  l: Loader<A, I, E, R>,
+  m: Match<any, any>,
+): Effect.Effect<void, never, Exclude<R, Route> | Loaders> =>
+  Effect.flatMap(Loaders, (all) => {
+    const now = Date.now()
+    for (const [k, h] of all) if (h.expires !== undefined && h.expires < now) all.delete(k)
+    const key = JSON.stringify([l.key, m.pathname])
+    return all.has(key)
+      ? Effect.void
+      : Effect.asVoid(start(all, key, Effect.provide(l.load, routeLayer(m)), l.schema, PREFETCH_TTL))
   })
 
 // Sends held results (encoded); a stream asks once per flush and gets only those not sent yet. An outer `Transfer`

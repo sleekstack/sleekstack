@@ -79,5 +79,8 @@ export const params = <T extends RouteTable, K extends keyof T & string>(
       : Effect.dieMessage(`@sleekstack/router: page for '${name}' rendered under route '${m.name}'`),
   )
 
-export { loader, Loaders, LoaderTransferLive, useLoader } from './loader'
+export { action } from './action'
+export { Link } from './link'
+export type { LinkProps } from './link'
+export { loader, Loaders, LoaderTransferLive, prefetchLoader, useLoader } from './loader'
 export type { Loader } from './loader'

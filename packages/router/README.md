@@ -13,6 +13,9 @@ Typed routes for apps on the `@sleekstack/ui` host (ADR 0036). A route table is 
 | `loader(key, schema, effect)` | Declares a route loader; `schema` encodes its result for the client. |
 | `useLoader(loader)` | The loader's result for the matched route: held data returns at once, a load in flight is shared, else the loader runs (put the page under `Pending`). Its typed error reaches the nearest `Boundary`. |
 | `LoaderTransferLive` | Holds loader results per render or app and sends them through the ui `Transfer`, so a hydrating client reads them without reloading. |
+| `prefetchLoader(loader, match)` | Starts a loader for a route ahead of the page; its result is held 30 seconds unread, and a failure is silent. |
+| `Link` | An `<a href>` that prefetches its route's `code` (the `lazy` import) and `loaders` on hover or focus; `prefetch={false}` opts out. |
+| `action(run)` | Declares a route action in any form a form `action` takes: function, generator, Effect or `defineHandler` value. |
 
 ```tsx
 import { Effect, Option } from 'effect'
@@ -39,3 +42,12 @@ await renderToStream(app, { layer }) // shell with the fallback first, then the 
 ```
 
 `LoaderTransferLive` carries another `Transfer` it is given: `LoaderTransferLive.pipe(Layer.provideMerge(UiQueryClientLive()))` sends both loader and query state.
+
+A link that warms the next page, and the page's form action:
+
+```tsx
+<Link href="/users/7" table={table} code={() => import('./UserPage')} loaders={[user]}>Ada</Link>
+
+const save = action(function* (e: ActionEvent) { yield* saveUser(e.formData) })
+const EditPage = () => <form action={save}>...</form>
+```
