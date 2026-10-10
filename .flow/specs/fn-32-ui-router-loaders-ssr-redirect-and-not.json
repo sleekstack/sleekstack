@@ -10,7 +10,7 @@
   "plan_review_status": "unknown",
   "plan_reviewed_at": null,
   "spec_path": ".flow/specs/fn-32-ui-router-loaders-ssr-redirect-and-not.md",
-  "status": "open",
+  "status": "done",
   "title": "ui-router loaders, SSR, redirect and not-found",
   "tracker": {
     "baseHashFlow": null,
@@ -23,5 +23,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-04T10:32:02.084968Z"
+  "updated_at": "2026-10-10T05:14:28.976814Z"
 }

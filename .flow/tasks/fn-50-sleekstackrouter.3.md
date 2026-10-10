@@ -1,5 +1,5 @@
 ---
-satisfies: [R4, R7, R12]
+satisfies: [R4, R7, R12, R15]
 ---
 # fn-50-sleekstackrouter.3 Loaders under Pending with serializable transfer
 
