@@ -33,6 +33,8 @@ interface Fork {
   done: boolean
 }
 const forks = new WeakMap<Slots, Fork>()
+// Failed content whose cause was raised: a later run with the same props (a `Boundary` reset) forks again instead of replaying it.
+const raised = new WeakSet<Content>()
 
 // Content slots live under the Pending's own slots, so they survive its re-runs and go when it is disposed.
 const contentSlots = (f: RunFrame): Slots => {
@@ -113,7 +115,10 @@ const live = (props: { fallback: Child; children?: Child }) =>
         const info = { fallback: props.fallback, content: props.children }
         // Discriminator: the instance's own `rerun` (fired by the slot set) passes the same props object, so stored content
         // for these props is emitted without forking; a fresh run (first mount, parent re-run) has new props and forks.
-        if (content?.props !== props && forks.get(slots)?.props !== props) {
+        if (
+          (content !== undefined && raised.has(content)) ||
+          (content?.props !== props && forks.get(slots)?.props !== props)
+        ) {
           // Supersede: latest wins, so an unfinished older fork is interrupted with its scope.
           const prev = forks.get(slots)
           if (prev && !prev.done) closeScope(prev.scope)
@@ -170,7 +175,7 @@ const live = (props: { fallback: Child; children?: Child }) =>
           )
         }
         // The slot-set re-run of a failed fork raises its cause through the instance's handlers.
-        if (content?.cause && content.props === props) return Effect.failCause(content.cause)
+        if (content?.cause && content.props === props) return (raised.add(content), Effect.failCause(content.cause))
         return emit(content, info, props)
       },
     ),

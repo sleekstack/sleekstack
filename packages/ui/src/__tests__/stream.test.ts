@@ -210,7 +210,10 @@ describe('renderToStream errors and cancel (R2, R4)', () => {
     g.open()
     const rest = await drain(reader)
     expect(rest).toContain('<template data-sleek-b="sleek-0"><p>caught</p></template>')
-    expect(normalize(apply(first + rest))).toBe('<p>caught</p>')
+    // `Boundary` is an instance (ADR 0035): it reads its reset epoch, so it carries an instance host.
+    expect(normalize(apply(first + rest))).toBe(
+      '<sleek-reactive style="display: contents;"><p>caught</p></sleek-reactive>',
+    )
     expect(errors).toEqual([])
   })
 
