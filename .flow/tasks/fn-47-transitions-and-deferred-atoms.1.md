@@ -22,9 +22,11 @@ startTransition flag and Pending. Contract and rationale are in the parent spec 
 
 
 ## Done summary
-TBD
+Added `startTransition` (ui) on a new core primitive `markedWrites`/`notifyMarked`. When a change was caused only by marked writes, its re-run carries `Transition`. Inside that re-run, a `Pending` with no content yet waits for its content inline, so the previous DOM stays on screen. Captured re-runs and keyed memos ignore the flag, so ADR 0020 skips still apply. Tests are in packages/ui/src/__tests__/transition.test.ts and cover R1-R3 and R9-R12, including writes inside an outer store.batch. The ui README has a startTransition row. The ADR (0034) and full docs belong to task .3.
 
+stage: impl-review - ran (codex: fan-out NEEDS_WORK on outer-batch flag loss, fixed; re-review SHIP)
+Tier: opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 1090a06d5f3b0b83512de0de1052443abd3b8559, 36f41bcd3f66ab0b795d3e8d1a8a16987a94399f
+- Tests: pnpm turbo run test typecheck --filter=...@sleekstack/core
 - PRs:
