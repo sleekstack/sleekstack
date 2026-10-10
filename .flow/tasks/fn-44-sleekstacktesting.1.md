@@ -20,9 +20,10 @@ Package scaffold and wiring. Contract and rationale are in the parent spec (R-ID
 
 
 ## Done summary
-TBD
+Scaffolded private @sleekstack/testing (ui layout, jsdom vitest with passWithNoTests, ui+effect peers), added it to CI required-scripts list and AGENTS.md verify table; lockfile updated.
 
+stage: impl-review - ran
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 47546618438232826c3ccb02a72b0a13854d4987
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/testing
 - PRs:

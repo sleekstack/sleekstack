@@ -25,9 +25,13 @@ render, flush and mock Layer. Contract and rationale are in the parent spec (R-I
 
 
 ## Done summary
-TBD
+Added `render` (mount or hydrate inside act, act flag on until the last in-flight or live render ends, single guarded afterEach auto-dispose, dispose cleanup in finally), `flush` (act ticks until the DOM is quiet, `FlushTimeout` after bounded rounds) and `mockLayer` (Proxy over `Layer.succeed`; an unsupplied own method throws naming `Tag.method`), with 10 tests in packages/testing/src/__tests__/testing.test.ts. Vitest config now uses `globals: true` so the afterEach hook registers; react is a peer dep.
 
+Follow-up: flush detects settling by DOM quiet ticks, so DOM-silent timer work (e.g. Effect.sleep in an effect) can outlive it (review finding dropped as out of AC scope).
+
+Tier: implementer opus at medium
+stage: impl-review - ran (codex fan-out NEEDS_WORK -> fixed -> SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: ffd485f66384c6d632ab4dd5f6ad21b5a259f2a5, 70313705015940da008d0ead5ca2228b166d0741
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/testing..., prettier --check packages/testing
 - PRs:
