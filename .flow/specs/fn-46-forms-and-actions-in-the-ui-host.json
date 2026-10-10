@@ -1,7 +1,7 @@
 {
   "branch_name": "fn-46-forms-and-actions-in-the-ui-host",
-  "completion_review_status": "unknown",
-  "completion_reviewed_at": null,
+  "completion_review_status": "ship",
+  "completion_reviewed_at": "2026-10-10T03:15:05.048980Z",
   "created_at": "2026-10-09T14:48:09.037729Z",
   "default_impl": null,
   "default_review": null,
@@ -410,17 +410,55 @@
       "task": "fn-46-forms-and-actions-in-the-ui-host.4",
       "timestamp": "2026-10-10T03:11:40.754748Z",
       "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "39fa773d5ec3aee50ae9be0e551bc13b698dd8811b746fec7f4ae2dc2c7208fb",
+      "backend": "codex",
+      "base_sha": "6c79f0d47d0c7c005275bdbcc6fbf237defa2ba0",
+      "counter_kind": "plan",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "c66e6ba28bb1d6ca04a0df91662231e1932ad239",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 520551,
+      "output_sha256": "19978e734d36a7d652c532f870932d28610781ed3b8412a9f6ec9a68a76f13ff",
+      "reservation_id": "bf0b2b8acab343e28a8e6783f7fd450e",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-10-10T03:15:05.039945Z",
+      "tool_calls": 13,
+      "verdict": "SHIP"
     }
   ],
   "review_hash_epoch": {
     "impl:fn-46-forms-and-actions-in-the-ui-host.1": 1,
     "impl:fn-46-forms-and-actions-in-the-ui-host.2": 1,
     "impl:fn-46-forms-and-actions-in-the-ui-host.3": 1,
-    "impl:fn-46-forms-and-actions-in-the-ui-host.4": 1
+    "impl:fn-46-forms-and-actions-in-the-ui-host.4": 1,
+    "plan#completion": 1
   },
   "review_pending_rounds": {},
   "review_reservations": {},
   "review_transport_failures": {
+    "completion": 0,
     "impl:fn-46-forms-and-actions-in-the-ui-host.1": 0,
     "impl:fn-46-forms-and-actions-in-the-ui-host.2": 0,
     "impl:fn-46-forms-and-actions-in-the-ui-host.3": 0,
@@ -440,5 +478,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-10T03:11:40.756397Z"
+  "updated_at": "2026-10-10T03:15:05.052719Z"
 }
