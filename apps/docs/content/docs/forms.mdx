@@ -1,0 +1,24 @@
+---
+title: Forms and actions
+description: Handle a form submit in @sleekstack/ui with an action, decode its data with Effect Schema, and show pending and optimistic state.
+---
+
+In `@sleekstack/ui`, a host `<form>` takes an `action`: a function, a generator, an Effect or a `defineHandler`. On submit, the action runs with an `ActionEvent` whose `formData` holds the form's fields and the submitter's name and value. The browser's submit is prevented, so the page does not reload. This works the same in a mounted, hydrated or resumed form (ADR 0033).
+
+<include>../../snippets/forms/new-task.tsx</include>
+
+- `onSubmit` runs first, then the action. The form is not reset afterwards.
+- A second submit interrupts the action that is still running.
+- A Promise result is a `TypeError`: return an Effect or use a generator.
+- A string `action` is still a URL.
+- In a resumed page, use `defineHandler('id', (e: ActionEvent) => ...)`. It must be the form's only submit handler. A submit that arrives before the handler's code loads runs once the code arrives.
+
+## Action state
+
+- `useAction(run)` returns `[result, action]`, like React's `useActionState`. `result` is a `Result` atom: `Initial`, `waiting` while a run is in flight (the last value is kept), then `Success` or `Failure`. A failure, such as a Schema `ParseError`, stays in the `Result` and is not sent to `onError`.
+- `useFormStatus(result)` returns `{ pending }`, which is true while the action runs.
+- `useOptimistic(source, apply)` returns `[value, optimistic]`. `optimistic(change, effect)` shows `change` in `value` while `effect` runs and drops it when `effect` ends, before the `Result` records the outcome.
+
+Effect Schema is the built-in way to decode form data: `Schema.decodeUnknown(S)(Object.fromEntries(e.formData))`. Zod or Valibot work the same way inside the action. Submitting with no JavaScript needs a server endpoint and is not supported.
+
+`sleekstack check` reads a closure action's requirements and errors like an `onXxx` handler's.

@@ -83,7 +83,6 @@ it('opens a task, moves it through a mutation and the board follows; viewers can
 it('the form adds a task; deleting the open task shows the TaskNotFound fallback', async () => {
   const { container, q, click, dispose } = await mountApp('u1')
   const title = q<HTMLInputElement>('.new-title')
-  // React-controlled input: set through the native setter so the change is seen.
   const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!
   await act(async () => {
     set.call(title, 'Rotate the API keys')
