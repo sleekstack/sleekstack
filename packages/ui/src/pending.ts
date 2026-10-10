@@ -14,6 +14,7 @@ import {
   type Slots,
   Transition,
   useLocal,
+  counted,
 } from './reactive'
 
 /**
@@ -170,7 +171,7 @@ const live = (props: { fallback: Child; children?: Child }) =>
           // resolves; a failure shows the fallback and the slot-set re-run raises it, as for a fork.
           if (transition && !content?.node)
             return Effect.flatMap(Effect.exit(run), () => emit(resolved ?? content, info, props))
-          return Effect.flatMap(Effect.forkDaemon(run), (fiber) =>
+          return Effect.flatMap(Effect.map(Effect.forkDaemon(run), counted), (fiber) =>
             Effect.flatMap(Scope.addFinalizer(scope, Fiber.interruptFork(fiber)), () => emit(content, info, props)),
           )
         }

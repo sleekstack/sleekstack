@@ -311,6 +311,15 @@ class EffectReads extends Reads {
  * microtask) ends the run (interrupt, scope closed: its finalizers are the cleanup) and starts it again, from `slot.make`.
  * The returned function ends it for good.
  */
+// In-flight renderer work (re-runs, effect and handler fibers, Pending content): `@sleekstack/testing`'s `flush` waits for zero.
+let inFlight = 0
+export const idle = (): boolean => inFlight === 0
+export const counted = <A, E>(fiber: Fiber.RuntimeFiber<A, E>): Fiber.RuntimeFiber<A, E> => {
+  inFlight++
+  fiber.addObserver(() => inFlight--)
+  return fiber
+}
+
 const track = (
   slot: EffectSlot,
   first: Generator<any, unknown, any>,
@@ -331,13 +340,15 @@ const track = (
     closing = true
     const end = stop ?? Effect.void
     stop = undefined
-    Effect.runFork(
-      Effect.zipRight(
-        end,
-        Effect.sync(() => {
-          closing = false
-          if (!dead) start()
-        }),
+    counted(
+      Effect.runFork(
+        Effect.zipRight(
+          end,
+          Effect.sync(() => {
+            closing = false
+            if (!dead) start()
+          }),
+        ),
       ),
     )
   }
@@ -358,18 +369,20 @@ const track = (
       if (!held.has(atom)) held.set(atom, store.retain(atom))
       unsubs.push(store.subscribe(atom, changed))
     })
-    const fiber = Effect.runFork(
-      Effect.gen(() => gen).pipe(
-        Effect.provideService(Scope.Scope, scope),
-        Effect.provideService(RenderScope, scope),
-        Effect.provideService(Collector, reads),
-        // Slot hooks (`useLocal`, ...) belong to components: inside an effect they get a frame of their own.
-        Effect.provideService(Frame, makeFrame()),
-        Effect.provide(ctx),
-        Effect.catchAllCause((cause) =>
-          Cause.isInterruptedOnly(cause) ? Effect.void : Effect.sync(() => report?.(cause)),
-        ),
-      ) as Effect.Effect<void>,
+    const fiber = counted(
+      Effect.runFork(
+        Effect.gen(() => gen).pipe(
+          Effect.provideService(Scope.Scope, scope),
+          Effect.provideService(RenderScope, scope),
+          Effect.provideService(Collector, reads),
+          // Slot hooks (`useLocal`, ...) belong to components: inside an effect they get a frame of their own.
+          Effect.provideService(Frame, makeFrame()),
+          Effect.provide(ctx),
+          Effect.catchAllCause((cause) =>
+            Cause.isInterruptedOnly(cause) ? Effect.void : Effect.sync(() => report?.(cause)),
+          ),
+        ) as Effect.Effect<void>,
+      ),
     )
     stop = Effect.zipRight(
       Effect.sync(() => unsubs.splice(0).forEach((u) => u())),
@@ -479,14 +492,16 @@ export function useEffect(fn: any, deps?: ReadonlyArray<unknown>): Effect.Effect
           slot.restart = t.restart
         } else if (Effect.isEffect(r)) {
           const scope = Effect.runSync(Scope.make())
-          const fiber = Effect.runFork(
-            (r as Effect.Effect<void, any, any>).pipe(
-              Effect.provideService(Scope.Scope, scope),
-              Effect.provide(ctx),
-              Effect.catchAllCause((cause) =>
-                Cause.isInterruptedOnly(cause) ? Effect.void : Effect.sync(() => report?.(cause)),
-              ),
-            ) as Effect.Effect<void>,
+          const fiber = counted(
+            Effect.runFork(
+              (r as Effect.Effect<void, any, any>).pipe(
+                Effect.provideService(Scope.Scope, scope),
+                Effect.provide(ctx),
+                Effect.catchAllCause((cause) =>
+                  Cause.isInterruptedOnly(cause) ? Effect.void : Effect.sync(() => report?.(cause)),
+                ),
+              ) as Effect.Effect<void>,
+            ),
           )
           slot.cleanup = () =>
             void Effect.runFork(Effect.zipRight(Fiber.interrupt(fiber), Scope.close(scope, Exit.void)))
