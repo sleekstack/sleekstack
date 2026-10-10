@@ -567,10 +567,11 @@ export function useDerivedAtom(source: any): Effect.Effect<Atom.Atom<any>, never
 
 /**
  * `useDeferredAtom(source)`, like `useDeferredValue`: an atom owned by this instance (the same object on every run) that
- * follows `source` one macrotask after it changes, so the re-runs and commits the change triggered settle first and
- * readers of the deferred atom lag behind readers of `source`. It emits only when the value it copies differs, and
- * starts equal to `source` (so string rendering shows the source's value). Takes a slot like `useLocal`, so call it
- * unconditionally. Outside a component it returns `source` itself.
+ * follows `source` after this instance commits: the instance reads `source` (so it re-runs when it changes), and once that
+ * run's DOM is committed the deferred atom copies the run's current `source`, so readers of the deferred atom lag behind
+ * readers of `source`. Passing another atom as `source` on a later run switches to it. It emits only when the value it
+ * copies differs, and starts equal to `source` (so string rendering shows the source's value). Takes a slot like
+ * `useLocal`, so call it unconditionally. Outside a component it returns `source` itself.
  */
 export const useDeferredAtom = <A>(source: Atom.Atom<A>): Effect.Effect<Atom.Atom<A>, never, Store> =>
   Effect.flatMap(Effect.context<never>(), (ctx) => {
@@ -586,21 +587,12 @@ export const useDeferredAtom = <A>(source: Atom.Atom<A>): Effect.Effect<Atom.Ato
     if (first) {
       const deferred = Atom.make<A>(store.get(source))
       slots.atoms.push(deferred as unknown as Atom.Writable<any>)
-      let timer: ReturnType<typeof setTimeout> | undefined
-      const unsubscribe = store.subscribe(source, () => {
-        timer ??= setTimeout(() => {
-          timer = undefined
-          store.set(deferred, store.get(source))
-        }, 0)
-      })
-      const release = store.retain(deferred)
-      slots.releases.push(() => {
-        clearTimeout(timer)
-        unsubscribe()
-        release()
-      })
+      slots.releases.push(store.retain(deferred))
     }
-    return Effect.succeed(slots.atoms[i] as unknown as Atom.Atom<A>)
+    const deferred = slots.atoms[i] as unknown as Atom.Writable<A>
+    // Queued, not run: the renderer runs it once this run's DOM is committed; a dropped run never does.
+    ;(f.effects ??= []).push(() => store.set(deferred, store.get(source)))
+    return Effect.as(useAtomValue(source), deferred as Atom.Atom<A>)
   })
 
 /**
