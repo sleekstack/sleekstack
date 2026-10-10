@@ -4,10 +4,12 @@ import { hydrateRoot } from 'react-dom/client'
 import { reportRenderError } from './component'
 import { Transfer } from './transfer'
 import {
+  born,
   build,
   mount,
   collect,
   type Env,
+  type RenderObserver,
   flush as flushPost,
   guestElement,
   type Instance,
@@ -198,7 +200,7 @@ const adoptOne = (
           scope: n.scope,
           frame: n.frame,
         }
-        inst.lives = adoptAll([n.child], host, env, inst.scopes)
+        inst.lives = adoptAll([n.child], host, born(inst, 'adopt', env, key), inst.scopes)
         collect(env.post, n)
         watch(inst, n, env)
         return { node: n, dom: host, kids: [], inst, ...keyed }
@@ -337,6 +339,8 @@ export const hydrateMount = async <E, A, LE = never>(
     container: Element
     onError?: (cause: Cause.Cause<unknown>) => void
     store?: AtomStore
+    /** As in `mount`; instances taken over from the server markup are reported as `adopt`. */
+    observe?: RenderObserver
   },
 ): Promise<Mounted> => {
   const { container, onError } = opts

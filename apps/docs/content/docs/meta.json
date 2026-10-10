@@ -16,6 +16,7 @@
     "routing",
     "islands",
     "side-effects",
+    "ui-devtools",
     "errors",
     "testing",
     "agents",

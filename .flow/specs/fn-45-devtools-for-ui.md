@@ -40,7 +40,7 @@ A developer debugging a host UI cannot see which instances are mounted, why one 
 
 - **R9:** Every observer event carries the id of the mount it came from, so several mounts on a page are distinguishable. [inferred]
 - **R10:** A re-run reason names the atom that changed (id or label) and lists all causes when several coalesce into one run. [inferred]
-- **R11:** Instances adopted during hydration or resume are reported as a distinct adopt event, not as a create. [inferred]
+- **R11:** Instances adopted during hydration are reported as a distinct adopt event, not as a create; `resume` adopts no instances (it calls no component), so it has no observer and reports nothing (ADR 0037). [inferred]
 - **R12:** The devtools package depends on ui as a peer; ui never depends on devtools. [inferred]
 - **R13:** With no observer attached the bench scenarios and the ADR 0022 size budget are unchanged. [inferred]
 
@@ -67,6 +67,6 @@ A developer debugging a host UI cannot see which instances are mounted, why one 
 | R8 | The ui-demo app can open the panels in development. | fn-45-devtools-for-ui.4 | — |
 | R9 | Every observer event carries the id of the mount it came from, so several mounts on a page are distinguishable. | fn-45-devtools-for-ui.1 | — |
 | R10 | A re-run reason names the atom that changed (id or label) and lists all causes when several coalesce into one run. | fn-45-devtools-for-ui.1 | — |
-| R11 | Instances adopted during hydration or resume are reported as a distinct adopt event, not as a create. | fn-45-devtools-for-ui.1 | — |
+| R11 | Instances adopted during hydration are reported as adopt, not create; resume adopts no instances and reports nothing. | fn-45-devtools-for-ui.1 | — |
 | R12 | The devtools package depends on ui as a peer; ui never depends on devtools. | fn-45-devtools-for-ui.3 | — |
 | R13 | With no observer attached the bench scenarios and the ADR 0022 size budget are unchanged. | fn-45-devtools-for-ui.1 | — |

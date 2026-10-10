@@ -65,7 +65,7 @@ This enables:
 | [`@sleekstack/core`](packages/core/README.md) | Effect-native engine: declared Layers, Modules, lifetimes, scopes (the Graph is build-time only) |
 | [`@sleekstack/runtime`](packages/runtime/README.md) | Framework-agnostic Effect app runtime (`configureRuntime`, `runEffect`, pluggable control-flow classifier) |
 | [`@sleekstack/next`](packages/next/README.md) | The Next.js preset of the runtime: Next control flow, devtools route handler |
-| [`@sleekstack/devtools`](packages/devtools/README.md) | Dev-only panel: graph, scopes, atoms, errors |
+| [`@sleekstack/devtools`](packages/devtools/README.md) | Dev-only panel: graph, scopes, atoms, errors; ui panel: instance tree, atoms per instance, re-runs, effect runs |
 | [`@sleekstack/react`](packages/react/README.md) | Suspense-native `LayerProvider` / `useService`, and atoms (`useAtom`, `useAtomValue`) whose state lives per provider |
 | [`@sleekstack/kit`](packages/kit/README.md) | Effect-free facade over core, runtime, next and react (`tag`, `layer`, `effect`, `module`) |
 | [`@sleekstack/ui`](packages/ui/README.md) | MVP spike: Effect-native components (`Component<P, E, R>`, `Provide`, `Catch`) with React guests, typed requirements and errors checked by `sleekstack check`; demo in [`apps/ui-demo`](apps/ui-demo) |

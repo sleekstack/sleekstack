@@ -22,9 +22,12 @@ Observer on the renderer. Contract and rationale are in the parent spec (R-IDs a
 
 
 ## Done summary
-TBD
+Added an optional `observe` to `mount`/`hydrateMount` that reports plain-data `RenderEvent`s (create, adopt, rerun with coalesced atom-label or `parent` reasons, dispose, slot), each stamped with a per-mount id and a page-unique instance id; no observer means no event objects. Tests in packages/ui/src/__tests__/observer.test.ts; README rows updated. Instance ids come from a renderer counter, not the RunFrame (no reactive.ts change needed). Bench compare: mount-1k 0.712 vs 0.770 baseline, update-1-of-1k 0.411 vs 0.390, both OK.
 
+Tier: implementer opus at medium
+stage: impl-review - ran (codex fan-out NEEDS_WORK: stale reasons after unwatch, fixed; re-review SHIP)
+baseline: green
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 32e30010626d860ee5d472559231c273f6d5d26f, c6b5fb12d936cb16d52e0dc8ed89eeffe725226b
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/ui..., pnpm turbo run typecheck --filter=...@sleekstack/ui, pnpm --filter bench bench:json && pnpm --filter bench compare
 - PRs:
