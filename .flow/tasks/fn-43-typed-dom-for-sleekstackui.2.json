@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-43-typed-dom-for-sleekstackui",
   "spec_path": ".flow/tasks/fn-43-typed-dom-for-sleekstackui.2.md",
-  "status": "todo",
+  "status": "done",
   "title": "Typed events and refs",
   "updated_at": "2026-10-09T15:01:12.139144Z"
 }
