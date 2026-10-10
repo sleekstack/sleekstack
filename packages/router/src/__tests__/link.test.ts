@@ -81,6 +81,40 @@ describe('Link', () => {
     expect(await read(all, l)).toBe('u2')
   })
 
+  it('a page that joins a prefetch in flight keeps the result past the time limit', async () => {
+    let open!: () => void
+    const gate = new Promise<void>((r) => (open = r))
+    let calls = 0
+    const l = loader(
+      'slow',
+      Schema.String,
+      Effect.promise(() => gate.then(() => `s${++calls}`)),
+    )
+    const { a, all } = await render(jsx(Link, { href: '/users/7?tab=1#top', table, loaders: [l] }))
+    a.dispatchEvent(new MouseEvent('mouseenter'))
+    const first = read(all, l)
+    open()
+    expect(await first).toBe('s1')
+    const now = Date.now()
+    vi.spyOn(Date, 'now').mockReturnValue(now + 60_000)
+    expect(await read(all, l)).toBe('s1')
+    expect(calls).toBe(1) // the query and fragment did not split the prefetch from the page's read
+  })
+
+  it('a stalled prefetch is stopped once its time is up', async () => {
+    let stopped = 0
+    const l = loader('stuck', Schema.String, Effect.never.pipe(Effect.onInterrupt(() => Effect.sync(() => stopped++))))
+    const { a, all } = await render(jsx(Link, { href: '/users/7', table, loaders: [l] }))
+    a.dispatchEvent(new MouseEvent('mouseenter'))
+    await flush()
+    const now = Date.now()
+    vi.spyOn(Date, 'now').mockReturnValue(now + 60_000)
+    a.dispatchEvent(new MouseEvent('mouseenter'))
+    await flush()
+    expect(stopped).toBe(1)
+    expect(all.size).toBe(1) // the fresh prefetch
+  })
+
   it('a prefetch error is silent', async () => {
     const failing = loader('bad', Schema.String, Effect.fail('boom'))
     const { a, all, onError } = await render(

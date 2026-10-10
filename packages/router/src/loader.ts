@@ -23,12 +23,18 @@ interface Held {
   encoded?: unknown
   load?: Fiber.RuntimeFiber<unknown, unknown>
   readers: number
-  // Set while a prefetched result is unread: past it the result is dropped. A page read keeps it for good.
+  // Set while a prefetch is unread: past it the load is stopped and the result dropped. A page read keeps it for good.
   expires?: number
 }
 
 /** How long a prefetched loader result waits for a page to read it (R13). */
 const PREFETCH_TTL = 30_000
+
+// Drops an expired prefetch, stopping its load if it is still running.
+const evict = (all: Map<string, Held>, key: string, h: Held): Effect.Effect<void> => {
+  all.delete(key)
+  return h.load ? Effect.asVoid(Fiber.interrupt(h.load)) : Effect.void
+}
 
 // Forks `l`'s load into a new entry under `key`; a failed or interrupted load removes it.
 const start = <A, I, E, R>(
@@ -39,13 +45,12 @@ const start = <A, I, E, R>(
   ttl?: number,
 ) =>
   Effect.gen(function* () {
-    const e: Held = { readers: 0 }
+    const e: Held = ttl === undefined ? { readers: 0 } : { readers: 0, expires: Date.now() + ttl }
     all.set(key, e)
     e.load = yield* Effect.forkDaemon(
       Effect.flatMap(load, (value) =>
         Effect.map(Effect.orDie(Schema.encode(schema)(value)), (encoded) => {
           Object.assign(e, { value, encoded, load: undefined })
-          if (ttl !== undefined) e.expires = Date.now() + ttl
           return value
         }),
       ).pipe(
@@ -73,8 +78,8 @@ export const useLoader = <A, I, E, R>(l: Loader<A, I, E, R>): Effect.Effect<A, E
     const key = JSON.stringify([l.key, pathname])
     let held = all.get(key)
     if (held?.expires !== undefined) {
-      if (held.expires < Date.now()) (all.delete(key), (held = undefined))
-      else delete held.expires
+      if (held.expires >= Date.now()) delete held.expires
+      else yield* evict(all, key, held).pipe(Effect.as((held = undefined)))
     }
     if (held && !held.load) {
       if (!('value' in held)) held.value = yield* Effect.orDie(Schema.decodeUnknown(l.schema)(held.encoded))
@@ -97,13 +102,12 @@ export const prefetchLoader = <A, I, E, R>(
   l: Loader<A, I, E, R>,
   m: Match<any, any>,
 ): Effect.Effect<void, never, Exclude<R, Route> | Loaders> =>
-  Effect.flatMap(Loaders, (all) => {
+  Effect.gen(function* () {
+    const all = yield* Loaders
     const now = Date.now()
-    for (const [k, h] of all) if (h.expires !== undefined && h.expires < now) all.delete(k)
+    for (const [k, h] of [...all]) if (h.expires !== undefined && h.expires < now) yield* evict(all, k, h)
     const key = JSON.stringify([l.key, m.pathname])
-    return all.has(key)
-      ? Effect.void
-      : Effect.asVoid(start(all, key, Effect.provide(l.load, routeLayer(m)), l.schema, PREFETCH_TTL))
+    if (!all.has(key)) yield* start(all, key, Effect.provide(l.load, routeLayer(m)), l.schema, PREFETCH_TTL)
   })
 
 // Sends held results (encoded); a stream asks once per flush and gets only those not sent yet. An outer `Transfer`

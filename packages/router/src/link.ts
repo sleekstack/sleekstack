@@ -22,7 +22,8 @@ export interface LinkProps<R> {
 export const Link = <R>({ href, table, code, loaders = [], prefetch = true, children }: LinkProps<R>) => {
   const warm = Effect.suspend(() => {
     void code?.().catch(() => {})
-    const m = match(table, href)
+    const url = new URL(href, location.href)
+    const m = url.origin === location.origin ? match(table, url.pathname) : Option.none()
     return Option.isNone(m)
       ? Effect.void
       : Effect.forEach(loaders, (l) => prefetchLoader(l, m.value), { discard: true })
