@@ -36,6 +36,7 @@ export {
   Store,
   useAtom,
   useAtomValue,
+  useDeferredAtom,
   useDerivedAtom,
   useLocal,
   useEffect,

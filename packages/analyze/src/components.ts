@@ -685,7 +685,7 @@ export function analyzeComponents(opts: { readonly project: string }): Component
     }
   }
   const rules: AnalyzeError[] = []
-  /** `useLocal`, `useEffect`, `useRef` and `useDerivedAtom` must be a statement-level `yield*` in a component's generator body (`function*` or `Effect.gen`), before any `return`; anything else fails closed. */
+  /** `useLocal`, `useEffect`, `useRef`, `useDerivedAtom` and `useDeferredAtom` must be a statement-level `yield*` in a component's generator body (`function*` or `Effect.gen`), before any `return`; anything else fails closed. */
   const checkSlot = (call: ts.CallExpression, hook = 'useLocal') => {
     const bad = (why: string) =>
       rules.push(
@@ -791,6 +791,7 @@ export function analyzeComponents(opts: { readonly project: string }): Component
     if (ts.isCallExpression(n) && calleeOf(n) === 'ui/reactive#useEffect') checkSlot(n, 'useEffect')
     if (ts.isCallExpression(n) && calleeOf(n) === 'ui/reactive#useRef') checkSlot(n, 'useRef')
     if (ts.isCallExpression(n) && calleeOf(n) === 'ui/reactive#useDerivedAtom') checkSlot(n, 'useDerivedAtom')
+    if (ts.isCallExpression(n) && calleeOf(n) === 'ui/reactive#useDeferredAtom') checkSlot(n, 'useDeferredAtom')
     if (ts.isCallExpression(n)) checkKeys(n)
     if (ts.isCallExpression(n) && calleeOf(n) === 'ui/handler#on') checkOn(n)
     if (ts.isJsxAttribute(n)) checkJsxHandler(n)

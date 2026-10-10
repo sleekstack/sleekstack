@@ -566,6 +566,44 @@ export function useDerivedAtom(source: any): Effect.Effect<Atom.Atom<any>, never
 }
 
 /**
+ * `useDeferredAtom(source)`, like `useDeferredValue`: an atom owned by this instance (the same object on every run) that
+ * follows `source` one macrotask after it changes, so the re-runs and commits the change triggered settle first and
+ * readers of the deferred atom lag behind readers of `source`. It emits only when the value it copies differs, and
+ * starts equal to `source` (so string rendering shows the source's value). Takes a slot like `useLocal`, so call it
+ * unconditionally. Outside a component it returns `source` itself.
+ */
+export const useDeferredAtom = <A>(source: Atom.Atom<A>): Effect.Effect<Atom.Atom<A>, never, Store> =>
+  Effect.flatMap(Effect.context<never>(), (ctx) => {
+    const f = Context.get(ctx, Frame)
+    if (Context.get(ctx, Collector) === undefined || f === undefined) return Effect.succeed(source)
+    const so = Context.getOption(ctx, Store)
+    if (Option.isNone(so)) return missingStore('useDeferredAtom') as Effect.Effect<never>
+    const store = so.value
+    const slots = f.owner
+    const taken = takeSlot(f)
+    if (taken instanceof SlotMismatch) return Effect.fail(taken) as unknown as Effect.Effect<never>
+    const { i, first } = taken
+    if (first) {
+      const deferred = Atom.make<A>(store.get(source))
+      slots.atoms.push(deferred as unknown as Atom.Writable<any>)
+      let timer: ReturnType<typeof setTimeout> | undefined
+      const unsubscribe = store.subscribe(source, () => {
+        timer ??= setTimeout(() => {
+          timer = undefined
+          store.set(deferred, store.get(source))
+        }, 0)
+      })
+      const release = store.retain(deferred)
+      slots.releases.push(() => {
+        clearTimeout(timer)
+        unsubscribe()
+        release()
+      })
+    }
+    return Effect.succeed(slots.atoms[i] as unknown as Atom.Atom<A>)
+  })
+
+/**
  * `useRef(initial?)`, as in React: a `{ current }` box that is the same object on every run of the instance and that
  * changing never re-runs it. Pass it as a host element's `ref` prop: `current` is the DOM element once it is attached
  * (before this commit's effects run) and `null` after it is removed. Takes a slot like `useLocal`, so call it unconditionally.
