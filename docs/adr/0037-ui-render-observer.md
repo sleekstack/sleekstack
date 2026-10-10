@@ -10,7 +10,7 @@ A developer debugging a ui app could not see which instances are mounted, why on
 
 ## Decision
 
-`mount` and `hydrateMount` take an optional `observe: RenderObserver`. The renderer calls it with `RenderEvent`s: `create`, `adopt` (instances adopted by hydration or resume), `rerun` with every coalesced reason (atom labels, or `parent`), `dispose`, `slot`, and `effect` (`start`, `restart`, `cleanup` by slot index). Each event carries the mount id and a page-unique instance id.
+`mount` and `hydrateMount` take an optional `observe: RenderObserver`. The renderer calls it with `RenderEvent`s: `create`, `adopt` (instances adopted by hydration), `rerun` with every coalesced reason (atom labels, or `parent`), `dispose`, `slot`, and `effect` (`start`, `restart`, `cleanup` by slot index). Each event carries the mount id and a page-unique instance id.
 
 - Events are plain data: ids and values, never a reference to a live instance, so a disposed instance is not retained by an observer.
 - `useEffect` reports through an `EffectObserver` context reference that defaults to `undefined` and is provided only by an observed mount.
@@ -22,7 +22,7 @@ A developer debugging a ui app could not see which instances are mounted, why on
 
 - Each mount is labeled by its id, and atom values come from the store its observer was given, so several mounts on a page stay apart.
 - The ui-demo app opens the panel behind `import.meta.env.DEV`; production builds drop it.
-- Known limitation (pre-existing renderer bug, not fixed here): when a component's direct child switches from an instance to a plain element (`on ? <Fx key="k" /> : <p />`), the old instance is not disposed. No `dispose` event is sent and its effect cleanup does not run, so the panel keeps showing it. Wrapping the child in an element avoids it.
+- `resume` takes no observer and reports nothing: it calls no component and adopts no instances, only bound text and handlers (R11's "resume" case is empty by construction).
 
 ## Rejected
 

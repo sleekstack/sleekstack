@@ -173,4 +173,31 @@ describe('render observer', () => {
     await tick()
     expect(fx().slice(2)).toEqual(['restart:1', 'cleanup:0', 'start:0', 'cleanup:0', 'cleanup:1'])
   })
+  it('disposes an instance its parent swaps for a plain element: cleanup runs, dispose fires, its atom goes', async () => {
+    let cleaned = 0
+    const Fx = () =>
+      Effect.gen(function* () {
+        yield* useLocal(0)
+        yield* useEffect(() => () => void cleaned++, [])
+        return el('i', {}, 'x')
+      })
+    const App = () =>
+      Effect.flatMap(useAtomValue(show), (on) => (on ? jsx(Fx, { key: 'f' }) : jsx('p', { children: 'off' })))
+    const store = makeAtomStore()
+    store.set(show, true)
+    const { events, container } = await observed(jsx(App, {}), store)
+    await tick()
+    const fx = events.find((e) => e.type === 'create' && e.path.includes(':key:f'))!
+    const slot = events.find((e) => e.type === 'slot' && e.instance === fx.instance) as Extract<
+      RenderEvent,
+      { type: 'slot' }
+    >
+    expect(store.inspect().some((r) => r.label === slot.atom)).toBe(true)
+    await act(async () => store.set(show, false))
+    await tick()
+    expect(cleaned).toBe(1)
+    expect(events).toContainEqual({ type: 'dispose', mount: fx.mount, instance: fx.instance })
+    expect(container.querySelector('p')?.textContent).toBe('off')
+    expect(store.inspect().some((r) => r.label === slot.atom)).toBe(false)
+  })
 })

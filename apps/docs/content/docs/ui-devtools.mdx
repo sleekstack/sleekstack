@@ -9,7 +9,7 @@ description: See the instance tree, atoms per instance, re-run reasons and effec
 
 The panel has four views, per mount:
 
-- **Instance tree**: the mounted instances with their keys and slots; instances adopted by hydration or resume are marked.
+- **Instance tree**: the mounted instances with their keys and slots; instances adopted by hydration are marked.
 - **Atoms per instance**: the atoms each instance owns, with current values read from the store the observer was given.
 - **Re-run reasons**: why an instance re-ran: the atoms that changed, or `parent`. Causes that coalesce into one run are all listed.
 - **Effect runs**: when each `useEffect` started, restarted or ran its cleanup.
@@ -20,6 +20,6 @@ Rows are labeled by mount id and instance id, so several mounts on one page stay
 
 `observe` on `mount` and `hydrateMount` takes any `RenderObserver`: a function that receives plain-data `RenderEvent`s. Without one the renderer builds no events. Events carry ids and values, never live instances, so an observer cannot keep a disposed instance alive. See ADR 0037.
 
-## Known limitation
+## Resume
 
-When a component's direct child switches from an instance to a plain element (`on ? <Fx key="k" /> : <p />`), the old instance is not disposed: no `dispose` event, no effect cleanup, and the panel keeps showing it. Wrap the child in an element to avoid it.
+`resume` calls no component and adopts no instances, so it takes no `observe` and the panel shows nothing for a resumed page.

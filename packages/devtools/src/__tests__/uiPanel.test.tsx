@@ -61,4 +61,28 @@ describe('UiPanel', () => {
       /mount \d+ #\d+ \S*key:k effect \d+: start/,
     )
   })
+
+  it('drops an instance its parent swapped for a plain element', async () => {
+    const show = Atom.make(true)
+    const Fx = () => Effect.map(useLocal(0), () => el('i', {}, 'x'))
+    const App = () => Effect.flatMap(useAtomValue(show), (on) => (on ? h(Fx as never, { key: 'f' }) : h('p', {})))
+    const trace = uiTrace()
+    const store = makeAtomStore()
+    await act(async () => {
+      handles.push(
+        await mount(h(App as never, {}) as never, {
+          layer: Layer.empty,
+          container: document.createElement('div'),
+          store,
+          observe: trace.observer(store),
+        }),
+      )
+    })
+    expect(trace.read().instances.some((i) => i.path.includes(':key:f'))).toBe(true)
+    await act(async () => {
+      store.set(show, false)
+      await new Promise((r) => setTimeout(r, 0))
+    })
+    expect(trace.read().instances.some((i) => i.path.includes(':key:f'))).toBe(false)
+  })
 })
