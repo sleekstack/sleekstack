@@ -37,9 +37,11 @@ export interface UiEffectRun {
 }
 
 export interface UiTrace {
-  /** Pass as `mount`/`hydrateMount`'s `observe`; one trace may observe several mounts. */
-  readonly observe: RenderObserver
+  /** An `observe` for `mount`/`hydrateMount`; pass the mount's `AtomStore` to show its atom values. One trace may observe several mounts. */
+  readonly observer: (store?: AtomStore) => RenderObserver
   readonly read: () => {
+    /** The store each observed mount was given, by mount id. */
+    readonly stores: ReadonlyMap<number, AtomStore>
     readonly instances: readonly UiInstance[]
     readonly reruns: readonly UiRerun[]
     readonly effects: readonly UiEffectRun[]
@@ -53,6 +55,7 @@ export function uiTrace(): UiTrace {
   const instances = new Map<string, UiInstance>()
   const reruns: UiRerun[] = []
   const effects: UiEffectRun[] = []
+  const stores = new Map<number, AtomStore>()
   const id = (e: { mount: number; instance: number }) => `${e.mount}:${e.instance}`
   const push = <T,>(log: T[], entry: T) => {
     log.push(entry)
@@ -89,7 +92,19 @@ export function uiTrace(): UiTrace {
         return push(effects, { at: Date.now(), mount: e.mount, instance: e.instance, index: e.index, phase: e.phase })
     }
   }
-  return { observe, read: () => ({ instances: [...instances.values()], reruns: [...reruns], effects: [...effects] }) }
+  const observer = (store?: AtomStore) => (e: RenderEvent) => {
+    if (store && !stores.has(e.mount)) stores.set(e.mount, store)
+    observe(e)
+  }
+  return {
+    observer,
+    read: () => ({
+      stores: new Map(stores),
+      instances: [...instances.values()],
+      reruns: [...reruns],
+      effects: [...effects],
+    }),
+  }
 }
 
 const show = (value: unknown): string => {
@@ -102,36 +117,38 @@ const show = (value: unknown): string => {
 
 const reason = (r: RerunReason) => (r.cause === 'atom' ? `atom ${r.atom}` : 'parent re-run')
 
-const read = (trace: UiTrace, store: AtomStore | undefined) => {
-  let values = new Map<string, unknown>()
-  try {
-    values = new Map((store?.inspect() ?? []).map((a) => [a.label, a.value]))
-  } catch {
-    // A disposed store shows no values.
+// Current atom values by mount id, then label; a disposed store shows no values.
+const read = (trace: UiTrace) => {
+  const snap = trace.read()
+  const values = new Map<number, Map<string, unknown>>()
+  for (const [mount, store] of snap.stores) {
+    try {
+      values.set(mount, new Map(store.inspect().map((a) => [a.label, a.value])))
+    } catch {
+      values.set(mount, new Map())
+    }
   }
-  return { ...trace.read(), values }
+  return { ...snap, values }
 }
 
 export interface UiPanelProps {
   readonly trace: UiTrace
-  /** The mount's `AtomStore`, for atom values; without it atoms show labels only. */
-  readonly store?: AtomStore
   /** Poll interval in ms; default 1000. */
   readonly intervalMs?: number
 }
 
 /** The four ui views for every mount `trace` observes, re-read every `intervalMs`. */
-export function UiPanel({ trace, store, intervalMs = 1000 }: UiPanelProps) {
-  const [snap, setSnap] = useState(() => read(trace, store))
+export function UiPanel({ trace, intervalMs = 1000 }: UiPanelProps) {
+  const [snap, setSnap] = useState(() => read(trace))
   useEffect(() => {
-    setSnap(read(trace, store))
-    const timer = setInterval(() => setSnap(read(trace, store)), intervalMs)
+    setSnap(read(trace))
+    const timer = setInterval(() => setSnap(read(trace)), intervalMs)
     return () => clearInterval(timer)
-  }, [trace, store, intervalMs])
+  }, [trace, intervalMs])
   const { instances, reruns, effects, values } = snap
+  // Mount and instance ids keep equal paths (siblings' children, several mounts) apart.
   const name = (mount: number, instance: number) =>
-    instances.find((i) => i.mount === mount && i.instance === instance)?.path ??
-    (instance === 0 ? 'root' : `#${instance}`)
+    `mount ${mount} #${instance} ${instances.find((i) => i.mount === mount && i.instance === instance)?.path ?? (instance === 0 ? 'root' : '(disposed)')}`
   const children = (mount: number, parent: number | undefined) =>
     instances.filter((i) => i.mount === mount && i.parent === parent)
   const tree = (i: UiInstance) => (
@@ -173,10 +190,13 @@ export function UiPanel({ trace, store, intervalMs = 1000 }: UiPanelProps) {
             .filter((i) => i.slots.length > 0)
             .map((i) => (
               <li key={`${i.mount}:${i.instance}`}>
-                {i.path}:{' '}
+                {name(i.mount, i.instance)}:{' '}
                 {i.slots.map((label, n) => (
                   <span key={n}>
-                    {label}=<code>{values.has(label) ? show(values.get(label)) : '(unbuilt)'}</code>{' '}
+                    {label}=
+                    <code>
+                      {values.get(i.mount)?.has(label) ? show(values.get(i.mount)!.get(label)) : '(unbuilt)'}
+                    </code>{' '}
                   </span>
                 ))}
               </li>
