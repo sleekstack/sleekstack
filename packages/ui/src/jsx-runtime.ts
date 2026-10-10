@@ -182,7 +182,7 @@ export const jsx = (type: string | ((props: any) => ComponentResult), props: Pro
   const k = key ?? props.key
   const ks = k == null ? undefined : String(k)
   return typeof type === 'function'
-    ? type === Fragment || type === Provider
+    ? type === Fragment || type === Provider || type === Portal
       ? (type as (props: any) => Element)(props as any)
       : (instance(type, props, ks) as Element)
     : hostElement(type, props, ks)
@@ -216,6 +216,13 @@ export const Provider = (props: { layer: Layer.Layer<any, any, never>; children?
       ? Effect.flatMap(Layer.buildWithScope(props.layer, scope), (ctx) => Effect.provide(Fragment(props), ctx))
       : Effect.provide(Fragment(props), props.layer),
   ) as Element
+
+/**
+ * `<Portal container={el}>…</Portal>`: renders its children into `container`, with the Layers and Store of where it
+ * appears. Renders nothing on the server, so handlers inside it are client-only; removed with its owner.
+ */
+export const Portal = (props: { container: globalThis.Element | null | undefined; children?: Child }): Element =>
+  Effect.map(Fragment(props), (child): Node => ({ _tag: 'Portal', container: props.container, child }))
 
 /**
  * Retries a `Boundary`'s failed subtree: called (or run, via the returned Effect), it re-runs the boundary's children.

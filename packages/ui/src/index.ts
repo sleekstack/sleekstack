@@ -1,10 +1,11 @@
-export { el, fragment } from './node'
+export { el, fragment, PortalContainerMissing } from './node'
 export type {
   BindNode,
   ElementNode,
   EventBinding,
   FragmentNode,
   GuestNode,
+  PortalNode,
   Node,
   ReactiveNode,
   Ref,
@@ -24,7 +25,7 @@ export {
 export { renderToString } from './string'
 export { renderToStream } from './stream'
 export type { StreamOptions } from './stream'
-export { Boundary, Pending, Provider } from './jsx-runtime'
+export { Boundary, Pending, Portal, Provider } from './jsx-runtime'
 export type { Child, Reset } from './jsx-runtime'
 export type { ComponentResult } from './reactive'
 export { lazy, LazyLoadError } from './lazy'

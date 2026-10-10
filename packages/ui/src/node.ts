@@ -1,5 +1,5 @@
 import type { Atom } from '@sleekstack/core'
-import type { Context, Effect, Scope } from 'effect'
+import { type Context, Data, type Effect, type Scope } from 'effect'
 import type { ComponentType } from 'react'
 import type { Handler } from './handler'
 import type { RunFrame } from './reactive'
@@ -70,7 +70,16 @@ export interface BindNode {
   /** Any atom (derived, not serializable): live text on the client, plain text in `renderToString`, never resumed. */
   readonly plain?: true
 }
-export type Node = TextNode | ElementNode | FragmentNode | GuestNode | ReactiveNode | BindNode
+/** A `Portal`'s container is missing or not in the document when the DOM renderer builds it. */
+export class PortalContainerMissing extends Data.TaggedError('PortalContainerMissing')<{}> {}
+
+/** `child` rendered into `container` (DOM renderer only); nothing in its place, and nothing on the server. */
+export interface PortalNode {
+  readonly _tag: 'Portal'
+  readonly container: Element | null | undefined
+  readonly child: Node
+}
+export type Node = TextNode | ElementNode | FragmentNode | GuestNode | ReactiveNode | BindNode | PortalNode
 
 const toNode = (c: Node | string): Node => (typeof c === 'string' ? { _tag: 'Text', text: c } : c)
 

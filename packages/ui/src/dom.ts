@@ -4,7 +4,17 @@ import { Component, createElement, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { createRoot, type Root } from 'react-dom/client'
 import { reportRenderError, runToNode } from './component'
-import type { BindNode, ElementNode, EventBinding, FragmentNode, GuestNode, Node, ReactiveNode } from './node'
+import {
+  type BindNode,
+  type ElementNode,
+  type EventBinding,
+  type FragmentNode,
+  type GuestNode,
+  type Node,
+  PortalContainerMissing,
+  type PortalNode,
+  type ReactiveNode,
+} from './node'
 import { Hydrating, type HydratingCell } from './pending'
 import {
   closeNow,
@@ -116,7 +126,8 @@ const dropScopes = (node: Node): void => {
     if (node.frame) dropSlots(node.frame)
     // Resolved Pending content stays owned by its Pending until committed; a dropped run never closes it.
     if (!node.pending?.frame) dropScopes(node.child)
-  } else if (node._tag === 'Fragment' || node._tag === 'Element') {
+  } else if (node._tag === 'Portal') dropScopes(node.child)
+  else if (node._tag === 'Fragment' || node._tag === 'Element') {
     if (node._tag === 'Fragment') closeScope(runScopes.get(node))
     node.children.forEach(dropScopes)
   }
@@ -129,6 +140,8 @@ const drop = (l: Live): void => {
   l.off?.()
   l.bnd?.off()
   if (l.root) l.root.unmount()
+  // A portal's children live in its container, not under its placeholder.
+  if (l.node._tag === 'Portal') for (const k of l.kids) k.dom.remove()
   if (l.ev) {
     l.ev.dead = true
     for (const f of l.ev.fibers) Effect.runFork(Fiber.interrupt(f))
@@ -443,6 +456,11 @@ export const build = (
         watch(inst, node, env)
         return { node, dom: host, kids: [], inst, ...keyed }
       }
+      case 'Portal': {
+        if (!node.container?.isConnected) throw new PortalContainerMissing()
+        const kids = buildAll([node.child], env, scopes, node.container)
+        return { node, dom: env.doc.createTextNode(''), kids, ...keyed }
+      }
       case 'Guest': {
         // One React root per guest host; `display: contents` keeps the host out of layout.
         const host = env.doc.createElement('sleek-guest')
@@ -490,6 +508,10 @@ const patch = (prev: Live, node: Leaf, key: string | undefined, env: Env, p: Pla
       return { node, dom: prev.dom, kids: [] }
     }
     const keyed = key === undefined ? {} : { key }
+    if (node._tag === 'Portal') {
+      const kids = patchChildren(node.container!, prev.kids, [node.child], env, p)
+      return { node, dom: prev.dom, kids, ...keyed }
+    }
     if (node._tag === 'Guest') {
       // Same component: the root and its React state stay; only the props re-render on commit.
       const root = prev.root!
@@ -595,7 +617,9 @@ const same = (a: Leaf, b: Leaf): boolean =>
     ? a.tag === (b as ElementNode).tag
     : a._tag === 'Bind'
       ? a.atom === (b as BindNode).atom
-      : a._tag !== 'Guest' || a.component === (b as GuestNode).component)
+      : a._tag === 'Portal'
+        ? a.container === (b as PortalNode).container
+        : a._tag !== 'Guest' || a.component === (b as GuestNode).component)
 
 // Matching: instances by id; others by key and type, else the next unkeyed old sibling by position (a separate pool).
 const patchChildren = (

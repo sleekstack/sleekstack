@@ -119,7 +119,7 @@ const HOST_OPEN = (tag: string): string => `<${tag} style="display: contents;">`
 const isText = (n: Node | undefined): boolean => n?._tag === 'Text' || (n?._tag === 'Bind' && !!n.plain)
 
 const flatten = (nodes: ReadonlyArray<Node>): Array<Node> =>
-  nodes.flatMap((n) => (n._tag === 'Fragment' ? flatten(n.children) : [n]))
+  nodes.flatMap((n) => (n._tag === 'Fragment' ? flatten(n.children) : n._tag === 'Portal' ? [] : [n]))
 /** Children markup; `edge` is the text context around the list itself (a streamed boundary's content). */
 export const serializeAll = (nodes: ReadonlyArray<Node>, c: Collector, edge: Around = NO_TEXT): string =>
   flatten(nodes)
@@ -162,6 +162,8 @@ export const serialize = (node: Node, c: Collector, around: Around = NO_TEXT): s
         if (placeholder !== undefined) return placeholder
       }
       return `${HOST_OPEN('sleek-reactive')}${serialize(node.child, c)}</sleek-reactive>`
+    case 'Portal':
+      return ''
     case 'Guest':
       try {
         const html = reactRenderToString(createElement(node.component, node.props))

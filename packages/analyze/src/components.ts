@@ -97,7 +97,7 @@ export function analyzeComponents(opts: { readonly project: string }): Component
   }
   const isNodeMember = (m: ts.Type) =>
     libId(m.aliasSymbol, checker) === 'ui/node#Node' ||
-    /^ui\/node#(Text|Element|Fragment|Guest|Reactive|Bind)Node$/.test(libId(m.getSymbol(), checker) ?? '')
+    /^ui\/node#(Text|Element|Fragment|Guest|Reactive|Bind|Portal)Node$/.test(libId(m.getSymbol(), checker) ?? '')
   /** A `Node`, or an array / tuple of them (what `Effect.all` over rendered components succeeds with). */
   const isRendered = (m: ts.Type) =>
     isNodeMember(m) ||
@@ -310,7 +310,7 @@ export function analyzeComponents(opts: { readonly project: string }): Component
     if (ts.isIdentifier(tag) && /^[a-z]/.test(tag.text))
       return [...open.attributes.properties.flatMap(closure), ...kids]
     const id = libId(checker.getSymbolAtLocation(tag), checker)
-    if (id === 'ui/jsx-runtime#Fragment') return kids
+    if (id === 'ui/jsx-runtime#Fragment' || id === 'ui/jsx-runtime#Portal') return kids
     if (id === 'ui/pending#Pending') {
       // Transparent: children keep their R and E; the fallback renders beside them, so its components are siblings.
       const fb = attrOf(open, 'fallback')
