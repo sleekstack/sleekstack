@@ -18,6 +18,7 @@ Loaders under Pending with serializable transfer. Contract and rationale are in 
 - [ ] Page reads loader data under Pending (R4)
 - [ ] String, stream and hydration produce the same DOM (R7)
 - [ ] Loader data serializes and transfers without refetch (R12)
+- [ ] A typed loader error reaches the nearest `Boundary`; streaming a route with a slow loader sends the shell first (R15)
 
 
 ## Done summary

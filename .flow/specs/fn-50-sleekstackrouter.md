@@ -43,7 +43,7 @@ Apps built on the ui host have no router. This spec adds a separate package, `@s
 
 - **R9:** Redirect and not-found raised by a loader or action are control flow, not failures, in the DOM, string and stream renderers. [inferred]
 - **R10:** A server entry turns a request into a response (rendered page, redirect or not-found). [inferred]
-- **R11:** Back and forward navigation and scroll restoration work; a newer navigation interrupts a pending loader (latest wins). [inferred]
+- **R11:** Back and forward navigation and scroll restoration work; a newer navigation interrupts a pending loader (latest wins) and closes its scopes, leaving no leaked observers (from fn-32). [inferred]
 - **R12:** Loader data is serializable and reaches the client through the Transfer extension without a refetch. [inferred]
 - **R13:** Prefetched loader results are deduplicated and cached for a bounded time, and a prefetch error is silent. [inferred]
 - **R14:** An ADR records dropping TanStack router-core for the const-table design. [inferred]
@@ -72,7 +72,7 @@ Apps built on the ui host have no router. This spec adds a separate package, `@s
 | R8 | fn-28 is closed as superseded by this spec, and fn-32's loader, redirect, not-found and server-handler scope is part of it; fn-29 and fn-30 point at `@sleekstack/router`. This was decided before planning. | fn-50-sleekstackrouter.1 | — |
 | R9 | Redirect and not-found raised by a loader or action are control flow, not failures, in the DOM, string and stream renderers. | fn-50-sleekstackrouter.5 | — |
 | R10 | A server entry turns a request into a response (rendered page, redirect or not-found). | fn-50-sleekstackrouter.5 | — |
-| R11 | Back and forward navigation and scroll restoration work; a newer navigation interrupts a pending loader (latest wins). | fn-50-sleekstackrouter.5 | — |
+| R11 | Back and forward navigation and scroll restoration work; a newer navigation interrupts a pending loader (latest wins) and closes its scopes, leaving no leaked observers (from fn-32). | fn-50-sleekstackrouter.5 | — |
 | R12 | Loader data is serializable and reaches the client through the Transfer extension without a refetch. | fn-50-sleekstackrouter.3 | — |
 | R13 | Prefetched loader results are deduplicated and cached for a bounded time, and a prefetch error is silent. | fn-50-sleekstackrouter.4 | — |
 | R14 | An ADR records dropping TanStack router-core for the const-table design. | fn-50-sleekstackrouter.1 | — |

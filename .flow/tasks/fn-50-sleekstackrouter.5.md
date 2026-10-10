@@ -16,7 +16,8 @@ Redirect, not-found, server handler and history. Contract and rationale are in t
 ## Acceptance
 - [ ] Redirect and not-found behave as control flow (R9)
 - [ ] Server entry returns page, redirect or not-found responses (R10)
-- [ ] History and scroll restoration work; latest navigation wins (R11)
+- [ ] History and scroll restoration work; latest navigation wins and the interrupted loader's scopes close with no leaked observers (R11)
+- [ ] A server loader failure responds with the error status; a redirect loop past a fixed bound fails with a tagged error (R15)
 
 
 ## Done summary

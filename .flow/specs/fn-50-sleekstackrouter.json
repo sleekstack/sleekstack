@@ -1,14 +1,92 @@
 {
   "branch_name": "fn-50-sleekstackrouter",
+  "completion_review_status": "unknown",
+  "completion_reviewed_at": null,
   "created_at": "2026-10-09T14:48:11.732430Z",
+  "default_impl": null,
+  "default_review": null,
+  "default_sync": null,
   "depends_on_epics": [
     "fn-46-forms-and-actions-in-the-ui-host",
-    "fn-48-code-splitting-with-lazy"
+    "fn-48-code-splitting-with-lazy",
+    "fn-27-streaming-ssr-for-sleekstackui"
   ],
   "id": "fn-50-sleekstackrouter",
+  "impl_review_rounds": {
+    "fn-50-sleekstackrouter.1": 1
+  },
   "next_task": 1,
+  "plan_review_rounds": 0,
   "plan_review_status": "unknown",
   "plan_reviewed_at": null,
+  "review_attempts": [
+    {
+      "artifact_sha256": "be8f59c51ccff61dd84eedfe25562c4432ee0cb6908faa469ba6f14f30ea9daa",
+      "backend": "codex",
+      "base_sha": "9a4dac8471c29baa82fc6e42b1d3a52660042498",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-8c757b63c7bcd34e8720102d0165875d",
+            "classification": "introduced",
+            "findingId": "finding-8c757b63c7bcd34e8720102d0165875d",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-01a0b6535b309ec7ab43f7e6a96ccdee",
+            "classification": "introduced",
+            "findingId": "finding-01a0b6535b309ec7ab43f7e6a96ccdee",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-13e0bd5bda196d9d93e1bd43efbdd2e4",
+            "classification": "introduced",
+            "findingId": "finding-13e0bd5bda196d9d93e1bd43efbdd2e4",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "194fd0d3498d3172ce545a1f2e2f55d91268c712",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 2474,
+      "output_sha256": "9bb5ce38da333d39a4456aa9d22668c2e9ce61ae081bb04fa7c17919d104880c",
+      "reservation_id": "35bc84e5e92442c0bc8047f9d01cec92",
+      "round_consumed": true,
+      "scope": "impl:fn-50-sleekstackrouter.1",
+      "superseded_by": null,
+      "task": "fn-50-sleekstackrouter.1",
+      "timestamp": "2026-10-10T05:17:21.417722Z",
+      "verdict": "NEEDS_WORK"
+    }
+  ],
+  "review_hash_epoch": {},
+  "review_pending_rounds": {},
+  "review_reservations": {},
+  "review_transport_failures": {
+    "impl:fn-50-sleekstackrouter.1": 0
+  },
   "spec_path": ".flow/specs/fn-50-sleekstackrouter.md",
   "status": "open",
   "title": "@sleekstack/router",
@@ -23,5 +101,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-09T15:01:58.121558Z"
+  "updated_at": "2026-10-10T05:17:28.865415Z"
 }
