@@ -51,6 +51,6 @@ export {
   UnsupportedAtom,
   UnsupportedEvent,
 } from './handler'
-export type { Handler, HandlerEvent, HandlerOptions } from './handler'
+export type { ActionEvent, Handler, HandlerEvent, HandlerOptions } from './handler'
 export { HandlerIdMismatch, ManifestDecodeFailed, ManifestInvalid, resume, UnknownHandler } from './resume'
 export type { HandlerLoader, Resumed, ResumeOptions } from './resume'

@@ -8,6 +8,18 @@ export interface HandlerEvent {
   readonly value?: string
   readonly checked?: boolean
   readonly key?: string
+  /** A form's data on `submit`, built at dispatch with the submitter's name and value (files are not in scope). */
+  readonly formData?: FormData
+}
+/** What a form `action` receives: the submit snapshot, its `formData` always set. */
+export interface ActionEvent extends HandlerEvent {
+  readonly formData: FormData
+}
+/** The submitted form's data with its submitter, or `undefined` when `e` is not a form submit. */
+export const submitData = (e: Event): FormData | undefined => {
+  const form = e.target as HTMLFormElement | null
+  if (e.type !== 'submit' || form?.tagName !== 'FORM') return undefined
+  return new FormData(form, (e as SubmitEvent).submitter)
 }
 /** Static flags the server emits so the delegated listener applies them before the handler loads. */
 export interface HandlerOptions {

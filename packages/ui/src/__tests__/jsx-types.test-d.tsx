@@ -89,3 +89,9 @@ void (<div ref={inputRef} />)
 // R12: inline handler strings are not supported
 // @ts-expect-error string on an on* prop
 void (<button onClick="go()" />)
+
+// fn-46 R1: a form action gets the submit snapshot with formData; a string stays a URL
+void (<form action={(e) => void e.formData.get('title')} />)
+void (<form action="/save" />)
+// @ts-expect-error a number is neither a URL nor an action
+void (<form action={1} />)

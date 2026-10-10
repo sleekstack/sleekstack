@@ -1,6 +1,6 @@
 import type { Atom } from '@sleekstack/core'
 import type { Effect } from 'effect'
-import type { Handler, NonBubblingEvent } from './handler'
+import type { ActionEvent, Handler, NonBubblingEvent } from './handler'
 import type { Child } from './jsx-runtime'
 import type { Ref } from './node'
 
@@ -101,6 +101,12 @@ export type EventHandler<Ev, K extends string = string> =
   | ((event: Ev) => Effect.Effect<unknown, any, any> | Generator<any, unknown, any> | void)
   | Effect.Effect<unknown, any, any>
   | (K extends NonBubblingEvent ? never : Handler<any, any>)
+
+/** A form `action`: like an `onSubmit` handler, but it gets the submit snapshot with `formData` (a Promise result is rejected). */
+export type FormAction =
+  | ((event: ActionEvent) => Effect.Effect<unknown, any, any> | Generator<any, unknown, any> | void)
+  | Effect.Effect<unknown, any, any>
+  | Handler<any, any>
 
 /** `on*` props over an element's event map, each event's `currentTarget` narrowed to the element. */
 type EventAttrs<El, Map> = {
@@ -223,7 +229,8 @@ interface HtmlAttrs {
   fieldset: FormControl
   form: {
     'accept-charset'?: V<string>
-    action?: V<string>
+    /** A URL, or an action run on submit with the form's data (default prevented, `onSubmit` first, latest submit wins). */
+    action?: V<string> | FormAction
     autocomplete?: V<'on' | 'off'>
     enctype?: V<string>
     method?: V<'get' | 'post' | 'dialog'>

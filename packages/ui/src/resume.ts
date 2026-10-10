@@ -1,6 +1,6 @@
 import { type Atom, makeAtomStore } from '@sleekstack/core'
 import { Cause, Context, Data, Effect, Exit, Fiber, Layer, Option, Schema, Scope } from 'effect'
-import { DuplicateBindKey, type Handler, type HandlerEvent, valueInfo } from './handler'
+import { DuplicateBindKey, type Handler, type HandlerEvent, submitData, valueInfo } from './handler'
 import { Store } from './reactive'
 
 export class ManifestInvalid extends Data.TaggedError('ManifestInvalid')<{ readonly reason: string }> {}
@@ -87,11 +87,13 @@ const original = (cause: Cause.Cause<unknown>): unknown => {
 
 const snapshot = (e: Event): HandlerEvent => {
   const t = e.target as Element | null
-  const out: { type: string; value?: string; checked?: boolean; key?: string } = { type: e.type }
+  const out: { -readonly [K in keyof HandlerEvent]: HandlerEvent[K] } = { type: e.type }
   const tag = t?.tagName
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') out.value = (t as HTMLInputElement).value
   if (tag === 'INPUT') out.checked = (t as HTMLInputElement).checked
   if (typeof (e as KeyboardEvent).key === 'string') out.key = (e as KeyboardEvent).key
+  const formData = submitData(e)
+  if (formData) out.formData = formData
   return out
 }
 
@@ -165,7 +167,16 @@ const activate = async <R, LE>(opts: ResumeOptions<R, LE>): Promise<Resumed> => 
     for (const { node, atom } of binds) node.textContent = String(store.get(atom))
   }
   let tail: Promise<void> = Promise.resolve()
-  const enqueue = (id: string, event: HandlerEvent) => {
+  // Per form, the latest submit wins: a newer one interrupts the running submit and skips a queued one.
+  const latest = new WeakMap<Element, object>()
+  const running = new WeakMap<Element, Fiber.RuntimeFiber<void, unknown>>()
+  const enqueue = (id: string, event: HandlerEvent, target: Element) => {
+    const turn = {}
+    if (event.type === 'submit') {
+      latest.set(target, turn)
+      const prev = running.get(target)
+      if (prev) Effect.runFork(Fiber.interrupt(prev))
+    }
     const loading = load(id)
     loading.catch(() => {}) // reported in queue order below
     tail = tail.then(async () => {
@@ -181,7 +192,7 @@ const activate = async <R, LE>(opts: ResumeOptions<R, LE>): Promise<Resumed> => 
           )
         return
       }
-      if (!active) return
+      if (!active || (event.type === 'submit' && latest.get(target) !== turn)) return
       // Forked into the client Scope so `dispose` interrupts a run in flight; suspend turns a sync throw into a defect.
       // DOM writes wait for the run's exit: a failed handler leaves the DOM as it was, and writable atoms are restored.
       const before = binds.map(({ atom }) => [atom, store.get(atom)] as const)
@@ -190,7 +201,10 @@ const activate = async <R, LE>(opts: ResumeOptions<R, LE>): Promise<Resumed> => 
         Effect.suspend(() => h.run(event)),
         ctx as Context.Context<any>,
       )
-      const exit = await Effect.runPromise(Effect.flatMap(Effect.forkIn(run, scope), Fiber.await))
+      const fiber = Effect.runSync(Effect.forkIn(run, scope))
+      if (event.type === 'submit') running.set(target, fiber)
+      const exit = await Effect.runPromise(Fiber.await(fiber))
+      if (running.get(target) === fiber) running.delete(target)
       deferred = false
       if (!active) return
       if (Exit.isFailure(exit)) {
@@ -199,7 +213,7 @@ const activate = async <R, LE>(opts: ResumeOptions<R, LE>): Promise<Resumed> => 
             if (store.get(atom) !== v) store.set(atom as any, v) // derived/read-only atoms have no write
           } catch {}
         }
-        report(exit.cause)
+        if (!Cause.isInterruptedOnly(exit.cause)) report(exit.cause)
       } else paint()
     })
   }
@@ -211,7 +225,7 @@ const activate = async <R, LE>(opts: ResumeOptions<R, LE>): Promise<Resumed> => 
     if (!target || !container.contains(target)) return
     if (target.hasAttribute(`data-sleek-pd-${e.type}`)) e.preventDefault()
     if (target.hasAttribute(`data-sleek-sp-${e.type}`)) e.stopPropagation()
-    enqueue(target.getAttribute(attr)!, snapshot(e))
+    enqueue(target.getAttribute(attr)!, snapshot(e), target)
   }
 
   const unsubs = binds.map(({ node, atom }) =>

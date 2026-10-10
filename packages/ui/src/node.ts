@@ -1,7 +1,7 @@
 import type { Atom } from '@sleekstack/core'
 import type { Context, Effect, Scope } from 'effect'
 import type { ComponentType } from 'react'
-import type { Handler } from './handler'
+import type { ActionEvent, Handler } from './handler'
 import type { RunFrame } from './reactive'
 
 export interface TextNode {
@@ -31,6 +31,8 @@ export interface Ref<in out T> {
 export interface EventBinding {
   readonly run: (event: Event) => Effect.Effect<void, never, any>
   readonly context: Context.Context<any>
+  /** A form's `action`: run after `run` on submit with the form's data; the default is prevented and the latest submit wins. */
+  readonly action?: (event: ActionEvent) => Effect.Effect<void, never, any>
 }
 export interface FragmentNode {
   readonly _tag: 'Fragment'
