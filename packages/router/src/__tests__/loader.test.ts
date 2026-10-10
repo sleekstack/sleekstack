@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { Data, Effect, Layer, Option, Schema } from 'effect'
+import { Data, Effect, Fiber, Layer, Option, Schema } from 'effect'
 import { act } from 'react'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import {
@@ -128,5 +128,36 @@ describe('useLoader', () => {
     await act(async () => void handles.push(await hydrateMount(app(), { layer: both(), container })))
     expect(seeded).toBe('q')
     expect(calls).toBe(1)
+  })
+
+  it('a shared load survives the interrupt of one reader and stops with the last', async () => {
+    let open!: () => void
+    let interrupted = 0
+    let stopped = 0
+    const gate = new Promise<void>((r) => (open = r))
+    const shared = loader(
+      'shared',
+      Schema.String,
+      Effect.promise(() => gate.then(() => 'ok')).pipe(Effect.onInterrupt(() => Effect.sync(() => interrupted++))),
+    )
+    const run = Effect.gen(function* () {
+      const first = yield* Effect.fork(useLoader(shared))
+      const second = yield* Effect.fork(useLoader(shared))
+      yield* Effect.yieldNow()
+      yield* Fiber.interrupt(first)
+      open()
+      const ok = yield* Fiber.join(second)
+      const third = yield* Effect.fork(
+        useLoader(
+          loader('stuck', Schema.String, Effect.never.pipe(Effect.onInterrupt(() => Effect.sync(() => stopped++)))),
+        ),
+      )
+      yield* Effect.yieldNow()
+      yield* Fiber.interrupt(third)
+      return ok
+    })
+    expect(await Effect.runPromise(Effect.provide(run, layer()))).toBe('ok')
+    expect(interrupted).toBe(0)
+    expect(stopped).toBe(1)
   })
 })
