@@ -1,5 +1,5 @@
 import { Transfer, type StateTransfer } from '@sleekstack/ui'
-import { Context, Effect, Exit, Fiber, Layer, Option, Schema } from 'effect'
+import { type Cause, Context, Effect, Exit, Fiber, Layer, Option, Schema } from 'effect'
 import { Route, routeLayer, type Match } from './index'
 
 /** A route's loader: an Effect run for the matched route, its result read by the page with `useLoader`. */
@@ -23,6 +23,8 @@ export interface Held {
   encoded?: unknown
   load?: Fiber.RuntimeFiber<unknown, unknown>
   readers: number
+  // A failure the router's resolve saw before the render: the page's read replays it once instead of loading again.
+  failure?: Cause.Cause<unknown>
   // Set while a prefetch is unread: past it the load is stopped and the result dropped. A page read keeps it for good.
   expires?: number
 }
@@ -62,6 +64,9 @@ const start = <A, I, E, R>(
     return e
   })
 
+/** Where `l`'s result for `pathname` is held in `Loaders`. */
+export const keyOf = (l: Loader<any, any, any, any>, pathname: string): string => JSON.stringify([l.key, pathname])
+
 /** Loader results of one render (server) or app (client), keyed by loader key and pathname. */
 export class Loaders extends Context.Tag('@sleekstack/router/Loaders')<Loaders, Map<string, Held>>() {}
 
@@ -75,8 +80,12 @@ export const useLoader = <A, I, E, R>(l: Loader<A, I, E, R>): Effect.Effect<A, E
   Effect.gen(function* () {
     const { pathname } = yield* Route
     const all = yield* Loaders
-    const key = JSON.stringify([l.key, pathname])
+    const key = keyOf(l, pathname)
     let held = all.get(key)
+    if (held?.failure) {
+      all.delete(key)
+      return yield* Effect.failCause(held.failure as Cause.Cause<E>)
+    }
     if (held?.expires !== undefined) {
       if (held.expires >= Date.now()) delete held.expires
       else yield* evict(all, key, held).pipe(Effect.as((held = undefined)))
@@ -104,7 +113,7 @@ export const prefetchLoader = <A, I, E, R>(
 ): Effect.Effect<void, never, Exclude<R, Route> | Loaders> =>
   Effect.gen(function* () {
     const all = yield* Loaders
-    const key = JSON.stringify([l.key, m.pathname])
+    const key = keyOf(l, m.pathname)
     if (all.has(key)) return
     const e = yield* start(all, key, Effect.provide(l.load, routeLayer(m)), l.schema, PREFETCH_TTL)
     yield* Effect.forkDaemon(

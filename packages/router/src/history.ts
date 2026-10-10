@@ -2,7 +2,7 @@ import { hydrateMount, type Mounted, mount, type Node } from '@sleekstack/ui'
 import { Cause, Effect, Exit, Fiber, Layer, Option } from 'effect'
 import { match, routeLayer } from './index'
 import { type Held, Loaders, withLoaders } from './loader'
-import { NotFound, Redirect, RedirectLoop, resolve, type Router } from './resolve'
+import { NotFound, Redirect, resolve, type Router } from './resolve'
 
 export interface StartOptions {
   /** The element the pages render into. Server-rendered content in it is hydrated. */
@@ -37,6 +37,9 @@ export const startRouter = async (r: Router, opts: StartOptions): Promise<Naviga
   let key: string = history.state?.key ?? newKey()
   history.replaceState({ ...history.state, key }, '')
   history.scrollRestoration = 'manual'
+  const here = (u: URL | Location) => u.pathname + u.search
+  // The pathname and search of the page shown; a history step within it (a fragment) is not a navigation.
+  let shown = here(location)
   let nav: Fiber.RuntimeFiber<void, unknown> | undefined
   let mounted: Mounted | undefined
 
@@ -60,20 +63,21 @@ export const startRouter = async (r: Router, opts: StartOptions): Promise<Naviga
     scrolls.set(key, scrollY)
     if (mode === 'pop') key = history.state?.key ?? newKey()
     if (nav) Effect.runFork(Fiber.interrupt(nav))
+    // Each navigation loads again (R11): drop settled results, keeping loads in flight and unread prefetches.
+    for (const [k, h] of all) if (!h.load && h.expires === undefined) all.delete(k)
     const run = Effect.gen(function* () {
       const exit = yield* Effect.exit(
         Effect.provide(resolve(r, href, location.origin), Layer.merge(Layer.succeed(Loaders, all), base)),
       )
-      const e = Exit.isFailure(exit) ? Cause.failureOption(exit.cause) : Option.none()
-      if (Exit.isFailure(exit) && (Option.isNone(e) || e.value instanceof RedirectLoop))
-        return opts.onError?.(exit.cause)
-      // A loader error still shows the page: its `Boundary` shows the error.
-      const res = Exit.isSuccess(exit) ? exit.value : { _tag: 'Page' as const, href }
+      // A `RedirectLoop` or defect; a loader's error still shows the page, whose `Boundary` gets it.
+      if (Exit.isFailure(exit)) return opts.onError?.(exit.cause)
+      const res = exit.value
       if (res._tag === 'External') return location.assign(res.href)
       if (mode === 'push') history.pushState({ key: (key = newKey()) }, '', res.href)
       else if (mode === 'replace' || res.href !== href) history.replaceState({ key }, '', res.href)
       const [app, route] =
         res._tag === 'NotFound' ? [r.notFound(), undefined] : page(new URL(res.href, location.href).pathname)
+      shown = here(new URL(res.href, location.href))
       yield* Effect.promise(() => show(app, route))
       scrollTo(0, mode === 'pop' ? (scrolls.get(key) ?? 0) : 0)
     })
@@ -87,11 +91,12 @@ export const startRouter = async (r: Router, opts: StartOptions): Promise<Naviga
     const a = (ev.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null
     if (!a || (a.target && a.target !== '_self') || a.hasAttribute('download')) return
     const url = new URL(a.href, location.href)
-    if (url.origin !== location.origin) return
+    // A fragment of the page shown is the browser's to scroll to.
+    if (url.origin !== location.origin || (url.hash && here(url) === shown)) return
     ev.preventDefault()
     void go(url.pathname + url.search + url.hash, 'push')
   }
-  const onPop = () => void go(location.pathname + location.search + location.hash, 'pop')
+  const onPop = () => here(location) !== shown && void go(location.pathname + location.search + location.hash, 'pop')
   container.addEventListener('click', onClick)
   addEventListener('popstate', onPop)
 

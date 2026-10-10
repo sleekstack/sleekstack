@@ -66,4 +66,4 @@ export default { fetch: (request: Request) => handle(app, request, { document: {
 await startRouter(app, { container: document.getElementById('app')! })
 ```
 
-A page's loaders run before it shows, so a server response knows its status. `handle` therefore waits for them even with `stream: true`; streaming still sends the shell before any other `Pending` content settles.
+A page's declared `loaders` run before it shows, so the response knows its status: `handle` waits for them even with `stream: true`. A loader the page reads without declaring streams under `Pending`, shell first; its redirect or not-found is answered in a string render, not in a stream. Each browser navigation loads again; a failed loader runs once and its `Boundary` gets that failure.

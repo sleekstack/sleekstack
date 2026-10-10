@@ -1,7 +1,7 @@
 import type { Node } from '@sleekstack/ui'
-import { Data, Effect, Option } from 'effect'
+import { Cause, Data, Effect, Option } from 'effect'
 import { match, routeLayer, type Match, type RouteTable } from './index'
-import { type Loader, type Loaders, useLoader } from './loader'
+import { keyOf, type Loader, Loaders, useLoader } from './loader'
 
 /** Raised by a loader or action: go to `to` instead (R9). Control flow, not a failure. */
 export class Redirect extends Data.TaggedError('Redirect')<{ readonly to: string }> {}
@@ -33,16 +33,29 @@ export interface Router<T extends RouteTable = RouteTable> {
 export const router = <const T extends RouteTable>(r: Router<T>): Router<T> => r
 
 export type Resolved =
-  | { readonly _tag: 'Page'; readonly match: Match; readonly href: string }
+  | { readonly _tag: 'Page'; readonly match: Match; readonly href: string; readonly error?: unknown }
   | { readonly _tag: 'NotFound'; readonly href: string }
   | { readonly _tag: 'External'; readonly href: string }
 
-const control = (e: unknown) =>
-  e instanceof Redirect || e instanceof NotFound ? Effect.succeed(e) : Effect.fail(e as never)
+export const isControl = (e: unknown): e is Redirect | NotFound => e instanceof Redirect || e instanceof NotFound
+
+// Runs `l`; a failure other than control flow is held for the page's read to replay (so the loader runs once) and
+// returned as the page's error.
+const run = (l: Loader<any, any, any, any>, pathname: string) =>
+  Effect.catchAllCause(Effect.as(useLoader(l), Option.none<unknown>()), (cause) => {
+    const e = Cause.failureOption(cause)
+    if (Option.isSome(e) && isControl(e.value)) return Effect.fail(e.value)
+    return Effect.flatMap(Loaders, (all) =>
+      Effect.as(
+        Effect.sync(() => all.set(keyOf(l, pathname), { failure: cause, readers: 0 })),
+        Option.some(Option.isSome(e) ? e.value : Cause.squash(cause)),
+      ),
+    )
+  })
 
 /**
- * Matches `href` and runs its page's loaders into `Loaders`, following redirects. Fails with a loader's error, or
- * `RedirectLoop` past `MAX_REDIRECTS`. Interrupting it interrupts the loads it started.
+ * Matches `href` and runs its page's loaders into `Loaders`, following redirects. A loader's error is the page's
+ * `error`; fails only with `RedirectLoop` past `MAX_REDIRECTS`. Interrupting it interrupts the loads it started.
  */
 export const resolve = (r: Router, href: string, origin: string): Effect.Effect<Resolved, unknown, Loaders> =>
   Effect.gen(function* () {
@@ -51,18 +64,17 @@ export const resolve = (r: Router, href: string, origin: string): Effect.Effect<
       if (url.origin !== origin) return { _tag: 'External', href } as const
       const m = match(r.table, url.pathname)
       if (Option.isNone(m)) return { _tag: 'NotFound', href } as const
-      const loads = Effect.forEach(r.pages[m.value.name]!.loaders ?? [], (l) => useLoader(l), {
+      const loads = Effect.forEach(r.pages[m.value.name]!.loaders ?? [], (l) => run(l, url.pathname), {
         concurrency: 'unbounded',
-        discard: true,
       })
-      const step = yield* loads.pipe(
-        Effect.provide(routeLayer(m.value)),
-        Effect.as(undefined),
-        Effect.catchAll(control),
-      )
-      if (step === undefined) return { _tag: 'Page', match: m.value, href } as const
-      if (step._tag === 'NotFound') return { _tag: 'NotFound', href } as const
-      if (hops >= MAX_REDIRECTS) return yield* new RedirectLoop({ to: step.to })
-      href = step.to
+      const step = yield* loads.pipe(Effect.provide(routeLayer(m.value)), Effect.either)
+      if (step._tag === 'Right') {
+        const failed = step.right.find(Option.isSome)
+        return { _tag: 'Page', match: m.value, href, ...(failed ? { error: failed.value } : {}) } as const
+      }
+      const ctl = step.left as Redirect | NotFound
+      if (ctl._tag === 'NotFound') return { _tag: 'NotFound', href } as const
+      if (hops >= MAX_REDIRECTS) return yield* new RedirectLoop({ to: ctl.to })
+      href = ctl.to
     }
   }) as Effect.Effect<Resolved, unknown, Loaders>
