@@ -3,7 +3,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { Atom, makeAtomStore } from '@sleekstack/core'
-import { mount, useAtomValue, useLocal } from '@sleekstack/ui'
+import { mount, startTransition, useAtomValue, useDeferredAtom, useLocal } from '@sleekstack/ui'
 import { jsx } from '@sleekstack/ui/jsx-runtime'
 import { Effect, Layer } from 'effect'
 import { createContext, createElement as h, useContext, useState } from 'react'
@@ -471,6 +471,33 @@ await check('render-dom/atom-bound-text-1k', [
   ['react', bound.react.run],
 ])
 
+// ---- transition + deferred read: a marked write, then a row reading the deferred copy follows after the commit ----
+
+// React has no synchronous way to flush a transition or a deferred value, so this case is sleekstack only.
+const sleekDeferred = async () => {
+  const container = document.createElement('div')
+  const store = makeAtomStore()
+  const count = Atom.make(0)
+  const Counter = () =>
+    Effect.flatMap(Effect.flatMap(useDeferredAtom(count), useAtomValue), (n) =>
+      jsx('li', { className: 'row', children: `Deferred ${n}` }),
+    )
+  await mount(sleekTree(jsx, Counter), { layer: Layer.empty, container, store })
+  let n = 0
+  // The deferred copy is written after the source run commits, then its readers re-run: a macrotask covers both.
+  return {
+    container,
+    run: async () => (
+      startTransition(() => store.set(count, ++n)),
+      await new Promise((r) => setTimeout(r, 0)),
+      container.textContent
+    ),
+  }
+}
+const deferred = await sleekDeferred()
+if (!(await deferred.run())?.startsWith('Deferred 1'))
+  throw new Error('render-dom/transition-deferred-1-of-1k: deferred row did not follow')
+
 const results = resolve(import.meta.dirname, '../results')
 mkdirSync(results, { recursive: true })
 writeFileSync(resolve(results, 'swaps.json'), JSON.stringify(nodeSwaps, null, 2))
@@ -523,4 +550,8 @@ describe('render-dom/keyed-update-hook-miss-1-of-1k', () => {
 describe('render-dom/keyed-update-gen-miss-1-of-1k', () => {
   bench('sleekstack', async () => void (await genMiss.sleekstack.run()), opts)
   bench('react', () => void genMiss.react.run(), opts)
+})
+
+describe('render-dom/transition-deferred-1-of-1k', () => {
+  bench('sleekstack', async () => void (await deferred.run()), opts)
 })
