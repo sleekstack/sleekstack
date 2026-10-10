@@ -1,0 +1,29 @@
+{
+  "backend": "codex",
+  "counter_scope": "impl:fn-46-forms-and-actions-in-the-ui-host.2",
+  "failure_class": "fanout_abandoned",
+  "finalized": {
+    "digest": "not_applicable",
+    "receipt": "not_applicable",
+    "status": "not_applicable"
+  },
+  "metadata": null,
+  "outcome": "transport_failure",
+  "receipt_payload": null,
+  "receipt_target": null,
+  "reservation_id": "5bcd8c8045614afcba7e727d340d47b2",
+  "reset_rounds_on_ship": false,
+  "response": "fan-out dispatched; no finalize landed before this refund-intent journal was replayed",
+  "response_sha256": "6ea4de7239adcef700fcf360528c3918564fc4300515f3a62b9a089c94e74f20",
+  "review_kind": "impl",
+  "review_type": "impl",
+  "reviewed_base_sha": "6c79f0d47d0c7c005275bdbcc6fbf237defa2ba0",
+  "reviewed_head_sha": "3dd0f44b3301cb98f717364277f0653e96c19df3",
+  "scope": "impl:fn-46-forms-and-actions-in-the-ui-host.2",
+  "spec_id": "fn-46-forms-and-actions-in-the-ui-host",
+  "status_target": null,
+  "superseded_by": null,
+  "task_id": "fn-46-forms-and-actions-in-the-ui-host.2",
+  "timestamp": "2026-10-10T02:44:06.282994Z",
+  "verdict": null
+}

@@ -69,6 +69,32 @@ describe('useAction / useFormStatus', () => {
     expect(seen.at(-1)).toMatchObject({ _tag: 'Success', value: 2, waiting: false })
   })
 
+  it('a superseded run never settles the Result its replacement is waiting on', async () => {
+    const gate = Effect.runSync(Deferred.make<void>())
+    let n = 0
+    const seen: Array<Result.Result<number>> = []
+    const { container, submit } = await go(
+      jsx(
+        form(
+          () =>
+            ++n === 1
+              ? Effect.onInterrupt(Effect.never, () => Effect.sleep('1 millis')) // slow interrupt cleanup
+              : Effect.as(Deferred.await(gate), n),
+          seen,
+        ),
+        {},
+      ),
+    )
+    await submit()
+    await flush()
+    await submit()
+    await act(() => new Promise((r) => setTimeout(r, 10)))
+    expect(container.querySelector('output')!.textContent).toBe('Initial:true')
+    await act(() => Effect.runPromise(Deferred.succeed(gate, undefined)))
+    await flush()
+    expect(container.querySelector('output')!.textContent).toBe('Success:false')
+  })
+
   it('a failure lands in the Result with the previous value, not in onError', async () => {
     const seen: Array<Result.Result<never, string>> = []
     const { container, onError, submit } = await go(
@@ -134,6 +160,22 @@ describe('useOptimistic', () => {
     await flush()
     expect(container.querySelector('ul')!.textContent).toBe('a')
     expect(atFailure).toEqual([['a']])
+  })
+
+  it('follows a new source atom on a re-run', async () => {
+    const a = Atom.make('a')
+    const b = Atom.make('b')
+    const which = Atom.make(false)
+    const C = function* () {
+      const source = (yield* useAtomValue(which)) ? b : a
+      const [v] = yield* useOptimistic(source, (x: string, c: string) => x + c)
+      return jsx('p', { children: yield* useAtomValue(v) })
+    }
+    const { container, store } = await go(jsx(C, {}))
+    expect(container.textContent).toBe('a')
+    await act(() => store.set(which, true))
+    await flush()
+    expect(container.textContent).toBe('b')
   })
 
   it('reverts to the source when the action settles successfully', async () => {

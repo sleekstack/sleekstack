@@ -577,7 +577,7 @@ export const useRef = <T = null>(initial: T | null = null): Effect.Effect<Ref<T>
 /** A form `action` built by `useAction`: runs the action and records its outcome; its failure lives in the `Result`. */
 export type FormAction<R = never> = (event: ActionEvent) => Effect.Effect<void, never, R>
 
-const actionRuns = new WeakMap<Atom.Atom<any>, { run: (event: ActionEvent) => unknown }>()
+const actionRuns = new WeakMap<Atom.Atom<any>, { run: (event: ActionEvent) => unknown; latest?: object }>()
 
 /**
  * `useAction(run)`, like React's `useActionState`: `[result, action]`. Pass `action` as a form's `action` prop; `result` is
@@ -623,16 +623,20 @@ export function useAction(run: (event: ActionEvent) => unknown): Effect.Effect<r
         // A Promise result throws here, outside the Result, so the mount reports it.
         const effect = asEffect('action', box.run(event)) as Effect.Effect<unknown, unknown, any>
         const previous = s.get(atom)
+        const run = {}
+        box.latest = run
         s.set(atom, Result.waitingFrom(previous))
-        // An interrupted run leaves `waiting`: the submit that interrupted it settles the Result.
+        // Only the latest run settles the Result: a superseded one leaves it `waiting` for its replacement.
         return Effect.flatMap(Effect.exit(effect), (exit) =>
-          Effect.sync(() =>
-            s.set(
-              atom,
-              Exit.isSuccess(exit)
-                ? Result.success(exit.value)
-                : Result.failure(exit.cause, { previousValue: Result.value(previous) }),
-            ),
+          Effect.sync(
+            () =>
+              box.latest === run &&
+              s.set(
+                atom,
+                Exit.isSuccess(exit)
+                  ? Result.success(exit.value)
+                  : Result.failure(exit.cause, { previousValue: Result.value(previous) }),
+              ),
           ),
         )
       })
@@ -653,6 +657,7 @@ export const useFormStatus = (
 
 interface OptimisticBox<A, C> {
   apply: (current: A, change: C) => A
+  readonly source: Atom.Writable<Atom.Atom<A>>
   readonly view: Atom.Atom<A>
 }
 const optimisticViews = new WeakMap<Atom.Atom<any>, OptimisticBox<any, any>>()
@@ -660,8 +665,8 @@ const optimisticViews = new WeakMap<Atom.Atom<any>, OptimisticBox<any, any>>()
 /**
  * `useOptimistic(source, apply)`, like React's: `[value, optimistic]`. `value` is an atom of `source` with every pending
  * change applied by `apply`; `optimistic(change, effect)` shows `change` while `effect` runs and drops it when `effect`
- * ends, whether it succeeds, fails or is interrupted — before a `useAction` around it records the outcome. `source` is the
- * first run's; the newest `apply` is used. Takes a slot like `useLocal`.
+ * ends, whether it succeeds, fails or is interrupted — before a `useAction` around it records the outcome. A new `source`
+ * atom replaces the old one; the newest `apply` is used on the next recompute. Takes a slot like `useLocal`.
  */
 export const useOptimistic = <A, C>(
   source: Atom.Atom<A>,
@@ -678,9 +683,11 @@ export const useOptimistic = <A, C>(
     type Entry = { readonly change: C }
     const create = () => {
       const pending = Atom.make<ReadonlyArray<Entry>>([])
+      const current = Atom.make(source)
       const box: OptimisticBox<A, C> = {
         apply,
-        view: Atom.make((get) => get(pending).reduce((a, e) => box.apply(a, e.change), get(source))),
+        source: current,
+        view: Atom.make((get) => get(pending).reduce((a, e) => box.apply(a, e.change), get(get(current)))),
       }
       optimisticViews.set(pending, box)
       return pending
@@ -699,6 +706,7 @@ export const useOptimistic = <A, C>(
     }
     const box = optimisticViews.get(pending)! as OptimisticBox<A, C>
     box.apply = apply
+    if (s.get(box.source) !== source) s.set(box.source, source)
     const optimistic = <X, E, R>(change: C, effect: Effect.Effect<X, E, R>): Effect.Effect<X, E, R> =>
       Effect.suspend(() => {
         const entry: Entry = { change }

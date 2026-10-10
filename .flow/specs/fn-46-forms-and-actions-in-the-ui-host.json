@@ -11,7 +11,8 @@
   ],
   "id": "fn-46-forms-and-actions-in-the-ui-host",
   "impl_review_rounds": {
-    "fn-46-forms-and-actions-in-the-ui-host.1": 0
+    "fn-46-forms-and-actions-in-the-ui-host.1": 0,
+    "fn-46-forms-and-actions-in-the-ui-host.2": 1
   },
   "next_task": 1,
   "plan_review_rounds": 0,
@@ -142,8 +143,19 @@
   "review_hash_epoch": {
     "impl:fn-46-forms-and-actions-in-the-ui-host.1": 1
   },
-  "review_pending_rounds": {},
-  "review_reservations": {},
+  "review_pending_rounds": {
+    "impl:fn-46-forms-and-actions-in-the-ui-host.2": 1
+  },
+  "review_reservations": {
+    "5bcd8c8045614afcba7e727d340d47b2": {
+      "artifact_sha256": "e93121c0efeb3b2fbffa04913e9c83953b36fe4ecbe09431a01ffb14d525885d",
+      "counter_scope": "impl:fn-46-forms-and-actions-in-the-ui-host.2",
+      "epoch": 0,
+      "exclusive": true,
+      "forced": false,
+      "review_type": "impl"
+    }
+  },
   "review_transport_failures": {
     "impl:fn-46-forms-and-actions-in-the-ui-host.1": 0
   },
@@ -161,5 +173,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-10T02:39:35.637831Z"
+  "updated_at": "2026-10-10T02:44:06.282149Z"
 }
