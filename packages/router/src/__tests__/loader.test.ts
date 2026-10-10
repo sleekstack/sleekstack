@@ -1,14 +1,24 @@
 // @vitest-environment jsdom
-import { Data, Effect, Layer, Option } from 'effect'
+import { Data, Effect, Layer, Option, Schema } from 'effect'
 import { act } from 'react'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
-import { Boundary, el, hydrateMount, type Mounted, Pending, renderToStream, renderToString } from '@sleekstack/ui'
+import {
+  Boundary,
+  el,
+  Transfer,
+  hydrateMount,
+  type Mounted,
+  Pending,
+  renderToStream,
+  renderToString,
+} from '@sleekstack/ui'
 import { jsx as rawJsx } from '@sleekstack/ui/jsx-runtime'
 import { loader, LoaderTransferLive, match, routeLayer, routes, useLoader } from '../index'
 
 const jsx = (type: any, props: any) => rawJsx(type, props)
 const table = routes({ user: '/users/:id' })
-const layer = () => Layer.merge(LoaderTransferLive, routeLayer(Option.getOrThrow(match(table, '/users/7'))))
+const route = () => routeLayer(Option.getOrThrow(match(table, '/users/7')))
+const layer = () => Layer.merge(LoaderTransferLive, route())
 const strip = (html: string) =>
   html
     .replace(/<script\b[^>]*>[\s\S]*?<\/script>/g, '')
@@ -16,13 +26,15 @@ const strip = (html: string) =>
     .replace(/<!--\/?sleek-p[^>]*-->/g, '')
 
 let calls = 0
+// A Date only survives the transfer through its schema; two Pendings read the one loader.
 const user = loader(
   'user',
-  Effect.promise(async () => (calls++, { name: 'Ada' })),
+  Schema.Struct({ name: Schema.String, born: Schema.Date }),
+  Effect.promise(async () => (calls++, { name: 'Ada', born: new Date('1815-12-10') })),
 )
-const Page = () => Effect.map(useLoader(user), (u) => el('b', {}, u.name))
-const app = () =>
-  jsx('div', { children: jsx(Pending, { fallback: jsx('i', { children: 'wait' }), children: jsx(Page, {}) }) })
+const Page = () => Effect.map(useLoader(user), (u) => el('b', {}, `${u.name}:${u.born.getUTCFullYear()}`))
+const pending = () => jsx(Pending, { fallback: jsx('i', { children: 'wait' }), children: jsx(Page, {}) })
+const app = () => jsx('div', { children: [pending(), pending()] })
 
 let handles: Array<Mounted> = []
 beforeAll(() => {
@@ -56,9 +68,9 @@ describe('useLoader', () => {
     const html = await renderToString(app(), { layer: layer() })
     expect(html).toContain('data-sleek-hydrate')
     const streamed = await new Response(renderToStream(app(), { layer: layer() })).text()
-    expect(calls).toBe(2)
+    expect(calls).toBe(2) // one load per render, shared by both readers
     const dom = strip(html)
-    expect(dom).toBe('<div><b>Ada</b></div>')
+    expect(dom).toBe('<div><b>Ada:1815</b><b>Ada:1815</b></div>')
     const swapped = document.createElement('div')
     document.body.replaceChildren(swapped)
     swapped.innerHTML = streamed
@@ -74,6 +86,7 @@ describe('useLoader', () => {
     const gate = new Promise<void>((r) => (open = r))
     const slow = loader(
       'slow',
+      Schema.String,
       Effect.promise(() => gate.then(() => 'late')),
     )
     const Slow = () => Effect.map(useLoader(slow), (s) => el('b', {}, s))
@@ -92,7 +105,7 @@ describe('useLoader', () => {
 
   it('a typed loader error reaches the nearest Boundary', async () => {
     class NotFound extends Data.TaggedError('NotFound')<{ readonly id: string }> {}
-    const failing = loader('missing', Effect.fail(new NotFound({ id: '7' })))
+    const failing = loader('missing', Schema.String, Effect.fail(new NotFound({ id: '7' })))
     const Page = () => Effect.map(useLoader(failing), () => el('b', {}, 'never'))
     const html = await renderToString(
       jsx(Boundary, {
@@ -103,5 +116,17 @@ describe('useLoader', () => {
       { layer: layer() },
     )
     expect(html).toContain('<p>NotFound:7</p>')
+  })
+
+  it('carries an outer Transfer beside the loaders', async () => {
+    let seeded: unknown
+    const inner = Layer.succeed(Transfer, { dehydrate: () => 'q', hydrate: (s) => void (seeded = s) })
+    const both = () => Layer.merge(LoaderTransferLive.pipe(Layer.provideMerge(inner)), route())
+    const html = await renderToString(app(), { layer: both() })
+    const container = document.createElement('div')
+    container.innerHTML = html
+    await act(async () => void handles.push(await hydrateMount(app(), { layer: both(), container })))
+    expect(seeded).toBe('q')
+    expect(calls).toBe(1)
   })
 })

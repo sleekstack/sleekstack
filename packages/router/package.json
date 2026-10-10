@@ -38,9 +38,6 @@
     "jsdom": "^29.1.1"
   },
   "peerDependenciesMeta": {
-    "@sleekstack/ui": {
-      "optional": true
-    },
     "@sleekstack/core": {
       "optional": true
     }
