@@ -1,7 +1,7 @@
 {
   "branch_name": "fn-47-transitions-and-deferred-atoms",
-  "completion_review_status": "unknown",
-  "completion_reviewed_at": null,
+  "completion_review_status": "ship",
+  "completion_reviewed_at": "2026-10-10T03:18:24.901685Z",
   "created_at": "2026-10-09T14:48:09.723453Z",
   "default_impl": null,
   "default_review": null,
@@ -315,16 +315,54 @@
       "task": "fn-47-transitions-and-deferred-atoms.3",
       "timestamp": "2026-10-10T03:15:57.706361Z",
       "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "f885cf08e71221125b47fffb684d9ee4ca48f0f001e3f16ed26de87ea353af3b",
+      "backend": "codex",
+      "base_sha": "6c79f0d47d0c7c005275bdbcc6fbf237defa2ba0",
+      "counter_kind": "plan",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "8f3c30b727d6ba4ab4685a81b79de8e0ed6d7490",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 460028,
+      "output_sha256": "857210570896b00ef1b18faf960ee21bd4bb948940bb6528ff49c4d0546a9080",
+      "reservation_id": "9b8bc5dafb304a608e0168e253eb7c3d",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-10-10T03:18:24.897176Z",
+      "tool_calls": 9,
+      "verdict": "SHIP"
     }
   ],
   "review_hash_epoch": {
     "impl:fn-47-transitions-and-deferred-atoms.1": 1,
     "impl:fn-47-transitions-and-deferred-atoms.2": 1,
-    "impl:fn-47-transitions-and-deferred-atoms.3": 1
+    "impl:fn-47-transitions-and-deferred-atoms.3": 1,
+    "plan#completion": 1
   },
   "review_pending_rounds": {},
   "review_reservations": {},
   "review_transport_failures": {
+    "completion": 0,
     "impl:fn-47-transitions-and-deferred-atoms.1": 0,
     "impl:fn-47-transitions-and-deferred-atoms.2": 0,
     "impl:fn-47-transitions-and-deferred-atoms.3": 0
@@ -343,5 +381,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-10T03:15:57.710908Z"
+  "updated_at": "2026-10-10T03:18:24.903404Z"
 }
