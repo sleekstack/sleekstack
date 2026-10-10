@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-44-sleekstacktesting",
   "spec_path": ".flow/tasks/fn-44-sleekstacktesting.3.md",
-  "status": "todo",
+  "status": "done",
   "title": "Component tests with Testing Library, docs",
   "updated_at": "2026-10-09T15:01:12.732515Z"
 }

@@ -11,7 +11,7 @@
   "priority": null,
   "spec": "fn-27-streaming-ssr-for-sleekstackui",
   "spec_path": ".flow/tasks/fn-27-streaming-ssr-for-sleekstackui.5.md",
-  "status": "todo",
+  "status": "done",
   "title": "ui stream: late-boundary hydration and missing-chunk report",
   "updated_at": "2026-10-04T10:43:37.300391Z"
 }

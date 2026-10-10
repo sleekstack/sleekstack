@@ -1,3 +1,5 @@
+> **Superseded by fn-50 (`@sleekstack/router`, ADR 0036): no TanStack router-core; a const route table instead.**
+
 ## Goal & Context
 <!-- scope: business -->
 

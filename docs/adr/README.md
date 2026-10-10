@@ -37,3 +37,4 @@
 | [0033](0033-form-actions.md) | A form `action` is a submit handler that gets the form's data; latest submit wins | Accepted |
 | [0034](0034-transitions-and-deferred-atoms.md) | `startTransition` and `useDeferredAtom` without concurrent lanes: a marked write keeps the previous DOM over a new `Pending`; a deferred atom follows its source after the commit | Accepted |
 | [0035](0035-boundary-instance-reset.md) | `Boundary` is an instance; its fallback receives `reset`, which re-runs the failed subtree. `Portal` renders into another container in its owner's context | Accepted |
+| [0036](0036-router-const-route-table.md) | `@sleekstack/router`: a const route table with params inferred from path strings, no TanStack router-core, no codegen | Accepted |

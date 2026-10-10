@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-46-forms-and-actions-in-the-ui-host",
   "spec_path": ".flow/tasks/fn-46-forms-and-actions-in-the-ui-host.3.md",
-  "status": "todo",
+  "status": "done",
   "title": "Analyzer coverage for action",
   "updated_at": "2026-10-09T15:01:13.910363Z"
 }

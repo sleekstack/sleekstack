@@ -11,7 +11,7 @@
   "priority": null,
   "spec": "fn-27-streaming-ssr-for-sleekstackui",
   "spec_path": ".flow/tasks/fn-27-streaming-ssr-for-sleekstackui.6.md",
-  "status": "todo",
+  "status": "done",
   "title": "ui-demo stream route, multi-stream collision test, protocol ADR, README",
   "updated_at": "2026-10-04T10:43:37.300474Z"
 }

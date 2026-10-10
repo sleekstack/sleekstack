@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-26-built-private-package-for-sleekstackui",
   "spec_path": ".flow/tasks/fn-26-built-private-package-for-sleekstackui.4.md",
-  "status": "todo",
+  "status": "done",
   "title": "tarball consumer test: pack all three, install in a temp project, typecheck and run",
   "updated_at": "2026-10-04T10:43:36.426464Z"
 }

@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-24-pending-async-boundaries-for",
   "spec_path": ".flow/tasks/fn-24-pending-async-boundaries-for.5.md",
-  "status": "todo",
+  "status": "done",
   "title": "analyze: Pending is transparent; fallback R and E count",
   "updated_at": "2026-10-04T10:43:34.678973Z"
 }

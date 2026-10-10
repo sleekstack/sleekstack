@@ -8,7 +8,7 @@
   "priority": null,
   "spec": "fn-49-portals-and-boundary-reset",
   "spec_path": ".flow/tasks/fn-49-portals-and-boundary-reset.2.md",
-  "status": "todo",
+  "status": "done",
   "title": "Portal node across renderers",
   "updated_at": "2026-10-09T15:01:15.666135Z"
 }

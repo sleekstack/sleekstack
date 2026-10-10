@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-24-pending-async-boundaries-for",
   "spec_path": ".flow/tasks/fn-24-pending-async-boundaries-for.7.md",
-  "status": "todo",
+  "status": "done",
   "title": "docs: ADR 0015 Pending amendment, README, CONTEXT, queries page",
   "updated_at": "2026-10-04T10:43:34.679015Z"
 }

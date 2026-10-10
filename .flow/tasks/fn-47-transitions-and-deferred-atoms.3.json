@@ -11,7 +11,7 @@
   "priority": null,
   "spec": "fn-47-transitions-and-deferred-atoms",
   "spec_path": ".flow/tasks/fn-47-transitions-and-deferred-atoms.3.md",
-  "status": "todo",
+  "status": "done",
   "title": "Bench, size budget, ADR and README",
   "updated_at": "2026-10-09T15:01:14.497618Z"
 }
