@@ -17,7 +17,7 @@ Typed routes for apps on the `@sleekstack/ui` host (ADR 0036). A route table is 
 | `Link` | An `<a href>` that prefetches its route's `code` (the `lazy` import) and `loaders` on hover or focus; `prefetch={false}` opts out. |
 | `redirect(to)` / `notFound()` | Raised by a loader or action: control flow, not a failure. The server answers 302 / 404; the browser navigates or shows the not-found page. |
 | `router({ table, pages, notFound })` | A page per route (`render`, `loaders`) plus the not-found page. |
-| `handle(router, request, opts)` | Server entry: runs the page's loaders, then answers with the rendered page (string or `stream: true`), a 302, a 404, or the loader error's `status` (else 500). More than `MAX_REDIRECTS` (10) redirects is a 500 with `RedirectLoop`. |
+| `handle(router, request, opts)` | Server entry: answers with the rendered page, a 302, a 404, or the loader error's `status` (else 500); `stream: true` sends the shell first. More than `MAX_REDIRECTS` (10) redirects is a 500 with `RedirectLoop`. |
 | `startRouter(router, { container })` | Browser entry: hydrates or mounts, handles same-origin link clicks, back / forward and scroll restoration. A newer navigation interrupts the pending one and stops its loads. |
 | `action(run)` | Declares a route action in any form a form `action` takes: function, generator, Effect or `defineHandler` value. |
 
@@ -66,4 +66,4 @@ export default { fetch: (request: Request) => handle(app, request, { document: {
 await startRouter(app, { container: document.getElementById('app')! })
 ```
 
-A page's declared `loaders` run before it shows, so the response knows its status: `handle` waits for them even with `stream: true`. A loader the page reads without declaring streams under `Pending`, shell first; its redirect or not-found is answered in a string render, not in a stream. Each browser navigation loads again; a failed loader runs once and its `Boundary` gets that failure.
+A string response runs the page's declared `loaders` first, so it knows its status (a redirect or not-found from an undeclared loader is answered too). With `stream: true` the shell goes first with status 200; a later redirect is sent as a `location.replace` script and a later not-found as the not-found page replacing the body. Each browser navigation loads again; a failed loader runs once and its `Boundary` gets that failure.

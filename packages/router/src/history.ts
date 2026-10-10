@@ -2,7 +2,7 @@ import { hydrateMount, type Mounted, mount, type Node } from '@sleekstack/ui'
 import { Cause, Effect, Exit, Fiber, Layer, Option } from 'effect'
 import { match, routeLayer } from './index'
 import { type Held, Loaders, withLoaders } from './loader'
-import { NotFound, Redirect, resolve, type Router } from './resolve'
+import { controlOf, NotFound, Redirect, resolve, type Router } from './resolve'
 
 export interface StartOptions {
   /** The element the pages render into. Server-rendered content in it is hydrated. */
@@ -44,9 +44,9 @@ export const startRouter = async (r: Router, opts: StartOptions): Promise<Naviga
   let mounted: Mounted | undefined
 
   const onError = (cause: Cause.Cause<unknown>) => {
-    const e = Cause.failureOption(cause)
-    if (Option.isSome(e) && e.value instanceof Redirect) void go(e.value.to, 'push')
-    else if (Option.isSome(e) && e.value instanceof NotFound) void show(r.notFound())
+    const c = controlOf(cause)
+    if (c instanceof Redirect) void go(c.to, 'push')
+    else if (c instanceof NotFound) void show(r.notFound())
     else opts.onError?.(cause)
   }
   const show = async (app: Effect.Effect<Node, any, any>, route?: Layer.Layer<any>) => {

@@ -39,6 +39,15 @@ export type Resolved =
 
 export const isControl = (e: unknown): e is Redirect | NotFound => e instanceof Redirect || e instanceof NotFound
 
+/** The redirect or not-found in `cause`, also when a renderer reported it wrapped as a defect. */
+export const controlOf = (cause: Cause.Cause<unknown>): Redirect | NotFound | undefined => {
+  const e = Cause.failureOption(cause)
+  if (Option.isSome(e)) return isControl(e.value) ? e.value : undefined
+  const d = Cause.dieOption(cause)
+  if (Option.isNone(d)) return undefined
+  return Cause.isCause(d.value) ? controlOf(d.value) : isControl(d.value) ? d.value : undefined
+}
+
 // Runs `l`; a failure other than control flow is held for the page's read to replay (so the loader runs once) and
 // returned as the page's error.
 const run = (l: Loader<any, any, any, any>, pathname: string) =>

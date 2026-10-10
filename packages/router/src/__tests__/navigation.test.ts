@@ -129,13 +129,20 @@ describe('handle', () => {
     expect([res.status, res.headers.get('location')]).toEqual([302, '/users/1'])
   })
 
-  it('streaming sends the shell before an undeclared slow loader settles', async () => {
-    const res = await get('/lazy', { stream: true })
+  it('streaming sends the shell before a declared slow loader settles', async () => {
+    const res = await get('/slow', { stream: true })
     const reader = res.body!.getReader()
     let shell = ''
     while (!shell.includes('</')) shell += new TextDecoder().decode((await reader.read()).value)
-    expect(shell).toContain('wait')
+    expect([res.status, shell]).toEqual([200, expect.stringContaining('wait')])
     await reader.cancel()
+  })
+
+  it.each([
+    ['/old', 'location.replace("/users/1")'],
+    ['/gone', '<template id="sleek-router-404"><h1>not found</h1></template>'],
+  ])('a streamed %s sends its redirect or not-found as a script', async (path, text) => {
+    expect(await (await get(path, { stream: true })).text()).toContain(text)
   })
 
   it('a redirect loop past the bound is a 500 with a RedirectLoop', async () => {

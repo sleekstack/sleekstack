@@ -1,8 +1,8 @@
 import { type Node, renderToStream, renderToString } from '@sleekstack/ui'
 import { Cause, Effect, Exit, Layer, Option, Runtime } from 'effect'
-import { routeLayer } from './index'
+import { match, routeLayer } from './index'
 import { type Held, Loaders, withLoaders } from './loader'
-import { isControl, type NotFound, Redirect, resolve, type Router } from './resolve'
+import { controlOf, isControl, type NotFound, Redirect, resolve, type Router } from './resolve'
 
 export interface HandleOptions {
   /** App services for loaders and pages; a `Transfer` it provides travels beside the loaders'. */
@@ -25,27 +25,38 @@ const statusOf = (e: unknown): number => {
   return typeof s === 'number' && s >= 400 && s < 600 ? s : 500
 }
 
-const wrap = (body: ReadableStream<Uint8Array>, d: { before: string; after: string }) => {
+const js = (v: unknown) => JSON.stringify(v).replace(/</g, '\\u003c')
+
+// Wraps the stream in the document; `late()` is markup to send before the next chunk (or the end), for a redirect or
+// not-found raised after the status was sent.
+const wrap = (body: ReadableStream<Uint8Array>, d: { before: string; after: string }, late: () => Promise<string>) => {
   const enc = new TextEncoder()
   return body.pipeThrough(
     new TransformStream<Uint8Array, Uint8Array>({
       start: (c) => c.enqueue(enc.encode(d.before)),
-      flush: (c) => c.enqueue(enc.encode(d.after)),
+      transform: async (chunk, c) => {
+        c.enqueue(chunk)
+        const l = await late()
+        if (l) c.enqueue(enc.encode(l))
+      },
+      flush: async (c) => c.enqueue(enc.encode((await late()) + d.after)),
     }),
   )
 }
 
 /**
- * Turns a request into a response (R10): runs the matched page's loaders first, so a redirect is a 302 to where the
- * redirects end, a not-found is a 404 with the router's not-found page, and a loader failure renders the page (its
- * `Boundary` shows the error) with the error's status. Then renders the page with the loaders' results in the
- * hydration payload, so the client does not load them again.
+ * Turns a request into a response (R10). A string render runs the page's declared loaders first, so a redirect is a
+ * 302 to where the redirects end, a not-found is a 404 with the router's not-found page, and a loader failure renders
+ * the page (its `Boundary` shows the error) with the error's status. `stream: true` sends the shell first instead and
+ * a later redirect or not-found as a script (see `stream`). Loader results ride the hydration payload either way.
  */
 export const handle = async (r: Router, request: Request, opts: HandleOptions = {}): Promise<Response> => {
   const url = new URL(request.url)
   const href = url.pathname + url.search
   const base = opts.layer ?? Layer.empty
   const all = new Map<string, Held>()
+  const doc = opts.document ?? { before: '', after: '' }
+  if (opts.stream) return stream(r, url, withLoaders(all).pipe(Layer.provideMerge(base)), doc, opts)
   const exit = await Effect.runPromiseExit(
     Effect.provide(resolve(r, href, url.origin), Layer.merge(Layer.succeed(Loaders, all), base)),
   )
@@ -54,15 +65,12 @@ export const handle = async (r: Router, request: Request, opts: HandleOptions = 
   const res = exit.value
   if (res.href !== href) return redirectTo(res.href)
   const loaders = withLoaders(all).pipe(Layer.provideMerge(base))
-  const doc = opts.document ?? { before: '', after: '' }
   const notFoundPage = (): Promise<Response> => render(r.notFound(), loaders, 404)
   const render = async (
     page: Effect.Effect<Node, any, any>,
     layer: Layer.Layer<any, any>,
     status: number,
   ): Promise<Response> => {
-    if (opts.stream)
-      return new Response(wrap(renderToStream(page, { layer, onError: opts.onError }), doc), { status, headers: HTML })
     // A loader the page reads without declaring it on its route can still redirect or not-find: the string render
     // answers it like a declared one. A stream has sent its status by then.
     let ctl: Redirect | NotFound | undefined
@@ -86,4 +94,35 @@ export const handle = async (r: Router, request: Request, opts: HandleOptions = 
   if (res._tag !== 'Page') return notFoundPage()
   const status = 'error' in res ? statusOf(res.error) : 200
   return render(r.pages[res.match.name]!.render(), Layer.merge(loaders, routeLayer(res.match)), status)
+}
+
+// Shell first (R15): loaders run under the page's `Pending`, so the status is sent before they settle. A redirect or
+// not-found they raise later is sent as a script: `location.replace` to the target, or the not-found page's markup
+// in place of the document's body.
+const stream = async (
+  r: Router,
+  url: URL,
+  loaders: Layer.Layer<any, any>,
+  doc: { before: string; after: string },
+  opts: HandleOptions,
+): Promise<Response> => {
+  const m = match(r.table, url.pathname)
+  let ctl: Redirect | NotFound | undefined
+  let sent = false
+  const late = async () => {
+    if (!ctl || sent) return ''
+    sent = true
+    if (ctl instanceof Redirect) return `<script>location.replace(${js(ctl.to)})</script>`
+    const missing = await renderToString(r.notFound(), { layer: loaders }).catch(() => '')
+    return `<template id="sleek-router-404">${missing}</template><meta name="robots" content="noindex"><script>document.body.replaceChildren(document.getElementById('sleek-router-404').content)</script>`
+  }
+  const onError = (cause: Cause.Cause<unknown>) => {
+    const c = controlOf(cause)
+    if (c) ctl ??= c
+    else opts.onError?.(cause)
+  }
+  const [page, layer, status] = Option.isSome(m)
+    ? [r.pages[m.value.name]!.render(), Layer.merge(loaders, routeLayer(m.value)), 200]
+    : [r.notFound(), loaders, 404]
+  return new Response(wrap(renderToStream(page, { layer, onError }), doc, late), { status, headers: HTML })
 }
