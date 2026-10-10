@@ -778,7 +778,9 @@ const read = (store: AtomStore, atom: Atom.Atom<any>): unknown => {
 // Latest wins: a newer change interrupts the in-flight re-run; only the current fiber of a live instance writes.
 const rerun = (inst: Instance, env: Env): void => {
   if (inst.fiber) Effect.runFork(Fiber.interrupt(inst.fiber))
-  const fiber = counted(Effect.runFork(inst.transition ? Effect.provideService(inst.rerun, Transition, true) : inst.rerun))
+  const fiber = counted(
+    Effect.runFork(inst.transition ? Effect.provideService(inst.rerun, Transition, true) : inst.rerun),
+  )
   inst.transition = false
   inst.fiber = fiber
   fiber.addObserver((exit) => {
