@@ -3,7 +3,7 @@ title: UI devtools
 description: See the instance tree, atoms per instance, re-run reasons and effect runs of a @sleekstack/ui mount.
 ---
 
-`@sleekstack/devtools` has a panel for `@sleekstack/ui` mounts. `uiTrace()` records what a mount's renderer reports; `<UiPanel>` is a React component that shows it. Load both in development only (behind `import.meta.env.DEV` in Vite, as the ui-demo app does).
+`@sleekstack/devtools` has a panel for `@sleekstack/ui` mounts. `uiTrace()` records what a mount's renderer reports; `<UiPanel>` is a React component that shows it. Load both in development only, through a dynamic import behind a development check (`import.meta.env.DEV` in Vite, as the ui-demo app does).
 
 <include>../../snippets/ui-devtools.tsx</include>
 

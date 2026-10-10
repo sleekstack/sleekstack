@@ -1,14 +1,13 @@
-import { createElement } from 'react'
-import { createRoot } from 'react-dom/client'
 import { Effect, Layer } from 'effect'
 import { makeAtomStore } from '@sleekstack/core'
 import { el, mount } from '@sleekstack/ui'
-import { UiPanel, uiTrace } from '@sleekstack/devtools'
 
 const App = () => Effect.sync(() => el('p', {}, 'Hello'))
 
-// Development only: in production, skip the trace and the panel.
-const trace = uiTrace()
+// Development only: the dynamic imports keep devtools out of production bundles.
+const devtools = process.env.NODE_ENV === 'production' ? undefined : await import('@sleekstack/devtools')
+const trace = devtools?.uiTrace()
+
 for (const id of ['left', 'right']) {
   // One store and one observer per mount; the panel reads each mount's atoms from its own store.
   const store = makeAtomStore()
@@ -16,9 +15,12 @@ for (const id of ['left', 'right']) {
     layer: Layer.empty,
     container: document.getElementById(id)!,
     store,
-    observe: trace.observer(store),
+    observe: trace?.observer(store),
   })
 }
 
 // UiPanel is a React component; render it in its own root.
-createRoot(document.getElementById('devtools')!).render(createElement(UiPanel, { trace }))
+if (devtools && trace) {
+  const [{ createElement }, { createRoot }] = await Promise.all([import('react'), import('react-dom/client')])
+  createRoot(document.getElementById('devtools')!).render(createElement(devtools.UiPanel, { trace }))
+}
