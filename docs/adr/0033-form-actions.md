@@ -19,9 +19,16 @@ A form's `action` prop takes a function, a generator, an Effect or a `defineHand
 - The form is not reset after the action.
 - A resumed action is `defineHandler('id', (e: ActionEvent) => ...)`: annotating the parameter types `formData` as present, and such a handler fits only `action`. A resumed submit runs one handler, so a `defineHandler` on `onSubmit` or `action` must be the form's only submit handler (a `TypeError` at render otherwise); a string `action` is still a URL beside it.
 
+State is atoms, no new machinery (D2, D4):
+
+- `useAction(run)` returns `[result, action]`: `result` is a `Result` atom; a run marks it `waitingFrom` the previous one and records `Success` or `Failure`. A failure stays in the `Result` and is not reported to `onError`; a Promise result still is. An interrupted run leaves `waiting` for the submit that replaced it.
+- `useFormStatus(result)` reads `{ pending }` from a derived atom of `result`.
+- `useOptimistic(source, apply)` is a derived atom over `source` and a list of pending changes; `optimistic(change, effect)` drops its change when `effect` ends, so a failed action reverts before its `Result` is set.
+- FormData is decoded with Effect Schema (`Schema.decodeUnknown` on `Object.fromEntries(formData)`); a `ParseError` is the `Result`'s typed failure. Zod and Valibot are recipes.
+- `FormAction`, `ActionEvent` and `Result` are exported for the router.
+
 Submitting with no JavaScript needs a server endpoint and is out of scope.
 
 ## Consequences
 
 - One submit path for closures and resumed handlers; the action's `E` / `R` are read like any handler's.
-- Pending, result and optimistic state build on this (fn-46 task 2), as atoms.

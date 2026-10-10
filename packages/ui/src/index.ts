@@ -26,7 +26,8 @@ export { renderToStream } from './stream'
 export type { StreamOptions } from './stream'
 export { Boundary, Pending, Provider } from './jsx-runtime'
 export type { Child } from './jsx-runtime'
-export type { ComponentResult } from './reactive'
+export type { ComponentResult, FormAction } from './reactive'
+export type { Result } from '@sleekstack/core'
 export { lazy, LazyLoadError } from './lazy'
 export { Transfer } from './transfer'
 export type { StateTransfer } from './transfer'
@@ -34,11 +35,14 @@ export {
   DuplicateKey,
   SlotMismatch,
   Store,
+  useAction,
   useAtom,
   useAtomValue,
   useDerivedAtom,
   useLocal,
   useEffect,
+  useFormStatus,
+  useOptimistic,
   useRef,
   useSetAtom,
 } from './reactive'
