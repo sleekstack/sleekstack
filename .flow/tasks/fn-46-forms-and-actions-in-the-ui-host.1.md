@@ -23,9 +23,11 @@ FormData in events and the action prop. Contract and rationale are in the parent
 
 
 ## Done summary
-TBD
+A form's `action` prop (function, generator, Effect or `defineHandler`) runs on submit with an `ActionEvent` carrying `new FormData(form, submitter)` built at dispatch on both the closure and resumed paths; default prevented, `onSubmit` first, latest submit interrupts the previous, Promise results rejected with a clear TypeError, no reset. Resumed actions are typed via `defineHandler('id', (e: ActionEvent) => ...)`; a defineHandler on onSubmit/action must be the form's only submit handler. ADR 0033, ui README row. Tests: packages/ui/src/__tests__/action.test.ts, jsx-types.test-d.tsx. Follow-up note: resumed latest-wins applies to every delegated submit handler.
 
+stage: impl-review - ran (codex fan-out NEEDS_WORK -> re-review SHIP)
+Tier: implementer opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 401d22231e3637f25563930cd3ce94b75bfc0439, 869f8b80e3a9966c2170c7e4ccd476dc5183f709
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/ui... --filter=@sleekstack/analyze --filter=ui-demo --filter=docs
 - PRs:

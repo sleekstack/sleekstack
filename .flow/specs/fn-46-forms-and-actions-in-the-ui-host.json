@@ -11,7 +11,7 @@
   ],
   "id": "fn-46-forms-and-actions-in-the-ui-host",
   "impl_review_rounds": {
-    "fn-46-forms-and-actions-in-the-ui-host.1": 1
+    "fn-46-forms-and-actions-in-the-ui-host.1": 0
   },
   "next_task": 1,
   "plan_review_rounds": 0,
@@ -77,9 +77,71 @@
       "task": "fn-46-forms-and-actions-in-the-ui-host.1",
       "timestamp": "2026-10-10T02:38:04.809147Z",
       "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "dc18b98e3011e8f55bdcd1f5dc6f47024b917d71b3165cd09ba40389ceac38a6",
+      "backend": "codex",
+      "base_sha": "6c79f0d47d0c7c005275bdbcc6fbf237defa2ba0",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-55b097ef0c24e7a7ba0c15fd9f3d9d90",
+            "classification": "introduced",
+            "findingId": "finding-55b097ef0c24e7a7ba0c15fd9f3d9d90",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "withdrawn"
+          },
+          {
+            "chainRoot": "finding-8bb2b0fda4ffe15778d4490d6120bb18",
+            "classification": "introduced",
+            "findingId": "finding-8bb2b0fda4ffe15778d4490d6120bb18",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-d6d5af0b77750e08f0fa77ca383ba903",
+            "classification": "introduced",
+            "findingId": "finding-d6d5af0b77750e08f0fa77ca383ba903",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "869f8b80e3a9966c2170c7e4ccd476dc5183f709",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1257,
+      "output_sha256": "f07a2cacb78dee045c92413acbd4e05eee46094e1b02712128ea5ab5d4bf952d",
+      "reservation_id": "08772a97a16944f2a726a17a1ec3a5d5",
+      "round_consumed": true,
+      "scope": "impl:fn-46-forms-and-actions-in-the-ui-host.1",
+      "superseded_by": null,
+      "task": "fn-46-forms-and-actions-in-the-ui-host.1",
+      "timestamp": "2026-10-10T02:39:35.635313Z",
+      "verdict": "SHIP"
     }
   ],
-  "review_hash_epoch": {},
+  "review_hash_epoch": {
+    "impl:fn-46-forms-and-actions-in-the-ui-host.1": 1
+  },
   "review_pending_rounds": {},
   "review_reservations": {},
   "review_transport_failures": {
@@ -99,5 +161,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-10T02:38:04.812940Z"
+  "updated_at": "2026-10-10T02:39:35.637831Z"
 }
