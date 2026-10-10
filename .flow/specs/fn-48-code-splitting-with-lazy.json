@@ -259,7 +259,7 @@
     "impl:fn-48-code-splitting-with-lazy.2": 0
   },
   "spec_path": ".flow/specs/fn-48-code-splitting-with-lazy.md",
-  "status": "open",
+  "status": "done",
   "title": "Code splitting with lazy",
   "tracker": {
     "baseHashFlow": null,
@@ -272,5 +272,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-09T17:55:40.381576Z"
+  "updated_at": "2026-10-10T02:34:23.677102Z"
 }

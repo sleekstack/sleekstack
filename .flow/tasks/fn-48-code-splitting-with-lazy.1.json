@@ -8,7 +8,7 @@
   "priority": null,
   "spec": "fn-48-code-splitting-with-lazy",
   "spec_path": ".flow/tasks/fn-48-code-splitting-with-lazy.1.md",
-  "status": "todo",
+  "status": "done",
   "title": "lazy and LazyLoadError",
   "updated_at": "2026-10-09T15:01:15.082560Z"
 }

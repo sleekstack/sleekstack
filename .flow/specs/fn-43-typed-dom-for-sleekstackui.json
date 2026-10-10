@@ -404,7 +404,7 @@
     "impl:fn-43-typed-dom-for-sleekstackui.2": 0
   },
   "spec_path": ".flow/specs/fn-43-typed-dom-for-sleekstackui.md",
-  "status": "open",
+  "status": "done",
   "title": "Typed DOM for @sleekstack/ui",
   "tracker": {
     "baseHashFlow": null,
@@ -417,5 +417,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-09T17:30:56.363852Z"
+  "updated_at": "2026-10-10T02:34:24.012429Z"
 }
