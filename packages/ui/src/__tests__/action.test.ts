@@ -1,8 +1,17 @@
 // @vitest-environment jsdom
 import { Effect, Layer } from 'effect'
 import { act } from 'react'
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { type ActionEvent, defineHandler, mount, type Mounted, renderToString, resume, type Resumed } from '../index'
+import { afterEach, beforeAll, describe, expect, it, onTestFinished, vi } from 'vitest'
+import {
+  type ActionEvent,
+  defineHandler,
+  hydrateMount,
+  mount,
+  type Mounted,
+  renderToString,
+  resume,
+  type Resumed,
+} from '../index'
 import { jsx as rawJsx } from '../jsx-runtime'
 
 const jsx = (type: any, props: any) => rawJsx(type, props)
@@ -206,5 +215,66 @@ describe('form action (resumed)', () => {
   it('a string action stays a URL beside a defineHandler onSubmit', async () => {
     const html = await renderToString(jsx('form', formProps({ action: '/save', onSubmit: h })), { layer: Layer.empty })
     expect(html).toContain('action="/save"')
+  })
+})
+
+describe('form action after server render (no reload)', () => {
+  const html = (props: Record<string, unknown>) => renderToString(jsx('form', formProps(props)), { layer: Layer.empty })
+  const parsed = async (props: Record<string, unknown>) => {
+    const container = document.createElement('div')
+    container.innerHTML = await html(props)
+    document.body.append(container)
+    // On document, so it runs after the element's and the container's (delegated) listeners.
+    const prevented = vi.fn((e: Event) => e.defaultPrevented)
+    document.addEventListener('submit', prevented)
+    onTestFinished(() => document.removeEventListener('submit', prevented))
+    return { container, prevented }
+  }
+
+  it('a hydrated form submits through its action', async () => {
+    const seen: Array<unknown> = []
+    const action = (e: ActionEvent) => void seen.push(entries(e))
+    const { container, prevented } = await parsed({ action })
+    await act(
+      async () =>
+        void mounts.push(await hydrateMount(jsx('form', formProps({ action })), { layer: Layer.empty, container })),
+    )
+    submit(container)
+    await flush()
+    expect(seen).toEqual([
+      [
+        ['title', 'hi'],
+        ['intent', 'save'],
+      ],
+    ])
+    expect(prevented).toHaveLastReturnedWith(true)
+  })
+
+  it('a resumed form submitted before its handler loads runs the action once it arrives', async () => {
+    const seen: Array<unknown> = []
+    const save = defineHandler('save', (e: ActionEvent) => Effect.sync(() => void seen.push(entries(e))))
+    const { container, prevented } = await parsed({ action: save })
+    let arrive!: () => void
+    const loaded = new Promise<void>((r) => (arrive = r))
+    mounts.push(
+      await resume({
+        container,
+        layer: Layer.empty,
+        handlers: { save: () => loaded.then(() => ({ default: save })) },
+        atoms: [],
+      }),
+    )
+    submit(container)
+    expect(prevented).toHaveLastReturnedWith(true)
+    await flush()
+    expect(seen).toEqual([])
+    arrive()
+    await flush()
+    expect(seen).toEqual([
+      [
+        ['title', 'hi'],
+        ['intent', 'save'],
+      ],
+    ])
   })
 })

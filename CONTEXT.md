@@ -137,6 +137,10 @@ _Avoid_: Island, embedded React
 A named Effect program run on a DOM event, declared at module top level as `const h = defineHandler('id', (event) => ...)` and attached with `on(node, { click: h })`. The server emits only its id; `resume` loads its chunk on first use. A handler the Analyzer cannot prove is such a reference is a `NonResumableHandler` error (ADR 0017). Used only for `resume`; client-rendered trees use event closures (a function `onXxx` prop run with the element's context). Not a Kit Operation.
 _Avoid_: Event listener, callback, action
 
+**Form Action** *(ui)*:
+A host `<form>`'s `action` prop: a function, generator, Effect or `defineHandler` run on submit with an `ActionEvent` (`formData` built at dispatch); the browser submit is prevented (ADR 0033). `useAction` binds one to a `Result` atom. Distinct from an Action, the server operation.
+_Avoid_: Server action, submit handler
+
 **Resume**:
 `resume({ container, layer, handlers, atoms })`: makes server-rendered host HTML interactive without running any Component. It seeds its own store from the Manifest, keeps `bind` text in sync and runs Handlers through one queue with `layer`. Distinct from React hydration (Islands), which runs component code, and from atom-store `hydrate`, which only seeds a Snapshot (ADR 0017).
 _Avoid_: rehydrate, boot. Not Hydrate: `hydrateMount` runs components and adopts the server DOM (see Hydrate Mount).

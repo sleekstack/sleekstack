@@ -2,37 +2,6 @@
 import { useState } from 'react'
 import { fromReact } from '@sleekstack/ui'
 
-const PRIORITIES = ['low', 'medium', 'high'] as const
-const AddView = ({ onAdd }: { onAdd: (task: { title: string; priority: 'low' | 'medium' | 'high' }) => void }) => {
-  const [title, setTitle] = useState('')
-  const [priority, setPriority] = useState<(typeof PRIORITIES)[number]>('medium')
-  return (
-    <form
-      className="add"
-      onSubmit={(e) => {
-        e.preventDefault()
-        if (!title.trim()) return
-        onAdd({ title: title.trim(), priority })
-        setTitle('')
-      }}
-    >
-      <input className="new-title" placeholder="New task" value={title} onChange={(e) => setTitle(e.target.value)} />
-      <select
-        className="new-priority"
-        value={priority}
-        onChange={(e) => setPriority(e.target.value as typeof priority)}
-      >
-        {PRIORITIES.map((p) => (
-          <option key={p}>{p}</option>
-        ))}
-      </select>
-      <button type="submit">Add task</button>
-    </form>
-  )
-}
-/** A plain React form with its own draft state; the host passes `mutate` as `onAdd`. */
-export const AddTaskForm = fromReact(AddView)
-
 // Reactions are client-side only: the count lives in the guest, not the repo.
 const VoteView = ({ initial }: { initial: number }) => {
   const [votes, setVotes] = useState(initial)
