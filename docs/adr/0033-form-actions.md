@@ -25,7 +25,7 @@ State is atoms, no new machinery (D2, D4):
 - `useFormStatus(result)` reads `{ pending }` from a derived atom of `result`.
 - `useOptimistic(source, apply)` is a derived atom over `source` and a list of pending changes; `optimistic(change, effect)` drops its change when `effect` ends, so a failed action reverts before its `Result` is set.
 - FormData is decoded with Effect Schema (`Schema.decodeUnknown` on `Object.fromEntries(formData)`); a `ParseError` is the `Result`'s typed failure. Zod and Valibot are recipes.
-- `FormAction`, `ActionEvent` and `Result` are exported for the router.
+- `FormAction` (what a form `action` accepts), `BoundAction` (what `useAction` returns), `ActionEvent` and `Result` are exported for the router.
 
 Submitting with no JavaScript needs a server endpoint and is out of scope.
 

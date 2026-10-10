@@ -575,7 +575,7 @@ export const useRef = <T = null>(initial: T | null = null): Effect.Effect<Ref<T>
   })
 
 /** A form `action` built by `useAction`: runs the action and records its outcome; its failure lives in the `Result`. */
-export type FormAction<R = never> = (event: ActionEvent) => Effect.Effect<void, never, R>
+export type BoundAction<R = never> = (event: ActionEvent) => Effect.Effect<void, never, R>
 
 const actionRuns = new WeakMap<Atom.Atom<any>, { run: (event: ActionEvent) => unknown; latest?: object }>()
 
@@ -587,10 +587,10 @@ const actionRuns = new WeakMap<Atom.Atom<any>, { run: (event: ActionEvent) => un
  */
 export function useAction<Y extends YieldWrap<Effect.Effect<any, any, any>>, A>(
   run: (event: ActionEvent) => Generator<Y, A, any>,
-): Effect.Effect<readonly [Atom.Atom<Result.Result<A, YieldedError<Y>>>, FormAction<YieldedContext<Y>>], never, Store>
+): Effect.Effect<readonly [Atom.Atom<Result.Result<A, YieldedError<Y>>>, BoundAction<YieldedContext<Y>>], never, Store>
 export function useAction<A, E, R>(
   run: (event: ActionEvent) => Effect.Effect<A, E, R>,
-): Effect.Effect<readonly [Atom.Atom<Result.Result<A, E>>, FormAction<R>], never, Store>
+): Effect.Effect<readonly [Atom.Atom<Result.Result<A, E>>, BoundAction<R>], never, Store>
 export function useAction(run: (event: ActionEvent) => unknown): Effect.Effect<readonly [any, any], never, Store> {
   return Effect.flatMap(Effect.context<never>(), (ctx) => {
     const so = Context.getOption(ctx, Store)
@@ -618,7 +618,7 @@ export function useAction(run: (event: ActionEvent) => unknown): Effect.Effect<r
     }
     const box = actionRuns.get(atom)!
     box.run = run
-    const action: FormAction<any> = (event) =>
+    const action: BoundAction<any> = (event) =>
       Effect.suspend(() => {
         // A Promise result throws here, outside the Result, so the mount reports it.
         const effect = asEffect('action', box.run(event)) as Effect.Effect<unknown, unknown, any>

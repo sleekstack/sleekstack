@@ -138,26 +138,95 @@
       "task": "fn-46-forms-and-actions-in-the-ui-host.1",
       "timestamp": "2026-10-10T02:39:35.635313Z",
       "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "e93121c0efeb3b2fbffa04913e9c83953b36fe4ecbe09431a01ffb14d525885d",
+      "backend": "codex",
+      "base_sha": "6c79f0d47d0c7c005275bdbcc6fbf237defa2ba0",
+      "counter_kind": "impl",
+      "failure_class": "head_moved",
+      "finalized": {
+        "digest": "not_applicable",
+        "receipt": "not_applicable",
+        "status": "not_applicable"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "3dd0f44b3301cb98f717364277f0653e96c19df3",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "outcome": "transport_failure",
+      "output_bytes": 65,
+      "output_sha256": "14fc8f67681e13b3f637d4b0f3e4bc60653239933e56816398674fbdd85a0db7",
+      "reservation_id": "5bcd8c8045614afcba7e727d340d47b2",
+      "round_consumed": false,
+      "scope": "impl:fn-46-forms-and-actions-in-the-ui-host.2",
+      "superseded_by": null,
+      "task": "fn-46-forms-and-actions-in-the-ui-host.2",
+      "timestamp": "2026-10-10T02:48:47.139187Z",
+      "verdict": null
+    },
+    {
+      "artifact_sha256": "389e8a90d9989e9e6a975e9d68a099d65919ba539d783516118f4e2abf78cf64",
+      "backend": "codex",
+      "base_sha": "6c79f0d47d0c7c005275bdbcc6fbf237defa2ba0",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-f684be69e06c6ea6ca9f30bcdfbaa1e2",
+            "classification": "introduced",
+            "findingId": "finding-f684be69e06c6ea6ca9f30bcdfbaa1e2",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-d2a71349c717b9d1ec43d8d6be62fab7",
+            "classification": "introduced",
+            "findingId": "finding-d2a71349c717b9d1ec43d8d6be62fab7",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "3cb53b8080fdb5c08e1f5da507290ba790143c4f",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1953,
+      "output_sha256": "053b2d8374c5ad90ab35a6fa2c190dbc3a9e71875db6e1603f9535024ca4d3c7",
+      "reservation_id": "c8ccee2e229b4efea3816f80d6fb5afe",
+      "round_consumed": true,
+      "scope": "impl:fn-46-forms-and-actions-in-the-ui-host.2",
+      "superseded_by": null,
+      "task": "fn-46-forms-and-actions-in-the-ui-host.2",
+      "timestamp": "2026-10-10T02:55:37.395327Z",
+      "verdict": "NEEDS_WORK"
     }
   ],
   "review_hash_epoch": {
     "impl:fn-46-forms-and-actions-in-the-ui-host.1": 1
   },
-  "review_pending_rounds": {
-    "impl:fn-46-forms-and-actions-in-the-ui-host.2": 1
-  },
-  "review_reservations": {
-    "5bcd8c8045614afcba7e727d340d47b2": {
-      "artifact_sha256": "e93121c0efeb3b2fbffa04913e9c83953b36fe4ecbe09431a01ffb14d525885d",
-      "counter_scope": "impl:fn-46-forms-and-actions-in-the-ui-host.2",
-      "epoch": 0,
-      "exclusive": true,
-      "forced": false,
-      "review_type": "impl"
-    }
-  },
+  "review_pending_rounds": {},
+  "review_reservations": {},
   "review_transport_failures": {
-    "impl:fn-46-forms-and-actions-in-the-ui-host.1": 0
+    "impl:fn-46-forms-and-actions-in-the-ui-host.1": 0,
+    "impl:fn-46-forms-and-actions-in-the-ui-host.2": 0
   },
   "spec_path": ".flow/specs/fn-46-forms-and-actions-in-the-ui-host.md",
   "status": "open",
@@ -173,5 +242,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-10T02:44:06.282149Z"
+  "updated_at": "2026-10-10T02:55:37.397142Z"
 }
