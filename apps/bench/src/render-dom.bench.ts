@@ -6,7 +6,14 @@ import { Atom, makeAtomStore } from '@sleekstack/core'
 import { mount, startTransition, useAtomValue, useDeferredAtom, useLocal } from '@sleekstack/ui'
 import { jsx } from '@sleekstack/ui/jsx-runtime'
 import { Effect, Layer } from 'effect'
-import { createContext, createElement as h, useContext, useState } from 'react'
+import {
+  createContext,
+  createElement as h,
+  startTransition as reactStartTransition,
+  useContext,
+  useDeferredValue,
+  useState,
+} from 'react'
 import { flushSync } from 'react-dom'
 import { createRoot } from 'react-dom/client'
 import { bench, describe } from 'vitest'
@@ -473,7 +480,11 @@ await check('render-dom/atom-bound-text-1k', [
 
 // ---- transition + deferred read: a marked write, then a row reading the deferred copy follows after the commit ----
 
-// React has no synchronous way to flush a transition or a deferred value, so this case is sleekstack only.
+// Neither library flushes a transition or a deferred value synchronously: each run polls macrotasks until the row shows it.
+const until = async (container: Element, text: string) => {
+  while (!container.textContent?.startsWith(text)) await new Promise((r) => setTimeout(r, 0))
+  return container.textContent
+}
 const sleekDeferred = async () => {
   const container = document.createElement('div')
   const store = makeAtomStore()
@@ -484,19 +495,35 @@ const sleekDeferred = async () => {
     )
   await mount(sleekTree(jsx, Counter), { layer: Layer.empty, container, store })
   let n = 0
-  // The deferred copy is written after the source run commits, then its readers re-run: a macrotask covers both.
   return {
-    container,
-    run: async () => (
-      startTransition(() => store.set(count, ++n)),
-      await new Promise((r) => setTimeout(r, 0)),
-      container.textContent
-    ),
+    run: () => {
+      startTransition(() => store.set(count, ++n))
+      return until(container, `Deferred ${n}`)
+    },
   }
 }
-const deferred = await sleekDeferred()
-if (!(await deferred.run())?.startsWith('Deferred 1'))
-  throw new Error('render-dom/transition-deferred-1-of-1k: deferred row did not follow')
+const reactDeferred = () => {
+  const container = document.createElement('div')
+  let set!: (n: number) => void
+  const Counter = () => {
+    const [n, s] = useState(0)
+    set = s
+    return h('li', { className: 'row' }, `Deferred ${useDeferredValue(n)}`)
+  }
+  flushSync(() => createRoot(container).render(reactTree(Counter)))
+  let n = 0
+  return {
+    run: () => {
+      reactStartTransition(() => set(++n))
+      return until(container, `Deferred ${n}`)
+    },
+  }
+}
+const deferred = { sleekstack: await sleekDeferred(), react: reactDeferred() }
+await check('render-dom/transition-deferred-1-of-1k', [
+  ['sleekstack', deferred.sleekstack.run],
+  ['react', deferred.react.run],
+])
 
 const results = resolve(import.meta.dirname, '../results')
 mkdirSync(results, { recursive: true })
@@ -553,5 +580,6 @@ describe('render-dom/keyed-update-gen-miss-1-of-1k', () => {
 })
 
 describe('render-dom/transition-deferred-1-of-1k', () => {
-  bench('sleekstack', async () => void (await deferred.run()), opts)
+  bench('sleekstack', async () => void (await deferred.sleekstack.run()), opts)
+  bench('react', async () => void (await deferred.react.run()), opts)
 })
