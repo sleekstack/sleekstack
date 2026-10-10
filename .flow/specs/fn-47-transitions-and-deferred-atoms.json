@@ -368,7 +368,7 @@
     "impl:fn-47-transitions-and-deferred-atoms.3": 0
   },
   "spec_path": ".flow/specs/fn-47-transitions-and-deferred-atoms.md",
-  "status": "open",
+  "status": "done",
   "title": "Transitions and deferred atoms",
   "tracker": {
     "baseHashFlow": null,
@@ -381,5 +381,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-10T03:18:24.903404Z"
+  "updated_at": "2026-10-10T05:13:45.557113Z"
 }

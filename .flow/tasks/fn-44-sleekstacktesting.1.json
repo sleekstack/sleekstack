@@ -8,7 +8,7 @@
   "priority": null,
   "spec": "fn-44-sleekstacktesting",
   "spec_path": ".flow/tasks/fn-44-sleekstacktesting.1.md",
-  "status": "todo",
+  "status": "done",
   "title": "Package scaffold and wiring",
   "updated_at": "2026-10-09T15:01:12.732338Z"
 }

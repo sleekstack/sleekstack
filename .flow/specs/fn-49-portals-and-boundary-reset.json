@@ -293,7 +293,7 @@
     "impl:fn-49-portals-and-boundary-reset.2": 0
   },
   "spec_path": ".flow/specs/fn-49-portals-and-boundary-reset.md",
-  "status": "open",
+  "status": "done",
   "title": "Portals and Boundary reset",
   "tracker": {
     "baseHashFlow": null,
@@ -306,5 +306,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-10T02:58:12.998899Z"
+  "updated_at": "2026-10-10T05:13:45.923992Z"
 }

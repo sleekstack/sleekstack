@@ -413,7 +413,7 @@
     "impl:fn-44-sleekstacktesting.3": 0
   },
   "spec_path": ".flow/specs/fn-44-sleekstacktesting.md",
-  "status": "open",
+  "status": "done",
   "title": "@sleekstack/testing",
   "tracker": {
     "baseHashFlow": null,
@@ -426,5 +426,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-10T02:21:50.233745Z"
+  "updated_at": "2026-10-10T05:13:44.803498Z"
 }

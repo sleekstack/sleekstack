@@ -8,7 +8,7 @@
   "priority": null,
   "spec": "fn-49-portals-and-boundary-reset",
   "spec_path": ".flow/tasks/fn-49-portals-and-boundary-reset.1.md",
-  "status": "todo",
+  "status": "done",
   "title": "Boundary as an instance, with reset",
   "updated_at": "2026-10-09T15:01:15.665966Z"
 }
