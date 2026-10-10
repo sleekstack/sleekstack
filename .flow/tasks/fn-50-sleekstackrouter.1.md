@@ -20,9 +20,12 @@ Settle the router specs and write the ADR. Contract and rationale are in the par
 
 
 ## Done summary
-TBD
+Closed fn-28 as superseded and fn-32 as absorbed into fn-50 (new R15, R11 cleanup, tasks 3/5 checklists), re-pointed fn-29/fn-30 at @sleekstack/router with deps updated, added fn-27 dep to fn-50, and wrote ADR 0036 (const route table, no TanStack) indexed in docs/adr/README.md.
 
+baseline: none (docs/spec-only task); GATE_SKIPPED:test:docs-only - cumulative diff classified tier-B (no executable paths touched)
+stage: impl-review - ran (codex fan-out NEEDS_WORK -> fixed -> SHIP)
+Tier: implementer opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 194fd0d3498d3172ce545a1f2e2f55d91268c712, d14887843f67eaea73f599870f982a2a60294f39
+- Tests: npx prettier --check docs/adr/0036-router-const-route-table.md, GATE_SKIPPED:test:docs-only - no executable paths touched
 - PRs:
