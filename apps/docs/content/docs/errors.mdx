@@ -51,6 +51,10 @@ Reported by `sleekstack check` (with file:line) for projects whose package.json 
 
 A `<Pending>` is transparent to these checks: its content's `E` and `R` belong to the enclosing tree. At run time a failed Pending content renders the matching `Boundary` fallback (on a re-run too, replacing old content); with no match it goes to `onError` and the old content stays. `useSuspenseQuery` fails with `QueryFailed { cause }`.
 
+A `Boundary` fallback is `(error, reset)`; `reset` (type `Reset`) returns `Effect.void`, so it works as `onClick={reset}` or `yield* reset()`. It re-runs only the boundary's children, counts once per failure, and does nothing after the boundary is removed. A `Pending` inside retries its failed content, so a failed `lazy` import loads again. Because a `Boundary` is an instance, its server markup sits in a `<sleek-reactive style="display: contents">` wrapper ([ADR 0035](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0035-boundary-instance-reset.md)).
+
+A `<Portal container={el}>` is transparent to the checks too: its children's `E` and `R` belong to the tree where it appears, and they read that position's `Provider` layers and atoms. It renders into a `<sleek-portal style="display: contents">` host appended to `el`, so a remount goes to the end of the container. The server renders nothing for a portal: its content and handlers are client-only, and `hydrateMount` builds it fresh.
+
 ### Resumable runtime errors
 
 Raised by `@sleekstack/ui` at render or `resume` time as tagged errors (`Data.TaggedError`), not by `sleekstack check`:
@@ -63,6 +67,7 @@ Raised by `@sleekstack/ui` at render or `resume` time as tagged errors (`Data.Ta
 | `DuplicateHandler`, `DuplicateBindKey` | Two different handlers share an id, or two different atoms share a bind key, in one render. |
 | `DuplicateKey` | Two siblings share one `key` prop. Reported to `onError` once per patch; carries the `key`. |
 | `SlotMismatch` | A component re-run called `useLocal` a different number of times than its first run. Carries the instance id and both counts. |
+| `PortalContainerMissing` | A `Portal`'s `container` is missing or not attached to the document. The mount fails with it (a re-run reports it to `onError`). |
 | `UnknownHandler`, `HandlerIdMismatch`, `UnsupportedEvent` | A handler id is missing from the `handlers` map, differs from its chunk's declared id, or names a non-bubbling event. |
 
 ## Kit checks
