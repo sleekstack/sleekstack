@@ -105,14 +105,15 @@ describe('Link', () => {
     let stopped = 0
     const l = loader('stuck', Schema.String, Effect.never.pipe(Effect.onInterrupt(() => Effect.sync(() => stopped++))))
     const { a, all } = await render(jsx(Link, { href: '/users/7', table, loaders: [l] }))
-    a.dispatchEvent(new MouseEvent('mouseenter'))
-    await flush()
-    const now = Date.now()
-    vi.spyOn(Date, 'now').mockReturnValue(now + 60_000)
-    a.dispatchEvent(new MouseEvent('mouseenter'))
-    await flush()
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    try {
+      a.dispatchEvent(new MouseEvent('mouseenter'))
+      await vi.advanceTimersByTimeAsync(30_001)
+    } finally {
+      vi.useRealTimers()
+    }
     expect(stopped).toBe(1)
-    expect(all.size).toBe(1) // the fresh prefetch
+    expect(all.size).toBe(0)
   })
 
   it('a prefetch error is silent', async () => {

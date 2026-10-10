@@ -104,10 +104,16 @@ export const prefetchLoader = <A, I, E, R>(
 ): Effect.Effect<void, never, Exclude<R, Route> | Loaders> =>
   Effect.gen(function* () {
     const all = yield* Loaders
-    const now = Date.now()
-    for (const [k, h] of [...all]) if (h.expires !== undefined && h.expires < now) yield* evict(all, k, h)
     const key = JSON.stringify([l.key, m.pathname])
-    if (!all.has(key)) yield* start(all, key, Effect.provide(l.load, routeLayer(m)), l.schema, PREFETCH_TTL)
+    if (all.has(key)) return
+    const e = yield* start(all, key, Effect.provide(l.load, routeLayer(m)), l.schema, PREFETCH_TTL)
+    yield* Effect.forkDaemon(
+      Effect.sleep(PREFETCH_TTL).pipe(
+        Effect.zipRight(
+          Effect.suspend(() => (all.get(key) === e && e.expires !== undefined ? evict(all, key, e) : Effect.void)),
+        ),
+      ),
+    )
   })
 
 // Sends held results (encoded); a stream asks once per flush and gets only those not sent yet. An outer `Transfer`
