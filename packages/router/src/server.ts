@@ -2,7 +2,7 @@ import { type Node, renderToStream, renderToString } from '@sleekstack/ui'
 import { Cause, Effect, Exit, Layer, Option, Runtime } from 'effect'
 import { routeLayer } from './index'
 import { type Held, Loaders, withLoaders } from './loader'
-import { controlOf, isControl, type NotFound, Redirect, resolve, type Router } from './resolve'
+import { controlOf, isControl, type NotFound, Redirect, resolve, type Router, view } from './resolve'
 
 export interface HandleOptions {
   /** App services for loaders and pages; a `Transfer` it provides travels beside the loaders'. */
@@ -93,7 +93,7 @@ export const handle = async (r: Router, request: Request, opts: HandleOptions = 
   }
   if (res._tag !== 'Page') return notFoundPage()
   const status = 'error' in res ? statusOf(res.error) : 200
-  return render(r.pages[res.match.name]!.render(), Layer.merge(loaders, routeLayer(res.match)), status)
+  return render(view(r.pages[res.match.name]!), Layer.merge(loaders, routeLayer(res.match)), status)
 }
 
 // Shell first (R15): the declared loaders have settled the status; loaders the page reads without declaring them run

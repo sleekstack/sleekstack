@@ -2,7 +2,7 @@ import { hydrateMount, type Mounted, mount, type Node } from '@sleekstack/ui'
 import { Cause, Effect, Exit, Fiber, Layer, Option } from 'effect'
 import { match, routeLayer } from './index'
 import { type Held, Loaders, withLoaders } from './loader'
-import { controlOf, NotFound, Redirect, resolve, type Router } from './resolve'
+import { controlOf, NotFound, Redirect, resolve, type Router, view } from './resolve'
 
 export interface StartOptions {
   /** The element the pages render into. Server-rendered content in it is hydrated. */
@@ -55,7 +55,7 @@ export const startRouter = async (r: Router, opts: StartOptions): Promise<Naviga
   const page = (pathname: string) => {
     const m = match(r.table, pathname)
     return Option.isSome(m)
-      ? ([r.pages[m.value.name]!.render(), routeLayer(m.value)] as const)
+      ? ([view(r.pages[m.value.name]!), routeLayer(m.value)] as const)
       : ([r.notFound(), undefined] as const)
   }
 

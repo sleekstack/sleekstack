@@ -12,7 +12,7 @@ Apps on the ui host have no router. The earlier plan wrapped TanStack router-cor
 
 - **Package.** The router is `@sleekstack/router`, a separate package. `@sleekstack/ui` does not depend on it, which keeps ui within its size budget (ADR 0022); the boundary follows ADR 0025: the router integrates through ui's public `Transfer` extension and `@sleekstack/ui/internal` hooks, never the other way.
 - **Routes.** A route table is a `const` object of path strings. Params are inferred from the path string at the type level; there is no code generation. The matched route is provided to the page as a Layer service.
-- **Data.** A loader is an Effect run under the `Pending` the router wraps around the page and read with `useLoader`. An action takes the same forms as a form action (ADR 0033). Loader data is serializable and reaches the client through `Transfer`.
+- **Data.** A loader is an Effect run under the `Pending` the router wraps around the page (showing the page's optional `fallback`) and read with `useLoader`. An action takes the same forms as a form action (ADR 0033). Loader data is serializable and reaches the client through `Transfer`.
 - **No TanStack.** `@sleekstack/router` has no dependency on `@tanstack/router-core` or its generator. The Vite plugin (fn-29) turns route files into the same const table instead of running TanStack's generator.
 
 ## Consequences

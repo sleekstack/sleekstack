@@ -7,7 +7,7 @@ description: Typed routes, loaders, redirects and a server handler for @sleeksta
 
 <include>../../snippets/routing/app.tsx</include>
 
-- `loader(key, schema, effect)` declares a loader. A page reads it with `useLoader` under `Pending`; a typed error reaches the nearest `Boundary`.
+- `loader(key, schema, effect)` declares a loader. A page reads it with `useLoader`; the router wraps the page in `Pending` with the page's optional `fallback`, so no manual `Pending` is needed. A typed error reaches the nearest `Boundary`.
 - `redirect(to)` and `notFound()` in a loader or action are control flow. `handle` answers 302 or 404; in the browser the router navigates or shows the not-found page. More than 10 redirects in a row fail with `RedirectLoop`.
 - `handle` runs a page's declared loaders before a string render, so the response has the right status. With `stream: true` the shell goes out once they settle; loaders the page reads without declaring them stream under `Pending`, and their redirect or not-found is sent as a script. A loader error with a numeric `status` sets it; any other is a 500. The results reach the client through `Transfer`, so it does not load them again.
 - `startRouter` handles same-origin link clicks, back and forward, and scroll restoration. A newer navigation interrupts the pending one and stops its loads.

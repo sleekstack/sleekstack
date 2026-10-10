@@ -2,7 +2,7 @@
 import { Cause, Data, Effect, Schema } from 'effect'
 import { act } from 'react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { Boundary, el, Pending } from '@sleekstack/ui'
+import { Boundary, el } from '@sleekstack/ui'
 import { jsx as rawJsx } from '@sleekstack/ui/jsx-runtime'
 import {
   handle,
@@ -62,7 +62,7 @@ const read = (l: Loader<string, string, any, any>) => () =>
   jsx(Boundary, {
     tag: 'Teapot',
     fallback: () => Effect.succeed(el('p', {}, 'error')),
-    children: jsx(Pending, { fallback: 'wait', children: Effect.map(useLoader(l), (s) => el('h1', {}, s)) }),
+    children: Effect.map(useLoader(l), (s) => el('h1', {}, s)),
   })
 const app = router({
   table,
@@ -78,11 +78,12 @@ const app = router({
     loop: { render: read(loop), loaders: [loop] },
     gone: { render: read(gone), loaders: [gone] },
     broken: { render: read(broken), loaders: [broken] },
-    slow: { render: read(slow), loaders: [slow] },
+    slow: { render: read(slow), loaders: [slow], fallback: 'wait' },
     toBroken: { render: read(toBroken), loaders: [toBroken] },
     // Pages reading a loader they do not declare.
     hidden: { render: read(old) },
-    lazy: { render: read(slow) },
+    // No manual `Pending`: the router wraps the page with its `fallback`.
+    lazy: { render: read(slow), fallback: 'wait' },
     hiddenGone: { render: read(gone) },
   },
   notFound: () => Effect.succeed(el('h1', {}, 'not found')),
@@ -135,7 +136,7 @@ describe('handle', () => {
     const res = await get('/lazy', { stream: true })
     const reader = res.body!.getReader()
     let shell = ''
-    while (!shell.includes('</')) shell += new TextDecoder().decode((await reader.read()).value)
+    while (!shell.includes('wait')) shell += new TextDecoder().decode((await reader.read()).value)
     expect([res.status, shell]).toEqual([200, expect.stringContaining('wait')])
     await reader.cancel()
   })
@@ -228,6 +229,12 @@ describe('startRouter', () => {
     await first
     expect(stopped).toBe(1)
     expect([location.pathname, container().textContent]).toEqual(['/users/3', 'user 3'])
+  })
+
+  it("shows the page's fallback while a loader it reads is pending, with no manual Pending", async () => {
+    await start('/')
+    await act(() => nav!.navigate('/lazy'))
+    expect([location.pathname, container().textContent]).toEqual(['/lazy', 'wait'])
   })
 
   it('an action redirect navigates', async () => {

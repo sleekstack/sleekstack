@@ -11,7 +11,7 @@ Typed routes for apps on the `@sleekstack/ui` host (ADR 0036). A route table is 
 | `routeLayer(match)` | Provides `Route` around the page. |
 | `params(table, name)` | The matched route's params typed from `table[name]`; dies if the page runs under another route. |
 | `loader(key, schema, effect)` | Declares a route loader; `schema` encodes its result for the client. |
-| `useLoader(loader)` | The loader's result for the matched route: held data returns at once, a load in flight is shared, else the loader runs (put the page under `Pending`). Its typed error reaches the nearest `Boundary`. |
+| `useLoader(loader)` | The loader's result for the matched route: held data returns at once, a load in flight is shared, else the loader runs (under the `Pending` the router wraps around the page, showing its `fallback`). Its typed error reaches the nearest `Boundary`. |
 | `LoaderTransferLive` | Holds loader results per render or app and sends them through the ui `Transfer`, so a hydrating client reads them without reloading. |
 | `prefetchLoader(loader, match)` | Starts a loader for a route ahead of the page; its result is held 30 seconds unread, and a failure is silent. |
 | `Link` | An `<a href>` that prefetches its route's `code` (the `lazy` import) and `loaders` on hover or focus; `prefetch={false}` opts out. |
@@ -59,11 +59,11 @@ const EditPage = () => <form action={save}>...</form>
 Serving and running the app:
 
 ```tsx
-const app = router({ table, pages: { home: { render: Home }, user: { render: UserPage, loaders: [user] } }, notFound: NotFoundPage })
+const app = router({ table, pages: { home: { render: Home }, user: { render: UserPage, loaders: [user], fallback: 'Loading' } }, notFound: NotFoundPage })
 
 export default { fetch: (request: Request) => handle(app, request, { document: { before: '<!doctype html><body><div id="app">', after: '</div></body>' } }) }
 
 await startRouter(app, { container: document.getElementById('app')! })
 ```
 
-A string response runs the page's declared `loaders` first, so it knows its status (a redirect or not-found from an undeclared loader is answered too). With `stream: true` the declared loaders still settle the status first, then the shell goes out while undeclared (deferred) loaders run under `Pending`; their redirect is sent as a `location.replace` script and their not-found as the not-found page replacing the body. Each browser navigation loads again; a failed loader runs once and its `Boundary` gets that failure.
+A string response runs the page's declared `loaders` first, so it knows its status (a redirect or not-found from an undeclared loader is answered too). With `stream: true` the declared loaders still settle the status first, then the shell goes out while undeclared (deferred) loaders run under `Pending`; their redirect is sent as a `location.replace` script and their not-found as the not-found page replacing the body. The router renders each page under `<Pending fallback={page.fallback}>` on the server and in the browser. Each browser navigation loads again; a failed loader runs once and its `Boundary` gets that failure.

@@ -1,6 +1,6 @@
 /** @jsxImportSource @sleekstack/ui */
 import { Effect, Schema } from 'effect'
-import { el, Pending } from '@sleekstack/ui'
+import { el } from '@sleekstack/ui'
 import { handle, loader, notFound, params, router, routes, startRouter, useLoader } from '@sleekstack/router'
 
 const table = routes({ home: '/', user: '/users/:id' })
@@ -11,13 +11,13 @@ const user = loader(
   Effect.flatMap(params(table, 'user'), ({ id }) => (id === '0' ? notFound() : Effect.succeed({ name: `User ${id}` }))),
 )
 
-const UserPage = () => <Pending fallback="Loading">{Effect.map(useLoader(user), (u) => el('h1', {}, u.name))}</Pending>
+const UserPage = () => Effect.map(useLoader(user), (u) => el('h1', {}, u.name))
 
 const app = router({
   table,
   pages: {
     home: { render: () => <a href="/users/7">Ada</a> },
-    user: { render: UserPage, loaders: [user] },
+    user: { render: UserPage, loaders: [user], fallback: 'Loading' },
   },
   notFound: () => <h1>Not found</h1>,
 })

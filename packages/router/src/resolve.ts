@@ -1,4 +1,5 @@
-import type { Node } from '@sleekstack/ui'
+import { type Child, type Node, Pending } from '@sleekstack/ui'
+import { jsx } from '@sleekstack/ui/jsx-runtime'
 import { Cause, Data, Effect, Option } from 'effect'
 import { match, routeLayer, type Match, type RouteTable } from './index'
 import { keyOf, type Loader, Loaders, useLoader } from './loader'
@@ -20,7 +21,13 @@ export const MAX_REDIRECTS = 10
 export interface Page {
   readonly render: () => Effect.Effect<Node, any, any>
   readonly loaders?: ReadonlyArray<Loader<any, any, any, any>>
+  /** Shown while a loader the page reads is still loading; the router wraps the page in `Pending` with it. */
+  readonly fallback?: Child
 }
+
+/** The routed page under its `Pending`: a loader read suspends to `fallback`, its error reaches the nearest `Boundary`. */
+export const view = (page: Page): Effect.Effect<Node, never, never> =>
+  jsx(Pending, { fallback: page.fallback, children: page.render() })
 
 /** A route table with a page per route and the page shown when nothing matches. */
 export interface Router<T extends RouteTable = RouteTable> {
