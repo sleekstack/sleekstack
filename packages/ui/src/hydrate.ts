@@ -203,6 +203,12 @@ const adoptOne = (
         watch(inst, n, env)
         return { node: n, dom: host, kids: [], inst, ...keyed }
       }
+      case 'Portal': {
+        // The server rendered nothing here: build fresh, no mismatch.
+        const l = build(n, key, env, scopes)
+        if (l) parent.insertBefore(l.dom, dom ?? null)
+        return l
+      }
       case 'Guest': {
         if (dom?.nodeName !== 'SLEEK-GUEST') return mismatch(n, key, dom, parent, env, scopes)
         // React adopts the server markup; content it cannot match it re-renders and reports here.

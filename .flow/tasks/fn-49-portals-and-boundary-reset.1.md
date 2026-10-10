@@ -22,9 +22,11 @@ Boundary as an instance, with reset. Contract and rationale are in the parent sp
 
 
 ## Done summary
-TBD
+`Boundary` now runs as an instance; its fallback is `(error, reset)`, where `reset()` re-runs only the boundary's subtree (works as `onClick={reset}` and `yield* reset()`), fires once per failure and is dead after disposal. Each attempt runs in its own scope, and `Pending` re-forks failed content on reset so lazy imports retry. ADR 0035 records the new `<sleek-reactive>` host around a Boundary in server markup (one stream fixture updated); tests in packages/ui/src/__tests__/boundary.test.ts.
 
+Tier: implementer opus at medium
+stage: impl-review - ran (codex fan-out NEEDS_WORK -> SHIP, round 2)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 051e54f7c71ada62f10998ef3e54047ca630b23e, a6d5d174f05282325495ddd84a213ce4369562b8
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/ui --filter=@sleekstack/analyze --filter=ui-demo, pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack --filter=ui-demo --filter=docs
 - PRs:

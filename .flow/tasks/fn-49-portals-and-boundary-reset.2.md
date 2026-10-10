@@ -21,9 +21,11 @@ Portal node across renderers. Contract and rationale are in the parent spec (R-I
 
 
 ## Done summary
-TBD
+`<Portal container={el}>` renders its children into `el` inside its own `<sleek-portal>` host, with the Layers and Store of where it appears; the host attaches on commit and goes with the portal or its owner. A missing or detached container (at build or a later patch) reports `PortalContainerMissing`. The string and stream renderers emit nothing, so portal handlers are client-only; hydration builds portals fresh without a mismatch; the analyzer treats Portal as transparent. Tests: packages/ui/src/__tests__/portal.test.ts, analyzer fixture ui-portal.
 
+Tier: implementer opus at medium
+stage: impl-review - ran (codex fan-out NEEDS_WORK -> SHIP, round 2)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 0aa8b3c1dcefde66cc475081b28f3b389da3c1d9, 237cb1e660d1babfed43d0bd75ffc60c94686e8d
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/ui... --filter=@sleekstack/analyze --filter=sleekstack
 - PRs:

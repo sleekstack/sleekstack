@@ -1,5 +1,5 @@
 import { Atom } from '@sleekstack/core'
-import { type Context, Effect, Layer } from 'effect'
+import { type Context, Effect, Layer, Scope } from 'effect'
 import { bind, type Handler, isHandler, on } from './handler'
 import type { IntrinsicElementMap } from './jsx-types'
 import { el, type ElementNode, type EventBinding, fragment, type Node, type Ref } from './node'
@@ -11,6 +11,8 @@ import {
   hostOf,
   instance,
   RenderScope,
+  scopedRun,
+  useLocal,
 } from './reactive'
 
 /** What a JSX expression may hold between its tags. An atom renders its current value as text and follows it; a serializable one is also bound for `resume` under `renderToString`. */
@@ -206,7 +208,7 @@ export const jsx = (type: string | ((props: any) => ComponentResult), props: Pro
   const k = key ?? props.key
   const ks = k == null ? undefined : String(k)
   return typeof type === 'function'
-    ? type === Fragment || type === Provider || type === Boundary
+    ? type === Fragment || type === Provider || type === Portal
       ? (type as (props: any) => Element)(props as any)
       : (instance(type, props, ks) as Element)
     : hostElement(type, props, ks)
@@ -241,27 +243,59 @@ export const Provider = (props: { layer: Layer.Layer<any, any, never>; children?
       : Effect.provide(Fragment(props), props.layer),
   ) as Element
 
-/** `<Boundary tag="X" fallback={(e: X) => …}>…</Boundary>`: JSX form of `Catch`; handles only that tag. */
+/**
+ * `<Portal container={el}>…</Portal>`: renders its children into `container`, with the Layers and Store of where it
+ * appears. Renders nothing on the server, so handlers inside it are client-only; removed with its owner.
+ */
+export const Portal = (props: { container: globalThis.Element | null | undefined; children?: Child }): Element =>
+  Effect.map(Fragment(props), (child): Node => ({ _tag: 'Portal', container: props.container, child }))
+
+/**
+ * Retries a `Boundary`'s failed subtree: called (or run, via the returned Effect), it re-runs the boundary's children.
+ * Only the first call per failure counts; after the boundary re-ran or was removed it does nothing.
+ */
+export type Reset = () => Effect.Effect<void>
+
+/**
+ * `<Boundary tag="X" fallback={(e: X, reset) => …}>…</Boundary>`: JSX form of `Catch`; handles only that tag.
+ * An instance: `reset` re-runs only this boundary's subtree, and a failing retry shows the fallback again.
+ */
 export const Boundary = <E extends { readonly _tag: string }>(props: {
   tag: E['_tag']
-  fallback: (error: E) => Element
+  fallback: (error: E, reset: Reset) => Element
   children?: Child
 }): Element =>
-  Effect.catchTag(
-    Effect.flatMap(Handlers, (hs) =>
-      Effect.provideService(Fragment(props), Handlers, [
-        ...hs,
-        {
-          tag: props.tag,
-          fallback: props.fallback,
-        },
-      ]),
-    ) as Effect.Effect<Node, { _tag: string }>,
-    props.tag,
-    (e) => props.fallback(e as unknown as E),
-  ) as Element
+  Effect.flatMap(Effect.all([useLocal(0), RenderScope, Handlers]), ([[, setEpoch], scope, hs]) => {
+    // Per run: dead once this run's scope closes (a newer run, or disposal), and spent after the first call.
+    let live = true
+    const reset: Reset = () => {
+      if (live) ((live = false), setEpoch((n) => n + 1))
+      return Effect.void
+    }
+    const fallback = (e: E) => props.fallback(e, reset)
+    // The attempt runs in its own scope, closed on failure before the fallback renders.
+    const content = Effect.catchTag(
+      scopedRun(
+        Effect.provideService(Fragment(props), Handlers, [...hs, { tag: props.tag, fallback }]) as Effect.Effect<
+          Node,
+          { _tag: string }
+        >,
+      ),
+      props.tag,
+      (e) => fallback(e as unknown as E),
+    )
+    return scope
+      ? Effect.zipRight(
+          Scope.addFinalizer(
+            scope,
+            Effect.sync(() => (live = false)),
+          ),
+          content,
+        )
+      : content
+  }) as Element
 
-// Not on the direct-call list in `jsx`: `Pending` runs as an instance (id, key, slots).
+// Not on the direct-call list in `jsx`: `Pending` and `Boundary` run as instances (id, key, slots).
 export { Pending } from './pending'
 
 export declare namespace JSX {

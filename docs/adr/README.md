@@ -36,3 +36,4 @@
 | [0032](0032-component-testing-package.md) | `@sleekstack/testing`: Vitest + jsdom, Testing Library queries, disposal on global `afterEach`, DOM-quiet `flush` | Accepted |
 | [0033](0033-form-actions.md) | A form `action` is a submit handler that gets the form's data; latest submit wins | Accepted |
 | [0034](0034-transitions-and-deferred-atoms.md) | `startTransition` and `useDeferredAtom` without concurrent lanes: a marked write keeps the previous DOM over a new `Pending`; a deferred atom follows its source after the commit | Accepted |
+| [0035](0035-boundary-instance-reset.md) | `Boundary` is an instance; its fallback receives `reset`, which re-runs the failed subtree. `Portal` renders into another container in its owner's context | Accepted |

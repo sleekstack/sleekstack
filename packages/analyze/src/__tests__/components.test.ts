@@ -40,6 +40,7 @@ describe('component pass', () => {
     'ui-pending',
     'ui-generators',
     'ui-lazy',
+    'ui-portal',
   ])('%s: code and file:line', (name) => {
     const want = expected(name)
     expect(want.length).toBeGreaterThan(0)

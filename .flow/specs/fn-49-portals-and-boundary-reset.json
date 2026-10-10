@@ -1,13 +1,297 @@
 {
   "branch_name": "fn-49-portals-and-boundary-reset",
+  "completion_review_status": "ship",
+  "completion_reviewed_at": "2026-10-10T02:58:12.996923Z",
   "created_at": "2026-10-09T14:48:11.074905Z",
+  "default_impl": null,
+  "default_review": null,
+  "default_sync": null,
   "depends_on_epics": [
     "fn-48-code-splitting-with-lazy"
   ],
   "id": "fn-49-portals-and-boundary-reset",
+  "impl_review_rounds": {
+    "fn-49-portals-and-boundary-reset.1": 0,
+    "fn-49-portals-and-boundary-reset.2": 0
+  },
   "next_task": 1,
+  "plan_review_rounds": 0,
   "plan_review_status": "unknown",
   "plan_reviewed_at": null,
+  "review_attempts": [
+    {
+      "artifact_sha256": "6d230929bc2f2deb28df62967be3904fd599f0100715eeabafaef842ecfbe43b",
+      "backend": "codex",
+      "base_sha": "bfe305fda8cb2b409ebeedf1e21e0c0bb0b93b56",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-a6de3fa79a66f6aa4b4f92055f8585e0",
+            "classification": "introduced",
+            "findingId": "finding-a6de3fa79a66f6aa4b4f92055f8585e0",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-da98abf3091dae8b3c663b9450be36a6",
+            "classification": "introduced",
+            "findingId": "finding-da98abf3091dae8b3c663b9450be36a6",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "051e54f7c71ada62f10998ef3e54047ca630b23e",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 2100,
+      "output_sha256": "1218bced94f0ef264358ed1ed396e69d3da1b66faa87b6f1587502de03d93610",
+      "reservation_id": "3e9c4302e170407f8503c88d83352cd2",
+      "round_consumed": true,
+      "scope": "impl:fn-49-portals-and-boundary-reset.1",
+      "superseded_by": null,
+      "task": "fn-49-portals-and-boundary-reset.1",
+      "timestamp": "2026-10-10T02:43:00.752861Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "5973ca3f3b88a78f1f5cf8cd928f7c1e7340de2be09badd21a95896bdeba2b4f",
+      "backend": "codex",
+      "base_sha": "bfe305fda8cb2b409ebeedf1e21e0c0bb0b93b56",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-a6de3fa79a66f6aa4b4f92055f8585e0",
+            "classification": "introduced",
+            "findingId": "finding-a6de3fa79a66f6aa4b4f92055f8585e0",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-da98abf3091dae8b3c663b9450be36a6",
+            "classification": "introduced",
+            "findingId": "finding-da98abf3091dae8b3c663b9450be36a6",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "a6d5d174f05282325495ddd84a213ce4369562b8",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1045,
+      "output_sha256": "00234a02b33cc7c515f01d49ea4148ff38036381589361c3696d0fd9f556830f",
+      "reservation_id": "869ed16bf4d64892be32f17d4988e64a",
+      "round_consumed": true,
+      "scope": "impl:fn-49-portals-and-boundary-reset.1",
+      "superseded_by": null,
+      "task": "fn-49-portals-and-boundary-reset.1",
+      "timestamp": "2026-10-10T02:44:45.026105Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "f9b03e3251d49230faa4d283d317a51b9df87dde0ee29012ec3c1e279441bb33",
+      "backend": "codex",
+      "base_sha": "6c79f0d47d0c7c005275bdbcc6fbf237defa2ba0",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-657de7e167417b94ce1e30fdd3d9dbbf",
+            "classification": "introduced",
+            "findingId": "finding-657de7e167417b94ce1e30fdd3d9dbbf",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-ac914fa8c0aa2f631ba87067dbbc0e19",
+            "classification": "introduced",
+            "findingId": "finding-ac914fa8c0aa2f631ba87067dbbc0e19",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-2d377b9e323631b62009bac0eb30d623",
+            "classification": "introduced",
+            "findingId": "finding-2d377b9e323631b62009bac0eb30d623",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "0aa8b3c1dcefde66cc475081b28f3b389da3c1d9",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 2643,
+      "output_sha256": "26dbef786ced8de5c62fee0057cded3d529548570cbce1336ed649e0670fd75d",
+      "reservation_id": "093e663df7f94ac09c1195ce6a3ff329",
+      "round_consumed": true,
+      "scope": "impl:fn-49-portals-and-boundary-reset.2",
+      "superseded_by": null,
+      "task": "fn-49-portals-and-boundary-reset.2",
+      "timestamp": "2026-10-10T02:52:06.308100Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "6a32726f6d132ae0f17ea092d921b474d78ddad8f06e47fc2f8e75e6dee90ddb",
+      "backend": "codex",
+      "base_sha": "6c79f0d47d0c7c005275bdbcc6fbf237defa2ba0",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-657de7e167417b94ce1e30fdd3d9dbbf",
+            "classification": "introduced",
+            "findingId": "finding-657de7e167417b94ce1e30fdd3d9dbbf",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-ac914fa8c0aa2f631ba87067dbbc0e19",
+            "classification": "introduced",
+            "findingId": "finding-ac914fa8c0aa2f631ba87067dbbc0e19",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-2d377b9e323631b62009bac0eb30d623",
+            "classification": "introduced",
+            "findingId": "finding-2d377b9e323631b62009bac0eb30d623",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "237cb1e660d1babfed43d0bd75ffc60c94686e8d",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1111,
+      "output_sha256": "5bcef56ea885d9e388d7bf77b5ebeb9582aed4c549c79fe28128ef5940754a02",
+      "reservation_id": "7983975d3df345c2bb4f8ab8572cb6a2",
+      "round_consumed": true,
+      "scope": "impl:fn-49-portals-and-boundary-reset.2",
+      "superseded_by": null,
+      "task": "fn-49-portals-and-boundary-reset.2",
+      "timestamp": "2026-10-10T02:54:31.040238Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "51702b67bda98082a82d1545edc15618dcc892303bd7d369d25a7802ff310a4e",
+      "backend": "codex",
+      "base_sha": "6c79f0d47d0c7c005275bdbcc6fbf237defa2ba0",
+      "counter_kind": "plan",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "0507b6dd5e6f05386e77634e638fb5a8939c62c4",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 497549,
+      "output_sha256": "706b1040bc133aff4d33f9cb2d7aab55ac109bdcc7f2c4acb4adaf9c1e0a9fb8",
+      "reservation_id": "ddbcf5f8115b433499477b762cf9076f",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-10-10T02:58:12.991228Z",
+      "tool_calls": 15,
+      "verdict": "SHIP"
+    }
+  ],
+  "review_hash_epoch": {
+    "impl:fn-49-portals-and-boundary-reset.1": 1,
+    "impl:fn-49-portals-and-boundary-reset.2": 1,
+    "plan#completion": 1
+  },
+  "review_pending_rounds": {},
+  "review_reservations": {},
+  "review_transport_failures": {
+    "completion": 0,
+    "impl:fn-49-portals-and-boundary-reset.1": 0,
+    "impl:fn-49-portals-and-boundary-reset.2": 0
+  },
   "spec_path": ".flow/specs/fn-49-portals-and-boundary-reset.md",
   "status": "open",
   "title": "Portals and Boundary reset",
@@ -22,5 +306,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-09T15:01:59.286713Z"
+  "updated_at": "2026-10-10T02:58:12.998899Z"
 }

@@ -1,10 +1,11 @@
-export { el, fragment } from './node'
+export { el, fragment, PortalContainerMissing } from './node'
 export type {
   BindNode,
   ElementNode,
   EventBinding,
   FragmentNode,
   GuestNode,
+  PortalNode,
   Node,
   ReactiveNode,
   Ref,
@@ -24,8 +25,8 @@ export {
 export { renderToString } from './string'
 export { renderToStream } from './stream'
 export type { StreamOptions } from './stream'
-export { Boundary, Pending, Provider } from './jsx-runtime'
-export type { Child } from './jsx-runtime'
+export { Boundary, Pending, Portal, Provider } from './jsx-runtime'
+export type { Child, Reset } from './jsx-runtime'
 export type { BoundAction, ComponentResult } from './reactive'
 export type { FormAction } from './jsx-types'
 export type { Result } from '@sleekstack/core'

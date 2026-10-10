@@ -4,7 +4,17 @@ import { Component, createElement, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { createRoot, type Root } from 'react-dom/client'
 import { reportRenderError, runToNode } from './component'
-import type { BindNode, ElementNode, EventBinding, FragmentNode, GuestNode, Node, ReactiveNode } from './node'
+import {
+  type BindNode,
+  type ElementNode,
+  type EventBinding,
+  type FragmentNode,
+  type GuestNode,
+  type Node,
+  PortalContainerMissing,
+  type PortalNode,
+  type ReactiveNode,
+} from './node'
 import { type ActionEvent, handled, submitData } from './handler'
 import { Hydrating, type HydratingCell } from './pending'
 import {
@@ -64,6 +74,8 @@ export interface Live {
   readonly off?: () => void
   /** An element's atom-valued attributes: shared by every Live of that element across patches. */
   readonly bnd?: BoundAttrs
+  /** A `Portal`'s host in its container: holds the portal's lives; the Live's own `dom` is an empty placeholder. */
+  readonly portal?: HTMLElement
 }
 interface BoundAttrs {
   atoms: Readonly<Record<string, Atom.Atom<any>>>
@@ -124,7 +136,8 @@ const dropScopes = (node: Node): void => {
     if (node.frame) dropSlots(node.frame)
     // Resolved Pending content stays owned by its Pending until committed; a dropped run never closes it.
     if (!node.pending?.frame) dropScopes(node.child)
-  } else if (node._tag === 'Fragment' || node._tag === 'Element') {
+  } else if (node._tag === 'Portal') dropScopes(node.child)
+  else if (node._tag === 'Fragment' || node._tag === 'Element') {
     if (node._tag === 'Fragment') closeScope(runScopes.get(node))
     node.children.forEach(dropScopes)
   }
@@ -137,6 +150,8 @@ const drop = (l: Live): void => {
   l.off?.()
   l.bnd?.off()
   if (l.root) l.root.unmount()
+  // A portal's children live in its host in the container, not under its placeholder.
+  l.portal?.remove()
   if (l.ev) {
     l.ev.dead = true
     for (const f of l.ev.fibers) Effect.runFork(Fiber.interrupt(f))
@@ -391,6 +406,10 @@ export const renderGuest = (root: Root, node: GuestNode, env: Env): void =>
   flushSync(() => root.render(guestElement(node, env)))
 
 const NONE: ReadonlyArray<Live> = []
+const connected = (node: PortalNode): Element => {
+  if (!node.container?.isConnected) throw new PortalContainerMissing()
+  return node.container
+}
 // What a built or adopted element gets once its children exist: followed atom attributes, its ref and its listeners.
 // `adopt` is hydration: the DOM already shows the attributes, so atoms are followed without a first write.
 export const wire = (
@@ -463,6 +482,18 @@ export const build = (
         watch(inst, node, env)
         return { node, dom: host, kids: [], inst, ...keyed }
       }
+      case 'Portal': {
+        const container = connected(node)
+        // Built off-DOM into its own host (so sibling portals and foreign children never mix with its lives),
+        // attached on commit: an aborted plan never shows it.
+        const portal = env.doc.createElement('sleek-portal')
+        portal.style.display = 'contents'
+        const kids = buildAll([node.child], env, scopes, portal)
+        const attach = () => void container.appendChild(portal)
+        if (env.post) env.post.refs.push(attach)
+        else attach()
+        return { node, dom: env.doc.createTextNode(''), kids, portal, ...keyed }
+      }
       case 'Guest': {
         // One React root per guest host; `display: contents` keeps the host out of layout.
         const host = env.doc.createElement('sleek-guest')
@@ -501,15 +532,21 @@ const buildAll = (
 
 // Plan phase for one element or text node matched in place: validates, reads the DOM, queues ops; mutates nothing.
 const patch = (prev: Live, node: Leaf, key: string | undefined, env: Env, p: Plan): Live => {
-  // The same node as the live one (a reused subtree): nodes are immutable, so there is nothing to patch.
-  if (prev.node === node) return prev
   try {
+    // A matched portal whose container left the document fails the patch.
+    if (node._tag === 'Portal') connected(node)
+    // The same node as the live one (a reused subtree): nodes are immutable, so there is nothing to patch.
+    if (prev.node === node) return prev
     if (node._tag === 'Bind') return prev
     if (node._tag === 'Text') {
       if (prev.dom.nodeValue !== node.text) p.ops.push(() => void (prev.dom.nodeValue = node.text))
       return { node, dom: prev.dom, kids: [] }
     }
     const keyed = key === undefined ? {} : { key }
+    if (node._tag === 'Portal') {
+      const kids = patchChildren(prev.portal!, prev.kids, [node.child], env, p)
+      return { node, dom: prev.dom, kids, portal: prev.portal!, ...keyed }
+    }
     if (node._tag === 'Guest') {
       // Same component: the root and its React state stay; only the props re-render on commit.
       const root = prev.root!
@@ -615,7 +652,9 @@ const same = (a: Leaf, b: Leaf): boolean =>
     ? a.tag === (b as ElementNode).tag
     : a._tag === 'Bind'
       ? a.atom === (b as BindNode).atom
-      : a._tag !== 'Guest' || a.component === (b as GuestNode).component)
+      : a._tag === 'Portal'
+        ? a.container === (b as PortalNode).container
+        : a._tag !== 'Guest' || a.component === (b as GuestNode).component)
 
 // Matching: instances by id; others by key and type, else the next unkeyed old sibling by position (a separate pool).
 const patchChildren = (

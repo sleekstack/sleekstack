@@ -173,6 +173,10 @@ _Avoid_: Suspense, loading provider, provider
 `startTransition(() => store.set(a, v))`: writes whose re-runs keep the previous DOM over a `Pending` that has no content yet, instead of showing `fallback`, until the new content commits. Built on core's `markedWrites`. A flag, not a scheduler: no lanes, no interruption (ADR 0034). `useDeferredAtom(source)` is its companion: an instance-owned atom that follows `source` one commit later.
 _Avoid_: concurrent render, lane, priority
 
+**Portal**:
+`<Portal container={el}>{children}</Portal>`: renders its children into another DOM container while keeping the `Provider` layers and `Store` of its position in the tree; removed with its owner. Renders nothing on the server.
+_Avoid_: Teleport, createPortal
+
 **Store** *(ui)*:
 The `Store` Tag over core's `AtomStore`, one per `mount`. A host component that reads an atom through `useAtomValue` / `useAtom` re-runs when it changes; the Reconciler patches its subtree and matched guests keep their React state (ADR 0015).
 _Avoid_: State, signal
