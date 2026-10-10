@@ -77,11 +77,13 @@ describe('render', () => {
 })
 
 describe('flush', () => {
+  const after = (ms: number, f: () => void) => Effect.zipRight(Effect.sleep(ms), Effect.sync(f))
+
   it('settles re-runs that post-commit effects schedule across macrotasks', async () => {
     const Counter = () =>
       Effect.flatMap(useLocal(0), ([n, set]) =>
         Effect.as(
-          useEffect(() => void (n < 3 && setTimeout(() => set(n + 1), 0)), [n]),
+          useEffect(() => (n < 3 ? after(0, () => set(n + 1)) : undefined), [n]),
           el('i', {}, String(n)),
         ),
       )
@@ -91,14 +93,28 @@ describe('flush', () => {
     expect(container.textContent).toBe('3')
   })
 
-  it('fails with FlushTimeout when the DOM never settles', async () => {
-    const churn = setInterval(() => document.body.append('x'), 0)
-    try {
-      await expect(flush({ maxRounds: 5 })).rejects.toEqual(new FlushTimeout({ rounds: 5 }))
-    } finally {
-      clearInterval(churn)
-      document.body.textContent = ''
-    }
+  it('awaits a long Effect.sleep in an effect', async () => {
+    const Slow = () =>
+      Effect.flatMap(useLocal('before'), ([text, set]) =>
+        Effect.as(
+          useEffect(() => after(300, () => set('after')), []),
+          el('p', {}, text),
+        ),
+      )
+    const { container } = await render(jsx(Slow, {}), { layer: Layer.empty })
+    await flush()
+    expect(container.textContent).toBe('after')
+  })
+
+  it('fails with FlushTimeout when mutation-free work never ends', async () => {
+    const Endless = () =>
+      Effect.as(
+        useEffect(() => Effect.never, []),
+        el('p', {}, 'idle'),
+      )
+    const { dispose } = await render(jsx(Endless, {}), { layer: Layer.empty })
+    await expect(flush({ maxRounds: 5 })).rejects.toEqual(new FlushTimeout({ rounds: 5 }))
+    await dispose()
   })
 })
 

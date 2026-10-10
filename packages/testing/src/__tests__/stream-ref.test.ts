@@ -53,11 +53,18 @@ describe('streaming output and refs', () => {
 })
 
 describe('flush', () => {
-  it('waits for a re-render that a post-commit effect schedules on a short timer', async () => {
+  it('waits for a re-render that a post-commit effect schedules on a timer', async () => {
     const Delayed = () =>
       Effect.flatMap(useLocal('before'), ([text, set]) =>
         Effect.as(
-          useEffect(() => void setTimeout(() => set('after'), 8), []),
+          useEffect(
+            () =>
+              Effect.zipRight(
+                Effect.sleep(8),
+                Effect.sync(() => set('after')),
+              ),
+            [],
+          ),
           el('p', {}, text),
         ),
       )
