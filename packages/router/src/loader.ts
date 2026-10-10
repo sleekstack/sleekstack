@@ -18,7 +18,7 @@ export const loader = <A, I, E = never, R = never>(
 
 // A held result: `value` once decoded or loaded, `encoded` once encoded or sent by the server; `load` while loading,
 // shared by `readers` reads.
-interface Held {
+export interface Held {
   value?: unknown
   encoded?: unknown
   load?: Fiber.RuntimeFiber<unknown, unknown>
@@ -144,7 +144,10 @@ const transfer = (all: Map<string, Held>, inner: Option.Option<StateTransfer>): 
  * `hydrateMount` seeds them, so the client reads them without running the loader again. One per render or app.
  * Give it another `Transfer` to carry as well: `LoaderTransferLive.pipe(Layer.provideMerge(UiQueryClientLive()))`.
  */
-export const LoaderTransferLive: Layer.Layer<Loaders | Transfer> = Layer.effect(
-  Transfer,
-  Effect.zipWith(Loaders, Effect.serviceOption(Transfer), transfer),
-).pipe(Layer.provideMerge(Layer.sync(Loaders, () => new Map<string, Held>())))
+export const LoaderTransferLive: Layer.Layer<Loaders | Transfer> = Layer.suspend(() => withLoaders(new Map()))
+
+/** `Loaders` over `all` plus the `Transfer` carrying them; the router keeps one `all` across a client's navigations. */
+export const withLoaders = (all: Map<string, Held>): Layer.Layer<Loaders | Transfer> =>
+  Layer.effect(Transfer, Effect.zipWith(Loaders, Effect.serviceOption(Transfer), transfer)).pipe(
+    Layer.provideMerge(Layer.succeed(Loaders, all)),
+  )

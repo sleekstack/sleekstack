@@ -126,6 +126,9 @@ importers:
       '@sleekstack/react':
         specifier: workspace:*
         version: link:../../packages/react
+      '@sleekstack/router':
+        specifier: workspace:*
+        version: link:../../packages/router
       '@sleekstack/testing':
         specifier: workspace:*
         version: link:../../packages/testing

@@ -197,6 +197,10 @@ _Avoid_: "key" alone where it could mean a Tag key or a bind key; say "key prop"
 `useLocal(initial)`: an ordered slot of one instance, held as a writable atom in the Store. Kept across re-runs, released when the instance is removed; must be a top-level call (`ConditionalSlot`), and a slot count change is `SlotMismatch`.
 _Avoid_: Hook state, useState
 
+**Router**:
+`@sleekstack/router` (ADR 0036): a const route table with params typed from path strings, a page per route, loaders (`loader` / `useLoader`), actions, prefetching `Link`, `redirect` / `notFound` as control flow, the server entry `handle` and the browser entry `startRouter`.
+_Avoid_: ui-router
+
 ### Next.js integration concepts
 
 **Request Scope**:

@@ -19,6 +19,7 @@ Apps on the ui host have no router. The earlier plan wrapped TanStack router-cor
 
 - Typed params come from the path string alone; a route file and a hand-written table produce the same types.
 - Redirect, not-found, history and the server handler are implemented in the router rather than inherited from TanStack, with the fn-32 scope carried into spec fn-50.
+- Redirect and not-found are tagged failures (`Redirect`, `NotFound`) that the router's entries treat as control flow: `handle` runs a page's loaders before rendering, so it answers 302 / 404 / the loader error's status, and `startRouter` navigates or shows the not-found page, also for an action's failure. Redirects stop after a fixed bound (`RedirectLoop`). A redirect raised by a loader the page reads but does not declare on its route reaches the renderers as an ordinary failure.
 - Features TanStack provides beyond this (search-param schemas, route masking, devtools) are not available until built here.
 
 ## Rejected

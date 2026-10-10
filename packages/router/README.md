@@ -15,6 +15,10 @@ Typed routes for apps on the `@sleekstack/ui` host (ADR 0036). A route table is 
 | `LoaderTransferLive` | Holds loader results per render or app and sends them through the ui `Transfer`, so a hydrating client reads them without reloading. |
 | `prefetchLoader(loader, match)` | Starts a loader for a route ahead of the page; its result is held 30 seconds unread, and a failure is silent. |
 | `Link` | An `<a href>` that prefetches its route's `code` (the `lazy` import) and `loaders` on hover or focus; `prefetch={false}` opts out. |
+| `redirect(to)` / `notFound()` | Raised by a loader or action: control flow, not a failure. The server answers 302 / 404; the browser navigates or shows the not-found page. |
+| `router({ table, pages, notFound })` | A page per route (`render`, `loaders`) plus the not-found page. |
+| `handle(router, request, opts)` | Server entry: runs the page's loaders, then answers with the rendered page (string or `stream: true`), a 302, a 404, or the loader error's `status` (else 500). More than `MAX_REDIRECTS` (10) redirects is a 500 with `RedirectLoop`. |
+| `startRouter(router, { container })` | Browser entry: hydrates or mounts, handles same-origin link clicks, back / forward and scroll restoration. A newer navigation interrupts the pending one and stops its loads. |
 | `action(run)` | Declares a route action in any form a form `action` takes: function, generator, Effect or `defineHandler` value. |
 
 ```tsx
@@ -51,3 +55,15 @@ A link that warms the next page, and the page's form action:
 const save = action(function* (e: ActionEvent) { yield* saveUser(e.formData) })
 const EditPage = () => <form action={save}>...</form>
 ```
+
+Serving and running the app:
+
+```tsx
+const app = router({ table, pages: { home: { render: Home }, user: { render: UserPage, loaders: [user] } }, notFound: NotFoundPage })
+
+export default { fetch: (request: Request) => handle(app, request, { document: { before: '<!doctype html><body><div id="app">', after: '</div></body>' } }) }
+
+await startRouter(app, { container: document.getElementById('app')! })
+```
+
+A page's loaders run before it shows, so a server response knows its status. `handle` therefore waits for them even with `stream: true`; streaming still sends the shell before any other `Pending` content settles.
