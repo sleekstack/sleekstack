@@ -1,13 +1,372 @@
 {
   "branch_name": "fn-47-transitions-and-deferred-atoms",
+  "completion_review_status": "ship",
+  "completion_reviewed_at": "2026-10-10T03:18:24.901685Z",
   "created_at": "2026-10-09T14:48:09.723453Z",
+  "default_impl": null,
+  "default_review": null,
+  "default_sync": null,
   "depends_on_epics": [
     "fn-48-code-splitting-with-lazy"
   ],
   "id": "fn-47-transitions-and-deferred-atoms",
+  "impl_review_rounds": {
+    "fn-47-transitions-and-deferred-atoms.1": 0,
+    "fn-47-transitions-and-deferred-atoms.2": 0,
+    "fn-47-transitions-and-deferred-atoms.3": 0
+  },
   "next_task": 1,
+  "plan_review_rounds": 0,
   "plan_review_status": "unknown",
   "plan_reviewed_at": null,
+  "review_attempts": [
+    {
+      "artifact_sha256": "344fe4129e9cb5781ad891cd60cee7e6b3883c6a6e164679cd8f8d0e136f0757",
+      "backend": "codex",
+      "base_sha": "cfe6c526d8059ec95ee11787f2b36ccd9895a905",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-dc248fd0833e303b5aa3556a8bb6eaca",
+            "classification": "introduced",
+            "findingId": "finding-dc248fd0833e303b5aa3556a8bb6eaca",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "1090a06d5f3b0b83512de0de1052443abd3b8559",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1191,
+      "output_sha256": "8b873f7965b8f0b1fcaf34be91e825b1b13b8144846d2409655f4a892df62a9f",
+      "reservation_id": "f1b4fdcb090f4b8d883844b9bfea1729",
+      "round_consumed": true,
+      "scope": "impl:fn-47-transitions-and-deferred-atoms.1",
+      "superseded_by": null,
+      "task": "fn-47-transitions-and-deferred-atoms.1",
+      "timestamp": "2026-10-10T02:41:15.580195Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "065c11d58e646f3a3fdb0f2a74d8d6ccec9fb9b22c7844f4dfd5e95b8e66bd7a",
+      "backend": "codex",
+      "base_sha": "cfe6c526d8059ec95ee11787f2b36ccd9895a905",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-dc248fd0833e303b5aa3556a8bb6eaca",
+            "classification": "introduced",
+            "findingId": "finding-dc248fd0833e303b5aa3556a8bb6eaca",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "36f41bcd3f66ab0b795d3e8d1a8a16987a94399f",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1389,
+      "output_sha256": "1a437dc8574465889beb40307c0cc199145a9ec3288a7473bf4e9b653b2c142e",
+      "reservation_id": "eebf97e124594d3aabc1d9a91e3b8d71",
+      "round_consumed": true,
+      "scope": "impl:fn-47-transitions-and-deferred-atoms.1",
+      "superseded_by": null,
+      "task": "fn-47-transitions-and-deferred-atoms.1",
+      "timestamp": "2026-10-10T02:44:22.360586Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "0d977ac0695c83846b1a1840e2bd61b2f6a33b190e0a5ddb377043f6548d4cc9",
+      "backend": "codex",
+      "base_sha": "6c79f0d47d0c7c005275bdbcc6fbf237defa2ba0",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-8876b9a94455d87c8f4bcdbf3405f0fd",
+            "classification": "introduced",
+            "findingId": "finding-8876b9a94455d87c8f4bcdbf3405f0fd",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-28f8bc26b5c793b7b1fd6b2d49d94f67",
+            "classification": "introduced",
+            "findingId": "finding-28f8bc26b5c793b7b1fd6b2d49d94f67",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "c2b5adbf903dcbd60c6ccdc2f6383ae0c6193f88",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 2122,
+      "output_sha256": "669c26d6ab6f93b636d8c8961d37871914fa635b6b12a9073312dff51de89b8b",
+      "reservation_id": "d55d55a87bc243228aad1452f2c144bc",
+      "round_consumed": true,
+      "scope": "impl:fn-47-transitions-and-deferred-atoms.2",
+      "superseded_by": null,
+      "task": "fn-47-transitions-and-deferred-atoms.2",
+      "timestamp": "2026-10-10T02:52:44.473576Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "9d0c1a2a01391dfc50005ae65f648e7e2b76414d7fa2ca4af26c10474fac4f5a",
+      "backend": "codex",
+      "base_sha": "6c79f0d47d0c7c005275bdbcc6fbf237defa2ba0",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-8876b9a94455d87c8f4bcdbf3405f0fd",
+            "classification": "introduced",
+            "findingId": "finding-8876b9a94455d87c8f4bcdbf3405f0fd",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-28f8bc26b5c793b7b1fd6b2d49d94f67",
+            "classification": "introduced",
+            "findingId": "finding-28f8bc26b5c793b7b1fd6b2d49d94f67",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "15450074f19ad073a3b98dccb1767694d42f0837",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1004,
+      "output_sha256": "b970a35dfe78bf2faf270031b03bbfb470d066b1325d0478288599aeabd36434",
+      "reservation_id": "e11d992c01634b238d455d1f3dcf23d5",
+      "round_consumed": true,
+      "scope": "impl:fn-47-transitions-and-deferred-atoms.2",
+      "superseded_by": null,
+      "task": "fn-47-transitions-and-deferred-atoms.2",
+      "timestamp": "2026-10-10T02:54:52.921470Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "9e6b56925fdc747e15150396cb5b183686d5a2f486f609406b6990dab1921963",
+      "backend": "codex",
+      "base_sha": "6c79f0d47d0c7c005275bdbcc6fbf237defa2ba0",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-113e6d6dd40924d7c7d29dd927c9656f",
+            "classification": "introduced",
+            "findingId": "finding-113e6d6dd40924d7c7d29dd927c9656f",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-7556f826d0b169a56e5c7c6e6a4864be",
+            "classification": "introduced",
+            "findingId": "finding-7556f826d0b169a56e5c7c6e6a4864be",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "8a2b1af8ca84a1171056e288a1aabf7510982e95",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1831,
+      "output_sha256": "d175cd98433bd57654d03a6b61ab77a7b96d16977a19e77e9006877165ec83bc",
+      "reservation_id": "46a8a31732b24e4f86c159d82f0ca7d0",
+      "round_consumed": true,
+      "scope": "impl:fn-47-transitions-and-deferred-atoms.3",
+      "superseded_by": null,
+      "task": "fn-47-transitions-and-deferred-atoms.3",
+      "timestamp": "2026-10-10T03:11:24.861222Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "6d390c99fecebc77cc23048dccd235a695626774d5ea6e4303bccec04ee52b0b",
+      "backend": "codex",
+      "base_sha": "6c79f0d47d0c7c005275bdbcc6fbf237defa2ba0",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-113e6d6dd40924d7c7d29dd927c9656f",
+            "classification": "introduced",
+            "findingId": "finding-113e6d6dd40924d7c7d29dd927c9656f",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-7556f826d0b169a56e5c7c6e6a4864be",
+            "classification": "introduced",
+            "findingId": "finding-7556f826d0b169a56e5c7c6e6a4864be",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "a56cff1e2972ad819bc10e27f6e9a8fff507c57d",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1503,
+      "output_sha256": "cb630552ee119925ad4b895e25f96401a6ad388538e3ee5c3e1343c6f92afec8",
+      "reservation_id": "87afd7dbbf124fefaa2cdffdec26dbe0",
+      "round_consumed": true,
+      "scope": "impl:fn-47-transitions-and-deferred-atoms.3",
+      "superseded_by": null,
+      "task": "fn-47-transitions-and-deferred-atoms.3",
+      "timestamp": "2026-10-10T03:15:57.706361Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "f885cf08e71221125b47fffb684d9ee4ca48f0f001e3f16ed26de87ea353af3b",
+      "backend": "codex",
+      "base_sha": "6c79f0d47d0c7c005275bdbcc6fbf237defa2ba0",
+      "counter_kind": "plan",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "8f3c30b727d6ba4ab4685a81b79de8e0ed6d7490",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 460028,
+      "output_sha256": "857210570896b00ef1b18faf960ee21bd4bb948940bb6528ff49c4d0546a9080",
+      "reservation_id": "9b8bc5dafb304a608e0168e253eb7c3d",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-10-10T03:18:24.897176Z",
+      "tool_calls": 9,
+      "verdict": "SHIP"
+    }
+  ],
+  "review_hash_epoch": {
+    "impl:fn-47-transitions-and-deferred-atoms.1": 1,
+    "impl:fn-47-transitions-and-deferred-atoms.2": 1,
+    "impl:fn-47-transitions-and-deferred-atoms.3": 1,
+    "plan#completion": 1
+  },
+  "review_pending_rounds": {},
+  "review_reservations": {},
+  "review_transport_failures": {
+    "completion": 0,
+    "impl:fn-47-transitions-and-deferred-atoms.1": 0,
+    "impl:fn-47-transitions-and-deferred-atoms.2": 0,
+    "impl:fn-47-transitions-and-deferred-atoms.3": 0
+  },
   "spec_path": ".flow/specs/fn-47-transitions-and-deferred-atoms.md",
   "status": "open",
   "title": "Transitions and deferred atoms",
@@ -22,5 +381,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-09T15:01:58.413157Z"
+  "updated_at": "2026-10-10T03:18:24.903404Z"
 }

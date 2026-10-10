@@ -90,9 +90,39 @@ interface Node {
   bctx?: BuildContext
   /** In `pending` (a node is queued once per round). */
   queued?: boolean
+  /** Queued this round by a write outside `markedWrites`. */
+  ordinary?: boolean
 }
 
 const BUCKET_MS = 50
+
+let marking = false
+let notifyingMarked = false
+/**
+ * Runs `f` with its writes marked, in any store: a listener notified for a change caused only by marked writes sees
+ * `notifyMarked()` true, also when an enclosing `batch` delays the notification. Nested calls and a throwing `f` leave
+ * no mark. The renderer's `startTransition` is built on it.
+ */
+export const markedWrites = (f: () => void): void => {
+  const outer = marking
+  marking = true
+  try {
+    f()
+  } finally {
+    marking = outer
+  }
+}
+/** True while listeners are notified of a change that only marked writes caused. */
+export const notifyMarked = (): boolean => notifyingMarked
+const notify = (node: Node, marked: boolean) => {
+  const outer = notifyingMarked
+  notifyingMarked = marked
+  try {
+    for (const l of (node.lsnap ??= [...node.listeners])) l()
+  } finally {
+    notifyingMarked = outer
+  }
+}
 
 // Shared by every node that has not yet needed its own; never mutated (the add/push sites swap in a real one first).
 const NO_DEPS: Map<Node, number> = new Map()
@@ -118,6 +148,7 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
   const owner = {}
   let pending: Node[] = []
   const enqueue = (node: Node) => {
+    if (!marking) node.ordinary = true
     if (node.queued) return
     node.queued = true
     pending.push(node)
@@ -207,6 +238,8 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
       pending = []
       for (const node of batch) node.queued = false
       for (const node of batch) {
+        const marked = !node.ordinary
+        node.ordinary = false
         // nodes holding a build (fibers, finalizers) are pulled too, so invalidation interrupts them
         if ((node.listeners.size === 0 && node.finalizers.length === 0) || nodes.get(node.atom) !== node) continue
         try {
@@ -216,7 +249,7 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
         }
         if (node.version === node.notified && node.state === 'valid') continue
         node.notified = node.version
-        for (const l of (node.lsnap ??= [...node.listeners])) l()
+        notify(node, marked)
       }
     }
   }
@@ -239,7 +272,7 @@ export const makeAtomStore = (options: AtomStoreOptions = {}): AtomStore => {
     if (node.children.size === 0 && node.finalizers.length === 0 && batchDepth === 0 && pending.length === 0) {
       if (node.listeners.size === 0) return
       node.notified = node.version
-      for (const l of (node.lsnap ??= [...node.listeners])) l()
+      notify(node, marking)
       return
     }
     // `flush` only pulls a node something listens to or built a resource for.

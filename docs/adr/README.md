@@ -35,3 +35,4 @@
 | [0031](0031-typed-host-elements.md) | Host JSX elements are typed per tag: attributes, `on*` events and `ref`; `class` canonical, `className` accepted | Accepted |
 | [0032](0032-component-testing-package.md) | `@sleekstack/testing`: Vitest + jsdom, Testing Library queries, disposal on global `afterEach`, DOM-quiet `flush` | Accepted |
 | [0033](0033-form-actions.md) | A form `action` is a submit handler that gets the form's data; latest submit wins | Accepted |
+| [0034](0034-transitions-and-deferred-atoms.md) | `startTransition` and `useDeferredAtom` without concurrent lanes: a marked write keeps the previous DOM over a new `Pending`; a deferred atom follows its source after the commit | Accepted |

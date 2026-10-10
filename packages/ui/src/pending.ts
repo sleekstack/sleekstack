@@ -12,6 +12,7 @@ import {
   type RunFrame,
   scopedRun,
   type Slots,
+  Transition,
   useLocal,
   counted,
 } from './reactive'
@@ -107,8 +108,8 @@ export const Pending = (props: { fallback: Child; children?: Child }): Effect.Ef
 const live = (props: { fallback: Child; children?: Child }) =>
   Effect.flatMap(useLocal<Content | undefined>(undefined), ([content, set]) =>
     Effect.flatMap(
-      Effect.all([Frame, Hydrating, BoundaryPath, Effect.context<never>()]),
-      ([frame, hydrating, parent, ctx]) => {
+      Effect.all([Frame, Hydrating, BoundaryPath, Transition, Effect.context<never>()]),
+      ([frame, hydrating, parent, transition, ctx]) => {
         const f = frame!
         const slots = contentSlots(f)
         const info = { fallback: props.fallback, content: props.children }
@@ -166,6 +167,10 @@ const live = (props: { fallback: Child; children?: Child }) =>
             return Effect.flatMap(Effect.exit(run), (exit) =>
               Exit.isFailure(exit) ? Effect.failCause(exit.cause) : emit(resolved, info, props),
             )
+          // A transition re-run with no content to keep awaits the content inline, so the previous DOM stays until it
+          // resolves; a failure shows the fallback and the slot-set re-run raises it, as for a fork.
+          if (transition && !content?.node)
+            return Effect.flatMap(Effect.exit(run), () => emit(resolved ?? content, info, props))
           return Effect.flatMap(Effect.map(Effect.forkDaemon(run), counted), (fiber) =>
             Effect.flatMap(Scope.addFinalizer(scope, Fiber.interruptFork(fiber)), () => emit(content, info, props)),
           )
