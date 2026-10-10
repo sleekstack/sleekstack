@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-47-transitions-and-deferred-atoms",
   "spec_path": ".flow/tasks/fn-47-transitions-and-deferred-atoms.2.md",
-  "status": "todo",
+  "status": "done",
   "title": "useDeferredAtom and its slot",
   "updated_at": "2026-10-09T15:01:14.497577Z"
 }
