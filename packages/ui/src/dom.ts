@@ -24,6 +24,7 @@ import {
   type RunFrame,
   runScopes,
   Store,
+  counted,
 } from './reactive'
 import { checkAttr, checkTag } from './string'
 
@@ -330,7 +331,7 @@ const fork = (
 ): Fiber.RuntimeFiber<void, unknown> | undefined => {
   let fiber: Fiber.RuntimeFiber<void, unknown>
   try {
-    fiber = Effect.runFork(Effect.provide(handled(label, run()), context))
+    fiber = counted(Effect.runFork(Effect.provide(handled(label, run()), context)))
   } catch (error) {
     reportRenderError(error, onError)
     return undefined
@@ -787,7 +788,7 @@ const read = (store: AtomStore, atom: Atom.Atom<any>): unknown => {
 // Latest wins: a newer change interrupts the in-flight re-run; only the current fiber of a live instance writes.
 const rerun = (inst: Instance, env: Env): void => {
   if (inst.fiber) Effect.runFork(Fiber.interrupt(inst.fiber))
-  const fiber = Effect.runFork(inst.rerun)
+  const fiber = counted(Effect.runFork(inst.rerun))
   inst.fiber = fiber
   fiber.addObserver((exit) => {
     if (inst.fiber !== fiber || inst.dead || !env.live()) {

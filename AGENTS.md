@@ -15,15 +15,16 @@ Scope to one package with `pnpm turbo run <task> --filter=<name>`.
 
 ## Verify this change
 
-| You changed | Run |
-| --- | --- |
-| analyzer (`packages/analyze`) | `pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack` |
-| CLI (`packages/cli`) | `pnpm turbo run test typecheck --filter=sleekstack` |
-| kit (`packages/kit`) | `pnpm turbo run test typecheck --filter=@sleekstack/kit...` (dependents included) |
-| react (`packages/react`) | `pnpm turbo run test typecheck --filter=@sleekstack/react...` |
-| core / runtime | `pnpm turbo run test typecheck --filter=@sleekstack/core...` (or `runtime...`) |
-| docs (`apps/docs`) | `pnpm turbo run test typecheck --filter=docs` |
-| a public export name | the above, plus `sleekstack check --json` in `apps/showcase-kit` before and after: output must match |
+| You changed                   | Run                                                                                                  |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------- |
+| analyzer (`packages/analyze`) | `pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack`                     |
+| CLI (`packages/cli`)          | `pnpm turbo run test typecheck --filter=sleekstack`                                                  |
+| kit (`packages/kit`)          | `pnpm turbo run test typecheck --filter=@sleekstack/kit...` (dependents included)                    |
+| react (`packages/react`)      | `pnpm turbo run test typecheck --filter=@sleekstack/react...`                                        |
+| testing (`packages/testing`)  | `pnpm turbo run test typecheck --filter=@sleekstack/testing`                                         |
+| core / runtime                | `pnpm turbo run test typecheck --filter=@sleekstack/core...` (or `runtime...`)                       |
+| docs (`apps/docs`)            | `pnpm turbo run test typecheck --filter=docs`                                                        |
+| a public export name          | the above, plus `sleekstack check --json` in `apps/showcase-kit` before and after: output must match |
 
 ## Rules
 

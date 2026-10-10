@@ -13,6 +13,7 @@ import {
   scopedRun,
   type Slots,
   useLocal,
+  counted,
 } from './reactive'
 
 /**
@@ -165,7 +166,7 @@ const live = (props: { fallback: Child; children?: Child }) =>
             return Effect.flatMap(Effect.exit(run), (exit) =>
               Exit.isFailure(exit) ? Effect.failCause(exit.cause) : emit(resolved, info, props),
             )
-          return Effect.flatMap(Effect.forkDaemon(run), (fiber) =>
+          return Effect.flatMap(Effect.map(Effect.forkDaemon(run), counted), (fiber) =>
             Effect.flatMap(Scope.addFinalizer(scope, Fiber.interruptFork(fiber)), () => emit(content, info, props)),
           )
         }
