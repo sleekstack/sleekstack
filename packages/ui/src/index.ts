@@ -14,7 +14,7 @@ export type {
 export { Catch, fromReact, Provide } from './component'
 export type { Component } from './component'
 export { mount } from './dom'
-export type { Mounted } from './dom'
+export type { Mounted, RenderEvent, RenderObserver, RerunReason } from './dom'
 export {
   BoundaryChunkMissing,
   HydrateConflict,
