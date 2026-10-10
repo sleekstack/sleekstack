@@ -13,6 +13,7 @@
     "queries",
     "queries-ssr",
     "tanstack-query",
+    "routing",
     "islands",
     "side-effects",
     "ui-devtools",

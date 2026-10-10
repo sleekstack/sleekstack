@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-25-hydration-for-sleekstackui",
   "spec_path": ".flow/tasks/fn-25-hydration-for-sleekstackui.4.md",
-  "status": "todo",
+  "status": "done",
   "title": "ui hydrate: keyed lists, form values, whitespace, focus",
   "updated_at": "2026-10-04T10:43:35.549709Z"
 }

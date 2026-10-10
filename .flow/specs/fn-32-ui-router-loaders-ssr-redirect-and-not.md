@@ -1,3 +1,5 @@
+> **Absorbed into fn-50 (`@sleekstack/router`, ADR 0036): loader, redirect, not-found and server-handler scope moved to fn-50 R4, R9, R10, R11, R12 and R15.**
+
 ## Goal & Context
 <!-- scope: business -->
 

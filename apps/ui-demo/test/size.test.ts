@@ -76,4 +76,9 @@ describe('size budget (ADR 0022)', () => {
     expect((await measure('resume/entry.ts')).code).toContain('ManifestDecodeFailed')
     expect(readFileSync(pkg('query/dist/ui.js'), 'utf8')).toContain('QueryFailed')
   })
+
+  it('ui has no dependency on the router', () => {
+    const { dependencies = {}, peerDependencies = {} } = JSON.parse(readFileSync(pkg('ui/package.json'), 'utf8'))
+    expect(Object.keys({ ...dependencies, ...peerDependencies })).not.toContain('@sleekstack/router')
+  })
 })

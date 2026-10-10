@@ -21,6 +21,7 @@ Scope to one package with `pnpm turbo run <task> --filter=<name>`.
 | CLI (`packages/cli`)          | `pnpm turbo run test typecheck --filter=sleekstack`                                                  |
 | kit (`packages/kit`)          | `pnpm turbo run test typecheck --filter=@sleekstack/kit...` (dependents included)                    |
 | react (`packages/react`)      | `pnpm turbo run test typecheck --filter=@sleekstack/react...`                                        |
+| router (`packages/router`)    | `pnpm turbo run test typecheck --filter=@sleekstack/router...`                                       |
 | testing (`packages/testing`)  | `pnpm turbo run test typecheck --filter=@sleekstack/testing`                                         |
 | core / runtime                | `pnpm turbo run test typecheck --filter=@sleekstack/core...` (or `runtime...`)                       |
 | docs (`apps/docs`)            | `pnpm turbo run test typecheck --filter=docs`                                                        |

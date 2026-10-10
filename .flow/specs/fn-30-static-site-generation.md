@@ -43,4 +43,4 @@ No ISR, no incremental builds, no deploy adapters, no docs-site migration.
 ## Decision Context
 <!-- scope: both -->
 
-Depends on fn-29, fn-32 and fn-33 (head must land first so prerendered pages have titles).
+Depends on fn-29, fn-50 (`@sleekstack/router` loaders, absorbed fn-32) and fn-33 (head must land first so prerendered pages have titles).

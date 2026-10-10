@@ -197,12 +197,16 @@ _Avoid_: "key" alone where it could mean a Tag key or a bind key; say "key prop"
 `useLocal(initial)`: an ordered slot of one instance, held as a writable atom in the Store. Kept across re-runs, released when the instance is removed; must be a top-level call (`ConditionalSlot`), and a slot count change is `SlotMismatch`.
 _Avoid_: Hook state, useState
 
+**Router**:
+`@sleekstack/router` (ADR 0036): a const route table with params typed from path strings, a page per route, loaders (`loader` / `useLoader`), actions, prefetching `Link`, `redirect` / `notFound` as control flow, the server entry `handle` and the browser entry `startRouter`.
+_Avoid_: ui-router
+
 **Render Observer** *(ui)*:
 The optional `observe` callback of `mount` / `hydrateMount` (`RenderObserver`). It receives Render Events and never changes what renders; with none attached the renderer builds no events. Effect events reach it through the `EffectObserver` context reference, provided only by an observed mount.
 _Avoid_: Profiler, hook, listener
 
 **Render Event** *(ui)*:
-A plain-data record the Render Observer receives: `create`, `adopt` (hydration or resume), `rerun` with its reasons, `dispose`, `slot` and `effect` (`start`, `restart`, `cleanup`). It carries the mount id and an instance id, never a live instance, so a disposed instance is not retained.
+A plain-data record the Render Observer receives: `create`, `adopt` (hydration; resume adopts no instances), `rerun` with its reasons, `dispose`, `slot` and `effect` (`start`, `restart`, `cleanup`). It carries the mount id and an instance id, never a live instance, so a disposed instance is not retained.
 _Avoid_: Trace entry, instance reference
 
 ### Next.js integration concepts

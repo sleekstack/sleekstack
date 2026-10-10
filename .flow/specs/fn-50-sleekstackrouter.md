@@ -26,9 +26,9 @@ Apps built on the ui host have no router. This spec adds a separate package, `@s
 
 ## Edge Cases & Constraints
 
-- Existing open specs fn-28 and fn-32 describe a `ui-router` over TanStack router-core and its loaders. This spec records the user's decision to use the name and package `@sleekstack/router`; planning must reconcile or supersede those specs before building.
+- fn-28 (`ui-router` over TanStack router-core) is closed as superseded; fn-32 (its loaders) is absorbed into this spec. See ADR 0036.
 - Loaders must work in the string renderer, streaming and hydration.
-- Redirect and not-found handling are part of fn-32's scope and must not be duplicated.
+- Redirect and not-found handling came from fn-32 and live only here.
 
 ## Acceptance Criteria
 
@@ -43,10 +43,11 @@ Apps built on the ui host have no router. This spec adds a separate package, `@s
 
 - **R9:** Redirect and not-found raised by a loader or action are control flow, not failures, in the DOM, string and stream renderers. [inferred]
 - **R10:** A server entry turns a request into a response (rendered page, redirect or not-found). [inferred]
-- **R11:** Back and forward navigation and scroll restoration work; a newer navigation interrupts a pending loader (latest wins). [inferred]
+- **R11:** Back and forward navigation and scroll restoration work; a newer navigation interrupts a pending loader (latest wins) and closes its scopes, leaving no leaked observers (from fn-32). [inferred]
 - **R12:** Loader data is serializable and reaches the client through the Transfer extension without a refetch. [inferred]
 - **R13:** Prefetched loader results are deduplicated and cached for a bounded time, and a prefetch error is silent. [inferred]
 - **R14:** An ADR records dropping TanStack router-core for the const-table design. [inferred]
+- **R15:** From fn-32 (task 3: loader error and streaming; task 5: status and redirect loop): a typed loader error reaches the nearest `Boundary`; a server loader failure responds with the error status; a redirect loop past a fixed bound fails with a tagged error; streaming a route with a slow loader sends the shell first. [paraphrase]
 
 ## Boundaries
 
@@ -71,7 +72,8 @@ Apps built on the ui host have no router. This spec adds a separate package, `@s
 | R8 | fn-28 is closed as superseded by this spec, and fn-32's loader, redirect, not-found and server-handler scope is part of it; fn-29 and fn-30 point at `@sleekstack/router`. This was decided before planning. | fn-50-sleekstackrouter.1 | — |
 | R9 | Redirect and not-found raised by a loader or action are control flow, not failures, in the DOM, string and stream renderers. | fn-50-sleekstackrouter.5 | — |
 | R10 | A server entry turns a request into a response (rendered page, redirect or not-found). | fn-50-sleekstackrouter.5 | — |
-| R11 | Back and forward navigation and scroll restoration work; a newer navigation interrupts a pending loader (latest wins). | fn-50-sleekstackrouter.5 | — |
+| R11 | Back and forward navigation and scroll restoration work; a newer navigation interrupts a pending loader (latest wins) and closes its scopes, leaving no leaked observers (from fn-32). | fn-50-sleekstackrouter.5 | — |
 | R12 | Loader data is serializable and reaches the client through the Transfer extension without a refetch. | fn-50-sleekstackrouter.3 | — |
 | R13 | Prefetched loader results are deduplicated and cached for a bounded time, and a prefetch error is silent. | fn-50-sleekstackrouter.4 | — |
 | R14 | An ADR records dropping TanStack router-core for the const-table design. | fn-50-sleekstackrouter.1 | — |
+| R15 | fn-32 carry-over: typed loader error to `Boundary`, server error status, bounded redirect loop, streamed shell first. | fn-50-sleekstackrouter.3, fn-50-sleekstackrouter.5 | — |

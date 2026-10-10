@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-27-streaming-ssr-for-sleekstackui",
   "spec_path": ".flow/tasks/fn-27-streaming-ssr-for-sleekstackui.4.md",
-  "status": "todo",
+  "status": "done",
   "title": "ui stream: per-boundary state in chunks",
   "updated_at": "2026-10-04T10:43:37.300368Z"
 }
