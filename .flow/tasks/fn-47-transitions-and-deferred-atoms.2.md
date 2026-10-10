@@ -21,9 +21,11 @@ useDeferredAtom and its slot. Contract and rationale are in the parent spec (R-I
 
 
 ## Done summary
-TBD
+Added `useDeferredAtom(source)` (ui): a slot-owned atom; the instance reads `source` and, after each committed run, copies the run's current source into it, so deferred readers re-run after the source commit. Released with the instance; analyzer ConditionalSlot covers it (fixture + slotHooks sync test). Tests in packages/ui/src/__tests__/deferred.test.ts cover R4 (commit order, async re-run, source swap, dispose), R5 and R13 (no emit on unchanged, string render equals source).
 
+stage: impl-review - ran (codex: fan-out NEEDS_WORK on timer not tied to commit and pinned first source, fixed; re-review SHIP)
+Tier: opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: c2b5adbf903dcbd60c6ccdc2f6383ae0c6193f88, 15450074f19ad073a3b98dccb1767694d42f0837
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/ui... --filter=@sleekstack/analyze --filter=sleekstack
 - PRs:

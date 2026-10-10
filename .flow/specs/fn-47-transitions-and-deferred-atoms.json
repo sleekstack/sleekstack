@@ -12,7 +12,7 @@
   "id": "fn-47-transitions-and-deferred-atoms",
   "impl_review_rounds": {
     "fn-47-transitions-and-deferred-atoms.1": 0,
-    "fn-47-transitions-and-deferred-atoms.2": 1
+    "fn-47-transitions-and-deferred-atoms.2": 0
   },
   "next_task": 1,
   "plan_review_rounds": 0,
@@ -158,10 +158,63 @@
       "task": "fn-47-transitions-and-deferred-atoms.2",
       "timestamp": "2026-10-10T02:52:44.473576Z",
       "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "9d0c1a2a01391dfc50005ae65f648e7e2b76414d7fa2ca4af26c10474fac4f5a",
+      "backend": "codex",
+      "base_sha": "6c79f0d47d0c7c005275bdbcc6fbf237defa2ba0",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-8876b9a94455d87c8f4bcdbf3405f0fd",
+            "classification": "introduced",
+            "findingId": "finding-8876b9a94455d87c8f4bcdbf3405f0fd",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-28f8bc26b5c793b7b1fd6b2d49d94f67",
+            "classification": "introduced",
+            "findingId": "finding-28f8bc26b5c793b7b1fd6b2d49d94f67",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "15450074f19ad073a3b98dccb1767694d42f0837",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1004,
+      "output_sha256": "b970a35dfe78bf2faf270031b03bbfb470d066b1325d0478288599aeabd36434",
+      "reservation_id": "e11d992c01634b238d455d1f3dcf23d5",
+      "round_consumed": true,
+      "scope": "impl:fn-47-transitions-and-deferred-atoms.2",
+      "superseded_by": null,
+      "task": "fn-47-transitions-and-deferred-atoms.2",
+      "timestamp": "2026-10-10T02:54:52.921470Z",
+      "verdict": "SHIP"
     }
   ],
   "review_hash_epoch": {
-    "impl:fn-47-transitions-and-deferred-atoms.1": 1
+    "impl:fn-47-transitions-and-deferred-atoms.1": 1,
+    "impl:fn-47-transitions-and-deferred-atoms.2": 1
   },
   "review_pending_rounds": {},
   "review_reservations": {},
@@ -183,5 +236,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-10T02:52:44.475624Z"
+  "updated_at": "2026-10-10T02:54:52.925795Z"
 }
