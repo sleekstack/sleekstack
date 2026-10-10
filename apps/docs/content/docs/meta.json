@@ -15,6 +15,7 @@
     "tanstack-query",
     "islands",
     "side-effects",
+    "ui-devtools",
     "errors",
     "testing",
     "agents",

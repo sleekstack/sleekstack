@@ -111,6 +111,9 @@ importers:
       '@sleekstack/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@sleekstack/devtools':
+        specifier: workspace:*
+        version: link:../../packages/devtools
       '@sleekstack/islands':
         specifier: workspace:*
         version: link:../../packages/islands
@@ -336,6 +339,9 @@ importers:
       '@sleekstack/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@sleekstack/devtools':
+        specifier: workspace:*
+        version: link:../../packages/devtools
       '@sleekstack/query':
         specifier: workspace:*
         version: link:../../packages/query
