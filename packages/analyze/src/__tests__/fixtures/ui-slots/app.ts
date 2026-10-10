@@ -1,6 +1,6 @@
 import { Atom } from '@sleekstack/core'
 import { Effect, Layer } from 'effect'
-import { el, mount, useDerivedAtom, useEffect, useLocal, useRef } from '@sleekstack/ui'
+import { el, mount, useDeferredAtom, useDerivedAtom, useEffect, useLocal, useRef } from '@sleekstack/ui'
 
 const count = Atom.make(0)
 
@@ -11,6 +11,7 @@ const Good = () =>
     yield* useEffect(() => {})
     yield* useRef<HTMLElement>()
     yield* useDerivedAtom((get) => get(count))
+    yield* useDeferredAtom(count)
     if (open) return el('p', {}, 'open')
     setOpen(true)
     return el('p')
@@ -22,6 +23,7 @@ const Bad = (flag: boolean, ids: readonly number[]) =>
     if (flag) yield* useEffect(() => {}) // @error ConditionalSlot
     if (flag) yield* useRef() // @error ConditionalSlot
     if (flag) yield* useDerivedAtom((get) => get(count)) // @error ConditionalSlot
+    if (flag) yield* useDeferredAtom(count) // @error ConditionalSlot
     for (const _ of ids) yield* useLocal(2) // @error ConditionalSlot
     const x = flag ? yield* useLocal(3) : undefined // @error ConditionalSlot
     const nested = () => Effect.gen(function* () { return yield* useLocal(4) }) // @error ConditionalSlot

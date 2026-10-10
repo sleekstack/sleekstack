@@ -40,6 +40,7 @@ export {
   useAction,
   useAtom,
   useAtomValue,
+  useDeferredAtom,
   useDerivedAtom,
   useLocal,
   useEffect,
@@ -47,6 +48,7 @@ export {
   useOptimistic,
   useRef,
   useSetAtom,
+  startTransition,
 } from './reactive'
 export {
   bind,

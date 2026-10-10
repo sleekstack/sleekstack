@@ -169,6 +169,10 @@ _Avoid_: Error boundary, try
 `<Pending fallback>{children}</Pending>`: an instance that renders `fallback` while its children wait on an async Effect (such as `useSuspenseQuery`), then the children. A re-run keeps the previous content until the new content resolves; `renderToString` awaits the content and never emits the fallback. `renderToStream` emits the fallback in the shell and the content later as a chunk (ADR 0023). A content error goes to the enclosing `Boundary` (ADR 0015).
 _Avoid_: Suspense, loading provider, provider
 
+**Transition**:
+`startTransition(() => store.set(a, v))`: writes whose re-runs keep the previous DOM over a `Pending` that has no content yet, instead of showing `fallback`, until the new content commits. Built on core's `markedWrites`. A flag, not a scheduler: no lanes, no interruption (ADR 0034). `useDeferredAtom(source)` is its companion: an instance-owned atom that follows `source` one commit later.
+_Avoid_: concurrent render, lane, priority
+
 **Portal**:
 `<Portal container={el}>{children}</Portal>`: renders its children into another DOM container while keeping the `Provider` layers and `Store` of its position in the tree; removed with its owner. Renders nothing on the server.
 _Avoid_: Teleport, createPortal

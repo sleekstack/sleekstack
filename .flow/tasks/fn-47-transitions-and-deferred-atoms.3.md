@@ -21,9 +21,11 @@ Bench, size budget, ADR and README. Contract and rationale are in the parent spe
 
 
 ## Done summary
-TBD
+Added bench case render-dom/transition-deferred-1-of-1k (sleekstack startTransition + useDeferredAtom vs React startTransition + useDeferredValue; compare reports NEW, no REGRESSED/MISSING). Wrote ADR 0034 (core markedWrites/notifyMarked, transition semantics without lanes and its limit, deferred atom), ADR index row, ui README useDeferredAtom row, core README markedWrites row, CONTEXT.md Transition. Size budget unchanged (all entries under ADR 0022 limits). No docs-site ui pages exist; generate:api produced no diff. No ui-demo demo added (task did not name one). A first bench run showed jsfb/update-every-10th REGRESSED; an A/B with merge-base core/ui src measured the same ratio, so it was baseline noise, and the rerun was OK. showcase-kit `sleekstack check --json` identical before/after.
 
+stage: impl-review - ran (codex: fan-out NEEDS_WORK on missing React reference so compare skipped the case, fixed; re-review SHIP)
+Tier: opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 8a2b1af8ca84a1171056e288a1aabf7510982e95, a56cff1e2972ad819bc10e27f6e9a8fff507c57d
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/core... --filter=@sleekstack/analyze --filter=sleekstack --filter=ui-demo --filter=docs --filter=bench, pnpm bench:json && pnpm compare (apps/bench)
 - PRs:

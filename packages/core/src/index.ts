@@ -44,6 +44,8 @@ export * as Atom from './atom/Atom'
 export * as Result from './atom/Result'
 export {
   makeAtomStore,
+  markedWrites,
+  notifyMarked,
   dehydrate,
   hydrate,
   type AtomStore,

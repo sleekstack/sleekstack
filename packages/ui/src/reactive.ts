@@ -1,4 +1,4 @@
-import { Atom, type AtomStore, MissingDependency, Result } from '@sleekstack/core'
+import { Atom, type AtomStore, markedWrites, MissingDependency, Result } from '@sleekstack/core'
 import { Cause, Context, Data, Effect, ExecutionStrategy, Exit, Fiber, Option, Scope } from 'effect'
 import type { YieldWrap } from 'effect/Utils'
 import { type ActionEvent, handled as asEffect } from './handler'
@@ -53,6 +53,19 @@ export class Handlers extends Context.Reference<Handlers>()('@sleekstack/ui/Hand
 export class RenderScope extends Context.Reference<RenderScope>()('@sleekstack/ui/RenderScope', {
   defaultValue: (): Scope.Scope | undefined => undefined,
 }) {}
+
+/** On for a re-run triggered only by writes inside `startTransition`: a `Pending` with no content awaits it instead of its fallback. */
+export class Transition extends Context.Reference<Transition>()('@sleekstack/ui/Transition', {
+  defaultValue: () => false,
+}) {}
+
+/**
+ * Runs `write` (atom writes) as a transition: the re-runs those writes trigger keep the previous DOM where a `Pending`
+ * has no resolved content yet (a new key or branch), until that content resolves, instead of showing the fallback.
+ * Where content exists, and for writes outside, nothing changes. A flag carried by those re-runs, not a scheduler: it
+ * cannot interrupt a long synchronous render.
+ */
+export const startTransition: (write: () => void) => void = markedWrites
 
 /**
  * The mount's own scope. A component run's scope normally forks `RenderScope` (the enclosing run's scope) and closes with it;
@@ -569,6 +582,36 @@ export function useDerivedAtom(source: any): Effect.Effect<Atom.Atom<any>, never
 }
 
 /**
+ * `useDeferredAtom(source)`, like `useDeferredValue`: an atom owned by this instance (the same object on every run) that
+ * follows `source` after this instance commits: the instance reads `source` (so it re-runs when it changes), and once that
+ * run's DOM is committed the deferred atom copies the run's current `source`, so readers of the deferred atom lag behind
+ * readers of `source`. Passing another atom as `source` on a later run switches to it. It emits only when the value it
+ * copies differs, and starts equal to `source` (so string rendering shows the source's value). Takes a slot like
+ * `useLocal`, so call it unconditionally. Outside a component it returns `source` itself.
+ */
+export const useDeferredAtom = <A>(source: Atom.Atom<A>): Effect.Effect<Atom.Atom<A>, never, Store> =>
+  Effect.flatMap(Effect.context<never>(), (ctx) => {
+    const f = Context.get(ctx, Frame)
+    if (Context.get(ctx, Collector) === undefined || f === undefined) return Effect.succeed(source)
+    const so = Context.getOption(ctx, Store)
+    if (Option.isNone(so)) return missingStore('useDeferredAtom') as Effect.Effect<never>
+    const store = so.value
+    const slots = f.owner
+    const taken = takeSlot(f)
+    if (taken instanceof SlotMismatch) return Effect.fail(taken) as unknown as Effect.Effect<never>
+    const { i, first } = taken
+    if (first) {
+      const deferred = Atom.make<A>(store.get(source))
+      slots.atoms.push(deferred as unknown as Atom.Writable<any>)
+      slots.releases.push(store.retain(deferred))
+    }
+    const deferred = slots.atoms[i] as unknown as Atom.Writable<A>
+    // Queued, not run: the renderer runs it once this run's DOM is committed; a dropped run never does.
+    ;(f.effects ??= []).push(() => store.set(deferred, store.get(source)))
+    return Effect.as(useAtomValue(source), deferred as Atom.Atom<A>)
+  })
+
+/**
  * `useRef(initial?)`, as in React: a `{ current }` box that is the same object on every run of the instance and that
  * changing never re-runs it. Pass it as a host element's `ref` prop: `current` is the DOM element once it is attached
  * (before this commit's effects run) and `null` after it is removed. Takes a slot like `useLocal`, so call it unconditionally.
@@ -919,7 +962,8 @@ const reusable = (scope: Scope.Scope | undefined): boolean => scope instanceof L
 
 // Per-run services: rebuilt for every parent run, so they never decide whether a child's inputs changed.
 const NO_ATOMS: ReadonlyArray<never> = []
-const PER_RUN = new Set<string>([Collector.key, Frame.key, RenderScope.key])
+// `Transition` too: it marks one re-run, so a captured re-run drops it and a memo ignores it.
+const PER_RUN = new Set<string>([Collector.key, Frame.key, RenderScope.key, Transition.key])
 const sameProps = (a: object, b: object): boolean => {
   if (a === b) return true
   const ka = Object.keys(a)
@@ -1051,7 +1095,7 @@ export const instance = <P>(
                     seen: NO_ATOMS,
                     child: built,
                     rerun: Effect.suspend(
-                      () => ((forced = true), Effect.provide(handled(run), ctx)),
+                      () => ((forced = true), Effect.provide(handled(run), Context.omit(Transition)(ctx))),
                     ) as Effect.Effect<Node>,
                     id: self,
                     key,
@@ -1111,7 +1155,7 @@ export const instance = <P>(
                 child,
                 scope: own,
                 rerun: Effect.suspend(
-                  () => ((forced = true), Effect.provide(handled(run), ctx)),
+                  () => ((forced = true), Effect.provide(handled(run), Context.omit(Transition)(ctx))),
                 ) as Effect.Effect<Node>,
                 id: self,
                 frame,

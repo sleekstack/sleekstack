@@ -1,4 +1,4 @@
-import { type Atom, type AtomStore, makeAtomStore } from '@sleekstack/core'
+import { type Atom, type AtomStore, makeAtomStore, notifyMarked } from '@sleekstack/core'
 import { Cause, Context, Effect, Exit, Fiber, Layer, Scope } from 'effect'
 import { Component, createElement, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
@@ -34,6 +34,7 @@ import {
   type RunFrame,
   runScopes,
   Store,
+  Transition,
   counted,
 } from './reactive'
 import { checkAttr, checkTag } from './string'
@@ -101,6 +102,8 @@ export interface Instance extends Owner {
   fiber: Fiber.RuntimeFiber<Node, unknown> | undefined
   // Epoch a re-run is queued for (-1: none); per epoch so a stale queue never blocks a newer subscription set.
   queued: number
+  // The queued re-run's changes were all written inside `startTransition`.
+  transition?: boolean
   // Bumped by `unwatch`, so a change queued under an older subscription set is dropped.
   epoch: number
   dead: boolean
@@ -804,8 +807,11 @@ export const watch = (inst: Instance, node: ReactiveNode, env: Env): void => {
   // Changes in one tick (a store batch, or several atoms) coalesce into one re-run.
   const epoch = inst.epoch
   const changed = () => {
-    if (inst.queued === epoch || inst.epoch !== epoch) return
+    if (inst.epoch !== epoch) return
+    // Per write: one ordinary change in the tick makes the coalesced re-run ordinary.
+    if (inst.queued === epoch) return void (inst.transition &&= notifyMarked())
     inst.queued = epoch
+    inst.transition = notifyMarked()
     queueMicrotask(() => {
       if (inst.queued === epoch) inst.queued = -1
       if (!inst.dead && inst.epoch === epoch && env.live()) rerun(inst, env)
@@ -827,7 +833,10 @@ const read = (store: AtomStore, atom: Atom.Atom<any>): unknown => {
 // Latest wins: a newer change interrupts the in-flight re-run; only the current fiber of a live instance writes.
 const rerun = (inst: Instance, env: Env): void => {
   if (inst.fiber) Effect.runFork(Fiber.interrupt(inst.fiber))
-  const fiber = counted(Effect.runFork(inst.rerun))
+  const fiber = counted(
+    Effect.runFork(inst.transition ? Effect.provideService(inst.rerun, Transition, true) : inst.rerun),
+  )
+  inst.transition = false
   inst.fiber = fiber
   fiber.addObserver((exit) => {
     if (inst.fiber !== fiber || inst.dead || !env.live()) {
@@ -842,6 +851,7 @@ const rerun = (inst: Instance, env: Env): void => {
 
 const unwatch = (inst: Instance): void => {
   inst.epoch++
+  inst.transition = false
   for (const u of inst.unsubs.splice(0)) u()
 }
 
