@@ -31,6 +31,7 @@ const table = routes({
   toBroken: '/to-broken',
   hidden: '/hidden',
   lazy: '/lazy',
+  hiddenGone: '/hidden-gone',
 })
 
 class Teapot extends Data.TaggedError('Teapot')<{ readonly status: number }> {}
@@ -82,6 +83,7 @@ const app = router({
     // Pages reading a loader they do not declare.
     hidden: { render: read(old) },
     lazy: { render: read(slow) },
+    hiddenGone: { render: read(gone) },
   },
   notFound: () => Effect.succeed(el('h1', {}, 'not found')),
 })
@@ -129,8 +131,8 @@ describe('handle', () => {
     expect([res.status, res.headers.get('location')]).toEqual([302, '/users/1'])
   })
 
-  it('streaming sends the shell before a declared slow loader settles', async () => {
-    const res = await get('/slow', { stream: true })
+  it('streaming sends the shell before an undeclared slow loader settles', async () => {
+    const res = await get('/lazy', { stream: true })
     const reader = res.body!.getReader()
     let shell = ''
     while (!shell.includes('</')) shell += new TextDecoder().decode((await reader.read()).value)
@@ -139,10 +141,19 @@ describe('handle', () => {
   })
 
   it.each([
-    ['/old', 'location.replace("/users/1")'],
-    ['/gone', '<template id="sleek-router-404"><h1>not found</h1></template>'],
+    ['/hidden', 'location.replace("/users/1")'],
+    ['/hidden-gone', '<template id="sleek-router-404"><h1>not found</h1></template>'],
   ])('a streamed %s sends its redirect or not-found as a script', async (path, text) => {
     expect(await (await get(path, { stream: true })).text()).toContain(text)
+  })
+
+  it.each([
+    ['/broken', 418],
+    ['/old', 302],
+    ['/gone', 404],
+    ['/loop/0', 500],
+  ])('streaming %s settles its declared loaders first: %i', async (path, status) => {
+    expect((await get(path, { stream: true, onError: () => {} })).status).toBe(status)
   })
 
   it('a redirect loop past the bound is a 500 with a RedirectLoop', async () => {
