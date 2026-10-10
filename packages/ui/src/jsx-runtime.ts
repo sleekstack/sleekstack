@@ -61,14 +61,21 @@ const RENAME: Record<string, string> = { className: 'class', htmlFor: 'for' }
 const ON_PROP = /^on[A-Z]/
 // A `defineHandler` value on `onXxx` is a resumable handler: it goes to the node's `on`, which `renderToString` emits as `data-sleek-on-<event>`.
 // An Effect value (re-runnable) is an event closure too: it ignores the event.
+// A form's function or Effect `action` is a submit binding too (a string `action` stays an attribute).
 const isEvent = (k: string, v: unknown): v is EventBinding['run'] =>
-  (typeof v === 'function' || Effect.isEffect(v)) && ON_PROP.test(k)
-
+  (typeof v === 'function' || Effect.isEffect(v)) && (ON_PROP.test(k) || k === 'action')
+const noop = () => Effect.void
+// A resumed submit runs one handler: a `defineHandler` on `onSubmit` or `action` takes the form's whole submit.
+const SUBMIT_MIX = "a defineHandler onSubmit or action is the form's only submit handler: drop the other prop"
+const addHandler = (out: Split, name: string, h: Handler<any, any, any>): void => {
+  if (out.handlers?.[name]) throw new TypeError(SUBMIT_MIX)
+  ;(out.handlers ??= {})[name] = h
+}
 /** One pass over an element's props: its attributes, event closures, resumable handlers and atom-bound attributes. */
 interface Split {
   readonly attrs: Record<string, string>
   events?: Record<string, EventBinding>
-  handlers?: Record<string, Handler<any, any>>
+  handlers?: Record<string, Handler<any, any, any>>
   bound?: Record<string, Atom.Atom<any>>
   ref?: Ref<any>
 }
@@ -82,14 +89,31 @@ const split = (props: Props, context: Context.Context<any> | undefined): Split =
       out.ref = v as Ref<any>
       continue
     }
+    if (k === 'action') {
+      if (isEvent(k, v)) {
+        const action =
+          typeof v === 'function'
+            ? (v as unknown as NonNullable<EventBinding['action']>)
+            : () => v as Effect.Effect<void>
+        const prev = out.events?.submit
+        if (context) (out.events ??= {}).submit = { run: prev?.run ?? noop, context, action }
+        continue
+      }
+      // Resumed: the delegated listener prevents the default from the server-emitted flag.
+      if (isHandler(v)) {
+        addHandler(out, 'submit', { ...v, opts: { ...v.opts, preventDefault: true } })
+        continue
+      }
+    }
     if (ON_PROP.test(k)) {
+      const name = k.slice(2).toLowerCase()
       if (typeof v === 'function' || Effect.isEffect(v)) {
         const run = typeof v === 'function' ? (v as EventBinding['run']) : () => v as Effect.Effect<void>
-        if (context) (out.events ??= {})[k.slice(2).toLowerCase()] = { run, context }
+        if (context) (out.events ??= {})[name] = { ...out.events?.[name], run, context }
         continue
       }
       if (isHandler(v)) {
-        ;(out.handlers ??= {})[k.slice(2).toLowerCase()] = v
+        addHandler(out, name, v)
         continue
       }
     }
@@ -101,6 +125,8 @@ const split = (props: Props, context: Context.Context<any> | undefined): Split =
     }
     out.attrs[RENAME[k] ?? k] = v === true ? '' : String(v)
   }
+  if (out.handlers?.submit && props.onSubmit != null && props.action != null && typeof props.action !== 'string')
+    throw new TypeError(SUBMIT_MIX)
   return out
 }
 // Props with no events, handlers or atoms (the plain host tree).

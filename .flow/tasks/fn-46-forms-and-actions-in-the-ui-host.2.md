@@ -24,9 +24,11 @@ Status, result and optimistic atoms. Contract and rationale are in the parent sp
 
 
 ## Done summary
-TBD
+`useAction(run)` returns `[result, action]` with a per-form `Result` atom (waitingFrom keeps the last value; only the latest run settles; failures, including Schema `ParseError`, stay in the Result), `useFormStatus(result)` reads a derived `{ pending }` atom, and `useOptimistic(source, apply)` layers pending changes over the (current) source and drops each when its effect ends, before the Result is set. `FormAction` (prop type) and `BoundAction`/`Result` types are exported; analyzer checks the new slot hooks; ADR 0033 and the ui README extended. Review also surfaced a renderer bug (re-run closed a Provider layer a running handler used): handler fibers now hold their run scope (LazyScope.hold). Tests: packages/ui/src/__tests__/form-state.test.ts.
 
+stage: impl-review - ran (codex fan-out NEEDS_WORK -> re-review SHIP)
+Tier: implementer opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 3dd0f44b3301cb98f717364277f0653e96c19df3, 3cb53b8080fdb5c08e1f5da507290ba790143c4f, c7afa4cabf4ae2c1f50e271c244f8f912e2d32fc, 9de026825a6b04bbef5eda79c3e10084fec71c97
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/ui... --filter=@sleekstack/analyze --filter=docs
 - PRs:

@@ -18,9 +18,9 @@
 | [0014](0014-native-query-layer.md) | Queries and mutations are built on native atoms, in `@sleekstack/query` | Superseded by 0018 |
 | [0015](0015-host-first-component-framework.md) | `@sleekstack/ui` (MVP spike): the Effect program is the host, React components are guests | Proposed |
 | [0016](0016-serializable-atoms-ssr.md) | Atoms render on the server and hydrate from opt-in serializable snapshots | Accepted |
+| [0017](0017-resumable-host-first-components.md) | `@sleekstack/ui` (spike): host HTML resumes through named handlers and bound atoms without re-running components | Proposed |
 | [0018](0018-tanstack-query-over-native-query-layer.md) | Queries use TanStack Query; `@sleekstack/query` is a thin bridge | Accepted |
 | [0019](0019-run-operation-rename.md) | `kit/next`'s inline runner is `runOperation`; `effect` means the side-effect Layer only | Accepted |
-| [0017](0017-resumable-host-first-components.md) | `@sleekstack/ui` (spike): host HTML resumes through named handlers and bound atoms without re-running components | Proposed |
 | [0020](0020-keyed-instances-skip-unchanged-runs.md) | A keyed instance whose props and context are unchanged is not re-run | Accepted |
 | [0021](0021-atoms-bind-in-jsx.md) | An atom in JSX (child or attribute value) binds the DOM directly; the component does not re-run | Accepted |
 | [0022](0022-ui-size-budget-and-publish-gate.md) | `@sleekstack/ui` size budget (measured on built output, asserted in a test) and the publish gate; the package stays private | Accepted |
@@ -34,3 +34,4 @@
 | [0030](0030-derived-atom-hook.md) | `useDerivedAtom`: a derived atom in the component's context | Accepted |
 | [0031](0031-typed-host-elements.md) | Host JSX elements are typed per tag: attributes, `on*` events and `ref`; `class` canonical, `className` accepted | Accepted |
 | [0032](0032-component-testing-package.md) | `@sleekstack/testing`: Vitest + jsdom, Testing Library queries, disposal on global `afterEach`, DOM-quiet `flush` | Accepted |
+| [0033](0033-form-actions.md) | A form `action` is a submit handler that gets the form's data; latest submit wins | Accepted |

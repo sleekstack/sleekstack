@@ -1,5 +1,5 @@
 import type { Atom } from '@sleekstack/core'
-import { Data, type Effect } from 'effect'
+import { Data, Effect } from 'effect'
 import type { Node } from './node'
 
 /** Serializable snapshot of a DOM event, taken at dispatch. `value`/`checked` only from form controls. */
@@ -8,6 +8,31 @@ export interface HandlerEvent {
   readonly value?: string
   readonly checked?: boolean
   readonly key?: string
+  /** A form's data on `submit`, built at dispatch with the submitter's name and value (files are not in scope). */
+  readonly formData?: FormData
+}
+/** What a form `action` receives: the submit snapshot, its `formData` always set. */
+export interface ActionEvent extends HandlerEvent {
+  readonly formData: FormData
+}
+/**
+ * A handler's result as an Effect: an Effect, a generator (`function*` yielding Effects) or nothing (a plain function).
+ * Anything else, a Promise included, throws a `TypeError` naming `label`.
+ */
+export const handled = (label: string, r: unknown): Effect.Effect<void, never, any> => {
+  if (Effect.isEffect(r)) return r as Effect.Effect<void, never, any>
+  if (r === undefined) return Effect.void
+  if (typeof (r as Generator | null)?.next === 'function' && typeof (r as Generator)[Symbol.iterator] === 'function')
+    return Effect.gen(() => r as Generator<any, void, any>) as Effect.Effect<void, never, any>
+  if (typeof (r as PromiseLike<unknown> | null)?.then === 'function')
+    throw new TypeError(`${label} returned a Promise: return an Effect or use a generator`)
+  throw new TypeError(`${label} returned neither an Effect, a generator nor undefined`)
+}
+/** The submitted form's data with its submitter, or `undefined` when `e` is not a form submit. */
+export const submitData = (e: Event): FormData | undefined => {
+  const form = e.target as HTMLFormElement | null
+  if (e.type !== 'submit' || form?.tagName !== 'FORM') return undefined
+  return new FormData(form, (e as SubmitEvent).submitter)
 }
 /** Static flags the server emits so the delegated listener applies them before the handler loads. */
 export interface HandlerOptions {
@@ -15,9 +40,10 @@ export interface HandlerOptions {
   readonly stopPropagation?: boolean
 }
 /** A named Effect program run on an event; its `id` is the only thing the server emits. */
-export interface Handler<E = never, R = never> {
+/** `Ev` is `ActionEvent` for a form `action` (annotate `run`'s parameter), else `HandlerEvent`. */
+export interface Handler<E = never, R = never, Ev extends HandlerEvent = HandlerEvent> {
   readonly id: string
-  readonly run: (event: HandlerEvent) => Effect.Effect<void, E, R>
+  readonly run: (event: Ev) => Effect.Effect<void, E, R>
   readonly opts: HandlerOptions
 }
 
@@ -28,14 +54,14 @@ export class UnsupportedAtom extends Data.TaggedError('UnsupportedAtom')<{ reado
 export class UnsupportedEvent extends Data.TaggedError('UnsupportedEvent')<{ readonly event: string }> {}
 
 /** Declares a handler. Call at module top level with a literal `id`. */
-export const defineHandler = <E = never, R = never>(
+export const defineHandler = <E = never, R = never, Ev extends HandlerEvent = HandlerEvent>(
   id: string,
-  run: (event: HandlerEvent) => Effect.Effect<void, E, R>,
+  run: (event: Ev) => Effect.Effect<void, E, R>,
   opts: HandlerOptions = {},
-): Handler<E, R> => ({ id, run, opts })
+): Handler<E, R, Ev> => ({ id, run, opts })
 
 /** True for a value built by `defineHandler`. */
-export const isHandler = (v: unknown): v is Handler<any, any> =>
+export const isHandler = (v: unknown): v is Handler<any, any, any> =>
   typeof v === 'object' &&
   v !== null &&
   typeof (v as Handler).id === 'string' &&

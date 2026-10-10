@@ -1,7 +1,7 @@
 /** @jsxImportSource .. */
 import { Atom } from '@sleekstack/core'
 import type { Effect } from 'effect'
-import { defineHandler } from '../handler'
+import { type ActionEvent, defineHandler } from '../handler'
 import type { Ref } from '../node'
 
 declare const label: Atom.Atom<string>
@@ -89,3 +89,14 @@ void (<div ref={inputRef} />)
 // R12: inline handler strings are not supported
 // @ts-expect-error string on an on* prop
 void (<button onClick="go()" />)
+
+// fn-46 R1: a form action gets the submit snapshot with formData; a string stays a URL
+void (<form action={(e) => void e.formData.get('title')} />)
+void (<form action="/save" />)
+// @ts-expect-error a number is neither a URL nor an action
+void (<form action={1} />)
+// a resumed action annotates ActionEvent; that handler does not fit a click
+declare const done: Effect.Effect<void>
+void (<form action={defineHandler('a', (e: ActionEvent) => (e.formData.get('t'), done))} />)
+// @ts-expect-error an action handler on a click
+void (<button onClick={defineHandler('a', (_: ActionEvent) => done)} />)

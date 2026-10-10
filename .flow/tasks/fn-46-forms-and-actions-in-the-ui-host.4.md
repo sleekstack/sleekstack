@@ -19,9 +19,11 @@ Hydrated submit test, demo and docs. Contract and rationale are in the parent sp
 
 
 ## Done summary
-TBD
+Tests prove hydrated (`hydrateMount`) and resumed forms submit through their action with default prevented, including a resumed submit made before the handler chunk loads. The ui-demo new-task form is now a host form: `useAction` with an Effect Schema decode and `useFormStatus` (the React guest form was removed). Docs gained a "Forms and actions" page with a typechecked Schema snippet. CONTEXT.md gained the Form Action term. The ui README already listed the APIs from .2/.3. No public export names changed.
 
+stage: impl-review - ran (codex fan-out base master: 3/3 SHIP)
+Tier: implementer opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 02a9e8b24fdf21ccb18b73084f6f9d99c8d77936
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/ui... --filter=@sleekstack/analyze --filter=sleekstack --filter=ui-demo --filter=docs
 - PRs:

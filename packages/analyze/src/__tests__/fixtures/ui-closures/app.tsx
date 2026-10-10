@@ -1,6 +1,6 @@
 import { Context, Effect, Layer } from 'effect'
 import { Boundary, Provider } from '@sleekstack/ui/jsx-runtime'
-import { mount } from '@sleekstack/ui'
+import { mount, type ActionEvent } from '@sleekstack/ui'
 
 class Log extends Context.Tag('Log')<Log, { readonly line: (s: string) => Effect.Effect<void> }>() {}
 class Boom {
@@ -14,6 +14,9 @@ declare const opaque: any
 const Needs = () => <button onClick={log}>a</button> // @error MissingDependency
 const Fails = () => <button onClick={() => boom()}>b</button> // @error UnhandledError
 const Handled = () => <button onClick={() => boom().pipe(Effect.catchTag('Boom', () => Effect.void))}>c</button>
+const SaveNeeds = () => <form action={(e: ActionEvent) => Effect.zipRight(Effect.sync(() => e.formData), log())}>g</form> // @error MissingDependency
+const SaveFails = () => <form action={boom}>h</form> // @error UnhandledError
+const SaveUrl = () => <form action="/save">i</form>
 const Opaque = () => <button onClick={opaque}>d</button> // @error Unresolved
 
 const App = () => (
@@ -30,6 +33,9 @@ const App = () => (
     </Boundary>
     <Handled />
     <Opaque />
+    <SaveNeeds />
+    <SaveFails />
+    <SaveUrl />
   </main>
 )
 
