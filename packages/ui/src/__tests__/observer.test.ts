@@ -11,6 +11,7 @@ import {
   type RenderEvent,
   renderToString,
   useAtomValue,
+  useEffect,
   useLocal,
 } from '../index'
 import { jsx as rawJsx } from '../jsx-runtime'
@@ -141,5 +142,35 @@ describe('render observer', () => {
         ),
     )
     expect(events.map((e) => e.type)).toEqual(['adopt', 'slot'])
+  })
+
+  it('reports effect start, restart and cleanup with the instance id', async () => {
+    const dep = Atom.make(0)
+    const Fx = () =>
+      Effect.gen(function* () {
+        const d = yield* useAtomValue(dep)
+        yield* useEffect(() => () => {}, [d])
+        yield* useEffect(function* () {
+          yield* useAtomValue(a)
+        })
+        return el('i', {}, 'x')
+      })
+    const App = () =>
+      Effect.flatMap(useAtomValue(show), (on) => jsx('div', { children: on ? jsx(Fx, { key: 'f' }) : null }))
+    const store = makeAtomStore()
+    store.set(show, true)
+    const { events } = await observed(jsx(App, {}), store)
+    const fx = () => events.flatMap((e) => (e.type === 'effect' ? [`${e.phase}:${e.index}`] : []))
+    const id = events.find((e) => e.type === 'create' && e.path.includes(':key:f'))!.instance
+    await tick()
+    expect(fx()).toEqual(['start:0', 'start:1'])
+    expect(events.filter((e) => e.type === 'effect').every((e) => e.instance === id && e.mount > 0)).toBe(true)
+    await act(async () => store.set(a, 5))
+    await tick()
+    await act(async () => store.set(dep, 1))
+    await tick()
+    await act(async () => store.set(show, false))
+    await tick()
+    expect(fx().slice(2)).toEqual(['restart:1', 'cleanup:0', 'start:0', 'cleanup:0', 'cleanup:1'])
   })
 })

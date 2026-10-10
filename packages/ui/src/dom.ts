@@ -29,6 +29,8 @@ import {
   Frame,
   makeFrame,
   MountError,
+  EffectObserver,
+  type EffectEvent,
   MountScope,
   RenderScope,
   type RunFrame,
@@ -70,6 +72,7 @@ export type RenderEvent =
       readonly reasons: ReadonlyArray<RerunReason>
     }
   | { readonly type: 'dispose'; readonly mount: number; readonly instance: number }
+  | ({ readonly mount: number } & EffectEvent)
   | {
       readonly type: 'slot'
       readonly mount: number
@@ -266,6 +269,7 @@ export const born = (inst: Instance, type: 'create' | 'adopt', env: Env, key: st
   inst.id = ++instances
   inst.emit = emit
   inst.slots = 0
+  if (inst.frame) inst.frame.owner.instance = inst.id
   emit({
     type,
     instance: inst.id,
@@ -1057,11 +1061,15 @@ export const start = async <E, A, LE = never>(
       if (!opts.store) await store.dispose()
     }
   }
+  const o = opts.observe
+  const mount = o ? ++mounts : 0
+  const observe: Emit | undefined = o && ((e) => o({ ...e, mount } as RenderEvent))
   const provided = app.pipe(
     Effect.provideService(Store, store),
     Effect.provideService(RenderScope, scope),
     Effect.provideService(MountScope, scope),
     Effect.provideService(MountError, (cause) => safeReport(cause, onError)),
+    Effect.provideService(EffectObserver, observe),
     Effect.provideService(Frame, frame),
     Effect.provideService(Hydrating, hydrating),
   ) as Effect.Effect<Node, E, Exclude<A, Store>>
@@ -1086,11 +1094,7 @@ export const start = async <E, A, LE = never>(
     duplicate: once(onError),
     post: post(),
   }
-  const o = opts.observe
-  if (o) {
-    const id = ++mounts
-    env.observe = (e) => o({ ...e, mount: id } as RenderEvent)
-  }
+  if (observe) env.observe = observe
   if (adoptWith) {
     const top: Owner = { lives: [], scopes: [] }
     top.lives = adoptWith(container, node, env, top.scopes)
