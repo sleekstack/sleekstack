@@ -11,7 +11,7 @@
   "priority": null,
   "spec": "fn-26-built-private-package-for-sleekstackui",
   "spec_path": ".flow/tasks/fn-26-built-private-package-for-sleekstackui.6.md",
-  "status": "todo",
+  "status": "done",
   "title": "size budget measurement, ADR, README",
   "updated_at": "2026-10-04T10:43:36.426501Z"
 }

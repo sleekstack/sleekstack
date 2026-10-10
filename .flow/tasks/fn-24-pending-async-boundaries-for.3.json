@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-24-pending-async-boundaries-for",
   "spec_path": ".flow/tasks/fn-24-pending-async-boundaries-for.3.md",
-  "status": "todo",
+  "status": "done",
   "title": "ui: renderToString awaits Pending content, no fallback markup",
   "updated_at": "2026-10-04T10:43:34.678930Z"
 }
