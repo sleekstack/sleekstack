@@ -11,3 +11,5 @@ export const closure = <button onClick={() => Effect.void}>a closure is not a ha
 export const inline = <a onClick={defineHandler('x', () => Effect.void)}>x</a> // @error NonResumableHandler
 export const viaLet = <a onClick={mutable}>x</a> // @error NonResumableHandler
 export const literalId = <a onInput={computed}>x</a> // @error NonResumableHandler
+export const action = <form action={ok}>fine</form>
+export const actionViaLet = <form action={mutable}>x</form> // @error NonResumableHandler

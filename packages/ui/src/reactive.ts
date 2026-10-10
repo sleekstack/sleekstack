@@ -1,6 +1,7 @@
-import { Atom, type AtomStore, MissingDependency, type Result } from '@sleekstack/core'
+import { Atom, type AtomStore, MissingDependency, Result } from '@sleekstack/core'
 import { Cause, Context, Data, Effect, ExecutionStrategy, Exit, Fiber, Option, Scope } from 'effect'
 import type { YieldWrap } from 'effect/Utils'
+import { type ActionEvent, handled as asEffect } from './handler'
 import type { Node, ReactiveNode, Ref } from './node'
 
 /** What a component returns: an Effect, or a generator that `yield*`s Effects and returns the element (run as `Effect.gen`). */
@@ -588,6 +589,151 @@ export const useRef = <T = null>(initial: T | null = null): Effect.Effect<Ref<T>
     return Effect.succeed(so.value.get(slots.atoms[i] as Atom.Atom<Ref<T>>))
   })
 
+/** A form `action` built by `useAction`: runs the action and records its outcome; its failure lives in the `Result`. */
+export type BoundAction<R = never> = (event: ActionEvent) => Effect.Effect<void, never, R>
+
+const actionRuns = new WeakMap<Atom.Atom<any>, { run: (event: ActionEvent) => unknown; latest?: object }>()
+
+/**
+ * `useAction(run)`, like React's `useActionState`: `[result, action]`. Pass `action` as a form's `action` prop; `result` is
+ * a `Result` atom of `run`'s outcome — `Initial`, `waiting` (the last value kept) while a run is in flight, then `Success`
+ * or `Failure` (a typed failure, such as a Schema `ParseError` from decoding `formData`). A failure is not reported to the
+ * mount's `onError`. `run` is an Effect-returning or generator function; the newest closure runs. Takes a slot like `useLocal`.
+ */
+export function useAction<Y extends YieldWrap<Effect.Effect<any, any, any>>, A>(
+  run: (event: ActionEvent) => Generator<Y, A, any>,
+): Effect.Effect<readonly [Atom.Atom<Result.Result<A, YieldedError<Y>>>, BoundAction<YieldedContext<Y>>], never, Store>
+export function useAction<A, E, R>(
+  run: (event: ActionEvent) => Effect.Effect<A, E, R>,
+): Effect.Effect<readonly [Atom.Atom<Result.Result<A, E>>, BoundAction<R>], never, Store>
+export function useAction(run: (event: ActionEvent) => unknown): Effect.Effect<readonly [any, any], never, Store> {
+  return Effect.flatMap(Effect.context<never>(), (ctx) => {
+    const so = Context.getOption(ctx, Store)
+    if (Option.isNone(so)) return missingStore('useAction') as Effect.Effect<never>
+    const s = so.value
+    const create = () => {
+      const a = Atom.writable<Result.Result<any, any>>(
+        () => Result.initial(),
+        (cx, v) => cx.setSelf(v),
+      )
+      actionRuns.set(a, { run })
+      return a
+    }
+    const f = Context.get(ctx, Frame)
+    let atom: Atom.Writable<Result.Result<any, any>>
+    if (Context.get(ctx, Collector) === undefined || f === undefined) atom = create()
+    else {
+      const taken = takeSlot(f)
+      if (taken instanceof SlotMismatch) return Effect.fail(taken) as unknown as Effect.Effect<never>
+      if (taken.first) {
+        f.owner.atoms.push(create())
+        f.owner.releases.push(s.retain(f.owner.atoms[taken.i]!))
+      }
+      atom = f.owner.atoms[taken.i]!
+    }
+    const box = actionRuns.get(atom)!
+    box.run = run
+    const action: BoundAction<any> = (event) =>
+      Effect.suspend(() => {
+        // A Promise result throws here, outside the Result, so the mount reports it.
+        const effect = asEffect('action', box.run(event)) as Effect.Effect<unknown, unknown, any>
+        const previous = s.get(atom)
+        const run = {}
+        box.latest = run
+        s.set(atom, Result.waitingFrom(previous))
+        // Only the latest run settles the Result: a superseded one leaves it `waiting` for its replacement.
+        return Effect.flatMap(Effect.exit(effect), (exit) =>
+          Effect.sync(
+            () =>
+              box.latest === run &&
+              s.set(
+                atom,
+                Exit.isSuccess(exit)
+                  ? Result.success(exit.value)
+                  : Result.failure(exit.cause, { previousValue: Result.value(previous) }),
+              ),
+          ),
+        )
+      })
+    return Effect.succeed([atom, action] as const)
+  })
+}
+
+const statusAtoms = new WeakMap<Atom.Atom<any>, Atom.Atom<{ readonly pending: boolean }>>()
+
+/** The status of a `useAction` result: `{ pending }`, true while its action runs. Registers the status atom as a dependency. */
+export const useFormStatus = (
+  result: Atom.Atom<Result.Result<any, any>>,
+): Effect.Effect<{ readonly pending: boolean }, never, Store> => {
+  let status = statusAtoms.get(result)
+  if (!status) statusAtoms.set(result, (status = Atom.make((get) => ({ pending: get(result).waiting }))))
+  return useAtomValue(status)
+}
+
+interface OptimisticBox<A, C> {
+  apply: (current: A, change: C) => A
+  readonly source: Atom.Writable<Atom.Atom<A>>
+  readonly view: Atom.Atom<A>
+}
+const optimisticViews = new WeakMap<Atom.Atom<any>, OptimisticBox<any, any>>()
+
+/**
+ * `useOptimistic(source, apply)`, like React's: `[value, optimistic]`. `value` is an atom of `source` with every pending
+ * change applied by `apply`; `optimistic(change, effect)` shows `change` while `effect` runs and drops it when `effect`
+ * ends, whether it succeeds, fails or is interrupted — before a `useAction` around it records the outcome. A new `source`
+ * atom replaces the old one; the newest `apply` is used on the next recompute. Takes a slot like `useLocal`.
+ */
+export const useOptimistic = <A, C>(
+  source: Atom.Atom<A>,
+  apply: (current: A, change: C) => A,
+): Effect.Effect<
+  readonly [Atom.Atom<A>, <X, E, R>(change: C, effect: Effect.Effect<X, E, R>) => Effect.Effect<X, E, R>],
+  never,
+  Store
+> =>
+  Effect.flatMap(Effect.context<never>(), (ctx) => {
+    const so = Context.getOption(ctx, Store)
+    if (Option.isNone(so)) return missingStore('useOptimistic') as Effect.Effect<never>
+    const s = so.value
+    type Entry = { readonly change: C }
+    const create = () => {
+      const pending = Atom.make<ReadonlyArray<Entry>>([])
+      const current = Atom.make(source)
+      const box: OptimisticBox<A, C> = {
+        apply,
+        source: current,
+        view: Atom.make((get) => get(pending).reduce((a, e) => box.apply(a, e.change), get(get(current)))),
+      }
+      optimisticViews.set(pending, box)
+      return pending
+    }
+    const f = Context.get(ctx, Frame)
+    let pending: Atom.Writable<ReadonlyArray<Entry>>
+    if (Context.get(ctx, Collector) === undefined || f === undefined) pending = create()
+    else {
+      const taken = takeSlot(f)
+      if (taken instanceof SlotMismatch) return Effect.fail(taken) as unknown as Effect.Effect<never>
+      if (taken.first) {
+        f.owner.atoms.push(create())
+        f.owner.releases.push(s.retain(optimisticViews.get(f.owner.atoms[taken.i]!)!.view))
+      }
+      pending = f.owner.atoms[taken.i]!
+    }
+    const box = optimisticViews.get(pending)! as OptimisticBox<A, C>
+    box.apply = apply
+    if (s.get(box.source) !== source) s.set(box.source, source)
+    const optimistic = <X, E, R>(change: C, effect: Effect.Effect<X, E, R>): Effect.Effect<X, E, R> =>
+      Effect.suspend(() => {
+        const entry: Entry = { change }
+        s.update(pending, (l) => [...l, entry])
+        return Effect.ensuring(
+          effect,
+          Effect.sync(() => s.update(pending, (l) => l.filter((e) => e !== entry))),
+        )
+      })
+    return Effect.succeed([box.view, optimistic] as const)
+  })
+
 /** Returns a setter for `atom`; registers nothing. */
 export const useSetAtom = <R, W>(atom: Atom.Writable<R, W>): Effect.Effect<(value: W) => void, never, Store> =>
   Effect.map(store('useSetAtom'), (s) => (value: W) => s.set(atom, value))
@@ -662,6 +808,9 @@ class LazyScope {
   private inner: Scope.CloseableScope | undefined
   private closed = false
   private lent = false
+  // Handler fibers running in this scope's context; a close waits for them.
+  private holds = 0
+  private deferred: Exit.Exit<unknown, unknown> | undefined
 
   constructor(
     private parent: Scope.Scope,
@@ -679,12 +828,30 @@ class LazyScope {
 
   close(exit: Exit.Exit<unknown, unknown>) {
     this.closed = true
+    if (this.holds > 0) {
+      this.deferred = exit
+      return Effect.void
+    }
     return this.inner ? Scope.close(this.inner, exit) : Effect.void
+  }
+
+  /** Keeps this scope and its lazy ancestors open until the returned release runs. */
+  hold(): () => void {
+    this.holds++
+    const up = this.parent instanceof LazyScope ? this.parent.hold() : undefined
+    return () => {
+      if (--this.holds === 0 && this.deferred) {
+        const exit = this.deferred
+        this.deferred = undefined
+        Effect.runFork(this.close(exit))
+      }
+      up?.()
+    }
   }
 
   /** Closes without a fiber when nothing ever used the scope; false when it was used (close it normally). */
   closeIfIdle(): boolean {
-    if (this.inner) return false
+    if (this.inner || this.holds > 0) return false
     this.closed = true
     return true
   }
@@ -721,6 +888,9 @@ const lazyScope = (parent: Scope.Scope, lease?: Scope.Scope, frame?: RunFrame): 
 export const lend = (scope: Scope.Scope | undefined): void => {
   if (scope instanceof LazyScope) scope.lend()
 }
+/** Keeps a run scope (and the run scopes around it) open while a handler fiber uses its services; returns the release. */
+export const holdScope = (scope: Scope.Scope | undefined): (() => void) =>
+  scope instanceof LazyScope ? scope.hold() : () => {}
 /** Closes `scope` without a fiber when it is a lazy scope nothing used; true when that handled it. */
 export const closeIdle = (scope: Scope.CloseableScope): boolean =>
   (scope as unknown) instanceof LazyScope && (scope as unknown as LazyScope).closeIfIdle()

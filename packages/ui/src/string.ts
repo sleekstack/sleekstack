@@ -39,7 +39,7 @@ export const checkAttr = (name: string, value: string): void => {
 export interface Collector {
   store: AtomStore
   onError?: (cause: Cause.Cause<unknown>) => void
-  handlers: Map<string, Handler<any, any>>
+  handlers: Map<string, Handler<any, any, any>>
   events: Set<string>
   atoms: Map<string, { atom: Atom.Atom<any>; value: unknown }> // value is encoded
   /** Set by `renderToStream`: emits an unresolved `Pending` instance as a placeholder. */
@@ -87,7 +87,7 @@ export const checkId = (kind: string, id: string): string => {
 // fn-17's codec; render rechecks the value kind for Bind nodes not built by `bind`.
 const encode = (atom: Atom.Atom<any>, value: unknown): unknown => Schema.encodeSync(valueInfo(atom).schema)(value)
 
-const handlerAttrs = (on: Readonly<Record<string, Handler<any, any>>>, c: Collector): string =>
+const handlerAttrs = (on: Readonly<Record<string, Handler<any, any, any>>>, c: Collector): string =>
   Object.entries(on)
     .map(([event, h]) => {
       checkEvent(event)

@@ -9,6 +9,7 @@
     "nextjs",
     "react",
     "atoms",
+    "forms",
     "queries",
     "queries-ssr",
     "tanstack-query",

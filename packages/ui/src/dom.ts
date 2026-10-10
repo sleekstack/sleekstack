@@ -1,5 +1,5 @@
 import { type Atom, type AtomStore, makeAtomStore } from '@sleekstack/core'
-import { Cause, Effect, Exit, Fiber, Layer, Scope } from 'effect'
+import { Cause, Context, Effect, Exit, Fiber, Layer, Scope } from 'effect'
 import { Component, createElement, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import { createRoot, type Root } from 'react-dom/client'
@@ -15,9 +15,11 @@ import {
   type PortalNode,
   type ReactiveNode,
 } from './node'
+import { type ActionEvent, handled, submitData } from './handler'
 import { Hydrating, type HydratingCell } from './pending'
 import {
   closeNow,
+  holdScope,
   commitSlots,
   disposeSlots,
   dropSlots,
@@ -83,6 +85,8 @@ export interface Events {
   bindings: Readonly<Record<string, EventBinding>>
   readonly listeners: Map<string, (event: Event) => void>
   readonly fibers: Set<Fiber.RuntimeFiber<void, unknown>>
+  // The form action's latest run: the next submit interrupts it.
+  action?: Fiber.RuntimeFiber<void, unknown> | undefined
   dead: boolean
 }
 // The live children of a host (an instance's or the mount's) and the run scopes of its untracked components.
@@ -332,30 +336,42 @@ const sameAtoms = (
   return ka.every((k) => b![k] === a![k])
 }
 
-// A handler is a function returning an Effect, a generator (`function*` yielding Effects) or nothing (a plain function).
-const handled = (name: string, r: unknown): Effect.Effect<void, never, any> => {
-  if (Effect.isEffect(r)) return r as Effect.Effect<void, never, any>
-  if (r === undefined) return Effect.void
-  if (typeof (r as Generator | null)?.next === 'function' && typeof (r as Generator)[Symbol.iterator] === 'function')
-    return Effect.gen(() => r as Generator<any, void, any>) as Effect.Effect<void, never, any>
-  throw new TypeError(`on${name} handler returned neither an Effect, a generator nor undefined`)
-}
-
 // Sync throw, unusable return, failure or defect go to `onError`; fibers end with the element.
-const dispatch = (ev: Events, name: string, event: Event, onError?: OnError): void => {
-  const b = ev.bindings[name]
-  if (!b || ev.dead) return
+const fork = (
+  ev: Events,
+  label: string,
+  run: () => unknown,
+  context: EventBinding['context'],
+  onError?: OnError,
+): Fiber.RuntimeFiber<void, unknown> | undefined => {
   let fiber: Fiber.RuntimeFiber<void, unknown>
   try {
-    fiber = counted(Effect.runFork(Effect.provide(handled(name, b.run(event)), b.context)))
+    fiber = counted(Effect.runFork(Effect.provide(handled(label, run()), context)))
   } catch (error) {
-    return reportRenderError(error, onError)
+    reportRenderError(error, onError)
+    return undefined
   }
   ev.fibers.add(fiber)
+  // A re-run that replaces this element's run must not release the services the handler is still using.
+  const release = holdScope(Context.get(context, RenderScope))
   fiber.addObserver((exit) => {
+    release()
     ev.fibers.delete(fiber)
     if (Exit.isFailure(exit) && !Cause.isInterruptedOnly(exit.cause)) safeReport(exit.cause, onError)
   })
+  return fiber
+}
+// `run` (`onSubmit` for a form action) goes first; an action then gets the form's data, interrupting the previous submit.
+const dispatch = (ev: Events, name: string, event: Event, onError?: OnError): void => {
+  const b = ev.bindings[name]
+  if (!b || ev.dead) return
+  const action = b.action
+  if (action) event.preventDefault()
+  fork(ev, `on${name} handler`, () => b.run(event), b.context, onError)
+  if (!action || ev.dead) return
+  if (ev.action) Effect.runFork(Fiber.interrupt(ev.action))
+  const data: ActionEvent = { type: event.type, formData: submitData(event) ?? new FormData() }
+  ev.action = fork(ev, 'action', () => action(data), b.context, onError)
 }
 export const listen = (el: Element, ev: Events, names: Iterable<string>, onError?: OnError): void => {
   for (const name of names) {

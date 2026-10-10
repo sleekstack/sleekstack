@@ -364,10 +364,12 @@ export function analyzeComponents(opts: { readonly project: string }): Component
       stack.delete(target)
     }
   }
-  /** A host `onXxx` closure: a node carrying its `R` and its `E`, which no enclosing `Catch` can handle. */
+  /** A handler slot: an `onXxx` event attribute, or a form's `action`. */
+  const isHandlerAttr = (name: string) => /^on[A-Z]/.test(name) || name === 'action'
+  /** A host `onXxx` or `action` closure: a node carrying its `R` and its `E`, which no enclosing `Catch` can handle. */
   const closure = (p: ts.JsxAttributeLike): UiNode[] => {
     const v =
-      ts.isJsxAttribute(p) && /^on[A-Z]/.test(p.name.getText()) && p.initializer && ts.isJsxExpression(p.initializer)
+      ts.isJsxAttribute(p) && isHandlerAttr(p.name.getText()) && p.initializer && ts.isJsxExpression(p.initializer)
         ? p.initializer.expression
         : undefined
     if (!v) return []
@@ -600,13 +602,13 @@ export function analyzeComponents(opts: { readonly project: string }): Component
       )
     }
   }
-  /** A JSX `onXxx={h}` whose value is a `Handler` (not a closure) is a resumable handler: same rule as `on()`. */
+  /** A JSX `onXxx={h}` (or `action={h}`) whose value is a `Handler` (not a closure) is a resumable handler: same rule as `on()`. */
   const checkJsxHandler = (attr: ts.JsxAttribute) => {
     const init = attr.initializer
     const v = init && ts.isJsxExpression(init) && init.expression ? unwrap(init.expression) : undefined
     if (
       !v ||
-      !/^on[A-Z]/.test(attr.name.getText()) ||
+      !isHandlerAttr(attr.name.getText()) ||
       libId(checker.getTypeAtLocation(v).getSymbol(), checker) !== 'ui/handler#Handler'
     )
       return
@@ -685,7 +687,7 @@ export function analyzeComponents(opts: { readonly project: string }): Component
     }
   }
   const rules: AnalyzeError[] = []
-  /** `useLocal`, `useEffect`, `useRef` and `useDerivedAtom` must be a statement-level `yield*` in a component's generator body (`function*` or `Effect.gen`), before any `return`; anything else fails closed. */
+  /** `useLocal`, `useEffect`, `useRef`, `useDerivedAtom`, `useAction` and `useOptimistic` must be a statement-level `yield*` in a component's generator body (`function*` or `Effect.gen`), before any `return`; anything else fails closed. */
   const checkSlot = (call: ts.CallExpression, hook = 'useLocal') => {
     const bad = (why: string) =>
       rules.push(
@@ -791,6 +793,8 @@ export function analyzeComponents(opts: { readonly project: string }): Component
     if (ts.isCallExpression(n) && calleeOf(n) === 'ui/reactive#useEffect') checkSlot(n, 'useEffect')
     if (ts.isCallExpression(n) && calleeOf(n) === 'ui/reactive#useRef') checkSlot(n, 'useRef')
     if (ts.isCallExpression(n) && calleeOf(n) === 'ui/reactive#useDerivedAtom') checkSlot(n, 'useDerivedAtom')
+    if (ts.isCallExpression(n) && calleeOf(n) === 'ui/reactive#useAction') checkSlot(n, 'useAction')
+    if (ts.isCallExpression(n) && calleeOf(n) === 'ui/reactive#useOptimistic') checkSlot(n, 'useOptimistic')
     if (ts.isCallExpression(n)) checkKeys(n)
     if (ts.isCallExpression(n) && calleeOf(n) === 'ui/handler#on') checkOn(n)
     if (ts.isJsxAttribute(n)) checkJsxHandler(n)

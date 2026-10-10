@@ -1,11 +1,12 @@
 /** @jsxImportSource @sleekstack/ui */
-import { Boundary, Pending, useAtomValue, useSetAtom } from '@sleekstack/ui'
+import { Effect, Schema } from 'effect'
+import { Boundary, Pending, useAction, useAtomValue, useFormStatus, useSetAtom } from '@sleekstack/ui'
 import { MaybeAssignee, Viewer } from '../../identity'
 import { filterAtom, selectedAtom } from '../application/state'
 import { useSuspenseTasks, useTaskActions, type QueryFailed } from '../application/tasks'
 import { STATUSES, type Status, type Task } from '../domain/model'
 import { DetailPanel } from './detail'
-import { AddTaskForm, FilterBar, Votes } from './guests'
+import { FilterBar, Votes } from './guests'
 import { PriorityBadge, STATUS_LABEL } from './shared'
 import { Triage } from './triage'
 
@@ -69,12 +70,42 @@ const Toolbar = function* () {
   )
 }
 
-/** Hands `mutate` to the React form; re-runs only on its own mutation's status. Editors only. */
+// The form's data, decoded with Effect Schema: a blank title is a `ParseError` kept in the action's `Result`.
+const NewTaskForm = Schema.Struct({
+  title: Schema.Trim.pipe(Schema.nonEmptyString({ message: () => 'A task needs a title' })),
+  priority: Schema.Literal('low', 'medium', 'high'),
+})
+
+/** A host form: `useAction` decodes its data and runs the mutation. */
+const AddTaskForm = function* ({ projectId }: { projectId: string }) {
+  const { add } = yield* useTaskActions(projectId)
+  const [result, action] = yield* useAction(function* (e) {
+    const task = yield* Schema.decodeUnknown(NewTaskForm)(Object.fromEntries(e.formData))
+    yield* Effect.tryPromise(() => add.mutateAsync(task))
+  })
+  const { pending } = yield* useFormStatus(result)
+  const outcome = yield* useAtomValue(result)
+  return (
+    <form className="add" action={action}>
+      <input className="new-title" name="title" placeholder="New task" />
+      <select className="new-priority" name="priority">
+        <option>low</option>
+        <option selected>medium</option>
+        <option>high</option>
+      </select>
+      <button type="submit" disabled={pending}>
+        Add task
+      </button>
+      {outcome._tag === 'Failure' && <p className="error">Could not add the task</p>}
+    </form>
+  )
+}
+
+/** The new-task form, for editors only. */
 const NewTask = function* ({ projectId }: { projectId: string }) {
   const { user: viewer } = yield* Viewer
   if (!viewer.canEdit) return <p className="muted">Read only: {viewer.name} cannot add tasks</p>
-  const { add } = yield* useTaskActions(projectId)
-  return <AddTaskForm onAdd={(task) => add.mutate(task)} />
+  return <AddTaskForm projectId={projectId} />
 }
 
 /** Waits on the project's tasks through the query cache (under `Pending`). */
