@@ -13,6 +13,7 @@ Effect-native component framework (MVP). The Effect program is the host; plain R
 | `useSetAtom(atom)` | A setter `(value) => void` for a writable atom; hand it to a guest as a prop |
 | `useAtom(atom)` | `[value, set]`; reads like `useAtomValue` |
 | `<Pending fallback>` | Shows `fallback` while its children wait on an async Effect; a re-run keeps the previous content until the new one resolves |
+| `startTransition(() => store.set(a, v))` | Marks the re-runs those writes trigger: a `Pending` with no content yet (a new key or branch) keeps the previous DOM until its content resolves instead of showing `fallback`. Elsewhere nothing changes. A flag, not a scheduler: it cannot interrupt a long synchronous render |
 | `lazy(() => import('./X'))`, `LazyLoadError` | A component whose module loads on first render, under `Pending`; the bundler splits it into its own chunk. The module loads once; a failed import (or no default export component) fails with `LazyLoadError` for a `Boundary` and is retried on the next render |
 | `useSuspenseQuery(options)` (`@sleekstack/query/ui`) | Waits on a query under `Pending`: `Effect<T, QueryFailed, QueryClientTag \| Store>`; re-runs on result change, returns held data without refetching |
 | `useLocal(initial)` | `[value, set]` local state in an ordered slot of this instance; kept across re-runs, released when the instance is removed. Call it only at the top of the component body (`ConditionalSlot`) |

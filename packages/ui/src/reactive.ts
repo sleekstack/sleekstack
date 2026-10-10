@@ -53,6 +53,31 @@ export class RenderScope extends Context.Reference<RenderScope>()('@sleekstack/u
   defaultValue: (): Scope.Scope | undefined => undefined,
 }) {}
 
+/** On for a re-run triggered only by writes inside `startTransition`: a `Pending` with no content awaits it instead of its fallback. */
+export class Transition extends Context.Reference<Transition>()('@sleekstack/ui/Transition', {
+  defaultValue: () => false,
+}) {}
+
+let transitioning = false
+/** Whether a write happening now is inside `startTransition`; read when an atom change is notified. */
+export const inTransition = (): boolean => transitioning
+
+/**
+ * Runs `write` (atom writes) as a transition: the re-runs it triggers keep the previous DOM where a `Pending` has no
+ * resolved content yet (a new key or branch), until that content resolves, instead of showing the fallback. Where
+ * content exists, and for writes outside, nothing changes. A flag carried by those re-runs, not a scheduler: it cannot
+ * interrupt a long synchronous render. Writes notified later (an outer `store.batch`) are ordinary.
+ */
+export const startTransition = (write: () => void): void => {
+  const outer = transitioning
+  transitioning = true
+  try {
+    write()
+  } finally {
+    transitioning = outer
+  }
+}
+
 /**
  * The mount's own scope. A component run's scope normally forks `RenderScope` (the enclosing run's scope) and closes with it;
  * a scope that is lent (a keyed row, or any run that reads an atom) forks this instead, so a row the parent skips keeps its
@@ -734,7 +759,8 @@ const reusable = (scope: Scope.Scope | undefined): boolean => scope instanceof L
 
 // Per-run services: rebuilt for every parent run, so they never decide whether a child's inputs changed.
 const NO_ATOMS: ReadonlyArray<never> = []
-const PER_RUN = new Set<string>([Collector.key, Frame.key, RenderScope.key])
+// `Transition` too: it marks one re-run, so a captured re-run drops it and a memo ignores it.
+const PER_RUN = new Set<string>([Collector.key, Frame.key, RenderScope.key, Transition.key])
 const sameProps = (a: object, b: object): boolean => {
   if (a === b) return true
   const ka = Object.keys(a)
@@ -866,7 +892,7 @@ export const instance = <P>(
                     seen: NO_ATOMS,
                     child: built,
                     rerun: Effect.suspend(
-                      () => ((forced = true), Effect.provide(handled(run), ctx)),
+                      () => ((forced = true), Effect.provide(handled(run), Context.omit(Transition)(ctx))),
                     ) as Effect.Effect<Node>,
                     id: self,
                     key,
@@ -926,7 +952,7 @@ export const instance = <P>(
                 child,
                 scope: own,
                 rerun: Effect.suspend(
-                  () => ((forced = true), Effect.provide(handled(run), ctx)),
+                  () => ((forced = true), Effect.provide(handled(run), Context.omit(Transition)(ctx))),
                 ) as Effect.Effect<Node>,
                 id: self,
                 frame,

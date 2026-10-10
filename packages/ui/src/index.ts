@@ -41,6 +41,7 @@ export {
   useEffect,
   useRef,
   useSetAtom,
+  startTransition,
 } from './reactive'
 export {
   bind,
