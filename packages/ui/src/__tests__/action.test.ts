@@ -114,7 +114,7 @@ describe('form action (closure)', () => {
 describe('form action (resumed)', () => {
   it('gets the same form data as a closure; the server emits no form data', async () => {
     const seen: Array<unknown> = []
-    const save = defineHandler('save', (e) => Effect.sync(() => void seen.push([...e.formData!.entries()])))
+    const save = defineHandler('save', (e: ActionEvent) => Effect.sync(() => void seen.push(entries(e))))
     const html = await renderToString(jsx('form', formProps({ action: save })), { layer: Layer.empty })
     expect(html).toContain('data-sleek-on-submit="save"')
     expect(html).toContain('data-sleek-pd-submit')
@@ -168,5 +168,43 @@ describe('form action (resumed)', () => {
     await flush()
     expect(log).toEqual(['interrupted 1', 'done 2'])
     expect(onError).not.toHaveBeenCalled()
+  })
+
+  it('a resumed Promise result is reported with the clear error', async () => {
+    const bad = defineHandler('bad', (async () => {}) as any)
+    const container = document.createElement('div')
+    container.innerHTML = await renderToString(jsx('form', formProps({ action: bad })), { layer: Layer.empty })
+    document.body.append(container)
+    const onError = vi.fn()
+    mounts.push(
+      await resume({
+        container,
+        layer: Layer.empty,
+        handlers: { bad: async () => ({ default: bad }) },
+        atoms: [],
+        onError,
+      }),
+    )
+    submit(container)
+    await flush()
+    expect(String(onError.mock.calls[0]?.[0])).toMatch(
+      /bad handler returned a Promise: return an Effect or use a generator/,
+    )
+  })
+
+  const h = defineHandler('h', (_: ActionEvent) => Effect.void)
+  it.each([
+    ['both defineHandler', { onSubmit: defineHandler('s', () => Effect.void), action: h }],
+    ['defineHandler action, closure onSubmit', { onSubmit: () => {}, action: h }],
+    ['closure action, defineHandler onSubmit', { onSubmit: h, action: () => {} }],
+  ])('rejects %s on one form', async (_, props) => {
+    await expect(renderToString(jsx('form', formProps(props)), { layer: Layer.empty })).rejects.toThrow(
+      /only submit handler/,
+    )
+  })
+
+  it('a string action stays a URL beside a defineHandler onSubmit', async () => {
+    const html = await renderToString(jsx('form', formProps({ action: '/save', onSubmit: h })), { layer: Layer.empty })
+    expect(html).toContain('action="/save"')
   })
 })

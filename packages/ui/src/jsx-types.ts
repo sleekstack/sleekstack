@@ -106,7 +106,7 @@ export type EventHandler<Ev, K extends string = string> =
 export type FormAction =
   | ((event: ActionEvent) => Effect.Effect<unknown, any, any> | Generator<any, unknown, any> | void)
   | Effect.Effect<unknown, any, any>
-  | Handler<any, any>
+  | Handler<any, any, ActionEvent>
 
 /** `on*` props over an element's event map, each event's `currentTarget` narrowed to the element. */
 type EventAttrs<El, Map> = {

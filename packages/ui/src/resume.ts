@@ -1,6 +1,6 @@
 import { type Atom, makeAtomStore } from '@sleekstack/core'
 import { Cause, Context, Data, Effect, Exit, Fiber, Layer, Option, Schema, Scope } from 'effect'
-import { DuplicateBindKey, type Handler, type HandlerEvent, submitData, valueInfo } from './handler'
+import { DuplicateBindKey, type Handler, type HandlerEvent, handled, submitData, valueInfo } from './handler'
 import { Store } from './reactive'
 
 export class ManifestInvalid extends Data.TaggedError('ManifestInvalid')<{ readonly reason: string }> {}
@@ -14,7 +14,7 @@ export class HandlerIdMismatch extends Data.TaggedError('HandlerIdMismatch')<{
   readonly id: string
 }> {}
 
-export type HandlerLoader<R> = () => Promise<{ readonly default: Handler<any, R> }>
+export type HandlerLoader<R> = () => Promise<{ readonly default: Handler<any, R, any> }>
 export interface Resumed {
   readonly dispose: () => Promise<void>
 }
@@ -144,8 +144,8 @@ const activate = async <R, LE>(opts: ResumeOptions<R, LE>): Promise<Resumed> => 
   }
 
   // A rejected or mismatched load is not cached: the next event retries.
-  const loads = new Map<string, Promise<Handler<any, any>>>()
-  const load = (id: string): Promise<Handler<any, any>> => {
+  const loads = new Map<string, Promise<Handler<any, any, any>>>()
+  const load = (id: string): Promise<Handler<any, any, any>> => {
     const cached = loads.get(id)
     if (cached) return cached
     const loader = Object.hasOwn(opts.handlers, id) ? opts.handlers[id] : undefined
@@ -180,7 +180,7 @@ const activate = async <R, LE>(opts: ResumeOptions<R, LE>): Promise<Resumed> => 
     const loading = load(id)
     loading.catch(() => {}) // reported in queue order below
     tail = tail.then(async () => {
-      let h: Handler<any, any>
+      let h: Handler<any, any, any>
       try {
         h = await loading
       } catch (error) {
@@ -198,7 +198,7 @@ const activate = async <R, LE>(opts: ResumeOptions<R, LE>): Promise<Resumed> => 
       const before = binds.map(({ atom }) => [atom, store.get(atom)] as const)
       deferred = true
       const run = Effect.provide(
-        Effect.suspend(() => h.run(event)),
+        Effect.suspend(() => handled(`${id} handler`, h.run(event))),
         ctx as Context.Context<any>,
       )
       const fiber = Effect.runSync(Effect.forkIn(run, scope))

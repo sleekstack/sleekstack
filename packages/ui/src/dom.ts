@@ -5,7 +5,7 @@ import { flushSync } from 'react-dom'
 import { createRoot, type Root } from 'react-dom/client'
 import { reportRenderError, runToNode } from './component'
 import type { BindNode, ElementNode, EventBinding, FragmentNode, GuestNode, Node, ReactiveNode } from './node'
-import { type ActionEvent, submitData } from './handler'
+import { type ActionEvent, handled, submitData } from './handler'
 import { Hydrating, type HydratingCell } from './pending'
 import {
   closeNow,
@@ -317,17 +317,6 @@ const sameAtoms = (
   const ka = a ? Object.keys(a) : []
   if (ka.length !== (b ? Object.keys(b).length : 0)) return false
   return ka.every((k) => b![k] === a![k])
-}
-
-// A handler is a function returning an Effect, a generator (`function*` yielding Effects) or nothing (a plain function).
-const handled = (label: string, r: unknown): Effect.Effect<void, never, any> => {
-  if (Effect.isEffect(r)) return r as Effect.Effect<void, never, any>
-  if (r === undefined) return Effect.void
-  if (typeof (r as Generator | null)?.next === 'function' && typeof (r as Generator)[Symbol.iterator] === 'function')
-    return Effect.gen(() => r as Generator<any, void, any>) as Effect.Effect<void, never, any>
-  if (typeof (r as PromiseLike<unknown> | null)?.then === 'function')
-    throw new TypeError(`${label} returned a Promise: return an Effect or use a generator`)
-  throw new TypeError(`${label} returned neither an Effect, a generator nor undefined`)
 }
 
 // Sync throw, unusable return, failure or defect go to `onError`; fibers end with the element.

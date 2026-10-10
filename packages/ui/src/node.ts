@@ -14,7 +14,7 @@ export interface ElementNode {
   readonly attrs: Readonly<Record<string, string>>
   readonly children: ReadonlyArray<Node>
   /** Event name to handler; rendered as `data-sleek-on-<event>` by `renderToString`, ignored by `mount`. */
-  readonly on?: Readonly<Record<string, Handler<any, any>>>
+  readonly on?: Readonly<Record<string, Handler<any, any, any>>>
   /** Event name to closure binding, from function-valued `onXxx` JSX props; ignored by `renderToString`. */
   readonly events?: Readonly<Record<string, EventBinding>>
   readonly key?: string

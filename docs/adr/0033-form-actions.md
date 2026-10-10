@@ -17,6 +17,7 @@ A form's `action` prop takes a function, a generator, an Effect or a `defineHand
 - A second submit interrupts the running action (latest wins). On the resumed path this holds for every delegated submit handler.
 - A Promise result is a `TypeError` reported to `onError`: return an Effect or use a generator.
 - The form is not reset after the action.
+- A resumed action is `defineHandler('id', (e: ActionEvent) => ...)`: annotating the parameter types `formData` as present, and such a handler fits only `action`. A resumed submit runs one handler, so a `defineHandler` on `onSubmit` or `action` must be the form's only submit handler (a `TypeError` at render otherwise); a string `action` is still a URL beside it.
 
 Submitting with no JavaScript needs a server endpoint and is out of scope.
 

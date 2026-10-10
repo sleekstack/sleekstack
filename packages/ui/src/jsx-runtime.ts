@@ -65,17 +65,17 @@ const ON_PROP = /^on[A-Z]/
 const isEvent = (k: string, v: unknown): v is EventBinding['run'] =>
   (typeof v === 'function' || Effect.isEffect(v)) && (ON_PROP.test(k) || k === 'action')
 const noop = () => Effect.void
-// `onSubmit` and `action` share the `submit` slot, so only one of them may be a `defineHandler` value.
-const addHandler = (out: Split, name: string, h: Handler<any, any>): void => {
-  if (out.handlers?.[name]) throw new TypeError('a form takes a defineHandler value on onSubmit or action, not both')
+// A resumed submit runs one handler: a `defineHandler` on `onSubmit` or `action` takes the form's whole submit.
+const SUBMIT_MIX = "a defineHandler onSubmit or action is the form's only submit handler: drop the other prop"
+const addHandler = (out: Split, name: string, h: Handler<any, any, any>): void => {
+  if (out.handlers?.[name]) throw new TypeError(SUBMIT_MIX)
   ;(out.handlers ??= {})[name] = h
 }
-
 /** One pass over an element's props: its attributes, event closures, resumable handlers and atom-bound attributes. */
 interface Split {
   readonly attrs: Record<string, string>
   events?: Record<string, EventBinding>
-  handlers?: Record<string, Handler<any, any>>
+  handlers?: Record<string, Handler<any, any, any>>
   bound?: Record<string, Atom.Atom<any>>
   ref?: Ref<any>
 }
@@ -125,6 +125,8 @@ const split = (props: Props, context: Context.Context<any> | undefined): Split =
     }
     out.attrs[RENAME[k] ?? k] = v === true ? '' : String(v)
   }
+  if (out.handlers?.submit && props.onSubmit != null && props.action != null && typeof props.action !== 'string')
+    throw new TypeError(SUBMIT_MIX)
   return out
 }
 // Props with no events, handlers or atoms (the plain host tree).
