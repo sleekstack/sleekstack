@@ -44,7 +44,7 @@ const flaky = (failures: number) => {
   const Inner = () =>
     Effect.suspend(() => (++counts.runs <= failures ? Effect.fail(new Boom()) : Effect.succeed(el('b', {}, 'ok'))))
   const Child = () => jsx(Provider, { layer: res, children: jsx(Inner, {}) })
-  return { counts, Child }
+  return { counts, Child, res, Inner }
 }
 
 describe('Boundary reset (R4, R5, R6, R9, R10)', () => {
@@ -74,14 +74,16 @@ describe('Boundary reset (R4, R5, R6, R9, R10)', () => {
   })
 
   it('R6: a failing retry shows the fallback again, releases the attempt, and a second click on a spent reset does nothing', async () => {
-    const { counts, Child } = flaky(2)
+    const { counts, res, Inner } = flaky(2)
     let captured: Reset | undefined
     const tree = jsx(Boundary, {
       tag: 'Boom',
       fallback: (_e: Boom, reset: Reset) => ((captured = reset), jsx('button', { onClick: reset, children: 'retry' })),
-      children: jsx(Child, {}),
+      // A Provider directly under the Boundary: its layer belongs to the failed attempt.
+      children: jsx(Provider, { layer: res, children: jsx(Inner, {}) }),
     })
     const { container } = await go(tree)
+    expect(counts.released).toBe(counts.acquired)
     const first = captured!
     await click(container)
     first()

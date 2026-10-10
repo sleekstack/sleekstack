@@ -11,6 +11,7 @@ import {
   hostOf,
   instance,
   RenderScope,
+  scopedRun,
   useLocal,
 } from './reactive'
 
@@ -239,11 +240,14 @@ export const Boundary = <E extends { readonly _tag: string }>(props: {
       return Effect.void
     }
     const fallback = (e: E) => props.fallback(e, reset)
+    // The attempt runs in its own scope, closed on failure before the fallback renders.
     const content = Effect.catchTag(
-      Effect.provideService(Fragment(props), Handlers, [...hs, { tag: props.tag, fallback }]) as Effect.Effect<
-        Node,
-        { _tag: string }
-      >,
+      scopedRun(
+        Effect.provideService(Fragment(props), Handlers, [...hs, { tag: props.tag, fallback }]) as Effect.Effect<
+          Node,
+          { _tag: string }
+        >,
+      ),
       props.tag,
       (e) => fallback(e as unknown as E),
     )

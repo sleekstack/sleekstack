@@ -126,8 +126,9 @@ const live = (props: { fallback: Child; children?: Child }) =>
           const fork: Fork = { props, scope, done: false }
           forks.set(slots, fork)
           // Dispose (unmount, key change) closes the scope, interrupting the fiber, and retires the fork in the same tick.
-          // ponytail: one closer per fork until the Pending is disposed; prune on commit if forks get frequent.
-          slots.releases.push(() => (forks.get(slots) === fork && forks.delete(slots), closeScope(scope)))
+          // ponytail: a successful fork keeps its closer until the Pending is disposed; prune on commit if forks get frequent.
+          const release = () => (forks.get(slots) === fork && forks.delete(slots), closeScope(scope))
+          slots.releases.push(release)
           const cframe = makeFrame(slots, `${f.id}/content`)
           let resolved: Content | undefined
           const path = hydrating.on && hydrating.counts ? numbered(hydrating.counts, parent) : ''
@@ -143,6 +144,9 @@ const live = (props: { fallback: Child; children?: Child }) =>
                 if (latest && Exit.isSuccess(exit))
                   return set((resolved = { node: owned(exit.value, scope), frame: cframe, props }))
                 closeScope(scope)
+                // A failed fork's scope is closed: drop its closer, so repeated resets do not accumulate them.
+                const i = slots.releases.indexOf(release)
+                if (i >= 0) slots.releases.splice(i, 1)
                 if (latest && Exit.isFailure(exit) && !Cause.isInterruptedOnly(exit.cause))
                   set((c) => ({ ...c, props, cause: exit.cause }))
               }),
