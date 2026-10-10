@@ -23,9 +23,12 @@ Actions and prefetching links. Contract and rationale are in the parent spec (R-
 
 
 ## Done summary
-TBD
+Added route actions (`action(run)`, any form-action form), `Link` (prefetches route code and loaders on hover/focus, `prefetch={false}` opts out, same-origin pathname matching) and `prefetchLoader` (shares the loader's load; an unread prefetch is evicted and its load stopped after 30s on a timer; a page read keeps it for good; errors silent). Tests in packages/router/src/__tests__/link.test.ts; README updated.
 
+baseline: green (router gate green at fn-50.3 receipt)
+stage: impl-review - ran (codex fan-out NEEDS_WORK -> claimed-prefetch expiry/pathname/stalled -> NEEDS_WORK timer eviction -> SHIP)
+Tier: implementer opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 0ee5ff3b980cfea75e6e51329794f260bfdc5e4b, 8e7f60a5d7fb03201dd56e19838707c6c1a84e20, e816d58ad5311ba14c5b6fea10587fd8db65d6bc
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/router...
 - PRs:
