@@ -1013,7 +1013,7 @@ export const mount = <E, A, LE = never>(
     container: Element
     onError?: OnError
     store?: AtomStore
-    /** Development only: receives instance create, re-run, dispose and slot events. Nothing is reported without one. */
+    /** Development only: receives instance create, re-run, dispose and slot events, and `useEffect` start, restart and cleanup (by instance and slot index). Nothing is reported without one. */
     observe?: RenderObserver
   },
 ): Promise<Mounted> => start(app, opts)
