@@ -16,6 +16,15 @@ import { QueriesSection } from './panel/queries'
 
 export { graphsOf } from './graph/graphsOf'
 export { QUERY_DEVTOOLS_MARKER } from './panel/queries'
+export {
+  UiPanel,
+  uiTrace,
+  type UiPanelProps,
+  type UiTrace,
+  type UiInstance,
+  type UiRerun,
+  type UiEffectRun,
+} from './ui/uiPanel'
 
 /** Present in every devtools bundle; production bundle tests assert it is absent from client chunks. */
 export const DEVTOOLS_MARKER = 'sleekstack-devtools-panel-9f3c'
