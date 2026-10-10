@@ -24,9 +24,13 @@ Redirect, not-found, server handler and history. Contract and rationale are in t
 
 
 ## Done summary
-TBD
+Added redirect/not-found control flow (`redirect`, `notFound`, `RedirectLoop` past 10 redirects), `router({table, pages, notFound})`, the server entry `handle(router, request, {layer, stream, document, onError})` (200 / 302 / 404 / loader error status; a stream settles declared loaders first, then streams undeclared ones and sends their late redirect or not-found as a script) and the browser entry `startRouter` (hydrate or mount, link-click interception, back/forward and scroll restoration, reload per navigation, latest navigation wins and stops its loads, action redirect navigates). A failed loader runs once and its Boundary gets that failure. Tests: packages/router/src/__tests__/navigation.test.ts. Docs: routing guide (apps/docs/content/docs/routing.mdx + snippet), README, ADR 0036, CONTEXT.md Router entry.
 
+baseline: green (router gate green at fn-50.4 receipt)
+stage: impl-review - ran (codex fan-out NEEDS_WORK -> reload/failure replay/redirect-target/fragment/render-time control -> NEEDS_WORK stream shell -> NEEDS_WORK stream status -> SHIP)
+Tier: implementer opus at medium
+Follow-up: generate:api does not cover @sleekstack/router (ui packages are outside PACKAGES), so no API page.
 ## Evidence
-- Commits:
-- Tests:
+- Commits: f2e86811f879b7ebda115c14a2578583de01be91, fba032e40a179a36af6b9a5b62db54e6294cde51, 65fdc87d07b39129b7b09f44f7e47685b23eb4ed, eb9ffc5fb57eef98baf7e92d4932d05b7a155c6b
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/router... --filter=docs
 - PRs:
