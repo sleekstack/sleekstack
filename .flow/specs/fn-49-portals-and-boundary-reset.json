@@ -11,7 +11,7 @@
   ],
   "id": "fn-49-portals-and-boundary-reset",
   "impl_review_rounds": {
-    "fn-49-portals-and-boundary-reset.1": 1
+    "fn-49-portals-and-boundary-reset.1": 0
   },
   "next_task": 1,
   "plan_review_rounds": 0,
@@ -69,9 +69,63 @@
       "task": "fn-49-portals-and-boundary-reset.1",
       "timestamp": "2026-10-10T02:43:00.752861Z",
       "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "5973ca3f3b88a78f1f5cf8cd928f7c1e7340de2be09badd21a95896bdeba2b4f",
+      "backend": "codex",
+      "base_sha": "bfe305fda8cb2b409ebeedf1e21e0c0bb0b93b56",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-a6de3fa79a66f6aa4b4f92055f8585e0",
+            "classification": "introduced",
+            "findingId": "finding-a6de3fa79a66f6aa4b4f92055f8585e0",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-da98abf3091dae8b3c663b9450be36a6",
+            "classification": "introduced",
+            "findingId": "finding-da98abf3091dae8b3c663b9450be36a6",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "a6d5d174f05282325495ddd84a213ce4369562b8",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1045,
+      "output_sha256": "00234a02b33cc7c515f01d49ea4148ff38036381589361c3696d0fd9f556830f",
+      "reservation_id": "869ed16bf4d64892be32f17d4988e64a",
+      "round_consumed": true,
+      "scope": "impl:fn-49-portals-and-boundary-reset.1",
+      "superseded_by": null,
+      "task": "fn-49-portals-and-boundary-reset.1",
+      "timestamp": "2026-10-10T02:44:45.026105Z",
+      "verdict": "SHIP"
     }
   ],
-  "review_hash_epoch": {},
+  "review_hash_epoch": {
+    "impl:fn-49-portals-and-boundary-reset.1": 1
+  },
   "review_pending_rounds": {},
   "review_reservations": {},
   "review_transport_failures": {
@@ -91,5 +145,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-10T02:43:00.754776Z"
+  "updated_at": "2026-10-10T02:44:45.030852Z"
 }
