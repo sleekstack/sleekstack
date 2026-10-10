@@ -15,3 +15,6 @@ params(table, 'nope')
 
 // @ts-expect-error '/' has no params
 export const none: Params<'/'>['id'] = ''
+
+// @ts-expect-error a colon inside a segment is not a param
+export const embedded: Params<'/item:format'>['format'] = ''

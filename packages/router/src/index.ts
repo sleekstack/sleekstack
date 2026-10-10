@@ -1,13 +1,16 @@
 import { Context, Effect, Layer, Option } from 'effect'
 
-/** The params of a path string: `'/users/:id/posts/:post'` gives `{ id: string; post: string }`. */
+type Segment<S extends string> = S extends `:${infer K}` ? { readonly [k in K]: string } : {}
+
+/**
+ * The params of a path string: `'/users/:id/posts/:post'` gives `{ id: string; post: string }`.
+ * Only a whole segment starting with `:` is a param, as in `match`.
+ */
 export type Params<P extends string> = string extends P
   ? Record<string, string>
-  : P extends `${string}:${infer K}/${infer Rest}`
-    ? { readonly [k in K]: string } & Params<`/${Rest}`>
-    : P extends `${string}:${infer K}`
-      ? { readonly [k in K]: string }
-      : {}
+  : P extends `${infer Head}/${infer Rest}`
+    ? Segment<Head> & Params<Rest>
+    : Segment<P>
 
 /** A route table: route names to path strings. Declare it with `routes` to keep the paths literal. */
 export type RouteTable = { readonly [name: string]: string }
@@ -26,21 +29,35 @@ export interface Match<T extends RouteTable = RouteTable, K extends keyof T & st
 /** The matched route, provided around the page by `routeLayer`. */
 export class Route extends Context.Tag('@sleekstack/router/Route')<Route, Match>() {}
 
-const segments = (s: string) => s.split('/').filter(Boolean)
+/** Path segments without the leading and trailing slash; internal empty segments are kept. */
+const segments = (s: string) => s.replace(/^\/|\/$/g, '').split('/')
 
-/** The first route (in table order) whose path matches `pathname` segment by segment; `:name` matches one segment. */
+const decode = (segment: string): string | undefined => {
+  try {
+    return decodeURIComponent(segment)
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * The first route (in table order) whose path matches `pathname` segment by segment; `:name` matches one
+ * non-empty segment. `pathname` segments are percent-decoded; a malformed escape matches no route.
+ */
 export const match = <T extends RouteTable>(table: T, pathname: string): Option.Option<Match<T>> => {
-  const actual = segments(pathname)
+  const actual = segments(pathname).map(decode)
+  if (actual.some((a) => a === undefined)) return Option.none()
   for (const name of Object.keys(table)) {
     const pattern = segments(table[name]!)
     if (pattern.length !== actual.length) continue
-    const params: Record<string, string> = {}
-    if (
-      pattern.every((p, i) =>
-        p.startsWith(':') ? ((params[p.slice(1)] = decodeURIComponent(actual[i]!)), true) : p === actual[i],
-      )
-    )
-      return Option.some({ name, path: table[name], params, pathname } as Match<T>)
+    const params: Record<string, string> = Object.create(null)
+    const ok = pattern.every((p, i) => {
+      const a = actual[i]!
+      if (!p.startsWith(':')) return p === a
+      params[p.slice(1)] = a
+      return a !== ''
+    })
+    if (ok) return Option.some({ name, path: table[name], params, pathname } as Match<T>)
   }
   return Option.none()
 }

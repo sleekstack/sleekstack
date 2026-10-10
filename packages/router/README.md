@@ -6,7 +6,7 @@ Typed routes for apps on the `@sleekstack/ui` host (ADR 0036). A route table is 
 | --- | --- |
 | `routes(table)` | Declares a route table, keeping its path strings literal. |
 | `Params<P>` | The params of a path string: `Params<'/users/:id'>` is `{ readonly id: string }`. |
-| `match(table, pathname)` | The first route in table order matching `pathname` (`:name` matches one segment), as an `Option<Match>`. |
+| `match(table, pathname)` | The first route in table order matching the percent-decoded `pathname` (`:name` matches one whole non-empty segment), as an `Option<Match>`; a malformed escape matches nothing. |
 | `Route` | The matched route as a service: `name`, `path`, `params`, `pathname`. |
 | `routeLayer(match)` | Provides `Route` around the page. |
 | `params(table, name)` | The matched route's params typed from `table[name]`; dies if the page runs under another route. |
