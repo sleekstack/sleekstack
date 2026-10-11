@@ -107,6 +107,13 @@ describe('resume', () => {
     expect(spy).not.toHaveBeenCalled()
   })
 
+  it('has no render observer: resume adopts no instances, so it has nothing to report (ADR 0037)', () => {
+    const opts = { container: document.createElement('div'), layer: Layer.empty, handlers: {}, atoms: [] }
+    // @ts-expect-error resume takes no observe option
+    const _check: Parameters<typeof resume>[0] = { ...opts, observe: () => {} }
+    expect(_check).toBeDefined()
+  })
+
   it('runs mixed ids in event order while loads overlap', async () => {
     const c = await setup()
     const order: Array<string> = []

@@ -90,6 +90,8 @@ export interface Slots {
   /** A run is in flight / a handler was called while it was. */
   running?: boolean
   called?: boolean
+  /** The observed instance that owns these slots (set only when the mount has an observer). */
+  instance?: number
 }
 
 interface Memo {
@@ -152,6 +154,7 @@ export const disposeSlots = (s: Slots): void => {
   s.kids = undefined
   s.memo = undefined
   s.handlers = undefined
+  s.instance = undefined
 }
 
 // Every slot hook takes its slot the same way: the next index, and whether this run creates it. A first run past a settled slot list is a mismatch.
@@ -277,6 +280,18 @@ export class MountError extends Context.Reference<MountError>()('@sleekstack/ui/
   defaultValue: (): ((cause: Cause.Cause<unknown>) => void) | undefined => undefined,
 }) {}
 
+/** A `useEffect` lifecycle step, reported to a mount's observer: `instance` 0 is the mount's root, `index` the effect's slot. */
+export type EffectEvent = {
+  readonly type: 'effect'
+  readonly phase: 'start' | 'restart' | 'cleanup'
+  readonly instance: number
+  readonly index: number
+}
+/** Where `useEffect` reports its lifecycle; set by a mount with an observer, absent otherwise (and on the server). */
+export class EffectObserver extends Context.Reference<EffectObserver>()('@sleekstack/ui/EffectObserver', {
+  defaultValue: (): ((event: EffectEvent) => void) | undefined => undefined,
+}) {}
+
 /** What an effect may return: nothing, a cleanup function, or an Effect (run in its own `Scope`, ended as the cleanup). */
 export type EffectResult<E = never, R = never> = void | (() => void) | Effect.Effect<void, E, R>
 
@@ -327,6 +342,7 @@ const track = (
   ctx: Context.Context<never>,
   store: AtomStore,
   report: ((cause: Cause.Cause<unknown>) => void) | undefined,
+  onRestart: (() => void) | undefined,
 ): { readonly restart: () => void; readonly stop: () => void } => {
   let stop: Effect.Effect<void> | undefined
   let dead = false
@@ -339,6 +355,7 @@ const track = (
   const restart = () => {
     if (closing) return
     closing = true
+    onRestart?.()
     const end = stop ?? Effect.void
     stop = undefined
     counted(
@@ -457,9 +474,14 @@ export function useEffect(fn: any, deps?: ReadonlyArray<unknown>): Effect.Effect
       )
     const slot = so.value.get(slots.atoms[i] as Atom.Atom<EffectSlot>)
     const report = Context.get(ctx, MountError)
+    const observe = Context.get(ctx, EffectObserver)
+    const emit =
+      observe &&
+      ((phase: EffectEvent['phase']) => observe({ type: 'effect', phase, instance: slots.instance ?? 0, index: i }))
     const end = () => {
       const c = slot.cleanup
       slot.cleanup = undefined
+      if (c) emit?.('cleanup')
       try {
         c?.()
       } catch (e) {
@@ -482,13 +504,21 @@ export function useEffect(fn: any, deps?: ReadonlyArray<unknown>): Effect.Effect
       slot.started = true
       slot.tracked = false
       slot.deps = deps
+      emit?.('start')
       try {
         const r = Effect.isEffect(fn) ? fn : fn()
         if (typeof r === 'function') slot.cleanup = r
         else if (isGenerator(r)) {
           slot.tracked = true
           slot.make = fn as () => Generator<any, unknown, any>
-          const t = track(slot, r as Generator<any, unknown, any>, ctx, so.value, report)
+          const t = track(
+            slot,
+            r as Generator<any, unknown, any>,
+            ctx,
+            so.value,
+            report,
+            emit && (() => emit('restart')),
+          )
           slot.cleanup = t.stop
           slot.restart = t.restart
         } else if (Effect.isEffect(r)) {

@@ -26,6 +26,7 @@
   },
   "devDependencies": {
     "@sleekstack/core": "workspace:*",
+    "@sleekstack/devtools": "workspace:*",
     "@sleekstack/islands": "workspace:*",
     "@sleekstack/kit": "workspace:*",
     "@sleekstack/next": "workspace:*",

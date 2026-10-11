@@ -12,6 +12,7 @@ import { expect, it } from 'vitest'
 //   pages/            compose modules into screens; import modules only through their `index`
 //   layers            composition root: the only importer of the modules' `infrastructure`
 //   app, main         composition roots for the UI
+//   devtools          dev-only React root for the `@sleekstack/devtools` ui panel, loaded by main
 //   resume/*          the resumable counter: no React, no components, no domain
 //   size/*            size-budget entries: built `@sleekstack/ui` output only
 // Modules reach each other only through `index`, and only along MODULE_DEPS (no cycles).
@@ -48,7 +49,8 @@ const ruleOf = (mod: string): Rule | undefined => {
   const exact: Record<string, Rule> = {
     layers: { local: [], packages: ['effect', '@sleekstack/query/ui'] },
     app: { local: ['layers', 'pages/'], packages: [UI] },
-    main: { local: ['app', 'layers'], packages: [UI] },
+    main: { local: ['app', 'layers', 'devtools'], packages: [UI, '@sleekstack/core', '@sleekstack/devtools'] },
+    devtools: { local: [], packages: ['@sleekstack/devtools', 'react-dom/client'] },
     'size/mount': { local: [], packages: [UI, 'effect'] },
     'size/hydrate': { local: [], packages: ['@sleekstack/core', UI, 'effect'] },
     'size/lazy': { local: ['size/heavy'], packages: [UI, 'effect'] },

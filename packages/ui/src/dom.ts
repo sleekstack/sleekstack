@@ -29,6 +29,8 @@ import {
   Frame,
   makeFrame,
   MountError,
+  EffectObserver,
+  type EffectEvent,
   MountScope,
   RenderScope,
   type RunFrame,
@@ -44,6 +46,45 @@ export interface Mounted {
 }
 
 type OnError = (cause: Cause.Cause<unknown>) => void
+
+/** Why an instance re-ran: an atom it read changed (by label), or its parent re-ran and produced a new run of it. */
+export type RerunReason = { readonly cause: 'atom'; readonly atom: string } | { readonly cause: 'parent' }
+
+/**
+ * What the renderer tells a `mount` / `hydrateMount` observer. Plain data only (ids, labels), never a live instance.
+ * `mount` tells the mounts on a page apart; `instance` is unique per page. `adopt` is an instance hydration took over
+ * from server markup; `slot` is a `useLocal`-style atom an instance owns, by index and atom label.
+ */
+export type RenderEvent =
+  | {
+      readonly type: 'create' | 'adopt'
+      readonly mount: number
+      readonly instance: number
+      readonly parent?: number
+      /** The instance's identity under its parent (`<component>#<ordinal>` or `<component>:key:<key>`). */
+      readonly path: string
+      readonly key?: string
+    }
+  | {
+      readonly type: 'rerun'
+      readonly mount: number
+      readonly instance: number
+      readonly reasons: ReadonlyArray<RerunReason>
+    }
+  | { readonly type: 'dispose'; readonly mount: number; readonly instance: number }
+  | ({ readonly mount: number } & EffectEvent)
+  | {
+      readonly type: 'slot'
+      readonly mount: number
+      readonly instance: number
+      readonly index: number
+      readonly atom: string
+    }
+
+/** Receives every `RenderEvent` of a mount, synchronously; it must not throw or change the tree. */
+export type RenderObserver = (event: RenderEvent) => void
+type Emit = (event: DistributiveOmit<RenderEvent, 'mount'>) => void
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never
 
 // A throwing guest renders as nothing; the error goes through `report` (not React's act rethrow).
 class GuestBoundary extends Component<{ report: (error: unknown) => void; children?: ReactNode }, { failed: boolean }> {
@@ -96,6 +137,11 @@ interface Owner {
   scopes: Array<Scope.CloseableScope>
 }
 export interface Instance extends Owner {
+  // Observer state, set only when the mount has an observer: page-unique id, the emitter, slots reported, pending reasons.
+  id?: number
+  emit?: Emit
+  slots?: number
+  reasons?: Array<RerunReason>
   host: HTMLElement
   rerun: Effect.Effect<Node>
   unsubs: Array<() => void>
@@ -165,6 +211,10 @@ export const release = (o: Owner): void => {
 }
 const kill = (i: Instance): void => {
   i.dead = true
+  if (i.emit) {
+    i.emit({ type: 'dispose', instance: i.id! })
+    i.emit = undefined
+  }
   unwatch(i)
   if (i.fiber) Effect.runFork(Fiber.interrupt(i.fiber))
   i.fiber = undefined
@@ -204,6 +254,40 @@ export interface Env {
   duplicate: (key: string) => void
   /** The plan's refs and effects, run once it is committed. */
   post?: Post
+  /** The mount's observer, which stamps the mount id. */
+  observe?: Emit
+  /** The observed instance whose children this patch builds. */
+  parent?: number
+}
+
+let instances = 0
+let mounts = 0
+// An instance comes into being (built or adopted): reported, and its children are built under it.
+export const born = (inst: Instance, type: 'create' | 'adopt', env: Env, key: string | undefined): Env => {
+  const emit = env.observe
+  if (!emit) return env
+  inst.id = ++instances
+  inst.emit = emit
+  inst.slots = 0
+  if (inst.frame) inst.frame.owner.instance = inst.id
+  emit({
+    type,
+    instance: inst.id,
+    ...(env.parent === undefined ? {} : { parent: env.parent }),
+    path: inst.node.id,
+    ...(key === undefined ? {} : { key }),
+  })
+  slotsOf(inst)
+  return under(env, inst)
+}
+const under = (env: Env, inst: Instance): Env => (inst.emit ? { ...env, parent: inst.id } : env)
+// Reports the slots the committed run created since the last report.
+const slotsOf = (inst: Instance): void => {
+  const atoms = inst.frame?.owner.atoms
+  if (!inst.emit || !atoms) return
+  for (let i = inst.slots!; i < atoms.length; i++)
+    inst.emit({ type: 'slot', instance: inst.id!, index: i, atom: atoms[i]!.label })
+  inst.slots = atoms.length
 }
 
 const once = (onError?: OnError) => {
@@ -477,7 +561,7 @@ export const build = (
           node,
         }
         installed.add(node)
-        inst.lives = buildAll([node.child], env, inst.scopes, host)
+        inst.lives = buildAll([node.child], born(inst, 'create', env, key), inst.scopes, host)
         collect(env.post, node)
         watch(inst, node, env)
         return { node, dom: host, kids: [], inst, ...keyed }
@@ -614,9 +698,10 @@ const adopt = (prev: Live, node: ReactiveNode, key: string | undefined, env: Env
   if (prev.node === node) return prev
   const inst = prev.inst!
   const sub: Plan = { ...p, scopes: [] }
-  const lives = patchChildren(inst.host, inst.lives, [node.child], env, sub)
+  const lives = patchChildren(inst.host, inst.lives, [node.child], under(env, inst), sub)
   collect(p.post, node)
   p.after.push(() => {
+    inst.emit?.({ type: 'rerun', instance: inst.id!, reasons: [{ cause: 'parent' }] })
     if (inst.fiber) Effect.runFork(Fiber.interrupt(inst.fiber))
     inst.fiber = undefined
     inst.lives = lives
@@ -631,6 +716,7 @@ const adopt = (prev: Live, node: ReactiveNode, key: string | undefined, env: Env
     watch(inst, node, env)
     if (previous !== node.scope) closeScope(previous)
     committed(node)
+    slotsOf(inst)
   })
   return { node, dom: prev.dom, kids: [], inst, ...(key === undefined ? {} : { key }) }
 }
@@ -806,8 +892,10 @@ export const watch = (inst: Instance, node: ReactiveNode, env: Env): void => {
   if (inst.dead) return
   // Changes in one tick (a store batch, or several atoms) coalesce into one re-run.
   const epoch = inst.epoch
-  const changed = () => {
+  const changed = (atom?: Atom.Atom<any>) => {
     if (inst.epoch !== epoch) return
+    if (atom && inst.reasons && !inst.reasons.some((r) => r.cause === 'atom' && r.atom === atom.label))
+      inst.reasons.push({ cause: 'atom', atom: atom.label })
     // Per write: one ordinary change in the tick makes the coalesced re-run ordinary.
     if (inst.queued === epoch) return void (inst.transition &&= notifyMarked())
     inst.queued = epoch
@@ -817,9 +905,12 @@ export const watch = (inst: Instance, node: ReactiveNode, env: Env): void => {
       if (!inst.dead && inst.epoch === epoch && env.live()) rerun(inst, env)
     })
   }
+  // Observed: each subscription names its atom, so the coalesced re-run lists every cause.
+  if (inst.emit) inst.reasons ??= []
   node.atoms.forEach((a, i) => {
-    inst.unsubs.push(env.store.subscribe(a, changed))
-    if (node.seen && !Object.is(read(env.store, a), node.seen[i])) changed()
+    const on = inst.emit ? () => changed(a) : changed
+    inst.unsubs.push(env.store.subscribe(a, on))
+    if (node.seen && !Object.is(read(env.store, a), node.seen[i])) on()
   })
 }
 const read = (store: AtomStore, atom: Atom.Atom<any>): unknown => {
@@ -833,6 +924,7 @@ const read = (store: AtomStore, atom: Atom.Atom<any>): unknown => {
 // Latest wins: a newer change interrupts the in-flight re-run; only the current fiber of a live instance writes.
 const rerun = (inst: Instance, env: Env): void => {
   if (inst.fiber) Effect.runFork(Fiber.interrupt(inst.fiber))
+  if (inst.emit) inst.emit({ type: 'rerun', instance: inst.id!, reasons: inst.reasons!.splice(0) })
   const fiber = counted(
     Effect.runFork(inst.transition ? Effect.provideService(inst.rerun, Transition, true) : inst.rerun),
   )
@@ -852,6 +944,8 @@ const rerun = (inst: Instance, env: Env): void => {
 const unwatch = (inst: Instance): void => {
   inst.epoch++
   inst.transition = false
+  // Causes queued under the old subscriptions go with them.
+  if (inst.reasons) inst.reasons.length = 0
   for (const u of inst.unsubs.splice(0)) u()
 }
 
@@ -865,7 +959,7 @@ const swap = (inst: Instance, node: Node, env: Env): void => {
     inst.host,
     inst.lives,
     [own ? own.child : node],
-    { ...env, defect: (e) => errors.push(e), duplicate: once(env.onError), post: p.post },
+    { ...under(env, inst), defect: (e) => errors.push(e), duplicate: once(env.onError), post: p.post },
     p,
   )
   if (own) collect(p.post, own)
@@ -888,6 +982,7 @@ const swap = (inst: Instance, node: Node, env: Env): void => {
     installed.add(own)
     watch(inst, own, env)
     committed(own)
+    slotsOf(inst)
   } else {
     // A fallback keeps the subscriptions (the next change retries); either way the replaced run's scope goes.
     if (!fallbacks.has(node)) unwatch(inst)
@@ -913,7 +1008,14 @@ const safeReport = (cause: Cause.Cause<unknown>, onError?: OnError): void => {
  */
 export const mount = <E, A, LE = never>(
   app: Effect.Effect<Node, E, A>,
-  opts: { layer: Layer.Layer<Exclude<A, Store>, LE, never>; container: Element; onError?: OnError; store?: AtomStore },
+  opts: {
+    layer: Layer.Layer<Exclude<A, Store>, LE, never>
+    container: Element
+    onError?: OnError
+    store?: AtomStore
+    /** Development only: receives instance create, re-run, dispose and slot events, and `useEffect` start, restart and cleanup (by instance and slot index). Nothing is reported without one. */
+    observe?: RenderObserver
+  },
 ): Promise<Mounted> => start(app, opts)
 
 /** Builds the first lives into `container` from the first run's node; mutates the DOM directly (no plan). */
@@ -925,7 +1027,13 @@ export const owned = (container: Element): boolean => states.has(container)
 // Shared by `mount` and `hydrateMount`: with `adopt`, the existing DOM is kept and walked instead of torn down and patched.
 export const start = async <E, A, LE = never>(
   app: Effect.Effect<Node, E, A>,
-  opts: { layer: Layer.Layer<Exclude<A, Store>, LE, never>; container: Element; onError?: OnError; store?: AtomStore },
+  opts: {
+    layer: Layer.Layer<Exclude<A, Store>, LE, never>
+    container: Element
+    onError?: OnError
+    store?: AtomStore
+    observe?: RenderObserver
+  },
   adoptWith?: Adopt,
   hydrating: HydratingCell = { on: !!adoptWith },
 ): Promise<Mounted> => {
@@ -953,11 +1061,15 @@ export const start = async <E, A, LE = never>(
       if (!opts.store) await store.dispose()
     }
   }
+  const o = opts.observe
+  const mount = o ? ++mounts : 0
+  const observe: Emit | undefined = o && ((e) => o({ ...e, mount } as RenderEvent))
   const provided = app.pipe(
     Effect.provideService(Store, store),
     Effect.provideService(RenderScope, scope),
     Effect.provideService(MountScope, scope),
     Effect.provideService(MountError, (cause) => safeReport(cause, onError)),
+    Effect.provideService(EffectObserver, observe),
     Effect.provideService(Frame, frame),
     Effect.provideService(Hydrating, hydrating),
   ) as Effect.Effect<Node, E, Exclude<A, Store>>
@@ -982,6 +1094,7 @@ export const start = async <E, A, LE = never>(
     duplicate: once(onError),
     post: post(),
   }
+  if (observe) env.observe = observe
   if (adoptWith) {
     const top: Owner = { lives: [], scopes: [] }
     top.lives = adoptWith(container, node, env, top.scopes)
