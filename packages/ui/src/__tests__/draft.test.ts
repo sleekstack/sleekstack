@@ -206,16 +206,35 @@ describe('useDraft', () => {
     expect([store.get(draft.preview), store.get(draft.changes)]).toEqual([undefined, undefined])
   })
 
-  it('R2: field(index) keeps an array Draft an array', () => {
+  it("R2: a field write keeps the Draft's kind: an array stays an array, an instance keeps its class", () => {
+    class Point {
+      constructor(
+        readonly x: number,
+        readonly y: number,
+      ) {}
+      norm() {
+        return Math.hypot(this.x, this.y)
+      }
+    }
     const Tags = {
       schema: () => Schema.Array(Schema.String),
       create: (tags: ReadonlyArray<string>) => tags,
       toDto: (d: ReadonlyArray<string>) => Effect.succeed(d),
     } satisfies DraftSpec<ReadonlyArray<string>, ReadonlyArray<string>, ReadonlyArray<string>>
+    const At = {
+      schema: () => Schema.instanceOf(Point),
+      create: () => new Point(3, 0),
+      toDto: (p: Point) => Effect.succeed(p),
+    } satisfies DraftSpec<Point, Point>
     const store = makeAtomStore()
-    const draft = Effect.runSync(Effect.provideService(useDraft(Tags, ['a', 'b']), Store, store))
-    store.set(draft.field(0), 'x')
-    expect(store.get(draft.value)).toEqual(['x', 'b'])
+    const run = <A>(e: Effect.Effect<A, never, Store>) => Effect.runSync(Effect.provideService(e, Store, store))
+    const tags = run(useDraft(Tags, ['a', 'b']))
+    const at = run(useDraft(At, undefined))
+    store.set(tags.field(0), 'x')
+    store.set(at.field('y'), 4)
+    expect(store.get(tags.value)).toEqual(['x', 'b'])
+    expect(store.get(at.value)).toBeInstanceOf(Point)
+    expect(store.get(at.value).norm()).toBe(5)
   })
 })
 

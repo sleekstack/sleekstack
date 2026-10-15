@@ -928,8 +928,11 @@ const makeDraft = (spec: AnyDraftSpec, src: unknown, s: AtomStore): DraftBox => 
           (get) => (get(value) as Record<PropertyKey, unknown>)[name],
           (cx, v) => {
             const d = cx.get(value) as Record<PropertyKey, unknown>
-            if (!Object.is(d[name], v))
-              cx.set(value, Array.isArray(d) ? Object.assign([...d], { [name]: v }) : { ...d, [name]: v })
+            if (Object.is(d[name], v)) return
+            // A copy of the same kind: an array stays an array, an instance keeps its prototype.
+            const next = Array.isArray(d) ? [...d] : Object.assign(Object.create(Object.getPrototypeOf(d)), d)
+            Object.defineProperty(next, name, { value: v, writable: true, enumerable: true, configurable: true })
+            cx.set(value, next)
           },
         )),
       )
