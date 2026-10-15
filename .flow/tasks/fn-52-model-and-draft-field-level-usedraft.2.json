@@ -1,0 +1,19 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-15T20:40:26.585405Z",
+  "depends_on": [
+    "fn-52-model-and-draft-field-level-usedraft.1"
+  ],
+  "id": "fn-52-model-and-draft-field-level-usedraft.2",
+  "impl": null,
+  "priority": null,
+  "review": null,
+  "spec": "fn-52-model-and-draft-field-level-usedraft",
+  "spec_path": ".flow/tasks/fn-52-model-and-draft-field-level-usedraft.2.md",
+  "status": "todo",
+  "sync": null,
+  "title": "Docs, ADR 0038, CONTEXT terms and size budget",
+  "updated_at": "2026-10-15T20:44:44.271110Z"
+}
