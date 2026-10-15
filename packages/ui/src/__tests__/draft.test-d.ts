@@ -41,6 +41,16 @@ const coercing = { ...Blank, schema: () => Schema.Struct({ name: Schema.String, 
 // @ts-expect-error an unannotated spec with a coercing schema is rejected by useDraft too
 void useDraft(coercing, undefined)
 
+const Note = { schema: () => Schema.String, create: () => '', toDto: Effect.succeed } satisfies DraftSpec<
+  string,
+  string
+>
+const When = {
+  schema: () => Schema.DateFromSelf,
+  create: () => new Date(0),
+  toDto: Effect.succeed,
+} satisfies DraftSpec<Date, Date>
+
 declare const model: Atom.Atom<Model>
 declare const either: typeof Edit | Omit<typeof Edit, 'toModel'>
 
@@ -50,6 +60,13 @@ export function* typed() {
   expectTypeOf(blank.field('age')).toEqualTypeOf<Atom.Writable<string>>()
   // @ts-expect-error not a field of the Draft
   blank.field('email')
+  // ... and a primitive or class-instance Draft has none: write `value`
+  const note = yield* useDraft(Note, undefined)
+  // @ts-expect-error a string Draft has no fields
+  note.field(0)
+  const when = yield* useDraft(When, undefined)
+  // @ts-expect-error a Date's methods are not fields
+  when.field('getTime')
   // R2, R5: no `preview` / `changes` without `toModel` / `diff`
   expectTypeOf(blank).not.toHaveProperty('preview')
   expectTypeOf(blank).not.toHaveProperty('changes')

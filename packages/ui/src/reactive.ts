@@ -829,8 +829,8 @@ export const useOptimistic = <A, C>(
 export type Draft<D, Dto, P = never, E = never, R = never, Diff extends boolean = false> = {
   /** The whole Draft; writing it changes only the Draft. */
   readonly value: Atom.Writable<D>
-  /** One field of the Draft: the same atom for a name on every call. */
-  readonly field: <K extends keyof D>(name: K) => Atom.Writable<D[K]>
+  /** One field of a record Draft (an index of an array Draft): the same atom for a name on every call. */
+  readonly field: <K extends FieldKey<D>>(name: K) => Atom.Writable<D[K & keyof D]>
   /** Validation messages of `spec.schema(src)` by field path (`'email'`, `'items.0.name'`; `''` for the whole Draft). */
   readonly errors: Atom.Atom<{ readonly [path: string]: ReadonlyArray<string> }>
   /** No validation errors. */
@@ -844,6 +844,13 @@ export type Draft<D, Dto, P = never, E = never, R = never, Diff extends boolean 
 } & ([P] extends [never] ? unknown : { readonly preview: Atom.Atom<P> }) &
   (Diff extends true ? { readonly changes: Atom.Atom<Partial<Dto>> } : unknown)
 
+/** What `field` takes: an array Draft's indexes, a record Draft's data keys; nothing for a primitive (write `value`). */
+type FieldKey<D> =
+  D extends ReadonlyArray<unknown>
+    ? number
+    : D extends object
+      ? { [K in keyof D]-?: D[K] extends Function ? never : K }[keyof D]
+      : never
 type AnyDraftSpec = DraftSpec<any, any, any, any, any, any>
 type SpecDraft<S> = S extends { schema(...args: any): Schema.Schema<infer D, any, any> } ? D : never
 type SpecSrc<S> = S extends { create(...args: infer A): any } ? (A extends [] ? void : A[0]) : never
