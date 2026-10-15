@@ -1,5 +1,19 @@
-import { Atom, type AtomStore, markedWrites, MissingDependency, Result } from '@sleekstack/core'
-import { Cause, Context, Data, Effect, ExecutionStrategy, Exit, Fiber, Option, Scope } from 'effect'
+import { Atom, type AtomStore, type DraftSpec, markedWrites, MissingDependency, Result } from '@sleekstack/core'
+import {
+  Cause,
+  Context,
+  Data,
+  Effect,
+  Either,
+  type Equivalence,
+  ExecutionStrategy,
+  Exit,
+  Fiber,
+  Option,
+  ParseResult,
+  Schema,
+  Scope,
+} from 'effect'
 import type { YieldWrap } from 'effect/Utils'
 import { type ActionEvent, handled as asEffect } from './handler'
 import type { Node, ReactiveNode, Ref } from './node'
@@ -805,6 +819,193 @@ export const useOptimistic = <A, C>(
         )
       })
     return Effect.succeed([box.view, optimistic] as const)
+  })
+
+/**
+ * An editable copy of a Model, made by `useDraft` from a `DraftSpec`: atoms in the component's Store. `preview` is in the
+ * type only when the spec has `toModel`, `changes` only when it has `diff` (`Diff`).
+ */
+export type Draft<D, Dto, P = never, E = never, R = never, Diff extends boolean = false> = {
+  /** The whole Draft; writing it changes only the Draft. */
+  readonly value: Atom.Writable<D>
+  /** One field of the Draft: the same atom for a name on every call. */
+  readonly field: <K extends keyof D>(name: K) => Atom.Writable<D[K]>
+  /** Validation messages of `spec.schema(src)` by field path (`'email'`, `'items.0.name'`; `''` for the whole Draft). */
+  readonly errors: Atom.Atom<{ readonly [path: string]: ReadonlyArray<string> }>
+  /** No validation errors. */
+  readonly valid: Atom.Atom<boolean>
+  /** The Draft differs from its seed by the schema's equivalence. */
+  readonly dirty: Atom.Atom<boolean>
+  /** Re-seeds from the current source: `dirty` is false after. */
+  readonly reset: () => void
+  /** Decodes the Draft with the schema, then runs `spec.toDto(decoded, src)`. */
+  readonly toDto: () => Effect.Effect<Dto, ParseResult.ParseError | E, R | Store>
+} & ([P] extends [never] ? unknown : { readonly preview: Atom.Atom<P> }) &
+  (Diff extends true ? { readonly changes: Atom.Atom<Partial<Dto>> } : unknown)
+
+type AnyDraftSpec = DraftSpec<any, any, any, any, any, any>
+type SpecDraft<S> = S extends { schema(...args: any): Schema.Schema<infer D, any, any> } ? D : never
+type SpecSrc<S> = S extends { create(...args: infer A): any } ? (A extends [] ? void : A[0]) : never
+type SpecPreview<S> = S extends { toModel(...args: any): infer P } ? P : never
+type SpecDto<S> = S extends { toDto(...args: any): Effect.Effect<infer Dto, any, any> } ? Dto : never
+type SpecError<S> = S extends { toDto(...args: any): Effect.Effect<any, infer E, any> } ? E : never
+type SpecContext<S> = S extends { toDto(...args: any): Effect.Effect<any, any, infer R> } ? R : never
+type DraftOf<S> = Draft<
+  SpecDraft<S>,
+  SpecDto<S>,
+  SpecPreview<S>,
+  SpecError<S>,
+  SpecContext<S>,
+  S extends { diff(...args: any): any } ? true : false
+>
+
+/** What a Draft was seeded from; the schema and its equivalence are computed once per basis, on first use. */
+interface DraftBasis {
+  readonly spec: AnyDraftSpec
+  readonly src: unknown
+  readonly seed: unknown
+  schema?: Schema.Schema<any>
+  equals?: Equivalence.Equivalence<any>
+}
+interface DraftState {
+  readonly basis: DraftBasis
+  readonly draft: unknown
+}
+interface DraftBox {
+  readonly input: Atom.Writable<{ readonly spec: AnyDraftSpec; readonly src: unknown }>
+  readonly state: Atom.Writable<DraftState>
+  readonly draft: object
+}
+
+const schemaOf = (b: DraftBasis) => (b.schema ??= b.spec.schema(b.src))
+const pristine = (b: DraftBasis, draft: unknown) => (b.equals ??= Schema.equivalence(schemaOf(b)))(b.seed, draft)
+const seeded = (spec: AnyDraftSpec, src: unknown): DraftState => {
+  const seed = spec.create(src)
+  return { basis: { spec, src, seed }, draft: seed }
+}
+const NO_ERRORS: { readonly [path: string]: ReadonlyArray<string> } = {}
+
+const makeDraft = (spec: AnyDraftSpec, src: unknown, s: AtomStore): DraftBox => {
+  const input = Atom.make<{ readonly spec: AnyDraftSpec; readonly src: unknown }>({ spec, src })
+  // Follows the source (an atom, or the value the newest run passed): a pristine Draft re-seeds, an edited one keeps its edits.
+  const state = Atom.writable<DraftState>(
+    (get) => {
+      const i = get(input)
+      const now = Atom.isAtom(i.src) ? get(i.src) : i.src
+      const prev = get.self<DraftState>()
+      if (prev && prev.basis.spec === i.spec) {
+        if (Object.is(prev.basis.src, now)) return prev
+        if (!pristine(prev.basis, prev.draft))
+          return { basis: { spec: i.spec, src: now, seed: prev.basis.seed }, draft: prev.draft }
+      }
+      return seeded(i.spec, now)
+    },
+    (cx, next) => cx.setSelf(next),
+  )
+  const value = Atom.writable<unknown>(
+    (get) => get(state).draft,
+    (cx, draft) => {
+      const { basis, draft: current } = cx.get(state)
+      if (!Object.is(current, draft)) cx.set(state, { basis, draft })
+    },
+  )
+  const fields = new Map<PropertyKey, Atom.Writable<unknown>>()
+  const field = (name: PropertyKey): Atom.Writable<unknown> => {
+    let atom = fields.get(name)
+    if (!atom)
+      fields.set(
+        name,
+        (atom = Atom.writable<unknown>(
+          (get) => (get(value) as Record<PropertyKey, unknown>)[name],
+          (cx, v) => {
+            const d = cx.get(value) as Record<PropertyKey, unknown>
+            if (!Object.is(d[name], v)) cx.set(value, { ...d, [name]: v })
+          },
+        )),
+      )
+    return atom
+  }
+  const errors = Atom.make((get) => {
+    const { basis, draft } = get(state)
+    const decoded = Schema.decodeEither(schemaOf(basis), { errors: 'all' })(draft)
+    if (Either.isRight(decoded)) return NO_ERRORS
+    const out: Record<string, Array<string>> = {}
+    for (const issue of ParseResult.ArrayFormatter.formatErrorSync(decoded.left))
+      (out[issue.path.map(String).join('.')] ??= []).push(issue.message)
+    return out
+  })
+  const draft = {
+    value,
+    field,
+    errors,
+    valid: Atom.make((get) => Object.keys(get(errors)).length === 0),
+    dirty: Atom.make((get) => {
+      const { basis, draft } = get(state)
+      return !pristine(basis, draft)
+    }),
+    reset: () => {
+      const { basis } = s.get(state)
+      s.set(state, seeded(basis.spec, basis.src))
+    },
+    toDto: () =>
+      Effect.flatMap(store('Draft.toDto'), (st) => {
+        const { basis, draft } = st.get(state)
+        return Effect.flatMap(Schema.decode(schemaOf(basis), { errors: 'all' })(draft), (decoded) =>
+          basis.spec.toDto(decoded, basis.src),
+        )
+      }),
+    ...(spec.toModel && {
+      preview: Atom.make((get) => {
+        const { basis, draft } = get(state)
+        return basis.spec.toModel?.(draft, basis.src)
+      }),
+    }),
+    ...(spec.diff && {
+      changes: Atom.make((get) => {
+        const { basis, draft } = get(state)
+        return basis.spec.diff?.(basis.seed, draft)
+      }),
+    }),
+  }
+  return { input, state, draft }
+}
+
+/**
+ * `useDraft(spec, src)`: a Draft of the Model `src` (a value, or an atom of it) as `spec` describes it (`DraftSpec`, from
+ * `@sleekstack/core`). It starts as `spec.create(src)`; edits through `value` or `field(name)` change only the Draft.
+ * When the source changes (the atom, or a different `src` on a later run, compared by identity) while the Draft is
+ * pristine, it re-seeds from it; after an edit the edits are kept. `reset()` re-seeds from the current source. `errors`,
+ * `valid`, `dirty`, `preview` and `changes` are atoms computed only when read. `toDto()` validates with the schema and
+ * runs `spec.toDto`: yield it in a Form Action handler and its `ParseError` or service failure lands in `useAction`'s
+ * `Result`.
+ *
+ * The same Draft, with the same `field(name)` atoms, on every run; its atoms are released with the instance, and another
+ * `spec` on a later run re-seeds it. Takes a slot like `useLocal`, so call it unconditionally. Outside a component it
+ * returns a new Draft without a slot, whose atoms live while something reads them.
+ */
+export const useDraft = <S extends AnyDraftSpec>(
+  spec: S & DraftSpec<SpecDraft<S>, SpecDto<S>, SpecSrc<S>, SpecPreview<S>, SpecError<S>, SpecContext<S>>,
+  src: SpecSrc<S> | Atom.Atom<SpecSrc<S>>,
+): Effect.Effect<DraftOf<S>, never, Store> =>
+  Effect.flatMap(Effect.context<never>(), (ctx) => {
+    const so = Context.getOption(ctx, Store)
+    if (Option.isNone(so)) return missingStore('useDraft') as Effect.Effect<never>
+    const s = so.value
+    const f = Context.get(ctx, Frame)
+    if (Context.get(ctx, Collector) === undefined || f === undefined)
+      return Effect.succeed(makeDraft(spec, src, s).draft as DraftOf<S>)
+    const taken = takeSlot(f)
+    if (taken instanceof SlotMismatch) return Effect.fail(taken) as unknown as Effect.Effect<never>
+    if (taken.first) {
+      const box = makeDraft(spec, src, s)
+      // The slot atom only holds the box, as `useRef`'s does; the Draft's own state is retained for the slot's life.
+      f.owner.atoms.push(Atom.make(box) as unknown as Atom.Writable<any>)
+      f.owner.releases.push(s.retain(box.input), s.retain(box.state))
+    }
+    const box = s.get(f.owner.atoms[taken.i] as unknown as Atom.Atom<DraftBox>)
+    const last = s.get(box.input)
+    if (last.spec !== spec || !Object.is(last.src, src)) s.set(box.input, { spec, src })
+    return Effect.succeed(box.draft as DraftOf<S>)
   })
 
 /** Returns a setter for `atom`; registers nothing. */
