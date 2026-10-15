@@ -7,15 +7,15 @@
   "default_review": null,
   "default_sync": null,
   "depends_on_epics": [],
-  "id": "fn-52-model-and-draft-field-level-usedraft",
+  "id": "fn-52-model-and-draft-usedraft-for-editable",
   "impl_review_rounds": {},
   "next_task": 1,
   "plan_review_rounds": 0,
   "plan_review_status": "unknown",
   "plan_reviewed_at": null,
-  "spec_path": ".flow/specs/fn-52-model-and-draft-field-level-usedraft.md",
+  "spec_path": ".flow/specs/fn-52-model-and-draft-usedraft-for-editable.md",
   "status": "open",
-  "title": "Model and Draft: field-level useDraft (EmberData-inspired)",
+  "title": "Model and Draft: useDraft for editable copies of atoms",
   "tracker": {
     "baseHashFlow": null,
     "baseHashTracker": null,
@@ -27,5 +27,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-15T20:44:44.270298Z"
+  "updated_at": "2026-10-15T20:44:58.276564Z"
 }
