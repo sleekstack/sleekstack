@@ -61,13 +61,8 @@ describe('sleekstack check', () => {
     expect(r.err).toMatch(/crashed/)
   })
 
-  it('showcase-kit: valid JSON only on stdout, exit 0', () => {
-    const r = run(
-      path.join(__dirname, '../../../../apps/showcase-kit'),
-      '--json',
-      '--entry',
-      'src/server/runtime.server.ts',
-    )
+  it('kit app: valid JSON only on stdout, exit 0', () => {
+    const r = run(fixture('kit-app'), '--json', '--entry', 'runtime.ts')
     expect(r.code).toBe(0)
     const json = JSON.parse(r.out)
     expect(json.ok).toBe(true)
@@ -75,8 +70,8 @@ describe('sleekstack check', () => {
     expect(json.roots.map((x: { kind: string }) => x.kind)).toEqual(['app'])
   }, 30_000)
 
-  it('showcase: RequestLive and DemoLive are request/overrides roots over the app, exit 0', () => {
-    const r = run(path.join(__dirname, '../../../../apps/showcase'), '--entry', 'src/delivery/runtime.server.ts')
+  it('Effect app: RequestLive and DemoLive are request/overrides roots over the app, exit 0', () => {
+    const r = run(fixture('effect-app'), '--entry', 'runtime.ts')
     expect(r.code).toBe(0)
     expect(r.err).toMatch(/ok {3}\[app\] [\s\S]*ok {3}\[request\] RequestLive [\s\S]*ok {3}\[overrides\] DemoLive /)
     expect(r.err.match(/\[(request|overrides)\]/g)).toEqual(['[request]', '[overrides]'])

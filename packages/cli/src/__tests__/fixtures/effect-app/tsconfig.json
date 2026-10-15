@@ -1,0 +1,11 @@
+{
+  "extends": "../../../../../../tsconfig.base.json",
+  "compilerOptions": {
+    "paths": {
+      "@sleekstack/next": ["../../../../../next/src/index.ts"],
+      "@sleekstack/query": ["../../../../../query/src/index.ts"],
+      "effect": ["../../../../../next/node_modules/effect"]
+    }
+  },
+  "include": ["."]
+}
