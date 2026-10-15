@@ -229,6 +229,9 @@ importers:
       '@sleekstack/query':
         specifier: workspace:*
         version: link:../../packages/query
+      '@sleekstack/router':
+        specifier: workspace:*
+        version: link:../../packages/router
       '@sleekstack/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -245,6 +248,9 @@ importers:
       '@sleekstack/analyze':
         specifier: workspace:*
         version: link:../../packages/analyze
+      '@sleekstack/testing':
+        specifier: workspace:*
+        version: link:../../packages/testing
       '@types/node':
         specifier: ^22.20.1
         version: 22.20.1

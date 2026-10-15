@@ -168,6 +168,10 @@ it('the shell links each demo page; a page opens in a transition, so the old pag
   for (const [page, title] of [
     ['dom', 'Typed host elements'],
     ['lazy', 'lazy'],
+    ['portal', 'Portal'],
+    ['boundary', 'Boundary reset'],
+    ['router', 'Router'],
+    ['devtools', 'Devtools'],
     ['board', 'Website relaunch'],
   ]) {
     await click(`button[data-page="${page}"]`)

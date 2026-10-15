@@ -21,3 +21,5 @@ await flush()
 Streamed HTML: run its inline scripts first (as a browser would), then pass the result as `hydrate`. Refs: a `useRef` passed as a host `ref` holds the element after `render` and `null` after `dispose`.
 
 Limit: `flush` sees only renderer work. A raw `setTimeout` or a promise nothing forks is not awaited; use Testing Library's `findBy*` / `waitFor`. Design: ADR 0032.
+
+Demo: the tests of [`apps/showcase`](../../apps/showcase/README.md) that use this package.

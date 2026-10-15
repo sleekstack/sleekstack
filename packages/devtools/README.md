@@ -29,3 +29,5 @@ await mount(app, { layer, container, store, observe: trace.observer(store) })
 // in a React dev-only tree
 <UiPanel trace={trace} />
 ```
+
+Demo: the ui panel opens below [`apps/showcase`](../../apps/showcase/README.md) in development; its Devtools page links it.

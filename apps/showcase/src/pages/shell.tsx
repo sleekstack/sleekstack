@@ -3,9 +3,13 @@ import { Atom } from '@sleekstack/core'
 import { startTransition, useAtomValue, useSetAtom } from '@sleekstack/ui'
 import { ProjectNav } from '../modules/projects'
 import { useResetTaskView } from '../modules/tasks'
+import { BoundaryDemo } from './boundary'
+import { DevtoolsDemo } from './devtools'
 import { TypedDomDemo } from './dom'
 import { LazyDemo } from './lazy'
+import { PortalDemo } from './portal'
 import { ProjectPage } from './project'
+import { RouterDemo } from './router'
 import { TransitionsDemo } from './transitions'
 
 const PAGES = [
@@ -13,6 +17,10 @@ const PAGES = [
   ['dom', 'Typed DOM'],
   ['lazy', 'lazy'],
   ['transitions', 'Transitions'],
+  ['portal', 'Portal'],
+  ['boundary', 'Boundary reset'],
+  ['router', 'Router'],
+  ['devtools', 'Devtools'],
 ] as const
 type Page = (typeof PAGES)[number][0]
 
@@ -52,6 +60,10 @@ export const PageOutlet = function* () {
   if (page === 'dom') return <TypedDomDemo />
   if (page === 'lazy') return <LazyDemo />
   if (page === 'transitions') return <TransitionsDemo />
+  if (page === 'portal') return <PortalDemo />
+  if (page === 'boundary') return <BoundaryDemo />
+  if (page === 'router') return <RouterDemo />
+  if (page === 'devtools') return <DevtoolsDemo />
   return (
     <>
       <ProjectSwitcher />

@@ -45,7 +45,8 @@ const ruleOf = (mod: string): Rule | undefined => {
       return { local: ['domain/', 'application/', 'presentation/'], packages: ['effect', UI] }
     return undefined
   }
-  if (mod.startsWith('pages/')) return { local: ['pages/'], packages: ['effect', '@sleekstack/core', UI] }
+  if (mod.startsWith('pages/'))
+    return { local: ['pages/'], packages: ['effect', '@sleekstack/core', '@sleekstack/router', UI] }
   const exact: Record<string, Rule> = {
     layers: { local: [], packages: ['effect', '@sleekstack/query/ui'] },
     app: { local: ['layers', 'pages/'], packages: [UI] },

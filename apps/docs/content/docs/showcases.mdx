@@ -5,6 +5,19 @@ description: One Vite app that runs @sleekstack/ui end to end.
 
 [`apps/showcase`](https://github.com/sleekstack/sleekstack/tree/master/apps/showcase) is a team task board built with `@sleekstack/ui` components on Effect Layers. It is a Vite app: run it with `pnpm --filter showcase dev`.
 
-The page mounts the app twice, as Ada (an editor) and Grace (a viewer). Each mount has its own atom store, and a `Provider` scopes the Viewer for everything under it. The code has one folder per domain under `src/modules/` (`identity`, `projects`, `tasks`). Tasks are read and written through `@sleekstack/query`, an unknown project renders a `Boundary` fallback, and the tab title follows the open project through an effect. In development the [devtools panel](/docs/ui-devtools) opens below the demo.
+The page mounts the app twice, as Ada (an editor) and Grace (a viewer). Each mount has its own atom store, and a `Provider` scopes the Viewer for everything under it. The code has one folder per domain under `src/modules/` (`identity`, `projects`, `tasks`).
 
-Its tests cover server rendering, streaming, hydration and resume, the folder layering, the size budget of ADR 0022, and one fixture per error code of the Analyzer's component pass (`apps/showcase/fixtures/`).
+The shell links one page per feature, each opened in a `startTransition`:
+
+- **Board and forms**: tasks read and written through `@sleekstack/query`, a new-task form with `useAction`, `useFormStatus` and `useOptimistic`, a `Boundary` fallback for an unknown project, and a tab title that follows the open project through an effect.
+- **Typed DOM**: host elements typed per tag, atoms bound to attributes, `useRef`.
+- **lazy**: a chart in its own chunk under `Pending`.
+- **Transitions**: `startTransition` and `useDeferredAtom`.
+- **Portal**: a dialog in `document.body` that reads the Viewer of where it is rendered.
+- **Boundary reset**: a failed read whose fallback's `reset` re-runs the boundary's children.
+- **Router**: a `@sleekstack/router` route table, a loader with a schema under `Pending`, and links that prefetch it.
+- **Devtools**: links the [devtools panel](/docs/ui-devtools), which opens below the demo in development only.
+
+The app's [README](https://github.com/sleekstack/sleekstack/blob/master/apps/showcase/README.md) lists the source and test of each page.
+
+Its tests cover server rendering, streaming, hydration and resume, the folder layering, the size budget of ADR 0022, and one fixture per error code of the Analyzer's component pass (`apps/showcase/fixtures/`). Some of them are written with [`@sleekstack/testing`](/docs/testing).
