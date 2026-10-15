@@ -1,11 +1,65 @@
 {
   "branch_name": "showcase-consolidation",
+  "completion_review_status": "unknown",
+  "completion_reviewed_at": null,
   "created_at": "2026-10-15T09:00:28.839605Z",
+  "default_impl": null,
+  "default_review": null,
+  "default_sync": null,
   "depends_on_epics": [],
   "id": "fn-51-showcase-one-app-for-all-of-sleekstackui",
+  "impl_review_rounds": {
+    "fn-51-showcase-one-app-for-all-of-sleekstackui.1": 0
+  },
   "next_task": 1,
+  "plan_review_rounds": 0,
   "plan_review_status": "unknown",
   "plan_reviewed_at": null,
+  "review_attempts": [
+    {
+      "artifact_sha256": "7e4cbbc122d77a65d042480b0e68c1acd82667cf3a677bf91d67e5d77a1fe265",
+      "backend": "codex",
+      "base_sha": "322a565444411ac9766a2b9fd090d604defa2532",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "922d088decadbc49eadf5cf800a7b7dbfc4d47f2",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 158,
+      "output_sha256": "6ff70da3d83706800ca3cabc6ba62603ba0485fcf5259d27f1be54ce68686975",
+      "reservation_id": "ed7d283efe8042a2a7b25d28bc6ac82e",
+      "round_consumed": true,
+      "scope": "impl:fn-51-showcase-one-app-for-all-of-sleekstackui.1",
+      "superseded_by": null,
+      "task": "fn-51-showcase-one-app-for-all-of-sleekstackui.1",
+      "timestamp": "2026-10-15T09:30:35.498310Z",
+      "verdict": "SHIP"
+    }
+  ],
+  "review_hash_epoch": {
+    "impl:fn-51-showcase-one-app-for-all-of-sleekstackui.1": 1
+  },
+  "review_pending_rounds": {},
+  "review_reservations": {},
+  "review_transport_failures": {
+    "impl:fn-51-showcase-one-app-for-all-of-sleekstackui.1": 0
+  },
   "spec_path": ".flow/specs/fn-51-showcase-one-app-for-all-of-sleekstackui.md",
   "status": "open",
   "title": "Showcase: one app for all of @sleekstack/ui",
@@ -20,5 +74,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-15T09:00:28.841779Z"
+  "updated_at": "2026-10-15T09:30:35.499904Z"
 }
