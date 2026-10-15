@@ -1095,7 +1095,7 @@
     "impl:fn-50-sleekstackrouter.5": 0
   },
   "spec_path": ".flow/specs/fn-50-sleekstackrouter.md",
-  "status": "open",
+  "status": "done",
   "title": "@sleekstack/router",
   "tracker": {
     "baseHashFlow": null,
@@ -1108,5 +1108,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-10T06:30:01.011959Z"
+  "updated_at": "2026-10-11T13:00:53.124155Z"
 }

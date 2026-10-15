@@ -513,7 +513,7 @@
     "impl:fn-45-devtools-for-ui.4": 0
   },
   "spec_path": ".flow/specs/fn-45-devtools-for-ui.md",
-  "status": "open",
+  "status": "done",
   "title": "Devtools for ui",
   "tracker": {
     "baseHashFlow": null,
@@ -526,5 +526,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-10T06:01:13.589688Z"
+  "updated_at": "2026-10-11T13:00:52.645426Z"
 }
