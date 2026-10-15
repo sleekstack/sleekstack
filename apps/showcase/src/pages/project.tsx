@@ -5,7 +5,7 @@ import { Boundary, useAtomValue, useDerivedAtom, useEffect } from '@sleekstack/u
 import { ProjectNotFound, ProjectRepo, projectAtom } from '../modules/projects'
 import { ProjectBoard } from '../modules/tasks'
 
-const APP_TITLE = 'SleekStack UI Demo'
+const APP_TITLE = 'SleekStack Showcase'
 
 /** Needs ProjectRepo; shows the project `projectAtom` names, and fails with ProjectNotFound for an unknown or archived one. */
 const ProjectView = function* () {

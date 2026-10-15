@@ -6,9 +6,9 @@
 
 ## Method
 
-The ADR 0017 method, in `apps/ui-demo/test/size.test.ts`: an in-process Vite production lib build of one entry, minified, `process.env.NODE_ENV` defined as `"production"` (an app build does this; lib mode does not, and React would otherwise bundle its development build too). The measured size is the entry chunk plus its static imports, gzipped; lazy chunks are reported apart. Each entry is built twice: against the packages' `dist` (through their `exports`) and with the workspace packages aliased to `src`.
+The ADR 0017 method, in `apps/showcase/test/size.test.ts`: an in-process Vite production lib build of one entry, minified, `process.env.NODE_ENV` defined as `"production"` (an app build does this; lib mode does not, and React would otherwise bundle its development build too). The measured size is the entry chunk plus its static imports, gzipped; lazy chunks are reported apart. Each entry is built twice: against the packages' `dist` (through their `exports`) and with the workspace packages aliased to `src`.
 
-Entries in `apps/ui-demo/src`:
+Entries in `apps/showcase/src`:
 
 - `size/mount.tsx`: `mount(<h1>Hello</h1>)` with `Layer.empty`.
 - `size/hydrate.tsx`: one reactive component (`useAtom` on a serializable atom, an `onClick` closure) under `hydrateMount`.
@@ -32,7 +32,7 @@ Remeasured with the fn-45 render observer (no observer attached), all within the
 
 `ui` (and `core`, `query`) stay `private: true` until all of these hold:
 
-1. `apps/showcase` is ported to `@sleekstack/ui` and runs on the built packages.
+1. `apps/showcase` (the `@sleekstack/ui` app since fn-51 replaced the Next.js showcase) runs on the built packages.
 2. The tarball consumer test (`packages/ui/src/__tests__/pack.test.ts`) and the size budget test pass.
 3. A release process (versioning, changelog) is decided in its own ADR.
 

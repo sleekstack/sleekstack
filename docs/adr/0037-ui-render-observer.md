@@ -21,7 +21,7 @@ A developer debugging a ui app could not see which instances are mounted, why on
 ## Consequences
 
 - Each mount is labeled by its id, and atom values come from the store its observer was given, so several mounts on a page stay apart.
-- The ui-demo app opens the panel behind `import.meta.env.DEV`; production builds drop it.
+- The showcase app opens the panel behind `import.meta.env.DEV`; production builds drop it.
 - `resume` takes no observer and reports nothing: it calls no component and adopts no instances, only bound text and handlers (R11's "resume" case is empty by construction).
 
 ## Rejected

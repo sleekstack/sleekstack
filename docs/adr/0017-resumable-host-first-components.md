@@ -23,7 +23,7 @@ Answer: **yes, as a spike**. Bound text and handlers resume without calling a co
 
 ## Measured size
 
-Normal production build of `apps/ui-demo`'s resume entry, no overrides, after adding `"sideEffects": false` to `packages/ui/package.json` (no module has import-time side effects):
+Normal production build of `apps/showcase`'s resume entry, no overrides, after adding `"sideEffects": false` to `packages/ui/package.json` (no module has import-time side effects):
 
 | Chunk | Minified | Gzip |
 |-------|----------|------|
