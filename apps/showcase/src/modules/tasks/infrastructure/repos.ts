@@ -20,6 +20,7 @@ export const TaskRepoLive = Layer.sync(TaskRepo, () => {
   let next = tasks.length
   return {
     byProject: (projectId) => Effect.succeed(all.filter((t) => t.projectId === projectId)),
+    // A simulated round trip, so the form's optimistic title is on screen for a moment.
     add: (projectId, { title, priority }) =>
       Effect.sync(() => {
         const task: Task = {
@@ -35,7 +36,7 @@ export const TaskRepoLive = Layer.sync(TaskRepo, () => {
         }
         all = [...all, task]
         return task
-      }),
+      }).pipe(Effect.delay('300 millis')),
     move: (id, status) =>
       find(all, id, noTask).pipe(
         Effect.map((t) => {

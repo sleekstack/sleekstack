@@ -80,7 +80,7 @@ it('opens a task, moves it through a mutation and the board follows; viewers can
   await grace.dispose()
 })
 
-it('the form adds a task; deleting the open task shows the TaskNotFound fallback', async () => {
+it('the form shows the new task optimistically, then adds it; deleting the open task shows the TaskNotFound fallback', async () => {
   const { container, q, click, dispose } = await mountApp('u1')
   const title = q<HTMLInputElement>('.new-title')
   const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!
@@ -92,8 +92,13 @@ it('the form adds a task; deleting the open task shows the TaskNotFound fallback
     async () =>
       void q<HTMLFormElement>('form.add').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })),
   )
-  await vi.waitFor(() => expect(container.textContent).toContain('Rotate the API keys'))
-  expect(container.querySelectorAll('.board .card')).toHaveLength(5)
+  expect(q('.adding').textContent).toBe('Adding "Rotate the API keys"') // useOptimistic, while the add runs
+  expect(container.querySelectorAll('.board .card')).toHaveLength(4)
+  await vi.waitFor(() => {
+    expect(container.querySelector('.adding')).toBeNull()
+    expect(container.querySelectorAll('.board .card')).toHaveLength(5)
+  })
+  expect(q('.board').textContent).toContain('Rotate the API keys')
 
   await click('.card[data-id="t3"] button.open')
   await settle()
@@ -151,4 +156,23 @@ it('triage: keyed rows reorder in place, the input keeps focus, guests keep stat
   expect(ids()).toEqual(['t1', 't2', 't4'])
   await dispose()
   container.remove()
+})
+
+it('the shell links each demo page; a page opens in a transition, so the old page stays until the new one loads', async () => {
+  const { q, click, dispose } = await mountApp('u1')
+  const header = q('header')
+  const heading = () => q('main h2').textContent
+  await click('button[data-page="transitions"]')
+  expect(heading()).toBe('Website relaunch') // its first tab takes a simulated round trip
+  await vi.waitFor(() => expect(heading()).toBe('startTransition and useDeferredAtom'), { timeout: 2000 })
+  for (const [page, title] of [
+    ['dom', 'Typed host elements'],
+    ['lazy', 'lazy'],
+    ['board', 'Website relaunch'],
+  ]) {
+    await click(`button[data-page="${page}"]`)
+    await vi.waitFor(() => expect(heading()).toBe(title))
+  }
+  expect(q('header')).toBe(header)
+  await dispose()
 })

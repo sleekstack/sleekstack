@@ -9,11 +9,11 @@ import { expect, it } from 'vitest'
 //     infrastructure/   adapters for the module's ports; `infrastructure/index` exports its Layers
 //     presentation/     the UI; `guests` / `avatar` are plain React and know nothing of the app
 //     index             the module's public API: all another module (or a page) may import
-//   pages/            compose modules into screens; import modules only through their `index`
+//   pages/            screens and the shell's demo pages; import modules only through their `index`
 //   layers            composition root: the only importer of the modules' `infrastructure`
 //   app, main         composition roots for the UI
 //   devtools          dev-only React root for the `@sleekstack/devtools` ui panel, loaded by main
-//   resume/*          the resumable counter: no React, no components, no domain
+//   resume/*          the resumable counter and its form: no React, no components, no domain
 //   size/*            size-budget entries: built `@sleekstack/ui` output only
 // Modules reach each other only through `index`, and only along MODULE_DEPS (no cycles).
 const MODULE_DEPS: Record<string, ReadonlyArray<string>> = { identity: [], projects: [], tasks: ['identity'] }
@@ -57,8 +57,9 @@ const ruleOf = (mod: string): Rule | undefined => {
     'size/heavy': { local: [], packages: [] },
     'resume/count': { local: [], packages: ['@sleekstack/core', 'effect'] },
     'resume/increment': { local: ['resume/count'], packages: [UI, 'effect'] },
-    'resume/counter': { local: ['resume/count', 'resume/increment'], packages: [UI] },
-    'resume/entry': { local: ['resume/count', 'resume/increment'], packages: [UI, 'effect'] },
+    'resume/set': { local: ['resume/count'], packages: [UI, 'effect'] },
+    'resume/counter': { local: ['resume/count', 'resume/increment', 'resume/set'], packages: [UI] },
+    'resume/entry': { local: ['resume/count', 'resume/increment', 'resume/set'], packages: [UI, 'effect'] },
   }
   return exact[mod]
 }

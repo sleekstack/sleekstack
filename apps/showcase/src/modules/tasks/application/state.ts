@@ -9,6 +9,9 @@ export const filterAtom = Atom.make<Status | 'all'>('all')
 /** The task open in the detail panel, if any. */
 export const selectedAtom = Atom.make<string | null>(null)
 
+/** The title of the task being added: none once settled, since the board then shows it. `useOptimistic` layers it on. */
+export const addingAtom = Atom.make<string | null>(null)
+
 /** Clears the open task and the status filter (when the project on screen changes). */
 export const useResetTaskView = function* () {
   const select = yield* useSetAtom(selectedAtom)

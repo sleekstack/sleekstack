@@ -1,8 +1,8 @@
 /** @jsxImportSource @sleekstack/ui */
 import { Effect, Schema } from 'effect'
-import { Boundary, Pending, useAction, useAtomValue, useFormStatus, useSetAtom } from '@sleekstack/ui'
+import { Boundary, Pending, useAction, useAtomValue, useFormStatus, useOptimistic, useSetAtom } from '@sleekstack/ui'
 import { MaybeAssignee, Viewer } from '../../identity'
-import { filterAtom, selectedAtom } from '../application/state'
+import { addingAtom, filterAtom, selectedAtom } from '../application/state'
 import { useSuspenseTasks, useTaskActions, type QueryFailed } from '../application/tasks'
 import { STATUSES, type Status, type Task } from '../domain/model'
 import { DetailPanel } from './detail'
@@ -76,15 +76,20 @@ const NewTaskForm = Schema.Struct({
   priority: Schema.Literal('low', 'medium', 'high'),
 })
 
-/** A host form: `useAction` decodes its data and runs the mutation. */
+/** A host form: `useAction` decodes its data and runs the mutation; `useOptimistic` shows its title until it ends. */
 const AddTaskForm = function* ({ projectId }: { projectId: string }) {
   const { add } = yield* useTaskActions(projectId)
+  const [adding, optimistic] = yield* useOptimistic(addingAtom, (_, title: string) => title)
   const [result, action] = yield* useAction(function* (e) {
     const task = yield* Schema.decodeUnknown(NewTaskForm)(Object.fromEntries(e.formData))
-    yield* Effect.tryPromise(() => add.mutateAsync(task))
+    yield* optimistic(
+      task.title,
+      Effect.tryPromise(() => add.mutateAsync(task)),
+    )
   })
   const { pending } = yield* useFormStatus(result)
   const outcome = yield* useAtomValue(result)
+  const title = yield* useAtomValue(adding)
   return (
     <form className="add" action={action}>
       <input className="new-title" name="title" placeholder="New task" />
@@ -96,6 +101,7 @@ const AddTaskForm = function* ({ projectId }: { projectId: string }) {
       <button type="submit" disabled={pending}>
         Add task
       </button>
+      {title !== null && <p className="adding muted">Adding "{title}"</p>}
       {outcome._tag === 'Failure' && <p className="error">Could not add the task</p>}
     </form>
   )
