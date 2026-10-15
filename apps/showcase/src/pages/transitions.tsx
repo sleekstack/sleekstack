@@ -77,7 +77,12 @@ const Search = function* () {
   const deferred = yield* useDeferredAtom(queryAtom)
   return (
     <div className="search">
-      <input className="query" placeholder="Filter rows" onInput={(e) => setQuery(e.currentTarget.value)} />
+      <input
+        className="query"
+        placeholder="Filter rows"
+        value={queryAtom}
+        onInput={(e) => setQuery(e.currentTarget.value)}
+      />
       <p className="typed">Typed "{query}"</p>
       <Matches query={deferred} />
     </div>

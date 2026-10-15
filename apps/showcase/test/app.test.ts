@@ -176,3 +176,21 @@ it('the shell links each demo page; a page opens in a transition, so the old pag
   expect(q('header')).toBe(header)
   await dispose()
 })
+
+it('leaving the transitions page releases its query: on return the field and the matches agree, both empty', async () => {
+  const { q, click, dispose } = await mountApp('u1')
+  const open = async (page: string, title: string) => {
+    await click(`button[data-page="${page}"]`)
+    await vi.waitFor(() => expect(q('main h2').textContent).toBe(title), { timeout: 2000 })
+  }
+  await open('transitions', 'startTransition and useDeferredAtom')
+  const input = q<HTMLInputElement>('input.query')
+  input.value = '99'
+  await act(async () => void input.dispatchEvent(new Event('input', { bubbles: true })))
+  await vi.waitFor(() => expect(q('.count').textContent).toBe('19 rows match "99"'))
+  await open('board', 'Website relaunch')
+  await open('transitions', 'startTransition and useDeferredAtom')
+  expect(q<HTMLInputElement>('input.query').value).toBe('')
+  expect(q('.count').textContent).toBe('1000 rows match ""')
+  await dispose()
+})
