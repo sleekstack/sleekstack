@@ -50,5 +50,5 @@ The `@sleekstack/devtools` Queries tab reads the scope client's `QueryCache`. Ta
 ## Limits
 
 - Effect-typed query errors are gone: `error` is untyped (`useSuspenseQuery` wraps it in `QueryFailed`).
-- An optimistic write is only a value in the cache. An item it adds (for example a new task with a temporary id) is not on the server until the refetch replaces it; the showcases do not let users select such an item.
+- An optimistic write is only a value in the cache. An item it adds (for example a new task with a temporary id) is not on the server until the refetch replaces it, so do not let users select such an item.
 - Server rendering with prefetch is in [Queries on the server](/docs/queries-ssr).

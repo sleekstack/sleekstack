@@ -131,5 +131,5 @@ function Now() {
 <LayerProvider provide={[ClockLayer]}><Now /></LayerProvider>
 ```
 
-See [`apps/showcase-kit`](../../apps/showcase-kit/README.md) for the full task board, and
+See [`fixtures/kit-app`](../cli/src/__tests__/fixtures/kit-app) in the CLI for a kit-only app graph that `sleekstack check` validates, and
 [ADR 0011](../../docs/adr/0011-static-build-time-dependency-graph.md) for why deps are inferred and checked statically.

@@ -147,7 +147,7 @@ Current surface:
 
 * `@sleekstack/kit` — an Effect-free facade over core, runtime, next and react (`tag`, `layer`, `effect`, `module`, deps inferred from `yield*`, one `SleekStackError`); see [`packages/kit`](packages/kit/README.md)
 
-See [`apps/showcase`](apps/showcase/README.md) for a Next.js team task board that exercises all of it end to end, and [`apps/showcase-kit`](apps/showcase-kit/README.md) for the same board built on the kit only.
+For small worked graphs, see the `sleekstack check` fixtures in [`packages/cli/src/__tests__/fixtures`](packages/cli/src/__tests__/fixtures): `effect-app` (Effect Layers on `@sleekstack/next`, with request and overrides roots) and `kit-app` (the kit only). [`apps/showcase`](apps/showcase) is a runnable `@sleekstack/ui` app on Effect Layers.
 
 Still ahead: session/transient/job lifetimes, and stream-aware request-scope finalization.
 

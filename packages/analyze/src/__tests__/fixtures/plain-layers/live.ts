@@ -1,4 +1,4 @@
-// Mirrors apps/showcase/src/domain/live.server.ts.
+// A task-board app graph on plain Effect Layers: merged infra, an effect and a scoped Layer, provideMerge chains.
 import { Effect, Layer } from 'effect'
 import { ActivityLog, Clock, IdGen, Store, TaskRepo } from './tags'
 
