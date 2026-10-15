@@ -1,23 +1,11 @@
 /** @jsxImportSource @sleekstack/ui */
-import {
-  loader,
-  LoaderTransferLive,
-  match,
-  type Match,
-  params,
-  prefetchLoader,
-  routeLayer,
-  routes,
-  useLoader,
-} from '@sleekstack/router'
-import { Pending, Provider, useLocal } from '@sleekstack/ui'
-import { Effect, Option, Schema } from 'effect'
+import { Link, loader, params, router, routes, startRouter, useLoader } from '@sleekstack/router'
+import { useEffect, useRef } from '@sleekstack/ui'
+import { Effect, Layer, Schema } from 'effect'
 import { UserRepo } from '../modules/identity'
 
 /** A `const` table of path strings: `params(table, 'person')` is typed `{ id: string }`. */
-const table = routes({ person: '/people/:id' })
-type PersonRoute = Match<typeof table>
-const routeOf = (id: string): PersonRoute => Option.getOrThrow(match(table, `/people/${id}`))
+const table = routes({ team: '/', person: '/people/:id' })
 
 /** A teammate, after a simulated round trip. The schema encodes the result for the client; an id from the list always exists. */
 const person = loader(
@@ -26,63 +14,56 @@ const person = loader(
   Effect.flatMap(params(table, 'person'), ({ id }) => UserRepo.get(id).pipe(Effect.delay('300 millis'), Effect.orDie)),
 )
 
-const Profile = function* () {
+/** Each name is a `Link`: hovering or focusing it prefetches the person's loader, so its click shows the page at once. */
+const TeamNav = function* () {
+  const users = yield* UserRepo.all()
+  return (
+    <nav className="row people">
+      {users.map((u) => (
+        <Link key={u.id} href={`/people/${u.id}`} table={table} loaders={[person]}>
+          {u.name}
+        </Link>
+      ))}
+    </nav>
+  )
+}
+
+const PersonPage = function* () {
   const user = yield* useLoader(person)
   return (
-    <p className="profile">
-      {user.name} {user.canEdit ? 'edits the board' : 'reads the board'}
-    </p>
-  )
-}
-
-/**
- * The anchor the router's `Link` renders, written out because `sleekstack check` cannot read `Link`'s declaration:
- * hovering or focusing it prefetches the route's loader, so a click shows the profile at once. A routed app follows
- * links with `startRouter`; inside the shell the click opens the route in place and the URL stays put.
- */
-const PersonLink = ({ to, name, onOpen }: { to: PersonRoute; name: string; onOpen: (to: PersonRoute) => void }) => {
-  const warm = prefetchLoader(person, to)
-  return (
-    <a
-      href={to.pathname}
-      onMouseEnter={warm}
-      onFocus={warm}
-      onClick={(e) => {
-        e.preventDefault()
-        onOpen(to)
-      }}
-    >
-      {name}
-    </a>
-  )
-}
-
-/** The open route's page runs under `Pending`, keyed by its pathname, as the router renders a page. */
-const People = function* () {
-  const users = yield* UserRepo.all()
-  const [route, setRoute] = yield* useLocal(routeOf('u1'))
-  return (
     <>
-      <nav className="row people">
-        {users.map((u) => (
-          <PersonLink key={u.id} to={routeOf(u.id)} name={u.name} onOpen={setRoute} />
-        ))}
-      </nav>
-      <Provider layer={routeLayer(route)}>
-        <Pending key={route.pathname} fallback={<p className="muted">Loading {route.pathname}</p>}>
-          <Profile />
-        </Pending>
-      </Provider>
+      <TeamNav />
+      <p className="profile">
+        {user.name} {user.canEdit ? 'edits the board' : 'reads the board'}
+      </p>
     </>
   )
 }
 
-/** `@sleekstack/router` inside the shell: the loader results live in this page's `LoaderTransferLive`. */
-export const RouterDemo = () => (
-  <section className="demo router">
-    <h2>Router</h2>
-    <Provider layer={LoaderTransferLive}>
-      <People />
-    </Provider>
-  </section>
-)
+/** A page per route. The router runs a page's loaders before it shows the page, under `Pending` with its `fallback`. */
+export const people = router({
+  table,
+  pages: {
+    team: { render: () => <TeamNav /> },
+    person: { render: () => <PersonPage />, loaders: [person], fallback: <p className="muted">Loading</p> },
+  },
+  notFound: () => <TeamNav />,
+})
+
+/** Runs `people` with `startRouter` in its own container while the page is open, so its links change the address bar. */
+export const RouterDemo = function* () {
+  const host = yield* useRef<HTMLDivElement>()
+  yield* useEffect(function* () {
+    const repo = yield* UserRepo
+    yield* Effect.acquireRelease(
+      Effect.promise(() => startRouter(people, { container: host.current!, layer: Layer.succeed(UserRepo, repo) })),
+      (nav) => Effect.promise(() => nav.dispose()),
+    )
+  })
+  return (
+    <section className="demo router">
+      <h2>Router</h2>
+      <div ref={host} className="routed" />
+    </section>
+  )
+}

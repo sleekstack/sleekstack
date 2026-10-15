@@ -15,7 +15,7 @@ The shell links one page per feature, each opened in a `startTransition`:
 - **Transitions**: `startTransition` and `useDeferredAtom`.
 - **Portal**: a dialog in `document.body` that reads the Viewer of where it is rendered.
 - **Boundary reset**: a failed read whose fallback's `reset` re-runs the boundary's children.
-- **Router**: a `@sleekstack/router` route table, a loader with a schema under `Pending`, and links that prefetch it.
+- **Router**: a `@sleekstack/router` app run by `startRouter` in the page, with a route table, a loader with a schema and `Link`s that prefetch it.
 - **Devtools**: links the [devtools panel](/docs/ui-devtools), which opens below the demo in development only.
 
 The app's [README](https://github.com/sleekstack/sleekstack/blob/master/apps/showcase/README.md) lists the source and test of each page.

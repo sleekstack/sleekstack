@@ -13,7 +13,7 @@ One Vite app that runs `@sleekstack/ui` end to end: a team task board on Effect 
 
 ## Demo pages
 
-Each page is a link in the shell (`src/pages/shell.tsx`). Each page's tests also render it with `renderToString` and hydrate the result with `hydrateMount`.
+Each page is a link in the shell (`src/pages/shell.tsx`). Each page's tests also render it on the server and hydrate the result.
 
 | Page | Source | What it shows | Test |
 | --- | --- | --- | --- |
@@ -23,7 +23,7 @@ Each page is a link in the shell (`src/pages/shell.tsx`). Each page's tests also
 | Transitions | `src/pages/transitions.tsx` | Tabs opened with or without `startTransition`; a filter whose matches follow `useDeferredAtom` | `test/transitions.test.ts` |
 | Portal | `src/pages/portal.tsx` | A dialog rendered into `document.body` that still reads the `Viewer` its position provides | `test/portal.test.ts` |
 | Boundary reset | `src/pages/boundary.tsx` | A failed read shows the fallback; its `reset` re-runs only the boundary's children | `test/boundary.test.ts` |
-| Router | `src/pages/router.tsx` | `@sleekstack/router`: a `const` route table, a loader with a schema read by `useLoader` under `Pending`, and links that prefetch it on hover or focus | `test/router.test.ts` |
+| Router | `src/pages/router.tsx` | A `@sleekstack/router` app that `startRouter` runs in the page: a `const` route table, a loader with a schema that the router runs before the page shows (under `Pending`), and `Link`s that prefetch it on hover or focus. Its links change the address bar | `test/router.test.ts` (also `handle` on the server) |
 | Devtools | `src/pages/devtools.tsx`, `src/devtools.tsx` | Links the ui devtools panel, which `src/main.tsx` loads in development only | `test/devtools.test.ts` |
 
 The resumable counter (`src/resume/`) has no shell page: `test/resume.test.ts` server-renders it and resumes it with no component code and no React.
@@ -41,5 +41,5 @@ The resumable counter (`src/resume/`) has no shell page: `test/resume.test.ts` s
 ## Known limits
 
 - `hydrateMount` keeps an atom-bound text child (`<output>{atom}</output>`) at its server value, so the hydrated demos bind atoms to attributes only.
-- The router page writes out the anchor that the router's `Link` renders, because `sleekstack check` cannot read `Link`'s declaration. Inside the shell a click opens the route in place; a routed app uses `startRouter`.
+- `sleekstack check` does not read the pages a router renders (`startRouter` is not one of its roots), so the Router page's routed pages are outside the component pass. A `<Link>` in a tree it does read is reported `Unresolved`.
 - The lazy page cannot fail an import on purpose; `test/lazy.test.ts` mocks a failed one.

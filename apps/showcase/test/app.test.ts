@@ -6,6 +6,7 @@ import { App } from '../src/app'
 import { AppWithQueriesLive } from '../src/layers'
 
 const AppLive = AppWithQueriesLive({ defaultOptions: { queries: { retry: false } } })
+window.scrollTo = vi.fn() as never // the Router page's router scrolls on navigation; jsdom has no layout
 
 const view = (viewer: string) => renderToString(App({ viewer }), { layer: AppLive })
 const settle = () => act(async () => void (await new Promise((r) => setTimeout(r, 0))))
