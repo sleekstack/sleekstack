@@ -8,11 +8,73 @@
   "default_sync": null,
   "depends_on_epics": [],
   "id": "fn-52-model-and-draft-usedraft-for-editable",
-  "impl_review_rounds": {},
+  "impl_review_rounds": {
+    "fn-52-model-and-draft-usedraft-for-editable.1": 1
+  },
   "next_task": 1,
   "plan_review_rounds": 0,
   "plan_review_status": "unknown",
   "plan_reviewed_at": null,
+  "review_attempts": [
+    {
+      "artifact_sha256": "462f8b740d4a3dfae7705a7ee453d1c531816aab9cf6845ecb90e42cb2d77983",
+      "backend": "codex",
+      "base_sha": "d1e956c841cc6c4be0f14384c012006fcd27fb41",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-cf5187a3f013d3778cb6f7cdeda3aa58",
+            "classification": "introduced",
+            "findingId": "finding-cf5187a3f013d3778cb6f7cdeda3aa58",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-92ac9ce670af17ed8cf57608159a4c76",
+            "classification": "introduced",
+            "findingId": "finding-92ac9ce670af17ed8cf57608159a4c76",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "5ee893f0b51b91b68bd36bef2a3efc186cbc2043",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1980,
+      "output_sha256": "005445ab95543cf9eda2a06e82c5dbfbe525c9435bc728d3aca86eb9a1e1214d",
+      "reservation_id": "e21ca3aadc824ee4a32941681d210c4f",
+      "round_consumed": true,
+      "scope": "impl:fn-52-model-and-draft-usedraft-for-editable.1",
+      "superseded_by": null,
+      "task": "fn-52-model-and-draft-usedraft-for-editable.1",
+      "timestamp": "2026-10-15T22:14:32.530285Z",
+      "verdict": "NEEDS_WORK"
+    }
+  ],
+  "review_hash_epoch": {},
+  "review_pending_rounds": {},
+  "review_reservations": {},
+  "review_transport_failures": {
+    "impl:fn-52-model-and-draft-usedraft-for-editable.1": 0
+  },
   "spec_path": ".flow/specs/fn-52-model-and-draft-usedraft-for-editable.md",
   "status": "open",
   "title": "Model and Draft: useDraft for editable copies of atoms",
@@ -27,5 +89,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-15T20:51:10.343393Z"
+  "updated_at": "2026-10-15T22:14:32.531859Z"
 }

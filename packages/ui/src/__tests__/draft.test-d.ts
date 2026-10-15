@@ -42,6 +42,7 @@ const coercing = { ...Blank, schema: () => Schema.Struct({ name: Schema.String, 
 void useDraft(coercing, undefined)
 
 declare const model: Atom.Atom<Model>
+declare const either: typeof Edit | Omit<typeof Edit, 'toModel'>
 
 export function* typed() {
   const blank = yield* useDraft(Blank, undefined)
@@ -52,6 +53,10 @@ export function* typed() {
   // R2, R5: no `preview` / `changes` without `toModel` / `diff`
   expectTypeOf(blank).not.toHaveProperty('preview')
   expectTypeOf(blank).not.toHaveProperty('changes')
+  // ... and for a union of specs, only what every member has
+  const mixed = yield* useDraft(either, model)
+  expectTypeOf(mixed).not.toHaveProperty('preview')
+  expectTypeOf(mixed.changes).toEqualTypeOf<Atom.Atom<Partial<Body>>>()
 
   // R3: the source is a value or an atom of it
   const edit = yield* useDraft(Edit, model)

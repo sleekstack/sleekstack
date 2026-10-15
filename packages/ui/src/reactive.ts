@@ -823,7 +823,8 @@ export const useOptimistic = <A, C>(
 
 /**
  * An editable copy of a Model, made by `useDraft` from a `DraftSpec`: atoms in the component's Store. `preview` is in the
- * type only when the spec has `toModel`, `changes` only when it has `diff` (`Diff`).
+ * type only when the spec has `toModel`, `changes` only when it has `diff` (`Diff`); at runtime both follow the current
+ * spec, reading `undefined` while it lacks the method.
  */
 export type Draft<D, Dto, P = never, E = never, R = never, Diff extends boolean = false> = {
   /** The whole Draft; writing it changes only the Draft. */
@@ -846,7 +847,8 @@ export type Draft<D, Dto, P = never, E = never, R = never, Diff extends boolean 
 type AnyDraftSpec = DraftSpec<any, any, any, any, any, any>
 type SpecDraft<S> = S extends { schema(...args: any): Schema.Schema<infer D, any, any> } ? D : never
 type SpecSrc<S> = S extends { create(...args: infer A): any } ? (A extends [] ? void : A[0]) : never
-type SpecPreview<S> = S extends { toModel(...args: any): infer P } ? P : never
+// Not distributive: a union of specs has `preview` / `changes` only when every member has `toModel` / `diff`.
+type SpecPreview<S> = [S] extends [{ toModel(...args: any): infer P }] ? P : never
 type SpecDto<S> = S extends { toDto(...args: any): Effect.Effect<infer Dto, any, any> } ? Dto : never
 type SpecError<S> = S extends { toDto(...args: any): Effect.Effect<any, infer E, any> } ? E : never
 type SpecContext<S> = S extends { toDto(...args: any): Effect.Effect<any, any, infer R> } ? R : never
@@ -856,7 +858,7 @@ type DraftOf<S> = Draft<
   SpecPreview<S>,
   SpecError<S>,
   SpecContext<S>,
-  S extends { diff(...args: any): any } ? true : false
+  [S] extends [{ diff(...args: any): any }] ? true : false
 >
 
 /** What a Draft was seeded from; the schema and its equivalence are computed once per basis, on first use. */
@@ -919,7 +921,8 @@ const makeDraft = (spec: AnyDraftSpec, src: unknown, s: AtomStore): DraftBox => 
           (get) => (get(value) as Record<PropertyKey, unknown>)[name],
           (cx, v) => {
             const d = cx.get(value) as Record<PropertyKey, unknown>
-            if (!Object.is(d[name], v)) cx.set(value, { ...d, [name]: v })
+            if (!Object.is(d[name], v))
+              cx.set(value, Array.isArray(d) ? Object.assign([...d], { [name]: v }) : { ...d, [name]: v })
           },
         )),
       )
@@ -954,17 +957,13 @@ const makeDraft = (spec: AnyDraftSpec, src: unknown, s: AtomStore): DraftBox => 
           basis.spec.toDto(decoded, basis.src),
         )
       }),
-    ...(spec.toModel && {
-      preview: Atom.make((get) => {
-        const { basis, draft } = get(state)
-        return basis.spec.toModel?.(draft, basis.src)
-      }),
+    preview: Atom.make((get) => {
+      const { basis, draft } = get(state)
+      return basis.spec.toModel?.(draft, basis.src)
     }),
-    ...(spec.diff && {
-      changes: Atom.make((get) => {
-        const { basis, draft } = get(state)
-        return basis.spec.diff?.(basis.seed, draft)
-      }),
+    changes: Atom.make((get) => {
+      const { basis, draft } = get(state)
+      return basis.spec.diff?.(basis.seed, draft)
     }),
   }
   return { input, state, draft }
@@ -984,7 +983,7 @@ const makeDraft = (spec: AnyDraftSpec, src: unknown, s: AtomStore): DraftBox => 
  * returns a new Draft without a slot, whose atoms live while something reads them.
  */
 export const useDraft = <S extends AnyDraftSpec>(
-  spec: S & DraftSpec<SpecDraft<S>, SpecDto<S>, SpecSrc<S>, SpecPreview<S>, SpecError<S>, SpecContext<S>>,
+  spec: S & DraftSpec<SpecDraft<S>, SpecDto<S>, SpecSrc<S>, unknown, SpecError<S>, SpecContext<S>>,
   src: SpecSrc<S> | Atom.Atom<SpecSrc<S>>,
 ): Effect.Effect<DraftOf<S>, never, Store> =>
   Effect.flatMap(Effect.context<never>(), (ctx) => {

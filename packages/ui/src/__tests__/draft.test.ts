@@ -184,6 +184,39 @@ describe('useDraft', () => {
     const draft = Effect.runSync(Effect.provideService(useDraft(ProfileDraft, { name: 'Ada', age: 36 }), Store, store))
     expect(store.get(draft.value)).toEqual({ name: 'Ada', age: '36' })
   })
+
+  it('R8: the Draft keeps its shape across spec swaps; preview and changes follow the current spec', async () => {
+    const Plain = { schema: ProfileDraft.schema, create: ProfileDraft.create, toDto: ProfileDraft.toDto }
+    const spec = Atom.make<typeof ProfileDraft | typeof Plain>(Plain)
+    const model = Atom.make<Profile>({ name: 'Ada', age: 36 })
+    let draft!: ProfileDraftAtoms
+    const Editor = function* () {
+      draft = (yield* useDraft(yield* useAtomValue(spec), model)) as ProfileDraftAtoms
+      return jsx('p', { children: (yield* useAtomValue(draft.value)).name })
+    }
+    const { store } = await go(jsx(Editor, {}))
+    const first = draft
+    expect([store.get(draft.preview), store.get(draft.changes)]).toEqual([undefined, undefined])
+    await act(() => store.set(spec, ProfileDraft))
+    await flush()
+    expect(draft).toBe(first)
+    expect([store.get(draft.preview), store.get(draft.changes)]).toEqual([{ name: 'Ada', age: 36 }, {}])
+    await act(() => store.set(spec, Plain))
+    await flush()
+    expect([store.get(draft.preview), store.get(draft.changes)]).toEqual([undefined, undefined])
+  })
+
+  it('R2: field(index) keeps an array Draft an array', () => {
+    const Tags = {
+      schema: () => Schema.Array(Schema.String),
+      create: (tags: ReadonlyArray<string>) => tags,
+      toDto: (d: ReadonlyArray<string>) => Effect.succeed(d),
+    } satisfies DraftSpec<ReadonlyArray<string>, ReadonlyArray<string>, ReadonlyArray<string>>
+    const store = makeAtomStore()
+    const draft = Effect.runSync(Effect.provideService(useDraft(Tags, ['a', 'b']), Store, store))
+    store.set(draft.field(0), 'x')
+    expect(store.get(draft.value)).toEqual(['x', 'b'])
+  })
 })
 
 describe('useDraft composition', () => {
