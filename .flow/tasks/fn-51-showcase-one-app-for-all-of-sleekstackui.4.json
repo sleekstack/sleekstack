@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-15T09:00:49.645488Z",
+  "depends_on": [
+    "fn-51-showcase-one-app-for-all-of-sleekstackui.3"
+  ],
+  "id": "fn-51-showcase-one-app-for-all-of-sleekstackui.4",
+  "priority": null,
+  "spec": "fn-51-showcase-one-app-for-all-of-sleekstackui",
+  "spec_path": ".flow/tasks/fn-51-showcase-one-app-for-all-of-sleekstackui.4.md",
+  "status": "todo",
+  "title": "Showcase demos: Portal, Boundary reset, router, devtools, testing, README",
+  "updated_at": "2026-10-15T09:00:49.645488Z"
+}

@@ -1,0 +1,24 @@
+{
+  "branch_name": "showcase-consolidation",
+  "created_at": "2026-10-15T09:00:28.839605Z",
+  "depends_on_epics": [],
+  "id": "fn-51-showcase-one-app-for-all-of-sleekstackui",
+  "next_task": 1,
+  "plan_review_status": "unknown",
+  "plan_reviewed_at": null,
+  "spec_path": ".flow/specs/fn-51-showcase-one-app-for-all-of-sleekstackui.md",
+  "status": "open",
+  "title": "Showcase: one app for all of @sleekstack/ui",
+  "tracker": {
+    "baseHashFlow": null,
+    "baseHashTracker": null,
+    "depRelations": [],
+    "id": null,
+    "identifier": null,
+    "lastSyncedAt": null,
+    "mergeBaseFlow": null,
+    "mergeBaseTracker": null,
+    "url": null
+  },
+  "updated_at": "2026-10-15T09:00:28.841779Z"
+}
