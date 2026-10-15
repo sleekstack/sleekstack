@@ -44,7 +44,7 @@ describe('guides', () => {
   })
 
   it('include only existing snippet or showcase files', () => {
-    const allowed = [snippetsDir, join(repoRoot, 'apps/showcase'), join(repoRoot, 'apps/showcase-kit')]
+    const allowed = [snippetsDir, join(repoRoot, 'apps/showcase')]
     const bad = guides.flatMap((f) =>
       includesOf(f)
         .filter((p) => !existsSync(p) || !allowed.some((dir) => !relative(dir, p).startsWith('..')))

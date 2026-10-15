@@ -19,6 +19,6 @@ Accepted. Types the handlers of ADR 0026 and the `ref` of ADR 0028; no runtime c
 
 ## Consequences
 
-- Attribute and event mistakes fail typecheck (one real one was found in `apps/ui-demo`: `dateTime` instead of `datetime`).
+- Attribute and event mistakes fail typecheck (one real one was found in `apps/showcase`: `dateTime` instead of `datetime`).
 - The attribute table must grow when a platform attribute is missing; it is not generated.
 - Without `exactOptionalPropertyTypes`, `class="a" className={undefined}` type-checks; it is harmless (undefined removes the attribute).

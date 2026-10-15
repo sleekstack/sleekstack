@@ -1,92 +1,45 @@
-# SleekStack Showcase
+# showcase
 
-A Next.js 15 (App Router) team task board written in plain Effect (Layers, `Context.GenericTag`) on the `@sleekstack/next` runtime, plus
-`@sleekstack/react` (`LayerProvider`, `useService`) and `@sleekstack/core` atoms. No SleekStack wrappers around Effect on the
-server: no `declareLayer()`, `module()`, `action()` or `query()`.
+One Vite app that runs `@sleekstack/ui` end to end: a team task board on Effect Layers. The page mounts the app twice, as Ada (an editor) and Grace (a viewer), each with its own atom store. The shell's page links open each demo page in a `startTransition`, so the open page stays until the next one has loaded.
 
-## Layout
+## Run it
 
-```text
-app/                           Next.js routes (page, graph, errors, log, providers, api/devtools)
-src/
-  domain/                      entities, errors, inputs (Effect Schema), Tags, demo cookie name; imports nothing app-side
-  application/                 use cases as Effects over domain Tags (board.ts, board-view.ts)
-  infrastructure/              Live Layers: board-store.memory, runtime-infra.live (Infra, ActivityLog),
-                               request.live (RequestContext), demo.live; app.ts is the
-                               composition root (AppLive, re-exports RequestLive and DemoLive)
-  delivery/                    Next.js edge: runtime.server (runApp, prefetchApp), act.server (act()), actions
-                               (Server Actions, including the board read), demo-mode, report.server
-  client/                      components/, drafts/ (useDraftForm), services/ (component services, atoms,
-                               board-query: the board query and its mutations)
-  models/                      BoardDto / BoardModel / TaskModel / Drafts (task.ts)
-  lib/contracts.ts             ModelSpec, DraftSpec, resolveDraft
-  errors/graphs.ts             broken plain-Layer fixtures for /errors
-```
+| Command | What it does |
+| --- | --- |
+| `pnpm --filter showcase dev` | Vite dev server, with the ui devtools panel below the two views |
+| `pnpm --filter showcase build` | Production build into `dist/` (no devtools); `pnpm --filter showcase preview` serves it |
+| `pnpm turbo run test typecheck --filter=showcase` | Builds the workspace packages, then runs the tests and `tsc` |
+| `pnpm --filter showcase check` | `sleekstack check`: the component pass must report no diagnostics |
 
-Dependencies point inward only: `client` -> `domain`; `delivery` -> `application` -> `domain`; `infrastructure` -> `domain`.
-Only `infrastructure/app.ts` (the composition root) knows every layer. One exception: `delivery/runtime.server.ts` is the
-composition boundary and the only delivery file that imports `infrastructure/app.ts`, to call `configureRuntime` over
-`AppLive`. `application/` never imports `infrastructure/`.
+## Demo pages
 
-`BoardStore` has a single adapter (`board-store.memory.ts`); it stays a Tag so the Graph page has a real service edge to
-show. `ActivityLog` and `Clock` are real seams: a live Layer and a demo Layer (`demo.live.ts`).
+Each page is a link in the shell (`src/pages/shell.tsx`). Each page's tests also render it on the server and hydrate the result.
 
-## What it shows
+| Page | Source | What it shows | Test |
+| --- | --- | --- | --- |
+| Board and forms | `src/pages/project.tsx`, `src/modules/` | Tasks read and written through `@sleekstack/query`; a new-task form with `useAction`, `useFormStatus` and `useOptimistic`; a `Boundary` for an unknown project; the tab title set by `useEffect`; keyed rows and React guests | `test/app.test.ts`, `test/hydrate.test.ts`, `test/stream.test.ts` |
+| Typed DOM | `src/pages/dom.tsx` | Host elements typed per tag, atoms bound to attributes in place, `useRef` | `test/dom.test.tsx` |
+| lazy | `src/pages/lazy.tsx`, `src/pages/chart.tsx` | A `lazy` chart in its own chunk under `Pending`, with a Retry for a failed import | `test/lazy.test.ts` |
+| Transitions | `src/pages/transitions.tsx` | Tabs opened with or without `startTransition`; a filter whose matches follow `useDeferredAtom` | `test/transitions.test.ts` |
+| Portal | `src/pages/portal.tsx` | A dialog rendered into `document.body` that still reads the `Viewer` its position provides | `test/portal.test.ts` |
+| Boundary reset | `src/pages/boundary.tsx` | A failed read shows the fallback; its `reset` re-runs only the boundary's children | `test/boundary.test.ts` |
+| Router | `src/pages/router.tsx` | A `@sleekstack/router` app that `startRouter` runs in the page: a `const` route table, a loader with a schema that the router runs before the page shows (under `Pending`), and `Link`s that prefetch it on hover or focus. Its links change the address bar | `test/router.test.ts` (also `handle` on the server) |
+| Devtools | `src/pages/devtools.tsx`, `src/devtools.tsx` | Links the ui devtools panel, which `src/main.tsx` loads in development only | `test/devtools.test.ts` |
 
-| Req | What | Files |
-| --- | --- | --- |
-| R1 | Domain as plain Layers (`AppLive`): Infra, BoardStore, ActivityLog | `src/domain/tags.ts`, `src/infrastructure/app.ts`, `src/infrastructure/runtime-infra.live.ts`, `src/infrastructure/board-store.memory.ts` |
-| R4 | `configureRuntime({ layer: AppLive })` from `@sleekstack/next`; `runApp` is `runEffect` with a `RequestLive` request scope, `DemoLive` overrides, and defect reporting | `src/delivery/runtime.server.ts` |
-| R2/R3 | `/graph` and `/errors` render the analyzer's prebuilt reports (`pnpm report`, run by predev/prebuild): the app root, and the broken plain-Layer fixtures | `app/graph/page.tsx`, `app/errors/page.tsx`, `src/delivery/report.server.ts`, `src/errors/graphs.ts` |
-| R5 | Server Actions (`act()` over `Board` use cases) and page reads through `runApp`; a request-scoped `Layer.scoped` RequestContext, atomic writes through `BoardStore.transaction`, `{ok:false, error}` results | `src/delivery/actions.ts`, `src/delivery/act.server.ts`, `src/delivery/board.server.ts`, `src/application/board.ts`, `src/infrastructure/request.live.ts`, `app/page.tsx` |
-| R6 | `/log`: request and component scope open/close, finalizer errors | `app/log/page.tsx`, `src/client/components/ScopeLog.tsx`, `src/infrastructure/request.live.ts` |
-| R7 | Nested `LayerProvider`s app → project → task detail, async component services, error boundary per subtree | `app/providers.tsx`, `src/client/components/ProjectView.tsx`, `src/client/components/TaskDetail.tsx`, `src/client/services/component-services.ts`, `src/client/components/ErrorBoundary.tsx` |
-| R8 | `<React.StrictMode>` with exactly one acquire/release per real mount | `app/providers.tsx`, `src/__tests__/board.test.tsx` |
-| R9 | Demo mode shadows ActivityLog/Clock on the server by passing `DemoLive` as `runEffect` overrides | `src/infrastructure/demo.live.ts`, `src/delivery/demo-mode.ts`, `src/domain/demo-cookie.ts`, `src/client/components/DemoToggle.tsx` |
-| R10 | Client components import only Tags; marker absent from client chunks, present on the server | `src/domain/tags.ts`, `src/__tests__/bundle.test.ts` |
-| R11 | Vitest (20 concurrent actions, rollback, StrictMode, use cases, store adapter) and a Playwright smoke against `next start` | `src/__tests__/*`, `src/application/*.test.ts`, `src/infrastructure/board-store.memory.test.ts`, `e2e/smoke.spec.ts`, `playwright.config.ts` |
+The resumable counter (`src/resume/`) has no shell page: `test/resume.test.ts` server-renders it and resumes it with no component code and no React.
 
-## Running
+## Component tests
 
-```bash
-pnpm install                        # pnpm 11 (pinned in packageManager)
-pnpm --filter showcase dev          # http://localhost:3000
-pnpm --filter showcase typecheck
-pnpm --filter showcase test         # Vitest (bundle test skips without a build)
-pnpm --filter showcase build && pnpm --filter showcase test:bundle   # R10
-pnpm --filter showcase exec playwright install chromium              # once
-pnpm --filter showcase build && pnpm --filter showcase test:e2e      # R11 smoke, port 3100
-```
+`test/router.test.ts`, `test/portal.test.ts`, `test/boundary.test.ts` and `test/devtools.test.ts` use [`@sleekstack/testing`](../../packages/testing/README.md): `render` mounts or hydrates a page, `flush` waits until the renderer is idle, and in `test/router.test.ts` `mockLayer` replaces the identity module's `UserRepo`.
 
-## Known gaps
+## Other checks
 
-- The store is in memory at module scope: a restart resets it, and it is not shared across server instances.
-- The session user is fake; there is no auth.
-- Request-scope finalization is not stream-aware (a fn-1 gap): scopes close when the operation's result resolves.
-- CSS is minimal.
+- `test/architecture.test.ts`: the folder layering of `src/` (one folder per domain module, imports only inward).
+- `test/size.test.ts`: the size budget of ADR 0022.
+- `test/fixtures.test.ts`: one fixture per error code of the Analyzer's component pass (`fixtures/`), and a clean app.
 
-## Models: `fromDto` / `toDto`
+## Known limits
 
-Read and write shapes are not inverses, so there is no `toDto(model)`. They meet at the Model, through form state (the Draft):
-
-```text
-DTO(read) -fromDto(dto) [Effect, needs services]-> Model -create-> Draft -toDto-> DTO(write)
-```
-
-- `src/lib/contracts.ts`: `ModelSpec` and `DraftSpec`.
-- `src/models/task.ts`: `TaskModel` (`fromDto` is an Effect that resolves its own context from services such as `ProjectNames`; labels live in the Model), plus `NewTaskDraft` and `TaskCommentDraft`, one Draft per save boundary. Schema-first, no coercion, only `toDto` may read ambients.
-- `src/client/drafts/useDraftForm.ts`: binds a Draft to react-hook-form; re-seeds on `src` change only while pristine. Pass a stable `src`.
-- `src/application/board-view.ts`: `loadBoard`, an Effect that reads the board DTO from `BoardStore`; `readBoard` (`src/delivery/actions.ts`) serves it as the fetch of the `board` query (`src/client/services/board-query.ts`).
-- `BoardModel.fromDto` (`src/models/task.ts`) runs each task through `TaskModel.fromDto`, providing `ProjectNames` once from the DTO's own projects; `Board` applies it to the cached DTO once per data change.
-
-## Queries and mutations
-
-The TanStack query cache owns the board's client reads; the server only prefetches. `app/page.tsx` calls
-`prefetchApp([boardOptions])` (`prefetchQueries` with the same request scope and demo overrides as `runApp`) and `providers.tsx`
-hydrates the client through `<HydrationBoundary>` under `QueryProvider`. Create, move and comment are mutation specs
-(`board-query.ts`) run by `useBoardMutation`: each resolves its Draft through `toDto`, writes optimistically in `onMutate`
-(rolled back in `onError` when the action returns `{ ok: false }`, e.g. "Simulate failure"), and invalidates the board on
-settle. No mutation calls `router.refresh()`. The demo toggle still does: it remounts the app `LayerProvider`, so the query
-client is disposed and rehydrated from the demo-mode prefetch.
-- `resolveDraft` (`src/lib/contracts.ts`): resolves a Draft through Effect (validate, then run the Effect `toDto`, failing with `DraftInvalid`). The board mutations (`board-query.ts`) run it before handing the wire body to the Server Action, so a component never builds the wire body.
-- Tests: `src/models/task.test.ts` (`fromDto`, `toDto`, defaults invariant) and `src/application/board-view.test.ts` (`resolveDraft`, `loadBoard` + `BoardModel.fromDto`); `src/__tests__/board.test.tsx` (optimistic create with rollback, refetch on success, optimistic move).
+- `hydrateMount` keeps an atom-bound text child (`<output>{atom}</output>`) at its server value, so the hydrated demos bind atoms to attributes only.
+- `sleekstack check` does not read the pages a router renders (`startRouter` is not one of its roots), so the Router page's routed pages are outside the component pass. A `<Link>` in a tree it does read is reported `Unresolved`.
+- The lazy page cannot fail an import on purpose; `test/lazy.test.ts` mocks a failed one.

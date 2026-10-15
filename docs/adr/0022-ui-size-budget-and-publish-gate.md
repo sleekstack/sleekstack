@@ -6,13 +6,13 @@
 
 ## Method
 
-The ADR 0017 method, in `apps/ui-demo/test/size.test.ts`: an in-process Vite production lib build of one entry, minified, `process.env.NODE_ENV` defined as `"production"` (an app build does this; lib mode does not, and React would otherwise bundle its development build too). The measured size is the entry chunk plus its static imports, gzipped; lazy chunks are reported apart. Each entry is built twice: against the packages' `dist` (through their `exports`) and with the workspace packages aliased to `src`.
+The ADR 0017 method, in `apps/showcase/test/size.test.ts`: an in-process Vite production lib build of one entry, minified, `process.env.NODE_ENV` defined as `"production"` (an app build does this; lib mode does not, and React would otherwise bundle its development build too). The measured size is the entry chunk plus its static imports, gzipped; lazy chunks are reported apart. Each entry is built twice: against the packages' `dist` (through their `exports`) and with the workspace packages aliased to `src`.
 
-Entries in `apps/ui-demo/src`:
+Entries in `apps/showcase/src`:
 
 - `size/mount.tsx`: `mount(<h1>Hello</h1>)` with `Layer.empty`.
 - `size/hydrate.tsx`: one reactive component (`useAtom` on a serializable atom, an `onClick` closure) under `hydrateMount`.
-- `resume/entry.ts`: the ADR 0017 resume entry.
+- `resume/entry.ts`: the ADR 0017 resume entry, with a click handler and a form action (fn-51).
 - `size/lazy.tsx`: `mount` of a `Boundary` and `Pending` around a `lazy(() => import('./heavy'))` component (fn-48).
 
 ## Measured size
@@ -21,7 +21,7 @@ Entries in `apps/ui-demo/src`:
 |-------|----------|------|--------------|
 | `mount` hello-world | 761,635 B | 198,545 B | 203,000 B |
 | Hydrating app | 849,440 B | 220,104 B | 225,000 B |
-| Resume | 306,995 B | 79,429 B (lazy handler 182 B) | 83,000 B |
+| Resume | 307,040 B | 79,447 B (lazy handlers 229 B) | 83,000 B |
 | `lazy` mount | 768,636 B | 201,019 B (lazy chunk 281 B) | 209,000 B |
 
 Remeasured with the fn-45 render observer (no observer attached), all within the limits. Source and dist builds differ by at most 3 bytes, so the tsc build costs nothing. Limits are the measurement plus about 5%; the test fails above them. A change that raises a number on purpose updates the limit and this table together.
@@ -32,7 +32,7 @@ Remeasured with the fn-45 render observer (no observer attached), all within the
 
 `ui` (and `core`, `query`) stay `private: true` until all of these hold:
 
-1. `apps/showcase` is ported to `@sleekstack/ui` and runs on the built packages.
+1. `apps/showcase` (the `@sleekstack/ui` app since fn-51 replaced the Next.js showcase) runs on the built packages.
 2. The tarball consumer test (`packages/ui/src/__tests__/pack.test.ts`) and the size budget test pass.
 3. A release process (versioning, changelog) is decided in its own ADR.
 

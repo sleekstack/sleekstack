@@ -30,4 +30,4 @@
 - The protocol relies on inline scripts. A strict CSP needs `nonce`.
 - Matching by path relies on preorder runs of the tree.
 - An atom already built on the client keeps its first value; a later chunk seeds only new atoms.
-- Tests: `packages/ui/src/__tests__/stream.test.ts`, `apps/ui-demo/test/stream.test.ts` (two streams, distinct `idPrefix`).
+- Tests: `packages/ui/src/__tests__/stream.test.ts`, `apps/showcase/test/stream.test.ts` (two streams, distinct `idPrefix`).

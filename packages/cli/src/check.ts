@@ -5,8 +5,8 @@
  * `--entry` files, else in the nearest package.json's `sleekstack.entry`, else every one outside test files; each
  * is validated independently. Under `--json` stdout carries only JSON: the
  * per-root result with its graph, plus every root module's graph and errors (`graphs`, `graphErrors`; unreached roots
- * never fail the check), which the showcase pages render as the prebuilt report. `runEffect({ request, overrides })`
- * layers are further roots (`kind`); `--lenient` turns an unresolvable one into an opaque root instead of a failure.
+ * never fail the check). `runEffect({ request, overrides })` layers are further roots (`kind`); `--lenient` turns an
+ * unresolvable one into an opaque root instead of a failure.
  * A project whose package.json lists `@sleekstack/ui` also runs the component pass (`components` under `--json`);
  * its `mount` trees count as roots. Each text error line `file:line CODE: message` is followed by indented
  * `fix:` and `docs:` lines. `sleekstack explain <CODE>` prints a code's rule, remedies and docs path.

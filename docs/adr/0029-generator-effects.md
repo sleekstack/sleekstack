@@ -21,6 +21,6 @@ When `fn` is a generator function, `useEffect` runs it after the commit as `Effe
 
 ## Consequences
 
-- An effect that reads `projectAtom` needs no `deps`; the ui-demo title effect is the example.
+- An effect that reads `projectAtom` needs no `deps`; the showcase title effect is the example.
 - An effect that fails on a new atom value (e.g. a repository lookup) reports to `onError` unless it handles the failure itself.
 - An effect reads its dependencies through atoms only: a value that exists only as a prop needs `deps`.

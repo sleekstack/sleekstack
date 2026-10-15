@@ -14,7 +14,7 @@ export const GET = devtoolsHandler({ graph: () => report })
 ```
 
 Mount it behind `process.env.NODE_ENV !== 'production'` with a dynamic `import()` so production
-client chunks never contain it (`DEVTOOLS_MARKER` is what the showcase bundle test looks for).
+client chunks never contain it (the panel's markup carries `DEVTOOLS_MARKER`, so a bundle test can search for it).
 
 ## `@sleekstack/ui` mounts
 
@@ -29,3 +29,5 @@ await mount(app, { layer, container, store, observe: trace.observer(store) })
 // in a React dev-only tree
 <UiPanel trace={trace} />
 ```
+
+Demo: the ui panel opens below [`apps/showcase`](../../apps/showcase/README.md) in development; its Devtools page links it.

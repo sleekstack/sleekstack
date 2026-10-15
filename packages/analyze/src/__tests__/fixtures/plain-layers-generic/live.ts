@@ -1,4 +1,4 @@
-// Mirrors apps/showcase/src/domain/live.server.ts, which declares its Tags with Context.GenericTag.
+// The plain-layers graph, with its Tags declared through Context.GenericTag.
 import { Effect, Layer } from 'effect'
 import { ActivityLog, Clock, IdGen, Store, TaskRepo } from './tags'
 

@@ -15,7 +15,7 @@ A `'use client'` module calls `defineIslands(map, { provide })`. Each entry is a
 
 <include>../../snippets/islands/islands.client.tsx</include>
 
-`<Island name props hydrate provide />` renders one Island. `name` is a key of the map (an unknown name is a type error, and `IslandNotFound` at runtime) and `props` is typed from the component. A Server Component can render it with `name`, `props` and `hydrate`. `provide` adds **component-scope** entries for that instance only; kit entries hold functions and cannot cross the RSC boundary, so pass `provide` from a client component. `apps/showcase-kit` has a full example page (`app/islands/page.tsx`).
+`<Island name props hydrate provide />` renders one Island. `name` is a key of the map (an unknown name is a type error, and `IslandNotFound` at runtime) and `props` is typed from the component. A Server Component can render it with `name`, `props` and `hydrate`. `provide` adds **component-scope** entries for that instance only; kit entries hold functions and cannot cross the RSC boundary, so pass `provide` from a client component. `packages/islands/src/__tests__/island.test.tsx` covers server rendering, hydration and every trigger.
 
 ## Triggers
 

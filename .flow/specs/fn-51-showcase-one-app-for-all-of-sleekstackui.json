@@ -1,0 +1,336 @@
+{
+  "branch_name": "showcase-consolidation",
+  "completion_review_status": "ship",
+  "completion_reviewed_at": "2026-10-15T10:39:33.506908Z",
+  "created_at": "2026-10-15T09:00:28.839605Z",
+  "default_impl": null,
+  "default_review": null,
+  "default_sync": null,
+  "depends_on_epics": [],
+  "id": "fn-51-showcase-one-app-for-all-of-sleekstackui",
+  "impl_review_rounds": {
+    "fn-51-showcase-one-app-for-all-of-sleekstackui.1": 0,
+    "fn-51-showcase-one-app-for-all-of-sleekstackui.2": 0,
+    "fn-51-showcase-one-app-for-all-of-sleekstackui.3": 0,
+    "fn-51-showcase-one-app-for-all-of-sleekstackui.4": 0
+  },
+  "next_task": 1,
+  "plan_review_rounds": 0,
+  "plan_review_status": "unknown",
+  "plan_reviewed_at": null,
+  "review_attempts": [
+    {
+      "artifact_sha256": "7e4cbbc122d77a65d042480b0e68c1acd82667cf3a677bf91d67e5d77a1fe265",
+      "backend": "codex",
+      "base_sha": "322a565444411ac9766a2b9fd090d604defa2532",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "922d088decadbc49eadf5cf800a7b7dbfc4d47f2",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 158,
+      "output_sha256": "6ff70da3d83706800ca3cabc6ba62603ba0485fcf5259d27f1be54ce68686975",
+      "reservation_id": "ed7d283efe8042a2a7b25d28bc6ac82e",
+      "round_consumed": true,
+      "scope": "impl:fn-51-showcase-one-app-for-all-of-sleekstackui.1",
+      "superseded_by": null,
+      "task": "fn-51-showcase-one-app-for-all-of-sleekstackui.1",
+      "timestamp": "2026-10-15T09:30:35.498310Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "f530b3a3a91f9807f2f2c562cbadc90514199e9ae60c76d47fc3d466a6d5260d",
+      "backend": "codex",
+      "base_sha": "322a565444411ac9766a2b9fd090d604defa2532",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "1c0aed932a384ad1b6e8c2f7c591f190bbfe84f2",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 158,
+      "output_sha256": "6ff70da3d83706800ca3cabc6ba62603ba0485fcf5259d27f1be54ce68686975",
+      "reservation_id": "d70149ef60f941639c93b69483b91382",
+      "round_consumed": true,
+      "scope": "impl:fn-51-showcase-one-app-for-all-of-sleekstackui.2",
+      "superseded_by": null,
+      "task": "fn-51-showcase-one-app-for-all-of-sleekstackui.2",
+      "timestamp": "2026-10-15T09:42:19.125184Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "0f02d9ea98b4ed4863c385329c45d279d6009678913b2775ea2fe135d817daca",
+      "backend": "codex",
+      "base_sha": "322a565444411ac9766a2b9fd090d604defa2532",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-28df00844a29b305cc7337095fb31032",
+            "classification": "introduced",
+            "findingId": "finding-28df00844a29b305cc7337095fb31032",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "7f36616b6c0a61aef83919f181f028185c583656",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 812,
+      "output_sha256": "707895da9f6acb0ce1b0af487040ceb818be3eb5a0ec1de9607c438ba4a13cd6",
+      "reservation_id": "ca346ffa1f184273bd3bf3e3f0aa4e6d",
+      "round_consumed": true,
+      "scope": "impl:fn-51-showcase-one-app-for-all-of-sleekstackui.3",
+      "superseded_by": null,
+      "task": "fn-51-showcase-one-app-for-all-of-sleekstackui.3",
+      "timestamp": "2026-10-15T10:04:34.106360Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "96648e540ffe032bb5a065e1368d82ec09c48caf98ad782e4236b21a836b238e",
+      "backend": "codex",
+      "base_sha": "322a565444411ac9766a2b9fd090d604defa2532",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-28df00844a29b305cc7337095fb31032",
+            "classification": "introduced",
+            "findingId": "finding-28df00844a29b305cc7337095fb31032",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "7bfc956981e6925d703380de6ddff084a029a45b",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 679,
+      "output_sha256": "6b89eacc1842b2993e9fd06845255af3bb5de4a588921df5a9eb7512b2327a71",
+      "reservation_id": "95cdf24ef2364e948bb7294c83c83853",
+      "round_consumed": true,
+      "scope": "impl:fn-51-showcase-one-app-for-all-of-sleekstackui.3",
+      "superseded_by": null,
+      "task": "fn-51-showcase-one-app-for-all-of-sleekstackui.3",
+      "timestamp": "2026-10-15T10:07:11.466289Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "80e6393202466cab60b5f1305a76eaf9a9cfd4b701b47a916a67663874ed0094",
+      "backend": "codex",
+      "base_sha": "322a565444411ac9766a2b9fd090d604defa2532",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-a1e44e7d49de77ace1a387aa526c7394",
+            "classification": "introduced",
+            "findingId": "finding-a1e44e7d49de77ace1a387aa526c7394",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "389a528653a4cc18203464b4f5d25f8ce50e925b",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1047,
+      "output_sha256": "96f97016d8509678a9ffff3bb21f5fb3c6aa61467ce7feed6165bea0b463ab18",
+      "reservation_id": "c5c860e8463c45a2bda54035d8aee17d",
+      "round_consumed": true,
+      "scope": "impl:fn-51-showcase-one-app-for-all-of-sleekstackui.4",
+      "superseded_by": null,
+      "task": "fn-51-showcase-one-app-for-all-of-sleekstackui.4",
+      "timestamp": "2026-10-15T10:32:49.087836Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "7326051a4aec7ba06eca465949a9949de8170c07d70804f2247da552f9abbaa5",
+      "backend": "codex",
+      "base_sha": "322a565444411ac9766a2b9fd090d604defa2532",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-a1e44e7d49de77ace1a387aa526c7394",
+            "classification": "introduced",
+            "findingId": "finding-a1e44e7d49de77ace1a387aa526c7394",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "0f6364dcc9dd149cbc602033adc5412bd2b0c2b8",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1319,
+      "output_sha256": "98ba6df72b675898d6069e028312f93f6942cec9a45965369bdc08f7844d332a",
+      "reservation_id": "dcd823fad7024c249655afd745a2a26a",
+      "round_consumed": true,
+      "scope": "impl:fn-51-showcase-one-app-for-all-of-sleekstackui.4",
+      "superseded_by": null,
+      "task": "fn-51-showcase-one-app-for-all-of-sleekstackui.4",
+      "timestamp": "2026-10-15T10:34:13.359398Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "f4366e37935c529e891ef471055d11548a4a1833a4cfe835d6e6e58b6d4ab8fd",
+      "backend": "codex",
+      "base_sha": "322a565444411ac9766a2b9fd090d604defa2532",
+      "counter_kind": "plan",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "cf7f20d5bd85525d1bc748cb571272de5415efa7",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 380214,
+      "output_sha256": "5609a1c6307856c8a90258233df73c99f536a92f102f44884f40934105355dcb",
+      "reservation_id": "d44cfc5dfd7b4606a822e73acefa860b",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-10-15T10:39:33.499345Z",
+      "tool_calls": 15,
+      "verdict": "SHIP"
+    }
+  ],
+  "review_hash_epoch": {
+    "impl:fn-51-showcase-one-app-for-all-of-sleekstackui.1": 1,
+    "impl:fn-51-showcase-one-app-for-all-of-sleekstackui.2": 1,
+    "impl:fn-51-showcase-one-app-for-all-of-sleekstackui.3": 1,
+    "impl:fn-51-showcase-one-app-for-all-of-sleekstackui.4": 1,
+    "plan#completion": 1
+  },
+  "review_pending_rounds": {},
+  "review_reservations": {},
+  "review_transport_failures": {
+    "completion": 0,
+    "impl:fn-51-showcase-one-app-for-all-of-sleekstackui.1": 0,
+    "impl:fn-51-showcase-one-app-for-all-of-sleekstackui.2": 0,
+    "impl:fn-51-showcase-one-app-for-all-of-sleekstackui.3": 0,
+    "impl:fn-51-showcase-one-app-for-all-of-sleekstackui.4": 0
+  },
+  "spec_path": ".flow/specs/fn-51-showcase-one-app-for-all-of-sleekstackui.md",
+  "status": "open",
+  "title": "Showcase: one app for all of @sleekstack/ui",
+  "tracker": {
+    "baseHashFlow": null,
+    "baseHashTracker": null,
+    "depRelations": [],
+    "id": null,
+    "identifier": null,
+    "lastSyncedAt": null,
+    "mergeBaseFlow": null,
+    "mergeBaseTracker": null,
+    "url": null
+  },
+  "updated_at": "2026-10-15T10:39:33.509184Z"
+}

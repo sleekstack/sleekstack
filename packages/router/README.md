@@ -67,3 +67,5 @@ await startRouter(app, { container: document.getElementById('app')! })
 ```
 
 A string response runs the page's declared `loaders` first, so it knows its status (a redirect or not-found from an undeclared loader is answered too). With `stream: true` the declared loaders still settle the status first, then the shell goes out while undeclared (deferred) loaders run under `Pending`; their redirect is sent as a `location.replace` script and their not-found as the not-found page replacing the body. The router renders each page under `<Pending fallback={page.fallback}>` on the server and in the browser. Each browser navigation loads again; a failed loader runs once and its `Boundary` gets that failure.
+
+Demo: the Router page of [`apps/showcase`](../../apps/showcase/README.md).

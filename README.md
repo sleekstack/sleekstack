@@ -68,7 +68,7 @@ This enables:
 | [`@sleekstack/devtools`](packages/devtools/README.md) | Dev-only panel: graph, scopes, atoms, errors; ui panel: instance tree, atoms per instance, re-runs, effect runs |
 | [`@sleekstack/react`](packages/react/README.md) | Suspense-native `LayerProvider` / `useService`, and atoms (`useAtom`, `useAtomValue`) whose state lives per provider |
 | [`@sleekstack/kit`](packages/kit/README.md) | Effect-free facade over core, runtime, next and react (`tag`, `layer`, `effect`, `module`) |
-| [`@sleekstack/ui`](packages/ui/README.md) | MVP spike: Effect-native components (`Component<P, E, R>`, `Provide`, `Catch`) with React guests, typed requirements and errors checked by `sleekstack check`; demo in [`apps/ui-demo`](apps/ui-demo) |
+| [`@sleekstack/ui`](packages/ui/README.md) | MVP spike: Effect-native components (`Component<P, E, R>`, `Provide`, `Catch`) with React guests, typed requirements and errors checked by `sleekstack check`; demo pages in [`apps/showcase`](apps/showcase/README.md) |
 | [`@sleekstack/testing`](packages/testing/README.md) | Vitest + jsdom component tests for `@sleekstack/ui`: `render`, `flush`, `mockLayer`, used with Testing Library |
 
 Planned:
@@ -147,7 +147,7 @@ Current surface:
 
 * `@sleekstack/kit` — an Effect-free facade over core, runtime, next and react (`tag`, `layer`, `effect`, `module`, deps inferred from `yield*`, one `SleekStackError`); see [`packages/kit`](packages/kit/README.md)
 
-See [`apps/showcase`](apps/showcase/README.md) for a Next.js team task board that exercises all of it end to end, and [`apps/showcase-kit`](apps/showcase-kit/README.md) for the same board built on the kit only.
+For small worked graphs, see the `sleekstack check` fixtures in [`packages/cli/src/__tests__/fixtures`](packages/cli/src/__tests__/fixtures): `effect-app` (Effect Layers on `@sleekstack/next`, with request and overrides roots) and `kit-app` (the kit only). [`apps/showcase`](apps/showcase/README.md) is a runnable `@sleekstack/ui` app on Effect Layers; its README lists every demo page and how to run it.
 
 Still ahead: session/transient/job lifetimes, and stream-aware request-scope finalization.
 

@@ -38,4 +38,4 @@ It builds one tree per `mount` call (nodes `component`, `provide`, `catch`, `unr
 - `MissingKey`: a `.map` / `.flatMap` / `Array.from` callback in child position returning unkeyed JSX or a fragment.
 - `NonResumableHandler`: an `on()` handler that is not a reference to a top-level `const h = defineHandler('literal', ...)`, or a `resume` handler map it cannot read. Each `resume` call is a tree root whose handlers are checked against its layer.
 
-`sleekstack check` runs it only when the nearest package.json lists `@sleekstack/ui` (any dependency field) and adds a `components` key to `--json`; other projects are unchanged. [`apps/ui-demo`](../../apps/ui-demo) has one fixture per code in `apps/ui-demo/fixtures/`.
+`sleekstack check` runs it only when the nearest package.json lists `@sleekstack/ui` (any dependency field) and adds a `components` key to `--json`; other projects are unchanged. [`apps/showcase`](../../apps/showcase/README.md) has one fixture per code in `apps/showcase/fixtures/`.
