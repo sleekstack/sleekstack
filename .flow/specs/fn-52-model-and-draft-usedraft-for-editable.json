@@ -10,7 +10,7 @@
   "id": "fn-52-model-and-draft-usedraft-for-editable",
   "impl_review_rounds": {
     "fn-52-model-and-draft-usedraft-for-editable.1": 0,
-    "fn-52-model-and-draft-usedraft-for-editable.2": 1
+    "fn-52-model-and-draft-usedraft-for-editable.2": 0
   },
   "next_task": 1,
   "plan_review_rounds": 0,
@@ -337,10 +337,63 @@
       "task": "fn-52-model-and-draft-usedraft-for-editable.2",
       "timestamp": "2026-10-16T07:31:22.102551Z",
       "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "aa25b56131aaf157309817587ee856087492dba965455f64f3988e6450c2ef3a",
+      "backend": "codex",
+      "base_sha": "d1e956c841cc6c4be0f14384c012006fcd27fb41",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-4a7a04aee32562d335cc81289f01aecf",
+            "classification": "introduced",
+            "findingId": "finding-4a7a04aee32562d335cc81289f01aecf",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-8b3f10ccbd7cc2f371e9bf6084816f76",
+            "classification": "introduced",
+            "findingId": "finding-8b3f10ccbd7cc2f371e9bf6084816f76",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "134be72c22b3c34b2c6d1ca658400a45647829ac",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 632,
+      "output_sha256": "173e8d823ea7811c6f8a3646d65a7793c3db1366df4d386e54ed0341cec2cf03",
+      "reservation_id": "594654dd7c0c4755af09bc39b101777f",
+      "round_consumed": true,
+      "scope": "impl:fn-52-model-and-draft-usedraft-for-editable.2",
+      "superseded_by": null,
+      "task": "fn-52-model-and-draft-usedraft-for-editable.2",
+      "timestamp": "2026-10-16T07:54:46.353029Z",
+      "verdict": "SHIP"
     }
   ],
   "review_hash_epoch": {
-    "impl:fn-52-model-and-draft-usedraft-for-editable.1": 2
+    "impl:fn-52-model-and-draft-usedraft-for-editable.1": 2,
+    "impl:fn-52-model-and-draft-usedraft-for-editable.2": 1
   },
   "review_pending_rounds": {},
   "review_reservations": {},
@@ -362,5 +415,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-16T07:31:22.104157Z"
+  "updated_at": "2026-10-16T07:54:46.357182Z"
 }
