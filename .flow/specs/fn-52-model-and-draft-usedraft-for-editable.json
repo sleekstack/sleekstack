@@ -1,7 +1,7 @@
 {
   "branch_name": "draft-model",
-  "completion_review_status": "unknown",
-  "completion_reviewed_at": null,
+  "completion_review_status": "ship",
+  "completion_reviewed_at": "2026-10-16T12:32:35.127084Z",
   "created_at": "2026-10-15T20:40:17.022079Z",
   "default_impl": null,
   "default_review": null,
@@ -478,16 +478,107 @@
       "task": "fn-52-model-and-draft-usedraft-for-editable.3",
       "timestamp": "2026-10-16T09:20:52.921789Z",
       "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "c5e002a0a700b7da3c9b7b35520a3e981af20c16ea15b3e9f179753e518a7d6c",
+      "backend": "codex",
+      "base_sha": "d1e956c841cc6c4be0f14384c012006fcd27fb41",
+      "counter_kind": "plan",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-dd9abcdbb81314c9af57206387c234da",
+            "classification": "introduced",
+            "findingId": "finding-dd9abcdbb81314c9af57206387c234da",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "8c276720c6192d91a978cf7fd347fb366e1673b5",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 278892,
+      "output_sha256": "d8db564f4aa8301325334c01d212f0b4c801f429e4e38048ced779e095239e64",
+      "reservation_id": "c803a29c8d68489c9da73b264ae42a11",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-10-16T09:37:25.841194Z",
+      "tool_calls": 19,
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "1faf8a18590edabc0e0dee011efc45d2fa922a5991b38e89299becc3773c905b",
+      "backend": "codex",
+      "base_sha": "d1e956c841cc6c4be0f14384c012006fcd27fb41",
+      "counter_kind": "plan",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-dd9abcdbb81314c9af57206387c234da",
+            "classification": "introduced",
+            "findingId": "finding-dd9abcdbb81314c9af57206387c234da",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "04e8e5e099458b358be50cda693e563972a27e67",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 3685,
+      "output_sha256": "4466ee92a8453b7206e7bdd6de3ae1ce49aa5065b92e77e17fc2c967a500720a",
+      "reservation_id": "52c002d0eb04463fa53409662dd4ca69",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-10-16T12:32:35.123194Z",
+      "verdict": "SHIP"
     }
   ],
   "review_hash_epoch": {
     "impl:fn-52-model-and-draft-usedraft-for-editable.1": 2,
     "impl:fn-52-model-and-draft-usedraft-for-editable.2": 1,
-    "impl:fn-52-model-and-draft-usedraft-for-editable.3": 1
+    "impl:fn-52-model-and-draft-usedraft-for-editable.3": 1,
+    "plan#completion": 1
   },
   "review_pending_rounds": {},
   "review_reservations": {},
   "review_transport_failures": {
+    "completion": 0,
     "impl:fn-52-model-and-draft-usedraft-for-editable.1": 0,
     "impl:fn-52-model-and-draft-usedraft-for-editable.2": 0,
     "impl:fn-52-model-and-draft-usedraft-for-editable.3": 0
@@ -506,5 +597,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-16T09:20:52.925588Z"
+  "updated_at": "2026-10-16T12:32:35.127684Z"
 }
