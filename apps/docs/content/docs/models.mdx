@@ -1,0 +1,37 @@
+---
+title: Models and Drafts
+description: Build a Model from wire data with fromDto, edit a copy of it with useDraft, and save it from a form action with toDto().
+---
+
+A record has two directions that meet at the **Model**, the shape the view renders (ADR 0038):
+
+- Read: `fromDto(dto, ctx)` builds the Model from what the read endpoint returns. `ctx` is resolved data the DTO does not carry, such as a country index; it is never a Service or a client. Call `fromDto` where the data arrives: a loader, a query or an Effect atom.
+- Write: a **Draft** is an editable copy of the Model, one save boundary. A `DraftSpec` says how to seed it (`create`), validate it (`schema`) and turn it into the write endpoint's body (`toDto`).
+
+`toDto` is not the inverse of `fromDto`. The Model carries labels the client cannot turn back into wire data, and the write endpoint usually takes a different body from the one the read endpoint returns. `ModelSpec` and `DraftSpec` are types in `@sleekstack/core`, so Kit Operations, server code and tests can use them without `@sleekstack/ui`. `useDraft` is in `@sleekstack/ui`.
+
+<include>../../snippets/models/profile.tsx</include>
+
+- `schema`, `create`, `toModel` and `diff` are pure. `toDto` returns an Effect: what it needs (ids, the clock) are Services in `R` and its failures are `E`. A form action that yields `draft.toDto()` takes both, so `sleekstack check` reports them like any handler's.
+- The schema's Type and Encoded are both the Draft: a field holds what its input holds, so a number input's field is a string. Validate the string in the schema and convert it in `toDto`. A coercing schema such as `NumberFromString` is a type error.
+- `toDto()` validates first. A `ParseError` or a failure of `spec.toDto` stays in the `Result` of `useAction`.
+- `errors` holds the schema's messages by field path (`'name'`, `'items.0.name'`, and `''` for the whole Draft). `errors`, `valid`, `dirty`, `preview` and `changes` are computed only when something reads them.
+- `toModel` gives `preview`, the unsaved Draft as a Model. It also fits as the `apply` of `useOptimistic(model, (m, d) => ProfileDraft.toModel(d, m))`, to show a save before it lands. `diff(base, next)` gives `changes`, a minimal PATCH body.
+
+## The source
+
+`src` is a value or an atom. The Draft starts as `spec.create(src)`.
+
+- While the Draft is pristine (equal to its seed by the schema's `Schema.equivalence`), a new source re-seeds it. After an edit, the edits are kept and `dirty` stays true. Editing back to the seed makes the Draft pristine again.
+- `reset()` re-seeds from the current source.
+- A value `src` is compared by structure (plain objects, arrays and `Equal` values), so a literal rebuilt on every run is not a change. A class instance that is not `Equal` is compared by identity: a new instance on every run re-seeds a pristine Draft on every run. Pass an atom or a stable value.
+- A spec with no source still takes the argument: `useDraft(Spec, undefined)`.
+- Passing another spec on a later run re-seeds the Draft. A spec rebuilt with the same members is not a change.
+
+## Limits
+
+- `field(name)` takes a record Draft's data keys or an array Draft's indexes, and returns the same atom for a name on every call. A primitive Draft, such as a string, has no fields: write `value`. A field write copies the Draft (an array stays an array, a class instance keeps its prototype) and sets an own data property, so writing a getter-only property shadows the getter.
+- `preview` is in the type only when the spec has `toModel`, and `changes` only when it has `diff`. For a union of specs, a member is in the type only when every spec has the method.
+- `useDraft` takes a slot like `useLocal`: call it at the top of the component (`ConditionalSlot`). The Draft and its atoms are released with the instance. Outside a component it returns a new Draft without a slot, whose atoms live while something reads them.
+
+The contract is ported from ramcinpay-front, which took the idea of a record and its editable copy from EmberData.
