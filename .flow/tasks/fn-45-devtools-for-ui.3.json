@@ -11,7 +11,7 @@
   "priority": null,
   "spec": "fn-45-devtools-for-ui",
   "spec_path": ".flow/tasks/fn-45-devtools-for-ui.3.md",
-  "status": "todo",
+  "status": "done",
   "title": "Devtools panels and the ui peer dependency",
   "updated_at": "2026-10-09T15:01:13.324834Z"
 }

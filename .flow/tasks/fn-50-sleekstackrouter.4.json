@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-50-sleekstackrouter",
   "spec_path": ".flow/tasks/fn-50-sleekstackrouter.4.md",
-  "status": "todo",
+  "status": "done",
   "title": "Actions and prefetching links",
   "updated_at": "2026-10-09T15:01:16.333745Z"
 }

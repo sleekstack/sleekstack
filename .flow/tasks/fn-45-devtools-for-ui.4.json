@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-45-devtools-for-ui",
   "spec_path": ".flow/tasks/fn-45-devtools-for-ui.4.md",
-  "status": "todo",
+  "status": "done",
   "title": "ui-demo wiring and docs",
   "updated_at": "2026-10-09T15:01:13.324856Z"
 }
