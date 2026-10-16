@@ -18,10 +18,11 @@ export const ProfileModel = {
 
 // The Draft holds what the inputs hold: `age` is a string, validated here and converted in `toDto`.
 type ProfileForm = { readonly name: string; readonly age: string }
-const wholeNumber = /^\d+$/
+// Bounded on purpose: an unbounded digit string would pass validation and become `Infinity` in `Number(...)`.
+const wholeNumber = /^\d{1,3}$/
 const ProfileFormSchema = Schema.Struct({
   name: Schema.String.pipe(Schema.filter((s) => s.trim() !== '' || 'Enter a name')),
-  age: Schema.String.pipe(Schema.pattern(wholeNumber, { message: () => 'Enter a whole number' })),
+  age: Schema.String.pipe(Schema.pattern(wholeNumber, { message: () => 'Enter an age from 0 to 999' })),
 })
 
 export const ProfileDraft = {
