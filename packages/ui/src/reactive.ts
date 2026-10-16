@@ -887,13 +887,11 @@ interface DraftBox {
   readonly draft: object
 }
 
-// The same source: the same atom, or an equal value (plain objects and arrays by structure, `Equal` values by `Equal`),
-// so a literal rebuilt by every run is no change.
-const sameSrc = (a: unknown, b: unknown): boolean =>
+// The same source or spec: the same atom or object, or an equal value (plain objects and arrays by structure, functions by
+// identity, `Equal` values by `Equal`), so a literal or `{ ...Spec }` rebuilt by every run is no change. A class instance
+// is compared by identity: its settings may live where they cannot be compared.
+const same = (a: unknown, b: unknown): boolean =>
   Object.is(a, b) || (!Atom.isAtom(a) && !Atom.isAtom(b) && structuralRegion(() => Equal.equals(a, b)))
-// The same spec: one with the same members, so `{ ...Spec }` rebuilt by every run is no swap.
-const sameSpec = (a: AnyDraftSpec, b: AnyDraftSpec): boolean =>
-  a === b || (['schema', 'create', 'toDto', 'toModel', 'diff'] as const).every((k) => a[k] === b[k])
 const schemaOf = (b: DraftBasis) => (b.schema ??= b.spec.schema(b.src))
 const pristine = (b: DraftBasis, draft: unknown) => (b.equals ??= Schema.equivalence(schemaOf(b)))(b.seed, draft)
 const seeded = (spec: AnyDraftSpec, src: unknown): DraftState => {
@@ -910,8 +908,8 @@ const makeDraft = (spec: AnyDraftSpec, src: unknown, s: AtomStore): DraftBox => 
       const i = get(input)
       const now = Atom.isAtom(i.src) ? get(i.src) : i.src
       const prev = get.self<DraftState>()
-      if (prev && sameSpec(prev.basis.spec, i.spec)) {
-        if (sameSrc(prev.basis.src, now)) return prev
+      if (prev && same(prev.basis.spec, i.spec)) {
+        if (same(prev.basis.src, now)) return prev
         if (!pristine(prev.basis, prev.draft))
           return { basis: { spec: i.spec, src: now, seed: prev.basis.seed }, draft: prev.draft }
       }
@@ -997,9 +995,9 @@ export const ownWrite: { slots: Slots | undefined } = { slots: undefined }
  * `useDraft(spec, src)`: a Draft of the Model `src` (a value, or an atom of it) as `spec` describes it (`DraftSpec`, from
  * `@sleekstack/core`). It starts as `spec.create(src)`; edits through `value` or `field(name)` change only the Draft.
  * When the source changes (the atom, or a different `src` on a later run) while the Draft is pristine, it re-seeds from
- * it; after an edit the edits are kept. A value `src` is compared by structure (plain objects and arrays) or `Equal`, so
- * a literal rebuilt by every run is no change (a class instance that is not `Equal` is compared by identity), and a spec
- * with the same members is no swap. `reset()` re-seeds from the current source. `errors`, `valid`, `dirty`, `preview`
+ * it; after an edit the edits are kept. A value `src` and the `spec` are compared by structure (plain objects and arrays,
+ * functions by identity) or `Equal`, so a literal or `{ ...Spec }` rebuilt by every run is no change; a class instance
+ * that is not `Equal` is compared by identity. `reset()` re-seeds from the current source. `errors`, `valid`, `dirty`, `preview`
  * and `changes` are atoms computed only when read. `toDto()` validates with the schema and runs `spec.toDto`: yield it
  * in a Form Action handler and its `ParseError` or service failure lands in `useAction`'s `Result`.
  *
@@ -1028,7 +1026,7 @@ export const useDraft = <S extends AnyDraftSpec>(
     }
     const box = s.get(f.owner.atoms[taken.i] as unknown as Atom.Atom<DraftBox>)
     const last = s.get(box.input)
-    if (!sameSpec(last.spec, spec) || !sameSrc(last.src, src)) {
+    if (!same(last.spec, spec) || !same(last.src, src)) {
       ownWrite.slots = f.owner
       try {
         s.set(box.input, { spec, src })

@@ -9,7 +9,8 @@
   "depends_on_epics": [],
   "id": "fn-52-model-and-draft-usedraft-for-editable",
   "impl_review_rounds": {
-    "fn-52-model-and-draft-usedraft-for-editable.1": 0
+    "fn-52-model-and-draft-usedraft-for-editable.1": 0,
+    "fn-52-model-and-draft-usedraft-for-editable.2": 1
   },
   "next_task": 1,
   "plan_review_rounds": 0,
@@ -284,6 +285,58 @@
       "task": "fn-52-model-and-draft-usedraft-for-editable.1",
       "timestamp": "2026-10-16T06:28:07.084521Z",
       "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "5a95b1458f3f30e8e5434d70a3a435b656f7398c42cb2593d33e9e16376b51be",
+      "backend": "codex",
+      "base_sha": "d1e956c841cc6c4be0f14384c012006fcd27fb41",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-4a7a04aee32562d335cc81289f01aecf",
+            "classification": "introduced",
+            "findingId": "finding-4a7a04aee32562d335cc81289f01aecf",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-8b3f10ccbd7cc2f371e9bf6084816f76",
+            "classification": "introduced",
+            "findingId": "finding-8b3f10ccbd7cc2f371e9bf6084816f76",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "17126d79def717b6f5aae96ce611c4a4e29b1cd3",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1541,
+      "output_sha256": "d3206a3f209593d6ed8063da6ca715ddfdd11220033abb360ce1fc62c1c104c1",
+      "reservation_id": "53d15447f0dc42239dbe6a0355d010b3",
+      "round_consumed": true,
+      "scope": "impl:fn-52-model-and-draft-usedraft-for-editable.2",
+      "superseded_by": null,
+      "task": "fn-52-model-and-draft-usedraft-for-editable.2",
+      "timestamp": "2026-10-16T07:31:22.102551Z",
+      "verdict": "NEEDS_WORK"
     }
   ],
   "review_hash_epoch": {
@@ -292,7 +345,8 @@
   "review_pending_rounds": {},
   "review_reservations": {},
   "review_transport_failures": {
-    "impl:fn-52-model-and-draft-usedraft-for-editable.1": 0
+    "impl:fn-52-model-and-draft-usedraft-for-editable.1": 0,
+    "impl:fn-52-model-and-draft-usedraft-for-editable.2": 0
   },
   "spec_path": ".flow/specs/fn-52-model-and-draft-usedraft-for-editable.md",
   "status": "open",
@@ -308,5 +362,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-16T06:28:07.088477Z"
+  "updated_at": "2026-10-16T07:31:22.104157Z"
 }

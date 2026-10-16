@@ -227,6 +227,31 @@ describe('useDraft', () => {
     expect(live).not.toContain(model)
   })
 
+  it('R8: another instance of a spec class is a swap, though it shares its methods', async () => {
+    class Capped {
+      constructor(readonly max: number) {}
+      schema() {
+        return ProfileFormSchema
+      }
+      create(m: Profile): ProfileForm {
+        return { name: m.name.slice(0, this.max), age: String(m.age) }
+      }
+      toDto(d: ProfileForm) {
+        return ProfileDraft.toDto(d)
+      }
+    }
+    const spec = Atom.make(new Capped(2))
+    const Editor = function* () {
+      const draft = yield* useDraft(yield* useAtomValue(spec), { name: 'Ada', age: 36 })
+      return jsx('p', { children: (yield* useAtomValue(draft.value)).name })
+    }
+    const { store, container } = await go(jsx(Editor, {}))
+    expect(container.textContent).toBe('Ad')
+    await act(() => store.set(spec, new Capped(1)))
+    await settle()
+    expect(container.textContent).toBe('A')
+  })
+
   it('R7: outside a component it returns a Draft without a slot', () => {
     const store = makeAtomStore()
     const draft = Effect.runSync(Effect.provideService(useDraft(ProfileDraft, { name: 'Ada', age: 36 }), Store, store))

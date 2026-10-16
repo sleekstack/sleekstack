@@ -18,9 +18,10 @@ export const ProfileModel = {
 
 // The Draft holds what the inputs hold: `age` is a string, validated here and converted in `toDto`.
 type ProfileForm = { readonly name: string; readonly age: string }
+const wholeNumber = /^\d+$/
 const ProfileFormSchema = Schema.Struct({
   name: Schema.String.pipe(Schema.filter((s) => s.trim() !== '' || 'Enter a name')),
-  age: Schema.String.pipe(Schema.pattern(/^\d+$/, { message: () => 'Enter a whole number' })),
+  age: Schema.String.pipe(Schema.pattern(wholeNumber, { message: () => 'Enter a whole number' })),
 })
 
 export const ProfileDraft = {
@@ -29,7 +30,8 @@ export const ProfileDraft = {
   // An Effect: the request id comes from a Service, so `Ids` is in the form action's requirements.
   toDto: (d, p) =>
     Effect.map(Ids, (ids) => ({ id: p.id, requestId: ids.next(), name: d.name.trim(), age: Number(d.age) })),
-  toModel: (d, p) => ({ ...p, name: d.name, age: Number(d.age) || p.age }),
+  // Total over a half-filled Draft: an age that is not a number yet previews the saved one.
+  toModel: (d, p) => ({ ...p, name: d.name, age: wholeNumber.test(d.age) ? Number(d.age) : p.age }),
 } satisfies DraftSpec<ProfileForm, ProfilePatch, Profile, Profile, never, Ids>
 
 export const EditProfile = function* ({ profile }: { profile: Atom.Atom<Profile> }) {

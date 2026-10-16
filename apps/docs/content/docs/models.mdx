@@ -24,9 +24,9 @@ A record has two directions that meet at the **Model**, the shape the view rende
 
 - While the Draft is pristine (equal to its seed by the schema's `Schema.equivalence`), a new source re-seeds it. After an edit, the edits are kept and `dirty` stays true. Editing back to the seed makes the Draft pristine again.
 - `reset()` re-seeds from the current source.
-- A value `src` is compared by structure (plain objects, arrays and `Equal` values), so a literal rebuilt on every run is not a change. A class instance that is not `Equal` is compared by identity: a new instance on every run re-seeds a pristine Draft on every run. Pass an atom or a stable value.
+- A value `src` and the spec are compared by structure (plain objects and arrays, with functions by identity) or by `Equal`, so a literal or `{ ...Spec }` rebuilt on every run is not a change. A class instance that is not `Equal` is compared by identity: a new instance on every run re-seeds a pristine Draft on every run. Pass an atom or a stable value.
 - A spec with no source still takes the argument: `useDraft(Spec, undefined)`.
-- Passing another spec on a later run re-seeds the Draft. A spec rebuilt with the same members is not a change.
+- Passing another spec on a later run re-seeds the Draft, including another instance of the same spec class.
 
 ## Limits
 
