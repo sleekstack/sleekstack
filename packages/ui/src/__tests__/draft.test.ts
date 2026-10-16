@@ -15,9 +15,17 @@ import {
   useOptimistic,
 } from '../index'
 import { jsx as rawJsx } from '../jsx-runtime'
+import { idle } from '../reactive'
 
 const jsx = (type: any, props: any) => rawJsx(type, props)
 const flush = () => act(async () => void (await new Promise((r) => setTimeout(r, 0))))
+// Ticks until the renderer is idle; a re-run loop never is, so it gives up after 50 ticks.
+const settle = async () => {
+  for (let i = 0; i < 50; i++) {
+    await flush()
+    if (idle()) return
+  }
+}
 
 type Profile = { readonly name: string; readonly age: number }
 type ProfileForm = { readonly name: string; readonly age: string }
@@ -73,23 +81,31 @@ const go = async (app: any) => {
   return { container, store, submit: () => act(() => container.querySelector('form')!.requestSubmit()) }
 }
 
-// An editor of `model` (passed as the atom, or as the value the run read), under a `show` switch; `drafts` has each run's Draft.
-const editor = async (via: 'atom' | 'value' = 'atom') => {
+// An editor of `model` under a `show` switch. `via`: the model atom, the value the run read, or a fresh copy of that value
+// and of the spec on every run. `async`: the run waits a task before it returns. `drafts` has each run's Draft; `tick`
+// re-runs it for nothing.
+const editor = async (via: 'atom' | 'value' | 'inline' = 'atom', async = false) => {
   const model = Atom.make<Profile>({ name: 'Ada', age: 36 })
   const spec = Atom.make(ProfileDraft)
   const show = Atom.make(true)
+  const tick = Atom.make(0)
   const drafts: Array<ProfileDraftAtoms> = []
   const Editor = function* () {
+    yield* useAtomValue(tick)
     const s = yield* useAtomValue(spec)
-    const draft = yield* useDraft(s, via === 'atom' ? model : yield* useAtomValue(model))
+    const draft =
+      via === 'inline'
+        ? yield* useDraft({ ...s }, { ...(yield* useAtomValue(model)) })
+        : yield* useDraft(s, via === 'atom' ? model : yield* useAtomValue(model))
     drafts.push(draft)
+    if (async) yield* Effect.promise(() => new Promise((r) => setTimeout(r, 0)))
     return jsx('p', { children: (yield* useAtomValue(draft.value)).name })
   }
   const App = function* () {
     return (yield* useAtomValue(show)) ? jsx(Editor, {}) : jsx('p', { children: 'gone' })
   }
   const m = await go(jsx(App, {}))
-  return { ...m, model, spec, show, drafts, draft: drafts[0]! }
+  return { ...m, model, spec, show, tick, drafts, draft: drafts[0]! }
 }
 
 describe('useDraft', () => {
@@ -106,28 +122,60 @@ describe('useDraft', () => {
     expect(store.get(draft.value)).toEqual({ name: 'Ada', age: '36' })
   })
 
-  it.each(['atom', 'value'] as const)(
-    'R4 (%s source): pristine re-seeds, edits are kept, reset re-seeds from the current source',
-    async (via) => {
-      const { store, container, model, draft } = await editor(via)
+  it.each([
+    ['atom', false],
+    ['value', false],
+    ['inline', true],
+  ] as const)(
+    'R4 (%s source, async %s): pristine re-seeds, edits are kept, reset re-seeds from the current source',
+    async (via, async) => {
+      const { store, container, model, drafts, draft } = await editor(via, async)
+      // One run follows the new source: its own write to the Draft does not re-run (interrupt) it.
       await act(() => store.set(model, { name: 'Bob', age: 40 }))
-      await flush()
+      await settle()
+      expect(drafts.length).toBe(2)
       expect(container.textContent).toBe('Bob')
       expect(store.get(draft.dirty)).toBe(false)
 
       await act(() => store.set(draft.field('age'), '41'))
       await act(() => store.set(model, { name: 'Cy', age: 50 }))
-      await flush()
+      await settle()
       expect(store.get(draft.value)).toEqual({ name: 'Bob', age: '41' })
       expect(store.get(draft.dirty)).toBe(true)
 
       await act(() => draft.reset())
-      await flush()
+      await settle()
       expect(store.get(draft.value)).toEqual({ name: 'Cy', age: '50' })
       expect(store.get(draft.dirty)).toBe(false)
       expect(container.textContent).toBe('Cy')
+      expect(drafts.every((d) => d === draft)).toBe(true)
     },
   )
+
+  it('R4: an equal source or spec on a re-run is no change; an async run with fresh copies commits once', async () => {
+    const { store, container, tick, spec, drafts, draft } = await editor('inline', true)
+    const rerun = async (n: number) => {
+      const runs = drafts.length
+      await act(() => store.set(tick, n))
+      await settle()
+      return drafts.length - runs
+    }
+    expect(await rerun(1)).toBe(1)
+    expect(container.textContent).toBe('Ada')
+
+    await act(() => store.set(draft.field('name'), 'Grace'))
+    await settle()
+    expect(await rerun(2)).toBe(1)
+    expect(store.get(draft.value)).toEqual({ name: 'Grace', age: '36' })
+    expect(store.get(draft.dirty)).toBe(true)
+
+    // A spec with other members is a swap: it re-seeds, edits and all.
+    await act(() => store.set(spec, Upper))
+    await settle()
+    expect(container.textContent).toBe('ADA')
+    expect(store.get(draft.dirty)).toBe(false)
+    expect(await rerun(3)).toBe(1)
+  })
 
   it('R2: errors by field path and valid; toDto decodes, then runs spec.toDto with its services or fails', async () => {
     const { store, draft } = await editor()
