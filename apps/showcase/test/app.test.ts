@@ -171,6 +171,7 @@ it('the shell links each demo page; a page opens in a transition, so the old pag
     ['lazy', 'lazy'],
     ['portal', 'Portal'],
     ['boundary', 'Boundary reset'],
+    ['model', 'Model and Draft'],
     ['router', 'Router'],
     ['devtools', 'Devtools'],
     ['board', 'Website relaunch'],
