@@ -32,10 +32,11 @@ const profile = Atom.make((get) => ProfileModel.fromDto(get(server), COUNTRIES))
 
 // The Draft holds what the inputs hold: `age` is a string, validated here and converted in `toDto`.
 type ProfileForm = { readonly name: string; readonly age: string }
-const wholeNumber = /^\d+$/
+// An age as typed: up to three digits and at most 150, so `Number` of it is always a safe integer.
+const isAge = (s: string) => /^\d{1,3}$/.test(s) && Number(s) <= 150
 const ProfileFormSchema = Schema.Struct({
   name: Schema.String.pipe(Schema.filter((s) => s.trim() !== '' || 'Enter a name')),
-  age: Schema.String.pipe(Schema.pattern(wholeNumber, { message: () => 'Enter a whole number' })),
+  age: Schema.String.pipe(Schema.filter((s) => isAge(s) || 'Enter an age from 0 to 150')),
 })
 
 const ProfileDraft = {
@@ -44,7 +45,7 @@ const ProfileDraft = {
   // An Effect: who saves comes from the `Viewer` Service, so the form action requires it and `sleekstack check` sees it.
   toDto: (d) => Effect.map(Viewer, ({ user }) => ({ name: d.name.trim(), age: Number(d.age), editedBy: user.name })),
   // Total over a half-filled Draft: an age that is not a number yet previews the saved one.
-  toModel: (d, p) => ({ ...p, name: d.name, age: wholeNumber.test(d.age) ? Number(d.age) : p.age }),
+  toModel: (d, p) => ({ ...p, name: d.name, age: isAge(d.age) ? Number(d.age) : p.age }),
 } satisfies DraftSpec<ProfileForm, ProfilePatch, Profile, Profile, never, Viewer>
 
 /**

@@ -40,9 +40,9 @@ const editAndSave = async (container: HTMLElement) => {
   expect(text('.record')).toContain('Ada Lovelace, 38')
   expect([input('input.name'), input('input.age')]).toEqual(['Ada King', '37']) // edited: kept
 
-  await type('input.age', 'x')
+  await type('input.age', '9'.repeat(400)) // digits only, but Number() of it is Infinity
   await type('input.name', ' ')
-  expect([text('.name-error'), text('.age-error')]).toEqual(['Enter a name', 'Enter a whole number'])
+  expect([text('.name-error'), text('.age-error')]).toEqual(['Enter a name', 'Enter an age from 0 to 150'])
   expect(text('.preview')).toBe('Preview:  , 38, United Kingdom') // an invalid age previews the saved one
   await act(async () => q<HTMLFormElement>('form.draft')!.requestSubmit())
   await flush()
