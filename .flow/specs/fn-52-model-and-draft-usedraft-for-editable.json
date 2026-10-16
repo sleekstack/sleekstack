@@ -1,0 +1,601 @@
+{
+  "branch_name": "draft-model",
+  "completion_review_status": "ship",
+  "completion_reviewed_at": "2026-10-16T12:32:35.127084Z",
+  "created_at": "2026-10-15T20:40:17.022079Z",
+  "default_impl": null,
+  "default_review": null,
+  "default_sync": null,
+  "depends_on_epics": [],
+  "id": "fn-52-model-and-draft-usedraft-for-editable",
+  "impl_review_rounds": {
+    "fn-52-model-and-draft-usedraft-for-editable.1": 0,
+    "fn-52-model-and-draft-usedraft-for-editable.2": 0,
+    "fn-52-model-and-draft-usedraft-for-editable.3": 0
+  },
+  "next_task": 1,
+  "plan_review_rounds": 0,
+  "plan_review_status": "unknown",
+  "plan_reviewed_at": null,
+  "review_attempts": [
+    {
+      "artifact_sha256": "462f8b740d4a3dfae7705a7ee453d1c531816aab9cf6845ecb90e42cb2d77983",
+      "backend": "codex",
+      "base_sha": "d1e956c841cc6c4be0f14384c012006fcd27fb41",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-cf5187a3f013d3778cb6f7cdeda3aa58",
+            "classification": "introduced",
+            "findingId": "finding-cf5187a3f013d3778cb6f7cdeda3aa58",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-92ac9ce670af17ed8cf57608159a4c76",
+            "classification": "introduced",
+            "findingId": "finding-92ac9ce670af17ed8cf57608159a4c76",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "5ee893f0b51b91b68bd36bef2a3efc186cbc2043",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1980,
+      "output_sha256": "005445ab95543cf9eda2a06e82c5dbfbe525c9435bc728d3aca86eb9a1e1214d",
+      "reservation_id": "e21ca3aadc824ee4a32941681d210c4f",
+      "round_consumed": true,
+      "scope": "impl:fn-52-model-and-draft-usedraft-for-editable.1",
+      "superseded_by": null,
+      "task": "fn-52-model-and-draft-usedraft-for-editable.1",
+      "timestamp": "2026-10-15T22:14:32.530285Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "cc3c557748d583c4d4943c0ce891268c798a38e1f4ab0195b026ddc10ae2d31a",
+      "backend": "codex",
+      "base_sha": "d1e956c841cc6c4be0f14384c012006fcd27fb41",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-cf5187a3f013d3778cb6f7cdeda3aa58",
+            "classification": "introduced",
+            "findingId": "finding-cf5187a3f013d3778cb6f7cdeda3aa58",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-92ac9ce670af17ed8cf57608159a4c76",
+            "classification": "introduced",
+            "findingId": "finding-92ac9ce670af17ed8cf57608159a4c76",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "not_fixed"
+          },
+          {
+            "chainRoot": "finding-0b380eea468e0bcc7b12c4597a02532e",
+            "classification": "introduced",
+            "findingId": "finding-0b380eea468e0bcc7b12c4597a02532e",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "1ff1dd86597003a668300237542049d8c3698e1a",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1938,
+      "output_sha256": "1e123bd1d78090c1698b26356da640088f81a966c90d259682dc91fa14ab49a7",
+      "reservation_id": "19562f54c23247a0b3c5439c9fc70af0",
+      "round_consumed": true,
+      "scope": "impl:fn-52-model-and-draft-usedraft-for-editable.1",
+      "superseded_by": null,
+      "task": "fn-52-model-and-draft-usedraft-for-editable.1",
+      "timestamp": "2026-10-15T22:51:57.587456Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "eb8fb823ed1b1378d6ad4ac4046a52445642b7c6e0b7d2346a52054a67563574",
+      "backend": "codex",
+      "base_sha": "d1e956c841cc6c4be0f14384c012006fcd27fb41",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-cf5187a3f013d3778cb6f7cdeda3aa58",
+            "classification": "introduced",
+            "findingId": "finding-cf5187a3f013d3778cb6f7cdeda3aa58",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-92ac9ce670af17ed8cf57608159a4c76",
+            "classification": "introduced",
+            "findingId": "finding-92ac9ce670af17ed8cf57608159a4c76",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "not_fixed"
+          },
+          {
+            "chainRoot": "finding-0b380eea468e0bcc7b12c4597a02532e",
+            "classification": "introduced",
+            "findingId": "finding-0b380eea468e0bcc7b12c4597a02532e",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-15feffdc3b2fa90c74183e278d2295d0",
+            "classification": "introduced",
+            "findingId": "finding-15feffdc3b2fa90c74183e278d2295d0",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "27aff6c61b2c5ef24186c15ec37a7f57782dde86",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1890,
+      "output_sha256": "56061db3f58b4de5390beee990652cfa33c7cb66a6a93941b7f04076be9f2494",
+      "reservation_id": "f241d98a110d47078ee0d128821a4289",
+      "round_consumed": true,
+      "scope": "impl:fn-52-model-and-draft-usedraft-for-editable.1",
+      "superseded_by": null,
+      "task": "fn-52-model-and-draft-usedraft-for-editable.1",
+      "timestamp": "2026-10-15T23:08:49.493797Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "adff11c9e465e08b51f6c17d74b00683e5a32c87623d9bb3cf7e26e18e5d0c32",
+      "backend": "codex",
+      "base_sha": "d1e956c841cc6c4be0f14384c012006fcd27fb41",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-80749ab2634d026e594a9917cfae787e",
+            "classification": "introduced",
+            "findingId": "finding-80749ab2634d026e594a9917cfae787e",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 1,
+      "head_sha": "08a1978a4ad51743e67baefa1d9552254304f95d",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 370777,
+      "output_sha256": "d7d9378161ca1797c2cc24902c313e1f8e56bbc478e1abdc7fda320196155cbd",
+      "reservation_id": "475e6e71706d47b2a7dfc740626fd389",
+      "round_consumed": true,
+      "scope": "impl:fn-52-model-and-draft-usedraft-for-editable.1",
+      "superseded_by": null,
+      "task": "fn-52-model-and-draft-usedraft-for-editable.1",
+      "timestamp": "2026-10-16T06:14:56.336959Z",
+      "tool_calls": 21,
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "0243d0123decb17d1373c89ed612463814fa1e5888553c839aea612f7111cb9a",
+      "backend": "codex",
+      "base_sha": "d1e956c841cc6c4be0f14384c012006fcd27fb41",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-80749ab2634d026e594a9917cfae787e",
+            "classification": "introduced",
+            "findingId": "finding-80749ab2634d026e594a9917cfae787e",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 1,
+      "head_sha": "e861f389a8d315c1aa79b2b34d5d654003e4f3c8",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1277,
+      "output_sha256": "f79cfd57091242ebe78f62575f600538fb6964cd3771e9beedb31b1ced831548",
+      "reservation_id": "1f5f242f86004d4d90f190e02b620608",
+      "round_consumed": true,
+      "scope": "impl:fn-52-model-and-draft-usedraft-for-editable.1",
+      "superseded_by": null,
+      "task": "fn-52-model-and-draft-usedraft-for-editable.1",
+      "timestamp": "2026-10-16T06:28:07.084521Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "5a95b1458f3f30e8e5434d70a3a435b656f7398c42cb2593d33e9e16376b51be",
+      "backend": "codex",
+      "base_sha": "d1e956c841cc6c4be0f14384c012006fcd27fb41",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-4a7a04aee32562d335cc81289f01aecf",
+            "classification": "introduced",
+            "findingId": "finding-4a7a04aee32562d335cc81289f01aecf",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-8b3f10ccbd7cc2f371e9bf6084816f76",
+            "classification": "introduced",
+            "findingId": "finding-8b3f10ccbd7cc2f371e9bf6084816f76",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "17126d79def717b6f5aae96ce611c4a4e29b1cd3",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1541,
+      "output_sha256": "d3206a3f209593d6ed8063da6ca715ddfdd11220033abb360ce1fc62c1c104c1",
+      "reservation_id": "53d15447f0dc42239dbe6a0355d010b3",
+      "round_consumed": true,
+      "scope": "impl:fn-52-model-and-draft-usedraft-for-editable.2",
+      "superseded_by": null,
+      "task": "fn-52-model-and-draft-usedraft-for-editable.2",
+      "timestamp": "2026-10-16T07:31:22.102551Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "aa25b56131aaf157309817587ee856087492dba965455f64f3988e6450c2ef3a",
+      "backend": "codex",
+      "base_sha": "d1e956c841cc6c4be0f14384c012006fcd27fb41",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-4a7a04aee32562d335cc81289f01aecf",
+            "classification": "introduced",
+            "findingId": "finding-4a7a04aee32562d335cc81289f01aecf",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-8b3f10ccbd7cc2f371e9bf6084816f76",
+            "classification": "introduced",
+            "findingId": "finding-8b3f10ccbd7cc2f371e9bf6084816f76",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "134be72c22b3c34b2c6d1ca658400a45647829ac",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 632,
+      "output_sha256": "173e8d823ea7811c6f8a3646d65a7793c3db1366df4d386e54ed0341cec2cf03",
+      "reservation_id": "594654dd7c0c4755af09bc39b101777f",
+      "round_consumed": true,
+      "scope": "impl:fn-52-model-and-draft-usedraft-for-editable.2",
+      "superseded_by": null,
+      "task": "fn-52-model-and-draft-usedraft-for-editable.2",
+      "timestamp": "2026-10-16T07:54:46.353029Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "1e0cdb69b6f5015ddb64430787b0ee1ec1324246d797f62bd4eeabce4cbf8848",
+      "backend": "codex",
+      "base_sha": "d1e956c841cc6c4be0f14384c012006fcd27fb41",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-25c2dd5b6075f3cff92dbc9c56d3734b",
+            "classification": "introduced",
+            "findingId": "finding-25c2dd5b6075f3cff92dbc9c56d3734b",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "67e91e382c2d1b99b3ee711218b9128b4519a266",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1255,
+      "output_sha256": "7e15d851706392c1403c1cf3f67cb29bcdd253e0cbff8f2db4abdaee33ce194e",
+      "reservation_id": "1f66cd3835d246ac93655527356dd172",
+      "round_consumed": true,
+      "scope": "impl:fn-52-model-and-draft-usedraft-for-editable.3",
+      "superseded_by": null,
+      "task": "fn-52-model-and-draft-usedraft-for-editable.3",
+      "timestamp": "2026-10-16T09:13:42.751736Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "3190b2375609831e44d51668505358e7d5313621a3c3d87560ca04b4a3acd19a",
+      "backend": "codex",
+      "base_sha": "d1e956c841cc6c4be0f14384c012006fcd27fb41",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-25c2dd5b6075f3cff92dbc9c56d3734b",
+            "classification": "introduced",
+            "findingId": "finding-25c2dd5b6075f3cff92dbc9c56d3734b",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "6b0675842a11ea93dd9ce5445adb4eb7e3e61fce",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 704,
+      "output_sha256": "c5a292d3ac8a9c20ad45d951ab5878d0e54768909c89d5fc24e38ff270da2b88",
+      "reservation_id": "31d291dc3443416c85ee76fe2c8d268c",
+      "round_consumed": true,
+      "scope": "impl:fn-52-model-and-draft-usedraft-for-editable.3",
+      "superseded_by": null,
+      "task": "fn-52-model-and-draft-usedraft-for-editable.3",
+      "timestamp": "2026-10-16T09:20:52.921789Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "c5e002a0a700b7da3c9b7b35520a3e981af20c16ea15b3e9f179753e518a7d6c",
+      "backend": "codex",
+      "base_sha": "d1e956c841cc6c4be0f14384c012006fcd27fb41",
+      "counter_kind": "plan",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-dd9abcdbb81314c9af57206387c234da",
+            "classification": "introduced",
+            "findingId": "finding-dd9abcdbb81314c9af57206387c234da",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "8c276720c6192d91a978cf7fd347fb366e1673b5",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 278892,
+      "output_sha256": "d8db564f4aa8301325334c01d212f0b4c801f429e4e38048ced779e095239e64",
+      "reservation_id": "c803a29c8d68489c9da73b264ae42a11",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-10-16T09:37:25.841194Z",
+      "tool_calls": 19,
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "1faf8a18590edabc0e0dee011efc45d2fa922a5991b38e89299becc3773c905b",
+      "backend": "codex",
+      "base_sha": "d1e956c841cc6c4be0f14384c012006fcd27fb41",
+      "counter_kind": "plan",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-dd9abcdbb81314c9af57206387c234da",
+            "classification": "introduced",
+            "findingId": "finding-dd9abcdbb81314c9af57206387c234da",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "04e8e5e099458b358be50cda693e563972a27e67",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 3685,
+      "output_sha256": "4466ee92a8453b7206e7bdd6de3ae1ce49aa5065b92e77e17fc2c967a500720a",
+      "reservation_id": "52c002d0eb04463fa53409662dd4ca69",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-10-16T12:32:35.123194Z",
+      "verdict": "SHIP"
+    }
+  ],
+  "review_hash_epoch": {
+    "impl:fn-52-model-and-draft-usedraft-for-editable.1": 2,
+    "impl:fn-52-model-and-draft-usedraft-for-editable.2": 1,
+    "impl:fn-52-model-and-draft-usedraft-for-editable.3": 1,
+    "plan#completion": 1
+  },
+  "review_pending_rounds": {},
+  "review_reservations": {},
+  "review_transport_failures": {
+    "completion": 0,
+    "impl:fn-52-model-and-draft-usedraft-for-editable.1": 0,
+    "impl:fn-52-model-and-draft-usedraft-for-editable.2": 0,
+    "impl:fn-52-model-and-draft-usedraft-for-editable.3": 0
+  },
+  "spec_path": ".flow/specs/fn-52-model-and-draft-usedraft-for-editable.md",
+  "status": "open",
+  "title": "Model and Draft: useDraft for editable copies of atoms",
+  "tracker": {
+    "baseHashFlow": null,
+    "baseHashTracker": null,
+    "depRelations": [],
+    "id": null,
+    "identifier": null,
+    "lastSyncedAt": null,
+    "mergeBaseFlow": null,
+    "mergeBaseTracker": null,
+    "url": null
+  },
+  "updated_at": "2026-10-16T12:32:35.127684Z"
+}

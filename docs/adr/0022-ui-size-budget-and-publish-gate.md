@@ -19,12 +19,12 @@ Entries in `apps/showcase/src`:
 
 | Entry | Minified | Gzip | Limit (gzip) |
 |-------|----------|------|--------------|
-| `mount` hello-world | 761,635 B | 198,545 B | 203,000 B |
-| Hydrating app | 849,440 B | 220,104 B | 225,000 B |
+| `mount` hello-world | 761,701 B | 198,571 B | 203,000 B |
+| Hydrating app | 849,511 B | 220,129 B | 225,000 B |
 | Resume | 307,040 B | 79,447 B (lazy handlers 229 B) | 83,000 B |
-| `lazy` mount | 768,636 B | 201,019 B (lazy chunk 281 B) | 209,000 B |
+| `lazy` mount | 768,734 B | 201,093 B (lazy chunk 279 B) | 209,000 B |
 
-Remeasured with the fn-45 render observer (no observer attached), all within the limits. Source and dist builds differ by at most 3 bytes, so the tsc build costs nothing. Limits are the measurement plus about 5%; the test fails above them. A change that raises a number on purpose updates the limit and this table together.
+Remeasured after fn-52 (`useDraft`, ADR 0038), with the fn-45 render observer unattached, all within the limits. Source and dist builds differ by at most 3 bytes, so the tsc build costs nothing. Limits are the measurement plus about 5%; the test fails above them. A change that raises a number on purpose updates the limit and this table together.
 
 `mount` and `hydrateMount` include React and React DOM: `dom.ts` imports `react-dom/client` statically for guests, so an app without guests still ships them. The rest is mostly Effect. `resume` has no React path. Tree-shaking is verified: the mount-only bundle contains neither the resume runtime (`ManifestDecodeFailed`) nor the query bridge (`QueryFailed`). Code splitting is verified: the `lazy` entry's imported module is in its own chunk, not the eager bundle.
 

@@ -7,6 +7,7 @@ import { BoundaryDemo } from './boundary'
 import { DevtoolsDemo } from './devtools'
 import { TypedDomDemo } from './dom'
 import { LazyDemo } from './lazy'
+import { ModelDraftDemo } from './model'
 import { PortalDemo } from './portal'
 import { ProjectPage } from './project'
 import { RouterDemo } from './router'
@@ -19,6 +20,7 @@ const PAGES = [
   ['transitions', 'Transitions'],
   ['portal', 'Portal'],
   ['boundary', 'Boundary reset'],
+  ['model', 'Model and Draft'],
   ['router', 'Router'],
   ['devtools', 'Devtools'],
 ] as const
@@ -62,6 +64,7 @@ export const PageOutlet = function* () {
   if (page === 'transitions') return <TransitionsDemo />
   if (page === 'portal') return <PortalDemo />
   if (page === 'boundary') return <BoundaryDemo />
+  if (page === 'model') return <ModelDraftDemo />
   if (page === 'router') return <RouterDemo />
   if (page === 'devtools') return <DevtoolsDemo />
   return (

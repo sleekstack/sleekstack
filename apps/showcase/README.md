@@ -23,6 +23,7 @@ Each page is a link in the shell (`src/pages/shell.tsx`). Each page's tests also
 | Transitions | `src/pages/transitions.tsx` | Tabs opened with or without `startTransition`; a filter whose matches follow `useDeferredAtom` | `test/transitions.test.ts` |
 | Portal | `src/pages/portal.tsx` | A dialog rendered into `document.body` that still reads the `Viewer` its position provides | `test/portal.test.ts` |
 | Boundary reset | `src/pages/boundary.tsx` | A failed read shows the fallback; its `reset` re-runs only the boundary's children | `test/boundary.test.ts` |
+| Model and Draft | `src/pages/model.tsx` | A Model built with `fromDto(dto, ctx)` and an edit Draft from `useDraft`: per-field errors, `dirty`, `reset` and a live `preview`. "Someone else saves it" changes the source: a pristine Draft re-seeds, an edited one keeps its edits. Save is a Form Action that yields `draft.toDto()` (which reads the `Viewer`), with its `Result` and `useFormStatus` | `test/model.test.ts` |
 | Router | `src/pages/router.tsx` | A `@sleekstack/router` app that `startRouter` runs in the page: a `const` route table, a loader with a schema that the router runs before the page shows (under `Pending`), and `Link`s that prefetch it on hover or focus. Its links change the address bar | `test/router.test.ts` (also `handle` on the server) |
 | Devtools | `src/pages/devtools.tsx`, `src/devtools.tsx` | Links the ui devtools panel, which `src/main.tsx` loads in development only | `test/devtools.test.ts` |
 
@@ -30,7 +31,7 @@ The resumable counter (`src/resume/`) has no shell page: `test/resume.test.ts` s
 
 ## Component tests
 
-`test/router.test.ts`, `test/portal.test.ts`, `test/boundary.test.ts` and `test/devtools.test.ts` use [`@sleekstack/testing`](../../packages/testing/README.md): `render` mounts or hydrates a page, `flush` waits until the renderer is idle, and in `test/router.test.ts` `mockLayer` replaces the identity module's `UserRepo`.
+`test/router.test.ts`, `test/portal.test.ts`, `test/boundary.test.ts`, `test/model.test.ts` and `test/devtools.test.ts` use [`@sleekstack/testing`](../../packages/testing/README.md): `render` mounts or hydrates a page, `flush` waits until the renderer is idle, and in `test/router.test.ts` `mockLayer` replaces the identity module's `UserRepo`.
 
 ## Other checks
 
