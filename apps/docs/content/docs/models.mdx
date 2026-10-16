@@ -30,7 +30,7 @@ A record has two directions that meet at the **Model**, the shape the view rende
 
 ## Limits
 
-- `field(name)` takes a record Draft's data keys or an array Draft's indexes, and returns the same atom for a name on every call. A primitive Draft, such as a string, has no fields: write `value`. A field write copies the Draft (an array stays an array, a class instance keeps its prototype) and sets an own data property, so writing a getter-only property shadows the getter.
+- `field(name)` takes a plain record Draft's keys or an array Draft's indexes, and returns the same atom for a name on every call. A field write copies the Draft, so a getter of the record is copied as its current value. A primitive Draft, such as a string, has no fields: write `value`. Neither has a class instance (a `Date`, a `Map`, a `Schema.Class`): a copy would lose its private fields and internal slots, so write the whole instance through `value`. `field` throws a `TypeError` on one, and its type takes no key when the class has methods or private members.
 - `preview` is in the type only when the spec has `toModel`, and `changes` only when it has `diff`. For a union of specs, a member is in the type only when every spec has the method.
 - `useDraft` takes a slot like `useLocal`: call it at the top of the component (`ConditionalSlot`). The Draft and its atoms are released with the instance. Outside a component it returns a new Draft without a slot, whose atoms live while something reads them.
 

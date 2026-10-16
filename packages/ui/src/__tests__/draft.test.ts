@@ -279,14 +279,18 @@ describe('useDraft', () => {
     expect([store.get(draft.preview), store.get(draft.changes)]).toEqual([undefined, undefined])
   })
 
-  it("R2: a field write keeps the Draft's kind: an array stays an array, an instance keeps its class", () => {
+  it('R2: field() edits a plain record or an array; a class instance throws and is written whole through value', () => {
     class Point {
+      readonly #label: string
       constructor(
         readonly x: number,
         readonly y: number,
-      ) {}
-      norm() {
-        return Math.hypot(this.x, this.y)
+        label: string,
+      ) {
+        this.#label = label
+      }
+      describe() {
+        return `${this.#label} ${Math.hypot(this.x, this.y)}`
       }
     }
     const Tags = {
@@ -296,18 +300,26 @@ describe('useDraft', () => {
     } satisfies DraftSpec<ReadonlyArray<string>, ReadonlyArray<string>, ReadonlyArray<string>>
     const At = {
       schema: () => Schema.instanceOf(Point),
-      create: () => new Point(3, 0),
+      create: () => new Point(3, 0, 'p'),
       toDto: (p: Point) => Effect.succeed(p),
     } satisfies DraftSpec<Point, Point>
     const store = makeAtomStore()
     const run = <A>(e: Effect.Effect<A, never, Store>) => Effect.runSync(Effect.provideService(e, Store, store))
     const tags = run(useDraft(Tags, ['a', 'b']))
-    const at = run(useDraft(At, undefined))
     store.set(tags.field(0), 'x')
-    store.set(at.field('y'), 4)
     expect(store.get(tags.value)).toEqual(['x', 'b'])
-    expect(store.get(at.value)).toBeInstanceOf(Point)
-    expect(store.get(at.value).norm()).toBe(5)
+
+    const at = run(useDraft(At, undefined))
+    const field = at.field as (name: string) => Atom.Writable<unknown>
+    expect(() => field('y')).toThrow(TypeError)
+    store.set(at.value, new Point(3, 4, 'p'))
+    expect(store.get(at.value).describe()).toBe('p 5')
+
+    // A field atom taken while the Draft was a record throws on a write once it holds an instance.
+    const profile = run(useDraft(ProfileDraft, { name: 'Ada', age: 36 }))
+    const name = profile.field('name')
+    store.set(profile.value, Object.assign(new Point(0, 0, 'p'), { name: 'Ada', age: '36' }))
+    expect(() => store.set(name, 'Grace')).toThrow(TypeError)
   })
 })
 

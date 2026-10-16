@@ -50,6 +50,31 @@ const When = {
   create: () => new Date(0),
   toDto: Effect.succeed,
 } satisfies DraftSpec<Date, Date>
+class Point {
+  constructor(
+    readonly x: number,
+    readonly y: number,
+  ) {}
+  norm() {
+    return Math.hypot(this.x, this.y)
+  }
+}
+class Secret {
+  #seen = 0
+  constructor(readonly name: string) {}
+}
+const specOf = <D>(create: () => D) => ({
+  schema: () => Schema.Any as Schema.Schema<D>,
+  create,
+  toDto: Effect.succeed,
+})
+interface Named {
+  readonly name: string
+}
+const Plain = specOf((): Named => ({ name: '' }))
+const Pointed = specOf(() => new Point(0, 0))
+const Secretive = specOf(() => new Secret(''))
+const Mapped = specOf(() => new Map<string, string>())
 
 declare const model: Atom.Atom<Model>
 declare const either: typeof Edit | Omit<typeof Edit, 'toModel'>
@@ -67,6 +92,18 @@ export function* typed() {
   const when = yield* useDraft(When, undefined)
   // @ts-expect-error a Date's methods are not fields
   when.field('getTime')
+  const point = yield* useDraft(Pointed, undefined)
+  // @ts-expect-error a class with methods is an instance, so its data keys are not fields either
+  point.field('x')
+  const secret = yield* useDraft(Secretive, undefined)
+  // @ts-expect-error ... nor those of a class with private members
+  secret.field('name')
+  const map = yield* useDraft(Mapped, undefined)
+  // @ts-expect-error ... nor a Map's
+  map.field('size')
+  // A record typed by an interface is plain
+  const plain = yield* useDraft(Plain, undefined)
+  expectTypeOf(plain.field('name')).toEqualTypeOf<Atom.Writable<string>>()
   // R2, R5: no `preview` / `changes` without `toModel` / `diff`
   expectTypeOf(blank).not.toHaveProperty('preview')
   expectTypeOf(blank).not.toHaveProperty('changes')

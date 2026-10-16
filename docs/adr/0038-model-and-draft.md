@@ -26,7 +26,7 @@ Wire(read) --fromDto(dto, ctx)--> Model --create--> Draft --toDto (Effect)--> Wi
 
 ## Consequences
 
-- `field(name)` takes a record Draft's data keys (not its methods) or an array Draft's indexes. A primitive Draft has none, so it is written through `value`. A field write copies the Draft (an array stays an array, a class instance keeps its prototype) and sets an own data property, so writing a getter-only property shadows the getter.
+- `field(name)` is for a plain record Draft (its keys) or an array Draft (its indexes). A field write copies the Draft and sets an own data property, and only a plain record (prototype `Object.prototype` or `null`) or an array copies whole; a getter of the record is copied as its current value. A class instance (a `Date`, a `Map`, a `Schema.Class`) holds state a copy cannot reach (private fields, internal slots), and its methods can throw on the copy. So a class-instance Draft is written whole through `value`: `field` throws a `TypeError` on one, and its type takes no key where TypeScript can tell an instance (it has methods or private members). A primitive Draft has no fields either.
 - A class instance that is not `Equal`, as a source or a spec, is compared by identity, since its settings may live where they cannot be compared (private fields, closures). A new instance passed on every run re-seeds a pristine Draft on every run, so pass an atom or a stable value.
 - A spec with no source still takes the argument: `useDraft(Spec, undefined)`, as with ramcinpay's `useDraftForm`.
 - `preview` and `changes` always exist at runtime and read `undefined` while the current spec lacks `toModel` or `diff`. In the type, each appears only when every member of the spec type has the method.
@@ -38,4 +38,5 @@ Wire(read) --fromDto(dto, ctx)--> Model --create--> Draft --toDto (Effect)--> Wi
 - **A coercing schema for the Draft (`NumberFromString`):** the field would no longer hold what its input holds. It is a type error.
 - **A plain `toDto` function:** the ambients it reads would be hidden from `R` and from the Analyzer.
 - **A form-library binding (`useDraftForm` over react-hook-form):** ui forms are Form Actions and atoms.
+- **A field write that copies a class instance by its prototype and own properties:** the copy lost private fields and internal slots, so a method could throw after a valid edit.
 - **Exported `fromDto`/`toDto` helpers, HTTP or query-cache code, a filters contract, coercion helpers, `<input bind>` JSX sugar, relationships, and a record store as in EmberData:** out of scope. The specs are user code.

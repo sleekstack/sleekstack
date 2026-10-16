@@ -830,7 +830,10 @@ export const useOptimistic = <A, C>(
 export type Draft<D, Dto, P = never, E = never, R = never, Diff extends boolean = false> = {
   /** The whole Draft; writing it changes only the Draft. */
   readonly value: Atom.Writable<D>
-  /** One field of a record Draft (an index of an array Draft): the same atom for a name on every call. */
+  /**
+   * One field of a plain record Draft (an index of an array Draft): the same atom for a name on every call. A class
+   * instance (a `Date`, a `Map`) has none: write it whole through `value`. `field` throws a `TypeError` on one.
+   */
   readonly field: <K extends FieldKey<D>>(name: K) => Atom.Writable<D[K & keyof D]>
   /** Validation messages of `spec.schema(src)` by field path (`'email'`, `'items.0.name'`; `''` for the whole Draft). */
   readonly errors: Atom.Atom<{ readonly [path: string]: ReadonlyArray<string> }>
@@ -845,12 +848,19 @@ export type Draft<D, Dto, P = never, E = never, R = never, Diff extends boolean 
 } & ([P] extends [never] ? unknown : { readonly preview: Atom.Atom<P> }) &
   (Diff extends true ? { readonly changes: Atom.Atom<Partial<Dto>> } : unknown)
 
-/** What `field` takes: an array Draft's indexes, a record Draft's data keys; nothing for a primitive (write `value`). */
+/**
+ * What `field` takes: an array Draft's indexes, a plain record Draft's keys. Nothing for a primitive or a class instance
+ * (write `value`): the types tell an instance by its methods or private members, the runtime by its prototype.
+ */
 type FieldKey<D> =
   D extends ReadonlyArray<unknown>
     ? number
     : D extends object
-      ? { [K in keyof D]-?: D[K] extends Function ? never : K }[keyof D]
+      ? [{ [K in keyof D]-?: D[K] extends Function ? K : never }[keyof D]] extends [never]
+        ? { [K in keyof D]: D[K] } extends D
+          ? keyof D
+          : never
+        : never
       : never
 type AnyDraftSpec = DraftSpec<any, any, any, any, any, any>
 type SpecDraft<S> = S extends { schema(...args: any): Schema.Schema<infer D, any, any> } ? D : never
@@ -899,6 +909,14 @@ const seeded = (spec: AnyDraftSpec, src: unknown): DraftState => {
   return { basis: { spec, src, seed }, draft: seed }
 }
 const NO_ERRORS: { readonly [path: string]: ReadonlyArray<string> } = {}
+// A field write copies the Draft, and only a plain record or an array copies whole: a class instance (a `Date`, a `Map`)
+// holds state a copy cannot reach (private fields, internal slots), so it is written whole through `value`.
+const copyable = (d: unknown): Record<PropertyKey, unknown> => {
+  const proto = typeof d === 'object' && d !== null ? Object.getPrototypeOf(d) : undefined
+  if (proto === null || proto === Object.prototype || proto === Array.prototype)
+    return d as Record<PropertyKey, unknown>
+  throw new TypeError('Draft.field() needs a plain record or array Draft: write a class instance through `value`')
+}
 
 const makeDraft = (spec: AnyDraftSpec, src: unknown, s: AtomStore): DraftBox => {
   const input = Atom.make<{ readonly spec: AnyDraftSpec; readonly src: unknown }>({ spec, src })
@@ -926,6 +944,7 @@ const makeDraft = (spec: AnyDraftSpec, src: unknown, s: AtomStore): DraftBox => 
   )
   const fields = new Map<PropertyKey, Atom.Writable<unknown>>()
   const field = (name: PropertyKey): Atom.Writable<unknown> => {
+    copyable(s.get(value))
     let atom = fields.get(name)
     if (!atom)
       fields.set(
@@ -933,9 +952,9 @@ const makeDraft = (spec: AnyDraftSpec, src: unknown, s: AtomStore): DraftBox => 
         (atom = Atom.writable<unknown>(
           (get) => (get(value) as Record<PropertyKey, unknown>)[name],
           (cx, v) => {
-            const d = cx.get(value) as Record<PropertyKey, unknown>
+            const d = copyable(cx.get(value))
             if (Object.is(d[name], v)) return
-            // A copy of the same kind: an array stays an array, an instance keeps its prototype.
+            // A copy of the same kind: an array stays an array, a record keeps its prototype (`null` or `Object`).
             const next = Array.isArray(d) ? [...d] : Object.assign(Object.create(Object.getPrototypeOf(d)), d)
             Object.defineProperty(next, name, { value: v, writable: true, enumerable: true, configurable: true })
             cx.set(value, next)
@@ -994,8 +1013,10 @@ export const ownWrite: { slots: Slots | undefined } = { slots: undefined }
 /**
  * `useDraft(spec, src)`: a Draft of the Model `src` (a value, or an atom of it) as `spec` describes it (`DraftSpec`, from
  * `@sleekstack/core`). It starts as `spec.create(src)`; edits through `value` or `field(name)` change only the Draft.
- * When the source changes (the atom, or a different `src` on a later run) while the Draft is pristine, it re-seeds from
- * it; after an edit the edits are kept. A value `src` and the `spec` are compared by structure (plain objects and arrays,
+ * `field(name)` is for a plain record or an array Draft: a class instance (a `Date`, a `Map`) is written whole through
+ * `value`, and `field` throws a `TypeError` on one, as a field write's copy would lose its private state. When the
+ * source changes (the atom, or a different `src` on a later run) while the Draft is pristine, it re-seeds from it; after
+ * an edit the edits are kept. A value `src` and the `spec` are compared by structure (plain objects and arrays,
  * functions by identity) or `Equal`, so a literal or `{ ...Spec }` rebuilt by every run is no change; a class instance
  * that is not `Equal` is compared by identity. `reset()` re-seeds from the current source. `errors`, `valid`, `dirty`, `preview`
  * and `changes` are atoms computed only when read. `toDto()` validates with the schema and runs `spec.toDto`: yield it
