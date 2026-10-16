@@ -12,5 +12,7 @@ fn-43 to fn-52 landed typed DOM, `lazy`, forms, transitions, Portal and Boundary
 - **R6:** No generated API doc is hand-edited (`generate:api` output only); docs tests and typecheck pass; the showcase page links the new guides.
 - **R7:** No error surface beyond docs build and test failures; no package behaviour changes.
 
+- **R8:** `apps/docs/content/docs/models.mdx` becomes the full Model/Draft guide (ported in spirit from ramcinpay-front's `docs/agents/models-fromdto-todto.md`, tailored to SleekStack): the one idea (read and write shapes are not inverses; the two directions meet at the Model; diagram), the read side (`ModelSpec`, `fromDto` purity, `Ctx` as resolved data and how a derived atom or `useDerivedAtom` binds it), the write side (`DraftSpec`: `schema`, `create`, an Effect `toDto` with E/R, `toModel`, `diff`; strings in, convert in `toDto`), `useDraft` in depth (atoms, `errors`, `dirty` by schema equivalence, pristine re-seed, spec swap, the `field()` plain-record/array boundary, class drafts through `value`, fresh-instance limit), who calls `toDto` (Form Action to `useAction` `Result`, `useFormStatus`, `toModel` as `useOptimistic`'s `apply`), required tests (spec-only tests with no UI; hook tests with `@sleekstack/testing`), a checklist for a new Model + Draft, common mistakes, and what is not covered (filters, relationships, store). Every code sample is a typechecked snippet; each rule links its ADR 0038 section; CONTEXT.md terms are used exactly.
+
 ## Boundaries
 - Docs, READMEs and snippets only; no package code changes.
