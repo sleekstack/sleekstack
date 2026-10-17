@@ -32,9 +32,27 @@ Rewrite the ui devtools (`uiTrace`, `UiPanel`) as `@sleekstack/ui` components so
 - [ ] `pnpm turbo run test typecheck --filter=@sleekstack/devtools... --filter=showcase` is green
 
 ## Done summary
-TBD
+`UiPanel` is now a `@sleekstack/ui` generator component (a `useLocal` tick plus a `useEffect` interval replace `useState`/`useEffect`; the instance tree is a recursive `Tree` component), and `packages/devtools/src/ui/` imports no `react` or `@sleekstack/react`. `uiTrace()` and every exported name and prop are unchanged. The panel tests run on `@sleekstack/testing` (`render`, `flush`) with every original assertion kept, plus one new test that pins the poll (confirmed red with polling broken). The showcase opener and the docs snippet now mount the panel with ui `mount`, and the dev-only dynamic import stays.
 
+Edits outside the declared Touches, all needed to keep showcase green or found by review:
+- `apps/showcase/src/devtools.tsx`: the opener used a React root; it now uses ui `mount`.
+- `apps/showcase/test/architecture.test.ts`: the devtools file may now import `@sleekstack/ui` and `effect` instead of `react-dom/client`.
+- `apps/showcase/test/fixtures.test.ts`: the analyzer now sees the panel mount as a fifth tree (4 -> 5, still error-free).
+- `packages/devtools/README.md` and `apps/docs/content/docs/ui-devtools.mdx`: no longer call `UiPanel` a React component (review finding).
+- `pnpm-lock.yaml`: `@sleekstack/testing` devDependency, no sleek-codes entries.
+
+Notes for later tasks:
+- `src/index.tsx` still imports React for `SleekStackDevtools`, which task .3 converts. The package keeps its React dev and peer deps until then.
+- Follow-up: the analyzer (`packages/analyze/src/components.ts`) overflows the stack on a self-recursive plain mapper function such as `.map(tree)` inside `tree`. Recursive components are guarded, so `UiPanel` uses one.
+- A gate run flaked once on the untouched React `devtools.test.tsx` "Queries tab" test. It passed 3 times standalone and on the full gate re-run.
+
+Tier: opus at medium
+
+Tests: `pnpm turbo run test typecheck --filter=@sleekstack/devtools... --filter=showcase` (green), `pnpm turbo run typecheck --filter=docs` (green).
+baseline: green (`pnpm turbo run test typecheck --filter=@sleekstack/devtools... --filter=showcase`, pre-edit)
+
+stage: impl-review - ran (codex fan-out --base master: correctness NEEDS_WORK, contracts NEEDS_WORK, integration SHIP -> 2 fixes -> re-review SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: afec0154f34690f4427a33740060c654118ea182, dc78f540722e5d36a9789315373e3ed0ed2ae212, 713701233c151d4c7323a45d61f9a2d034c453a9
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/devtools... --filter=showcase, pnpm turbo run typecheck --filter=docs
 - PRs:
