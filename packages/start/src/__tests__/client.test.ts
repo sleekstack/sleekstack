@@ -110,7 +110,6 @@ describe('client stub', () => {
 })
 
 describe('the stub where actions go', () => {
-  const decodeForm = (e: ActionEvent) => Schema.decodeUnknown(addItem.input)(Object.fromEntries(e.formData))
   const form = (formAction: unknown, title: string, children: unknown = []) =>
     jsx('form', { action: formAction, children: [jsx('input', { name: 'title', value: title }), children] })
   const container = () => document.body.firstElementChild!
@@ -123,22 +122,27 @@ describe('the stub where actions go', () => {
     await flush()
   }
 
-  it('as a form action with Schema-decoded FormData', async () => {
+  it('as a form action, its FormData decoded with the input Schema', async () => {
     stubFetch()
-    await host(
-      form(function* (e: ActionEvent) {
-        yield* add(yield* decodeForm(e))
-      }, 'milk'),
-    )
+    await host(form(add, 'milk'))
     await submit()
     expect(items).toEqual(['milk'])
+  })
+
+  it('FormData failing the input Schema is a DecodeError before any request', async () => {
+    stubFetch()
+    const formData = new FormData()
+    formData.set('title', '')
+    const result = await run(add({ formData } as ActionEvent))
+    expect(Either.isLeft(result) && result.left).toBeInstanceOf(DecodeError)
+    expect(serve).not.toHaveBeenCalled()
   })
 
   it('through useAction, its result in the Result atom', async () => {
     stubFetch()
     await host(
       jsx(function* () {
-        const [result, bound] = yield* useAction((e: ActionEvent) => Effect.flatMap(decodeForm(e), add))
+        const [result, bound] = yield* useAction(add)
         const r = yield* useAtomValue(result)
         return form(bound, 'eggs', jsx('output', { children: r._tag === 'Success' ? String(r.value.count) : r._tag }))
       }, {}),
@@ -153,11 +157,7 @@ describe('the stub where actions go', () => {
       table: routes({ form: '/form', done: '/done' }),
       pages: {
         form: {
-          render: () =>
-            form(
-              action((e: ActionEvent) => Effect.flatMap(decodeForm(e), add)),
-              'redirect',
-            ),
+          render: () => form(action(add), 'redirect'),
         },
         done: { render: () => Effect.succeed(el('p', {}, 'done')) },
       },

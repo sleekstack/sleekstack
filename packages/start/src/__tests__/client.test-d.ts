@@ -1,4 +1,5 @@
-import type { NotFound, Redirect } from '@sleekstack/router'
+import { action, type NotFound, type Redirect } from '@sleekstack/router'
+import { type FormAction, useAction } from '@sleekstack/ui'
 import { Context, type Effect, Schema } from 'effect'
 import { client, type DecodeError, type NetworkError } from '../client'
 import { serverFn } from '../index'
@@ -31,7 +32,8 @@ type Expected = Effect.Effect<
 >
 same<ReturnType<ReturnType<typeof client<typeof addItem>>>, Expected>(true)
 same<ReturnType<ReturnType<typeof client<typeof addItemFn>>>, Expected>(true)
-same<Parameters<ReturnType<typeof client<typeof addItemFn>>>[0], { readonly title: string; readonly at: Date }>(true)
+// The input is the server declaration's decoded Type (the wrong-input cases are below).
+const fromServer: (input: { readonly title: string; readonly at: Date }) => Expected = client(addItemFn)
 
 // No declared error: only the wire's own failures.
 same<
@@ -46,3 +48,8 @@ add({ title: 'milk', at: new Date() })
 add({ title: 'milk', at: '2026-10-17' })
 // @ts-expect-error a missing field
 add({ title: 'milk' })
+
+// A form action as it stands: its FormData is decoded with the input Schema.
+const asForm: FormAction = add
+action(add)
+useAction(add)

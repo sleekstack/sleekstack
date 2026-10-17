@@ -1,4 +1,5 @@
 import type { NotFound, Redirect } from '@sleekstack/router'
+import type { ActionEvent } from '@sleekstack/ui'
 import { Data, Effect, ParseResult, Schema } from 'effect'
 import type { ErrorOf, ServerFn } from './serverFn'
 import { DecodeError, decodeResult, prefix } from './wire'
@@ -25,13 +26,22 @@ export class NetworkError extends Data.TaggedError('NetworkError')<{
   readonly cause?: unknown
 }> {}
 
-/** A client stub: calling it posts the input and reads the result back as an Effect. */
-export type Stub<C extends Contract> = (
-  input: Schema.Schema.Type<C['input']>,
-) => Effect.Effect<
+type Call<C extends Contract> = Effect.Effect<
   Schema.Schema.Type<C['success']>,
   ErrorOf<C['error']> | NetworkError | DecodeError | Redirect | NotFound
 >
+
+/**
+ * A client stub: calling it posts the input and reads the result back as an Effect. Given a form's `ActionEvent`
+ * instead, it decodes the input from `formData` with the input Schema, so it is a form `action` as it stands.
+ */
+export interface Stub<C extends Contract> {
+  (input: Schema.Schema.Type<C['input']>): Call<C>
+  (event: ActionEvent): Call<C>
+}
+
+const isActionEvent = (arg: unknown): arg is ActionEvent =>
+  typeof FormData !== 'undefined' && (arg as Partial<ActionEvent> | null)?.formData instanceof FormData
 
 const issues = (error: ParseResult.ParseError) =>
   ParseResult.ArrayFormatter.formatErrorSync(error).map((i) => ({
@@ -48,18 +58,19 @@ const issues = (error: ParseResult.ParseError) =>
  * @example
  * ```ts
  * const rename = client(contracts.rename)
- * const action = function* (e: ActionEvent) {
- *   return yield* rename(yield* Schema.decodeUnknown(contracts.rename.input)(Object.fromEntries(e.formData)))
- * }
+ * yield* rename({ name: 'Ada' })
+ * <form action={rename}>...</form>
  * ```
  */
-export const client =
-  <C extends Contract>(contract: C): Stub<C> =>
-  (input) =>
+export const client = <C extends Contract>(contract: C): Stub<C> =>
+  ((arg: unknown) =>
     Effect.gen(function* () {
-      const encoded = yield* Schema.encode(contract.input)(input).pipe(
-        Effect.mapError((e) => new DecodeError({ issues: issues(e) })),
-      )
+      const asDecodeError = (e: ParseResult.ParseError) => new DecodeError({ issues: issues(e) })
+      // ponytail: a repeated form field keeps its last value; decode `getAll` per field if a contract needs arrays.
+      const input = isActionEvent(arg)
+        ? yield* Effect.mapError(Schema.decodeUnknown(contract.input)(Object.fromEntries(arg.formData)), asDecodeError)
+        : arg
+      const encoded = yield* Effect.mapError(Schema.encode(contract.input)(input), asDecodeError)
       const response = yield* Effect.tryPromise({
         try: async (signal) => {
           const res = await fetch(prefix + contract.id, {
@@ -82,4 +93,4 @@ export const client =
           : new NetworkError({ status: response.status })
       }
       return yield* decodeResult(contract as unknown as ServerFn<string, C['input'], C['success'], C['error']>, body)
-    })
+    })) as Stub<C>
