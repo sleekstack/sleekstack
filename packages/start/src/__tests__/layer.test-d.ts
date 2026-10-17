@@ -1,7 +1,7 @@
 import { params, router, routes, type Router } from '@sleekstack/router'
 import { el } from '@sleekstack/ui'
-import { Context, Effect, Layer } from 'effect'
-import { Cookies, Request, ResponseHeaders, start } from '../index'
+import { Context, Effect, Layer, Schema } from 'effect'
+import { Cookies, Request, ResponseHeaders, serverFn, start } from '../index'
 
 class Db extends Context.Tag('Db')<Db, { readonly name: string }>() {}
 class Clock extends Context.Tag('Clock')<Clock, { readonly now: number }>() {}
@@ -40,6 +40,22 @@ start({ router: plain, layer: dbLayer, middleware: [() => Effect.as(Db, undefine
 start({ router: plain, handlers: { '/api': { GET: needsDb } } })
 // @ts-expect-error a middleware needs Db
 start({ router: plain, layer: clockLayer, middleware: [() => Effect.as(Db, undefined)] })
+
+const dbFn = serverFn('db', { input: Schema.Void, success: Schema.String })(function* () {
+  return (yield* Db).name
+})
+start({ router: plain, layer: dbLayer, functions: [dbFn] })
+// @ts-expect-error a server function needs Db
+start({ router: plain, functions: [dbFn] })
+
+class Declared extends Schema.TaggedError<Declared>()('Declared', {}) {}
+serverFn('declared', { input: Schema.Void, success: Schema.Void, error: Declared })(function* () {
+  yield* new Declared()
+})
+// @ts-expect-error a body may fail only with its declared error or the router's control flow
+serverFn('undeclared', { input: Schema.Void, success: Schema.Void })(function* () {
+  yield* Effect.fail('boom')
+})
 
 // A router annotated without R is not tracked, so the layer is optional.
 declare const untyped: Router
