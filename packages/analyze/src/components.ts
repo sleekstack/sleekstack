@@ -37,6 +37,14 @@ export function analyzeComponents(opts: { readonly project: string }): Component
     throw new Unreadable(n, message, 'Unresolved')
   }
   const calleeOf = (c: ts.CallExpression) => libId(checker.getSymbolAtLocation(c.expression), checker)
+  /** `model/<file>#<name>` for a callee declared in `@sleekstack/model` (its slot hooks live outside `ui`), else undefined. */
+  const modelCalleeOf = (c: ts.CallExpression) => {
+    let sym = checker.getSymbolAtLocation(c.expression)
+    if (sym && sym.flags & ts.SymbolFlags.Alias) sym = checker.getAliasedSymbol(sym)
+    const file = sym?.declarations?.[0]?.getSourceFile().fileName.replace(/\\/g, '/')
+    const m = file && /\/(?:packages|@sleekstack)\/model\/(?:src|dist)\/(.+?)(?:\.d)?\.tsx?$/.exec(file)
+    return m ? `model/${m[1]}#${sym!.name}` : undefined
+  }
   const aliased = (sym: ts.Symbol | undefined): ts.Declaration | undefined => {
     if (sym && sym.flags & ts.SymbolFlags.Alias) sym = checker.getAliasedSymbol(sym)
     return sym?.valueDeclaration ?? sym?.declarations?.[0]
@@ -796,7 +804,7 @@ export function analyzeComponents(opts: { readonly project: string }): Component
     if (ts.isCallExpression(n) && calleeOf(n) === 'ui/reactive#useAction') checkSlot(n, 'useAction')
     if (ts.isCallExpression(n) && calleeOf(n) === 'ui/reactive#useOptimistic') checkSlot(n, 'useOptimistic')
     if (ts.isCallExpression(n) && calleeOf(n) === 'ui/reactive#useDeferredAtom') checkSlot(n, 'useDeferredAtom')
-    if (ts.isCallExpression(n) && calleeOf(n) === 'ui/reactive#useDraft') checkSlot(n, 'useDraft')
+    if (ts.isCallExpression(n) && modelCalleeOf(n) === 'model/draft#useDraft') checkSlot(n, 'useDraft')
     if (ts.isCallExpression(n)) checkKeys(n)
     if (ts.isCallExpression(n) && calleeOf(n) === 'ui/handler#on') checkOn(n)
     if (ts.isJsxAttribute(n)) checkJsxHandler(n)
