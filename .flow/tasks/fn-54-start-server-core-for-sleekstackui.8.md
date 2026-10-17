@@ -29,9 +29,14 @@ Follow-up from task .3's review (three minor findings). Make the `origins` optio
 - [ ] `pnpm turbo run test typecheck --filter=@sleekstack/start...` is green
 
 ## Done summary
-TBD
+`start(...)` now validates and normalizes each `origins` entry (`normalizeOrigin` in `origin.ts`). Case, a trailing slash and a default port are normalized, so `HTTPS://Allowed.TEST/` matches the `Origin: https://allowed.test` header. Anything that is not a bare origin throws the exported `InvalidOrigin` with the entry: a path, query, credentials, a bare host, `*`, `null`, and entries URL parsing would otherwise fold into a bare origin (dot segments, `%2e`, `https://@host`, whitespace). The raw syntax is checked before `URL` canonicalizes the entry.
 
+CORS: the framework sends no CORS headers; the app owns them in middleware. `serverFn.test.ts` ("configured origins") proves the composition. A middleware answers a preflight `OPTIONS` with 204 and the allow headers without running the function, and sets `access-control-allow-origin` through `ResponseHeaders` on a server-function response. A third test shows no CORS header is sent without middleware. The new `packages/start/README.md` documents `origins` and CORS ownership with that middleware. `wire.ts` now imports `AnySchema` from `serverFn.ts` (exported there) instead of redeclaring it; `client.ts` keeps its own copy, untouched per task .4. Existing start tests pass unchanged.
+
+baseline: green (`pnpm turbo run test typecheck --filter=@sleekstack/start... --filter=showcase`)
+stage: impl-review - ran (codex fan-out --base master: correctness and contracts NEEDS_WORK on one P2, validation after URL canonicalization accepted `/a/..`, `%2e`, `https://@host`; fixed in 6e182cd + 549ffbf; codex re-review SHIP)
+Tier: implementer opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: ca7567b48d1b8a04afb3f5f78f3042f6ca5a15c8, 6e182cd097b17fc9c7f0081bcba0f58949c858f1, 549ffbf8916761d79ddb74570295e286dbd8a3bd
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/start... --filter=showcase
 - PRs:
