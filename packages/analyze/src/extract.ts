@@ -806,9 +806,16 @@ export function extract(project: string, entries?: readonly string[], lenient = 
     const sigs = t.getCallSignatures()
     const eff = sigs.length ? checker.getReturnTypeOfSignature(sigs[0]!) : t
     const kind = libId(eff.getSymbol(), checker)
-    if (kind !== 'effect/Effect#Effect' && kind !== 'effect/Stream#Stream') return
-    const r = checker.getTypeArguments(eff as ts.TypeReference)[2]
-    const requires = !r || r.flags & ts.TypeFlags.Never ? [] : (r.isUnion() ? r.types : [r]).map((m) => tagOf(m, arg))
+    // A Tag is an Effect of its service: it requires itself.
+    const cls = eff.getSymbol()?.valueDeclaration
+    let requires: string[]
+    if (isTagClass(cls)) requires = [classKey(cls)]
+    else if (kind === 'effect/Context#Tag')
+      requires = [tagOf(checker.getTypeArguments(eff as ts.TypeReference)[0]!, arg)]
+    else if (kind === 'effect/Effect#Effect' || kind === 'effect/Stream#Stream') {
+      const r = checker.getTypeArguments(eff as ts.TypeReference)[2]
+      requires = !r || r.flags & ts.TypeFlags.Never ? [] : (r.isUnion() ? r.types : [r]).map((m) => tagOf(m, arg))
+    } else return
     const v = ts.findAncestor(n, ts.isVariableDeclaration)
     const l = loc(n)
     const aid = `atom:${v && ts.isIdentifier(v.name) ? v.name.text : `${l.file}:${l.line}`}`

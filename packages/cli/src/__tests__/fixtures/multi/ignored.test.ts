@@ -1,2 +1,3 @@
+import { Layer } from 'effect'
 import { configureRuntime } from '@sleekstack/runtime'
-configureRuntime({ provide: [] })
+configureRuntime({ layer: Layer.empty })

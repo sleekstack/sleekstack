@@ -29,12 +29,21 @@ describe('analyze', () => {
 
   it('core atoms: Effect / Stream atoms (family included) are nodes, their R Tags are edges; any fails closed', () => {
     const r = fixture('core-atoms')
-    expect(r.atoms.nodes.map((n) => n.id).sort()).toEqual(['atom:count', 'atom:doubled', 'atom:feed', 'atom:todo'])
+    expect(r.atoms.nodes.map((n) => n.id).sort()).toEqual([
+      'atom:clock',
+      'atom:count',
+      'atom:doubled',
+      'atom:feed',
+      'atom:logger',
+      'atom:todo',
+    ])
     expect(edgeKey(r.atoms.edges)).toEqual([
+      'atom:clock->Clock:Clock',
       'atom:count->Clock:Clock',
       'atom:doubled->Clock:Clock',
       'atom:feed->Clock:Clock',
       'atom:feed->Logger:Logger',
+      'atom:logger->Logger:Logger',
       'atom:todo->Repo:Repo',
     ])
     expect(r.extraction.map(({ code, line }) => [code, line])).toEqual([['Unresolvable', 15]])

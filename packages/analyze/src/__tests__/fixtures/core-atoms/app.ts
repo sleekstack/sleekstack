@@ -13,3 +13,5 @@ export const todo = Atom.family((id: string) => Atom.make(Effect.flatMap(Repo, (
 export const feed = Atom.make(Stream.fromEffect(Effect.zip(Logger, Clock)))
 declare const loose: Effect.Effect<number, never, any>
 export const untyped = Atom.make(loose) // @error Unresolvable
+export const clock = Atom.make(Clock)
+export const logger = Atom.make(() => Logger)

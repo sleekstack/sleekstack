@@ -15,19 +15,92 @@
   "plan_review_rounds": 0,
   "plan_review_status": "unknown",
   "plan_reviewed_at": null,
-  "review_hash_epoch": {},
-  "review_pending_rounds": {
-    "impl:fn-55-remove-kit-react-next-and-islands.4": 1
-  },
-  "review_reservations": {
-    "356256c7a10349558d04961f42c290e9": {
+  "review_attempts": [
+    {
       "artifact_sha256": "9b08a69158ac48f862077000fa62f4dda3c129c761dd482b7be0730d11440187",
-      "counter_scope": "impl:fn-55-remove-kit-react-next-and-islands.4",
-      "epoch": 0,
-      "exclusive": true,
+      "backend": "codex",
+      "base_sha": "832eed751c541500628227a65864c1227986246b",
+      "counter_kind": "impl",
+      "failure_class": "head_moved",
+      "finalized": {
+        "digest": "not_applicable",
+        "receipt": "not_applicable",
+        "status": "not_applicable"
+      },
       "forced": false,
-      "review_type": "impl"
+      "hash_epoch": 0,
+      "head_sha": "b85fb3d2ee4a046a265c5cbede7ec5d99bb449ec",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "outcome": "transport_failure",
+      "output_bytes": 65,
+      "output_sha256": "c20f32c2eb0f4cb3a99d56b74567a63bdaeb85c2f94f59fd69628289e868a94a",
+      "reservation_id": "356256c7a10349558d04961f42c290e9",
+      "round_consumed": false,
+      "scope": "impl:fn-55-remove-kit-react-next-and-islands.4",
+      "superseded_by": null,
+      "task": "fn-55-remove-kit-react-next-and-islands.4",
+      "timestamp": "2026-10-17T20:24:58.572826Z",
+      "verdict": null
+    },
+    {
+      "artifact_sha256": "c06d36e95035c1d35bedd4008d517bfde5497feab17c57af1f3a20be6e8d0890",
+      "backend": "codex",
+      "base_sha": "832eed751c541500628227a65864c1227986246b",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-18ce47fb181a618ba39fc6a3a025a961",
+            "classification": "introduced",
+            "findingId": "finding-18ce47fb181a618ba39fc6a3a025a961",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-e756188084cfd020532ca1960d257b0a",
+            "classification": "introduced",
+            "findingId": "finding-e756188084cfd020532ca1960d257b0a",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "31562d4128e98428414320646140370ac0761e85",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1922,
+      "output_sha256": "fc494897fdeb0bdc4867e6e464b306feeb505fd54bc1f4008795bf822e02c2c9",
+      "reservation_id": "b1c7cd419cd24e7cafef49496958b6d2",
+      "round_consumed": true,
+      "scope": "impl:fn-55-remove-kit-react-next-and-islands.4",
+      "superseded_by": null,
+      "task": "fn-55-remove-kit-react-next-and-islands.4",
+      "timestamp": "2026-10-17T20:28:02.754579Z",
+      "verdict": "NEEDS_WORK"
     }
+  ],
+  "review_hash_epoch": {},
+  "review_pending_rounds": {},
+  "review_reservations": {},
+  "review_transport_failures": {
+    "impl:fn-55-remove-kit-react-next-and-islands.4": 0
   },
   "spec_path": ".flow/specs/fn-55-remove-kit-react-next-and-islands.md",
   "status": "open",
@@ -43,5 +116,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-17T20:00:37.862477Z"
+  "updated_at": "2026-10-17T20:28:02.756300Z"
 }
