@@ -1,6 +1,7 @@
 import { Effect, Layer } from 'effect'
 import { makeAtomStore } from '@sleekstack/core'
 import { el, mount } from '@sleekstack/ui'
+import { jsx } from '@sleekstack/ui/jsx-runtime'
 
 const App = () => Effect.sync(() => el('p', {}, 'Hello'))
 
@@ -19,8 +20,7 @@ for (const id of ['left', 'right']) {
   })
 }
 
-// UiPanel is a React component; render it in its own root.
+// UiPanel is a ui component: mount it like any other.
 if (devtools && trace) {
-  const [{ createElement }, { createRoot }] = await Promise.all([import('react'), import('react-dom/client')])
-  createRoot(document.getElementById('devtools')!).render(createElement(devtools.UiPanel, { trace }))
+  await mount(jsx(devtools.UiPanel, { trace }), { layer: Layer.empty, container: document.getElementById('devtools')! })
 }
