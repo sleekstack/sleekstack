@@ -1,0 +1,3 @@
+Wire(read) --fromDto(dto, ctx)--> Model --create--> Draft --toDto (Effect)--> Wire(write)
+                                    ^                 |
+                                    +---- toModel ----+   (preview, or the apply of useOptimistic)
