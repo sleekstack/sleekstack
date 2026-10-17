@@ -5,6 +5,8 @@ import { devEvents, traceService } from '../internal'
 import { configureRuntime, getRuntime, runEffect } from '../index'
 import { devtoolsHandler, devtoolsSnapshot } from '../devtools'
 
+const loopback = { remoteAddress: '127.0.0.1' }
+
 describe('devtools', () => {
   it('records scopes and errors, bounded at 200, cleared on reconfigure', async () => {
     configureRuntime({ layer: Layer.empty, onError: () => {} })
@@ -34,7 +36,10 @@ describe('devtools', () => {
 
   it('handler returns JSON with graph in dev; 404 and no recording in production', async () => {
     configureRuntime({ layer: Layer.empty })
-    const body = await devtoolsHandler({ graph: () => ({ nodes: [] }) })(new Request('http://localhost/')).json()
+    const body = await devtoolsHandler({ graph: () => ({ nodes: [] }) })(
+      new Request('http://localhost/'),
+      loopback,
+    ).json()
     expect(body).toEqual({
       disabled: false,
       scopes: [],
@@ -113,12 +118,15 @@ describe('devtools', () => {
     configureRuntime({ layer: Layer.empty })
     const local = new Request('http://localhost:3000/api/devtools')
     const lan = new Request('http://192.168.1.5:3000/api/devtools')
-    expect(devtoolsHandler()(local).status).toBe(200)
-    expect(devtoolsHandler()(lan).status).toBe(403)
-    expect(devtoolsHandler({ allowRemote: true })(lan).status).toBe(200)
-    // A spoofed loopback Host from a remote peer is refused once the server passes the peer address.
-    expect(devtoolsHandler()(local, { remoteAddress: '192.168.1.9' }).status).toBe(403)
+    expect(devtoolsHandler()(local, loopback).status).toBe(200)
     expect(devtoolsHandler()(local, { remoteAddress: '::ffff:127.0.0.1' }).status).toBe(200)
+    expect(devtoolsHandler()(lan, { remoteAddress: '192.168.1.9' }).status).toBe(403)
+    // The Host header is client-supplied: an unknown peer or a spoofed loopback Host is refused.
+    expect(devtoolsHandler()(local).status).toBe(403)
+    expect(devtoolsHandler()(local, { remoteAddress: '192.168.1.9' }).status).toBe(403)
+    // A loopback peer with a foreign Host (DNS rebinding) is refused too.
+    expect(devtoolsHandler()(lan, loopback).status).toBe(403)
+    expect(devtoolsHandler({ allowRemote: true })(lan).status).toBe(200)
   })
 
   it('an error links to its request scope after the scope closes; traced services carry scope and fiber', async () => {
@@ -190,7 +198,7 @@ describe('devtools', () => {
   it('a plain Request outside any framework gets the snapshot body', async () => {
     configureRuntime({ layer: Layer.empty, onError: () => {} })
     await runEffect(Effect.void)
-    const response = devtoolsHandler()(new Request('http://127.0.0.1:4000/__devtools'))
+    const response = devtoolsHandler()(new Request('http://127.0.0.1:4000/__devtools'), loopback)
     expect(response.status).toBe(200)
     expect(response.headers.get('content-type')).toMatch(/^application\/json/)
     const body = await response.json()

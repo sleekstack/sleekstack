@@ -45,15 +45,14 @@ const LOOPBACK_ADDRESSES = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1'])
 
 /** What the mounting server knows about the connection; a `Request` alone does not carry the peer. */
 export interface DevtoolsConnection {
-  /** The peer's IP address (e.g. Bun's `server.requestIP(request).address`, Node's `socket.remoteAddress`). */
+  /** The peer's IP address (e.g. Bun's `server.requestIP(request).address`, Node's `socket.remoteAddress`). Required unless `allowRemote`. */
   readonly remoteAddress?: string
 }
 
 /**
  * A web-standard fetch handler returning {@link devtoolsSnapshot} as JSON in dev and 404 in production.
- * Without `allowRemote` it answers 403 unless the request URL's host is loopback and, when the server passes it,
- * the peer address is loopback too. The URL host alone comes from the `Host` header, so pass `remoteAddress`
- * when the server listens beyond loopback.
+ * Without `allowRemote` it answers 403 unless the server passes a loopback peer `remoteAddress` and the request URL's
+ * host is loopback too (the URL host comes from the client's `Host` header, so it never proves locality on its own).
  *
  * @example
  * ```ts
@@ -69,7 +68,8 @@ export function devtoolsHandler(
     if (!devEnabled()) return new Response('Not Found', { status: 404 })
     const local =
       LOOPBACK_HOSTS.has(new URL(request.url).hostname) &&
-      (connection.remoteAddress === undefined || LOOPBACK_ADDRESSES.has(connection.remoteAddress))
+      connection.remoteAddress !== undefined &&
+      LOOPBACK_ADDRESSES.has(connection.remoteAddress)
     if (!options.allowRemote && !local) return new Response('Forbidden', { status: 403 })
     return Response.json(devtoolsSnapshot(options))
   }
