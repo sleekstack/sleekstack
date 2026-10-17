@@ -204,6 +204,11 @@ describe('configured origins', () => {
     'https://allowed.test?q',
     'https://u@allowed.test',
     'null',
+    ' https://allowed.test ',
+    'https://allowed.test/.',
+    'https://allowed.test/a/..',
+    'https://allowed.test/%2e',
+    'https://@allowed.test',
   ])('entry %j fails at start with InvalidOrigin', (entry) => {
     expect(() => from([entry])).toThrow(expect.objectContaining({ _tag: 'InvalidOrigin', origin: entry }))
     expect(() => from([entry])).toThrow(InvalidOrigin)
