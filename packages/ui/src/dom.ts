@@ -32,7 +32,7 @@ import {
   EffectObserver,
   type EffectEvent,
   MountScope,
-  ownWrite,
+  isOwnWrite,
   RenderScope,
   type RunFrame,
   runScopes,
@@ -894,7 +894,7 @@ export const watch = (inst: Instance, node: ReactiveNode, env: Env): void => {
   // Changes in one tick (a store batch, or several atoms) coalesce into one re-run.
   const epoch = inst.epoch
   const changed = (atom?: Atom.Atom<any>) => {
-    if (inst.epoch !== epoch || (ownWrite.slots && ownWrite.slots === inst.frame?.owner)) return
+    if (inst.epoch !== epoch || isOwnWrite(inst.frame?.owner)) return
     if (atom && inst.reasons && !inst.reasons.some((r) => r.cause === 'atom' && r.atom === atom.label))
       inst.reasons.push({ cause: 'atom', atom: atom.label })
     // Per write: one ordinary change in the tick makes the coalesced re-run ordinary.

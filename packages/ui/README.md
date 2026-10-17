@@ -53,6 +53,8 @@ In the DOM, each guest renders inside a `<sleek-guest style="display: contents">
 
 Limits: ordinal identity is positional, so conditional siblings of one component shift each other's state (use `key`); an instance that turns from reactive to plain on a parent re-run is replaced; keyed moves have no LIS, so a swap moves the rows between; a guest boundary stays in its fallback after a throw.
 
+Integration packages (not apps) import renderer hooks from `@sleekstack/ui/internal`, which may change without notice: `Collector`, `RenderScope` and `idle`, and for a slot hook defined outside `ui` the same pieces `ui`'s own hooks use: `Frame`, `takeSlot`, `missingStore` and `writeOwn` (a run's write to an atom it reads, which does not re-run the writer).
+
 `sleekstack check` runs the component pass when a project's package.json lists `@sleekstack/ui` (see [`@sleekstack/analyze`](../analyze/README.md)). A runnable demo of every feature, with one fixture per error code, is in [`apps/showcase`](../../apps/showcase/README.md). Design: ADR 0015.
 
 ## Streaming SSR

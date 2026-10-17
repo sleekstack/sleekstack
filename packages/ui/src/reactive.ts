@@ -172,8 +172,11 @@ export const disposeSlots = (s: Slots): void => {
   s.instance = undefined
 }
 
-// Every slot hook takes its slot the same way: the next index, and whether this run creates it. A first run past a settled slot list is a mismatch.
-const takeSlot = (f: RunFrame): { readonly i: number; readonly first: boolean } | SlotMismatch => {
+/**
+ * Takes the run's next slot: its index in `f.owner.atoms`, and whether this run creates it (the hook then pushes the
+ * slot's atom, and its releases). A first run past a settled slot list is a `SlotMismatch`. Every slot hook takes its slot this way.
+ */
+export const takeSlot = (f: RunFrame): { readonly i: number; readonly first: boolean } | SlotMismatch => {
   const slots = f.owner
   const i = f.cursor++
   const first = i >= slots.atoms.length
@@ -221,8 +224,8 @@ const fnId = (f: Function): string => {
   return id
 }
 
-// Typed `never` in E: `Store` is a requirement, so a missing store is unreachable for checked code; at runtime it fails with a tagged error.
-const missingStore = (hook: string): Effect.Effect<never> =>
+/** A slot hook's failure when no `Store` is provided. Typed `never` in E: `Store` is a requirement, so it is unreachable for checked code; at runtime it fails with a tagged `MissingDependency`. */
+export const missingStore = (hook: string): Effect.Effect<never> =>
   Effect.fail(
     new MissingDependency({
       tag: 'Store',
@@ -1004,11 +1007,24 @@ const makeDraft = (spec: AnyDraftSpec, src: unknown, s: AtomStore): DraftBox => 
   return { input, state, draft }
 }
 
+// The slots of the instance whose run is inside `writeOwn`.
+let ownWriter: Slots | undefined
+
 /**
- * The slots of the instance whose run is writing its own Draft's source. The run reads what it wrote, so the renderer
- * does not re-run that instance for the write: the re-run would interrupt an async run, which would write again.
+ * Runs `write`, a run's write to an atom it reads, as the instance owning `owner`: the run reads what it wrote, so the
+ * renderer does not re-run that instance for the write (the re-run would interrupt an async run, which would write again).
  */
-export const ownWrite: { slots: Slots | undefined } = { slots: undefined }
+export const writeOwn = (owner: Slots, write: () => void): void => {
+  ownWriter = owner
+  try {
+    write()
+  } finally {
+    ownWriter = undefined
+  }
+}
+
+/** True while the instance owning `owner` is writing inside `writeOwn`. */
+export const isOwnWrite = (owner: Slots | undefined): boolean => owner !== undefined && owner === ownWriter
 
 /**
  * `useDraft(spec, src)`: a Draft of the Model `src` (a value, or an atom of it) as `spec` describes it (`DraftSpec`, from
@@ -1048,12 +1064,7 @@ export const useDraft = <S extends AnyDraftSpec>(
     const box = s.get(f.owner.atoms[taken.i] as unknown as Atom.Atom<DraftBox>)
     const last = s.get(box.input)
     if (!same(last.spec, spec) || !same(last.src, src)) {
-      ownWrite.slots = f.owner
-      try {
-        s.set(box.input, { spec, src })
-      } finally {
-        ownWrite.slots = undefined
-      }
+      writeOwn(f.owner, () => s.set(box.input, { spec, src }))
     }
     return Effect.succeed(box.draft as DraftOf<S>)
   })
