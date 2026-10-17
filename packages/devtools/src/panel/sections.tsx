@@ -1,3 +1,4 @@
+/** @jsxImportSource @sleekstack/ui */
 /**
  * packages/devtools/src/panel/sections.tsx
  *

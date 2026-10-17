@@ -1,26 +1,47 @@
-import { Component, type ReactNode } from 'react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
-import { Atom } from '@sleekstack/core'
-import { LayerProvider, useAtomValue, useService } from '@sleekstack/react'
+/** @jsxImportSource @sleekstack/ui */
+import { Atom, makeAtomStore, type AtomStore } from '@sleekstack/core'
 import { QueryClientLive, QueryClientTag } from '@sleekstack/query'
-import { Effect } from 'effect'
-import { STORES_KEY } from '@sleekstack/react/internal'
-import { SleekStackDevtools, DEVTOOLS_MARKER, graphsOf } from '../index'
+import { flush, render, type Rendered } from '@sleekstack/testing'
+import { mount, Provider, useAtomValue, type Mounted } from '@sleekstack/ui'
+import { screen } from '@testing-library/dom'
+import { Layer } from 'effect'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { DEVTOOLS_MARKER, graphsOf, SleekStackDevtools, uiTrace, type UiTrace } from '../index'
 
-afterEach(() => {
-  cleanup()
+// This package runs vitest without globals, so `@sleekstack/testing` cannot clean up itself.
+let handles: Array<Mounted | Rendered> = []
+const track = <H extends Mounted | Rendered>(h: H): H => (handles.push(h), h)
+afterEach(async () => {
+  for (const h of handles) await h.dispose()
+  handles = []
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
 })
 
+type App = Parameters<typeof render>[0]
+const show = async (app: App, options: { store?: AtomStore; layer?: Layer.Layer<any, any, never> } = {}) =>
+  track(await render(app, { layer: (options.layer ?? Layer.empty) as never, store: options.store }))
+/** Mounts `app` on `store`, observed by `trace` (how a ui app exposes its stores to the panel). */
+const traced = async (app: App, trace: UiTrace, store: AtomStore) =>
+  track(
+    await mount(app, {
+      layer: Layer.empty as never,
+      container: document.body.appendChild(document.createElement('div')),
+      store,
+      observe: trace.observer(store),
+    }),
+  )
+const off = () =>
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => new Response('Not Found', { status: 404 })),
+  )
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
 describe('SleekStackDevtools', () => {
   it('renders an empty state when the handler is off', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('Not Found', { status: 404 })),
-    )
-    render(<SleekStackDevtools />)
+    off()
+    await show(<SleekStackDevtools />)
     expect(await screen.findByText(/Devtools are off/)).not.toBeNull()
     expect(screen.getByText(/No atoms registered/)).not.toBeNull()
     expect(screen.getByText(/No queries recorded/)).not.toBeNull()
@@ -50,11 +71,7 @@ describe('SleekStackDevtools', () => {
       ),
     )
     const count = Atom.make(7)
-    render(
-      <LayerProvider provide={[]}>
-        <SleekStackDevtools atoms={{ count }} />
-      </LayerProvider>,
-    )
+    await show(<SleekStackDevtools atoms={{ count }} />)
     expect(await screen.findByText(/1 nodes, 1 edges/)).not.toBeNull()
     expect(screen.getByText('a → b (Db)')).not.toBeNull()
     expect(screen.getByText('request#3')).not.toBeNull()
@@ -62,73 +79,57 @@ describe('SleekStackDevtools', () => {
     expect(await screen.findByText('7')).not.toBeNull()
   })
 
-  it('lists atoms of every open provider store, skips a store that throws, and drops unmounted stores', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('Not Found', { status: 404 })),
-    )
+  it('lists atoms of every open traced store, skips a store that throws, and drops unmounted stores', async () => {
+    off()
     const draft = Atom.make('hello')
-    const Reader = () => <span>{useAtomValue(draft)}</span>
-    const provider = render(
-      <LayerProvider provide={[]}>
-        <Reader />
-      </LayerProvider>,
-    )
+    const Reader = function* () {
+      return <span>{yield* useAtomValue(draft)}</span>
+    }
+    const trace = uiTrace()
+    const app = await traced(<Reader />, trace, makeAtomStore())
     await screen.findByText('hello')
-    const set = (globalThis as Record<string, unknown>)[STORES_KEY] as Set<unknown>
     const broken = {
       inspect: () => {
         throw new Error('disposed')
       },
-    }
-    set.add(broken)
-    render(<SleekStackDevtools intervalMs={20} />)
+    } as unknown as AtomStore
+    const brokenObserver = trace.observer(broken)
+    brokenObserver({ type: 'create', mount: -1, instance: 1, path: 'broken' } as never)
+    await show(<SleekStackDevtools trace={trace} intervalMs={20} />)
     expect(await screen.findByText(`store 1 · ${draft.label}:`, { exact: false })).not.toBeNull()
-    set.delete(broken)
-    provider.unmount()
+    brokenObserver({ type: 'dispose', mount: -1, instance: 1 })
+    await app.dispose()
     expect(await screen.findByText(/No atoms registered/)).not.toBeNull()
   })
 
-  it('renders a prop atom that is also in a registered store once, under its prop label', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('Not Found', { status: 404 })),
-    )
+  it('renders a prop atom that is also in a traced store once, under its prop label', async () => {
+    off()
     const count = Atom.make(42)
-    render(
-      <LayerProvider provide={[]}>
-        <SleekStackDevtools atoms={{ count }} intervalMs={20} />
-      </LayerProvider>,
-    )
+    const trace = uiTrace()
+    const store = makeAtomStore()
+    await traced(<p>app</p>, trace, store)
+    await show(<SleekStackDevtools atoms={{ count }} trace={trace} intervalMs={20} />, { store })
     expect(await screen.findByText('42')).not.toBeNull()
-    await new Promise((r) => setTimeout(r, 60)) // let the registry poll pick up the built atom
+    await wait(60) // let the store poll pick up the built atom
     expect(screen.getAllByText('42')).toHaveLength(1)
     expect(screen.queryByText(count.label, { exact: false })).toBeNull()
   })
 
-  it('hides a prop atom only in the panel provider store; the same atom in a sibling provider stays listed', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('Not Found', { status: 404 })),
-    )
+  it("hides a prop atom only in the panel's own store; the same atom in a sibling store stays listed", async () => {
+    off()
     const count = Atom.make(5)
-    const Bump = () => {
-      const v = useAtomValue(count)
+    const Bump = function* () {
+      const v = yield* useAtomValue(count)
       return <span>sibling {v}</span>
     }
-    render(
-      <>
-        <LayerProvider provide={[]}>
-          <Bump />
-        </LayerProvider>
-        <LayerProvider provide={[]}>
-          <SleekStackDevtools atoms={{ count }} intervalMs={20} />
-        </LayerProvider>
-      </>,
-    )
+    const trace = uiTrace()
+    const own = makeAtomStore()
+    await traced(<Bump />, trace, makeAtomStore())
+    await traced(<p>panel app</p>, trace, own)
+    await show(<SleekStackDevtools atoms={{ count }} trace={trace} intervalMs={20} />, { store: own })
     expect(await screen.findByText('sibling 5')).not.toBeNull()
     expect(await screen.findByText(`${count.label}:`, { exact: false })).not.toBeNull()
-    await new Promise((r) => setTimeout(r, 60))
+    await wait(60)
     expect(screen.getAllByText(`${count.label}:`, { exact: false })).toHaveLength(1) // sibling store's instance only
     expect(screen.getByText('count:', { exact: false })).not.toBeNull() // prop row, once
   })
@@ -145,7 +146,7 @@ describe('SleekStackDevtools', () => {
         }),
       ),
     )
-    render(<SleekStackDevtools />)
+    await show(<SleekStackDevtools />)
     expect(await screen.findByText('acquire Db in request#2 (#7)')).not.toBeNull()
     expect(screen.getByText('scope: request#2 (closed)')).not.toBeNull()
   })
@@ -155,7 +156,7 @@ describe('SleekStackDevtools', () => {
       'fetch',
       vi.fn(async () => Response.json({ disabled: true, scopes: [], errors: [], live: { app: false, scopes: [] } })),
     )
-    render(<SleekStackDevtools />)
+    await show(<SleekStackDevtools />)
     expect(await screen.findByText(/tracing is disabled/)).not.toBeNull()
     expect(screen.queryByText(/No errors recorded/)).toBeNull()
   })
@@ -171,10 +172,10 @@ describe('SleekStackDevtools', () => {
         return new Promise<Response>(() => {})
       }),
     )
-    const { unmount } = render(<SleekStackDevtools intervalMs={5} />)
-    await new Promise((r) => setTimeout(r, 60))
+    const panel = await show(<SleekStackDevtools intervalMs={5} />)
+    await wait(60)
     expect(calls).toBe(1)
-    unmount()
+    await panel.dispose()
     expect(signal?.aborted).toBe(true)
   })
 
@@ -183,7 +184,7 @@ describe('SleekStackDevtools', () => {
       'fetch',
       vi.fn(async () => Response.json({})),
     )
-    render(<SleekStackDevtools />)
+    await show(<SleekStackDevtools />)
     expect(await screen.findByText(/Devtools are off/)).not.toBeNull()
   })
 
@@ -194,24 +195,24 @@ describe('SleekStackDevtools', () => {
         Response.json({ scopes: [], errors: [], live: { app: true, scopes: [] }, graph: { roots: [{}] } }),
       ),
     )
-    render(<SleekStackDevtools />)
+    await show(<SleekStackDevtools />)
     expect(await screen.findByText(/No graph report supplied/)).not.toBeNull()
   })
 
   it('a hung request times out and polling continues', async () => {
+    let calls = 0
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((_u: string, init?: RequestInit) => {
+        calls++
+        return new Promise<Response>((_, reject) =>
+          init?.signal?.addEventListener('abort', () => reject(new Error('aborted'))),
+        )
+      }),
+    )
     vi.useFakeTimers()
     try {
-      let calls = 0
-      vi.stubGlobal(
-        'fetch',
-        vi.fn((_u: string, init?: RequestInit) => {
-          calls++
-          return new Promise<Response>((_, reject) =>
-            init?.signal?.addEventListener('abort', () => reject(new Error('aborted'))),
-          )
-        }),
-      )
-      render(<SleekStackDevtools intervalMs={10} />)
+      await show(<SleekStackDevtools intervalMs={10} />)
       await vi.advanceTimersByTimeAsync(5000 + 20)
       expect(calls).toBeGreaterThanOrEqual(2)
     } finally {
@@ -233,7 +234,7 @@ describe('SleekStackDevtools', () => {
       'fetch',
       vi.fn(async () => Response.json({ scopes: [], errors: [null], live: { app: true, scopes: [] } })),
     )
-    render(<SleekStackDevtools />)
+    await show(<SleekStackDevtools />)
     expect(await screen.findByText(/Devtools are off/)).not.toBeNull()
   })
 
@@ -248,32 +249,30 @@ describe('SleekStackDevtools', () => {
         }),
       ),
     )
-    const first = render(<SleekStackDevtools />)
+    const first = await show(<SleekStackDevtools />)
     expect(await screen.findByText(/Devtools are off/)).not.toBeNull()
-    first.unmount()
+    await first.dispose()
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => Response.json({ scopes: [], errors: [], live: { scopes: [] } })),
     )
-    render(<SleekStackDevtools />)
+    await show(<SleekStackDevtools />)
     expect(await screen.findByText(/Devtools are off/)).not.toBeNull()
   })
 
   it('Queries tab lists the QueryCache entries and events of the scope client', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('Not Found', { status: 404 })),
-    )
+    off()
     let client: typeof QueryClientTag.Service | undefined
-    const Probe = () => {
-      client = useService(QueryClientTag)
-      return null
+    const Probe = function* () {
+      client = yield* QueryClientTag
+      return <></>
     }
-    render(
-      <LayerProvider provide={[QueryClientLive()]}>
+    await show(
+      <>
         <Probe />
         <SleekStackDevtools intervalMs={20} />
-      </LayerProvider>,
+      </>,
+      { layer: QueryClientLive() },
     )
     expect(await screen.findByText(/No queries recorded/)).not.toBeNull()
     await client!.fetchQuery({ queryKey: ['todo', 't1'], queryFn: async () => 'title t1' })
@@ -294,20 +293,14 @@ describe('SleekStackDevtools', () => {
   })
 
   it('Queries tab shows the empty state without a client in scope and nothing in production', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('Not Found', { status: 404 })),
-    )
-    const first = render(
-      <LayerProvider provide={[]}>
-        <SleekStackDevtools />
-      </LayerProvider>,
-    )
+    off()
+    const first = await show(<SleekStackDevtools />)
     expect(await screen.findByText(/No queries recorded/)).not.toBeNull()
-    first.unmount()
+    await first.dispose()
     vi.stubEnv('NODE_ENV', 'production')
     try {
-      render(<SleekStackDevtools />)
+      await show(<SleekStackDevtools />)
+      await flush()
       expect(document.querySelector('[data-devtools-queries]')).toBeNull()
     } finally {
       vi.unstubAllEnvs()
@@ -315,26 +308,18 @@ describe('SleekStackDevtools', () => {
   })
 
   it('Queries tab rethrows a client layer failure instead of showing the empty state', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('Not Found', { status: 404 })),
-    )
-    vi.spyOn(console, 'error').mockImplementation(() => {})
-    class Boundary extends Component<{ children: ReactNode }, { error?: unknown }> {
-      override state: { error?: unknown } = {}
-      static getDerivedStateFromError = (error: unknown) => ({ error })
-      override render = () => (this.state.error ? <p>app boundary: {String(this.state.error)}</p> : this.props.children)
-    }
+    off()
     const failing = QueryClientLive(() => {
       throw new Error('config broke')
     })
-    render(
-      <Boundary>
-        <LayerProvider provide={[failing]}>
-          <SleekStackDevtools />
-        </LayerProvider>
-      </Boundary>,
-    )
-    expect(await screen.findByText(/app boundary: .*config broke/)).not.toBeNull()
+    const errors: unknown[] = []
+    await render(
+      <Provider layer={failing}>
+        <SleekStackDevtools />
+      </Provider>,
+      { layer: Layer.empty, onError: (cause) => errors.push(cause) },
+    ).then(track, (e: unknown) => errors.push(e))
+    await vi.waitFor(() => expect(String(errors)).toMatch(/config broke/))
+    expect(screen.queryByText(/No queries recorded/)).toBeNull()
   })
 })

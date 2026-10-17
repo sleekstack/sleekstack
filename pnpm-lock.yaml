@@ -339,9 +339,6 @@ importers:
       '@sleekstack/query':
         specifier: workspace:*
         version: link:../query
-      '@sleekstack/react':
-        specifier: workspace:*
-        version: link:../react
       effect:
         specifier: ^3.15.0
         version: 3.21.2
@@ -352,24 +349,15 @@ importers:
       '@sleekstack/ui':
         specifier: workspace:*
         version: link:../ui
-      '@testing-library/react':
-        specifier: ^16.3.2
-        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      '@types/react':
-        specifier: ^19.2.17
-        version: 19.2.17
-      '@types/react-dom':
-        specifier: ^19.2.3
-        version: 19.2.3(@types/react@19.2.17)
+      '@testing-library/dom':
+        specifier: ^10.4.1
+        version: 10.4.1
       jsdom:
         specifier: ^29.1.1
         version: 29.1.1
-      react:
-        specifier: ^19.2.6
-        version: 19.2.6
-      react-dom:
-        specifier: ^19.2.6
-        version: 19.2.6(react@19.2.6)
+      vite:
+        specifier: ^8.0.16
+        version: 8.0.16(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)
       vitest:
         specifier: ^4.1.9
         version: 4.1.9(@types/node@22.20.1)(jsdom@29.1.1)(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))

@@ -1,18 +1,19 @@
-'use client'
+/** @jsxImportSource @sleekstack/ui */
 /**
  * packages/devtools/src/index.tsx — @sleekstack/devtools
  *
- * `<SleekStackDevtools />`: polls the `@sleekstack/next/devtools` handler and renders graph, live
- * scopes, read-only atom values and recent errors. Dev only: the caller mounts it outside production.
+ * `<SleekStackDevtools />`: a `@sleekstack/ui` component that polls the `@sleekstack/runtime/devtools` feed handler and
+ * renders graph, live scopes, service events, recent errors, queries and read-only atom values. Dev only: the caller
+ * mounts it outside production.
  */
-import { useEffect, useMemo, useState } from 'react'
 import type { Atom } from '@sleekstack/core'
-import { useAtomValue } from '@sleekstack/react'
-import { useProviderAtomStore } from '@sleekstack/react/internal'
+import { Store, useAtomValue, useEffect, useLocal } from '@sleekstack/ui'
+import { Effect } from 'effect'
 import { useStoreAtoms } from './atoms/useStoreAtoms'
 import { graphsOf } from './graph/graphsOf'
 import { ScopedErrors, ServiceEvents, type DevEvent } from './panel/sections'
 import { QueriesSection } from './panel/queries'
+import type { UiTrace } from './ui/uiPanel'
 
 export { graphsOf } from './graph/graphsOf'
 export { QUERY_DEVTOOLS_MARKER } from './panel/queries'
@@ -40,12 +41,14 @@ export interface DevtoolsData {
 }
 
 export interface SleekStackDevtoolsProps {
-  /** Handler route; default `/api/devtools`. */
+  /** Feed handler route; default `/api/devtools`. */
   readonly endpoint?: string
   /** Poll interval in ms; default 2000. */
   readonly intervalMs?: number
-  /** Atoms to show (read-only), by label. Needs a `LayerProvider` above the panel. */
+  /** Atoms to show (read-only), by label, read from the panel's own `Store`. */
   readonly atoms?: Readonly<Record<string, Atom.Atom<unknown>>>
+  /** Lists the atoms of every open store this trace's observers were given (`trace.observer(store)`). */
+  readonly trace?: UiTrace
 }
 
 const show = (value: unknown): string => {
@@ -56,10 +59,11 @@ const show = (value: unknown): string => {
   }
 }
 
-function AtomRow({ label, atom }: { readonly label: string; readonly atom: Atom.Atom<unknown> }) {
+const AtomRow = function* ({ label, atom }: { readonly label: string; readonly atom: Atom.Atom<unknown> }) {
+  const value = yield* useAtomValue(atom)
   return (
     <li>
-      {label}: <code>{show(useAtomValue(atom))}</code>
+      {label}: <code>{show(value)}</code>
     </li>
   )
 }
@@ -88,107 +92,123 @@ const isDevtoolsData = (v: unknown): v is DevtoolsData =>
   v.live.scopes.every((s) => typeof s === 'string')
 
 /** Polls `endpoint` (next poll only after the previous settles); `undefined` until the first response, `null` while off (404, network error or non-JSON). */
-function useDevtoolsData(endpoint: string, intervalMs: number): DevtoolsData | null | undefined {
-  const [data, setData] = useState<DevtoolsData | null | undefined>(undefined)
-  useEffect(() => {
-    const controller = new AbortController()
-    let timer: ReturnType<typeof setTimeout> | undefined
-    const poll = async () => {
-      // Each attempt has its own timeout, so a hung connection cannot stop polling for good.
-      const attempt = new AbortController()
-      const timeout = setTimeout(() => attempt.abort(), REQUEST_TIMEOUT_MS)
-      const onAbort = () => attempt.abort()
-      controller.signal.addEventListener('abort', onAbort, { once: true })
-      try {
-        const res = await fetch(endpoint, { signal: attempt.signal })
-        const body: unknown = res.ok ? await res.json() : null
-        const next = isDevtoolsData(body) ? body : null
-        if (!controller.signal.aborted) setData(next)
-      } catch {
-        if (!controller.signal.aborted) setData(null)
-      } finally {
-        clearTimeout(timeout)
-        controller.signal.removeEventListener('abort', onAbort)
-        if (!controller.signal.aborted) timer = setTimeout(poll, intervalMs)
+const useDevtoolsData = (
+  endpoint: string,
+  intervalMs: number,
+): Effect.Effect<DevtoolsData | null | undefined, never, Store> =>
+  Effect.gen(function* () {
+    const [data, setData] = yield* useLocal<DevtoolsData | null | undefined>(undefined)
+    yield* useEffect(() => {
+      const controller = new AbortController()
+      let timer: ReturnType<typeof setTimeout> | undefined
+      const poll = async () => {
+        // Each attempt has its own timeout, so a hung connection cannot stop polling for good.
+        const attempt = new AbortController()
+        const timeout = setTimeout(() => attempt.abort(), REQUEST_TIMEOUT_MS)
+        const onAbort = () => attempt.abort()
+        controller.signal.addEventListener('abort', onAbort, { once: true })
+        try {
+          const res = await fetch(endpoint, { signal: attempt.signal })
+          const body: unknown = res.ok ? await res.json() : null
+          const next = isDevtoolsData(body) ? body : null
+          if (!controller.signal.aborted) setData(next)
+        } catch {
+          if (!controller.signal.aborted) setData(null)
+        } finally {
+          clearTimeout(timeout)
+          controller.signal.removeEventListener('abort', onAbort)
+          if (!controller.signal.aborted) timer = setTimeout(poll, intervalMs)
+        }
       }
-    }
-    void poll()
-    return () => {
-      controller.abort()
-      clearTimeout(timer)
-    }
-  }, [endpoint, intervalMs])
-  return data
+      void poll()
+      return () => {
+        controller.abort()
+        clearTimeout(timer)
+      }
+    }, [endpoint, intervalMs])
+    return data
+  })
+
+const Graphs = ({ report }: { readonly report: unknown }) => {
+  const graphs = graphsOf(report)
+  return (
+    <section aria-label="graph">
+      <h3>Graph</h3>
+      {graphs.length ? (
+        graphs.map((g, i) => (
+          <div key={`${i}:${g.root}`}>
+            <strong>{g.root}</strong>
+            {g.kind ? ` [${g.kind}]` : ''}: {g.nodes.length} nodes, {g.edges.length} edges
+            <ul>
+              {g.nodes.map((n) => (
+                <li key={n.id}>
+                  {n.name} ({n.lifetime})
+                </li>
+              ))}
+            </ul>
+            <ul aria-label="edges">
+              {g.edges.map((e) => (
+                <li key={`${e.from}>${e.to}>${e.tag}`}>{`${e.from} → ${e.to} (${e.tag})`}</li>
+              ))}
+            </ul>
+          </div>
+        ))
+      ) : (
+        <p>No graph report supplied.</p>
+      )}
+    </section>
+  )
 }
 
-export function SleekStackDevtools({ endpoint = '/api/devtools', intervalMs = 2000, atoms }: SleekStackDevtoolsProps) {
-  const data = useDevtoolsData(endpoint, intervalMs)
+const Feed = ({ endpoint, data }: { readonly endpoint: string; readonly data: DevtoolsData | null | undefined }) =>
+  data === undefined ? (
+    <p>Connecting to {endpoint}…</p>
+  ) : data === null ? (
+    <p>Devtools are off: the handler at {endpoint} is not reachable in this build.</p>
+  ) : data.disabled ? (
+    <p>Devtools tracing is disabled in this build: nothing is recorded.</p>
+  ) : (
+    <>
+      <Graphs report={data.graph} />
+      <section aria-label="scopes">
+        <h3>Live scopes</h3>
+        <p>App runtime: {data.live.app ? 'built' : 'not built'}</p>
+        <ul>
+          {data.live.scopes.map((s) => (
+            <li key={s}>{s}</li>
+          ))}
+        </ul>
+        {data.live.scopes.length === 0 && <p>No open request scopes.</p>}
+      </section>
+      <ServiceEvents events={data.scopes} />
+      <ScopedErrors errors={data.errors} live={data.live.scopes} />
+    </>
+  )
+
+export const SleekStackDevtools = function* ({
+  endpoint = '/api/devtools',
+  intervalMs = 2000,
+  atoms,
+  trace,
+}: SleekStackDevtoolsProps) {
+  const data = yield* useDevtoolsData(endpoint, intervalMs)
   const entries = Object.entries(atoms ?? {})
-  const graphs = useMemo(() => graphsOf(data?.graph), [data])
   const propAtoms = new Set(entries.map(([, a]) => a))
-  // Prop atoms read from the panel's own provider store: only that store's instance is hidden (prop label wins);
+  // Prop atoms read from the panel's own store: only that store's instance is hidden (prop label wins);
   // the same atom in other stores holds its own value and stays listed.
-  const own = useProviderAtomStore()
-  const stores = useStoreAtoms(intervalMs).map(({ store, atoms }) =>
+  const own = yield* Store
+  const stores = (yield* useStoreAtoms(trace, intervalMs)).map(({ store, atoms }) =>
     store === own ? atoms.filter((a) => !propAtoms.has(a.atom)) : atoms,
   )
   return (
     <aside
       aria-label="SleekStack devtools"
       data-devtools={DEVTOOLS_MARKER}
-      style={{ borderTop: '1px solid #ccc', marginTop: '2rem', fontSize: 13 }}
+      style="border-top: 1px solid #ccc; margin-top: 2rem; font-size: 13px"
     >
       <h2>SleekStack devtools</h2>
-      {data === undefined ? (
-        <p>Connecting to {endpoint}…</p>
-      ) : data === null ? (
-        <p>Devtools are off: the handler at {endpoint} is not reachable in this build.</p>
-      ) : data.disabled ? (
-        <p>Devtools tracing is disabled in this build: nothing is recorded.</p>
-      ) : (
-        <>
-          <section aria-label="graph">
-            <h3>Graph</h3>
-            {graphs.length ? (
-              graphs.map((g, i) => (
-                <div key={`${i}:${g.root}`}>
-                  <strong>{g.root}</strong>
-                  {g.kind ? ` [${g.kind}]` : ''}: {g.nodes.length} nodes, {g.edges.length} edges
-                  <ul>
-                    {g.nodes.map((n) => (
-                      <li key={n.id}>
-                        {n.name} ({n.lifetime})
-                      </li>
-                    ))}
-                  </ul>
-                  <ul aria-label="edges">
-                    {g.edges.map((e) => (
-                      <li key={`${e.from}>${e.to}>${e.tag}`}>
-                        {e.from} → {e.to} ({e.tag})
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))
-            ) : (
-              <p>No graph report supplied.</p>
-            )}
-          </section>
-          <section aria-label="scopes">
-            <h3>Live scopes</h3>
-            <p>App runtime: {data.live.app ? 'built' : 'not built'}</p>
-            <ul>
-              {data.live.scopes.map((s) => (
-                <li key={s}>{s}</li>
-              ))}
-            </ul>
-            {data.live.scopes.length === 0 && <p>No open request scopes.</p>}
-          </section>
-          <ServiceEvents events={data.scopes} />
-          <ScopedErrors errors={data.errors} live={data.live.scopes} />
-        </>
-      )}
-      <QueriesSection intervalMs={intervalMs} />
+      <Feed endpoint={endpoint} data={data} />
+      <QueriesSection />
       <section aria-label="atoms">
         <h3>Atoms</h3>
         {entries.length === 0 && stores.every((s) => s.length === 0) ? (

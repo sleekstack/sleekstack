@@ -1,3 +1,4 @@
+/** @jsxImportSource @sleekstack/ui */
 /**
  * packages/devtools/src/panel/queries.tsx
  *
@@ -5,22 +6,14 @@
  * cache events, live from `QueryCache.subscribe`. Renders nothing in production; the empty state when
  * no client is in scope.
  */
-import { Component, Suspense, useEffect, useState, type ReactNode } from 'react'
-import { MissingDependency } from '@sleekstack/core'
 import { QueryClientTag } from '@sleekstack/query'
-import { useService } from '@sleekstack/react'
+import { useEffect, useLocal } from '@sleekstack/ui'
+import { Effect, Option } from 'effect'
 
 /** Present in the Queries tab; production bundle tests assert it is absent from client chunks. */
 export const QUERY_DEVTOOLS_MARKER = 'sleekstack-devtools-queries-4b7e'
 
 type Client = typeof QueryClientTag.Service
-type Row = {
-  readonly key: string
-  readonly state: string
-  readonly observers: number
-  readonly updatedAt: number
-  readonly gcTime: number
-}
 
 declare const process: { readonly env: { readonly NODE_ENV?: string } }
 // direct `process.env.NODE_ENV` so bundlers fold it; no `process` at all (unbundled browser) counts as production
@@ -29,7 +22,7 @@ const enabled = (): boolean => typeof process !== 'undefined' && process.env.NOD
 const SHOWN = 20
 /** TanStack `updated` actions in the panel's lifecycle vocabulary; observer bookkeeping is not listed. */
 const LIFECYCLE: Partial<Record<string, string>> = { fetch: 'fetching', success: 'success', error: 'failure' }
-const rowsOf = (client: Client): Row[] =>
+const rowsOf = (client: Client) =>
   client
     .getQueryCache()
     .getAll()
@@ -43,25 +36,26 @@ const rowsOf = (client: Client): Row[] =>
 
 const time = (ms: number) => (ms === 0 ? 'never' : new Date(ms).toISOString())
 const gc = (ms: number) => (Number.isFinite(ms) ? `${ms}ms` : 'kept')
-const empty = <p>No queries recorded.</p>
+const Empty = () => <p>No queries recorded.</p>
 
-function Entries({ client }: { readonly client: Client }) {
-  const [rows, setRows] = useState(() => rowsOf(client))
-  const [events, setEvents] = useState<readonly string[]>([])
-  useEffect(() => {
-    setRows(rowsOf(client))
-    return client.getQueryCache().subscribe((e) => {
-      setRows(rowsOf(client))
-      const kind =
-        e.type === 'updated'
-          ? LIFECYCLE[e.action.type]
-          : e.type === 'added' || e.type === 'removed'
-            ? e.type
-            : undefined
-      if (kind) setEvents((prev) => [...prev, `${kind} ${e.query.queryHash}`].slice(-SHOWN))
-    })
-  }, [client])
-  if (rows.length === 0 && events.length === 0) return empty
+const Entries = function* ({ client }: { readonly client: Client }) {
+  // Every cache event re-runs the entries (a new array), which re-reads the cache.
+  const [events, setEvents] = yield* useLocal<readonly string[]>([])
+  yield* useEffect(
+    () =>
+      client.getQueryCache().subscribe((e) => {
+        const kind =
+          e.type === 'updated'
+            ? LIFECYCLE[e.action.type]
+            : e.type === 'added' || e.type === 'removed'
+              ? e.type
+              : undefined
+        setEvents((prev) => (kind ? [...prev, `${kind} ${e.query.queryHash}`].slice(-SHOWN) : [...prev]))
+      }),
+    [client],
+  )
+  const rows = rowsOf(client)
+  if (rows.length === 0 && events.length === 0) return <Empty />
   return (
     <>
       <ul aria-label="query entries">
@@ -80,36 +74,15 @@ function Entries({ client }: { readonly client: Client }) {
   )
 }
 
-const ScopeEntries = () => <Entries client={useService(QueryClientTag)} />
-
-const TAG = QueryClientTag.key
-/** `useService`'s errors for no `LayerProvider` above, or no `QueryClientTag` in its scope. */
-const noClient = (e: unknown): boolean =>
-  (e instanceof MissingDependency && e.tag === TAG) ||
-  (e instanceof Error && e.message.startsWith(`Service "${TAG}" is not provided: no <LayerProvider>`))
-
-/** Shows the empty state when no client is in scope; any other error is rethrown to the app's boundary. */
-class NoClient extends Component<{ readonly children: ReactNode }, { readonly error: unknown }> {
-  override state: { readonly error: unknown } = { error: undefined }
-  static getDerivedStateFromError = (error: unknown) => ({ error })
-  override render = () => {
-    if (this.state.error === undefined) return this.props.children
-    if (noClient(this.state.error)) return empty
-    throw this.state.error
-  }
-}
-
-/** Query entries (key, status, observers, updatedAt, gc time) and the last 20 cache events. `intervalMs` is unused: updates are pushed. */
-export function QueriesSection(_: { readonly intervalMs?: number }) {
-  if (!enabled()) return null
+/** Query entries (key, status, observers, updatedAt, gc time) and the last 20 cache events; updates are pushed. */
+export const QueriesSection = function* () {
+  if (!enabled()) return <></>
+  // No client in scope is the empty state; a failing client layer fails where it is provided, never here.
+  const client = yield* Effect.serviceOption(QueryClientTag)
   return (
     <section aria-label="queries" data-devtools-queries={QUERY_DEVTOOLS_MARKER}>
       <h3>Queries</h3>
-      <NoClient>
-        <Suspense fallback={empty}>
-          <ScopeEntries />
-        </Suspense>
-      </NoClient>
+      {Option.isSome(client) ? <Entries client={client.value} /> : <Empty />}
     </section>
   )
 }

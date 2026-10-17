@@ -1,33 +1,41 @@
 /**
  * packages/devtools/src/atoms/useStoreAtoms.ts
  *
- * Polls the dev-only atom store registry (`@sleekstack/react/internal`) client-side and lists every open
- * `LayerProvider` store's built atoms. A store disposed or failing mid-poll is skipped, never thrown on.
+ * Lists the built atoms of every open store a `uiTrace` observed, re-read every poll. A store is open while a mount it
+ * was given still has live instances; one disposed or failing mid-poll is skipped, never thrown on.
  */
-import { useEffect, useState } from 'react'
 import type { Atom, AtomStore } from '@sleekstack/core'
-import { atomStores } from '@sleekstack/react/internal'
+import { type Store, useEffect, useLocal } from '@sleekstack/ui'
+import { Effect } from 'effect'
+import type { UiTrace } from '../ui/uiPanel'
 
 type Snapshot = readonly {
   readonly store: AtomStore
   readonly atoms: readonly { readonly atom: Atom.Atom<unknown>; readonly label: string; readonly value: unknown }[]
 }[]
 
-const read = (): Snapshot =>
-  atomStores().flatMap((store) => {
+const read = (trace: UiTrace | undefined): Snapshot => {
+  if (!trace) return []
+  const { stores, instances } = trace.read()
+  const open = new Set([...stores].filter(([mount]) => instances.some((i) => i.mount === mount)).map(([, s]) => s))
+  return [...open].flatMap((store) => {
     try {
       return [{ store, atoms: [...store.inspect()] }]
     } catch {
       return []
     }
   })
-
-/** Built atoms of every registered store, re-read every `intervalMs`; one entry per store. */
-export function useStoreAtoms(intervalMs: number): Snapshot {
-  const [stores, setStores] = useState<Snapshot>(read)
-  useEffect(() => {
-    const timer = setInterval(() => setStores(read()), intervalMs)
-    return () => clearInterval(timer)
-  }, [intervalMs])
-  return stores
 }
+
+/** Built atoms of every open store `trace` observed, re-read every `intervalMs`; one entry per store. */
+export const useStoreAtoms = (trace: UiTrace | undefined, intervalMs: number): Effect.Effect<Snapshot, never, Store> =>
+  Effect.gen(function* () {
+    // Each tick re-runs the caller, which re-reads the stores.
+    const [, setTick] = yield* useLocal(0)
+    yield* useEffect(() => {
+      if (!trace) return
+      const timer = setInterval(() => setTick((n) => n + 1), intervalMs)
+      return () => clearInterval(timer)
+    }, [trace, intervalMs])
+    return read(trace)
+  })
