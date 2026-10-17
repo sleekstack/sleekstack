@@ -13,6 +13,9 @@ const clockLayer = Layer.succeed(Clock, { now: 0 })
 const table = routes({ home: '/', user: '/users/:id' })
 const shell = () => Effect.succeed(el('p', {}, 'shell'))
 
+// Pages here render plain Effects. A JSX render (`() => <NeedsDb />`) is out of scope: ui types every JSX
+// expression as requirement-free, so its services are checked by `sleekstack check` (R12), not by `R`.
+
 // A page whose render reads a server-only service.
 const dbPage = router({
   table,

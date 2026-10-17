@@ -19,7 +19,8 @@ export const MAX_REDIRECTS = 10
 
 /**
  * A page: renders the route's view; `loaders` run (and settle redirect / not-found) before it shows. `R` is what its
- * render and loaders need; `startRouter` and `handle` take a layer providing it.
+ * render and loaders need; `startRouter` and `handle` take a layer providing it. A JSX render adds nothing to `R`:
+ * ui types JSX as requirement-free, so a component's services are checked by `sleekstack check`, not here.
  */
 export interface Page<R = any> {
   readonly render: () => Effect.Effect<Node, any, R>
