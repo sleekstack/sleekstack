@@ -34,7 +34,7 @@ describe('devtools', () => {
 
   it('handler returns JSON with graph in dev; 404 and no recording in production', async () => {
     configureRuntime({ layer: Layer.empty })
-    const body = await devtoolsHandler({ graph: () => ({ nodes: [] }) })().json()
+    const body = await devtoolsHandler({ graph: () => ({ nodes: [] }) })(new Request('http://localhost/')).json()
     expect(body).toEqual({
       disabled: false,
       scopes: [],
@@ -45,7 +45,7 @@ describe('devtools', () => {
 
     vi.stubEnv('NODE_ENV', 'production')
     try {
-      expect(devtoolsHandler()().status).toBe(404)
+      expect(devtoolsHandler()(new Request('http://localhost/')).status).toBe(404)
       await runEffect(Effect.void)
       expect(devtoolsSnapshot().scopes).toEqual([])
       expect(devtoolsSnapshot().disabled).toBe(true)
@@ -116,6 +116,9 @@ describe('devtools', () => {
     expect(devtoolsHandler()(local).status).toBe(200)
     expect(devtoolsHandler()(lan).status).toBe(403)
     expect(devtoolsHandler({ allowRemote: true })(lan).status).toBe(200)
+    // A spoofed loopback Host from a remote peer is refused once the server passes the peer address.
+    expect(devtoolsHandler()(local, { remoteAddress: '192.168.1.9' }).status).toBe(403)
+    expect(devtoolsHandler()(local, { remoteAddress: '::ffff:127.0.0.1' }).status).toBe(200)
   })
 
   it('an error links to its request scope after the scope closes; traced services carry scope and fiber', async () => {

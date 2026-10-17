@@ -18,7 +18,7 @@ configureRuntime({ layer: AppLayer, isControlFlow: (v) => v instanceof Response 
 await runEffect(Effect.log('hello'), { request: RequestLayer })
 ```
 
-`@sleekstack/runtime/devtools` exports `devtoolsHandler()`, a dev-only `Request` to `Response` handler serving the runtime's scopes, errors and live state (and the analyzer graph when given) to the devtools panel: 404 in production, loopback hosts only unless `allowRemote`. It is a separate entry so production bundles never include it.
+`@sleekstack/runtime/devtools` exports `devtoolsHandler()`, a dev-only `Request` to `Response` handler serving the runtime's scopes, errors and live state (and the analyzer graph when given) to the devtools panel: 404 in production, loopback only unless `allowRemote` (pass the peer's `remoteAddress` as the second argument when the server listens beyond loopback, since the URL host comes from the `Host` header). It is a separate entry, so a bundle importing only `@sleekstack/runtime` never contains it.
 
 `@sleekstack/runtime/internal` is for sibling packages (the devtools buffer) and is not public API.
 

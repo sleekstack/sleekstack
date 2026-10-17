@@ -2,7 +2,7 @@
  * packages/runtime/src/devtools.ts
  *
  * `@sleekstack/runtime/devtools`: a dev-only `Request` to `Response` handler exposing the runtime's scope/error buffer and,
- * when given one, the analyzer graph Report. Its own entry, so production server bundles never import it.
+ * when given one, the analyzer graph Report. Its own entry, so a bundle importing only `@sleekstack/runtime` never contains it.
  */
 
 import { devEnabled, devEvents, devLive, type DevEvent } from './runtime'
@@ -40,24 +40,37 @@ export function devtoolsSnapshot(options: DevtoolsOptions = {}): DevtoolsSnapsho
   return options.graph ? { ...snapshot, graph: options.graph() } : snapshot
 }
 
-const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]', '::1'])
+const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]', '::1'])
+const LOOPBACK_ADDRESSES = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1'])
+
+/** What the mounting server knows about the connection; a `Request` alone does not carry the peer. */
+export interface DevtoolsConnection {
+  /** The peer's IP address (e.g. Bun's `server.requestIP(request).address`, Node's `socket.remoteAddress`). */
+  readonly remoteAddress?: string
+}
 
 /**
- * A web-standard fetch handler returning {@link devtoolsSnapshot} as JSON in dev (loopback hosts only unless `allowRemote`; 403 otherwise) and 404 in production.
- * Mount it on any server that speaks `Request`/`Response`.
+ * A web-standard fetch handler returning {@link devtoolsSnapshot} as JSON in dev and 404 in production.
+ * Without `allowRemote` it answers 403 unless the request URL's host is loopback and, when the server passes it,
+ * the peer address is loopback too. The URL host alone comes from the `Host` header, so pass `remoteAddress`
+ * when the server listens beyond loopback.
  *
  * @example
  * ```ts
  * import { devtoolsHandler } from '@sleekstack/runtime/devtools'
  * const devtools = devtoolsHandler()
- * Bun.serve({ fetch: (request) => devtools(request) })
+ * Bun.serve({ fetch: (request, server) => devtools(request, { remoteAddress: server.requestIP(request)?.address }) })
  * ```
  */
-export function devtoolsHandler(options: DevtoolsOptions = {}): { (): Response; (request: Request): Response } {
-  return (request?: Request) => {
+export function devtoolsHandler(
+  options: DevtoolsOptions = {},
+): (request: Request, connection?: DevtoolsConnection) => Response {
+  return (request, connection = {}) => {
     if (!devEnabled()) return new Response('Not Found', { status: 404 })
-    if (request && !options.allowRemote && !LOOPBACK.has(new URL(request.url).hostname))
-      return new Response('Forbidden', { status: 403 })
+    const local =
+      LOOPBACK_HOSTS.has(new URL(request.url).hostname) &&
+      (connection.remoteAddress === undefined || LOOPBACK_ADDRESSES.has(connection.remoteAddress))
+    if (!options.allowRemote && !local) return new Response('Forbidden', { status: 403 })
     return Response.json(devtoolsSnapshot(options))
   }
 }
