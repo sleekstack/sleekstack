@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-17T12:18:13.697403Z",
+  "depends_on": [
+    "fn-55-remove-kit-react-next-and-islands.1"
+  ],
+  "id": "fn-55-remove-kit-react-next-and-islands.2",
+  "priority": null,
+  "spec": "fn-55-remove-kit-react-next-and-islands",
+  "spec_path": ".flow/tasks/fn-55-remove-kit-react-next-and-islands.2.md",
+  "status": "todo",
+  "title": "devtools: UiPanel and uiTrace as ui components, no React",
+  "updated_at": "2026-10-17T12:18:13.697403Z"
+}
