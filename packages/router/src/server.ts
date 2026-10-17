@@ -1,12 +1,14 @@
 import { type Node, renderToStream, renderToString } from '@sleekstack/ui'
 import { Cause, Effect, Exit, Layer, Option, Runtime } from 'effect'
-import { routeLayer } from './index'
+import { routeLayer, type RouteTable } from './index'
 import { type Held, Loaders, withLoaders } from './loader'
-import { controlOf, isControl, type NotFound, Redirect, resolve, type Router, view } from './resolve'
+import { type AppLayer, controlOf, isControl, type NotFound, Redirect, resolve, type Router, view } from './resolve'
 
-export interface HandleOptions {
-  /** App services for loaders and pages; a `Transfer` it provides travels beside the loaders'. */
-  readonly layer?: Layer.Layer<any, any, never>
+/**
+ * `layer` is the app services for loaders and pages, required when the router's pages need any (`AppLayer`); a
+ * `Transfer` it provides travels beside the loaders'.
+ */
+export type HandleOptions<R = never> = AppLayer<R> & {
   /** Stream the page (`renderToStream`) instead of rendering it to a string. */
   readonly stream?: boolean
   /** Markup around the rendered page: the document head before, the closing tags after. */
@@ -50,7 +52,13 @@ const wrap = (body: ReadableStream<Uint8Array>, d: { before: string; after: stri
  * the page (its `Boundary` shows the error) with the error's status. `stream: true` does the same, then sends the shell first
  * and a redirect or not-found from an undeclared loader as a script (see `stream`). Loader results ride the hydration payload either way.
  */
-export const handle = async (r: Router, request: Request, opts: HandleOptions = {}): Promise<Response> => {
+export const handle = async <T extends RouteTable, R>(
+  router: Router<T, R>,
+  request: Request,
+  ...[opts = {} as HandleOptions<R>]: {} extends HandleOptions<R> ? [opts?: HandleOptions<R>] : [opts: HandleOptions<R>]
+): Promise<Response> => {
+  // The layer check is the signature's; inside, pages run under the merged layers.
+  const r: Router = router
   const url = new URL(request.url)
   const href = url.pathname + url.search
   const base = opts.layer ?? Layer.empty
@@ -70,7 +78,7 @@ export const handle = async (r: Router, request: Request, opts: HandleOptions = 
     layer: Layer.Layer<any, any>,
     status: number,
   ): Promise<Response> => {
-    if (opts.stream) return stream(r, [page, layer, status], loaders, doc, opts)
+    if (opts.stream) return stream(r, [page, layer, status], loaders, doc, opts.onError)
     // A loader the page reads without declaring it on its route can still redirect or not-find: the string render
     // answers it like a declared one.
     let ctl: Redirect | NotFound | undefined
@@ -104,7 +112,7 @@ const stream = async (
   [page, layer, status]: readonly [Effect.Effect<Node, any, any>, Layer.Layer<any, any>, number],
   loaders: Layer.Layer<any, any>,
   doc: { before: string; after: string },
-  opts: HandleOptions,
+  report: ((cause: Cause.Cause<unknown>) => void) | undefined,
 ): Promise<Response> => {
   let ctl: Redirect | NotFound | undefined
   let sent = false
@@ -118,7 +126,7 @@ const stream = async (
   const onError = (cause: Cause.Cause<unknown>) => {
     const c = controlOf(cause)
     if (c) ctl ??= c
-    else opts.onError?.(cause)
+    else report?.(cause)
   }
   return new Response(wrap(renderToStream(page, { layer, onError }), doc, late), { status, headers: HTML })
 }
