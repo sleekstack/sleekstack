@@ -17,6 +17,7 @@ import { checkRoot, RUNTIME_RUN_CALLS, runEffectRoots, type ExtraRoot } from './
 import type {
   AnalyzeCode,
   AnalyzeError,
+  Atoms,
   Edge,
   Graph,
   GraphNode,
@@ -39,6 +40,7 @@ export function libId(sym: ts.Symbol | undefined, checker: ts.TypeChecker): stri
   if (/\/effect\/dist\/dts\/Context\.d\.ts$/.test(file)) return `effect/Context#${sym.name}`
   if (/\/effect\/dist\/dts\/Effect\.d\.ts$/.test(file)) return `effect/Effect#${sym.name}`
   if (/\/effect\/dist\/dts\/Layer\.d\.ts$/.test(file)) return `effect/Layer#${sym.name}`
+  if (/\/effect\/dist\/dts\/Stream\.d\.ts$/.test(file)) return `effect/Stream#${sym.name}`
   return undefined
 }
 
@@ -46,6 +48,7 @@ const TAG_CALL = 'effect/Context#GenericTag'
 /** `class X extends <call>('X')<X, S>() {}`: both spell a Tag class, `Effect.Tag` adding static accessors. */
 const TAG_CLASS_CALLS = new Set(['effect/Context#Tag', 'effect/Effect#Tag'])
 const MODULE_CALL = 'core/module#makeModule'
+const ATOM_CALL = 'core/atom/Atom#make'
 const RUNTIME_CALLS = new Set(['next/runtime#configureRuntime', 'runtime/runtime#configureRuntime'])
 /** Plain Layer combinators walked structurally (data-first or as `.pipe` steps). */
 const LAYER_COMBINATORS = new Set([
@@ -652,6 +655,8 @@ export function extract(project: string, entries?: readonly string[], lenient = 
   }
 
   const found: ModuleDecl[] = []
+  const atomNodes: Atoms['nodes'][number][] = []
+  const atomEdges: Edge[] = []
   const runtimes: ModuleDecl[] = []
   const extraRoots: ExtraRoot[] = []
   const entryFiles = entries && new Set(entries.map((f) => path.resolve(f)))
@@ -792,6 +797,37 @@ export function extract(project: string, entries?: readonly string[], lenient = 
     )
   }
 
+  /**
+   * An `Atom.make` over an Effect / Stream (or a read function returning one) is a node; each Tag its `R` names is an
+   * edge. Value and plain derived atoms read no services and are skipped. Named by its enclosing const.
+   */
+  const atomOf = (n: ts.CallExpression, arg: ts.Expression) => {
+    const t = checker.getTypeAtLocation(arg)
+    const sigs = t.getCallSignatures()
+    const eff = sigs.length ? checker.getReturnTypeOfSignature(sigs[0]!) : t
+    const kind = libId(eff.getSymbol(), checker)
+    if (kind !== 'effect/Effect#Effect' && kind !== 'effect/Stream#Stream') return
+    const r = checker.getTypeArguments(eff as ts.TypeReference)[2]
+    const requires = !r || r.flags & ts.TypeFlags.Never ? [] : (r.isUnion() ? r.types : [r]).map((m) => tagOf(m, arg))
+    const v = ts.findAncestor(n, ts.isVariableDeclaration)
+    const l = loc(n)
+    const aid = `atom:${v && ts.isIdentifier(v.name) ? v.name.text : `${l.file}:${l.line}`}`
+    atomNodes.push({ id: aid, ...l })
+    for (const tag of requires) atomEdges.push({ from: aid, to: tag, tag })
+  }
+  /** The Tag key a requirement type names: a `Context.Tag` class, or the one `Context.GenericTag<S>` keyed by `S`. */
+  const tagOf = (m: ts.Type, at: ts.Node): string => {
+    if (!(m.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown))) {
+      const d = m.getSymbol()?.valueDeclaration
+      if (isTagClass(d)) return classKey(d)
+      const generic = genericTags().get(m)
+      if (generic?.length === 1) return generic[0]!
+    }
+    return fail(
+      at,
+      `"${text(at)}" requires "${checker.typeToString(m)}", which does not resolve to exactly one Tag declaration`,
+    )
+  }
   const visit = (n: ts.Node): void => {
     if (ts.isCallExpression(n)) {
       const id = calleeOf(n)
@@ -805,6 +841,12 @@ export function extract(project: string, entries?: readonly string[], lenient = 
       } else if (id && RUNTIME_CALLS.has(id) && isRootFile(n.getSourceFile())) {
         try {
           runtimeOf(n, id === 'next/runtime#configureRuntime')
+        } catch (err) {
+          report(err)
+        }
+      } else if (id === ATOM_CALL && n.arguments[0]) {
+        try {
+          atomOf(n, n.arguments[0])
         } catch (err) {
           report(err)
         }
@@ -858,6 +900,7 @@ export function extract(project: string, entries?: readonly string[], lenient = 
   }
   return {
     graphs: roots.map(graphOf),
+    atoms: { nodes: atomNodes, edges: atomEdges },
     // One defect reached twice (a provided module is also a root) is one error.
     errors: [...new Map(errors.map((e) => [`${e.code}|${e.file}:${e.line}|${e.message}`, e])).values()],
     extraction,

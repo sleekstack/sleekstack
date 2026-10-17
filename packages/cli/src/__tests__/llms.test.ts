@@ -1,8 +1,8 @@
-/** R4: the error section of @sleekstack/kit's llms.md is generated from ERROR_CODES. */
+/** R4: the error section of the bundled agent instructions (llms.md, still in kit until it moves here) is generated from ERROR_CODES. */
 import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { ERROR_CODES } from '../errorCodes'
+import { ERROR_CODES } from '@sleekstack/analyze'
 
 const pkgDir = fileURLToPath(new URL('../../../kit', import.meta.url))
 const file = `${pkgDir}/llms.md`
@@ -22,6 +22,6 @@ describe('kit llms.md', () => {
     const tail = rest!.split(END)[1]
     const expected = `${head}${START}\n${errorsSection()}\n${END}${tail}`
     if (process.env.UPDATE_LLMS) fs.writeFileSync(file, expected)
-    expect(md, 'stale: run UPDATE_LLMS=1 vitest run llms in packages/analyze').toBe(expected)
+    expect(md, 'stale: run UPDATE_LLMS=1 vitest run llms in packages/cli').toBe(expected)
   })
 })

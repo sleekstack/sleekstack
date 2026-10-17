@@ -13,7 +13,7 @@ Reported at build time by `sleekstack check` (with file:line). The runtime keeps
 
 | Code | Triggered when |
 | --- | --- |
-| `MissingDependency` | A service requires a Tag that no entry provides. A kit action whose dep is not provided rejects with it too. |
+| `MissingDependency` | A service requires a Tag that no entry provides. |
 | `DependencyCycle` | Services require each other in a cycle (`path` lists it). |
 | `AmbiguousProvider` | Two providers of one Tag sit at the same locality, so Shadowing cannot pick one. |
 | `ModuleCycle` | Modules import each other in a cycle (`path` lists it). |

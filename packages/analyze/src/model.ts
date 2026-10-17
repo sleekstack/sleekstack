@@ -79,6 +79,12 @@ export interface Shadowing {
   readonly shadowed: readonly string[]
 }
 
+/** Core Effect / Stream atoms (`Atom.make`, also inside `Atom.family`) resolve from the store's scope; the Tags their `R` names are edges. */
+export interface Atoms {
+  readonly nodes: readonly (Location & { readonly id: string })[]
+  readonly edges: readonly Edge[]
+}
+
 /** The graph reachable from one root module. */
 export interface Graph {
   readonly root: string
@@ -97,8 +103,9 @@ export interface Graph {
 export interface Report {
   /** One graph per root module (a module no other module imports). */
   readonly graphs: readonly Graph[]
+  readonly atoms: Atoms
   readonly errors: readonly AnalyzeError[]
-  /** Unreadable-declaration errors outside every module (emitted siblings, a bare module() call). */
+  /** Unreadable-declaration errors outside every module (emitted siblings, atoms, a bare module() call). */
   readonly extraction: readonly AnalyzeError[]
   /**
    * App roots first: one per `configureRuntime` call (`kind: 'app'`). Then one per Layer-valued branch of a
