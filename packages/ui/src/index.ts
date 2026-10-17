@@ -28,7 +28,7 @@ export { renderToStream } from './stream'
 export type { StreamOptions } from './stream'
 export { Boundary, Pending, Portal, Provider } from './jsx-runtime'
 export type { Child, Reset } from './jsx-runtime'
-export type { BoundAction, ComponentResult, Draft } from './reactive'
+export type { BoundAction, ComponentResult } from './reactive'
 export type { FormAction } from './jsx-types'
 export type { Result } from '@sleekstack/core'
 export { lazy, LazyLoadError } from './lazy'
@@ -43,7 +43,6 @@ export {
   useAtomValue,
   useDeferredAtom,
   useDerivedAtom,
-  useDraft,
   useLocal,
   useEffect,
   useFormStatus,

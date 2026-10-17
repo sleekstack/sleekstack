@@ -5,7 +5,6 @@
  */
 
 export type { Lifetime } from './lifetime'
-export type { DraftSpec, ModelSpec } from './model'
 export {
   module,
   declareLayer,
