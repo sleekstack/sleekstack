@@ -35,9 +35,18 @@ The spec completion review (Codex, NEEDS_WORK) found two real gaps that earlier 
 - [ ] `pnpm turbo run test typecheck --filter=@sleekstack/router... --filter=@sleekstack/start... --filter=@sleekstack/ui... --filter=showcase` is green
 
 ## Done summary
-TBD
+R1: `RouterProvided` is now `Loaders | Transfer | Store`. `router()` drops `Route` from what matched pages and their loaders need, but keeps it in what `notFound` needs. So `startRouter`, `handle` and `start` need a layer that provides `Route` when the not-found page reads it, which matches the analyzer (task .7). `start`'s `Needs` no longer excludes `Route`. Type tests: `packages/router/src/__tests__/requirements.test-d.ts` (a `notFound` needing `Route` fails without it and compiles with it; matched `params` pages still compile without it, via `free`) and `packages/start/src/__tests__/layer.test-d.ts`. The test was run red first against the old resolve.ts (TS2578 unused expect-error).
 
+R2: `handle` takes an optional `runtime` and runs `resolve` (the loaders) and the string and stream renders on it. Without one it uses `Runtime.defaultRuntime`, the same as before. `start`'s page stage now passes the request fiber's `Effect.runtime()` instead of `Layer.succeedContext(context)`. The ui change is small and additive: `runToNode` takes `{ onError, runtime }` (in place of the positional `onError`; dom.ts is its other caller, updated); `renderToString` options and `StreamOptions` extend a new internal `RunOptions` (`onError`, `runtime`); the stream shell and boundary reruns fork on that runtime. Test: `start.test.ts` "a page loader and render run in the request fiber, seeing its FiberRefs". A middleware sets a FiberRef, and the loader and the render both read it through `start(...).fetch`. It was red before the fix (`unset unset`).
+
+ADR 0039: both gaps are gone from Known gaps, and two Consequences lines record the new behavior.
+
+Follow-up: `renderToStream`'s `late()` not-found render and the `stream` path are now covered by the runtime, but no test pins the stream path with a runtime (start does not stream).
+
+baseline: green
+stage: impl-review - ran (codex fan-out round 1, all three draws SHIP, --base master)
+Tier: implementer opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 7e453a36661b6d087bcd6dc9fe28b17a93b56fe0
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/router... --filter=@sleekstack/start... --filter=@sleekstack/ui... --filter=showcase
 - PRs:
