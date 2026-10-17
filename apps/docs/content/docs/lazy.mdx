@@ -1,0 +1,18 @@
+---
+title: lazy
+description: Load a @sleekstack/ui component's code on first render, show a fallback while it loads, and retry a failed import.
+---
+
+`lazy(() => import('./Chart'))` returns a component whose module loads on its first render. The bundler splits the module into its own chunk. Its props are the props of the module's default export, which must be a host component.
+
+<include>../../snippets/ui/chart.tsx</include>
+
+<include>../../snippets/ui/lazy.tsx</include>
+
+- Render it under `Pending` to show a fallback while the module loads.
+- The module loads once; later renders use it directly.
+- A failed import, or a module with no default export component, fails with `LazyLoadError` (its `cause` is the original error). Catch it with `<Boundary tag="LazyLoadError">`.
+- A failed import is not cached. Calling the fallback's `reset` re-runs the boundary's children, and the `Pending` inside retries, so the import runs again. See [Boundary reset](/docs/portal-boundary#boundary-reset).
+- `renderToString` awaits the import; `hydrateMount` adopts the server nodes.
+
+The size budget of [ADR 0022](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0022-ui-size-budget-and-publish-gate.md) measures a `lazy` mount and checks that the imported module is in its own chunk.

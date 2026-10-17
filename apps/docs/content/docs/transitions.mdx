@@ -1,0 +1,18 @@
+---
+title: Transitions and deferred atoms
+description: Keep the previous screen while new content loads with startTransition, and update a slow view one commit later with useDeferredAtom.
+---
+
+Two tools keep a `@sleekstack/ui` page responsive without interruptible rendering ([ADR 0034](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0034-transitions-and-deferred-atoms.md)).
+
+<include>../../snippets/ui/transitions.tsx</include>
+
+## `startTransition`
+
+`startTransition(() => setTab('Activity'))` marks the atom writes made inside it. A re-run caused only by marked writes keeps the previous DOM over a `Pending` that has no content yet (a new key or a new branch): instead of showing the fallback, the page stays as it is until the new content commits. A `Pending` that already shows content keeps it on any re-run, marked or not. One unmarked write in the same change clears the mark.
+
+A Transition is a flag, not a scheduler. It does not delay the re-run, a later write does not interrupt it, and it does not split a long synchronous render. A later write re-runs the instance again and the newest run wins. There is no `isPending`.
+
+## `useDeferredAtom`
+
+`useDeferredAtom(source)` returns an atom owned by the instance. After each committed run it copies the current value of `source` into that atom, so components that read the deferred atom re-run one commit after the ones that read `source`. In the example the input follows each keystroke, and the long list catches up after. An unchanged value does not notify. It takes a slot, like `useLocal` (see [the slot rule](/docs/ui#the-slot-rule)). In `renderToString` it returns `source` itself, so the server HTML matches.

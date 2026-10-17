@@ -3,19 +3,20 @@ title: Showcase
 description: One Vite app that runs @sleekstack/ui end to end.
 ---
 
-[`apps/showcase`](https://github.com/sleekstack/sleekstack/tree/master/apps/showcase) is a team task board built with `@sleekstack/ui` components on Effect Layers. It is a Vite app: run it with `pnpm --filter showcase dev`.
+[`apps/showcase`](https://github.com/sleekstack/sleekstack/tree/master/apps/showcase) is a team task board built with `@sleekstack/ui` components on Effect Layers (see the [UI components guide](/docs/ui)). It is a Vite app: run it with `pnpm --filter showcase dev`.
 
 The page mounts the app twice, as Ada (an editor) and Grace (a viewer). Each mount has its own atom store, and a `Provider` scopes the Viewer for everything under it. The code has one folder per domain under `src/modules/` (`identity`, `projects`, `tasks`).
 
-The shell links one page per feature, each opened in a `startTransition`:
+The app links one page per feature, each opened in a `startTransition`:
 
-- **Board and forms**: tasks read and written through `@sleekstack/query`, a new-task form with `useAction`, `useFormStatus` and `useOptimistic`, a `Boundary` fallback for an unknown project, and a tab title that follows the open project through an effect.
-- **Typed DOM**: host elements typed per tag, atoms bound to attributes, `useRef`.
-- **lazy**: a chart in its own chunk under `Pending`.
-- **Transitions**: `startTransition` and `useDeferredAtom`.
-- **Portal**: a dialog in `document.body` that reads the Viewer of where it is rendered.
-- **Boundary reset**: a failed read whose fallback's `reset` re-runs the boundary's children.
-- **Router**: a `@sleekstack/router` app run by `startRouter` in the page, with a route table, a loader with a schema and `Link`s that prefetch it.
+- **Board and forms**: tasks read and written through `@sleekstack/query`, a new-task [form](/docs/forms) with `useAction`, `useFormStatus` and `useOptimistic`, a `Boundary` fallback for an unknown project, and a tab title that follows the open project through an effect.
+- **Typed DOM** ([guide](/docs/typed-dom)): host elements typed per tag, atoms bound to attributes, `useRef`.
+- **lazy** ([guide](/docs/lazy)): a chart in its own chunk under `Pending`.
+- **Transitions** ([guide](/docs/transitions)): `startTransition` and `useDeferredAtom`.
+- **Portal** ([guide](/docs/portal-boundary#portal)): a dialog in `document.body` that reads the Viewer of where it is rendered.
+- **Boundary reset** ([guide](/docs/portal-boundary#boundary-reset)): a failed read whose fallback's `reset` re-runs the boundary's children.
+- **Model and Draft** ([guide](/docs/models)): a Model built with `fromDto`, an edit Draft from `useDraft` with per-field errors, `dirty`, `reset` and a live `preview`, saved by a Form Action.
+- **Router** ([guide](/docs/routing)): a `@sleekstack/router` app run by `startRouter` in the page, with a route table, a loader with a schema and `Link`s that prefetch it.
 - **Devtools**: links the [devtools panel](/docs/ui-devtools), which opens below the demo in development only.
 
 The app's [README](https://github.com/sleekstack/sleekstack/blob/master/apps/showcase/README.md) lists the source and test of each page.
