@@ -28,11 +28,11 @@ Thread a requirement type `R` through `Page`, `Router`, `router()`, `startRouter
 - `apps/showcase/test/router.test.ts`
 
 ## Acceptance
-- [ ] A type test shows a page needing a service absent from the `startRouter` / `handle` layer fails to compile, and compiles when the layer provides it
+- [ ] A type test shows a plain-Effect page needing a service absent from the `startRouter` / `handle` layer fails to compile, and compiles when the layer provides it
 - [ ] A type test shows a loader reading a service absent from the client layer is rejected
+- [ ] JSX pages are out of scope here (ui types JSX as requirement-free; covered by task .7 and R12); a code comment or test note says so
 - [ ] Router apps with requirement-free pages compile unchanged; all existing router and showcase tests pass
 - [ ] `pnpm turbo run test typecheck --filter=@sleekstack/router... --filter=showcase` is green
-
 ## Done summary
 TBD
 
