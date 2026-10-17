@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-17T12:18:13.697509Z",
+  "depends_on": [
+    "fn-55-remove-kit-react-next-and-islands.6"
+  ],
+  "id": "fn-55-remove-kit-react-next-and-islands.7",
+  "priority": null,
+  "spec": "fn-55-remove-kit-react-next-and-islands",
+  "spec_path": ".flow/tasks/fn-55-remove-kit-react-next-and-islands.7.md",
+  "status": "todo",
+  "title": "docs content, generated API docs, ADR, CONTEXT and AGENTS.md for the removal",
+  "updated_at": "2026-10-17T12:18:13.697509Z"
+}
