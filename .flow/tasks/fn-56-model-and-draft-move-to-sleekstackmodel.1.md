@@ -32,9 +32,14 @@ Give packages outside `ui` what `useDraft` needs from the renderer, as documente
 - [ ] `pnpm turbo run test typecheck --filter=@sleekstack/ui...` is green
 
 ## Done summary
-TBD
+`@sleekstack/ui/internal` now exports the slot-hook surface (`Store`, `Frame`, `takeSlot`, `missingStore`, `writeOwn`, types `RunFrame`/`Slots`); the mutable `ownWrite` object became `writeOwn` (re-entrant, restores the outer writer) plus `isOwnWrite`, used by `useDraft` and `dom.ts`. The public index is unchanged. A test-only external slot hook in `packages/ui/src/__tests__/slot-hook.test.ts` covers stable slots across runs, `SlotMismatch`, a call outside a component (slot-free value with a Store, `MissingDependency` without one), and nested `writeOwn`. Early proof point holds: no hook behavior changed and all existing ui/query/analyze tests pass.
 
+baseline: green (pnpm turbo run test typecheck --filter=@sleekstack/ui...)
+Extra checks: pnpm turbo run test typecheck --filter=@sleekstack/query --filter=@sleekstack/analyze green. packages/ui/README.md prettier warning predates this task.
+
+Tier: implementer opus at medium
+stage: impl-review - ran (codex fan-out NEEDS_WORK: Store missing from ui/internal, writeOwn not re-entrant; fixed in da9084e; re-review SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: f81066b84b80c2cc40d34af84061923811864cb8, da9084ef40290ba3455bcfe69a05a8225135e5c5
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/ui..., pnpm turbo run test typecheck --filter=@sleekstack/query --filter=@sleekstack/analyze
 - PRs:
