@@ -1,46 +1,59 @@
-import { layer, module, tag, type Layer } from '@sleekstack/kit'
+import { Context, Layer } from 'effect'
+import { declareLayer, module, type DeclaredLayer } from '@sleekstack/core'
 
-const A = tag<string>('A')
-const B = tag<string>('B')
-const C = tag<string>('C')
-const D = tag<string>('D')
-const tags = [A, B] as const
+class A extends Context.Tag('A')<A, string>() {}
+class B extends Context.Tag('B')<B, string>() {}
+class C extends Context.Tag('C')<C, string>() {}
+class D extends Context.Tag('D')<D, string>() {}
+// Core reads what a declared Layer provides from its type, so lists range over declared entries.
+const la = declareLayer(Layer.succeed(A, 'x'))
+const lb = declareLayer(Layer.succeed(B, 'x'))
+const defs = [la, lb] as const
 
-const looped: Layer<string>[] = []
-for (const t of tags) looped.push(layer(t, 'x'))
+const looped: DeclaredLayer[] = []
+for (const d of defs) looped.push(d)
 declare const flag: boolean
-if (flag) looped.push(layer(C, 'c'))
+if (flag) looped.push(declareLayer(Layer.succeed(C, 'c')))
 
-export const Mapped = module({ name: 'Mapped', provide: tags.map((t) => layer(t, 'x')) })
-export const Looped = module({ name: 'Looped', provide: looped })
+export const Mapped = module({ name: 'Mapped', entries: defs.map((d) => d) })
+export const Looped = module({ name: 'Looped', entries: looped })
 
 declare const loose: any[]
-export const Loose = module({ name: 'Loose', provide: loose.map((t) => layer(t, 'x')) }) // @error Computed
-declare const widened: Layer<any>[]
-export const Widened = module({ name: 'Widened', provide: widened }) // @error Computed
+export const Loose = module({ name: 'Loose', entries: loose.map((d) => d) }) // @error Computed
+declare const widened: Layer.Layer<any>[]
+export const Widened = module({ name: 'Widened', entries: widened }) // @error Computed
 
-const makeLayer = (t: typeof A) => layer(t, 'x')
+const pass = (d: DeclaredLayer) => d
 declare const pick: boolean
-const shared = tags.map(makeLayer)
-const Left = module({ name: 'Left', provide: shared })
-const Right = module({ name: 'Right', provide: shared })
-export const Named = module({ name: 'Named', imports: [Left, Right], provide: [pick ? layer(C, 'c') : layer(D, 'd')] })
+const shared = defs.map(pass)
+const Left = module({ name: 'Left', entries: shared })
+const Right = module({ name: 'Right', entries: shared })
+export const Named = module({
+  name: 'Named',
+  imports: [Left, Right],
+  entries: [pick ? declareLayer(Layer.succeed(C, 'c')) : declareLayer(Layer.succeed(D, 'd'))],
+})
 
-// Parameterized helper, called twice: each call makes its own layers (ambiguous), bound to its own argument.
-const makeLayers = (xs: readonly (typeof A)[]) => xs.map((t) => layer(t, 'h')) // @error AmbiguousProvider
-const H1 = module({ name: 'H1', provide: makeLayers([A]) })
-const H2 = module({ name: 'H2', provide: makeLayers([A]).concat(makeLayers([B]).slice()) })
+// Helpers, called twice: each call makes its own layer (ambiguous); a parameterized one binds its own argument.
+const fresh = () => [declareLayer(Layer.succeed(A, 'h'))] // @error AmbiguousProvider
+const own = (xs: readonly DeclaredLayer[]) => xs.map((d) => d)
+const H1 = module({ name: 'H1', entries: fresh() })
+const H2 = module({ name: 'H2', entries: fresh().concat(own([lb]).slice()) })
 export const Helpers = module({ name: 'Helpers', imports: [H1, H2] })
 // A mapper returning one shared layer yields one provider; mapped modules stay distinct.
-const sharedC = layer(C, 'c')
-export const Reused = module({ name: 'Reused', provide: tags.map(() => sharedC), imports: ['M1', 'M2'].map((n) => module({ name: n, provide: [] })) })
+const sharedC = declareLayer(Layer.succeed(C, 'c'))
+export const Reused = module({
+  name: 'Reused',
+  entries: defs.map(() => sharedC),
+  imports: ['M1', 'M2'].map((n) => module({ name: n, entries: [] })),
+})
 
 // Fresh objects per iteration, even when the callback ignores its item: runtime sees two providers / two modules.
-export const Fresh = module({ name: 'Fresh', provide: tags.map(() => layer(C, 'c')) }) // @error AmbiguousProvider
-const twice: Layer<string>[] = []
-for (const _ of tags) twice.push(layer(D, 'd')) // @error AmbiguousProvider
-export const FreshLoop = module({ name: 'FreshLoop', provide: twice })
-export const FreshModules = module({ name: 'FreshModules', imports: tags.map(() => module({ name: 'Same', provide: [] })) }) // @error DuplicateModule
-// A callback delegating to a layer-producing helper.
-const mk = (t: typeof A) => layer(t, 'm')
-export const Delegated = module({ name: 'Delegated', provide: tags.map((t) => mk(t)) })
+export const Fresh = module({ name: 'Fresh', entries: defs.map(() => declareLayer(Layer.succeed(C, 'c'))) }) // @error AmbiguousProvider
+const twice: DeclaredLayer[] = []
+for (const _ of defs) twice.push(declareLayer(Layer.succeed(D, 'd'))) // @error AmbiguousProvider
+export const FreshLoop = module({ name: 'FreshLoop', entries: twice })
+export const FreshModules = module({ name: 'FreshModules', imports: defs.map(() => module({ name: 'Same', entries: [] })) }) // @error DuplicateModule
+// A callback delegating to a helper.
+const mk = (d: DeclaredLayer) => d
+export const Delegated = module({ name: 'Delegated', entries: defs.map((d) => mk(d)) })

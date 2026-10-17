@@ -17,23 +17,14 @@ const shape = (g: {
 })
 
 describe('analyze', () => {
-  it('kit fixture: graph, privacy, atom and effect edges', () => {
-    const r = fixture('kit-app')
+  it('core fixture: clean graph, privacy and edges', () => {
+    const r = fixture('core-app')
     expect(r.errors).toEqual([])
     expect(r.graphs).toHaveLength(1)
     const g = r.graphs[0]!
     expect(g.private).toEqual(expect.arrayContaining(['Store']))
     expect(g.modules.find((m) => m.name === 'Infra')?.exports).toEqual(['Clock', 'Logger'])
-    expect(edgeKey(r.atoms.edges)).toEqual(['atom:count->Clock:Clock', 'atom:doubled->Clock:Clock'])
-    expect(edgeKey(g.edges)).toEqual(
-      expect.arrayContaining(['effect:boot->Logger:Logger', 'effect:boot->TaskRepo:TaskRepo']),
-    )
-  })
-
-  it('core fixture: clean graph', () => {
-    const r = fixture('core-app')
-    expect(r.errors).toEqual([])
-    expect(shape(r.graphs[0]!).nodes.length).toBeGreaterThan(0)
+    expect(shape(g).edges).toEqual(expect.arrayContaining(['Logger->Clock:Clock', 'Store->Logger:Logger']))
   })
 
   it('reports computed and unresolvable declarations with file:line', () => {
@@ -43,7 +34,6 @@ describe('analyze', () => {
       { code: 'Unresolvable', file: 'app.ts', line: 11 },
       { code: 'Computed', file: 'app.ts', line: 16 },
       { code: 'Computed', file: 'app.ts', line: 21 },
-      { code: 'UnnamedEffect', file: 'app.ts', line: 22 },
     ])
   })
 })

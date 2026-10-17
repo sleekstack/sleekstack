@@ -1,5 +1,5 @@
 import { Context, Layer } from 'effect'
-import { configureRuntime } from '@sleekstack/kit/next'
+import { configureRuntime } from '../../../../../runtime/src/index'
 
 interface Shared { readonly n: number }
 export const A = Context.GenericTag<Shared>('A')

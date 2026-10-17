@@ -2,7 +2,7 @@
  * packages/analyze/src/index.ts
  *
  * `@sleekstack/analyze`: the static dependency-graph analyzer. `analyze({ project })` reads a
- * tsconfig project's kit/core declarations through the TypeScript checker and returns the graph
+ * tsconfig project's core modules, plain Layers and runtime roots through the TypeScript checker and returns the graph
  * report; no app module is imported or executed.
  */
 

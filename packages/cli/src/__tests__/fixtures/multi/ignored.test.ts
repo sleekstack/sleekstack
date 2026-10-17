@@ -1,2 +1,2 @@
-import { configureRuntime } from '@sleekstack/kit/next'
+import { configureRuntime } from '@sleekstack/runtime'
 configureRuntime({ provide: [] })

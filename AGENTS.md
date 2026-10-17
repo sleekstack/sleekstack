@@ -28,7 +28,7 @@ Scope to one package with `pnpm turbo run <task> --filter=<name>`.
 | showcase (`apps/showcase`)    | `pnpm turbo run test typecheck --filter=showcase`                                                    |
 | a public export name          | the above, plus the fixture graph check below before and after: output must match                    |
 
-Fixture graph check: from the repo root, `for app in kit-app effect-app; do (cd packages/cli/src/__tests__/fixtures/$app && node ../../../../bin/cli.js check --json --entry runtime.ts); done`. Save the output before the change and diff it with the output after.
+Fixture graph check: from the repo root, `(cd packages/cli/src/__tests__/fixtures/effect-app && node ../../../../bin/cli.js check --json --entry runtime.ts)`. Save the output before the change and diff it with the output after.
 
 ## Rules
 

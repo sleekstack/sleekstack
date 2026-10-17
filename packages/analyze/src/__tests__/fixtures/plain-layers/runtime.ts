@@ -1,4 +1,4 @@
-import { configureRuntime } from '@sleekstack/kit/next'
+import { configureRuntime } from '../../../../../runtime/src/index'
 import { AppLive } from './live'
 
 configureRuntime({ layer: AppLive } as never)

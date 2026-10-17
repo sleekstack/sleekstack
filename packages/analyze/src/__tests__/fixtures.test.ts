@@ -39,9 +39,9 @@ const graphErrors = [
 ]
 
 describe('graph error fixtures', () => {
-  it.each(graphErrors)('%s: code and file:line, kit and core declarations', (name) => {
+  it.each(graphErrors)('%s: code and file:line', (name) => {
     const want = expected(name)
-    expect(want.map((e) => e.file)).toEqual(expect.arrayContaining(['core.ts', 'kit.ts']))
+    expect(want.map((e) => e.file)).toContain('core.ts')
     expect(sorted(located(name))).toEqual(want)
   })
 
@@ -83,37 +83,6 @@ describe('graph error fixtures', () => {
         'Service "B+M" (module "Lib") requires "Z", but no entry provides it. If a raw Layer provides it, wrap it with declareLayer(layer, { provides: [...] }).',
       ],
     ])
-  })
-
-  it('action bodies: yielded Tags (through helper generators) (and opts.scope) must be provided, visible and nameable', () => {
-    expect(sorted(located('actions'))).toEqual(expected('actions'))
-    const r = analyze({ project: path.join(dir('actions'), 'tsconfig.json') })
-    // An action body with no readable declaration fails the whole check.
-    expect(r.extraction.map((e) => [e.code, e.file])).toContainEqual(['Unresolvable', 'effects.ts'])
-    expect(r.runtimes[0]!.errors.map((e) => e.code).sort()).toEqual([
-      'MissingDependency',
-      'MissingDependency',
-      'MissingDependency',
-      'MissingDependency',
-      'MissingDependency',
-      'MissingDependency',
-      'MissingDependency',
-      'MissingDependency',
-      'PrivateDependency',
-      'PrivateDependency',
-    ]) // runOperation + its deprecated alias effect (ADR 0019)
-  })
-
-  it('query and mutation fetchers: requirements checked like action bodies; non-static keys are Computed', () => {
-    expect(sorted(located('queries'))).toEqual(expected('queries'))
-  })
-
-  it('generator layers: yielded Tags are edges feeding missing, captive and cycle checks', () => {
-    expect(sorted(located('generator-layers'))).toEqual(expected('generator-layers'))
-    const ok = analyze({ project: path.join(dir('generator-layers'), 'tsconfig.json') }).graphs.find(
-      (g) => g.root === 'Ok',
-    )!
-    expect(ok.edges).toEqual([{ from: 'B', to: 'A', tag: 'A' }])
   })
 
   it('ported buildGraph/snapshot tests (.flow/notes/fn-9-build-time-error-port-list.md): code, file:line', () => {
@@ -200,7 +169,6 @@ describe('graph error fixtures', () => {
   })
 
   it('clean projects yield no errors', () => {
-    expect(located('kit-app')).toEqual([])
     expect(located('core-app')).toEqual([])
     // An `Effect.Tag` class is a Tag: its Layers resolve to nodes named by its key.
     expect(located('effect-tag')).toEqual([])
@@ -209,10 +177,5 @@ describe('graph error fixtures', () => {
         .graphs[0]!.nodes.map((n) => n.id)
         .sort(),
     ).toEqual(['Clock', 'Logger'])
-    // Each runtime checks only the actions its file reaches.
-    expect(located('actions-roots')).toEqual(expected('actions-roots'))
-    expect(
-      analyze({ project: path.join(dir('actions-roots'), 'tsconfig.json') }).extraction.map((e) => e.code),
-    ).toEqual(['UnownedAction'])
   })
 })

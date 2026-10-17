@@ -284,9 +284,6 @@ importers:
       '@sleekstack/core':
         specifier: workspace:*
         version: link:../core
-      '@sleekstack/kit':
-        specifier: workspace:*
-        version: link:../kit
       '@types/node':
         specifier: ^22.20.1
         version: 22.20.1

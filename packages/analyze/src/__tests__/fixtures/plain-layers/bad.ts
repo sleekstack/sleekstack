@@ -1,5 +1,5 @@
 import { Layer } from 'effect'
-import { configureRuntime } from '@sleekstack/kit/next'
+import { configureRuntime } from '../../../../../runtime/src/index'
 import { StoreLive } from './live'
 
 const Untyped: any = StoreLive

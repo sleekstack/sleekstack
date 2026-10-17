@@ -30,9 +30,7 @@ Reported by `sleekstack check` (with file:line) when it cannot read a declaratio
 | --- | --- |
 | `Unresolvable` | A provider, module or Layer cannot be read statically (a computed or dynamically picked value). |
 | `Computed` | A provide list, import list or name is computed in a way the analyzer cannot evaluate (use literals, local consts or loops over literal lists). |
-| `UnnamedEffect` | An `effect()` inside a module has no literal `name`. |
 | `NonLiteralOptions` | `runEffect` options are not an object literal the analyzer can read. |
-| `UnownedAction` | Several runtimes exist and no `configureRuntime` file imports the action; pass `--entry` to pick one. |
 | `EmittedSibling` | Emitted JavaScript or declaration output (`.js`, `.jsx`, `.d.ts`) sits next to its `.ts` source; delete it. |
 
 ## Component errors

@@ -1,24 +1,22 @@
 /**
  * packages/analyze/src/extract.ts
  *
- * Reads kit/core graph declarations from a tsconfig project through the TypeScript checker,
- * without importing or executing any of it. Callees are identified by the declaration they
- * resolve to (so re-exports and aliases work), Tags by their `tag('Name')` / `GenericTag('Name')`
- * / `Context.Tag('Name')` declaration or, for abstract classes, the class declaration. Anything
- * that cannot be read precisely is a located error, never a silent gap.
+ * Reads core modules, plain Layers and runtime roots from a tsconfig project through the TypeScript
+ * checker, without importing or executing any of it. Callees are identified by the declaration they
+ * resolve to (so re-exports and aliases work), Tags by their `GenericTag('Name')` / `Context.Tag('Name')`
+ * declaration or, for abstract classes, the class declaration. Anything that cannot be read precisely
+ * is a located error, never a silent gap.
  */
 
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import ts from 'typescript'
-import { validate, validateAction } from './validate'
+import { validate } from './validate'
 import { analyzeError } from './errorCodes'
 import { checkRoot, RUNTIME_RUN_CALLS, runEffectRoots, type ExtraRoot } from './runtimeRoots'
 import type {
-  ActionDecl,
   AnalyzeCode,
   AnalyzeError,
-  Atoms,
   Edge,
   Graph,
   GraphNode,
@@ -30,45 +28,25 @@ import type {
   Shadowing,
 } from './model'
 
-/** Which library function a call resolves to, e.g. `kit/layer#layer`, `effect/Context#GenericTag`. */
+/** Which library function a call resolves to, e.g. `core/module#declareLayer`, `effect/Context#GenericTag`. */
 export function libId(sym: ts.Symbol | undefined, checker: ts.TypeChecker): string | undefined {
   if (!sym) return undefined
   if (sym.flags & ts.SymbolFlags.Alias) sym = checker.getAliasedSymbol(sym)
   const file = sym.declarations?.[0]?.getSourceFile().fileName.replace(/\\/g, '/')
   if (!file) return undefined
-  const own = /\/(?:packages|@sleekstack)\/(kit|core|next|runtime|query|ui)\/(?:src|dist)\/(.+?)(?:\.d)?\.tsx?$/.exec(
-    file,
-  )
+  const own = /\/(?:packages|@sleekstack)\/(core|next|runtime|ui)\/(?:src|dist)\/(.+?)(?:\.d)?\.tsx?$/.exec(file)
   if (own) return `${own[1]}/${own[2]}#${sym.name}`
   if (/\/effect\/dist\/dts\/Context\.d\.ts$/.test(file)) return `effect/Context#${sym.name}`
   if (/\/effect\/dist\/dts\/Effect\.d\.ts$/.test(file)) return `effect/Effect#${sym.name}`
   if (/\/effect\/dist\/dts\/Layer\.d\.ts$/.test(file)) return `effect/Layer#${sym.name}`
-  if (/\/effect\/dist\/dts\/Stream\.d\.ts$/.test(file)) return `effect/Stream#${sym.name}`
   return undefined
 }
 
-const TAG_CALLS = new Set(['kit/tag#tag', 'effect/Context#GenericTag'])
+const TAG_CALL = 'effect/Context#GenericTag'
 /** `class X extends <call>('X')<X, S>() {}`: both spell a Tag class, `Effect.Tag` adding static accessors. */
 const TAG_CLASS_CALLS = new Set(['effect/Context#Tag', 'effect/Effect#Tag'])
-const MODULE_CALLS = new Set(['kit/module#makeModule', 'core/module#makeModule'])
-const ATOM_CALLS = new Set(['kit/atom#atom', 'kit/atom#family'])
-const RUNTIME_CALLS = new Set([
-  'kit/next/runtime#configureRuntime',
-  'next/runtime#configureRuntime',
-  'runtime/runtime#configureRuntime',
-])
-const ACTION_CALLS = new Set([
-  'kit/next/action#defineEffect',
-  'kit/next/action#defineQuery',
-  'kit/next/action#runOperation',
-  'kit/next/action#effect',
-  'kit/next/action#query',
-])
-/** Query / mutation definitions: their fetcher (`fetch` / `run`) is read like an action body. */
-const FETCHER_CALLS = new Map([
-  ['kit/query#cachedQuery', 'fetch'],
-  ['kit/query#mutation', 'run'],
-])
+const MODULE_CALL = 'core/module#makeModule'
+const RUNTIME_CALLS = new Set(['next/runtime#configureRuntime', 'runtime/runtime#configureRuntime'])
 /** Plain Layer combinators walked structurally (data-first or as `.pipe` steps). */
 const LAYER_COMBINATORS = new Set([
   'effect/Layer#mergeAll',
@@ -530,14 +508,14 @@ export function extract(project: string, entries?: readonly string[], lenient = 
   const tagKey = (expr: ts.Expression): string => {
     const e = follow(expr)
     if (ts.isClassDeclaration(e)) return classKey(e)
-    if (ts.isCallExpression(e) && TAG_CALLS.has(calleeOf(e) ?? '')) {
-      if (!e.arguments[0]) return fail(e, 'tag() needs a name')
+    if (ts.isCallExpression(e) && calleeOf(e) === TAG_CALL) {
+      if (!e.arguments[0]) return fail(e, 'GenericTag() needs a key')
       // Located at the use site: that is where the unreadable Tag leaves the graph.
       if (!checker.getTypeAtLocation(e.arguments[0]).isStringLiteral())
         return fail(expr, `Tag "${text(expr)}" has a non-literal key "${text(e.arguments[0])}"`)
       return literal(e.arguments[0], 'Tag key')
     }
-    return fail(expr, `"${text(expr)}" does not resolve to a tag() declaration`)
+    return fail(expr, `"${text(expr)}" does not resolve to a Tag declaration`)
   }
 
   const tagList = (e: ts.Expression | undefined): string[] => {
@@ -579,77 +557,14 @@ export function extract(project: string, entries?: readonly string[], lenient = 
     const id = ts.isCallExpression(e) ? calleeOf(e) : undefined
     const a = ts.isCallExpression(e) ? e.arguments : ts.factory.createNodeArray<ts.Expression>()
     const base = { opaque: false, loc: loc(e) }
-    if (id === 'kit/layer#layer') {
-      // Generator-ness by type (a call signature returning a Generator), never by the syntax it was written in.
-      if (a[1] && isImprecise(a[1]))
-        return fail(
-          a[1],
-          `The layer implementation "${text(a[1])}" is typed imprecisely; whether it is a generator cannot be read`,
-          'Computed',
-        )
-      const genSig = (t: ts.Type) =>
-        t
-          .getCallSignatures()
-          .some((sig) => checker.getReturnTypeOfSignature(sig).getSymbol()?.getName() === 'Generator')
-      const implType = a[1] && checker.getTypeAtLocation(a[1])
-      if (implType && implType.isUnion() && !implType.getCallSignatures().length && implType.types.some(genSig)) {
-        return fail(
-          a[1]!,
-          `The layer implementation "${text(a[1]!)}" is a union that may be a generator; its requirements cannot be read`,
-          'Computed',
-        )
-      }
-      const isGen = !!implType && genSig(implType)
-      if (isGen) {
-        // Generator factory: its yielded Tags are its requirements (same inference as action bodies); unreadable bodies fail closed.
-        const yields: ActionDecl['yields'] = []
-        const body = (x: ts.Expression): void => {
-          const u = unwrap(x)
-          if (ts.isConditionalExpression(u)) return (body(u.whenTrue), body(u.whenFalse))
-          const f = ts.isFunctionExpression(u) ? u : fnOf(u)
-          if (!f?.asteriskToken)
-            return fail(
-              u,
-              `The layer generator "${text(u)}" has no readable function* declaration; its requirements cannot be read`,
-              'Unresolvable',
-            )
-          yieldsOf(f, yields, new Set())
-        }
-        body(a[1]!)
-        p = {
-          ...base,
-          provides: [tagKey(a[0]!)],
-          requires: [...new Set(yields.map((y) => y.tag))],
-          lifetime: lifetimeOf(prop(objectOf(a[2]), 'lifetime')),
-        }
-      } else {
-        p = {
-          ...base,
-          provides: [tagKey(a[0]!)],
-          requires: tagList(a[2]),
-          lifetime: lifetimeOf(prop(objectOf(a[3]), 'lifetime')),
-        }
-      }
-    } else if (id === 'kit/effect#effect') {
-      const opts = objectOf(a[2])
-      const name = prop(opts, 'name')
-      // Runtime numbers unnamed effects in evaluation order, which the analyzer cannot reproduce.
-      if (!name)
-        return fail(e, 'effect() in a module needs a literal `name` so its graph identity is static', 'UnnamedEffect')
-      p = {
-        ...base,
-        provides: [`effect:${literal(name, 'effect name')}`],
-        requires: tagList(a[1]),
-        lifetime: lifetimeOf(prop(opts, 'lifetime')),
-      }
-    } else if (id === 'core/module#declareLayer') {
+    if (id === 'core/module#declareLayer') {
       // What it provides and requires comes from the wrapped Layer's type; only the lifetime is a literal option.
       if (!a[0]) return fail(e, 'declareLayer() needs a Layer')
       p = { ...layerLeaf(a[0]), loc: base.loc, lifetime: lifetimeOf(prop(objectOf(a[1]), 'lifetime')) }
     } else if (core && checker.getTypeAtLocation(expr).getSymbol()?.getName() === 'Layer') {
       p = { ...base, opaque: true, provides: [], requires: [], lifetime: undefined } // self-contained bare Layer
     } else {
-      return fail(expr, `"${text(expr)}" is not a recognized layer() / declareLayer() declaration`)
+      return fail(expr, `"${text(expr)}" is not a recognized declareLayer() declaration`)
     }
     providers.set(key, p)
     return p
@@ -661,10 +576,8 @@ export function extract(project: string, entries?: readonly string[], lenient = 
     const key = cacheKey(e)
     const hit = modules.get(key)
     if (hit) return hit
-    const id = ts.isCallExpression(e) ? calleeOf(e) : undefined
-    if (!ts.isCallExpression(e) || !MODULE_CALLS.has(id!))
+    if (!ts.isCallExpression(e) || calleeOf(e) !== MODULE_CALL)
       return fail(expr, `"${text(expr)}" does not resolve to a module() declaration`)
-    const core = id === 'core/module#makeModule'
     const cfg = objectOf(e.arguments[0])
     const nameExpr = prop(cfg, 'name')
     const m: ModuleDecl = {
@@ -685,9 +598,9 @@ export function extract(project: string, entries?: readonly string[], lenient = 
       }
     }
     field(() =>
-      listOf(prop(cfg, core ? 'entries' : 'provide'), (x) => {
+      listOf(prop(cfg, 'entries'), (x) => {
         try {
-          m.entries.push(provider(x, core))
+          m.entries.push(provider(x, true))
         } catch (err) {
           if (err instanceof Unbound) throw err
           report(err, m)
@@ -714,10 +627,9 @@ export function extract(project: string, entries?: readonly string[], lenient = 
       const x = prop(cfg, 'exports')
       if (x) m.exports = tagList(x)
     })
-    if (core)
-      field(() => {
-        m.lifetime = lifetimeOf(prop(cfg, 'lifetime'))
-      })
+    field(() => {
+      m.lifetime = lifetimeOf(prop(cfg, 'lifetime'))
+    })
     return m
   }
 
@@ -740,8 +652,6 @@ export function extract(project: string, entries?: readonly string[], lenient = 
   }
 
   const found: ModuleDecl[] = []
-  const atomNodes: Atoms['nodes'][number][] = []
-  const atomEdges: Edge[] = []
   const runtimes: ModuleDecl[] = []
   const extraRoots: ExtraRoot[] = []
   const entryFiles = entries && new Set(entries.map((f) => path.resolve(f)))
@@ -857,7 +767,7 @@ export function extract(project: string, entries?: readonly string[], lenient = 
       listOf(prop(objectOf(n.arguments[0]), 'provide'), (x) => {
         try {
           const f = follow(x)
-          if (ts.isCallExpression(f) && MODULE_CALLS.has(calleeOf(f)!)) m.imports.push(moduleOf(x))
+          if (ts.isCallExpression(f) && calleeOf(f) === MODULE_CALL) m.imports.push(moduleOf(x))
           else m.entries.push(provider(x, core))
         } catch (err) {
           if (err instanceof Unbound) throw err
@@ -868,8 +778,6 @@ export function extract(project: string, entries?: readonly string[], lenient = 
       report(err, m)
     }
   }
-  const actions: ActionDecl[] = []
-  const TAG_TYPES = new Set(['kit/tag#Tag', 'effect/Context#Tag', 'effect/Context#TagClass'])
   /** A `class X extends Context.Tag('X')<X, S>() {}` (or `Effect.Tag`) declaration. */
   const isTagClass = (d: ts.Declaration | undefined): d is ts.ClassDeclaration => {
     const ext =
@@ -883,269 +791,12 @@ export function extract(project: string, entries?: readonly string[], lenient = 
       TAG_CLASS_CALLS.has(calleeOf(ext.expression) ?? '')
     )
   }
-  /** A kit `Tag<T>`, an Effect `Tag`, or a Context.Tag class: never an arbitrary class or instance. */
-  const isTagType = (t: ts.Type) => {
-    const s = t.getSymbol()
-    return (
-      !!s &&
-      (TAG_TYPES.has(libId(s, checker) ?? '') ||
-        (!!(s.flags & ts.SymbolFlags.Class) &&
-          !(t.flags & ts.TypeFlags.Object && (t as ts.ObjectType).objectFlags & ts.ObjectFlags.Reference) &&
-          isTagClass(s.valueDeclaration)))
-    )
-  }
-  /** The Tags an `Effect<A, E, R>` / `Stream<A, E, R>` type's `R` names; anything else in `R` is a located error. */
-  const requirements = (t: ts.Type, at: ts.Node, out: ActionDecl['yields']) => {
-    const r = checker.getTypeArguments(t as ts.TypeReference)[2]
-    if (!r || r.flags & ts.TypeFlags.Never) return
-    for (const m of r.isUnion() ? r.types : [r]) out.push({ tag: tagOfIdentifier(m, at), loc: loc(at) })
-  }
-  /** The Tag key an identifier type names: a `Context.Tag` class, or the one `Context.GenericTag<S>` keyed by `S`. */
-  const tagOfIdentifier = (m: ts.Type, at: ts.Node): string => {
-    const d = m.getSymbol()?.valueDeclaration
-    if (!(m.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown))) {
-      if (isTagClass(d)) return classKey(d)
-      const generic = genericTags().get(m)
-      if (generic?.length === 1) return generic[0]!
-    }
-    return fail(
-      at,
-      `"${text(at)}" requires "${checker.typeToString(m)}", which does not resolve to exactly one Tag declaration`,
-    )
-  }
-  /**
-   * Every Tag a generator body `yield*`s, following local helper generators with their parameters bound to
-   * each call's arguments; conditionals (inline or behind a const) over-approximate; unreadable yields are
-   * located errors.
-   */
-  const yieldsOf = (fn: ts.FunctionLikeDeclaration, out: ActionDecl['yields'], stack: Set<ts.Node>) => {
-    if (stack.has(fn) || !fn.body) return // recursion: this invocation's yields are already being read
-    stack.add(fn)
-    const operand = (x: ts.Expression): void => {
-      const u = unwrap(x)
-      if (ts.isConditionalExpression(u)) return (operand(u.whenTrue), operand(u.whenFalse))
-      const helper = ts.isCallExpression(u) ? fnOf(u.expression) : undefined
-      if (helper?.asteriskToken) {
-        const call = u as ts.CallExpression
-        const bound = helper.parameters
-          .map((p, i) => [p, call.arguments[i]] as const)
-          .filter((b): b is readonly [ts.ParameterDeclaration, ts.Expression] => !!b[1])
-        const prev = bound.map(([p]) => env.get(p))
-        bound.forEach(([p, a]) => env.set(p, a))
-        try {
-          within(helper, `@${cacheKey(call)}`, () => yieldsOf(helper, out, stack))
-        } finally {
-          bound.forEach(([p], i) => (prev[i] ? env.set(p, prev[i]!) : env.delete(p)))
-        }
-        return
-      }
-      try {
-        const f = ts.isIdentifier(u) || ts.isPropertyAccessExpression(u) ? follow(u) : u
-        if (!ts.isClassDeclaration(f) && ts.isConditionalExpression(f))
-          return (operand(f.whenTrue), operand(f.whenFalse))
-        const t = checker.getTypeAtLocation(u)
-        if (t.flags & ts.TypeFlags.Any) fail(u, `yield* "${text(u)}" is typed any; the Tag it resolves cannot be named`)
-        if (isTagType(t)) return void out.push({ tag: tagKey(u), loc: loc(u) })
-        // Effect.gen(function* () { ... }): its body's yields are this body's.
-        if (ts.isCallExpression(u) && calleeOf(u) === 'effect/Effect#gen') {
-          const body = u.arguments
-            .map(unwrap)
-            .find((a): a is ts.FunctionExpression => ts.isFunctionExpression(a) && !!a.asteriskToken)
-          if (body) return yieldsOf(body, out, stack)
-        }
-        // Any other Effect: its requirements R (Effect<A, E, R>) name the Tags it reads.
-        if (libId(t.getSymbol(), checker) !== 'effect/Effect#Effect')
-          return fail(u, `yield* "${text(u)}" is neither a Tag nor an Effect; what it requires cannot be read`)
-        requirements(t, u, out)
-      } catch (err) {
-        report(err)
-      }
-    }
-    const walk = (n: ts.Node): void => {
-      if (ts.isFunctionLike(n)) return
-      if (ts.isYieldExpression(n) && n.asteriskToken && n.expression) operand(n.expression)
-      ts.forEachChild(n, walk)
-    }
-    ts.forEachChild(fn.body, walk)
-    stack.delete(fn)
-  }
-  const actionOf = (n: ts.CallExpression) => {
-    const [gen, opts] = n.arguments
-    const g = gen && unwrap(gen)
-    const fn = g && (ts.isFunctionExpression(g) || ts.isArrowFunction(g) ? g : fnOf(g))
-    if (!fn) return fail(n, `The action body "${gen ? text(gen) : ''}" is not a readable generator function`)
-    const l = loc(n)
-    const a: ActionDecl = {
-      yields: [],
-      provide: {
-        name: `${l.file}:${l.line}`,
-        entries: [],
-        imports: [],
-        exports: undefined,
-        lifetime: undefined,
-        loc: l,
-      },
-      file: n.getSourceFile(),
-      loc: l,
-    }
-    // opts.scope: Tags built for their side effects though never yielded; checked (and edged) like yields.
-    try {
-      for (const tag of tagList(prop(objectOf(opts), 'scope'))) a.yields.push({ tag, loc: l })
-    } catch (err) {
-      report(err)
-    }
-    // opts.provide: a list, or a thunk returning one, of layers / modules Shadowing the runtime for this call.
-    try {
-      const pv = prop(objectOf(opts), 'provide')
-      const th = pv && unwrap(pv)
-      const thunk = th && (ts.isArrowFunction(th) || ts.isFunctionExpression(th) ? th : fnOf(th))
-      const lists = thunk
-        ? bodyReturns(thunk).map((r) => {
-            const w = unwrap(r)
-            return ts.isAwaitExpression(w) ? w.expression : w
-          })
-        : pv
-          ? [pv]
-          : []
-      for (const list of lists)
-        listOf(list, (x) => {
-          try {
-            const f = follow(x)
-            if (ts.isCallExpression(f) && MODULE_CALLS.has(calleeOf(f)!)) a.provide.imports.push(moduleOf(x))
-            else a.provide.entries.push(provider(x, false))
-          } catch (err) {
-            if (err instanceof Unbound) throw err
-            report(err)
-          }
-        })
-    } catch (err) {
-      report(err)
-    }
-    yieldsOf(fn, a.yields, new Set())
-    actions.push(a)
-  }
-  /** A key parameter type that is not `any` / `unknown` / a union (`boolean`, TypeScript's `true | false`, excepted). */
-  const preciseKeyPart = (t: ts.Type) =>
-    !(t.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown)) && (!t.isUnion() || !!(t.flags & ts.TypeFlags.Boolean))
-  /** An options member: a property's value, or a method declaration (`fetch(id) { ... }`). */
-  const member = (o: ts.ObjectLiteralExpression, name: string): ts.Expression | ts.MethodDeclaration | undefined =>
-    prop(o, name) ??
-    o.properties.find(
-      (p): p is ts.MethodDeclaration => ts.isMethodDeclaration(p) && ts.isIdentifier(p.name) && p.name.text === name,
-    )
-  /** A query `key` is static when it is a function returning tuple literals of literals and its own parameters. */
-  const staticKey = (k: ts.Expression | ts.MethodDeclaration) => {
-    const u = ts.isMethodDeclaration(k) ? k : unwrap(k)
-    const fn = ts.isMethodDeclaration(u) || ts.isArrowFunction(u) || ts.isFunctionExpression(u) ? u : fnOf(u)
-    if (!fn) return fail(k, `Query key "${text(k)}" is not a readable function`, 'Computed')
-    const rets = bodyReturns(fn)
-    if (!rets.length) fail(k, `Query key "${text(k)}" returns no tuple literal`, 'Computed')
-    for (const r of rets) {
-      const a = unwrap(r)
-      if (!ts.isArrayLiteralExpression(a)) fail(r, `Query key returns "${text(r)}", not a tuple literal`, 'Computed')
-      for (const el of (a as ts.ArrayLiteralExpression).elements) {
-        const x = unwrap(el)
-        const lit =
-          ts.isStringLiteral(x) ||
-          ts.isNumericLiteral(x) ||
-          ts.isNoSubstitutionTemplateLiteral(x) ||
-          [ts.SyntaxKind.TrueKeyword, ts.SyntaxKind.FalseKeyword, ts.SyntaxKind.NullKeyword].includes(x.kind) ||
-          (ts.isPrefixUnaryExpression(x) && x.operator === ts.SyntaxKind.MinusToken && ts.isNumericLiteral(x.operand))
-        const d = ts.isIdentifier(x) ? declOf(x) : undefined
-        const param =
-          !!d && ts.isParameter(d) && fn.parameters.includes(d) && preciseKeyPart(checker.getTypeAtLocation(x))
-        if (!lit && !param)
-          fail(
-            el,
-            `Query key element "${text(el)}" is neither a literal nor a precisely typed key parameter`,
-            'Computed',
-          )
-      }
-    }
-  }
-  /** A query / mutation definition: its key must be static, its fetcher's requirements are checked like an action's yields. */
-  const fetcherOf = (n: ts.CallExpression, field: string) => {
-    const opts = objectOf(n.arguments[0])!
-    const k = member(opts, 'key')
-    if (field === 'fetch') {
-      if (!k) return fail(n, 'A query needs a `key`', 'Computed')
-      try {
-        staticKey(k)
-      } catch (err) {
-        report(err)
-      }
-    }
-    const body = member(opts, field) ?? fail(n, `A ${field === 'fetch' ? 'query' : 'mutation'} needs a \`${field}\``)
-    const l = loc(n)
-    const a: ActionDecl = {
-      yields: [],
-      provide: {
-        name: `${l.file}:${l.line}`,
-        entries: [],
-        imports: [],
-        exports: undefined,
-        lifetime: undefined,
-        loc: l,
-      },
-      file: n.getSourceFile(),
-      loc: l,
-    }
-    actions.push(a)
-    // Types, not syntax: an Effect / Stream-returning fetcher's R names its Tags; a generator's yields do.
-    const t = checker.getTypeAtLocation(ts.isMethodDeclaration(body) ? body.name : body)
-    if (t.flags & ts.TypeFlags.Any || t.isUnion())
-      return fail(
-        body,
-        `The ${field} "${text(body)}" is typed imprecisely; its requirements cannot be read`,
-        'Computed',
-      )
-    const sigs = t.getCallSignatures()
-    const ret = sigs.length === 1 ? checker.getReturnTypeOfSignature(sigs[0]!) : undefined
-    if (!ret)
-      return fail(
-        body,
-        `The ${field} "${text(body)}" is not a function with one signature; its requirements cannot be read`,
-        'Computed',
-      )
-    const rid = libId(ret.getSymbol(), checker)
-    if (rid === 'effect/Effect#Effect' || rid === 'effect/Stream#Stream') return requirements(ret, body, a.yields)
-    // A Tag returned as the fetch Effect (`fetch: () => Api`): it requires itself.
-    const rd = ret.getSymbol()?.valueDeclaration
-    if (isTagClass(rd)) return void a.yields.push({ tag: classKey(rd), loc: loc(body) })
-    if (rid === 'effect/Context#Tag')
-      return void a.yields.push({
-        tag: tagOfIdentifier(checker.getTypeArguments(ret as ts.TypeReference)[0]!, body),
-        loc: loc(body),
-      })
-    const u = ts.isMethodDeclaration(body) ? body : unwrap(body)
-    const fn = ts.isMethodDeclaration(u) || ts.isFunctionExpression(u) ? u : fnOf(u)
-    if (!fn?.asteriskToken)
-      return fail(
-        body,
-        `The ${field} "${text(body)}" is neither an Effect-returning function nor a readable function* declaration`,
-      )
-    yieldsOf(fn, a.yields, new Set())
-  }
+
   const visit = (n: ts.Node): void => {
     if (ts.isCallExpression(n)) {
       const id = calleeOf(n)
-      const field = id && FETCHER_CALLS.get(id)
-      if (field && !TEST_FILE.test(path.relative(root, n.getSourceFile().fileName))) {
-        try {
-          fetcherOf(n, field)
-        } catch (err) {
-          report(err)
-        }
-      }
-      if (id && ACTION_CALLS.has(id) && !TEST_FILE.test(path.relative(root, n.getSourceFile().fileName))) {
-        try {
-          actionOf(n)
-        } catch (err) {
-          report(err)
-        }
-      }
       // A module() inside a function is evaluated where it is called (with its bindings), never bare.
-      if (id && MODULE_CALLS.has(id) && !ts.findAncestor(n, ts.isFunctionLike)) {
+      if (id === MODULE_CALL && !ts.findAncestor(n, ts.isFunctionLike)) {
         try {
           found.push(moduleOf(n))
         } catch (err) {
@@ -1175,25 +826,6 @@ export function extract(project: string, entries?: readonly string[], lenient = 
         } catch (err) {
           report(err)
         }
-      } else if (
-        id &&
-        ATOM_CALLS.has(id) &&
-        n.arguments[0] &&
-        (id === 'kit/atom#family' ||
-          n.arguments.length > 1 ||
-          checker.getTypeAtLocation(n.arguments[0]).getCallSignatures().length > 0)
-      ) {
-        try {
-          const requires = tagList(n.arguments[1])
-          const v =
-            ts.isVariableDeclaration(n.parent) && ts.isIdentifier(n.parent.name) ? n.parent.name.text : undefined
-          const l = loc(n)
-          const aid = `atom:${v ?? `${l.file}:${l.line}`}`
-          atomNodes.push({ id: aid, ...l })
-          for (const t of requires) atomEdges.push({ from: aid, to: t, tag: t })
-        } catch (err) {
-          report(err)
-        }
       }
     }
     ts.forEachChild(n, visit)
@@ -1212,47 +844,12 @@ export function extract(project: string, entries?: readonly string[], lenient = 
   const inModules = new Set([...owned.values()].flat())
   const extraction = errors.filter((e) => !inModules.has(e))
   for (const r of roots) errors.push(...validate(r))
-  // An action belongs to the runtimes whose file imports it (transitively). One no runtime file reaches (a Next
-  // action, imported by pages rather than instrumentation) belongs to the only runtime; with several, its owner
-  // is ambiguous: a located error (select one with `entries`).
-  const reachOf = (sf: ts.SourceFile) => {
-    const seen = new Set<ts.SourceFile>()
-    const go = (f: ts.SourceFile): void => {
-      if (seen.has(f)) return
-      seen.add(f)
-      for (const st of f.statements) {
-        const spec = (ts.isImportDeclaration(st) || ts.isExportDeclaration(st)) && st.moduleSpecifier
-        const d = spec && checker.getSymbolAtLocation(spec)?.valueDeclaration
-        if (d && ts.isSourceFile(d) && !d.isDeclarationFile) go(d)
-      }
-    }
-    go(sf)
-    return seen
-  }
-  const reaches = runtimes.map((m) => reachOf(program.getSourceFile(path.resolve(root, m.loc.file))!))
-  const claimed = new Set(actions.filter((a) => reaches.some((r) => r.has(a.file))))
-  for (const a of actions) {
-    if (runtimes.length < 2 || claimed.has(a)) continue
-    const e = analyzeError(
-      'UnownedAction',
-      'No configureRuntime file imports this action, and several runtimes exist; pass --entry to pick its runtime',
-      a.loc,
-    )
-    errors.push(e)
-    extraction.push(e) // owned by no runtime: fails the whole check
-  }
-  const runtimeReports: Report['runtimes'][number][] = runtimes.map((m, i) => {
-    const actionErrors = actions
-      .filter((a) => (runtimes.length === 1 && !claimed.has(a)) || reaches[i]!.has(a.file))
-      .flatMap((a) => validateAction(m, a))
-    errors.push(...actionErrors)
-    return {
-      ...m.loc,
-      kind: 'app',
-      graph: graphOf(m),
-      errors: [...[...resolve(m).visits.keys()].flatMap((v) => owned.get(v) ?? []), ...validate(m), ...actionErrors],
-    }
-  })
+  const runtimeReports: Report['runtimes'][number][] = runtimes.map((m) => ({
+    ...m.loc,
+    kind: 'app',
+    graph: graphOf(m),
+    errors: [...[...resolve(m).visits.keys()].flatMap((v) => owned.get(v) ?? []), ...validate(m)],
+  }))
   // App roots first; each runEffect root after them, checked over the app graph.
   for (const { kind, module: m } of extraRoots) {
     const { graph, errors: rootErrors } = checkRoot(m, runtimes)
@@ -1261,8 +858,7 @@ export function extract(project: string, entries?: readonly string[], lenient = 
   }
   return {
     graphs: roots.map(graphOf),
-    atoms: { nodes: atomNodes, edges: atomEdges },
-    // One defect reached twice (a provided module is also a root; an action overlay repeats it) is one error.
+    // One defect reached twice (a provided module is also a root) is one error.
     errors: [...new Map(errors.map((e) => [`${e.code}|${e.file}:${e.line}|${e.message}`, e])).values()],
     extraction,
     runtimes: runtimeReports,
