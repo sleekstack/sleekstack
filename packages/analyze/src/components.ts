@@ -17,10 +17,22 @@ import type { AnalyzeError, ComponentReport, ComponentTree, Location, UiNode } f
 const UI_STORE = 'Store'
 /** Analyzer code for a handler the resume pass cannot prove resumable (fn-18). */
 export const NON_RESUMABLE_HANDLER = 'NonResumableHandler' as const
-/** Tags `@sleekstack/router` provides around every page besides `Store` (its `RouterProvided`). */
-const ROUTER_PROVIDES = ['Route', 'Loaders', 'Transfer']
-/** The router's control flow: a page's redirect or not-found is handled by the router, never unhandled. */
-const ROUTER_CONTROL = ['Redirect', 'NotFound']
+/**
+ * Tags a framework provides implicitly, by printed name and declaration: `Store` (every `mount`), and what the router
+ * provides around pages (its `RouterProvided`). A same-named Tag declared elsewhere is printed with its file.
+ */
+const FRAMEWORK_TAGS: Record<string, string> = {
+  [UI_STORE]: 'ui/reactive#Store',
+  Transfer: 'ui/transfer#Transfer',
+  Loaders: 'router/loader#Loaders',
+  Route: 'router/index#Route',
+}
+/** The router's control flow, printed with this prefix so an app error with the same `_tag` cannot pass as it. */
+const ROUTER_ERROR = '@sleekstack/router#'
+const ROUTER_CONTROL: Record<string, string> = {
+  Redirect: 'router/resolve#Redirect',
+  NotFound: 'router/resolve#NotFound',
+}
 
 export function analyzeComponents(opts: { readonly project: string }): ComponentReport {
   const { root, program, checker } = programOf(opts.project)
@@ -116,11 +128,11 @@ export function analyzeComponents(opts: { readonly project: string }): Component
   const isEffectComponent = (t: ts.Type) =>
     isNodeEffect(t) || t.getCallSignatures().some((s) => isNodeEffect(checker.getReturnTypeOfSignature(s)))
 
-  /** A Tag's name; any Tag printed `Store` other than `@sleekstack/ui`'s (which every `mount` provides) is printed with its file so it cannot pass as it. */
+  /** A Tag's name; a Tag printed like a framework Tag (`FRAMEWORK_TAGS`) but declared elsewhere is printed with its file so it cannot pass as it. */
   const tagName = (m: ts.Type) => {
     const name = checker.typeToString(m)
     const sym = m.getSymbol()
-    return name === UI_STORE && libId(sym, checker) !== 'ui/reactive#Store'
+    return Object.hasOwn(FRAMEWORK_TAGS, name) && libId(sym, checker) !== FRAMEWORK_TAGS[name]
       ? `${sym?.declarations?.[0] ? loc(sym.declarations[0]).file : '?'}#${name}`
       : name
   }
@@ -133,7 +145,9 @@ export function analyzeComponents(opts: { readonly project: string }): Component
       if (isAny(m)) return fail(at, `"${text(at)}" fails with "${checker.typeToString(m)}"; its errors cannot be named`)
       const tag = m.getProperty('_tag')
       const tt = tag && checker.getTypeOfSymbolAtLocation(tag, at)
-      return tt?.isStringLiteral() ? tt.value : checker.typeToString(m) // untagged: no Catch can handle it
+      if (!tt?.isStringLiteral()) return checker.typeToString(m) // untagged: no Catch can handle it
+      const own = Object.hasOwn(ROUTER_CONTROL, tt.value) && ROUTER_CONTROL[tt.value] === libId(m.getSymbol(), checker)
+      return own ? ROUTER_ERROR + tt.value : tt.value
     })
   /** The default export a `lazy(() => import('./x'))` call loads. */
   const lazyTarget = (tag: ts.Node, call: ts.CallExpression): ts.FunctionLikeDeclaration => {
@@ -713,11 +727,21 @@ export function analyzeComponents(opts: { readonly project: string }): Component
   }
   /** A page's `render` (or the router's `notFound`): a component node over what the function renders. */
   const renderNode = (p: ts.ObjectLiteralElementLike, name: string): UiNode[] => {
+    const value = ts.isShorthandPropertyAssignment(p)
+      ? aliased(checker.getShorthandAssignmentValueSymbol(p))
+      : undefined
     const fn = ts.isMethodDeclaration(p)
       ? p
       : ts.isPropertyAssignment(p)
         ? calleeTarget(p.initializer)
-        : fail(p, `"${text(p)}" is not a readable render function`)
+        : value && ts.isFunctionDeclaration(value) && value.body
+          ? value
+          : value &&
+              ts.isVariableDeclaration(value) &&
+              value.initializer &&
+              ts.getCombinedNodeFlags(value) & ts.NodeFlags.Const
+            ? calleeTarget(value.initializer)
+            : fail(p, `"${text(p)}" is not a readable render function`)
     if (ts.isCallExpression(fn)) return fail(fn, `"${text(fn)}" is a computed render function; its tree cannot be read`)
     const sig = checker.getSignatureFromDeclaration(fn)
     if (!sig) return fail(p, `"${text(p)}" has no readable signature`)
@@ -744,7 +768,8 @@ export function analyzeComponents(opts: { readonly project: string }): Component
     try {
       const sym = opts && checker.getTypeAtLocation(opts).getProperty('layer')
       const layer = sym && checker.getNonNullableType(checker.getTypeOfSymbolAtLocation(sym, opts))
-      const provides = [...(layer ? layerTags(opts!, layer).provides : []), ...ROUTER_PROVIDES]
+      // `Route` is provided around matched pages only, never around `notFound`.
+      const provides = [...(layer ? layerTags(opts!, layer).provides : []), 'Loaders', 'Transfer']
       const def = routerOf(n.arguments[0] ?? fail(n, `"${text(n)}" has no router`))
       const pages = objectOf(prop(def, 'pages')) ?? fail(def, 'Router pages are not a readable object literal')
       const nf = prop(def, 'notFound') ?? fail(def, 'Router has no notFound page')
@@ -755,15 +780,16 @@ export function analyzeComponents(opts: { readonly project: string }): Component
           if (!page) return guarded(() => fail(p, `Page "${text(p)}" is not a readable object literal`))
           const render = prop(page, 'render')
           const loaders = prop(page, 'loaders')
-          return [
+          const nodes = [
             ...guarded(() => (render ? renderNode(render, name) : fail(p, `"${text(p)}" has no render`))),
             ...(loaders ? guarded(() => [loadersNode(loaders, name)]) : []),
           ]
+          return [{ kind: 'provide', provides: ['Route'], requires: [], children: nodes, ...loc(p) } satisfies UiNode]
         }),
         ...guarded(() => renderNode(nf, 'notFound')),
       ]
-      const root: UiNode = ROUTER_CONTROL.reduce<UiNode>(
-        (inner, tag) => ({ kind: 'catch', tag, children: [inner], ...loc(n) }),
+      const root: UiNode = Object.keys(ROUTER_CONTROL).reduce<UiNode>(
+        (inner, tag) => ({ kind: 'catch', tag: ROUTER_ERROR + tag, children: [inner], ...loc(n) }),
         { kind: 'component', name: text(n.expression), guest: false, requires: [], errors: [], children, ...loc(n) },
       )
       return { provides, root, ...loc(n) }
@@ -979,7 +1005,9 @@ function check(
     )
   }
   for (const e of n.kind === 'component' ? n.errors : []) {
-    if ((!(n.kind === 'component' && n.closure) && caught.has(e)) || below.has(`E:${e}`)) continue
+    // A `Catch` / `Boundary` matches by `_tag`, so it handles the router's control flow too.
+    const handled = caught.has(e) || caught.has(e.replace(ROUTER_ERROR, ''))
+    if ((!(n.kind === 'component' && n.closure) && handled) || below.has(`E:${e}`)) continue
     below.add(`E:${e}`)
     out.push(analyzeError('UnhandledError', `${who} can fail with "${e}", but no enclosing Catch handles it`, at))
   }
