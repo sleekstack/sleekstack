@@ -1,6 +1,6 @@
 # Proposal: SleekStack Start, the full-stack framework for `@sleekstack/ui` (the Next.js counterpart)
 
-Status: draft for discussion. Nothing here is decided; each "Decision to take" becomes an ADR before building (AGENTS.md).
+Status: draft for discussion. D1 to D4 and D6 are decided in [ADR 0039](../adr/0039-start-server-core.md) (spec fn-54); the other "Decisions to take" each become an ADR before building (AGENTS.md).
 Date: 2026-10-17. Name: `@sleekstack/start` (decided).
 
 ## 1. Premise
@@ -44,10 +44,10 @@ Where does server-only code live? Loaders and server functions, never inside a h
 
 **D2 spike result (2026-10-17, run against master):**
 
-- A server-only `yield* Db` in a component, with a client layer that lacks `Db`, is a **TypeScript error** at `mount`, `hydrateMount`, `renderToString` and `renderToStream` (`Layer<never>` is not assignable to `Layer<Db>`). The boundary is already enforced for direct calls, by the compiler.
+- A server-only `yield* Db` in a plain-Effect component, with a client layer that lacks `Db`, is a **TypeScript error** at `mount`, `hydrateMount`, `renderToString` and `renderToStream` (`Layer<never>` is not assignable to `Layer<Db>`). Correction (fn-54): this holds for plain Effects only. ui types JSX as requirement-free, so a JSX component that needs `Db` compiles under a client layer; the compiler does not enforce the boundary for JSX, and `sleekstack check` does (ADR 0039).
 - The analyzer (`sleekstack check`) reads **only `mount` and `resume`** as roots; the other three are not trees. Making them roots is a one-line change to the callee list in `packages/analyze/src/components.ts` (tried: it then reports `MissingDependency` for all four), but it adds nothing for direct calls, which `tsc` already rejects.
 - **The router erases the check.** `Page.render` is `Effect<Node, any, any>` and `startRouter`/`handle` take `layer?: Layer<any, any, never>`, so a page that needs `Db` under `startRouter` passes `tsc` and is not an analyzer root. That is the path every Start app uses, so it is the gap to close.
-- Fix, in order of preference: (a) make `Router`, `Page` and the entries generic over the page requirements `R`, so `startRouter(router, { layer })` must provide them; the client entry then cannot provide server services and `tsc` rejects the page. (b) Add `startRouter` / `handle` as analyzer roots reading the same types. (a) is smaller and works without running the CLI.
+- Fix, in order of preference: (a) make `Router`, `Page` and the entries generic over the page requirements `R`, so `startRouter(router, { layer })` must provide them; the client entry then cannot provide server services and `tsc` rejects the page. (b) Add `startRouter` / `handle` as analyzer roots reading the same types. (a) is smaller and works without running the CLI. Outcome (ADR 0039): both were built, (a) for loaders and plain-Effect pages, (b) for JSX pages, which (a) cannot see.
 - Not tested: a server-only service legitimately used by a loader (loaders run on the server first, then their data travels through `Transfer`; on client navigation they re-run in the browser, so a server-only loader needs a server function, not a direct `yield*`). This needs its own case in phase 1.
 
 ## 4. App shape
@@ -93,7 +93,7 @@ export const rename = serverFn('profile.rename', {
 ```
 
 - **Transport.** `POST /_sleek/fn/<id>`, JSON of Schema-encoded input, `Exit`-shaped response: success, typed failure, control-flow envelope (redirect, not-found), 400 `DecodeError`, opaque 500 for defects (no stack or message in production).
-- **Client.** `client<typeof import('./server')>()` returns stubs that are Effects. They plug into `<form action>`, `useAction`, router `action` and the Draft's `toDto()` with no adapter. The client imports types only; a bundle test (ADR 0022 style) proves no server code or Layer graph reaches the client chunk.
+- **Client.** Stubs are Effects. Decided in ADR 0039: `client(contract)` is typed from a client-safe contract (`{ id, input, success, error? }`) that the server function is built from, not from the server module with `import type`, because the stub needs the Schemas at runtime. They plug into `<form action>`, `useAction`, router `action` and the Draft's `toDto()` with no adapter. The client imports the contract's Schemas, never the server module; a bundle test (ADR 0022 style) proves no server code or Layer graph reaches the client chunk.
 - **No-JS forms.** A `<form method="post" action="/_sleek/fn/<id>">` posts urlencoded data, decoded by the same Schema, then redirects (post/redirect/get) and `handle` re-renders. ADR 0033 deferred this; Start is where it belongs.
 - **Freshness.** A function declares `invalidates`: router loader keys and TanStack query keys. The success envelope carries them and the client stub re-runs matching loaders and calls `invalidateQueries`. There is no server data cache (CONTEXT: Query caches nothing), so this is a client hint, not `revalidatePath`.
 - **Security defaults.** Same-origin check; only registered ids callable (unknown id 404, no enumeration); input decoded before the body runs; output encoded, so extra fields are not serialized; no closure capture; body size limit.
@@ -145,12 +145,12 @@ Not new designs, already specified, listed here because Start depends on them:
 
 | # | Decision | Recommendation |
 | --- | --- | --- |
-| D1 | Packaging (name decided: `@sleekstack/start`) | `@sleekstack/start` for the runtime, `@sleekstack/ui-vite` (fn-29) for build. Not a rename of `sleekstack` the CLI. |
-| D2 | Server/client boundary | Type-enforced, no directives (section 3). Spike done: needs `Router<R>` generics in `@sleekstack/router` (a router ADR); a server-only loader is a server function. |
-| D3 | Server function vs "Action" naming | `serverFn`. "Action" already means three things in this repo. |
-| D4 | Where `Redirect`/`NotFound` live | Resolved while planning fn-54: `start` depends on `@sleekstack/router` (it hands pages to the router's `handle`), so it uses the router's own errors. No leaf package. |
+| D1 | Packaging (name decided: `@sleekstack/start`) | Decided, [ADR 0039](../adr/0039-start-server-core.md): `@sleekstack/start` depends on `@sleekstack/runtime`, with `@sleekstack/router` and `@sleekstack/ui` as peers; `@sleekstack/ui-vite` (fn-29) for build. Not a rename of `sleekstack` the CLI. |
+| D2 | Server/client boundary | Decided, [ADR 0039](../adr/0039-start-server-core.md): no directives; `Router<T, R>` types loaders and plain-Effect pages, and `sleekstack check` reads `startRouter` / `handle` as roots for JSX pages, which ui types as requirement-free. A server-only loader is a server function. |
+| D3 | Server function vs "Action" naming | Decided, [ADR 0039](../adr/0039-start-server-core.md): `serverFn`, the Server Function in CONTEXT.md. "Action" already means three things in this repo. |
+| D4 | Where `Redirect`/`NotFound` live | Decided, [ADR 0039](../adr/0039-start-server-core.md): `start` depends on `@sleekstack/router` (it hands pages to the router's `handle`), so it uses the router's own errors. No leaf package. |
 | D5 | Layouts | Add nested layouts to the router (a route's `layout` chain) rather than only a Start convention, since `startRouter` must swap the same pieces. Needs its own router ADR. |
-| D6 | Wire protocol | JSON of Schema-encoded values, `Exit` shape. No streaming results in v1. |
+| D6 | Wire protocol | Decided, [ADR 0039](../adr/0039-start-server-core.md): JSON of Schema-encoded values, `Exit`-shaped envelopes. No streaming results in v1. |
 | D7 | Default rendering mode | Hydrated; resume is opt-in until ADR 0017 leaves "Proposed". |
 | D8 | Auth | Not in the framework: a `Session` Tag provided by the app, a guard is `yield* Session`. |
 
@@ -173,9 +173,9 @@ Not new designs, already specified, listed here because Start depends on them:
 ## 13. Risks and open questions
 
 - **Scope.** This is a framework, not a feature: phases 0-1 are four to six specs. Phase 1 is the smallest slice that proves the idea; everything after depends on how it feels.
-- **Hydration re-runs components** (section 3). Direct entries are already type-checked; the router path is not, until `Router<R>` lands (phase 1 prerequisite).
+- **Hydration re-runs components** (section 3). Direct entries type-check plain-Effect components only; JSX is checked by `sleekstack check`, which reads the router entries as roots since fn-54 (ADR 0039).
 - **Layouts** are not in the router today; partial navigation (keep the layout, swap the page) touches the reconciler.
-- **Known bugs on the path:** after `hydrateMount`, text bound directly to an atom stays at the server value (`hydrate.ts`, `adoptOne`), and the analyzer does not read `Link` from the router. Both affect an SSR framework's default demo and should be fixed before Phase 2.
+- **Known bugs on the path:** after `hydrateMount`, text bound directly to an atom stays at the server value (`hydrate.ts`, `adoptOne`), and the analyzer did not read `Link` from the router (fixed in fn-54). The first affects an SSR framework's default demo and should be fixed before Phase 2.
 - **React guests:** the stubs are Effects, so React guests could call them via `@sleekstack/react`; not checked.
 - **Stale tabs:** a renamed function id is a 404. Acceptable in v1; a typed `Outdated` error later.
 - **Batching:** several calls in one tick could share a POST; same wire shape, deferred.

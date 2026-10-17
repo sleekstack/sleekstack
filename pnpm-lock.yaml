@@ -631,6 +631,12 @@ importers:
 
   packages/testing:
     devDependencies:
+      '@sleekstack/router':
+        specifier: workspace:*
+        version: link:../router
+      '@sleekstack/start':
+        specifier: workspace:*
+        version: link:../start
       '@sleekstack/ui':
         specifier: workspace:*
         version: link:../ui
