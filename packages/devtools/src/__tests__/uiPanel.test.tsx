@@ -1,12 +1,13 @@
 import { Atom, makeAtomStore } from '@sleekstack/core'
 import { el, mount, type Mounted, useAtomValue, useEffect, useLocal } from '@sleekstack/ui'
 import { jsx as h } from '@sleekstack/ui/jsx-runtime'
-import { flush, render } from '@sleekstack/testing'
+import { flush, render, type Rendered } from '@sleekstack/testing'
 import { Effect, Layer } from 'effect'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { UiPanel, uiTrace } from '../index'
 
-let handles: Mounted[] = []
+// Mounts and panel renders; this package runs vitest without globals, so `@sleekstack/testing` cannot clean up itself.
+let handles: Array<Mounted | Rendered> = []
 afterEach(async () => {
   for (const m of handles) await m.dispose()
   handles = []
@@ -37,7 +38,9 @@ describe('UiPanel', () => {
     }
     stores[0]!.set(count, 2)
     await flush()
-    const { container } = await render(h(UiPanel as never, { trace }) as never, { layer: Layer.empty })
+    const panel = await render(h(UiPanel as never, { trace }) as never, { layer: Layer.empty })
+    handles.push(panel)
+    const { container } = panel
     const section = (name: string) => container.querySelector(`section[aria-label="${name}"]`)!.textContent!
 
     const tree = section('instance tree')
@@ -52,9 +55,9 @@ describe('UiPanel', () => {
 
   it('re-reads the trace every intervalMs', async () => {
     const trace = uiTrace()
-    const { container } = await render(h(UiPanel as never, { trace, intervalMs: 10 }) as never, {
-      layer: Layer.empty,
-    })
+    const panel = await render(h(UiPanel as never, { trace, intervalMs: 10 }) as never, { layer: Layer.empty })
+    handles.push(panel)
+    const { container } = panel
     expect(container.textContent).toContain('No mounted instances.')
     const store = makeAtomStore()
     const Leaf = () => Effect.map(useLocal(0), () => el('i', {}, 'x'))

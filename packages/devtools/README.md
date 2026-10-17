@@ -26,8 +26,8 @@ cleaned up.
 ```tsx
 const trace = uiTrace()
 await mount(app, { layer, container, store, observe: trace.observer(store) })
-// in a React dev-only tree
-<UiPanel trace={trace} />
+// dev only: the panel is a ui component, mounted like any other
+await mount(<UiPanel trace={trace} />, { layer: Layer.empty, container: panelHost })
 ```
 
 Demo: the ui panel opens below [`apps/showcase`](../../apps/showcase/README.md) in development; its Devtools page links it.
