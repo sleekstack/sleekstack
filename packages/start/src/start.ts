@@ -66,7 +66,8 @@ export const start = <const T extends RouteTable, RP = never, RH = never, RM = n
     )
   const fetch = async (request: globalThis.Request): Promise<Response> => {
     const services = requestServices(request)
-    const handler = handlers[new URL(request.url).pathname]
+    const pathname = new URL(request.url).pathname
+    const handler = Object.hasOwn(handlers, pathname) ? handlers[pathname] : undefined
     const program = Effect.gen(function* () {
       const response =
         (yield* runMiddleware(middleware, request)) ?? (yield* serverFunctions(options.functions, request))
@@ -79,7 +80,7 @@ export const start = <const T extends RouteTable, RP = never, RH = never, RM = n
       if (e instanceof Redirect)
         return services.finish(new Response(null, { status: 302, headers: { location: e.to } }))
       if (e instanceof NotFound) return services.finish(new Response(null, { status: 404 }))
-      return new Response(null, { status: 500 })
+      return services.finish(new Response(null, { status: 500 }))
     }
   }
   return { fetch }

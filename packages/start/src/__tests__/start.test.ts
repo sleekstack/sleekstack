@@ -25,8 +25,9 @@ const server = start({
   onError: (cause) => void errors.push(cause),
   middleware: [
     (req) =>
-      Effect.sync(() => {
+      Effect.gen(function* () {
         log.push('first')
+        if (req.headers.has('x-mark')) yield* (yield* Cookies).set('mark', '1')
         if (req.headers.has('x-stop')) return new Response('stopped')
       }),
     (req) =>
@@ -42,12 +43,14 @@ const server = start({
     '/api': {
       GET: () => Effect.sync(() => (log.push('handler'), new Response('api'))),
       POST: () => Effect.die(new Error('handler secret')),
+      PUT: undefined,
     },
     '/cookies': {
       POST: () =>
         Effect.gen(function* () {
           const cookies = yield* Cookies
           yield* cookies.set('session', 'abc', { path: '/', httpOnly: true, sameSite: 'Lax' })
+          yield* cookies.set('session', 'admin', { path: '/admin' })
           yield* cookies.delete('old')
           ;(yield* ResponseHeaders).set('x-extra', '1')
           const req = yield* RequestTag
@@ -89,7 +92,7 @@ describe('dispatch', () => {
     expect(await res.text()).toContain('<p>missing</p>')
   })
 
-  it('an unsupported handler method is 405 with Allow', async () => {
+  it('an unsupported handler method is 405 with Allow naming the defined methods', async () => {
     const res = await call('/api', { method: 'DELETE' })
     expect(res.status).toBe(405)
     expect(res.headers.get('allow')).toBe('GET, POST')
@@ -118,13 +121,22 @@ describe('defects', () => {
     expect(await res.text()).toBe('')
     expect(errors.map((c) => Cause.pretty(c)).join()).toContain(secret)
   })
+
+  it('cookies staged before a defect still reach the 500', async () => {
+    const res = await call('/api', { headers: { 'x-mark': '1', 'x-throw': '1' } })
+    expect([res.status, res.headers.getSetCookie()]).toEqual([500, ['mark=1']])
+  })
 })
 
 describe('request services', () => {
   it('cookie sets and deletes become Set-Cookie, ResponseHeaders are added', async () => {
     const res = await call('/cookies', { method: 'POST', headers: { cookie: 'old=1; keep=2' } })
-    expect(await res.text()).toBe('POST abc undefined 2')
-    expect(res.headers.getSetCookie()).toEqual(['session=abc; Path=/; HttpOnly; SameSite=Lax', 'old=; Max-Age=0'])
+    expect(await res.text()).toBe('POST admin undefined 2')
+    expect(res.headers.getSetCookie()).toEqual([
+      'session=abc; Path=/; HttpOnly; SameSite=Lax',
+      'session=admin; Path=/admin',
+      'old=; Max-Age=0',
+    ])
     expect(res.headers.get('x-extra')).toBe('1')
   })
 
@@ -133,6 +145,9 @@ describe('request services', () => {
     ['ok', 'semi;colon', {}, 'value'],
     ['ok', 'v', { path: '/; Domain=evil' }, 'path'],
     ['ok', 'v', { domain: 'a;b' }, 'domain'],
+    ['ok', 'v', { domain: 'a b' }, 'domain'],
+    ['ok', 'v', { domain: '' }, 'domain'],
+    ['ok', 'v', { expires: new Date(NaN) }, 'expires'],
     ['ok', 'v', { maxAge: 1.5 }, 'maxAge'],
   ])('set(%j, %j, %j) is an InvalidCookie on its %s', async (name, value, options, part) => {
     const set = Effect.flatMap(Cookies, (c) => c.set(name, value, options))

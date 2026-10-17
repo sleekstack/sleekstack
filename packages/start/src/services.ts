@@ -20,7 +20,7 @@ export interface CookieOptions {
 /** A cookie name, value or attribute outside the cookie grammar (RFC 6265), refused instead of emitted. */
 export class InvalidCookie extends Data.TaggedError('InvalidCookie')<{
   readonly name: string
-  readonly part: 'name' | 'value' | 'path' | 'domain' | 'maxAge'
+  readonly part: 'name' | 'value' | 'path' | 'domain' | 'maxAge' | 'expires'
 }> {}
 
 /** The request's cookies; `set` and `delete` become `Set-Cookie` headers on the response. */
@@ -41,8 +41,10 @@ export type RequestServices = Request | Cookies | ResponseHeaders
 
 const TOKEN = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/
 const VALUE = /^(?:[\x21\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*|"[\x21\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*")$/
-// An attribute value: any printable character but `;`.
-const ATTRIBUTE = /^[\x20-\x3A\x3C-\x7E]*$/
+// A path: any printable character but `;`.
+const PATH = /^[\x20-\x3A\x3C-\x7E]*$/
+// A domain: dot-separated host labels, an optional leading dot.
+const DOMAIN = /^\.?[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*$/
 
 const parse = (header: string | null): Map<string, string> => {
   const jar = new Map<string, string>()
@@ -60,13 +62,15 @@ const serialize = (name: string, value: string, o: CookieOptions): Effect.Effect
     ? 'name'
     : !VALUE.test(value)
       ? 'value'
-      : o.path !== undefined && !ATTRIBUTE.test(o.path)
+      : o.path !== undefined && !PATH.test(o.path)
         ? 'path'
-        : o.domain !== undefined && !ATTRIBUTE.test(o.domain)
+        : o.domain !== undefined && !DOMAIN.test(o.domain)
           ? 'domain'
           : o.maxAge !== undefined && !Number.isInteger(o.maxAge)
             ? 'maxAge'
-            : undefined
+            : o.expires !== undefined && Number.isNaN(o.expires.getTime())
+              ? 'expires'
+              : undefined
   if (bad) return Effect.fail(new InvalidCookie({ name, part: bad }))
   let s = `${name}=${value}`
   if (o.path !== undefined) s += `; Path=${o.path}`
@@ -86,7 +90,8 @@ export const requestServices = (request: globalThis.Request) => {
   const headers = new Headers()
   const write = (name: string, value: string | undefined, options: CookieOptions) =>
     Effect.map(serialize(name, value ?? '', options), (line) => {
-      setCookies.set(name, line)
+      // One line per cookie: a name at another path or domain is another cookie.
+      setCookies.set(`${name};${options.path ?? ''};${options.domain ?? ''}`, line)
       if (value === undefined) values.delete(name)
       else values.set(name, value)
     })
