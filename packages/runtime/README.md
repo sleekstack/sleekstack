@@ -18,6 +18,8 @@ configureRuntime({ layer: AppLayer, isControlFlow: (v) => v instanceof Response 
 await runEffect(Effect.log('hello'), { request: RequestLayer })
 ```
 
+`@sleekstack/runtime/devtools` exports `devtoolsHandler()`, a dev-only `Request` to `Response` handler serving the runtime's scopes, errors and live state (and the analyzer graph when given) to the devtools panel: 404 in production, loopback hosts only unless `allowRemote`. It is a separate entry so production bundles never include it.
+
 `@sleekstack/runtime/internal` is for sibling packages (the devtools buffer) and is not public API.
 
 Guides and the generated API reference live in the docs site ([`apps/docs`](../../apps/docs/README.md)): run `pnpm --filter docs dev` and open http://localhost:3000/docs.
