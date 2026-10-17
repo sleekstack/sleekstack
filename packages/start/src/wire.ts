@@ -28,7 +28,8 @@ const issue = (message: string): DecodeError => new DecodeError({ issues: [{ pat
  * caller instead of following it) and `NotFound` (404). A 400 body is an encoded `DecodeError`.
  */
 const Envelope = Schema.Union(
-  Schema.Struct({ _tag: Schema.Literal('Success'), value: Schema.Unknown }),
+  // JSON drops an `undefined` value (a `Schema.Void` success), so the key may be absent.
+  Schema.Struct({ _tag: Schema.Literal('Success'), value: Schema.optional(Schema.Unknown) }),
   Schema.Struct({ _tag: Schema.Literal('Failure'), error: Schema.Unknown }),
   Schema.Struct({ _tag: Schema.Literal('Redirect'), to: Schema.String }),
   Schema.Struct({ _tag: Schema.Literal('NotFound') }),
@@ -102,7 +103,8 @@ export const endpoint =
       if (text === undefined) return empty(413)
       let body: unknown
       try {
-        body = JSON.parse(text)
+        // An empty body is `undefined` input, which JSON cannot write (a `Schema.Void` input).
+        body = text === '' ? undefined : JSON.parse(text)
       } catch {
         return json(400, Schema.encodeSync(DecodeError)(issue('Malformed JSON')))
       }

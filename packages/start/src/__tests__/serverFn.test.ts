@@ -26,6 +26,8 @@ const rename = serverFn('profile.rename', {
   return out
 })
 
+const ping = serverFn('ping', { input: Schema.Void, success: Schema.Void })(function* () {})
+
 const app = router({
   table: routes({ home: '/' }),
   pages: { home: { render: () => Effect.succeed(el('p', {}, 'home')) } },
@@ -37,7 +39,7 @@ const errors: Cause.Cause<unknown>[] = []
 const server = start({
   router: app,
   layer: Layer.succeed(Greeting, 'hello'),
-  functions: [rename],
+  functions: [rename, ping],
   origins: ['https://allowed.test'],
   bodyLimit: 64,
   onError: (cause) => void errors.push(cause),
@@ -69,6 +71,13 @@ describe('round trip', () => {
     const body = await res.json()
     expect(body).toEqual({ _tag: 'Success', value: { greeting: 'hello ada s1', age: 36 } })
     expect(await Effect.runPromise(decodeResult(rename, body))).toEqual({ greeting: 'hello ada s1', age: 36 })
+  })
+
+  it('a void function round-trips: no body in, no value out', async () => {
+    const res = await call('', {}, 'ping')
+    const body = await res.json()
+    expect([res.status, body]).toEqual([200, { _tag: 'Success' }])
+    expect(await Effect.runPromiseExit(decodeResult(ping, body))).toEqual(Exit.void)
   })
 
   it('a declared typed failure crosses the wire typed', async () => {
