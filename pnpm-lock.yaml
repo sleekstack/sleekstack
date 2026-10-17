@@ -232,6 +232,9 @@ importers:
       '@sleekstack/router':
         specifier: workspace:*
         version: link:../../packages/router
+      '@sleekstack/start':
+        specifier: workspace:*
+        version: link:../../packages/start
       '@sleekstack/ui':
         specifier: workspace:*
         version: link:../../packages/ui

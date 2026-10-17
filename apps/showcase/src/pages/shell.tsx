@@ -11,6 +11,7 @@ import { ModelDraftDemo } from './model'
 import { PortalDemo } from './portal'
 import { ProjectPage } from './project'
 import { RouterDemo } from './router'
+import { ServerFnDemo } from './server'
 import { TransitionsDemo } from './transitions'
 
 const PAGES = [
@@ -22,6 +23,7 @@ const PAGES = [
   ['boundary', 'Boundary reset'],
   ['model', 'Model and Draft'],
   ['router', 'Router'],
+  ['server', 'Server function'],
   ['devtools', 'Devtools'],
 ] as const
 type Page = (typeof PAGES)[number][0]
@@ -66,6 +68,7 @@ export const PageOutlet = function* () {
   if (page === 'boundary') return <BoundaryDemo />
   if (page === 'model') return <ModelDraftDemo />
   if (page === 'router') return <RouterDemo />
+  if (page === 'server') return <ServerFnDemo />
   if (page === 'devtools') return <DevtoolsDemo />
   return (
     <>
