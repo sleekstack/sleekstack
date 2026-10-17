@@ -1,7 +1,7 @@
 {
   "branch_name": "docs-ui-guides",
-  "completion_review_status": "unknown",
-  "completion_reviewed_at": null,
+  "completion_review_status": "ship",
+  "completion_reviewed_at": "2026-10-17T20:26:00.233689Z",
   "created_at": "2026-10-16T12:45:54.870975Z",
   "default_impl": null,
   "default_review": null,
@@ -171,20 +171,58 @@
       "task": "fn-53-docs-pass-ui-guides-and-stale-readme.2",
       "timestamp": "2026-10-17T20:22:52.012571Z",
       "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "5c04da639b60d0b225397b153a0342bbf2bbff33679bb73c47a0d3032981ca4b",
+      "backend": "codex",
+      "base_sha": "832eed751c541500628227a65864c1227986246b",
+      "counter_kind": "plan",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "a35f4d376000ad9b947ec433b540410ba2719313",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 454126,
+      "output_sha256": "b8e5e9f1f159af0e2462a1f65b9e2b943fa70bb592cd85ff7e886c2a60da3557",
+      "reservation_id": "b69bc62622064159984f9714805b949a",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-10-17T20:26:00.224866Z",
+      "tool_calls": 22,
+      "verdict": "SHIP"
     }
   ],
   "review_hash_epoch": {
     "impl:fn-53-docs-pass-ui-guides-and-stale-readme.1": 1,
-    "impl:fn-53-docs-pass-ui-guides-and-stale-readme.2": 1
+    "impl:fn-53-docs-pass-ui-guides-and-stale-readme.2": 1,
+    "plan#completion": 1
   },
   "review_pending_rounds": {},
   "review_reservations": {},
   "review_transport_failures": {
+    "completion": 0,
     "impl:fn-53-docs-pass-ui-guides-and-stale-readme.1": 0,
     "impl:fn-53-docs-pass-ui-guides-and-stale-readme.2": 0
   },
   "spec_path": ".flow/specs/fn-53-docs-pass-ui-guides-and-stale-readme.md",
-  "status": "open",
+  "status": "done",
   "title": "Docs pass: ui guides and stale README text",
   "tracker": {
     "baseHashFlow": null,
@@ -197,5 +235,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-17T20:22:52.014127Z"
+  "updated_at": "2026-10-17T20:27:47.336782Z"
 }

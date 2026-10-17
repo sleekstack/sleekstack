@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-53-docs-pass-ui-guides-and-stale-readme",
   "spec_path": ".flow/tasks/fn-53-docs-pass-ui-guides-and-stale-readme.2.md",
-  "status": "todo",
+  "status": "done",
   "title": "Full Model/Draft guide in models.mdx",
   "updated_at": "2026-10-16T12:51:40.870478Z"
 }

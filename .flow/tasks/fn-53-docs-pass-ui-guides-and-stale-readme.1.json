@@ -8,7 +8,7 @@
   "priority": null,
   "spec": "fn-53-docs-pass-ui-guides-and-stale-readme",
   "spec_path": ".flow/tasks/fn-53-docs-pass-ui-guides-and-stale-readme.1.md",
-  "status": "todo",
+  "status": "done",
   "title": "ui guides, typed DOM/lazy/transition/portal pages and README refresh",
   "updated_at": "2026-10-16T12:46:02.249203Z"
 }
