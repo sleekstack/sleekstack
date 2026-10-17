@@ -1,7 +1,7 @@
 /**
  * packages/analyze/src/components.ts
  *
- * The `@sleekstack/ui` component pass: one tree per `mount` call (nodes `component`, `provide`, `catch`,
+ * The `@sleekstack/ui` component pass: one tree per `mount`, `resume`, `startRouter` or `handle` call (nodes `component`, `provide`, `catch`,
  * `unresolved`), then one walk carrying the provided Tags and caught error tags downward. A component's
  * `E` / `R` come from its `Effect<Node, E, R>` type; a `Provide` layer's outputs from its `Layer` type. Every
  * branch of a conditional, `&&` or `.map` counts as rendered. Anything that cannot be read is `Unresolved`.
@@ -17,6 +17,10 @@ import type { AnalyzeError, ComponentReport, ComponentTree, Location, UiNode } f
 const UI_STORE = 'Store'
 /** Analyzer code for a handler the resume pass cannot prove resumable (fn-18). */
 export const NON_RESUMABLE_HANDLER = 'NonResumableHandler' as const
+/** Tags `@sleekstack/router` provides around every page besides `Store` (its `RouterProvided`). */
+const ROUTER_PROVIDES = ['Route', 'Loaders', 'Transfer']
+/** The router's control flow: a page's redirect or not-found is handled by the router, never unhandled. */
+const ROUTER_CONTROL = ['Redirect', 'NotFound']
 
 export function analyzeComponents(opts: { readonly project: string }): ComponentReport {
   const { root, program, checker } = programOf(opts.project)
@@ -42,6 +46,9 @@ export function analyzeComponents(opts: { readonly project: string }): Component
     return sym?.valueDeclaration ?? sym?.declarations?.[0]
   }
   const declOf = (e: ts.Expression) => aliased(checker.getSymbolAtLocation(e))
+  /** Declared in a `.d.ts` or under `node_modules`: library code, which holds no app components. */
+  const external = (d: ts.Declaration | undefined) =>
+    !!d && (d.getSourceFile().isDeclarationFile || /[\\/]node_modules[\\/]/.test(d.getSourceFile().fileName))
   const isAny = (t: ts.Type) => !!(t.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown))
   const members = (t: ts.Type | undefined) => (!t || t.flags & ts.TypeFlags.Never ? [] : t.isUnion() ? t.types : [t])
 
@@ -186,9 +193,11 @@ export function analyzeComponents(opts: { readonly project: string }): Component
         ]
       : bodyReturns(f).flatMap(build)
   /** Every node an `Effect<Node>`-valued expression renders. */
-  const build = (expr: ts.Expression): UiNode[] => {
+  const build = (expr: ts.Expression): UiNode[] => guarded(() => read(expr))
+  /** `f`'s nodes, or the `Unresolved` node for what it could not read. */
+  const guarded = (f: () => UiNode[]): UiNode[] => {
     try {
-      return read(expr)
+      return f()
     } catch (err) {
       if (!(err instanceof Unreadable)) throw err
       return [{ kind: 'unresolved', message: err.message, ...loc(err.node) }]
@@ -336,10 +345,13 @@ export function analyzeComponents(opts: { readonly project: string }): Component
       ]
     }
     if (ts.isJsxNamespacedName(tag)) return fail(tag, `"${text(tag)}" is not a component`)
-    const target = calleeTarget(tag)
+    // A library component (the router's `Link`, say) holds no app code: its type gives its E / R.
+    const library = !!id || external(declOf(tag))
+    const target = library ? undefined : calleeTarget(tag)
     const sig = checker.getTypeAtLocation(tag).getCallSignatures()[0]
     if (!sig) return fail(tag, `"${text(tag)}" is not a component`)
     const type = checker.getReturnTypeOfSignature(sig)
+    if (!target) return component(e, text(tag), () => kids, type)
     if (ts.isCallExpression(target) && calleeOf(target) === 'ui/lazy#lazy') {
       // The loaded component's tree gives its E / R; the type adds `LazyLoadError`, and its `any` members are that tree's.
       const loaded = lazyTarget(tag, target)
@@ -412,7 +424,7 @@ export function analyzeComponents(opts: { readonly project: string }): Component
     checker.getTypeAtLocation(ts.isPropertyAssignment(p) ? p.initializer : ts.isSpreadAssignment(p) ? p.expression : p)
   /** A component node carrying `e`'s `E` / `R`; unreadable members fail closed at `e` without hiding its children. */
   const component = (
-    e: ts.Expression,
+    e: ts.Node,
     name: string,
     children: () => UiNode[],
     type = checker.getTypeAtLocation(e),
@@ -528,10 +540,9 @@ export function analyzeComponents(opts: { readonly project: string }): Component
     // The React body is scanned when local; a component declared in a library (.d.ts / node_modules) cannot hold app code.
     let body: ts.Node | undefined
     const d = declOf(unwrap(cmp))
-    const external =
-      !!d && (d.getSourceFile().isDeclarationFile || /[\\/]node_modules[\\/]/.test(d.getSourceFile().fileName))
-    if (d && ts.isClassDeclaration(d) && !external) body = d
-    else if (!external) {
+    const library = external(d)
+    if (d && ts.isClassDeclaration(d) && !library) body = d
+    else if (!library) {
       try {
         const target = calleeTarget(cmp)
         if (ts.isCallExpression(target))
@@ -553,7 +564,7 @@ export function analyzeComponents(opts: { readonly project: string }): Component
       ts.forEachChild(n, scan)
     }
     if (body) ts.forEachChild(body, scan)
-    else if (!external && !inside.some((n) => n.kind === 'unresolved'))
+    else if (!library && !inside.some((n) => n.kind === 'unresolved'))
       inside.push({
         kind: 'unresolved',
         message: `React component "${text(cmp)}" has no readable declaration`,
@@ -686,6 +697,81 @@ export function analyzeComponents(opts: { readonly project: string }): Component
       return { provides: [], root: { kind: 'unresolved', message: err.message, ...loc(err.node) }, ...loc(n) }
     }
   }
+  /** A named property of an object literal (the last one wins, as at runtime). */
+  const prop = (o: ts.ObjectLiteralExpression, name: string) =>
+    o.properties.filter((p) => p.name?.getText() === name).at(-1)
+  /** The object literal a router argument names: through const bindings and `router({ ... })`. */
+  const routerOf = (e: ts.Expression): ts.ObjectLiteralExpression => {
+    const u = unwrap(e)
+    if (ts.isObjectLiteralExpression(u)) return u
+    if (ts.isCallExpression(u) && calleeOf(u) === 'router/resolve#router' && u.arguments[0])
+      return routerOf(u.arguments[0])
+    const d = ts.isIdentifier(u) ? declOf(u) : undefined
+    if (d && ts.isVariableDeclaration(d) && d.initializer && ts.getCombinedNodeFlags(d) & ts.NodeFlags.Const)
+      return routerOf(d.initializer)
+    return fail(e, `Router "${text(e)}" is not a router({ table, pages, notFound }) literal; its pages cannot be read`)
+  }
+  /** A page's `render` (or the router's `notFound`): a component node over what the function renders. */
+  const renderNode = (p: ts.ObjectLiteralElementLike, name: string): UiNode[] => {
+    const fn = ts.isMethodDeclaration(p)
+      ? p
+      : ts.isPropertyAssignment(p)
+        ? calleeTarget(p.initializer)
+        : fail(p, `"${text(p)}" is not a readable render function`)
+    if (ts.isCallExpression(fn)) return fail(fn, `"${text(fn)}" is a computed render function; its tree cannot be read`)
+    const sig = checker.getSignatureFromDeclaration(fn)
+    if (!sig) return fail(p, `"${text(p)}" has no readable signature`)
+    return component(p, name, () => rendered(fn), checker.getReturnTypeOfSignature(sig))
+  }
+  /** A page's `loaders`: one node carrying the `R` of every loader's `load`. */
+  const loadersNode = (p: ts.ObjectLiteralElementLike, name: string): UiNode => {
+    const t = propType(p)
+    const items =
+      checker.isArrayType(t) || checker.isTupleType(t) ? checker.getTypeArguments(t as ts.TypeReference) : []
+    const requires = items.flatMap(members).flatMap((m) => {
+      const load = m.getProperty('load')
+      const args = load && effectArgs(checker.getTypeOfSymbolAtLocation(load, p))
+      return args ? tagNames(p, args[2], 'requires') : fail(p, `Loaders "${text(p)}" have no readable load Effect`)
+    })
+    return { kind: 'component', name: `${name} loaders`, guest: false, requires, errors: [], children: [], ...loc(p) }
+  }
+  /**
+   * A `startRouter(router, { layer })` / `handle(router, request, { layer })` root: one child per page (its render and
+   * loaders) and one for `notFound`, under the entry's layer plus what the router provides; its redirect and not-found
+   * are the router's own control flow.
+   */
+  const routerRoot = (n: ts.CallExpression, opts: ts.Expression | undefined): ComponentTree => {
+    try {
+      const sym = opts && checker.getTypeAtLocation(opts).getProperty('layer')
+      const layer = sym && checker.getNonNullableType(checker.getTypeOfSymbolAtLocation(sym, opts))
+      const provides = [...(layer ? layerTags(opts!, layer).provides : []), ...ROUTER_PROVIDES]
+      const def = routerOf(n.arguments[0] ?? fail(n, `"${text(n)}" has no router`))
+      const pages = objectOf(prop(def, 'pages')) ?? fail(def, 'Router pages are not a readable object literal')
+      const nf = prop(def, 'notFound') ?? fail(def, 'Router has no notFound page')
+      const children: UiNode[] = [
+        ...pages.properties.flatMap((p) => {
+          const name = `page ${p.name?.getText() ?? text(p)}`
+          const page = objectOf(p)
+          if (!page) return guarded(() => fail(p, `Page "${text(p)}" is not a readable object literal`))
+          const render = prop(page, 'render')
+          const loaders = prop(page, 'loaders')
+          return [
+            ...guarded(() => (render ? renderNode(render, name) : fail(p, `"${text(p)}" has no render`))),
+            ...(loaders ? guarded(() => [loadersNode(loaders, name)]) : []),
+          ]
+        }),
+        ...guarded(() => renderNode(nf, 'notFound')),
+      ]
+      const root: UiNode = ROUTER_CONTROL.reduce<UiNode>(
+        (inner, tag) => ({ kind: 'catch', tag, children: [inner], ...loc(n) }),
+        { kind: 'component', name: text(n.expression), guest: false, requires: [], errors: [], children, ...loc(n) },
+      )
+      return { provides, root, ...loc(n) }
+    } catch (err) {
+      if (!(err instanceof Unreadable)) throw err
+      return { provides: [], root: { kind: 'unresolved', message: err.message, ...loc(err.node) }, ...loc(n) }
+    }
+  }
   const rules: AnalyzeError[] = []
   /** `useLocal`, `useEffect`, `useRef`, `useDerivedAtom`, `useAction`, `useOptimistic`, `useDeferredAtom` and `useDraft` must be a statement-level `yield*` in a component's generator body (`function*` or `Effect.gen`), before any `return`; anything else fails closed. */
   const checkSlot = (call: ts.CallExpression, hook = 'useLocal') => {
@@ -801,6 +887,9 @@ export function analyzeComponents(opts: { readonly project: string }): Component
     if (ts.isCallExpression(n) && calleeOf(n) === 'ui/handler#on') checkOn(n)
     if (ts.isJsxAttribute(n)) checkJsxHandler(n)
     if (ts.isCallExpression(n) && calleeOf(n) === 'ui/resume#resume') trees.push(resumeRoot(n))
+    if (ts.isCallExpression(n) && calleeOf(n) === 'router/history#startRouter')
+      trees.push(routerRoot(n, n.arguments[1]))
+    if (ts.isCallExpression(n) && calleeOf(n) === 'router/server#handle') trees.push(routerRoot(n, n.arguments[2]))
     if (ts.isCallExpression(n) && calleeOf(n) === 'ui/dom#mount' && n.arguments[0]) {
       let provides: readonly string[] = []
       let root: UiNode
@@ -884,7 +973,7 @@ function check(
     out.push(
       analyzeError(
         'MissingDependency',
-        `${who} requires "${r}", but no enclosing Provide or root (mount / resume) layer provides it`,
+        `${who} requires "${r}", but no enclosing Provide or root (mount / resume / startRouter / handle) layer provides it`,
         at,
       ),
     )
