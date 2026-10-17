@@ -33,19 +33,25 @@ export interface Page<R = any> {
 export const view = (page: Page): Effect.Effect<Node, never, never> =>
   jsx(Pending, { fallback: page.fallback, children: page.render() })
 
-/** A route table with a page per route and the page shown when nothing matches; `R` is what the pages need. */
+/**
+ * A route table with a page per route and the page shown when nothing matches; `R` is what the pages need beyond
+ * `Route` (which the router provides to matched pages) plus everything `notFound` needs.
+ */
 export interface Router<T extends RouteTable = RouteTable, R = any> {
   readonly table: T
   readonly pages: { readonly [K in keyof T]: Page<R> }
   readonly notFound: () => Effect.Effect<Node, any, R>
 }
 
-type PageNeeds<P> =
+// `Route` is provided around matched pages only, so it is dropped here and kept in what `notFound` needs.
+type PageNeeds<P> = Exclude<
   | (P extends { readonly render: () => Effect.Effect<any, any, infer R> } ? R : never)
-  | (P extends { readonly loaders: ReadonlyArray<Loader<any, any, any, infer R>> } ? R : never)
+  | (P extends { readonly loaders: ReadonlyArray<Loader<any, any, any, infer R>> } ? R : never),
+  Route
+>
 
-/** Services the router provides around every page; an app's layer never has to. */
-export type RouterProvided = Route | Loaders | Transfer | Store
+/** Services the router provides around every page, the not-found page included; an app's layer never has to. */
+export type RouterProvided = Loaders | Transfer | Store
 
 /** What a router's pages, loaders and not-found page need from the app's layer. */
 export type Requirements<R> = Exclude<R, RouterProvided>
@@ -61,11 +67,7 @@ export type AppLayer<R> = 0 extends 1 & R
     : { readonly layer: Layer.Layer<Requirements<R>, any, never> }
 
 /** Identity that keeps the table literal, checks there is a page per route, and infers what the pages need. */
-export const router = <
-  const T extends RouteTable,
-  P extends { readonly [K in keyof T]: Page },
-  N = never,
->(r: {
+export const router = <const T extends RouteTable, P extends { readonly [K in keyof T]: Page }, N = never>(r: {
   readonly table: T
   readonly pages: P
   readonly notFound: () => Effect.Effect<Node, any, N>

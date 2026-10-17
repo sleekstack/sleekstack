@@ -1,4 +1,4 @@
-import { params, router, routes, type Router } from '@sleekstack/router'
+import { params, Route, router, routes, type Router } from '@sleekstack/router'
 import { el } from '@sleekstack/ui'
 import { Context, Effect, Layer, Schema } from 'effect'
 import { Cookies, Request, ResponseHeaders, serverFn, start } from '../index'
@@ -32,6 +32,10 @@ start({ router: dbPage, layer: dbLayer })
 start({ router: dbPage })
 // @ts-expect-error a page needs Db and the layer provides only Clock
 start({ router: dbPage, layer: clockLayer })
+
+// `notFound` runs where no route matched, so the `Route` it reads must come from the layer.
+// @ts-expect-error `notFound` needs Route
+start({ router: router({ table, pages: plain.pages, notFound: () => Effect.as(Route, el('p', {}, 'x')) }) })
 
 const needsDb = () => Effect.as(Db, new Response())
 start({ router: plain, layer: dbLayer, handlers: { '/api': { GET: needsDb } } })

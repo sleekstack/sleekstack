@@ -1,6 +1,6 @@
 import { el } from '@sleekstack/ui'
 import { Context, Effect, Layer, Schema } from 'effect'
-import { handle, loader, params, router, routes, startRouter, useLoader, type Router } from '../index'
+import { handle, loader, params, Route, router, routes, startRouter, useLoader, type Router } from '../index'
 
 class Db extends Context.Tag('Db')<Db, { readonly name: string }>() {}
 class Clock extends Context.Tag('Clock')<Clock, { readonly now: number }>() {}
@@ -45,6 +45,14 @@ const free = router({
   notFound: shell,
 })
 
+// A not-found page runs where no route matched, so the router gives it no `Route`.
+const routeNotFound = router({
+  table,
+  pages: { home: { render: shell }, user: { render: shell } },
+  notFound: () => Effect.as(Route, el('p', {}, 'missing')),
+})
+const routeLayer = Layer.succeed(Route, { name: 'home', path: '/', params: {}, pathname: '/' })
+
 export const checks = () => [
   // @ts-expect-error the client layer lacks `Db`, which the page reads
   startRouter(dbPage, { container, layer: Layer.empty }),
@@ -60,6 +68,13 @@ export const checks = () => [
   // @ts-expect-error a loader re-runs in the browser on navigation: a client layer without `Db` is rejected
   startRouter(dbLoader, { container, layer: clockLayer }),
   startRouter(dbLoader, { container, layer: Layer.merge(dbLayer, clockLayer) }),
+
+  // @ts-expect-error `notFound` needs `Route`, which the router does not provide to it
+  startRouter(routeNotFound, { container }),
+  // @ts-expect-error the server layer lacks the `Route` that `notFound` needs
+  handle(routeNotFound, request, { layer: dbLayer }),
+  startRouter(routeNotFound, { container, layer: routeLayer }),
+  handle(routeNotFound, request, { layer: routeLayer }),
 
   startRouter(free, { container }),
   handle(free, request),

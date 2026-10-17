@@ -1,4 +1,4 @@
-import { handle, type Loaders, NotFound, Redirect, type Route, type Router, type RouteTable } from '@sleekstack/router'
+import { handle, type Loaders, NotFound, Redirect, type Router, type RouteTable } from '@sleekstack/router'
 import { configureRuntime, type ErrorSink, runEffect } from '@sleekstack/runtime'
 import type { Store, Transfer } from '@sleekstack/ui'
 import { Cause, Effect, Layer } from 'effect'
@@ -9,8 +9,9 @@ import { registry, type ServerFn } from './serverFn'
 import { requestServices, type RequestServices } from './services'
 import { endpoint } from './wire'
 
-// What the app's layer provides: everything the stages need but the router's own services and the request's.
-type Needs<R> = Exclude<R, Route | Loaders | Transfer | Store | RequestServices>
+// What the app's layer provides: everything the stages need but the router's own services and the request's. The
+// router's `R` already leaves out the `Route` it gives matched pages; a `Route` left in it is for `notFound`.
+type Needs<R> = Exclude<R, Loaders | Transfer | Store | RequestServices>
 
 /** Required and checked when the stages need services, optional when they need none (or are untyped). */
 type StartLayer<R> = 0 extends 1 & R
@@ -64,13 +65,11 @@ export const start = <const T extends RouteTable, RP = never, RH = never, RM = n
     isControlFlow: isControl,
     onError: sink,
   })
+  // Pages render on the request fiber's runtime: its services, FiberRefs, tracer and devtools scope.
   const page = (request: globalThis.Request) =>
-    Effect.flatMap(Effect.context<any>(), (context) =>
+    Effect.flatMap(Effect.runtime<never>(), (runtime) =>
       Effect.promise(() =>
-        handle(router as Router, request, {
-          layer: Layer.succeedContext(context),
-          onError: (cause) => sink(cause, { phase: 'call' }),
-        }),
+        handle(router as Router, request, { runtime, onError: (cause) => sink(cause, { phase: 'call' }) }),
       ),
     )
   const fetch = async (request: globalThis.Request): Promise<Response> => {

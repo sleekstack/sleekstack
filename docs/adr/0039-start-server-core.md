@@ -35,10 +35,9 @@ Apps on the ui host had no server counterpart to what Next.js gives React: a com
 ## Consequences
 
 - One `fetch` serves a whole app on any host that speaks web `Request` / `Response`. The showcase mounts it as Vite dev-server middleware.
-- Every stage gets Layers, the Request Scope, the error sink and the control-flow classifier from `@sleekstack/runtime`, which stays Schema-free (ADR 0013).
+- Every stage gets Layers, the Request Scope, the error sink and the control-flow classifier from `@sleekstack/runtime`, which stays Schema-free (ADR 0013). Pages, their loaders included, run on the request fiber's runtime (`handle`'s `runtime` option), so they see its FiberRefs, tracer and devtools scope.
+- The router gives `Route` to matched pages only, so a not-found page that reads `Route` needs it from the entry's layer, in types and in `sleekstack check` alike.
 - Known gaps:
-  - Pages run on the router's own runtime: the page stage passes the Request Scope's context to `handle` as its layer, so runtime FiberRefs, devtools tracing included, do not reach page renders. Closing this needs an Effect-returning router entry.
-  - `RouterProvided` still includes `Route`, so a not-found page needing `Route` compiles; the analyzer reports it.
   - Route handlers match exact pathnames only, with no params.
   - A `Redirect` or `NotFound` from middleware or a handler answers a 302 or an empty 404, not the router's not-found page.
   - Each `start` call configures the process-wide runtime, so the testing helpers replace the configured runtime on each call.

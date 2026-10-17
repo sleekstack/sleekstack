@@ -15,6 +15,11 @@ export type HandleOptions<R = never> = AppLayer<R> & {
   readonly document?: { readonly before: string; readonly after: string }
   /** Gets a 500's cause: a `RedirectLoop`, a defect, or a render failure. */
   readonly onError?: (cause: Cause.Cause<unknown>) => void
+  /**
+   * Runs the loaders and the render on this runtime, so they see its FiberRefs, tracer and services (a server entry
+   * passes the request fiber's `Effect.runtime()`). Default: Effect's own.
+   */
+  readonly runtime?: Runtime.Runtime<never>
 }
 
 const redirectTo = (location: string) => new Response(null, { status: 302, headers: { location } })
@@ -64,7 +69,8 @@ export const handle = async <T extends RouteTable, R>(
   const base = opts.layer ?? Layer.empty
   const all = new Map<string, Held>()
   const doc = opts.document ?? { before: '', after: '' }
-  const exit = await Effect.runPromiseExit(
+  const runtime = opts.runtime ?? Runtime.defaultRuntime
+  const exit = await Runtime.runPromiseExit(runtime)(
     Effect.provide(resolve(r, href, url.origin), Layer.merge(Layer.succeed(Loaders, all), base)),
   )
   const fail = (cause: Cause.Cause<unknown>) => (opts.onError?.(cause), new Response(null, { status: 500 }))
@@ -78,7 +84,7 @@ export const handle = async <T extends RouteTable, R>(
     layer: Layer.Layer<any, any>,
     status: number,
   ): Promise<Response> => {
-    if (opts.stream) return stream(r, [page, layer, status], loaders, doc, opts.onError)
+    if (opts.stream) return stream(r, [page, layer, status], loaders, doc, { onError: opts.onError, runtime })
     // A loader the page reads without declaring it on its route can still redirect or not-find: the string render
     // answers it like a declared one.
     let ctl: Redirect | NotFound | undefined
@@ -89,7 +95,7 @@ export const handle = async <T extends RouteTable, R>(
     }
     let html = ''
     try {
-      html = await renderToString(page, { layer, onError })
+      html = await renderToString(page, { layer, onError, runtime })
     } catch (error) {
       const e = Runtime.isFiberFailure(error) ? Cause.squash(error[Runtime.FiberFailureCauseId]) : error
       if (!isControl(e)) return fail(Cause.die(error))
@@ -112,7 +118,7 @@ const stream = async (
   [page, layer, status]: readonly [Effect.Effect<Node, any, any>, Layer.Layer<any, any>, number],
   loaders: Layer.Layer<any, any>,
   doc: { before: string; after: string },
-  report: ((cause: Cause.Cause<unknown>) => void) | undefined,
+  { onError: report, runtime }: Pick<HandleOptions, 'onError' | 'runtime'>,
 ): Promise<Response> => {
   let ctl: Redirect | NotFound | undefined
   let sent = false
@@ -120,7 +126,7 @@ const stream = async (
     if (!ctl || sent) return ''
     sent = true
     if (ctl instanceof Redirect) return `<script>location.replace(${js(ctl.to)})</script>`
-    const missing = await renderToString(r.notFound(), { layer: loaders }).catch(() => '')
+    const missing = await renderToString(r.notFound(), { layer: loaders, runtime }).catch(() => '')
     return `<template id="sleek-router-404">${missing}</template><meta name="robots" content="noindex"><script>document.body.replaceChildren(document.getElementById('sleek-router-404').content)</script>`
   }
   const onError = (cause: Cause.Cause<unknown>) => {
@@ -128,5 +134,5 @@ const stream = async (
     if (c) ctl ??= c
     else report?.(cause)
   }
-  return new Response(wrap(renderToStream(page, { layer, onError }), doc, late), { status, headers: HTML })
+  return new Response(wrap(renderToStream(page, { layer, onError, runtime }), doc, late), { status, headers: HTML })
 }

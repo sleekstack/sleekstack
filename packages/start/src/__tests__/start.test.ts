@@ -1,17 +1,26 @@
-import { notFound, redirect, router, routes } from '@sleekstack/router'
+import { loader, notFound, redirect, router, routes, useLoader } from '@sleekstack/router'
 import { el } from '@sleekstack/ui'
-import { Cause, Context, Effect, Exit, Layer } from 'effect'
+import { Cause, Context, Effect, Exit, FiberRef, Layer, Schema } from 'effect'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Cookies, InvalidCookie, Request as RequestTag, ResponseHeaders, start } from '../index'
 import { requestServices } from '../services'
 
 class Greeting extends Context.Tag('Greeting')<Greeting, string>() {}
 
+// Set by a middleware in the request fiber; the page's loader and render read it.
+const traceId = FiberRef.unsafeMake('unset')
+const traced = loader('traced', Schema.String, FiberRef.get(traceId))
+
 const app = router({
-  table: routes({ home: '/', boom: '/boom' }),
+  table: routes({ home: '/', boom: '/boom', trace: '/trace' }),
   pages: {
     home: { render: () => Effect.map(Greeting, (g) => el('p', {}, g)) },
     boom: { render: () => Effect.die(new Error('page secret')) },
+    trace: {
+      loaders: [traced],
+      render: () =>
+        Effect.map(Effect.all([useLoader(traced), FiberRef.get(traceId)]), ([l, r]) => el('p', {}, `${l} ${r}`)),
+    },
   },
   notFound: () => Effect.succeed(el('p', {}, 'missing')),
 })
@@ -27,6 +36,7 @@ const server = start({
     (req) =>
       Effect.gen(function* () {
         log.push('first')
+        yield* FiberRef.set(traceId, req.headers.get('x-trace') ?? 'unset')
         if (req.headers.has('x-mark')) yield* (yield* Cookies).set('mark', '1')
         if (req.headers.has('x-stop')) return new Response('stopped')
       }),
@@ -84,6 +94,11 @@ describe('dispatch', () => {
     const res = await call('/')
     expect(res.status).toBe(200)
     expect(await res.text()).toContain('<p>hello</p>')
+  })
+
+  it('a page loader and render run in the request fiber, seeing its FiberRefs', async () => {
+    const res = await call('/trace', { headers: { 'x-trace': 'req-1' } })
+    expect(await res.text()).toContain('<p>req-1 req-1</p>')
   })
 
   it("an unmatched path is the router's not-found page with 404", async () => {
