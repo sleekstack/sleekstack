@@ -29,9 +29,17 @@ Move the dev-only runtime-event feed (scopes, errors, live state, optional analy
 - [ ] `pnpm turbo run test typecheck --filter=@sleekstack/runtime...` is green
 
 ## Done summary
-TBD
+Added `@sleekstack/runtime/devtools`, a framework-agnostic dev-only `Request` to `Response` feed handler (`devtoolsHandler`, `devtoolsSnapshot`, same JSON body and `graph`/`allowRemote` options as the Next preset's copy), as a separate package export; ported the Next devtools tests and added a plain-Request test and a test that the main entry's import graph never reaches the devtools module.
 
+Behavior change from the Next copy, from review: the handler now takes `(request, { remoteAddress })` and, unless `allowRemote`, answers 403 unless the server passes a loopback peer address and the URL host is loopback (the old check trusted the client-supplied Host header). Task .2/.3 and a future `start` mount must pass the peer address. The Next package's copy is unchanged until task .6 deletes it.
+
+Outside packages/runtime/**: pnpm-lock.yaml gains `@types/node` for the runtime package (needed by the import-graph test; no sleek-codes entries). Generated API docs are gitignored; `apps/docs/scripts/entry-points.mjs` picks the new export up automatically and generate:api produces `api/runtime/devtools.md`.
+
+Tests: `pnpm turbo run test typecheck --filter=@sleekstack/runtime...` (green, 15 tests).
+baseline: none run pre-edit (new package entry; runtime suite green post-change)
+
+stage: impl-review - ran (codex fan-out NEEDS_WORK -> 2 re-reviews -> SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 4d9327fc409cda1ad3852774b55d75db151253dd, 2cfec5325593d1bd56d6070bf6390e36766b89f0, 8cd71d5ebb2b6b92e2d70da0444f8a6d1003b494, 5474b55227e84c9ab34a5edbcd328d0e674a2dfd, fa5a878fe30826f64ab415edee2e4b441ae8243d
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/runtime...
 - PRs:
