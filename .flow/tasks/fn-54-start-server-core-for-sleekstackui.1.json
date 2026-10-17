@@ -8,7 +8,7 @@
   "priority": null,
   "spec": "fn-54-start-server-core-for-sleekstackui",
   "spec_path": ".flow/tasks/fn-54-start-server-core-for-sleekstackui.1.md",
-  "status": "todo",
+  "status": "done",
   "title": "router: track page and loader requirements as a type parameter",
   "updated_at": "2026-10-17T11:47:43.166223Z"
 }

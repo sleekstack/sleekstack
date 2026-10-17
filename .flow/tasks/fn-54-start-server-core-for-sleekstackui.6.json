@@ -13,7 +13,7 @@
   "priority": null,
   "spec": "fn-54-start-server-core-for-sleekstackui",
   "spec_path": ".flow/tasks/fn-54-start-server-core-for-sleekstackui.6.md",
-  "status": "todo",
+  "status": "done",
   "title": "testing helpers, ADRs, CONTEXT terms and AGENTS.md row",
   "updated_at": "2026-10-17T16:26:35.821648Z"
 }
