@@ -10,5 +10,5 @@ export { idle } from './reactive'
  * slot-free value when `Collector` or `Frame` is unset (outside a component), else `takeSlot(frame)`: fail with its
  * `SlotMismatch`, or push the slot's atom on its first run. A run that writes an atom it reads wraps the write in `writeOwn`.
  */
-export { Frame, missingStore, takeSlot, writeOwn } from './reactive'
+export { Frame, missingStore, Store, takeSlot, writeOwn } from './reactive'
 export type { RunFrame, Slots } from './reactive'

@@ -1,11 +1,80 @@
 {
   "branch_name": "fn-56-model-and-draft-move-to-sleekstackmodel",
+  "completion_review_status": "unknown",
+  "completion_reviewed_at": null,
   "created_at": "2026-10-17T12:11:19.306502Z",
+  "default_impl": null,
+  "default_review": null,
+  "default_sync": null,
   "depends_on_epics": [],
   "id": "fn-56-model-and-draft-move-to-sleekstackmodel",
+  "impl_review_rounds": {
+    "fn-56-model-and-draft-move-to-sleekstackmodel.1": 1
+  },
   "next_task": 1,
+  "plan_review_rounds": 0,
   "plan_review_status": "unknown",
   "plan_reviewed_at": null,
+  "review_attempts": [
+    {
+      "artifact_sha256": "2fc5d40815252acefaf1a5e5438087d8cb2939061f9fd387d59e6550da072359",
+      "backend": "codex",
+      "base_sha": "832eed751c541500628227a65864c1227986246b",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-4b1dd9aec7b0075b52648d30e057280c",
+            "classification": "introduced",
+            "findingId": "finding-4b1dd9aec7b0075b52648d30e057280c",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-0939b11b066f0cd65c9eecd9a1f3335b",
+            "classification": "introduced",
+            "findingId": "finding-0939b11b066f0cd65c9eecd9a1f3335b",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "f81066b84b80c2cc40d34af84061923811864cb8",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1433,
+      "output_sha256": "bdc834739c0633f1ec81be7e619ec5c4d5794a71b065cee6a993040bf1061b89",
+      "reservation_id": "428cf24788eb43e392b79de1f18f9eff",
+      "round_consumed": true,
+      "scope": "impl:fn-56-model-and-draft-move-to-sleekstackmodel.1",
+      "superseded_by": null,
+      "task": "fn-56-model-and-draft-move-to-sleekstackmodel.1",
+      "timestamp": "2026-10-17T19:46:49.911053Z",
+      "verdict": "NEEDS_WORK"
+    }
+  ],
+  "review_hash_epoch": {},
+  "review_pending_rounds": {},
+  "review_reservations": {},
+  "review_transport_failures": {
+    "impl:fn-56-model-and-draft-move-to-sleekstackmodel.1": 0
+  },
   "spec_path": ".flow/specs/fn-56-model-and-draft-move-to-sleekstackmodel.md",
   "status": "open",
   "title": "Model and Draft move to @sleekstack/model",
@@ -20,5 +89,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-17T12:15:24.501092Z"
+  "updated_at": "2026-10-17T19:46:49.912815Z"
 }

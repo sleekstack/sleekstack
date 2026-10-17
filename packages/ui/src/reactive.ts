@@ -1015,11 +1015,12 @@ let ownWriter: Slots | undefined
  * renderer does not re-run that instance for the write (the re-run would interrupt an async run, which would write again).
  */
 export const writeOwn = (owner: Slots, write: () => void): void => {
+  const outer = ownWriter
   ownWriter = owner
   try {
     write()
   } finally {
-    ownWriter = undefined
+    ownWriter = outer
   }
 }
 

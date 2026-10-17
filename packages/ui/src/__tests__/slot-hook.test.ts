@@ -1,10 +1,10 @@
 import { Atom, makeAtomStore, MissingDependency } from '@sleekstack/core'
 import { Context, Effect, Option } from 'effect'
 import { describe, expect, it } from 'vitest'
-import { el, SlotMismatch, Store, useAtomValue } from '../index'
-import { Collector, Frame, missingStore, takeSlot } from '../internal'
+import { el, SlotMismatch, useAtomValue } from '../index'
+import { Collector, Frame, missingStore, Store, takeSlot, writeOwn } from '../internal'
 import { jsx as rawJsx } from '../jsx-runtime'
-import { makeFrame } from '../reactive'
+import { isOwnWrite, makeFrame } from '../reactive'
 
 const jsx = (type: any, props: any, key?: string) => rawJsx(type, props, key)
 
@@ -56,5 +56,15 @@ describe('an external slot hook through ui/internal', () => {
     const err = Effect.runSync(Effect.flip(useBox() as unknown as Effect.Effect<unknown, unknown>))
     expect(err).toBeInstanceOf(MissingDependency)
     expect(err).toMatchObject({ tag: 'Store', service: 'useBox' })
+  })
+
+  it('writeOwn marks the writer for its write, nested writes included', () => {
+    const [outer, inner] = [makeFrame().owner, makeFrame().owner]
+    const seen: Array<boolean> = []
+    writeOwn(outer, () => {
+      writeOwn(inner, () => seen.push(isOwnWrite(inner), isOwnWrite(outer)))
+      seen.push(isOwnWrite(outer))
+    })
+    expect([...seen, isOwnWrite(outer)]).toEqual([true, false, true, false])
   })
 })
