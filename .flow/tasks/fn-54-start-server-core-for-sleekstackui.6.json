@@ -6,7 +6,8 @@
   "depends_on": [
     "fn-54-start-server-core-for-sleekstackui.3",
     "fn-54-start-server-core-for-sleekstackui.5",
-    "fn-54-start-server-core-for-sleekstackui.7"
+    "fn-54-start-server-core-for-sleekstackui.7",
+    "fn-54-start-server-core-for-sleekstackui.8"
   ],
   "id": "fn-54-start-server-core-for-sleekstackui.6",
   "priority": null,
@@ -14,5 +15,5 @@
   "spec_path": ".flow/tasks/fn-54-start-server-core-for-sleekstackui.6.md",
   "status": "todo",
   "title": "testing helpers, ADRs, CONTEXT terms and AGENTS.md row",
-  "updated_at": "2026-10-17T11:47:42.864440Z"
+  "updated_at": "2026-10-17T16:26:35.821648Z"
 }

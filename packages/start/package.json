@@ -10,6 +10,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "default": "./dist/client.js"
     }
   },
   "files": [
@@ -33,6 +37,10 @@
     "@types/node": "^22.20.1",
     "vitest": "^4.1.9",
     "@sleekstack/ui": "workspace:*",
-    "@sleekstack/router": "workspace:*"
+    "@sleekstack/router": "workspace:*",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "@types/react": "^19.2.17",
+    "jsdom": "^29.1.1"
   }
 }

@@ -1,0 +1,172 @@
+// @vitest-environment jsdom
+import { action, NotFound, notFound, Redirect, redirect, router, routes, startRouter } from '@sleekstack/router'
+import { type ActionEvent, el, mount, type Mounted, useAction, useAtomValue } from '@sleekstack/ui'
+import { jsx as rawJsx } from '@sleekstack/ui/jsx-runtime'
+import { Effect, Either, Layer, Schema } from 'effect'
+import { act } from 'react'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { client, DecodeError, NetworkError } from '../client'
+import { serverFn, start } from '../index'
+
+const jsx = (type: any, props: any) => rawJsx(type, props)
+const flush = () => act(async () => void (await new Promise((r) => setTimeout(r, 0))))
+
+class Full extends Schema.TaggedError<Full>()('Full', { max: Schema.Number }) {}
+
+// The client-safe contract; the server function is built from it.
+const addItem = {
+  id: 'items.add',
+  input: Schema.Struct({ title: Schema.NonEmptyString }),
+  success: Schema.Struct({ count: Schema.Number }),
+  error: Full,
+}
+const items: Array<string> = []
+const addItemFn = serverFn(
+  addItem.id,
+  addItem,
+)(function* ({ title }) {
+  if (title === 'full') return yield* new Full({ max: 1 })
+  if (title === 'redirect') return yield* redirect('/done')
+  if (title === 'missing') return yield* notFound()
+  items.push(title)
+  return { count: items.length }
+})
+
+const server = start({
+  router: router({
+    table: routes({ home: '/' }),
+    pages: { home: { render: () => Effect.succeed(el('p', {}, 'home')) } },
+    notFound: () => Effect.succeed(el('p', {}, 'missing')),
+  }),
+  functions: [addItemFn],
+})
+
+const origin = location.origin
+// The browser's `fetch`, answered by the server's: same origin, so it sends `Origin`.
+const serve = vi.fn((url: string, init: RequestInit) =>
+  server.fetch(new Request(new URL(url, origin), { ...init, headers: { ...init.headers, origin } })),
+)
+const add = client(addItem)
+const run = <A, E>(effect: Effect.Effect<A, E>) => Effect.runPromise(Effect.either(effect))
+
+let mounts: Array<Mounted> = []
+beforeAll(() => {
+  ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
+})
+afterEach(async () => {
+  await act(async () => {
+    for (const h of mounts) await h.dispose()
+  })
+  mounts = []
+  document.body.replaceChildren()
+  items.length = 0
+  vi.unstubAllGlobals()
+  serve.mockClear()
+})
+const stubFetch = (impl: (url: string, init: RequestInit) => Promise<Response> = serve) =>
+  vi.stubGlobal('fetch', vi.fn(impl))
+
+describe('client stub', () => {
+  it('posts the encoded input and decodes the success value', async () => {
+    stubFetch()
+    expect(await run(add({ title: 'milk' }))).toEqual(Either.right({ count: 1 }))
+    expect(serve).toHaveBeenCalledWith('/_sleek/fn/items.add', expect.objectContaining({ method: 'POST' }))
+  })
+
+  it('fails with the declared error, and with the router’s own Redirect / NotFound', async () => {
+    stubFetch()
+    expect(await run(add({ title: 'full' }))).toEqual(Either.left(new Full({ max: 1 })))
+    const redirected = await run(add({ title: 'redirect' }))
+    expect(Either.isLeft(redirected) && redirected.left).toBeInstanceOf(Redirect)
+    expect(redirected).toEqual(Either.left(new Redirect({ to: '/done' })))
+    const missing = await run(add({ title: 'missing' }))
+    expect(Either.isLeft(missing) && missing.left).toBeInstanceOf(NotFound)
+  })
+
+  it.each([
+    ['fetch rejects', () => Promise.reject(new TypeError('offline')), NetworkError, undefined],
+    ['a status with no envelope', async () => new Response(null, { status: 500 }), NetworkError, 500],
+    [
+      'a value failing its Schema',
+      async () => Response.json({ _tag: 'Success', value: { count: 'x' } }),
+      DecodeError,
+      undefined,
+    ],
+    ['an unknown envelope', async () => Response.json({ _tag: 'Teleport' }), DecodeError, undefined],
+    ['a 200 that is not JSON', async () => new Response('<html>'), DecodeError, undefined],
+  ])('%s fails with the matching error', async (_, impl, type, status) => {
+    stubFetch(impl)
+    const result = await run(add({ title: 'milk' }))
+    expect(Either.isLeft(result) && result.left).toBeInstanceOf(type)
+    if (status) expect(result).toMatchObject({ left: { status } })
+  })
+
+  it('input failing its Schema is a DecodeError before any request', async () => {
+    stubFetch()
+    const result = await run(add({ title: '' }))
+    expect(Either.isLeft(result) && result.left).toBeInstanceOf(DecodeError)
+    expect(serve).not.toHaveBeenCalled()
+  })
+})
+
+describe('the stub where actions go', () => {
+  const decodeForm = (e: ActionEvent) => Schema.decodeUnknown(addItem.input)(Object.fromEntries(e.formData))
+  const form = (formAction: unknown, title: string, children: unknown = []) =>
+    jsx('form', { action: formAction, children: [jsx('input', { name: 'title', value: title }), children] })
+  const container = () => document.body.firstElementChild!
+  const host = async (app: any) => {
+    document.body.innerHTML = '<div></div>'
+    await act(async () => void mounts.push(await mount(app, { layer: Layer.empty, container: container() })))
+  }
+  const submit = async () => {
+    await act(() => container().querySelector('form')!.requestSubmit())
+    await flush()
+  }
+
+  it('as a form action with Schema-decoded FormData', async () => {
+    stubFetch()
+    await host(
+      form(function* (e: ActionEvent) {
+        yield* add(yield* decodeForm(e))
+      }, 'milk'),
+    )
+    await submit()
+    expect(items).toEqual(['milk'])
+  })
+
+  it('through useAction, its result in the Result atom', async () => {
+    stubFetch()
+    await host(
+      jsx(function* () {
+        const [result, bound] = yield* useAction((e: ActionEvent) => Effect.flatMap(decodeForm(e), add))
+        const r = yield* useAtomValue(result)
+        return form(bound, 'eggs', jsx('output', { children: r._tag === 'Success' ? String(r.value.count) : r._tag }))
+      }, {}),
+    )
+    await submit()
+    expect(container().querySelector('output')!.textContent).toBe('1')
+  })
+
+  it('as a router action, whose Redirect navigates', async () => {
+    stubFetch()
+    const app = router({
+      table: routes({ form: '/form', done: '/done' }),
+      pages: {
+        form: {
+          render: () =>
+            form(
+              action((e: ActionEvent) => Effect.flatMap(decodeForm(e), add)),
+              'redirect',
+            ),
+        },
+        done: { render: () => Effect.succeed(el('p', {}, 'done')) },
+      },
+      notFound: () => Effect.succeed(el('p', {}, 'missing')),
+    })
+    history.replaceState(null, '', '/form')
+    document.body.innerHTML = '<div></div>'
+    await act(async () => void (await startRouter(app, { container: container() })))
+    await submit()
+    expect([location.pathname, container().textContent]).toEqual(['/done', 'done'])
+  })
+})
