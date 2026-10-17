@@ -66,7 +66,7 @@ Raised by `@sleekstack/ui` at render or `resume` time as tagged errors (`Data.Ta
 | `ManifestDecodeFailed` | A bound atom's value fails to decode. `resume` rejects (a wrong seed would render a wrong page); the error names the atom key. |
 | `DuplicateHandler`, `DuplicateBindKey` | Two different handlers share an id, or two different atoms share a bind key, in one render. |
 | `DuplicateKey` | Two siblings share one `key` prop. Reported to `onError` once per patch; carries the `key`. |
-| `SlotMismatch` | A component re-run called `useLocal` a different number of times than its first run. Carries the instance id and both counts. |
+| `SlotMismatch` | A component re-run called slot hooks (`useLocal`, `useRef`, `useEffect` and the others that take a slot) a different number of times than its first run. Carries the instance id and both counts. |
 | `PortalContainerMissing` | A `Portal`'s `container` is missing or not attached to the document. The mount fails with it (a re-run reports it to `onError`). |
 | `UnknownHandler`, `HandlerIdMismatch`, `UnsupportedEvent` | A handler id is missing from the `handlers` map, differs from its chunk's declared id, or names a non-bubbling event. |
 

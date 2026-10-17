@@ -30,7 +30,7 @@ export const Tabs = function* () {
 const ROWS = Array.from({ length: 1000 }, (_, i) => `Row ${i + 1}`)
 const queryAtom = Atom.make('')
 
-// The slow view reads the deferred copy, so it re-runs one commit after the input.
+// The slow component reads the deferred copy, so it re-runs one commit after the input.
 const Matches = function* ({ query }: { query: Atom.Atom<string> }) {
   const q = yield* useAtomValue(query)
   return (

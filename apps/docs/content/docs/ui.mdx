@@ -69,8 +69,14 @@ The `key` prop is an element's or component's identity among its siblings. A key
 
 `resume` makes server HTML interactive without running any component and without React ([ADR 0017](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0017-resumable-host-first-components.md)). The page uses only Handlers and bound atoms: a Handler is a `defineHandler('id', run)` at module top level, and the server emits only its id. `resume` loads a Handler's module on its first event and runs Handlers through one queue with `layer`. Atoms bound for resume must be serializable value atoms (`Atom.serializable`); their values travel in the Manifest.
 
+<include>../../snippets/ui/count.ts</include>
+
 <include>../../snippets/ui/increment.ts</include>
 
+The server module renders the page; the client entry imports only the atom, so the handler's code stays out of it until the first click.
+
 <include>../../snippets/ui/resume.tsx</include>
+
+<include>../../snippets/ui/resume.client.ts</include>
 
 `sleekstack check` reports a handler it cannot prove is a top-level `defineHandler` with a literal id as `NonResumableHandler`. A streamed page hydrates; it does not resume.
