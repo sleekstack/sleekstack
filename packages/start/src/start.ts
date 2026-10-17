@@ -4,6 +4,7 @@ import type { Store, Transfer } from '@sleekstack/ui'
 import { Cause, Effect, Layer } from 'effect'
 import { type Handler, runHandler } from './handler'
 import { type Middleware, runMiddleware } from './middleware'
+import { normalizeOrigin } from './origin'
 import { registry, type ServerFn } from './serverFn'
 import { requestServices, type RequestServices } from './services'
 import { endpoint } from './wire'
@@ -26,7 +27,10 @@ export type StartOptions<T extends RouteTable, RP, RH, RM, RF> = {
   readonly middleware?: ReadonlyArray<Middleware<any, RM>>
   /** Server functions, served at `POST /_sleek/fn/<id>`. Ids are unique and `[A-Za-z0-9][A-Za-z0-9_.-]*`. */
   readonly functions?: ReadonlyArray<ServerFn<string, any, any, any, RF>>
-  /** Origins besides the request's own allowed to call server functions. */
+  /**
+   * Origins besides the request's own allowed to call server functions, each a bare origin such as
+   * `https://app.example`; anything else fails `start` with `InvalidOrigin`. This sends no CORS headers: middleware does.
+   */
   readonly origins?: ReadonlyArray<string>
   /** Largest server-function request body, in bytes; larger is 413. Default: 1 MiB. */
   readonly bodyLimit?: number
@@ -51,7 +55,7 @@ export const start = <const T extends RouteTable, RP = never, RH = never, RM = n
 ): Start => {
   const { router, handlers = {}, middleware = [] } = options
   const serverFunctions = endpoint(registry(options.functions ?? []), {
-    origins: options.origins ?? [],
+    origins: (options.origins ?? []).map(normalizeOrigin),
     bodyLimit: options.bodyLimit ?? 1024 * 1024,
   })
   const sink: ErrorSink = options.onError ?? ((cause) => console.error(Cause.pretty(cause)))

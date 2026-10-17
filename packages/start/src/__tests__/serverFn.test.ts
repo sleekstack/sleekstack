@@ -2,7 +2,17 @@ import { NotFound, notFound, Redirect, redirect, router, routes } from '@sleekst
 import { el } from '@sleekstack/ui'
 import { Cause, Context, Effect, Exit, Layer, Schema } from 'effect'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { Cookies, DecodeError, DuplicateServerFn, InvalidServerFnId, serverFn, start } from '../index'
+import {
+  Cookies,
+  DecodeError,
+  DuplicateServerFn,
+  InvalidOrigin,
+  InvalidServerFnId,
+  type Middleware,
+  ResponseHeaders,
+  serverFn,
+  start,
+} from '../index'
 import { decodeResult } from '../wire'
 
 class Greeting extends Context.Tag('Greeting')<Greeting, string>() {}
@@ -165,6 +175,71 @@ describe('wire checks', () => {
     const request = new Request(`${origin}/_sleek/fn/profile.rename`, { method: 'POST', body: valid, headers })
     if (headers.origin === '') request.headers.delete('origin')
     expect((await server.fetch(request)).status).toBe(status)
+  })
+})
+
+describe('configured origins', () => {
+  const valid = JSON.stringify({ name: 'ada', age: '1' })
+  const from = (origins: ReadonlyArray<string>, middleware: ReadonlyArray<Middleware> = []) =>
+    start({ router: app, layer: Layer.succeed(Greeting, 'hello'), functions: [rename], origins, middleware })
+  const request = (headerOrigin: string, init: RequestInit = {}) =>
+    new Request(`${origin}/_sleek/fn/profile.rename`, {
+      method: 'POST',
+      body: valid,
+      ...init,
+      headers: { origin: headerOrigin, ...init.headers },
+    })
+
+  it.each(['https://allowed.test/', 'HTTPS://Allowed.TEST', 'https://allowed.test:443'])(
+    'entry %j matches the Origin header https://allowed.test',
+    async (entry) => {
+      expect((await from([entry]).fetch(request('https://allowed.test'))).status).toBe(200)
+    },
+  )
+
+  it.each([
+    'allowed.test',
+    '*',
+    'https://allowed.test/path',
+    'https://allowed.test?q',
+    'https://u@allowed.test',
+    'null',
+  ])('entry %j fails at start with InvalidOrigin', (entry) => {
+    expect(() => from([entry])).toThrow(expect.objectContaining({ _tag: 'InvalidOrigin', origin: entry }))
+    expect(() => from([entry])).toThrow(InvalidOrigin)
+  })
+
+  // The framework sends no CORS headers: the app's middleware does, answering the preflight and setting the allow
+  // headers through `ResponseHeaders`, which reach the server function's response.
+  const cors: Middleware = (req) =>
+    Effect.gen(function* () {
+      const from = req.headers.get('origin')
+      if (from !== 'https://allowed.test') return
+      const headers = yield* ResponseHeaders
+      headers.set('access-control-allow-origin', from)
+      headers.set('vary', 'Origin')
+      if (req.method === 'OPTIONS') {
+        headers.set('access-control-allow-methods', 'POST')
+        headers.set('access-control-allow-headers', 'content-type')
+        return new Response(null, { status: 204 })
+      }
+    })
+
+  it('app middleware answers a CORS preflight for a listed origin', async () => {
+    const res = await from(['https://allowed.test'], [cors]).fetch(
+      request('https://allowed.test', { method: 'OPTIONS', body: null }),
+    )
+    expect([res.status, res.headers.get('access-control-allow-methods'), ran]).toEqual([204, 'POST', 0])
+  })
+
+  it('app middleware adds CORS headers to a server-function response', async () => {
+    const res = await from(['https://allowed.test'], [cors]).fetch(request('https://allowed.test'))
+    expect([res.status, res.headers.get('access-control-allow-origin')]).toEqual([200, 'https://allowed.test'])
+  })
+
+  it('without middleware no CORS header is sent', async () => {
+    const res = await from(['https://allowed.test']).fetch(request('https://allowed.test'))
+    expect(res.headers.get('access-control-allow-origin')).toBeNull()
   })
 })
 

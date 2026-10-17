@@ -1,7 +1,7 @@
 import { NotFound, Redirect } from '@sleekstack/router'
 import { Effect, ParseResult, Schema } from 'effect'
 import { allowedOrigin } from './origin'
-import type { ErrorOf, ServerFn } from './serverFn'
+import type { AnySchema, ErrorOf, ServerFn } from './serverFn'
 
 /** Server functions are served at this prefix plus their id. */
 export const prefix = '/_sleek/fn/'
@@ -61,7 +61,6 @@ const readBody = async (request: Request, limit: number): Promise<string | undef
 }
 
 type Fn<R> = ServerFn<string, AnySchema, AnySchema, AnySchema | undefined, R>
-type AnySchema = Schema.Schema<any, any, never>
 
 const run = <R>(fn: Fn<R>, input: unknown) =>
   Effect.gen(function* () {

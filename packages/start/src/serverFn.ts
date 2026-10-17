@@ -2,7 +2,7 @@ import type { NotFound, Redirect } from '@sleekstack/router'
 import { Data, Effect, type Schema } from 'effect'
 import type { YieldWrap } from 'effect/Utils'
 
-type AnySchema = Schema.Schema<any, any, never>
+export type AnySchema = Schema.Schema<any, any, never>
 
 /** The declared error's type: `never` when the function declares none. */
 export type ErrorOf<Err> = Err extends AnySchema ? Schema.Schema.Type<Err> : never
