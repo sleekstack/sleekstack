@@ -34,9 +34,12 @@ Thread a requirement type `R` through `Page`, `Router`, `router()`, `startRouter
 - [ ] Router apps with requirement-free pages compile unchanged; all existing router and showcase tests pass
 - [ ] `pnpm turbo run test typecheck --filter=@sleekstack/router... --filter=showcase` is green
 ## Done summary
-TBD
+The router tracks page, loader and not-found requirements as `R`: `Page<R>` and `Router<T, R>`, with `router()` inferring `R`. `startRouter` and `handle` require a layer providing `R` minus `Route | Loaders | Transfer | Store`. The layer stays optional when the pages need nothing, or when a `Router` is annotated without `R`. `packages/router/src/__tests__/requirements.test-d.ts` covers plain-Effect pages, loaders, `handle`, requirement-free routers and an annotated `Router` without `R`. JSX pages are out of scope (ui types JSX as requirement-free). The `Page` TSDoc and the type test say so; task .7 / R12 covers them. Existing router, showcase and docs code compiles and tests pass unchanged.
 
+baseline: green
+stage: impl-review - ran (round 1 codex fan-out NEEDS_WORK on JSX erasure, scope narrowed by coordinator in 8946684; re-review --base master SHIP)
+Tier: implementer opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: a46bed87152329c4433e644fb51f3b378c21434b, 8946684fc3cfea115007dd768a3821fed1353863, feb0fecc18ed56f65e32921ba3f2c8886e3ad8d1
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/router... --filter=showcase, pnpm turbo run typecheck --filter=docs
 - PRs:
