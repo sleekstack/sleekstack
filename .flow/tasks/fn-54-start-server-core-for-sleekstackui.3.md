@@ -36,9 +36,35 @@ Add `serverFn` and its endpoint: declaration (id, input Schema, success Schema, 
 - [ ] `pnpm turbo run test typecheck --filter=@sleekstack/start...` is green
 
 ## Done summary
-TBD
+`serverFn(id, { input, success, error? })(function* (input) {...})` declares a server function. It is directly callable with decoded input. Its body may fail only with the declared error or the router's `Redirect` / `NotFound`, which is a type error otherwise (`layer.test-d.ts`). `start({ functions, origins, bodyLimit })` serves the functions at `POST /_sleek/fn/<id>` and replaces task 2's placeholder. The stage runs in this order:
+- 405 with `Allow: POST`
+- origin check, 403 (`origin.ts`): the request's own origin and the listed `origins` pass; with no `Origin` header only `Sec-Fetch-Site: same-origin` passes
+- unknown id, empty 404
+- streamed body over the limit (default 1 MiB), 413
+- malformed JSON, 400 `DecodeError`
+- input Schema, 400 `DecodeError` with field-level `issues`; the body is not run
 
+Envelopes (`wire.ts`), with no extra fields:
+- `{_tag:'Success', value}`: 200, encoded with the success Schema, so extra fields are dropped
+- `{_tag:'Failure', error}`: 200, for the declared error
+- `{_tag:'Redirect', to}`: 302 with no `Location`, so `fetch` does not follow it
+- `{_tag:'NotFound'}`: 404
+- an undeclared failure or a defect: the error sink, then an empty 500
+
+`decodeResult(fn, body)` reads an envelope back as the success value, the declared error, the router's own `Redirect` / `NotFound`, or `DecodeError`; an unknown envelope is a `DecodeError`. Task 4's client stub can use it. It and `prefix` are internal exports of `wire.ts`, not the package index. Duplicate ids fail at `start(...)` with `DuplicateServerFn`, and ids outside `[A-Za-z0-9][A-Za-z0-9_.-]*` with `InvalidServerFnId`, before the runtime is configured. Tests: `packages/start/src/__tests__/serverFn.test.ts` covers every AC and error case.
+
+Notes:
+- Redirect loops: the server answers one hop; the client side bounds them through the router's own `MAX_REDIRECTS` once the stub navigates (task 4).
+- A `Schema.Void` function round-trips: an empty request body is `undefined` input, and a `Success` envelope without `value` decodes as `undefined` (review finding, fixed in e248511).
+
+baseline: green (`pnpm turbo run test typecheck --filter=@sleekstack/start... --filter=showcase`)
+stage: impl-review - ran (codex fan-out hung twice and was killed; its correctness draw's P1, the void round trip, was fixed in e248511. Claude CLI backend, user-approved and recorded on the receipt as same-family, then returned SHIP)
+Follow-ups from the SHIP review (P3, not fixed):
+- validate `origins` entries at `start(...)` (a trailing slash never matches)
+- remove the second `AnySchema` alias in wire.ts
+- emit CORS headers for listed origins, or document that the app owns them
+Tier: implementer opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 3194e85c30f43df75abcc8a6fd0bc2d889416196, e24851163168d543188ab0decb028b4ec79e1c8a
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/start... --filter=showcase
 - PRs:
