@@ -20,7 +20,7 @@ export const devMiddleware =
       .then((app) => app.fetch(request))
       .then(async (response) => {
         res.statusCode = response.status
-        response.headers.forEach((value, name) => name !== 'set-cookie' && res.setHeader(name, value))
+        response.headers.forEach((value: string, name: string) => name !== 'set-cookie' && res.setHeader(name, value))
         const cookies = response.headers.getSetCookie()
         if (cookies.length) res.setHeader('set-cookie', cookies)
         res.end(Buffer.from(await response.arrayBuffer()))

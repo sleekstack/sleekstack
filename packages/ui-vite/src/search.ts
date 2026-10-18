@@ -7,7 +7,7 @@ import remarkGfm from 'remark-gfm'
 import { SKIP, visit } from 'unist-util-visit'
 import { VFile } from 'vfile'
 import type { SearchEntry, SearchIndex } from './search-client.js'
-import type { Page } from './routes.js'
+import type { ContentPage } from './content-routes.js'
 
 const plain = (node: RootContent | Root): string => {
   let out = ''
@@ -47,7 +47,7 @@ export const searchEntries = (source: string, path: string, file = path): Search
 }
 
 /** The index for `pages`, read from their source files. */
-export const buildSearchIndex = (pages: readonly Page[]): SearchIndex => ({
+export const buildSearchIndex = (pages: readonly ContentPage[]): SearchIndex => ({
   version: 1,
   entries: pages.flatMap((p) => searchEntries(readFileSync(p.file, 'utf8'), p.path, p.file)),
 })

@@ -76,6 +76,10 @@ Rejected: a new design (needs design decisions and probably a design system firs
 
 Source: chart fn-57 decisions D1, D3, D4, D8, D9, D10, D11 and briefing B1 cluster 2.
 
+### Reconciled with master
+
+fn-60 was built on an early fn-59 branch. Master then gained fn-29/31/33/34 and fn-59 itself (ADRs 0044 to 0047, `sleekContent` with `contentRouteTable`, `ContentPage`, `ContentRouteOptions`). Master's versions of ui, the Head implementation, the `sleekstack()` plugin and fn-34 (the ui API reference, done there as its own work, not superseded) were kept; this spec's docs-site ADR is 0048, and the API reference adds start to master's list.
+
 
 ## Quick commands
 

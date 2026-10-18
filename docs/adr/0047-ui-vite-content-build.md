@@ -1,8 +1,8 @@
-# 0043. `@sleekstack/ui-vite`: MDX content, static prerender, search and Open Graph images
+# 0047. `@sleekstack/ui-vite`: MDX content, static prerender, search and Open Graph images
 
 ## Status
 
-Accepted. Built in spec fn-59 (tasks 3 to 6). Delivers the part of fn-29 and fn-30 that a docs site needs; HMR (fn-31), deploy adapters and stable component ids are not part of it.
+Accepted. Built in spec fn-59 (tasks 3 to 6). `sleekContent` sits beside the `sleekstack()` plugin of fn-29 (ADR 0045) in the same package and does not replace it; `Head` is fn-33 (ADR 0044). It covers the content-site part of fn-30 only.
 
 ## Context
 
@@ -12,9 +12,9 @@ A docs site on `@sleekstack/ui` needs MDX pages, a route table from the content 
 
 **MDX pipeline.** `compileMdx` turns a page into a module exporting its component and `frontmatter`, using the ui JSX runtime. GitHub-flavored markdown, heading ids, and `<include>path</include>` (a code block read from a file relative to the page). Code fences highlight at build time with shiki, light and dark; highlighter inline styles become classes, and one stylesheet (`createStyleSheet().css()`) serves all pages. That stylesheet follows `prefers-color-scheme` only; there is no class toggle. The frontmatter parser reads simple `key: value` lines. An unknown fence language or a missing include fails the compile as `file:line: reason`.
 
-**Routes.** `sleekContent({ content, base?, app })` builds a `@sleekstack/router` table from the content tree and each directory's `meta.json` order, with `base` prefixed. `content` resolves against the process cwd. The build fails on a broken internal link or anchor. In dev, a page route and `/_sleek/*` go to the `start` fetch handler exported as `app`; start is a dev-only dependency of the site.
+**Routes.** `sleekContent({ content, base?, app })` builds a `@sleekstack/router` table (`scanPages`, `contentRouteTable`; distinct from the file-based `routesDir` routes of `sleekstack()`) from the content tree and each directory's `meta.json` order, with `base` prefixed. `content` resolves against the process cwd. The build fails on a broken internal link or anchor. In dev, a page route and `/_sleek/*` go to the `start` fetch handler exported as `app`; start is a dev-only dependency of the site.
 
-**Prerender and hosting.** `prerender: { server, client }` makes `vite build` write `<route>/index.html`. The server entry's `render(path)` returns `{ app, layer }`; the build renders with `renderToString`, waits for `onHead` and writes head tags, the stylesheet and the client script. The output is plain files that any static host serves; it never imports `@sleekstack/start`. A page that fails fails the build as `prerender /route: reason`. The browser entry hydrates `#app` with `hydrateMount` and must not import `virtual:sleek-content.css`.
+**Prerender and hosting.** `prerender: { server, client }` makes `vite build` write `<route>/index.html`. The server entry's `render(path)` returns `{ app, layer }`; the build renders with `renderToString`, takes the `Head` tags from `onHead` (ADR 0044) and writes them, the stylesheet and the client script. The output is plain files that any static host serves; it never imports `@sleekstack/start`. A page that fails fails the build as `prerender /route: reason`. The browser entry hydrates `#app` with `hydrateMount` and must not import `virtual:sleek-content.css`.
 
 **Search index.** `search-index.json` is built from headings and text, one entry per section: `{ title, heading, anchor, text }`, version 1. The client (`@sleekstack/ui-vite/search-client`, no Node imports) scores per term (title 10, heading 5, text 1; every term must hit). A missing index throws `SearchIndexMissing`. The build logs the index size; `search: false` turns it off.
 

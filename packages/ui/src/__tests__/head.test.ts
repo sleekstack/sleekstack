@@ -1,126 +1,169 @@
 // @vitest-environment jsdom
 import { Atom, makeAtomStore } from '@sleekstack/core'
-import { Effect, Layer } from 'effect'
+import { Cause, Effect, Layer } from 'effect'
 import { afterEach, describe, expect, it } from 'vitest'
-import { Head, mount, type Mounted, renderToString, useAtomValue } from '../index'
-import { jsx as rawJsx } from '../jsx-runtime'
-
-const jsx = (type: any, props: any, key?: string) => rawJsx(type, props, key)
-const layer = Layer.empty
-const tags = (...kids: Array<unknown>) => jsx(Head, { children: kids })
-const title = (t: string) => jsx('title', { children: t })
-const meta = (attrs: Record<string, string>) => jsx('meta', attrs)
-const page = (...kids: Array<unknown>) => jsx('main', { children: kids })
-
-const head = async (app: Effect.Effect<any, any, never>): Promise<string> => {
-  let out = ''
-  await renderToString(app, { layer, onHead: (h) => (out = h) })
-  return out
-}
+import { Head, mount, type Mounted, type Node, useAtomValue } from '../index'
+import { jsx } from '../jsx-runtime'
 
 const tick = () => new Promise((r) => setTimeout(r, 0))
-
-describe('Head in renderToString', () => {
-  it('returns title, meta and link through onHead, not in the body', async () => {
-    let out = ''
-    const html = await renderToString(
-      page(
-        tags(title('A & B'), meta({ name: 'description', content: 'd' }), jsx('link', { rel: 'icon', href: '/i.png' })),
-      ),
-      { layer, onHead: (h) => (out = h) },
-    )
-    expect(out).toBe('<title>A &amp; B</title><meta name="description" content="d"><link rel="icon" href="/i.png">')
-    expect(html).toBe('<main></main>')
+let handles: Array<Mounted> = []
+afterEach(async () => {
+  for (const h of handles) await h.dispose()
+  handles = []
+  document.body.replaceChildren()
+})
+const run = async (app: Effect.Effect<Node>, store = makeAtomStore(), doc = document) => {
+  const errors: Array<unknown> = []
+  const container = doc.body.appendChild(doc.createElement('div'))
+  const h = await mount(app, {
+    layer: Layer.empty,
+    container,
+    store,
+    onError: (c) => void errors.push(Cause.squash(c)),
   })
+  handles.push(h)
+  return { h, errors }
+}
+const head = () => document.head.innerHTML
 
-  it('the deepest Head wins a key, wherever it is written; other keys merge', async () => {
-    const Child = () => tags(title('child'), meta({ name: 'a', content: 'child' }))
-    const Layout = (p: { children: unknown }) =>
-      jsx('div', {
+// One tag of each key kind, with `v` in the value that differs between Heads.
+const tags = (v: string) => [
+  jsx('title', { children: `title ${v}` }),
+  jsx('meta', { name: 'description', content: `desc ${v}` }),
+  jsx('meta', { property: 'og:title', content: `og ${v}` }),
+  jsx('link', { rel: 'alternate', href: '/feed', title: `feed ${v}` }),
+]
+const all = (v: string) =>
+  `<title>title ${v}</title><meta name="description" content="desc ${v}">` +
+  `<meta property="og:title" content="og ${v}"><link rel="alternate" href="/feed" title="feed ${v}">`
+
+describe('Head', () => {
+  it('sets title, meta and link; a nested Head wins over an outer one rendered after it', async () => {
+    const Page = () => jsx('p', { children: jsx(Head, { children: jsx('title', { children: 'Page' }) }) })
+    const Layout = () =>
+      jsx('main', {
         children: [
-          p.children,
-          tags(title('layout'), meta({ name: 'a', content: 'layout' }), meta({ name: 'b', content: 'b' })),
+          jsx(Page, {}),
+          jsx(Head, {
+            children: [
+              jsx('title', { children: 'Site' }),
+              jsx('meta', { name: 'description', content: 'site' }),
+              jsx('link', { rel: 'icon', href: '/icon.svg' }),
+            ],
+          }),
         ],
       })
-    expect(await head(jsx(Layout, { children: jsx(Child, {}) }))).toBe(
-      '<title>child</title><meta name="a" content="child"><meta name="b" content="b">',
-    )
+    await run(jsx(Layout, {}))
+    expect(document.title).toBe('Page')
+    expect(head()).toBe('<title>Page</title><meta name="description" content="site"><link rel="icon" href="/icon.svg">')
   })
 
-  it('dedupes meta[property] and link[rel]+href by key, later of equal depth wins', async () => {
-    expect(
-      await head(
-        page(
-          tags(meta({ property: 'og:title', content: '1' }), jsx('link', { rel: 'a', href: '/x' })),
-          tags(
-            meta({ property: 'og:title', content: '2' }),
-            jsx('link', { rel: 'a', href: '/x' }),
-            jsx('link', { rel: 'a', href: '/y' }),
-          ),
-        ),
-      ),
-    ).toBe('<meta property="og:title" content="2"><link rel="a" href="/x"><link rel="a" href="/y">')
-  })
-
-  it.each([
-    ['a tag outside title, meta and link', () => tags(jsx('script', {}))],
-    ['an unsafe attribute', () => tags(meta({ name: 'x', content: 'y', onclick: 'z' }))],
-    ['a javascript: url', () => tags(jsx('link', { rel: 'a', href: 'javascript:alert(1)' }))],
-    ['children on a meta', () => tags(jsx('meta', { name: 'x', children: 'y' }))],
-    ['an element inside title', () => tags(jsx('title', { children: jsx('b', {}) }))],
-  ])('rejects %s like an element', async (_, build) => {
-    await expect(renderToString(build(), { layer })).rejects.toBeInstanceOf(TypeError)
-  })
-})
-
-describe('Head under mount', () => {
-  let handle: Mounted | undefined
-  afterEach(async () => {
-    await handle?.dispose()
-    await tick()
-    document.head.innerHTML = ''
-  })
-  const container = () => document.createElement('div')
-
-  it('patches document.head with nested overrides and removes the tags on dispose', async () => {
-    const Child = () => tags(title('child'))
-    handle = await mount(page(tags(title('page'), meta({ name: 'a', content: '1' })), jsx(Child, {})), {
-      layer,
-      container: container(),
-    })
-    await tick()
-    expect(document.head.innerHTML).toBe('<meta name="a" content="1"><title>child</title>')
-    await handle.dispose()
-    await tick()
-    expect(document.head.innerHTML).toBe('')
-  })
-
-  it('a component that unmounts while its parent stays takes only its tags, and the shallower title returns', async () => {
+  it('dedupes each key kind; unmount restores the outer entries, dispose clears them', async () => {
     const show = Atom.make(true)
-    const Child = () => tags(title('child'), meta({ name: 'c', content: '1' }))
-    const Page = () =>
-      Effect.flatMap(useAtomValue(show), (on) =>
-        jsx('main', { children: [tags(title('page')), on ? jsx(Child, {}) : null] }),
+    const Inner = () => jsx(Head, { children: tags('inner') })
+    const Outer = () =>
+      Effect.flatMap(useAtomValue(show), (s) =>
+        jsx('div', { children: [jsx(Head, { children: tags('outer') }), s ? jsx(Inner, {}) : null] }),
       )
     const store = makeAtomStore()
-    handle = await mount(jsx(Page, {}), { layer, container: container(), store })
-    await tick()
-    expect(document.head.innerHTML).toBe('<title>child</title><meta name="c" content="1">')
+    const { h } = await run(jsx(Outer, {}), store)
+    expect(head()).toBe(all('inner'))
     store.set(show, false)
     await tick()
-    expect(document.head.innerHTML).toBe('<title>page</title>')
+    expect(head()).toBe(all('outer'))
+    store.set(show, true)
+    await tick()
+    expect(head()).toBe(all('inner'))
+    await h.dispose()
+    expect(head()).toBe('')
   })
 
-  it('updates a tag in place when its value changes', async () => {
-    const n = Atom.make('1')
-    const Page = () => Effect.flatMap(useAtomValue(n), (v) => tags(meta({ name: 'a', content: v })))
+  it('rejects an invalid tag or attribute like an element and reports it, keeping the valid tags', async () => {
+    const { errors } = await run(
+      jsx(Head, {
+        children: [
+          jsx('div', {}),
+          jsx('sleek-guest', {}),
+          jsx('meta', { name: 'x', onclick: 'alert(1)' }),
+          jsx('link', { rel: 'icon', href: 'javascript:alert(1)' }),
+          jsx('title', { children: 'ok' }),
+        ],
+      }),
+    )
+    expect(head()).toBe('<title>ok</title>')
+    expect(errors.map((e) => (e as Error).message)).toEqual([
+      'Unsupported head tag: "div"',
+      'Invalid tag name: "sleek-guest"',
+      'Unsafe attribute: "onclick"',
+      'Unsafe attribute: "href"',
+    ])
+  })
+
+  it('conflicting titles at one depth: the last mounted wins, removing it uncovers the earlier', async () => {
+    const both = Atom.make(true)
+    const T = (p: { t: string }) => jsx(Head, { children: jsx('title', { children: p.t }) })
+    const App = () =>
+      Effect.flatMap(useAtomValue(both), (b) =>
+        jsx('div', { children: [jsx(T, { t: 'a' }), b ? jsx(T, { t: 'b' }) : null] }),
+      )
     const store = makeAtomStore()
-    handle = await mount(jsx(Page, {}), { layer, container: container(), store })
+    await run(jsx(App, {}), store)
+    expect(document.title).toBe('b')
+    store.set(both, false)
     await tick()
-    const tag = document.head.querySelector('meta')
-    store.set(n, '2')
+    expect(head()).toBe('<title>a</title>')
+  })
+
+  it('Head in a keyed list dedupes by key: the last mounted row wins', async () => {
+    const rows = Atom.make(['a', 'b'])
+    const Row = (p: { id: string }) =>
+      jsx('li', { children: jsx(Head, { children: jsx('title', { children: p.id }) }) })
+    const List = () =>
+      Effect.flatMap(useAtomValue(rows), (rs) => jsx('ul', { children: rs.map((id) => jsx(Row, { id }, id)) }))
+    const store = makeAtomStore()
+    await run(jsx(List, {}), store)
+    expect(head()).toBe('<title>b</title>')
+    store.set(rows, ['c', 'a', 'b'])
     await tick()
-    expect(document.head.innerHTML).toBe('<meta name="a" content="2">')
-    expect(document.head.querySelector('meta')).toBe(tag)
+    expect(head()).toBe('<title>c</title>')
+    store.set(rows, ['a', 'b'])
+    await tick()
+    expect(head()).toBe('<title>b</title>')
+  })
+
+  it('updating an earlier Head keeps the last mounted winning and leaves its other tags in place', async () => {
+    const t = Atom.make('a1')
+    const A = () =>
+      Effect.flatMap(useAtomValue(t), (v) =>
+        jsx(Head, { children: [jsx('title', { children: v }), jsx('link', { rel: 'stylesheet', href: '/a.css' })] }),
+      )
+    const B = () => jsx(Head, { children: jsx('title', { children: 'b' }) })
+    const store = makeAtomStore()
+    await run(jsx('div', { children: [jsx(A, {}), jsx(B, {})] }), store)
+    const link = document.head.querySelector('link')
+    store.set(t, 'a2')
+    await tick()
+    expect(document.title).toBe('b')
+    expect(document.head.querySelector('link')).toBe(link)
+  })
+
+  it('takes over a tag the document already has and restores it on unmount', async () => {
+    document.head.innerHTML = '<title>Shell</title><meta name="description" content="shell">'
+    const { h } = await run(
+      jsx(Head, {
+        children: [jsx('title', { children: 'Page' }), jsx('meta', { NAME: 'description', Content: 'page' })],
+      }),
+    )
+    expect(head()).toBe('<title>Page</title><meta name="description" content="page">')
+    await h.dispose()
+    expect(head()).toBe('<title>Shell</title><meta name="description" content="shell">')
+    document.head.replaceChildren()
+  })
+
+  it("patches the mount container's document, not the global one", async () => {
+    const other = document.implementation.createHTMLDocument('')
+    await run(jsx(Head, { children: jsx('title', { children: 'framed' }) }), makeAtomStore(), other)
+    expect(other.title).toBe('framed')
+    expect(head()).toBe('')
   })
 })

@@ -2,7 +2,7 @@ import { Cause, Effect, Exit, Layer, Option, Runtime } from 'effect'
 import type { ComponentType } from 'react'
 import type { Node } from './node'
 
-/** A function from props to an `Effect` of a `Node`, with error type `E` and requirements `R`. */
+/** A component: props in, an `Effect` of the rendered `Node` out. */
 export type Component<P, E, R> = (props: P) => Effect.Effect<Node, E, R>
 
 /** Provides `layer` to `children`; the layer's requirements and errors join the result's. */

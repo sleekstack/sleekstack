@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-18T15:40:34.988255Z",
+  "depends_on": [
+    "fn-31-hmr-that-keeps-component-state.1"
+  ],
+  "id": "fn-31-hmr-that-keeps-component-state.2",
+  "priority": null,
+  "spec": "fn-31-hmr-that-keeps-component-state",
+  "spec_path": ".flow/tasks/fn-31-hmr-that-keeps-component-state.2.md",
+  "status": "todo",
+  "title": "Hot update remounts an instance on hook-count change",
+  "updated_at": "2026-10-18T15:40:34.988255Z"
+}

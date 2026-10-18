@@ -1,5 +1,5 @@
 // Shared by generate-api.mjs and test/api-coverage.test.ts: the one list of public entry points
-// (a package's `./internal` subpath is adapter plumbing and `./jsx-dev-runtime` a JSX-transform shim, never public).
+// (a package's `./internal` subpath is adapter plumbing, never public); `./jsx-dev-runtime` only re-exports `./jsx-runtime` for dev builds.
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'

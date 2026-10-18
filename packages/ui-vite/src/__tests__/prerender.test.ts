@@ -11,7 +11,7 @@ import { type SearchIndex, search } from '../index.js'
 const tmp: string[] = []
 const copy = () => {
   const dir = join(import.meta.dirname, `.tmp-${Math.random().toString(36).slice(2)}`)
-  cpSync(join(import.meta.dirname, 'fixture'), dir, { recursive: true })
+  cpSync(join(import.meta.dirname, 'fixtures/content-site'), dir, { recursive: true })
   tmp.push(dir)
   return dir
 }
@@ -46,7 +46,7 @@ beforeAll(async () => {
   http = serve(out)
   await new Promise<void>((r) => http.listen(0, r))
   url = `http://localhost:${(http.address() as AddressInfo).port}`
-}, 60_000)
+})
 
 afterAll(() => {
   http?.close()
@@ -116,13 +116,13 @@ describe('build failures name the route', () => {
     const dir = copy()
     writeFileSync(join(dir, 'server.tsx'), `export const render = () => { throw new Error('boom') }\n`)
     await expect(run(dir)).rejects.toThrow('prerender /: boom')
-  }, 60_000)
+  })
 
   it('a page that fails to compile', async () => {
     const dir = copy()
     writeFileSync(join(dir, 'content/guide/b.mdx'), '# Second\n\n<Unclosed>\n')
     await expect(run(dir)).rejects.toThrow(/\/guide\/b: .*b\.mdx/)
-  }, 60_000)
+  })
 
   it('writes no search index when the switch is off', async () => {
     const dir = copy()
@@ -130,7 +130,7 @@ describe('build failures name the route', () => {
     writeFileSync(cfg, readFileSync(cfg, 'utf8').replace("app: 'app.ts',", "app: 'app.ts', search: false,"))
     await run(dir)
     expect(existsSync(join(dir, 'dist/search-index.json'))).toBe(false)
-  }, 60_000)
+  })
 })
 
 describe('a base prefix other than the one the content links use', () => {
@@ -148,7 +148,7 @@ describe('a base prefix other than the one the content links use', () => {
     const root = readFileSync(join(out, 'index.html'), 'utf8')
     expect(root).toContain('<meta http-equiv="refresh" content="0; url=/other">')
     expect(root).toContain('<a href="/other">')
-  }, 60_000)
+  })
 
   it('still fails on a link that matches no page under the new prefix', async () => {
     const dir = copy()
@@ -157,5 +157,5 @@ describe('a base prefix other than the one the content links use', () => {
     edit('content/index.mdx', '](/guide/a)', '](/docs/guide/missing)')
     edit('vite.config.ts', "app: 'app.ts',", "app: 'app.ts', base: '/other',")
     await expect(run(dir)).rejects.toThrow(/index\.mdx -> \/docs\/guide\/missing/)
-  }, 60_000)
+  })
 })

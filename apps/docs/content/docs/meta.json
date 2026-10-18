@@ -16,6 +16,7 @@
     "queries-ssr",
     "tanstack-query",
     "routing",
+    "vite",
     "side-effects",
     "ui-devtools",
     "errors",

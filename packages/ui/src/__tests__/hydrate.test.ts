@@ -7,9 +7,9 @@ import {
   bind,
   Boundary,
   el,
-  Head,
   Pending,
   fromReact,
+  Head,
   HydrateConflict,
   HydratePayloadInvalid,
   HydrationMismatch,
@@ -59,41 +59,6 @@ const serverThenHydrate = async (app: () => any) => {
   expect(onError).not.toHaveBeenCalled()
   return { container, before }
 }
-
-describe('hydrateMount head adoption', () => {
-  it('adopts the server head tags: one of each, no mismatch', async () => {
-    const App = () =>
-      jsx('main', {
-        children: [
-          jsx(Head, {
-            children: [
-              jsx('title', { children: 'T' }),
-              jsx('meta', { name: 'description', content: 'd' }),
-              jsx('link', { rel: 'icon', href: '/i.png' }),
-            ],
-          }),
-          'x',
-        ],
-      })
-    let serverHead = ''
-    const container = document.createElement('div')
-    container.innerHTML = await renderToString(jsx(App, {}), { layer: Layer.empty, onHead: (h) => (serverHead = h) })
-    document.head.innerHTML = serverHead
-    const [t, m, l] = [...document.head.children]
-    const onError = vi.fn()
-    let h!: Mounted
-    await act(async () => void (h = await hydrateMount(jsx(App, {}), { layer: Layer.empty, container, onError })))
-    handles.push(h)
-    await tick()
-    expect(onError).not.toHaveBeenCalled()
-    expect([...document.head.children]).toEqual([t, m, l])
-    await act(async () => h.dispose())
-    handles = []
-    await tick()
-    expect(document.head.children.length).toBe(0)
-    document.head.innerHTML = ''
-  })
-})
 
 describe('hydrateMount', () => {
   it('an effectful component hydrates the server markup, then runs its effect with its ref set', async () => {
@@ -276,6 +241,17 @@ describe('hydrateMount mismatch', () => {
       server: app,
       client: app,
       html: (h) => `${h}<script type="application/json" data-sleek-manifest>{}</script>`,
+    })
+    expect(errors).toEqual([])
+    expect(container.innerHTML).toBe('<p>x</p>')
+  })
+
+  it('inline stream scripts a browser leaves in the page are ignored without a report', async () => {
+    const app = () => jsx('p', { children: 'x' })
+    const { container, errors } = await mismatchCase({
+      server: app,
+      client: app,
+      html: (h) => `<script>0</script>${h}<script>0</script>`,
     })
     expect(errors).toEqual([])
     expect(container.innerHTML).toBe('<p>x</p>')
@@ -588,5 +564,41 @@ describe('hydrateMount Transfer', () => {
     expect(p.getAttribute('data-tone')).toBe('edited')
     await act(async () => store.set(tone, 'b'))
     expect(p.getAttribute('data-tone')).toBe('b')
+  })
+})
+
+describe('hydrateMount Head (R4)', () => {
+  it('adopts the server head tags without copies; they leave with their Head; a server tag no Head renders stays', async () => {
+    const show = Atom.make(true)
+    const Tags = () =>
+      jsx(Head, {
+        children: [
+          jsx('meta', { charset: 'utf-8' }),
+          jsx('title', { children: 'Page' }),
+          jsx('meta', { name: 'description', content: 'page' }),
+          jsx('link', { rel: 'icon', href: '/i.svg' }),
+        ],
+      })
+    const App = () => Effect.flatMap(useAtomValue(show), (on) => jsx('main', { children: on ? jsx(Tags, {}) : 'off' }))
+    const container = document.body.appendChild(document.createElement('div'))
+    let head = ''
+    container.innerHTML = await renderToString(jsx(App, {}), { layer: Layer.empty, onHead: (h) => (head = h) })
+    // `robots` is a server tag the client never renders: left as it is.
+    document.head.innerHTML = head + '<meta name="robots" content="none">'
+    const server = [...document.head.children]
+    const store = makeAtomStore()
+    const onError = vi.fn()
+    await act(
+      async () =>
+        void handles.push(await hydrateMount(jsx(App, {}), { layer: Layer.empty, container, store, onError })),
+    )
+    expect(onError).not.toHaveBeenCalled()
+    expect(document.head.children).toHaveLength(server.length)
+    expect(server.every((el, i) => document.head.children[i] === el)).toBe(true)
+    // Adopted tags are the Head's own: removed with it, not restored to the server copy.
+    await act(async () => store.set(show, false))
+    expect(document.head.innerHTML).toBe('<meta name="robots" content="none">')
+    document.head.replaceChildren()
+    container.remove()
   })
 })

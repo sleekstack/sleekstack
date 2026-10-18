@@ -29,7 +29,7 @@ Record the work: ADR(s) for the decisions, the package README, AGENTS.md verify 
 - [ ] `pnpm turbo run test typecheck --filter=showcase --filter=@sleekstack/ui-vite...` is green
 
 ## Done summary
-Recorded fn-59: ADR 0042 (void elements, Head, stream patch, hydration) and 0043 (MDX, routes, prerender, search, OG, packaging), indexed; ui-vite README exports/options; AGENTS verify row; CONTEXT Head, HeadSink, Prerender; ADR 0022 re-measured (limits unchanged, 44-56 B headroom); fn-29, fn-30, fn-33 trimmed via spec set-plan.
+Recorded fn-59: ADR 0046 (void elements; was 0042) and 0047 (MDX, routes, prerender, search, OG, packaging; was 0043), indexed; ui-vite README exports/options; AGENTS verify row; CONTEXT Head, HeadSink, Prerender; ADR 0022 re-measured (limits unchanged, 44-56 B headroom); fn-29, fn-30, fn-33 trimmed via spec set-plan. Reconciled with master: Head, stream patch and hydration adoption are fn-33's (ADR 0044) and the base plugin is fn-29's (ADR 0045); the trims of fn-29, fn-30 and fn-33 were dropped.
 
 stage: impl-review - skipped(policy: standing user rule, no per-task review)
 ## Evidence

@@ -3,7 +3,7 @@
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { DEFAULT_CONTENT_BASE, findBrokenLinks as find, headings } from '@sleekstack/ui-vite/links'
-import { scanPages } from '@sleekstack/ui-vite/routes'
+import { scanPages } from '@sleekstack/ui-vite/content-routes'
 
 export { headings }
 

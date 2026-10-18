@@ -1,7 +1,3 @@
-## Status
-
-Superseded by fn-60-docs-site-on-ui-and-start (task 6 adds ui and start to the generated API reference and the coverage test). Do not run.
-
 ## Goal & Context
 <!-- scope: business -->
 

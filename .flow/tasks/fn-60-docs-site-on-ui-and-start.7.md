@@ -30,7 +30,7 @@ Record the work and hand over to the removal spec (fn-55): its deletion task mus
 - [ ] `pnpm turbo run test typecheck --filter=docs` and the root `pnpm test` are green
 
 ## Done summary
-Wrote ADR 0044 (docs site on ui and start; supersedes 0007, indexed), CONTEXT Docs Site term, AGENTS docs row. Unblocked fn-55: task 7 trimmed to the records not done here; tasks 5 and 6 now carry the kit/llms.md precondition (initAgents and the analyze llms test read it); fn-55 depends on fn-60; fn-34 marked superseded and closed. R8 search of apps/docs for the four packages: none (positive control hit packages/next). Docs test/typecheck and format:check green. Tier: opus at medium.
+Wrote ADR 0048 (was 0044 before the merge with master; docs site on ui and start; supersedes 0007, indexed), CONTEXT Docs Site term, AGENTS docs row. Unblocked fn-55: task 7 trimmed to the records not done here; tasks 5 and 6 now carry the kit/llms.md precondition (initAgents and the analyze llms test read it); fn-55 depends on fn-60; fn-34 marked superseded and closed (dropped when merged with master, where fn-34 shipped as its own work). R8 search of apps/docs for the four packages: none (positive control hit packages/next). Docs test/typecheck and format:check green. Tier: opus at medium.
 
 stage: impl-review - skipped(policy: standing user rule, no per-task review)
 ## Evidence

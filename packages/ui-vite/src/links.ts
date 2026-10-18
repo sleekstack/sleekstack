@@ -3,7 +3,7 @@ import { posix, relative } from 'node:path'
 import GithubSlugger from 'github-slugger'
 import type { Root } from 'mdast'
 import { visit } from 'unist-util-visit'
-import type { Page } from './routes.js'
+import type { ContentPage } from './content-routes.js'
 
 export type BrokenLink = { file: string; link: string }
 
@@ -56,7 +56,7 @@ export const headingIds = (text: string): string[] => headings(text).map((h) => 
 const LINK = /\]\(([^)\s]+)[^)]*\)|^\s*\[[^\]]+\]:\s*(\S+)|href=["']([^"']+)["']/gm
 
 /** Internal links in `pages` that resolve to no page, or to no heading on it. `file` is relative to `root`. */
-export const findBrokenLinks = (pages: readonly Page[], root: string, rebase?: Rebase): BrokenLink[] => {
+export const findBrokenLinks = (pages: readonly ContentPage[], root: string, rebase?: Rebase): BrokenLink[] => {
   const texts = pages.map((p) => readFileSync(p.file, 'utf8'))
   const ids = new Map(pages.map((p, i) => [p.path, new Set(headingIds(texts[i]!))]))
   const broken: BrokenLink[] = []
@@ -77,7 +77,7 @@ export const findBrokenLinks = (pages: readonly Page[], root: string, rebase?: R
 }
 
 /** Throws one error naming every broken link by source and target. */
-export const assertLinks = (pages: readonly Page[], root: string, rebase?: Rebase): void => {
+export const assertLinks = (pages: readonly ContentPage[], root: string, rebase?: Rebase): void => {
   const broken = findBrokenLinks(pages, root, rebase)
   if (broken.length)
     throw new Error(`broken internal links:\n${broken.map((b) => `  ${b.file} -> ${b.link}`).join('\n')}`)

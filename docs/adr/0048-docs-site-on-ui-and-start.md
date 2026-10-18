@@ -1,8 +1,8 @@
-# 0044. The docs site is a `@sleekstack/ui` app built with `@sleekstack/ui-vite`; `start` serves it only in dev
+# 0048. The docs site is a `@sleekstack/ui` app built with `@sleekstack/ui-vite`; `start` serves it only in dev
 
 ## Status
 
-Accepted. Built in spec fn-60. Supersedes ADR 0007 (Next.js and Fumadocs). Folds the open spec fn-34 (ui API reference) into this work.
+Accepted. Built in spec fn-60. Supersedes ADR 0007 (Next.js and Fumadocs).
 
 ## Context
 
@@ -10,13 +10,13 @@ Accepted. Built in spec fn-60. Supersedes ADR 0007 (Next.js and Fumadocs). Folds
 
 ## Decision
 
-**Stack.** `apps/docs` is a ui app on the ui-vite build (ADR 0043). `vite build` writes static pages, `search-index.json` and Open Graph images. `@sleekstack/start` is a devDependency used only by `vite` in dev (`src/app.tsx`); the build output never imports it. Plain CSS in `src/styles.css`: no Tailwind, PostCSS or Fumadocs CSS.
+**Stack.** `apps/docs` is a ui app on the ui-vite content build (`sleekContent`, ADR 0047). `vite build` writes static pages, `search-index.json` and Open Graph images. `@sleekstack/start` is a devDependency used only by `vite` in dev (`src/app.tsx`); the build output never imports it. Plain CSS in `src/styles.css`: no Tailwind, PostCSS or Fumadocs CSS.
 
 **Layout.** Sidebar from `content/docs/meta.json` with collapse and a mobile drawer, light and dark theme (system default, remembered choice, no flash), previous and next footer, and a cmd-K search dialog over the build-time index (`@sleekstack/ui-vite/search-client`). Content is readable without JavaScript.
 
 **Routes.** Pages live under a base prefix (`VITE_DOCS_BASE`, default `/docs`); `VITE_DOCS_SITE` (default `https://sleekstack.dev`) is the origin for absolute `og:` URLs. The plugin's `contentBase` option (default `/docs`) rewrites content links written with the default prefix to the configured base, so a build with another base passes the link checker. When the base moves the index, a root `index.html` redirects to it. `@sleekstack/ui-vite` exports `./links` and `./routes`. One version, English only, no analytics.
 
-**API reference.** TypeDoc generation and the coverage test stay. Documented packages are the surviving ones, now including ui and start; ui's `jsx-dev-runtime` entry is filtered out.
+**API reference.** TypeDoc generation and the coverage test stay. Documented packages are the surviving ones: core, runtime, query, ui (already added by fn-34) and now start.
 
 **Tests and scripts.** Link checker, stale phrases, benchmarks page, API coverage, guides and examples carry over. `dev`, `build` and `typecheck` run without Next.
 

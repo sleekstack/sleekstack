@@ -8,7 +8,7 @@ import { ogMeta } from '../og-meta.js'
 const tmp: string[] = []
 const copy = () => {
   const dir = join(import.meta.dirname, `.tmp-${Math.random().toString(36).slice(2)}`)
-  cpSync(join(import.meta.dirname, 'fixture'), dir, { recursive: true })
+  cpSync(join(import.meta.dirname, 'fixtures/content-site'), dir, { recursive: true })
   tmp.push(dir)
   return dir
 }
@@ -45,19 +45,19 @@ describe('og images', () => {
         expect(html).toContain(`<meta property="${tag}"`)
       expect(html).toContain('<meta name="twitter:card" content="summary_large_image"')
     }
-  }, 60_000)
+  })
 
   it('a missing font file fails the build naming the file', async () => {
     const dir = copy()
     edit(dir, 'vite.config.ts', 'inter-700.woff', 'nope.woff')
     await expect(run(dir)).rejects.toThrow(/og: cannot read font file .*nope\.woff/)
-  }, 60_000)
+  })
 
   it('images on without a site origin fail the build', async () => {
     const dir = copy()
     edit(dir, 'vite.config.ts', "og: { site: 'https://docs.test'", "og: { site: ''")
     await expect(run(dir)).rejects.toThrow(/og: `site`/)
-  }, 60_000)
+  })
 
   it('with the switch off no image is written and no og:image is emitted', async () => {
     const dir = copy()
@@ -68,7 +68,7 @@ describe('og images', () => {
     const html = readFileSync(join(dir, 'dist/index.html'), 'utf8')
     expect(html).not.toContain('og:image')
     expect(html).toContain('<meta property="og:title"')
-  }, 60_000)
+  })
 
   it('ogMeta without a site origin throws', () => {
     expect(() => ogMeta({ site: '', path: '/', name: 'index', title: 'T' })).toThrow(/site/)
