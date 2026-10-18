@@ -18,7 +18,7 @@ The optional `@sleekstack/model/query` entry (with `queryOf`) that wraps `find` 
 - `effectFn` runs with the Query Client Layer's services: the Store and the adapter Layer must be provided to that Layer; document it and test the missing-Tag rejection.
 - Read ADR 0025 (ui does not depend on query) before adding the peer; `query` must not import `model`.
 
-#- `queryOf(record)` also returns the fetch strategy that `useRecord(record, id, { via })` (task 4, base entry) accepts: it ensures the data through the Query Client service (`QueryClientTag`, `effectFn`, TanStack `ensureQueryData` or `fetchQuery` with key `[type, id]`), NOT through `useQuery`. The result states and the map-as-source-of-truth behaviour stay those of task 4's `useRecord`. Unmount interrupts the fetch through the query's abort signal.
+- `queryOf(record)` also returns the fetch strategy that `useRecord(record, id, { via })` (task 4, base entry) accepts: it ensures the data through the Query Client service (`QueryClientTag`, `effectFn`, TanStack `ensureQueryData` or `fetchQuery` with key `[type, id]`), NOT through `useQuery`. The result states and the map-as-source-of-truth behaviour stay those of task 4's `useRecord`. Unmount interrupts the fetch through the query's abort signal.
 
 ## Investigation targets
 **Required**:
