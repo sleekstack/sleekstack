@@ -749,9 +749,18 @@ importers:
 
   packages/ui-vite:
     dependencies:
+      '@sleekstack/analyze':
+        specifier: workspace:*
+        version: link:../analyze
+      jiti:
+        specifier: ^2.7.0
+        version: 2.7.0
       magic-string:
         specifier: ^0.30.21
         version: 0.30.21
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
     devDependencies:
       '@types/node':
         specifier: ^22.20.1
