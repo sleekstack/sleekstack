@@ -11,6 +11,7 @@ Prove a Draft-only bundle holds no records code, keep export names unique across
 **Touches:** packages/model/src/__tests__/bundle.test.ts, packages/model/src/__tests__/exportNames.test.ts, apps/showcase/test/size.test.ts, apps/showcase/src/size/records.tsx, docs/adr/0022-ui-size-budget-and-publish-gate.md
 
 ### Approach
+- Names from task 6 (the `./query` entry, to check across `index` and `query`): `queryOf`, `RecordQuery`. The base bundle must load none of `query` (task 6 left that check to this task); `@sleekstack/query` and `@tanstack/query-core` are optional peers of `model` now.
 - Names from task 5 to include: `SaveInFlight`, `SaveResponseError`, `SaveError`, `RecordDraft`, `RecordInput`, `RecordChange`.
 - Names from task 4 to include: `useRecord`, `RecordAdapter`, `AdapterTag`, `FindError`, `FetchStrategy`, `AdaptedRecord`.
 - Names from task 3 to include in the uniqueness check: `ref`, `refs`, `RecordRef`, `RefField`, `RefsField`, `Related`, `RelationTarget`, `RelationKey`.

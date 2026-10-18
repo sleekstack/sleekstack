@@ -70,6 +70,7 @@ Deviations:
 New public names for task 7: `queryOf`, `RecordQuery` (entry `./query`). Task 7 should bundle-check that index.ts loads no query code.
 
 stage: impl-review - ran (codex gpt-6.1-sol fan-out NEEDS_WORK: follow keyed by id only, waiter double-decrement, cancel not reaching the adapter, evicted slot not refilled, wrong-id ingest; fixed; re-review SHIP)
+stage: plan-sync - skipped(no drift; names carried into task 7)
 Baseline: green via handoff (verified at bc1dd39 by task 5; only .flow/ changed since). Post-edit gate green.
 Tier: explicit routing from project CLAUDE.md (implementer: opus at medium)
 ## Evidence
