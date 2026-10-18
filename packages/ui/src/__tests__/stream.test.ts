@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { Atom, makeAtomStore } from '@sleekstack/core'
 import { type Cause, Data, Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 import { Boundary, el, fragment, Head, Pending, renderToStream, renderToString } from '../index'
@@ -272,36 +273,63 @@ describe('renderToStream late boundaries (R3)', () => {
     await act(async () => void (await h.dispose()))
   })
 
-  it('hydrating mid-stream, the client and the late head patch share one tag per key (R4)', async () => {
+  // Hydrates mid-stream an app whose late title replaces a fallback title; `show` false drops the boundary on the client.
+  const midStream = async () => {
     const { act } = await import('react')
-    const { hydrateMount } = await import('../index')
+    const { hydrateMount, useAtomValue } = await import('../index')
+    delete (globalThis as { __sleekGone?: unknown }).__sleekGone
     const g = gate()
+    const show = Atom.make(true)
     const title = (text: string) => jsx(Head, { children: jsx('title', { children: text }) })
     const Late = () =>
       Effect.flatMap(
         Effect.promise(() => g.promise),
         () => title('done'),
       )
-    const app = () => jsx('div', { children: jsx(Pending, { fallback: title('loading'), children: jsx(Late, {}) }) })
+    // A reactive instance, so releasing the fallback runs its Head's cleanup on the spot.
+    const Loading = () => Effect.flatMap(useAtomValue(show), () => title('loading'))
+    const App = () =>
+      Effect.flatMap(useAtomValue(show), (on) =>
+        jsx('div', {
+          children: on ? jsx(Pending, { fallback: jsx(Loading, {}), children: jsx(Late, {}) }) : title('elsewhere'),
+        }),
+      )
     let shellHead = ''
-    const reader = renderToStream(app(), { layer, onHead: (h) => (shellHead = h) }).getReader()
+    const reader = renderToStream(jsx(App, {}), { layer, onHead: (h) => (shellHead = h) }).getReader()
     const shell = decoder.decode((await reader.read()).value)
     document.head.innerHTML = shellHead
     const server = document.head.firstElementChild
     const container = document.createElement('div')
     document.body.replaceChildren(container)
     feed(container, shell)
-    let h: any
-    await act(async () => void (h = await hydrateMount(app(), { layer, container })))
-    g.open()
-    const rest = await drain(reader)
-    expect(rest).toContain('__sleekHead')
-    await act(async () => feed(container, rest))
-    await settle(act)
+    const store = makeAtomStore()
+    const h = await act(async () => hydrateMount(jsx(App, {}), { layer, container, store }))
+    const land = async () => {
+      g.open()
+      const rest = await drain(reader)
+      expect(rest).toContain('__sleekHead')
+      await act(async () => feed(container, rest))
+      await settle(act)
+    }
+    return { act, h, server, land, drop: () => act(async () => store.set(show, false)) }
+  }
+
+  it('hydrating mid-stream, the content takes over the adopted tag the late patch also targets (R4)', async () => {
+    const { act, h, server, land } = await midStream()
+    await land()
     expect(document.head.innerHTML).toBe('<title>done</title>')
     expect(document.head.firstElementChild).toBe(server)
     await act(async () => void (await h.dispose()))
     expect(document.head.innerHTML).toBe('')
+  })
+
+  it('a late head patch for a boundary the hydrated client dropped changes nothing (R4)', async () => {
+    const { act, h, land, drop } = await midStream()
+    await drop()
+    expect(document.head.innerHTML).toBe('<title>elsewhere</title>')
+    await land()
+    expect(document.head.innerHTML).toBe('<title>elsewhere</title>')
+    await act(async () => void (await h.dispose()))
   })
 })
 

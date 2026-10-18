@@ -128,15 +128,24 @@ export const documentHead = (doc: Document): HeadTarget => {
     slots.set(key, slot)
     return slot
   }
-  const patch = (key: string): void => {
+  const winner = (key: string): [HeadTag, Reg] | undefined => {
     let win: [HeadTag, Reg] | undefined
     for (const r of regs) for (const [k, t] of r.tags) if (k === key && r.depth >= (win?.[1].depth ?? -1)) win = [t, r]
+    return win
+  }
+  const patch = (key: string): void => {
+    const win = winner(key)
     const slot = slots.get(key)
     if (win) return apply((slot ?? claim(key, win[0], win[1].adopt)).el, win[0].attrs, win[0].text)
-    if (!slot) return
-    slots.delete(key)
-    if (slot.before) apply(slot.el, slot.before.attrs, slot.before.text)
-    else slot.el.remove()
+    // An emptied key settles after the commit: a `Head` that takes it in the same commit (a boundary's content replacing
+    // its fallback) keeps the element.
+    if (slot)
+      queueMicrotask(() => {
+        if (slots.get(key) !== slot || winner(key)) return
+        slots.delete(key)
+        if (slot.before) apply(slot.el, slot.before.attrs, slot.before.text)
+        else slot.el.remove()
+      })
   }
   const target: HeadTarget = {
     add: (depth, adopt) => {

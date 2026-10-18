@@ -82,7 +82,7 @@ Pass `nonce` for a strict CSP; every inline script carries it. Ids are `<idPrefi
 
 `<Head>` takes `title`, `meta` and `link` elements with plain attributes and text (`<Head><title>{post.title}</title><meta name="description" content={post.summary} /></Head>`). Tags dedupe by key: `title`, `meta[name]`, `meta[property]`, `link[rel]+href`; other tags (`meta charset`) stand alone. The deepest `Head` wins a key, the last mounted on a tie. A `Head`'s tags leave when it unmounts, uncovering the ones below. An invalid tag or attribute is rejected like an element: skipped and reported to `onError` in the DOM, a rejected render in `renderToString` and a stream's shell.
 
-`mount` patches the head of its container's document. A tag the page already has for a key (a static `<title>`) is taken over and restored when no `Head` holds the key. `hydrateMount` takes over the server's head tags instead of adding copies: keyed ones by key, the others by equal attributes and text, including tags a stream's late patch wrote. They then belong to their `Head` and leave with it. A head tag no client `Head` renders is left in place.
+`mount` patches the head of its container's document. A tag the page already has for a key (a static `<title>`) is taken over and restored when no `Head` holds the key. `hydrateMount` takes over the server's head tags instead of adding copies: keyed ones by key, the others by equal attributes and text, including tags a stream's late patch wrote. They then belong to their `Head` and leave with it. A head tag no client `Head` renders is left in place. While `hydrateMount` adopts a stream's late boundaries, the client's `Head`s own the head and the stream's late head patches are dropped.
 
 ## Installing
 
