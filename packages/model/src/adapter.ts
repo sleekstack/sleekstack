@@ -157,8 +157,8 @@ export function useRecord(
     }
     const f = Context.get(ctx, Frame)
     if (Context.get(ctx, Collector) === undefined || f === undefined) {
-      const value = s.get(record.atom(id))
-      return Effect.succeed(resultOf(value, Option.isNone(value) ? s.get(fetchAtom()) : undefined, what))
+      const fetched = Option.isNone(s.get(record.atom(id))) ? s.get(fetchAtom()) : undefined
+      return Effect.succeed(resultOf(s.get(record.atom(id)), fetched, what))
     }
     const taken = takeSlot(f)
     if (taken instanceof SlotMismatch) return Effect.fail(taken) as unknown as Effect.Effect<never>

@@ -201,5 +201,9 @@ describe('useRecord', () => {
     // Every run, the first included, sees the record the fetch wrote.
     expect(shown.length).toBeGreaterThan(0)
     expect(shown.every((r) => Result.isSuccess(r) && r.value.id === 'n')).toBe(true)
+
+    // Outside a component too.
+    const outside = useRecord(Note, 'm', { via: { fetch: (id) => Note.push({ id }) } })
+    expect(Effect.runSync(Effect.provideService(outside, Store, makeAtomStore()))).toEqual(Result.success({ id: 'm' }))
   })
 })
