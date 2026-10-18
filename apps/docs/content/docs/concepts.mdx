@@ -5,11 +5,11 @@ description: Tags, Layers, services, modules, lifetimes, scopes, Shadowing, priv
 
 ## Tag
 
-A Tag identifies a service. In kit it is `tag<T>(name)` or a named (abstract) class; in core it is an Effect `Context.Tag`. The name is the Tag's key in errors and the graph. Two `tag()` calls with one name are two Tags, and one provide set holding both fails with `DuplicateTag`.
+A Tag identifies a service. It is an Effect `Context.Tag` class. The name is the Tag's key in errors and the graph.
 
 ## Layer and Service
 
-A Layer describes how to build a service, including acquisition and cleanup. The Service is the value a Layer builds, which you read with `useService` or receive as an action dependency. Kit's `layer()` lowers to core's `declareLayer()` (a Declared Layer), a plain Effect Layer plus its lifetime; kit also orders a module's `provide` list by the `deps` arrays.
+A Layer describes how to build a service, including acquisition and cleanup. The Service is the value a Layer builds, which you `yield*` in an Effect or a component. `declareLayer()` gives a Declared Layer: a plain Effect Layer plus its lifetime.
 
 ## Module
 
@@ -20,8 +20,8 @@ A module is a named group of Layers with `imports` (other modules, pulled in tra
 Every service has a lifetime:
 
 - `app`: built once per app scope.
-- `request`: built per `action`/`query` call, in its request scope.
-- `component`: built per nested `LayerProvider` subtree.
+- `request`: built per request, in its request scope (one `runEffect` call, or one `@sleekstack/start` request).
+- `component`: built per `Provider` subtree.
 
 A scope owns the services it built and runs their cleanups when it closes. An `app` service may depend only on `app`; `request` on `app` and `request`; `component` on `app` and `component`. Any other edge is a `CaptiveDependency`, because the longer-lived service would hold a stale instance.
 
@@ -29,13 +29,13 @@ A scope owns the services it built and runs their cleanups when it closes. An `a
 
 ## Privacy
 
-When a module lists `exports`, every other Tag it provides is private: only the module's own entries may require it. Anything outside (an importing module, `useService`, an action dependency, a per-call `provide`) is a `PrivateDependency` error reported by `sleekstack check` at build time; the runtime does not enforce it. With no `exports`, every Tag is public. See [ADR 0006](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0006-enforce-module-privacy.md).
+When a module lists `exports`, every other Tag it provides is private: only the module's own entries may require it. Anything outside (an importing module, a component, a request Layer) is a `PrivateDependency` error reported by `sleekstack check` at build time; the runtime does not enforce it. With no `exports`, every Tag is public. See [ADR 0006](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0006-enforce-module-privacy.md).
 
 <include>../../snippets/concepts/privacy.ts</include>
 
 ## Shadowing
 
-The same Tag provided in several places resolves to the most local provider: a module's own entry beats one it imports, and a per-call `provide` beats the entries already built. That is how you override a service; there is no separate override API. Entries build in position order (deepest import first, root entries last), so the later, more local one wins. Kit sorts each `provide` list by its `deps` arrays, so list order does not matter there; core Layers and kit generator Layers must be listed after the Tags they need, or they fail with `MissingDependency`. Two providers at the same locality are an `AmbiguousProvider`, reported by `sleekstack check`. Shadowing a private Tag from outside is allowed: it creates a new public provider.
+The same Tag provided in several places resolves to the most local provider: a module's own entry beats one it imports, and a request or `overrides` Layer beats the entries already built. That is how you override a service; there is no separate override API. Entries build in position order (deepest import first, root entries last), so the later, more local one wins. A Layer must be listed after the Tags it needs, or it fails with `MissingDependency`. Two providers at the same locality are an `AmbiguousProvider`, reported by `sleekstack check`. Shadowing a private Tag from outside is allowed: it creates a new public provider.
 
 <include>../../snippets/concepts/shadowing.ts</include>
 

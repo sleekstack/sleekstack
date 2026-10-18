@@ -6,7 +6,7 @@ description: Validate the graph and swap services in tests.
 Two techniques cover most tests:
 
 - **Validate the graph.** `sleekstack check` runs every graph check (missing providers, cycles, lifetimes, privacy) without running the app; run it in CI before the tests.
-- **Swap a service with Shadowing.** A per-call `provide` builds Layers in the request scope and shadows earlier entries for that call only. In React, a nested `LayerProvider` with a test Layer does the same for a subtree. Neither needs a mocking API.
+- **Swap a service with Shadowing.** A request or `overrides` Layer passed to `runEffect` shadows earlier entries for that call only. In a ui tree, a nested `Provider` with a test Layer does the same for a subtree. Neither needs a mocking API. For a server function or a route handler, `callServerFn` and `callHandler` from `@sleekstack/testing` run it through `start(...).fetch` with a test layer and no network ([ADR 0039](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0039-start-server-core.md)).
 
 <include>../../snippets/testing/graph.test-example.ts</include>
 
@@ -18,7 +18,7 @@ A declaration the analyzer cannot read (`any`, a widened `Layer<any>[]`, a non-l
 
 When the project's package.json lists `@sleekstack/ui` (in any dependency field), `sleekstack check` also runs the component pass: each `mount` call is a root, and `MissingDependency`, `UnhandledError`, `EffectInsideReact`, `Unresolved`, `NonResumableHandler`, `ConditionalSlot` and `MissingKey` are reported with file:line (see [Errors](/docs/errors)). `--json` then adds a `components` key. Projects without `@sleekstack/ui` are checked exactly as before.
 
-The Next.js runtime is one slot per process, so configure it once in a setup file and keep tests that need an unconfigured runtime first in their file.
+The runtime is one slot per process, so configure it once in a setup file and keep tests that need an unconfigured runtime first in their file.
 
 ## Component tests
 
