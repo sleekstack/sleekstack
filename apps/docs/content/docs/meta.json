@@ -20,6 +20,7 @@
     "queries-ssr",
     "tanstack-query",
     "routing",
+    "vite",
     "islands",
     "side-effects",
     "ui-devtools",

@@ -1,5 +1,5 @@
 import { Atom, type AtomStore, markedWrites, MissingDependency, Result } from '@sleekstack/core'
-import { Cause, Context, Data, Effect, ExecutionStrategy, Exit, Fiber, Option, Scope } from 'effect'
+import { Cause, Chunk, Context, Data, Effect, ExecutionStrategy, Exit, Fiber, Option, Scope } from 'effect'
 import type { YieldWrap } from 'effect/Utils'
 import { type ActionEvent, handled as asEffect } from './handler'
 import type { Node, ReactiveNode, Ref } from './node'
@@ -92,6 +92,8 @@ export interface Slots {
   called?: boolean
   /** The observed instance that owns these slots (set only when the mount has an observer). */
   instance?: number
+  /** The function the last successful run of a hot-updatable instance called. */
+  ran?: Function
 }
 
 interface Memo {
@@ -103,10 +105,10 @@ interface Memo {
   readonly host?: HostDescriptor
 }
 
-/** One run of an instance: ordinals by component function, its own slots and cursor, and what its children did. `undefined` at the root. */
+/** One run of an instance: ordinals by component id, its own slots and cursor, and what its children did. `undefined` at the root. */
 export interface RunFrame {
-  /** Created by the first unkeyed child. */
-  ordinals?: Map<Function, number>
+  /** Created by the first unkeyed child; keyed by the component's id (stable across a hot update). */
+  ordinals?: Map<string, number>
   readonly owner: Slots
   readonly id: string
   /** Instance nesting: the root frame is 0, each instance run one more than its parent's (`Head` uses it: deepest wins). */
@@ -158,6 +160,14 @@ export const disposeSlots = (s: Slots): void => {
   s.memo = undefined
   s.handlers = undefined
   s.instance = undefined
+  s.ran = undefined
+}
+
+/** Starts a hot instance over: its slots are disposed, its handler stand-ins (already in its props) stay. */
+const remountSlots = (s: Slots): void => {
+  const handlers = s.handlers
+  disposeSlots(s)
+  s.handlers = handlers
 }
 
 /**
@@ -206,10 +216,53 @@ export const dropSlots = (frame: RunFrame): void => {
 
 const fnIds = new WeakMap<Function, string>()
 let nextFn = 0
+/** Set by `@sleekstack/ui-vite` on exported components: `<file>#<export>`, the same across re-evaluations. */
+const STABLE_ID = Symbol.for('@sleekstack/ui/component-id')
 const fnId = (f: Function): string => {
   let id = fnIds.get(f)
-  if (id === undefined) fnIds.set(f, (id = String(nextFn++)))
+  if (id === undefined) fnIds.set(f, (id = (f as { [STABLE_ID]?: string })[STABLE_ID] ?? String(nextFn++)))
   return id
+}
+
+/** A hot-updatable component: every function registered under one stable id shares its instance ids and runs `fn`. */
+interface HotEntry {
+  fn: Function
+  /** The last function that ran successfully: a failing run of `fn` (while it differs) reverts every instance to it. */
+  good: Function
+  /** `fn` has run successfully at least once; only then does the next update keep it as `good`. */
+  succeeded: boolean
+  /** Read by every run, so bumping it re-runs the live instances. */
+  readonly version: Atom.Writable<number>
+  /** Live instances per store, so an update reaches only the stores that still show the component. */
+  readonly stores: Map<AtomStore, number>
+}
+const hotIds = new Map<string, HotEntry>()
+const hotOf = (f: Function): HotEntry | undefined => {
+  const id = fnIds.get(f)
+  return id === undefined ? undefined : hotIds.get(id)
+}
+const rerunHot = (entry: HotEntry): void => {
+  for (const s of entry.stores.keys()) s.update(entry.version, (n) => n + 1)
+}
+// Instance slots counted in `HotEntry.stores`; their release uncounts them.
+const hotSlots = new WeakSet<Slots>()
+
+/**
+ * Registers `fn` as the component with stable id `id` (a dev transform calls it on every module evaluation). The first call
+ * only registers; a later call with another function swaps it in and re-runs the live instances, keeping their slots. Until
+ * the next update, a failing run of the new function reverts every instance to the last function that ran successfully and
+ * reports the failure to the mount's `onError`.
+ */
+export const acceptUpdate = (id: string, fn: Function): void => {
+  const key = `hot:${id}`
+  fnIds.set(fn, key)
+  const entry = hotIds.get(key)
+  if (!entry) return void hotIds.set(key, { fn, good: fn, succeeded: false, version: Atom.make(0), stores: new Map() })
+  if (entry.fn === fn) return
+  if (entry.succeeded) entry.good = entry.fn
+  entry.fn = fn
+  entry.succeeded = false
+  rerunHot(entry)
 }
 
 /** A slot hook's failure when no `Store` is provided. Typed `never` in E: `Store` is a requirement, so it is unreachable for checked code; at runtime it fails with a tagged `MissingDependency`. */
@@ -1086,18 +1139,35 @@ export const instance = <P>(
   let effProps: P = props
   // Set by the renderer's own re-run (an atom changed): the memo must not answer it.
   let forced = false
-  const run: Effect.Effect<Node, any, any> = Effect.flatMap(Effect.context<never>(), (ctx) => {
+  // The function this attempt called, when `type` is hot-updatable.
+  let ran: Function | undefined
+  // This instance's slots, for a hot remount.
+  let current: Slots | undefined
+  const attempt: Effect.Effect<Node, any, any> = Effect.flatMap(Effect.context<never>(), (ctx) => {
     const first = id === undefined
     if (id === undefined) {
       if (key === undefined) {
         // Keyed calls take no ordinal: unkeyed siblings keep their ids when a keyed one comes or goes.
         const frame = Context.get(ctx, Frame)
         const ordinals = frame && (frame.ordinals ??= new Map())
-        const ordinal = ordinals?.get(type) ?? 0
-        ordinals?.set(type, ordinal + 1)
+        const ordinal = ordinals?.get(fnId(type)) ?? 0
+        ordinals?.set(fnId(type), ordinal + 1)
         id = `${fnId(type)}#${ordinal}`
       } else id = `${fnId(type)}:key:${key}`
     }
+    ran = undefined
+    const hot = hotOf(type)
+    const hotStore = hot && Context.getOption(ctx, Store)
+    // A hot instance always runs the registered function and reads its version, so an update re-runs it.
+    const component = (props: P): ComponentResult => {
+      if (!hot) return type(props)
+      ran = hot.fn
+      return (hot.fn as typeof type)(props)
+    }
+    const callHot = (props: P): Effect.Effect<Node, any, any> =>
+      hotStore && Option.isSome(hotStore)
+        ? Effect.zipRight(useAtomValue(hot!.version), call(component, props))
+        : call(component, props)
     const self = id
     // The component's own Effect, when the host fast path already called it.
     let pre: Effect.Effect<Node, any, any> | undefined
@@ -1126,7 +1196,7 @@ export const instance = <P>(
         return Effect.succeed(m.node)
       // A row that returns a plain host element builds its node here, without the run machinery; unchanged output reuses the last node.
       // Only an instance with no local state or child slots of its own: otherwise the normal run checks its slot count.
-      if (hostBuilder.build && slots.atoms.length === 0 && slots.kids === undefined) {
+      if (!hot && hostBuilder.build && slots.atoms.length === 0 && slots.kids === undefined) {
         slots.running = true
         slots.called = false
         const eff = call(type, effProps)
@@ -1170,6 +1240,19 @@ export const instance = <P>(
         pre = eff
       }
     } else slots = rootSlots ??= { atoms: [], releases: [], done: false }
+    current = slots
+    if (hotStore && Option.isSome(hotStore) && !hotSlots.has(slots)) {
+      const stores = hot!.stores
+      const s = hotStore.value
+      hotSlots.add(slots)
+      stores.set(s, (stores.get(s) ?? 0) + 1)
+      slots.releases.push(() => {
+        hotSlots.delete(slots)
+        const n = stores.get(s)! - 1
+        if (n === 0) stores.delete(s)
+        else stores.set(s, n)
+      })
+    }
     const frame = makeFrame(slots, self, parentFrame ? parentFrame.depth + 1 : 0)
     const body = (own: Scope.CloseableScope | undefined): Effect.Effect<Node, any, any> => {
       const reads = new Reads(slots)
@@ -1183,7 +1266,7 @@ export const instance = <P>(
       const inner = Context.unsafeMake(map)
       // One continuation: check the slot count, then build the node.
       return Effect.flatMap(
-        Effect.provide(((e) => ((pre = undefined), e))(pre ?? call(type, effProps)), inner),
+        Effect.provide(((e) => ((pre = undefined), e))(pre ?? callHot(effProps)), inner),
         (child): Effect.Effect<Node, SlotMismatch> => {
           if (slots.done && frame.cursor !== slots.atoms.length)
             return Effect.fail(
@@ -1248,6 +1331,39 @@ export const instance = <P>(
             Scope.close(own, exit),
           ),
     )
+  })
+  // A hot update stays on trial until the next one: a failing run reverts every instance to the last good function, reports, and runs that.
+  const run: Effect.Effect<Node, any, any> = Effect.matchCauseEffect(attempt, {
+    onSuccess: (node) => {
+      const hot = hotOf(type)
+      if (hot && ran === hot.fn) hot.succeeded = true
+      if (ran) current!.ran = ran
+      return Effect.succeed(node)
+    },
+    onFailure: (cause) => {
+      const hot = hotOf(type)
+      // A hot update that changed this instance's hook count remounts it: its slots start over, its handler stand-ins stay.
+      if (
+        hot &&
+        ran === hot.fn &&
+        current!.ran !== undefined &&
+        ran !== current!.ran &&
+        Cause.failures(cause).pipe(Chunk.some((e) => e instanceof SlotMismatch && e.id === id))
+      ) {
+        remountSlots(current!)
+        forced = true
+        return run
+      }
+      if (!hot || ran !== hot.fn || hot.fn === hot.good || Cause.isInterruptedOnly(cause))
+        return Effect.failCause(cause)
+      // A failed fresh run (a remount) left partial slots; the previous function starts over too.
+      if (!current!.done) remountSlots(current!)
+      hot.fn = hot.good
+      hot.succeeded = true
+      rerunHot(hot)
+      forced = true
+      return Effect.flatMap(MountError, (report) => ((report ?? console.error)(cause), run))
+    },
   })
   return run
 }

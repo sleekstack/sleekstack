@@ -47,10 +47,13 @@ export interface Handler<E = never, R = never, Ev extends HandlerEvent = Handler
   readonly opts: HandlerOptions
 }
 
+/** Two handlers were declared with the same `id`. */
 export class DuplicateHandler extends Data.TaggedError('DuplicateHandler')<{ readonly id: string }> {}
+/** Two atoms bound for `resume` share the same serializable key. */
 export class DuplicateBindKey extends Data.TaggedError('DuplicateBindKey')<{ readonly key: string }> {}
 /** `bind`/`resume` got an atom that is not a serializable value-kind atom (`Atom.serializable`). */
 export class UnsupportedAtom extends Data.TaggedError('UnsupportedAtom')<{ readonly key: string }> {}
+/** The event is non-bubbling or its name is malformed (`onclick`), so it cannot be delegated. */
 export class UnsupportedEvent extends Data.TaggedError('UnsupportedEvent')<{ readonly event: string }> {}
 
 /** Declares a handler. Call at module top level with a literal `id`. */

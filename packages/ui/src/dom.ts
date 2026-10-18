@@ -43,6 +43,7 @@ import {
 import { checkAttr, checkTag } from './string'
 import { documentHead, HeadSink } from './head'
 
+/** A mounted tree; `dispose` unmounts it and closes its scope. */
 export interface Mounted {
   dispose(): Promise<void>
 }

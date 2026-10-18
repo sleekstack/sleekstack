@@ -49,6 +49,7 @@ const headPatch = (before: Map<string, string>, after: Map<string, string>): str
   return `__sleekHead([${changed.map(entry).join(',')}])`
 }
 
+/** Options for `renderToStream`: the layer that provides the tree's services. */
 export interface StreamOptions<A, LE> extends RunOptions {
   readonly layer: Layer.Layer<A, LE, never>
   /** Set on every inline script. */

@@ -1,0 +1,39 @@
+{
+  "name": "@sleekstack/ui-vite",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@sleekstack/analyze": "workspace:*",
+    "jiti": "^2.7.0",
+    "magic-string": "^0.30.21",
+    "typescript": "^5.9.3"
+  },
+  "peerDependencies": {
+    "vite": "^8.0.16"
+  },
+  "devDependencies": {
+    "@sleekstack/router": "workspace:*",
+    "@types/node": "^22.20.1",
+    "@vitejs/plugin-react": "^6.0.2",
+    "vite": "^8.0.16",
+    "vitest": "^4.1.9"
+  }
+}
