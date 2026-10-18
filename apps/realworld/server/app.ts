@@ -1,3 +1,4 @@
+import { QueryClientLive } from '@sleekstack/query'
 import { Cookies, serverFn, start } from '@sleekstack/start'
 import { type Context, Effect, Layer } from 'effect'
 import { pages } from '../src/app'
@@ -181,12 +182,26 @@ const ServerFunctionsInPlace = Layer.succeed(ServerFunctions, ((contract: { read
   byId.get(contract.id)!) as unknown as Context.Tag.Service<ServerFunctions>)
 
 /**
+ * The server's `QueryClient`: a page's lists take their first page from its loader (`initialData`) and never fetch here.
+ * It carries no `Transfer`, so its cache never rides a response, and an entry is dropped right after it is read.
+ */
+// ponytail: one client for the process (start has no per-request layer). A list's key holds its path, page and viewer,
+// so a concurrent render of the same key gets that viewer's data from moments earlier. Per-request client once start has one.
+const ServerQueriesLive = QueryClientLive({ defaultOptions: { queries: { gcTime: 0 } } })
+
+/**
  * The server entry: the REST facade at `/api/`, the server functions and the pages, over SQLite (`CONDUIT_DB`, default
  * `./data/conduit.db`).
  */
 export const app = start({
   router: pages,
-  layer: Layer.mergeAll(AppLive, DbLive(process.env.CONDUIT_DB), TokenSecretLive, ServerFunctionsInPlace),
+  layer: Layer.mergeAll(
+    AppLive,
+    ServerQueriesLive,
+    DbLive(process.env.CONDUIT_DB),
+    TokenSecretLive,
+    ServerFunctionsInPlace,
+  ),
   middleware: [rest],
   functions,
 })

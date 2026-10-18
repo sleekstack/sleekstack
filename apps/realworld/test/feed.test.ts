@@ -15,6 +15,7 @@ vi.hoisted(() => {
 
 const { app } = await import('../server/app')
 const { pages } = await import('../src/app')
+const { QueriesLive } = await import('../src/layers')
 const { ServerFunctions } = await import('../src/pages/functions')
 
 const browser = await builtinEnvironments.jsdom.setup(globalThis, { jsdom: { url: 'http://conduit.test/' } })
@@ -87,7 +88,9 @@ const open = async (path: string) => {
   history.replaceState(null, '', path)
   container = document.body.appendChild(document.createElement('div'))
   container.innerHTML = await response.text()
-  nav = await act(() => startRouter(pages, { container, layer: Layer.succeed(ServerFunctions, client), onError }))
+  nav = await act(() =>
+    startRouter(pages, { container, layer: Layer.merge(QueriesLive, Layer.succeed(ServerFunctions, client)), onError }),
+  )
   await flush()
 }
 

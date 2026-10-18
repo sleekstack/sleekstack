@@ -1,9 +1,9 @@
 import { startRouter } from '@sleekstack/router'
 import { Layer } from 'effect'
 import { pages, ServerFunctionsClient } from './app'
-import { AppLive } from './layers'
+import { AppLive, QueriesLive } from './layers'
 
 void startRouter(pages, {
-  layer: Layer.merge(AppLive, ServerFunctionsClient),
+  layer: Layer.mergeAll(AppLive, QueriesLive, ServerFunctionsClient),
   container: document.getElementById('app')!,
 })

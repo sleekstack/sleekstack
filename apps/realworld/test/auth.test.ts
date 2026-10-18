@@ -17,6 +17,7 @@ vi.hoisted(() => {
 
 const { app, SESSION } = await import('../server/app')
 const { pages } = await import('../src/app')
+const { QueriesLive } = await import('../src/layers')
 const { ServerFunctions } = await import('../src/pages/functions')
 
 /** The browser's cookie jar: the session cookie the app set, sent back on every request. */
@@ -66,7 +67,9 @@ const open = async (path: string) => {
   const html = await response.text()
   container.innerHTML = html
   const header = container.querySelector('nav')
-  nav = await act(() => startRouter(pages, { container, layer: Layer.succeed(ServerFunctions, client), onError }))
+  nav = await act(() =>
+    startRouter(pages, { container, layer: Layer.merge(QueriesLive, Layer.succeed(ServerFunctions, client)), onError }),
+  )
   await flush()
   return { html, header }
 }

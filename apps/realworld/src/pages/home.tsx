@@ -1,7 +1,7 @@
 /** @jsxImportSource @sleekstack/ui */
 import { Atom } from '@sleekstack/core'
 import { type Loader, loader, params, Route, useLoader } from '@sleekstack/router'
-import { useAtomValue, useDerivedAtom, useSetAtom } from '@sleekstack/ui'
+import { useAtomValue, useSetAtom } from '@sleekstack/ui'
 import type { Stub } from '@sleekstack/start/client'
 import { Effect, Schema } from 'effect'
 import {
@@ -14,6 +14,8 @@ import {
   tagsContract,
   type Toggle,
   unfavoriteContract,
+  useArticleList,
+  useStaleArticleLists,
 } from '../modules/articles'
 import { ServerFunctions } from './functions'
 import { Layout, viewer } from './layout'
@@ -49,41 +51,39 @@ export const articleSource = (key: string, query: Query): ArticleSource => ({
 
 const LoadFailed = () => <div class="article-preview">Articles could not be loaded: try again.</div>
 
-/** A picked page, fetched in the browser; picking another page refetches, the first page included. */
-const PickedPage = function* ({ source, toggle }: { source: ArticleSource; toggle: Toggle | null }) {
-  const list = yield* useDerivedAtom(function* (get) {
-    const { page } = get(pageAtom)
-    return yield* source.query({ limit: PAGE_SIZE, offset: page * PAGE_SIZE })
-  })
-  const result = yield* useAtomValue(list)
-  if (result._tag === 'Failure') return <LoadFailed />
-  if (result._tag === 'Initial' || result.waiting) return <div class="article-preview">Loading articles...</div>
-  return <ArticlePreviews articles={result.value.articles} toggle={toggle} />
-}
-
 /**
- * A list's previews with its page links: the first page comes with the route; once a page is picked on this path,
- * every page shown is fetched, so returning to the first one shows the server's current state.
+ * A list's previews with its page links, through the query cache: the first page is seeded from the route's loader
+ * (server-rendered, hydrated with no call); a picked page is fetched when first shown. A favorite marks every list
+ * stale, so returning to a page shows the server's current state. A page being fetched shows "Loading", never its
+ * stale previews: a preview's favorite button keeps the article it first rendered.
  */
 export const ArticleFeed = function* ({ source }: { source: ArticleSource }) {
   const call = yield* ServerFunctions
+  const services = yield* Effect.context<ServerFunctions | Route>()
   const { pathname } = yield* Route
   const user = yield* Effect.orElseSucceed(useLoader(viewer), () => null)
   const first = yield* Effect.either(useLoader(source.first))
   const picked = yield* useAtomValue(pageAtom)
   const pick = yield* useSetAtom(pageAtom)
+  const stale = yield* useStaleArticleLists()
+  const page = picked.path === pathname ? picked.page : 0
+  const list = yield* useArticleList(
+    { path: pathname, page, viewer: user?.username ?? null },
+    Effect.provide(source.query({ limit: PAGE_SIZE, offset: page * PAGE_SIZE }), services),
+    page === 0 && first._tag === 'Right' ? first.right : undefined,
+  )
   if (first._tag === 'Left') return <LoadFailed />
-  const paged = picked.path === pathname
-  const page = paged ? picked.page : 0
   const toggle: Toggle | null = user
-    ? (a) => call(a.favorited ? unfavoriteContract : favoriteContract)({ slug: a.slug })
+    ? (a) => call(a.favorited ? unfavoriteContract : favoriteContract)({ slug: a.slug }).pipe(Effect.tap(stale))
     : null
   return (
     <>
-      {paged ? (
-        <PickedPage source={source} toggle={toggle} />
+      {list.isFetching || list.isPending ? (
+        <div class="article-preview">Loading articles...</div>
+      ) : list.isError ? (
+        <LoadFailed />
       ) : (
-        <ArticlePreviews articles={first.right.articles} toggle={toggle} />
+        <ArticlePreviews articles={list.data.articles} toggle={toggle} />
       )}
       <Pagination
         count={first.right.articlesCount}
