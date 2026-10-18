@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-18T15:10:27.290578Z",
+  "depends_on": [
+    "fn-60-docs-site-on-ui-and-start.1"
+  ],
+  "id": "fn-60-docs-site-on-ui-and-start.2",
+  "priority": null,
+  "spec": "fn-60-docs-site-on-ui-and-start",
+  "spec_path": ".flow/tasks/fn-60-docs-site-on-ui-and-start.2.md",
+  "status": "todo",
+  "title": "docs content: rewrite the remaining pages and snippets that use the removed packages",
+  "updated_at": "2026-10-18T15:10:27.290578Z"
+}

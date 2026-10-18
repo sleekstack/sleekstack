@@ -75,3 +75,28 @@ The four React and Next packages cannot be deleted while the docs site imports t
 Rejected: a new design (needs design decisions and probably a design system first); keeping Tailwind and a fumadocs-like theme (keeps a styling tool as a dependency of a ui app); version, locale and analytics work now (none exists on the site today). Overlap to reconcile: the removal spec's docs-content task covers some of the same pages and records. [user]
 
 Source: chart fn-57 decisions D1, D3, D4, D8, D9, D10, D11 and briefing B1 cluster 2.
+
+
+## Quick commands
+
+```bash
+pnpm turbo run test typecheck build --filter=docs
+```
+
+## Early proof point
+
+Task fn-60-docs-site-on-ui-and-start.5 validates the approach end to end (the real site builds on the platform with no Next or fumadocs). It needs the platform spec (fn-59) done. If it fails, re-evaluate the platform before the remaining tasks.
+
+## Requirement coverage
+
+| Req | Description | Task(s) | Gap justification |
+| --- | --- | --- | --- |
+| R1 | The site builds to static pages with the platform: every remaining guide and API page renders, the sidebar follows the order file, and every internal link and anchor resolves. Errors: a broken link or anchor fails the build naming source and target. | fn-60-docs-site-on-ui-and-start.1, fn-60-docs-site-on-ui-and-start.5 | — |
+| R2 | The layout matches today's behavior in plain CSS: sidebar with collapse and a mobile drawer, light and dark theme with a switcher (system default, remembered choice, no flash), previous and next footer, and prose styling for tables, code and blockquotes, with no Tailwind and no fumadocs CSS. Errors: with JavaScript off the content stays readable. | fn-60-docs-site-on-ui-and-start.3 | — |
+| R3 | The cmd-K dialog searches the build-time index, is keyboard accessible, and shows a message for no results. Errors: if the index fails to load, the dialog shows an error instead of staying blank. | fn-60-docs-site-on-ui-and-start.4 | — |
+| R4 | The API reference is generated for core, runtime, query, ui, start and the other surviving packages, not for next, react or kit; `jsx-dev-runtime` is not a page; the coverage test requires a TSDoc summary for every export. Errors: an undocumented export fails the coverage test. | fn-60-docs-site-on-ui-and-start.6 | — |
+| R5 | Pages and snippets about kit, react, next and islands are deleted; the snippets that remain are rewritten against core, ui, router and start and typecheck in the examples test; the stale-phrase test passes. Errors: a snippet that does not typecheck fails the examples test. | fn-60-docs-site-on-ui-and-start.1, fn-60-docs-site-on-ui-and-start.2 | — |
+| R6 | The five tests and the scripts keep their intent on the new site, `dev`, `build` and `typecheck` run without Next or fumadocs, and the docs checks pass. Errors: no error surface beyond R1 to R5. | fn-60-docs-site-on-ui-and-start.6 | — |
+| R7 | Pages live under a configurable base prefix, no code assumes a single prefix, the site is English only and nothing is tracked. Errors: a build with a different prefix still passes the link checker. | fn-60-docs-site-on-ui-and-start.5 | — |
+| R8 | `apps/docs` depends on none of kit, react, next, islands, fumadocs, Next, Tailwind or PostCSS; a repo search of `apps/docs` for the four package names finds nothing (checked with a positive control first). Errors: any remaining reference fails the check. | fn-60-docs-site-on-ui-and-start.5 | — |
+| R9 | Records are updated: an ADR for the docs site on ui and start, the docs README, CONTEXT and AGENTS.md; the removal spec's deletion task (fn-55 task 6) can then run, and the removal spec's docs-content task is reconciled with this one. Errors: no error surface beyond the checks in R1 to R8. | fn-60-docs-site-on-ui-and-start.7 | — |
