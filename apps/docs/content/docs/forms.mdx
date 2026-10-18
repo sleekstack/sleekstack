@@ -11,7 +11,7 @@ In `@sleekstack/ui`, a host `<form>` takes an `action`: a function, a generator,
 - A second submit interrupts the action that is still running.
 - A Promise result is a `TypeError`: return an Effect or use a generator.
 - A string `action` is still a URL.
-- In a resumed page, use `defineHandler('id', (e: ActionEvent) => ...)`. It must be the form's only submit handler. A submit that arrives before the handler's code loads runs once the code arrives.
+- In a resumed page, use `defineHandler('id', (e: ActionEvent) => ...)`. It must be the only thing on the form that handles submit (no `onSubmit` beside it). A submit that arrives before the handler's code loads runs once the code arrives.
 
 ## Action state
 

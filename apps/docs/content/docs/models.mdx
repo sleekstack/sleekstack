@@ -1,37 +1,141 @@
 ---
 title: Models and Drafts
-description: Build a Model from wire data with fromDto, edit a copy of it with useDraft, and save it from a form action with toDto().
+description: Build a Model from wire data with fromDto, edit a copy of it with useDraft, and save it from a Form Action with toDto().
 ---
 
-A record has two directions that meet at the **Model**, the shape the view renders (ADR 0038):
+A record crosses the wire twice: once as what the read endpoint returns, once as what the write endpoint takes. This page is the contract for both directions: `ModelSpec` and `DraftSpec` in `@sleekstack/core`, and `useDraft` in `@sleekstack/ui` ([ADR 0038](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0038-model-and-draft.md)). The idea of a record and its editable copy comes from EmberData, through ramcinpay-front.
 
-- Read: `fromDto(dto, ctx)` builds the Model from what the read endpoint returns. `ctx` is resolved data the DTO does not carry, such as a country index; it is never a Service or a client. Call `fromDto` where the data arrives: a loader, a query or an Effect atom.
-- Write: a **Draft** is an editable copy of the Model, one save boundary. A `DraftSpec` says how to seed it (`create`), validate it (`schema`) and turn it into the write endpoint's body (`toDto`).
+## The one idea
 
-`toDto` is not the inverse of `fromDto`. The Model carries labels the client cannot turn back into wire data, and the write endpoint usually takes a different body from the one the read endpoint returns. `ModelSpec` and `DraftSpec` are types in `@sleekstack/core`, so Kit Operations, server code and tests can use them without `@sleekstack/ui`. `useDraft` is in `@sleekstack/ui`.
+Read and write shapes are not inverses. The **Model** is the shape a component renders, and it holds labels (a country's name for its code, a formatted date) that the client cannot turn back into wire data. The write endpoint usually takes a different body from the one the read endpoint returns. So there is no `toDto(model)`: the two directions meet at the Model ([ADR 0038, Decision](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0038-model-and-draft.md#decision)).
 
-<include>../../snippets/models/profile.tsx</include>
+<include>../../snippets/models/directions.txt</include>
 
-- `schema`, `create`, `toModel` and `diff` are pure. `toDto` returns an Effect: what it needs (ids, the clock) are Services in `R` and its failures are `E`. A form action that yields `draft.toDto()` takes both, so `sleekstack check` reports them like any handler's.
-- The schema's Type and Encoded are both the Draft: a field holds what its input holds, so a number input's field is a string. Validate the string in the schema and convert it in `toDto`. A coercing schema such as `NumberFromString` is a type error.
-- `toDto()` validates first. A `ParseError` or a failure of `spec.toDto` stays in the `Result` of `useAction`.
-- `errors` holds the schema's messages by field path (`'name'`, `'items.0.name'`, and `''` for the whole Draft). `errors`, `valid`, `dirty`, `preview` and `changes` are computed only when something reads them.
-- `toModel` gives `preview`, the unsaved Draft as a Model. It also fits as the `apply` of `useOptimistic(model, (m, d) => ProfileDraft.toModel(d, m))`, to show a save before it lands. `diff(base, next)` gives `changes`, a minimal PATCH body.
+- Read: `fromDto(dto, ctx)` builds the Model.
+- Write: `create` seeds a **Draft**, an editable copy of the Model and one save boundary. `toDto` turns the Draft into the write body. A Model with two parts saved by two requests has two Draft Specs.
+- Back: `toModel` projects an unsaved Draft into a read shape, for a live preview or an optimistic update.
 
-## The source
+`ModelSpec` and `DraftSpec` are types only, so Kit Operations, server code and tests use them without `@sleekstack/ui` ([ADR 0038, Decision](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0038-model-and-draft.md#decision)). One file holds a Model and its Draft Specs:
 
-`src` is a value or an atom. The Draft starts as `spec.create(src)`.
+<include>../../snippets/models/profile.ts</include>
 
-- While the Draft is pristine (equal to its seed by the schema's `Schema.equivalence`), a new source re-seeds it. After an edit, the edits are kept and `dirty` stays true. Editing back to the seed makes the Draft pristine again.
-- `reset()` re-seeds from the current source.
-- A value `src` and the spec are compared by structure (plain objects and arrays, with functions by identity) or by `Equal`, so a literal or `{ ...Spec }` rebuilt on every run is not a change. A class instance that is not `Equal` is compared by identity: a new instance on every run re-seeds a pristine Draft on every run. Pass an atom or a stable value.
+## The read side
+
+`ModelSpec<Dto, M, Ctx>` has one member, `fromDto(dto, ctx)` ([ADR 0038, Decision](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0038-model-and-draft.md#decision)).
+
+- `fromDto` is pure: no clock, no locale, no random value, no read of anything outside its arguments. It runs whenever its inputs change, so an ambient read inside it would freeze at whatever it was when the data arrived.
+- `ctx` is resolved data the DTO does not carry, such as country names by code. It is never a Service, a client or anything else with behaviour: if a Model needs to do something, the work belongs where the data is fetched. Declare `ctx` per Model (`{ countries }`), not as one shared bag.
+- `Ctx` defaults to `void`, so a Model that needs nothing keeps a one-argument `fromDto`.
+- A Model is always whole. When `ctx` comes from a second request, build the Model once both have landed and show the pending state until then, rather than a Model with codes in place of names.
+
+Call `fromDto` where the data arrives. When the DTO and `ctx` are atoms, a derived atom binds them and recomputes when either changes. When they come from Services, `useDerivedAtom` runs the requests in the component's Effect and holds the Model in a `Result`:
+
+<include>../../snippets/models/read.tsx</include>
+
+`ProfilePage` hands `EditProfile` the Model as a value. A value source is compared by structure, so a refetch that returns the same record does not touch the Draft.
+
+## The write side
+
+`DraftSpec<D, Dto, Src, P, E, R>` describes a Draft `D` seeded from a source `Src` ([ADR 0038, Decision](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0038-model-and-draft.md#decision)):
+
+- `schema(src)` validates the Draft. It is an Effect Schema whose Type and Encoded are both `D`.
+- `create(src)` is the seed: the Model's values for an edit form, blanks for a create form.
+- `toDto(draft, src)` is the write body, as an `Effect<Dto, E, R>`. What it needs (ids, the clock) are Services in `R`, and its failures are `E`. A Form Action that yields `draft.toDto()` takes both, so `sleekstack check` reports them like any Handler's.
+- `toModel(draft, src)` is optional: the Draft as a Model of type `P`. It must be total over a half-filled Draft.
+- `diff(base, next)` is optional: a minimal PATCH body between two Drafts.
+
+`schema`, `create`, `toModel` and `diff` are pure; only `toDto` reads ambients, because it runs once per submit. `Src` carries both the seed and anything else the spec needs, and is `void` when there is neither.
+
+### Strings in, convert in `toDto`
+
+A Draft field holds what its input holds, so a number input's field is a `string`. Validate the string in the schema and convert it in `toDto` ([ADR 0038, Decision](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0038-model-and-draft.md#decision)). A coercing schema such as `NumberFromString` is a type error: its Encoded is not its Type, and the field would no longer hold what the input shows ([ADR 0038, Rejected](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0038-model-and-draft.md#rejected)). Bound what the schema accepts: `/^\d+$/` passes a 400-digit string that `Number` turns into `Infinity`.
+
+## `useDraft` in depth
+
+`useDraft(spec, src)` returns the Draft: atoms in the component's Store, the same Draft and the same `field(name)` atoms on every run ([ADR 0038, Decision](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0038-model-and-draft.md#decision)).
+
+<include>../../snippets/models/edit-profile.tsx</include>
+
+### The atoms
+
+- `value` is the whole Draft, writable. `field(name)` is one field, writable, and returns the same atom for a name on every call. An atom placed in JSX, such as `value={draft.field('name')}`, binds the input without re-running the component.
+- `errors` holds the schema's messages by field path: `'name'`, `'items.0.name'`, and `''` for the whole Draft. `valid` is true when there are none.
+- `dirty` is true when the Draft differs from its seed by the schema's `Schema.equivalence`, not by reference. Editing a field back to the seed makes the Draft pristine again.
+- `preview` is `toModel` of the Draft, and `changes` is `diff(seed, draft)`. `preview` is in the type only when the spec has `toModel`, and `changes` only when it has `diff`; for a union of specs, only when every member has the method ([ADR 0038, Consequences](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0038-model-and-draft.md#consequences)).
+- `errors`, `valid`, `dirty`, `preview` and `changes` are derived atoms, computed only when something reads them.
+- `reset()` re-seeds from the current source; `dirty` is false after.
+- `toDto()` decodes the Draft with the schema, then runs `spec.toDto` on the decoded Draft.
+
+### The source
+
+`src` is a value or an atom, and the Draft starts as `spec.create(src)` ([ADR 0038, Decision](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0038-model-and-draft.md#decision)).
+
+- While the Draft is pristine, a new source re-seeds it: a refetch shows the new record. After an edit the edits are kept and `dirty` stays true, so a refetch never discards what the user typed. After a save, call `reset()` to seed from the saved record.
+- A value `src` and the spec are compared by structure (plain objects and arrays, with functions by identity) or by `Equal`, so a literal or `{ ...Spec }` rebuilt on every run is not a change.
+- Another spec on a later run re-seeds the Draft, including another instance of the same spec class.
 - A spec with no source still takes the argument: `useDraft(Spec, undefined)`.
-- Passing another spec on a later run re-seeds the Draft, including another instance of the same spec class.
 
-## Limits
+### Limits
 
-- `field(name)` takes a plain record Draft's keys or an array Draft's indexes, and returns the same atom for a name on every call. A field write copies the Draft, so a getter of the record is copied as its current value. A primitive Draft, such as a string, has no fields: write `value`. Neither has a class instance (a `Date`, a `Map`, a `Schema.Class`): a copy would lose its private fields and internal slots, so write the whole instance through `value`. `field` throws a `TypeError` on one, and its type takes no key when the class has methods or private members.
-- `preview` is in the type only when the spec has `toModel`, and `changes` only when it has `diff`. For a union of specs, a member is in the type only when every spec has the method.
-- `useDraft` takes a slot like `useLocal`: call it at the top of the component (`ConditionalSlot`). The Draft and its atoms are released with the instance. Outside a component it returns a new Draft without a slot, whose atoms live while something reads them.
+These follow from ADR 0038's [Consequences](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0038-model-and-draft.md#consequences):
 
-The contract is ported from ramcinpay-front, which took the idea of a record and its editable copy from EmberData.
+- `field(name)` takes a plain record Draft's property names or an array Draft's indexes. A field write copies the Draft, so a getter of the record is copied as its current value.
+- A primitive Draft, such as a string, has no fields: write `value`.
+- A class instance (a `Date`, a `Map`, a `Schema.Class`) has no fields either. A copy would lose its private fields and internal slots, so write the whole instance through `value`. `field` throws a `TypeError` on one, and its type takes no name when the class has methods or private members.
+- A class instance that is not `Equal`, as a source or a spec, is compared by identity. A new instance passed on every run re-seeds a pristine Draft on every run: pass an atom or a stable value.
+
+<include>../../snippets/models/limits.tsx</include>
+
+`useDraft` takes a slot like `useLocal`: call it at the top of the component, or `sleekstack check` reports `ConditionalSlot` (see [the slot rule](/docs/ui#the-slot-rule)). The Draft and its atoms are released with the instance. Outside a component it returns a new Draft without a slot, whose atoms live while something reads them.
+
+## Who calls `toDto`
+
+A Form Action does ([ADR 0038, Decision](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0038-model-and-draft.md#decision)). In `EditProfile` above:
+
+- The action yields `draft.toDto()`. A `ParseError` from the schema, or a failure of `spec.toDto`, stays in the `Result` of `useAction`; it is not sent to `onError`. See [Action state](/docs/forms#action-state).
+- `useFormStatus(result)` gives `pending` while the save runs.
+- The component never builds the write body itself: the spec does.
+
+`toModel` is also the `apply` of `useOptimistic`: while the save runs, the saved Model shows the Draft applied, and when the save ends it shows the source again.
+
+<include>../../snippets/models/optimistic.tsx</include>
+
+## Tests
+
+Test a spec with no UI: `fromDto` with a literal `ctx`, `toDto` with its Services provided, and the schema on the seed. The seed test catches the blank-field class of bug that a round trip on good data never reaches: an edit Draft's seed must pass its own schema, and a create Draft's must fail until its required fields are filled.
+
+<include>../../snippets/models/profile.test-example.ts</include>
+
+Test the hook through a component with `@sleekstack/testing` (see [component tests](/docs/testing#component-tests)). Pass your own Store to `render` to change the source the way a refetch would.
+
+<include>../../snippets/models/edit-profile.test-example.ts</include>
+
+## Checklist for a new Model and Draft
+
+1. Type the read DTO, the write body and the Model. Put the Model and its Draft Specs in one file that imports no UI.
+2. Write `fromDto`. Anything it needs that the DTO does not carry goes in a narrow `Ctx` of resolved data.
+3. Type the Draft as its inputs hold it (strings for number and date inputs) and write a schema whose Type and Encoded are that Draft, with bounded checks.
+4. Write `create`, then `toDto` as an Effect: ambients are Services in `R`, failures are `E`, conversion from strings happens here.
+5. Add `toModel` for a preview or an optimistic update, and `diff` for a PATCH endpoint, only when a component uses them.
+6. Bind `ctx` where the data arrives: a derived atom or `useDerivedAtom`.
+7. Call `useDraft(spec, src)` at the top of the component, bind inputs to `field(name)`, and yield `draft.toDto()` in the Form Action.
+8. Write the spec tests and one component test.
+
+## Common mistakes
+
+- **A `toDto(model)`, or one Schema transform between Model and DTO.** The read Model and the write body are different shapes ([ADR 0038, Rejected](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0038-model-and-draft.md#rejected)).
+- **A Service or a client in `ctx`.** `ctx` is data. Fetch with Services where the data arrives, then pass what came back.
+- **A clock or locale read in `fromDto`, `create` or `toModel`.** They are pure; move the read into `toDto` as a Service, or into the component.
+- **A plain `toDto` function.** It hides its ambients from `R` and from the Analyzer; it is an Effect ([ADR 0038, Rejected](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0038-model-and-draft.md#rejected)).
+- **`NumberFromString` in the Draft schema, or an unbounded digit check.** The first is a type error; the second turns a long string into `Infinity`.
+- **Re-seeding by hand when the source changes.** `useDraft` re-seeds a pristine Draft and keeps edits; a hand-written reset on every new source discards what the user typed.
+- **A new class instance as `src` on every run.** It re-seeds a pristine Draft on every run. Pass an atom or a stable value.
+- **`useDraft` inside a condition.** It takes a slot: `ConditionalSlot`.
+
+## Not covered
+
+ADR 0038 leaves these to user code ([Rejected](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0038-model-and-draft.md#rejected)):
+
+- Filters: a URL-to-query round trip has no save boundary and no validation, so it wants its own contract.
+- Relationships between Models.
+- A record cache shared by every component, as EmberData keeps one, and exported `fromDto`/`toDto` helpers, HTTP or query-cache code, coercion helpers and `<input bind>` sugar.

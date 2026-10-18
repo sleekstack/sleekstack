@@ -119,7 +119,7 @@ _Avoid_: Persisted atom, hydratable atom
 The `Record<key, encoded value>` of the settled Serializable Atoms built in an AtomStore (`dehydrate`), sent from the server and used to seed a client AtomStore before the first read (`hydrate`). Result atoms enter it only on `Success`. It is JSON-safe only when each schema encodes to JSON values (a `bigint` encoding breaks the transport). Distinct from the query layer's Dehydrated State.
 _Avoid_: Payload, atom state
 
-### UI framework concepts (`@sleekstack/ui`, MVP)
+### UI framework concepts (`@sleekstack/ui`)
 
 **Component** *(ui)*:
 A function `(props: P) => Effect<Node, E, R>`: `R` is the Tags it needs, `E` its tagged errors, `Node` a small renderable tree (text, element, fragment, guest, reactive). Each call is an instance with a run-time id (per-function id plus ordinal, or key), so its local state and subscriptions survive re-runs. Unrelated to the `component` Lifetime.

@@ -1,0 +1,82 @@
+---
+title: UI components
+description: Write @sleekstack/ui components as Effects, keep local state, run effects after the commit, and mount, hydrate, stream or resume a tree.
+---
+
+`@sleekstack/ui` is a component framework where the Effect program is the Host: components run as Effects with typed services and errors, and plain React components run inside the tree as Guests ([ADR 0015](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0015-host-first-component-framework.md)). Put `/** @jsxImportSource @sleekstack/ui */` at the top of a file and every JSX expression in it is an `Effect<Node>`.
+
+Feature pages: [typed host elements](/docs/typed-dom), [`lazy`](/docs/lazy), [transitions](/docs/transitions), [`Portal` and `Boundary` reset](/docs/portal-boundary), [forms](/docs/forms), [Model and Draft](/docs/models), [routing](/docs/routing), [testing](/docs/testing#component-tests) and the [devtools panel](/docs/ui-devtools).
+
+## Components
+
+A Component is `Component<P, E, R>`: `(props: P) => Effect<Node, E, R>`. `R` is the Tags it needs and `E` its tagged errors. Write one as a generator function: it `yield*`s Effects (services, atoms, hooks) and returns its element, and its `E` and `R` come from what it yields ([ADR 0024](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0024-generator-components.md)). A function of props that returns JSX is a component too, and so is one that returns an Effect.
+
+<include>../../snippets/ui/components.tsx</include>
+
+- `<Provider layer>` (or `Provide(layer, children)`) provides a Layer to its subtree and removes its Tags from the subtree's `R`.
+- `<Boundary tag fallback>` (or `Catch(tag, fallback, children)`) renders `fallback` for one tagged error and removes only that tag from `E`. See [Boundary reset](/docs/portal-boundary#boundary-reset).
+- `fromReact(Cmp)` wraps a React component as a Guest: a `Component<P, never, never>` leaf that React renders with its own `react-dom`. It gets no Effect context, and a Component under it is an `EffectInsideReact` error. Keep React components that use JSX in files without the pragma.
+
+tsc cannot type a JSX expression's `E` and `R`, so `sleekstack check` reads them from the tree: each `mount` call is a root, and a missing Tag (`MissingDependency`) or an uncaught error (`UnhandledError`) is reported with file:line. See [component errors](/docs/errors#component-errors).
+
+## Local state and hooks
+
+<include>../../snippets/ui/hooks.tsx</include>
+
+- `useLocal(initial)` returns `[value, set]`: local state in an ordered slot of the instance, kept across re-runs and released when the instance is removed.
+- `useRef<T>()` returns a `{ current }` box, the same object on every run. Passed as a host element's `ref`, `current` is the element once it is attached and `null` after it is removed ([ADR 0028](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0028-commit-effects-and-refs.md)).
+- `useEffect(fn, deps?)` runs `fn` after the commit, as in React: on the first run, then when `deps` change (every run without `deps`, once with `[]`). Its returned cleanup runs before the next `fn` and when the instance is removed. `fn` may be an Effect or return one; that Effect runs in its own `Scope` and is interrupted as the cleanup ([ADR 0027](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0027-use-effect.md)). A generator `fn` follows the atoms it reads instead of `deps`: when one changes its scope closes, so its finalizers are the cleanup, and it runs again ([ADR 0029](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0029-generator-effects.md)). Effects never run in `renderToString` or `renderToStream`.
+- `useDerivedAtom(source)` is a derived atom owned by the instance: the same atom on every run, recomputed when an atom it reads with `get` changes. An Effect source runs in the component's context, so it can use the component's services, and the atom holds a `Result` ([ADR 0030](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0030-derived-atom-hook.md)).
+- `useDeferredAtom(source)` is an atom that follows `source` one commit later. See [transitions](/docs/transitions).
+- `useAtomValue(atom)`, `useAtom(atom)` and `useSetAtom(atom)` read and write atoms in the mount's `Store`. A component that reads an atom re-runs when it changes, and the Reconciler patches its DOM in place: child instances keep their local state, and focus and input values survive. An atom placed directly in JSX, as a child or an attribute value, binds that text or attribute without re-running the component ([ADR 0021](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0021-atoms-bind-in-jsx.md)).
+
+### The slot rule
+
+`useLocal`, `useRef`, `useEffect`, `useDerivedAtom`, `useDeferredAtom`, `useAction`, `useOptimistic` and `useDraft` each take a slot of the instance, in call order. Call them only as top-level `yield*` statements of the component's body, before any `return`: never inside a condition, a loop, a nested function or a helper generator. `sleekstack check` reports a call elsewhere as `ConditionalSlot`, and a re-run that uses a different number of slots fails at run time with `SlotMismatch`. Atom reads (`useAtomValue`, `useAtom`, `useSetAtom`) take no slot.
+
+## Event closures
+
+An `onXxx` prop on a host element is an event closure, run in the DOM with the context captured at its element ([ADR 0026](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0026-plain-event-handlers.md)). Its value can be:
+
+<include>../../snippets/ui/handlers.tsx</include>
+
+- a function that returns nothing, run as a no-op Effect with no errors or requirements;
+- a function that returns an Effect;
+- a generator function, run as `Effect.gen`;
+- an Effect value, run again on every event (it ignores the event);
+- a `defineHandler` value, for a page that resumes (below).
+
+Any other return value is a `TypeError` reported to `onError`. A closure's `E` must be `never`: handle its errors inside it, since `sleekstack check` reports any error left in its type as `UnhandledError`, even under a matching `Boundary`. Event payloads are typed per element; see [typed host elements](/docs/typed-dom).
+
+## Keys
+
+The `key` prop is an element's or component's identity among its siblings. A keyed component keeps its instance and local state when the list is reordered, and a keyed instance whose props and context are unchanged is not re-run ([ADR 0020](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0020-keyed-instances-skip-unchanged-runs.md)).
+
+<include>../../snippets/ui/keys.tsx</include>
+
+`sleekstack check` reports a function passed to `.map`, `.flatMap` or `Array.from` that returns an element without a `key` prop as `MissingKey`. Two siblings with one key prop raise `DuplicateKey` at run time. Without keys, identity is positional, so conditional siblings of one component shift each other's state.
+
+## Mounting
+
+<include>../../snippets/ui/mount.tsx</include>
+
+- `mount(app, { layer, container, onError?, store?, observe? })` builds the DOM in `container` and resolves to `Mounted`, whose `dispose()` empties it. `layer` must satisfy every Tag the tree still needs, and the mount provides the `Store` (a new one it disposes, or the `store` you pass). A later `mount` on the same container wins.
+- `renderToString(app, { layer })` renders once on the server and appends a `data-sleek-hydrate` script with the atom state. It waits for all `Pending` content.
+- `renderToStream(app, { layer, nonce?, idPrefix? })` returns a `ReadableStream`: the page goes out first with each waiting `Pending` showing its fallback, then each boundary's content follows as a chunk swapped in place ([ADR 0023](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0023-streaming-ssr-protocol.md)). Pass `nonce` for a strict CSP, and give each stream on one page its own `idPrefix`.
+- `hydrateMount(app, { layer, container })` runs each component once against the server HTML (string or stream) and adopts its DOM instead of rebuilding it, seeding atoms from the `data-sleek-hydrate` script ([atoms SSR](/docs/atoms#sleekstackui-host-trees-hydratemount)).
+
+### Resume
+
+`resume` makes server HTML interactive without running any component and without React ([ADR 0017](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0017-resumable-host-first-components.md)). The page uses only Handlers and bound atoms: a Handler is a `defineHandler('id', run)` at module top level, and the server emits only its id. `resume` loads a Handler's module on its first event and runs Handlers through one queue with `layer`. Atoms bound for resume must be serializable value atoms (`Atom.serializable`); their values travel in the Manifest.
+
+<include>../../snippets/ui/count.ts</include>
+
+<include>../../snippets/ui/increment.ts</include>
+
+The server module renders the page; the client entry imports only the atom, so the handler's code stays out of it until the first click.
+
+<include>../../snippets/ui/resume.tsx</include>
+
+<include>../../snippets/ui/resume.client.ts</include>
+
+`sleekstack check` reports a handler it cannot prove is a top-level `defineHandler` with a literal id as `NonResumableHandler`. A streamed page hydrates; it does not resume.
