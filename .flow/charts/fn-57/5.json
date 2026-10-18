@@ -1,5 +1,6 @@
 {
-  "answer": null,
+  "answer": "Search is required at launch, as a static index built at build time and searched in the browser. The build writes a small index file from the MDX guides and the generated API pages; a small client dialog searches it. No server is needed, so it works for a static host and for the start server alike. The user chose this over no search, a start server endpoint, and full parity with today's Orama dialog (chosen by the user in the D5 interview).\n",
+  "answer_gist": "Search is required at launch, as a static index built at build time and searched in the browser. The build writes a s...",
   "assets": [],
   "attendance": "attended",
   "blocked_by": [],
@@ -13,7 +14,7 @@
   "n": 5,
   "question": "Does the rebuilt site need search on day one; if so static index at build time or a client library, and what quality bar versus today's fumadocs search?",
   "record_path": ".flow/charts/fn-57/5.md",
-  "status": "open",
+  "status": "resolved",
   "superseded_by": null,
   "supersedes": [],
   "title": "Is search needed at launch, and what kind?",
@@ -24,7 +25,16 @@
     "linkState": "unlinked",
     "url": null
   },
-  "transition_notes": [],
+  "transition_notes": [
+    {
+      "actor": "ubtik@outlook.com",
+      "at": "2026-10-18T06:48:14.852018Z",
+      "keep_dependents": false,
+      "kind": "resolved",
+      "supersedes": [],
+      "text": "resolved by ubtik@outlook.com"
+    }
+  ],
   "type": "interview",
-  "updated_at": "2026-10-18T06:07:19.828891Z"
+  "updated_at": "2026-10-18T06:48:14.849751Z"
 }
