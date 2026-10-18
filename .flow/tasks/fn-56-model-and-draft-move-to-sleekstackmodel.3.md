@@ -29,9 +29,14 @@ The analyzer finds slot hooks by where they are defined (`ui/reactive#...`). `us
 - [ ] `pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack` and the fixture graph check are green and identical
 
 ## Done summary
-TBD
+The analyzer recognizes `useDraft` by its declaration in `@sleekstack/model` (`model/draft#useDraft`, through a small `modelCalleeOf` in components.ts; extract.ts is untouched, so it cannot conflict with fn-55.4). `checkSlot`, `ConditionalSlot` and missing-store behavior are unchanged. slotHooks.test.ts now scans every `packages/model/src/*.ts` as well as ui's reactive.ts; with the model check removed it fails (shown once: 7 analyzed vs 8 runtime). In the ui-slots fixture, `useDraft` and `DraftSpec` now come from `@sleekstack/model` (tsconfig paths for model and ui/internal). A same-named `useDraft` from `./other/draft`, called conditionally, is not reported, and the exact-list components test proves it. Fixture line numbers shifted by 2 because of the added imports; the `@error` markers move with their calls.
 
+baseline: red (pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack; slotHooks.test.ts + ui-slots failed pre-edit, inherited from .2 and fixed by this task)
+Verify: same command green (7/7 tasks); fixture graph check identical before/after; prettier clean; pnpm-lock.yaml untouched.
+
+Tier: implementer opus at medium
+stage: impl-review - failed(codex fan-out --base master: all 3 draws produced no output after ~31 min; killed this dispatch's codex exec processes per conductor rule; flowctl recorded nonzero_exit on all draws = refunded transport failure; no verdict)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 77eae9555b2c02208c54a0695a6e5e63adcb2861
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack, fixture graph check (kit-app, effect-app): output identical before and after, npx prettier --check (changed files)
 - PRs:
