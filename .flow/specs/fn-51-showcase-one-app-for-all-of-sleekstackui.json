@@ -319,7 +319,7 @@
     "impl:fn-51-showcase-one-app-for-all-of-sleekstackui.4": 0
   },
   "spec_path": ".flow/specs/fn-51-showcase-one-app-for-all-of-sleekstackui.md",
-  "status": "open",
+  "status": "done",
   "title": "Showcase: one app for all of @sleekstack/ui",
   "tracker": {
     "baseHashFlow": null,
@@ -332,5 +332,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-15T10:39:33.509184Z"
+  "updated_at": "2026-10-18T15:14:00.900017Z"
 }

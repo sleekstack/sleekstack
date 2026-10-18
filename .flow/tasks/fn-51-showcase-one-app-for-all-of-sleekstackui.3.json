@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-51-showcase-one-app-for-all-of-sleekstackui",
   "spec_path": ".flow/tasks/fn-51-showcase-one-app-for-all-of-sleekstackui.3.md",
-  "status": "todo",
+  "status": "done",
   "title": "Showcase demos: typed DOM, lazy, forms, transitions",
   "updated_at": "2026-10-15T09:00:49.645465Z"
 }
