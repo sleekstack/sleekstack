@@ -11,7 +11,7 @@
       "depends_on": [],
       "id": "fn-57.D1",
       "record_path": ".flow/charts/fn-57/1.md",
-      "status": "open",
+      "status": "resolved",
       "title": "Which fumadocs features does the site use?",
       "type": "research"
     },
@@ -23,7 +23,7 @@
       "depends_on": [],
       "id": "fn-57.D2",
       "record_path": ".flow/charts/fn-57/2.md",
-      "status": "open",
+      "status": "resolved",
       "title": "Can MDX compile to the ui JSX runtime?",
       "type": "probe"
     },
@@ -35,7 +35,7 @@
       "depends_on": [],
       "id": "fn-57.D3",
       "record_path": ".flow/charts/fn-57/3.md",
-      "status": "open",
+      "status": "resolved",
       "title": "Which docs tests and scripts carry over?",
       "type": "probe"
     },
@@ -47,7 +47,7 @@
       "depends_on": [],
       "id": "fn-57.D4",
       "record_path": ".flow/charts/fn-57/4.md",
-      "status": "open",
+      "status": "resolved",
       "title": "How is the generated API reference consumed?",
       "type": "research"
     },
@@ -143,5 +143,6 @@
       "revision": null
     },
     "url": null
-  }
+  },
+  "updated_at": "2026-10-18T06:14:15.830037Z"
 }

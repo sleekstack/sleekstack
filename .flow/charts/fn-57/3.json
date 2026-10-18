@@ -1,5 +1,6 @@
 {
-  "answer": null,
+  "answer": "Probe: `pnpm --filter docs test` passes today, 6 files and 37 tests (the pretest hook regenerated the gitignored api and benchmarks pages). No file in apps/docs/test or apps/docs/scripts imports next, fumadocs, react or any @sleekstack runtime package. Nothing is framework-bound at the code level. The real bindings are four assumptions: (1) the `<include>` MDX syntax, (2) the meta.json sidebar format, (3) heading ids from github-slugger over the heading text, and (4) routes shaped /docs/<slug>. A ui pipeline that keeps all four carries the tests over unchanged. The edits below follow from the packages being deleted, not from the framework.\n\nContent-level, carry over unchanged:\n- test/stale.test.ts: scans `git ls-files '*.md'` for stale phrases. It does not read the docs app at all. Keep as is, or move to the repo root.\n- test/links.test.ts and scripts/check-links.mjs: parse the MDX in content/docs with regexes and github-slugger and map each file to /docs/<slug>. Unchanged if ui keeps /docs/<slug> routes and slugs headings with github-slugger. If the ui MDX pipeline slugs differently, change only `headings()` in check-links.mjs.\n- test/benchmarks.test.ts and scripts/generate-benchmarks.mjs: published.json to content/docs/benchmarks.mdx. Unchanged. This is a sixth test not named in the question. The output has a `{/* */}` MDX comment, so the ui MDX compile (D2) must accept it.\n\nContent-level, small edit needed because packages are removed:\n- scripts/entry-points.mjs: PACKAGES = core, runtime, query, next, react, kit. Drop next, react and kit and add ui and start. The edit is the list only.\n- scripts/generate-api.mjs: TypeDoc to markdown with frontmatter. Fumadocs is only named in comments. It writes content/docs/api/*.md and index.mdx, so the ui pipeline must compile `.md` and read the frontmatter title. How the API pages are consumed is D4. Carries over with the PACKAGES change.\n- test/api-coverage.test.ts: TS compiler over each entry point, plus `### name` headings in the generated pages. Unchanged, but it follows PACKAGES. The `next reference documents runEffect` test must be deleted when the next package goes.\n\nNeeds adapting (smallest of the lot):\n- test/guides.test.ts: bound to fumadocs-mdx. It parses `<include>path#hash</include>` and resolves it relative to the file, and it reads meta.json pages. Both stay only if ui MDX supports `<include>` (the D2 outcome). The `scope` list names kit-specific guides (getting-started-kit, kit-vs-effect, nextjs, react, queries-ssr, tanstack-query, showcases) and must be rewritten for the new page set. The checks themselves (no inline fences, includes exist, every snippet is included) stay.\n- test/examples.test.ts: the `guide snippets compile` test reads apps/docs/tsconfig.json. That file has the next plugin, jsx \"preserve\" and an include of .next/types. The test already strips `plugins`. For ui it needs a jsx and jsxImportSource setting that points at @sleekstack/ui, and the next-specific includes dropped. The snippets themselves (apps/docs/snippets) are the real work, not the test. Of 59 snippet imports, 26 are from the packages being deleted (kit 18, react 5, next 3, islands 1 is further out) and need rewriting on ui and core. The `kit @example blocks` tests read packages/kit/src and die with kit. Replace them with the same scan over packages/ui/src (and start), or drop them.\n\npackage.json scripts that are bound: dev (next dev), build (next build), typecheck (fumadocs-mdx && tsc). Those are replaced by start and ui commands. predev, prebuild and pretest (generate:api and generate:benchmarks), test and check:links stay. Dependencies fumadocs-core, fumadocs-ui, fumadocs-mdx, next, tailwind and postcss, and the removed workspace packages go. typedoc, typedoc-plugin-markdown, github-slugger, typescript and vitest stay.\n\nNote: after the probe, git status shows pnpm-lock.yaml modified, adding an apps/sleek-codes importer. That is not from this decision's files. I left it alone.\n",
+  "answer_gist": "Probe: `pnpm --filter docs test` passes today, 6 files and 37 tests (the pretest hook regenerated the gitignored api...",
   "assets": [],
   "attendance": "unattended",
   "blocked_by": [],
@@ -13,7 +14,7 @@
   "n": 3,
   "question": "Classify the five docs tests (api-coverage, examples, guides, links, stale) and the four scripts (generate-api, check-links, generate-benchmarks, entry-points) as content-level (keep as is) or Next/fumadocs-bound (rewrite), with the reason for each.",
   "record_path": ".flow/charts/fn-57/3.md",
-  "status": "open",
+  "status": "resolved",
   "superseded_by": null,
   "supersedes": [],
   "title": "Which docs tests and scripts carry over?",
@@ -24,7 +25,16 @@
     "linkState": "unlinked",
     "url": null
   },
-  "transition_notes": [],
+  "transition_notes": [
+    {
+      "actor": "ubtik@outlook.com",
+      "at": "2026-10-18T06:11:07.180280Z",
+      "keep_dependents": false,
+      "kind": "resolved",
+      "supersedes": [],
+      "text": "resolved by ubtik@outlook.com"
+    }
+  ],
   "type": "probe",
-  "updated_at": "2026-10-18T06:07:19.828871Z"
+  "updated_at": "2026-10-18T06:11:07.179507Z"
 }
