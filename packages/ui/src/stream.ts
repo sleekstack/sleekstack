@@ -4,7 +4,19 @@ import { nodeOrThrow, reportRenderError, type RunOptions } from './component'
 import type { Node, ReactiveNode } from './node'
 import { disposeSlots, Frame, makeFrame, RenderScope, Store } from './reactive'
 import { Transfer, type StateTransfer } from './transfer'
-import { type Around, checkId, type Collector, escape, payload, scriptJson, serialize, serializeAll } from './string'
+import {
+  type Around,
+  checkId,
+  type Collector,
+  escape,
+  type HeadMark,
+  headHtml,
+  headWinners,
+  payload,
+  scriptJson,
+  serialize,
+  serializeAll,
+} from './string'
 
 // Swap runtime, emitted once in the shell: replaces `<!--sleek-p:ID-->fallback<!--/sleek-p-->` with the chunk's template.
 const SWAP =
@@ -13,7 +25,29 @@ const SWAP =
   "while(x){var y=x.nextSibling;if(x.nodeType===8){if(x.data.indexOf('sleek-p:')===0)d++;else if(x.data==='/sleek-p'){if(!d){p.removeChild(x);break}d--}}p.removeChild(x);x=y}" +
   'p.replaceChild(t.content,n);t.remove()};' +
   // Stream end with boundaries that never got a chunk: kept for a client that hydrates later (`hydrateMount` reports them).
-  'self.__sleekEnd=function(m){(self.__sleekGone=self.__sleekGone||[]).push.apply(self.__sleekGone,m)}'
+  'self.__sleekEnd=function(m){(self.__sleekGone=self.__sleekGone||[]).push.apply(self.__sleekGone,m)};' +
+  // Late head patch: `[selector, [tag, attrs, text] | 0]` per key; 0 removes the key's tag.
+  'self.__sleekHead=function(l){var h=document.head;l.forEach(function(e){var s=e[0],t=e[1],el=[].find.call(h.children,function(x){' +
+  "return x.localName===s[0]&&(s.length<2||x.getAttribute(s[1])===s[2]&&(s[1]!=='property'||!x.hasAttribute('name')))});" +
+  'if(!t)return void(el&&el.remove());el=el||h.appendChild(document.createElement(t[0]));' +
+  '[].slice.call(el.attributes).forEach(function(a){if(!Object.prototype.hasOwnProperty.call(t[1],a.name))el.removeAttribute(a.name)});' +
+  "for(var k in t[1])el.setAttribute(k,t[1][k]);if(t[0]==='title')el.textContent=t[2]})}"
+
+// Late head policy (ADR 0044): after the shell flushed, only `title` and keyed `meta` change; `link` and unkeyed tags are
+// shell-only. Each patchable key maps to its winner's `[tag, attrs, text]` as script JSON.
+const patchable = (marks: ReadonlyArray<HeadMark>): Map<string, string> => {
+  const out = new Map<string, string>()
+  for (const [k, t] of headWinners(marks))
+    if (typeof k === 'string' && t.tag !== 'link') out.set(k, scriptJson([t.tag, t.attrs, t.text]))
+  return out
+}
+// The keys whose winner changed, as a `__sleekHead` argument; '' when none did.
+const headPatch = (before: Map<string, string>, after: Map<string, string>): string => {
+  const changed = [...new Set([...before.keys(), ...after.keys()])].filter((k) => before.get(k) !== after.get(k))
+  if (changed.length === 0) return ''
+  const entry = (k: string) => `[${scriptJson(k === 'title' ? ['title'] : JSON.parse(k))},${after.get(k) ?? 0}]`
+  return `__sleekHead([${changed.map(entry).join(',')}])`
+}
 
 export interface StreamOptions<A, LE> extends RunOptions {
   readonly layer: Layer.Layer<A, LE, never>
@@ -21,6 +55,12 @@ export interface StreamOptions<A, LE> extends RunOptions {
   readonly nonce?: string
   /** Prefix of placeholder ids; distinct per stream when several share a page. Default `sleek-`. */
   readonly idPrefix?: string
+  /**
+   * Receives the shell's `Head` markup once, before the first chunk (the same markup `renderToString` gives for the same
+   * tags). Set, a boundary that resolves later patches `document.head` per ADR 0044: `title` and keyed `meta` follow
+   * the boundary (its fallback's tags go, its content's arrive); `link` and unkeyed tags stay as the shell had them.
+   */
+  readonly onHead?: (html: string) => void
 }
 
 // Resolves once one of the instance's atoms differs from what its run read.
@@ -65,7 +105,16 @@ export const renderToStream = <E, A, LE = never>(
 
   let next = 0
   const waiting: Array<Promise<void>> = []
-  const c: Collector = { store, onError: opts.onError, handlers: new Map(), events: new Set(), atoms: new Map() }
+  const c: Collector = {
+    store,
+    onError: opts.onError,
+    handlers: new Map(),
+    events: new Set(),
+    atoms: new Map(),
+    head: [],
+  }
+  // Head marks a boundary's fallback emitted; they leave the head when its content arrives.
+  const fallbackHead = new Map<string, ReadonlyArray<HeadMark>>()
   let emit: (html: string) => void = () => {}
   let transfer: StateTransfer | undefined
   // Atom state sent so far: key -> encoded JSON (the `Transfer` tracks its own). One Collector spans the stream.
@@ -113,19 +162,31 @@ export const renderToStream = <E, A, LE = never>(
       // Content renders in the placeholder's text context, so swapped text keeps the separators renderToString writes.
       const outer = parent
       parent = path
+      const before = patchable(c.head!)
+      const kept = c.head!.length
       let html: string
       try {
         html = serializeAll([r._tag === 'Reactive' ? r.child : r], c, around)
+      } catch (error) {
+        // The fallback stays on screen, so its head marks stay; the failed content's go.
+        c.head!.length = kept
+        throw error
       } finally {
         parent = outer
       }
+      const gone = new Set(fallbackHead.get(id))
+      c.head = c.head!.filter((m) => !gone.has(m))
       unsent.delete(id)
+      const patch = opts.onHead ? headPatch(before, patchable(c.head)) : ''
       emit(
-        `${state()}<template data-sleek-b="${id}">${html}</template><script${nonce}>__sleekSwap(${scriptJson(id)})</script>`,
+        `${state()}<template data-sleek-b="${id}">${html}</template><script${nonce}>__sleekSwap(${scriptJson(id)})${patch && `;${patch}`}</script>`,
       )
     }
     waiting.push(settle(node))
-    return `<!--sleek-p:${id}-->${serialize(node.child, c)}<!--/sleek-p-->`
+    const from = c.head!.length
+    const fallback = serialize(node.child, c)
+    fallbackHead.set(id, c.head!.slice(from))
+    return `<!--sleek-p:${id}-->${fallback}<!--/sleek-p-->`
   }
 
   return new ReadableStream<Uint8Array>({
@@ -145,6 +206,7 @@ export const renderToStream = <E, A, LE = never>(
       try {
         html = serialize(nodeOrThrow(exit, opts.onError), c)
         html += state()
+        opts.onHead?.(headHtml(c.head!))
       } catch (error) {
         await dispose()
         throw error

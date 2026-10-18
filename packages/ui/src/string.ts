@@ -140,23 +140,27 @@ const collectHead = (n: Node, c: Collector): void => {
   c.head?.push(mark)
 }
 
-/** Head markup with the DOM's dedupe: per key the deepest tag, the last on a tie, at the key's first place; unkeyed tags all stay. */
-export const headHtml = (marks: ReadonlyArray<HeadMark>): string => {
-  const win = new Map<unknown, { readonly depth: number; readonly tag: HeadTag }>()
+/** The DOM's dedupe: per key the deepest tag, the last on a tie, at the key's first place; an unkeyed tag is its own key. */
+export const headWinners = (marks: ReadonlyArray<HeadMark>): Map<string | HeadTag, HeadTag> => {
+  const win = new Map<string | HeadTag, { readonly depth: number; readonly tag: HeadTag }>()
   for (const { depth, tags } of marks)
     for (const tag of tags) {
       const key = tag.key ?? tag
       if (depth >= (win.get(key)?.depth ?? -1)) win.set(key, { depth, tag })
     }
-  return [...win.values()]
-    .map(({ tag: t }) => {
+  return new Map([...win].map(([k, { tag }]) => [k, tag]))
+}
+
+/** Head markup of the winning tags. */
+export const headHtml = (marks: ReadonlyArray<HeadMark>): string =>
+  [...headWinners(marks).values()]
+    .map((t) => {
       const attrs = Object.entries(t.attrs)
         .map(([k, v]) => ` ${k}="${escape(v)}"`)
         .join('')
       return `<${t.tag}${attrs}>${t.tag === 'title' ? `${escape(t.text)}</title>` : ''}`
     })
     .join('')
-}
 
 const flatten = (nodes: ReadonlyArray<Node>, c: Collector): Array<Node> =>
   nodes.flatMap((n) =>

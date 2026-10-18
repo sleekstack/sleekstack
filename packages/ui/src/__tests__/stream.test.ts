@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { type Cause, Data, Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
-import { Boundary, el, fragment, Pending, renderToStream, renderToString } from '../index'
+import { Boundary, el, fragment, Head, Pending, renderToStream, renderToString } from '../index'
 import { jsx as rawJsx } from '../jsx-runtime'
 import { normalize } from './helpers/normalize'
 
@@ -270,5 +270,66 @@ describe('renderToStream late boundaries (R3)', () => {
     expect(errors.map((c) => (c as any).error)).toEqual([new BoundaryChunkMissing({ id: 'sleek-0' })])
     expect(container.querySelector('i')!.textContent).toBe('wait')
     await act(async () => void (await h.dispose()))
+  })
+})
+
+describe('renderToStream Head (R1, R3)', () => {
+  const tags = (title: string, description: string) => [
+    jsx('title', { children: title }),
+    jsx('meta', { name: 'description', content: description }),
+  ]
+
+  it('passes the shell head to onHead once; it equals the renderToString head for the same tree', async () => {
+    const Inner = () => jsx(Head, { children: tags('inner', 'in') })
+    const app = jsx('div', {
+      children: [
+        jsx('p', { children: jsx(Inner, {}) }),
+        jsx(Head, { children: [...tags('outer', 'out'), jsx('link', { rel: 'icon', href: '/i.png' })] }),
+      ],
+    })
+    const streamed: Array<string> = []
+    await read(renderToStream(app, { layer, onHead: (h) => streamed.push(h) }))
+    let expected: string | undefined
+    await renderToString(app, { layer, onHead: (h) => (expected = h) })
+    expect(streamed).toEqual([expected])
+  })
+
+  it('after flush, title and keyed meta follow the boundary; link and unkeyed tags stay as the shell had them', async () => {
+    const g = gate()
+    const Content = () =>
+      Effect.flatMap(
+        Effect.promise(() => g.promise),
+        () =>
+          jsx(Head, {
+            children: [
+              ...tags('done', 'late'),
+              jsx('link', { rel: 'canonical', href: '/late' }),
+              jsx('meta', { charset: 'utf-8' }),
+            ],
+          }),
+      )
+    const Fallback = () =>
+      jsx(Head, { children: [jsx('title', { children: 'loading' }), jsx('meta', { name: 'robots', content: 'none' })] })
+    const app = jsx('div', {
+      children: [
+        jsx(Head, { children: [...tags('shell', 'early'), jsx('link', { rel: 'canonical', href: '/shell' })] }),
+        jsx(Pending, { fallback: jsx(Fallback, {}), children: jsx(Content, {}) }),
+      ],
+    })
+    let shellHead = ''
+    const reader = renderToStream(app, { layer, nonce: 'n', onHead: (h) => (shellHead = h) }).getReader()
+    const first = decoder.decode((await reader.read()).value)
+    expect(shellHead).toBe(
+      '<title>loading</title><meta name="description" content="early"><link rel="canonical" href="/shell"><meta name="robots" content="none">',
+    )
+    g.open()
+    const rest = await drain(reader)
+    expect(rest).not.toContain('/late')
+    expect(rest).not.toContain('charset')
+    document.head.innerHTML = shellHead
+    apply(first + rest)
+    expect(document.head.innerHTML).toBe(
+      '<title>done</title><meta name="description" content="late"><link rel="canonical" href="/shell">',
+    )
   })
 })

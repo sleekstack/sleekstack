@@ -142,7 +142,8 @@ export const documentHead = (doc: Document): HeadTarget => {
  * `<Head>…</Head>`: `title`, `meta` and `link` tags for the document head. Tags dedupe by key (`title`, `meta[name]`,
  * `meta[property]`, `link[rel]+href`): the deepest `Head` wins, the last mounted on a tie; a `Head`'s tags are removed when
  * it unmounts, uncovering the entries below. A tag that fails the element name and attribute checks is skipped and reported to
- * `onError`; in `renderToString` it rejects the render, like an invalid element.
+ * `onError`; in `renderToString` and a stream's shell it rejects the render, like an invalid element. In a stream, a `Head`
+ * inside `Pending` takes effect when its boundary resolves (ADR 0044).
  */
 export const Head = (props: { children?: Child }): Effect.Effect<Node, never, never> =>
   Effect.flatMap(Effect.all([Fragment(props), Effect.context<never>()]), ([content, ctx]) => {
