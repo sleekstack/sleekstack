@@ -4,8 +4,11 @@ export const themeChoices: ReadonlyArray<ThemeChoice> = ['light', 'dark', 'syste
 
 const storageKey = 'theme'
 
-/** Runs in `<head>` before the first paint: an explicit choice becomes `data-theme`; otherwise the CSS media query follows the system. */
-export const themeScript = `try{var t=localStorage.getItem('${storageKey}');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}`
+/**
+ * Runs first in the body, before the first paint: an explicit choice becomes `data-theme`; otherwise the CSS media query
+ * follows the system. It is rendered as element text, which the renderer HTML-escapes, so it holds no `'`, `"`, `<`, `>` or `&`.
+ */
+export const themeScript = `try{var t=localStorage.getItem(\`${storageKey}\`);if(t===\`light\`||t===\`dark\`)document.documentElement.dataset.theme=t}catch(e){}`
 
 export const readChoice = (): ThemeChoice => {
   try {

@@ -11,11 +11,17 @@ export const DocsLayout = function* ({
   title,
   tree,
   current,
+  home = '/docs',
+  indexUrl = '/search-index.json',
   children,
 }: {
   title: string
   tree: ReadonlyArray<NavNode>
   current: string
+  /** The site title's link: the root page's URL. */
+  home?: string
+  /** Where the search index is served. */
+  indexUrl?: string
   children?: Child
 }) {
   const [open, setOpen] = yield* useLocal(false)
@@ -31,10 +37,10 @@ export const DocsLayout = function* ({
         >
           Menu
         </button>
-        <a class="site-title" href="/docs">
+        <a class="site-title" href={home}>
           {title}
         </a>
-        <SearchDialog indexUrl="/search-index.json" />
+        <SearchDialog indexUrl={indexUrl} />
         <ThemeSwitcher />
       </header>
       {open && <button type="button" class="backdrop" aria-label="Close menu" onClick={() => setOpen(false)} />}

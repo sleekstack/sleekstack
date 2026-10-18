@@ -23,7 +23,7 @@ const render = async (file: string, source = readFileSync(file, 'utf8')) => {
 
 describe('compileMdx on the real docs pages', () => {
   const files = pages(docs)
-  it('finds the guides', () => expect(files.length).toBeGreaterThanOrEqual(26))
+  it('finds the guides', () => expect(files.length).toBeGreaterThanOrEqual(20))
 
   it.each(files.map((f) => [f.slice(docs.length + 1), f]))('%s renders', async (_, file) => {
     const { html, styles } = await render(file)

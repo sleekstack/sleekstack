@@ -19,7 +19,9 @@ export type NavNode =
       readonly children: ReadonlyArray<NavNode>
     }
 
-export const pageUrl = (slug: ReadonlyArray<string>, base = '/docs'): string => [base, ...slug].join('/')
+/** A page's URL; an `index` slug is its folder's own URL (`['api', 'index']` is `/docs/api`, `['index']` is `/docs`). */
+export const pageUrl = (slug: ReadonlyArray<string>, base = '/docs'): string =>
+  [base, ...(slug[slug.length - 1] === 'index' ? slug.slice(0, -1) : slug)].join('/')
 
 const byDefaultOrder = (a: PageEntry, b: PageEntry): number => {
   const index = (p: PageEntry) => (p.slug[p.slug.length - 1] === 'index' ? 0 : 1)

@@ -37,10 +37,10 @@ describe('sidebar and pager', () => {
   it('follows the order file, with the api folder last and its index first', () => {
     expect(tree.map((n) => n.title)).toEqual(['Welcome', 'Concepts', 'UI', 'API reference'])
     expect(flatPages(tree).map((p) => p.url)).toEqual([
-      '/docs/index',
+      '/docs',
       '/docs/concepts',
       '/docs/ui',
-      '/docs/api/index',
+      '/docs/api',
       '/docs/api/core',
       '/docs/api/ui',
     ])
@@ -49,9 +49,9 @@ describe('sidebar and pager', () => {
   it('previous and next follow that order', () => {
     expect(neighbours(tree, '/docs/ui')).toEqual({
       prev: { title: 'Concepts', url: '/docs/concepts' },
-      next: { title: 'API reference', url: '/docs/api/index' },
+      next: { title: 'API reference', url: '/docs/api' },
     })
-    expect(neighbours(tree, '/docs/index').prev).toBeUndefined()
+    expect(neighbours(tree, '/docs').prev).toBeUndefined()
   })
 
   it('highlights the current page, opens its folder, and collapses a folder', async () => {
@@ -64,7 +64,7 @@ describe('sidebar and pager', () => {
   })
 
   it('is a drawer: the menu opens it and a link closes it', async () => {
-    const { container } = await mountAt('/docs/index')
+    const { container } = await mountAt('/docs')
     const ui = within(container)
     const nav = () => container.querySelector('nav')!
     expect(nav().classList.contains('open')).toBe(false)
@@ -79,7 +79,7 @@ describe('sidebar and pager', () => {
 
 describe('theme', () => {
   it('defaults to the system setting', async () => {
-    const { container } = await mountAt('/docs/index')
+    const { container } = await mountAt('/docs')
     await flush()
     expect(within(container).getByRole('button', { name: 'system' }).getAttribute('aria-pressed')).toBe('true')
     expect(document.documentElement.dataset.theme).toBeUndefined()
@@ -87,12 +87,12 @@ describe('theme', () => {
   })
 
   it('remembers an explicit choice across a remount', async () => {
-    const first = await mountAt('/docs/index')
+    const first = await mountAt('/docs')
     await userEvent.click(within(first.container).getByRole('button', { name: 'dark' }))
     await flush()
     expect(document.documentElement.dataset.theme).toBe('dark')
     await first.dispose()
-    const second = await mountAt('/docs/index')
+    const second = await mountAt('/docs')
     await flush()
     expect(within(second.container).getByRole('button', { name: 'dark' }).getAttribute('aria-pressed')).toBe('true')
   })
@@ -101,6 +101,10 @@ describe('theme', () => {
     localStorage.setItem('theme', 'dark')
     new Function(themeScript)()
     expect(document.documentElement.dataset.theme).toBe('dark')
+  })
+
+  it('the script survives HTML escaping as element text', () => {
+    expect(themeScript).not.toMatch(/['"<>&]/)
   })
 })
 

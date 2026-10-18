@@ -66,7 +66,7 @@ describe('route table', () => {
 
   it('reads the real docs order file', () => {
     const names = Object.keys(routeTable(scanPages(docs)))
-    expect(names.slice(0, 4)).toEqual(['index', 'getting-started-kit', 'getting-started-effect', 'concepts'])
+    expect(names.slice(0, 4)).toEqual(['index', 'getting-started-effect', 'concepts', 'atoms'])
   })
 })
 
