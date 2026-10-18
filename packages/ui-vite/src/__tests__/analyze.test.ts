@@ -130,17 +130,17 @@ describe('analyze() in build', () => {
       build: { write: false, watch: {}, rollupOptions: { input: path.join(dir, 'main.ts') } },
     })) as Rolldown.RolldownWatcher
     const outcomes: string[] = []
-    const settled = (n: number) => vi.waitFor(() => expect(outcomes).toHaveLength(n), { timeout: 5000 })
     watcher.on('event', (e) => {
       if (e.code === 'BUNDLE_END' || e.code === 'ERROR') outcomes.push(e.code)
       if (e.code === 'BUNDLE_END') void e.result.close()
     })
     try {
-      await settled(1)
+      // Counts vary: macOS may report the fixture's creation late, as an extra clean rebuild.
+      await vi.waitFor(() => expect(outcomes).toContain('BUNDLE_END'))
       errors = [missing]
       fs.writeFileSync(path.join(dir, 'main.ts'), 'export const answer = 43\n')
-      await settled(2)
-      expect(outcomes).toEqual(['BUNDLE_END', 'ERROR'])
+      await vi.waitFor(() => expect(outcomes).toContain('ERROR'))
+      expect(outcomes[0]).toBe('BUNDLE_END')
     } finally {
       await watcher.close()
       fs.rmSync(dir, { recursive: true, force: true })
