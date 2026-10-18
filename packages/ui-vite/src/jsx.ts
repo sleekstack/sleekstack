@@ -11,7 +11,11 @@ const PRAGMA = '/** @jsxImportSource @sleekstack/ui */'
 
 // oxc reads `@jsxImportSource` only from the comments before the first statement; anywhere else it is plain text.
 const LEADING_COMMENTS = /^(?:\s|\/\/[^\n]*|\/\*[\s\S]*?\*\/)*/
-const hasPragma = (code: string): boolean => /@jsxImportSource\s/.test(LEADING_COMMENTS.exec(code)![0])
+const leading = (code: string): string => LEADING_COMMENTS.exec(code)![0]
+const hasPragma = (code: string): boolean => /@jsxImportSource\s/.test(leading(code))
+
+/** Whether the file compiles as ui JSX: its leading pragma names `@sleekstack/ui` (added by {@link jsx} or written). */
+export const isUiJsx = (code: string): boolean => /@jsxImportSource\s+@sleekstack\/ui(?![\w/-])/.test(leading(code))
 
 /**
  * Marks include-matched JSX files as ui JSX by adding the pragma, so Vite's oxc transform compiles them against

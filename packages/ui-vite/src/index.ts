@@ -1,5 +1,6 @@
 import type { Plugin } from 'vite'
 import { analyze } from './analyze.js'
+import { ids } from './ids.js'
 import { jsx, type JsxOptions } from './jsx.js'
 
 export type { JsxOptions } from './jsx.js'
@@ -8,7 +9,7 @@ export type { JsxOptions } from './jsx.js'
 export type SleekstackOptions = JsxOptions
 
 /**
- * The SleekStack Vite plugin: ui JSX and `@sleekstack/analyze` diagnostics (dev overlay, failing build). Add it beside
+ * The SleekStack Vite plugin: ui JSX, stable component ids and `@sleekstack/analyze` diagnostics (dev overlay, failing build). Add it beside
  * `@vitejs/plugin-react` when the app has React guests.
  */
-export const sleekstack = (options: SleekstackOptions = {}): Array<Plugin> => [jsx(options), analyze()]
+export const sleekstack = (options: SleekstackOptions = {}): Array<Plugin> => [jsx(options), ids(), analyze()]
