@@ -1,5 +1,6 @@
 {
-  "answer": null,
+  "answer": "No analytics: nothing is tracked on the site today and none will be added, so there is no script, no cookies, no consent banner and nothing to keep out of development builds. Recorded as out of scope for the rebuild; revisit when a question exists that the data would answer. The user chose this over a hosted privacy-friendly counter and over self-hosted analytics (chosen by the user in the D11 interview).\n",
+  "answer_gist": "No analytics: nothing is tracked on the site today and none will be added, so there is no script, no cookies, no cons...",
   "assets": [],
   "attendance": "attended",
   "blocked_by": [],
@@ -13,7 +14,7 @@
   "n": 11,
   "question": "Is any page-view or usage tracking wanted, which provider or self-hosted option, what privacy and consent rules apply, and how it is kept out of local and test builds.",
   "record_path": ".flow/charts/fn-57/11.md",
-  "status": "open",
+  "status": "resolved",
   "superseded_by": null,
   "supersedes": [],
   "title": "Analytics: what to measure and how",
@@ -24,7 +25,16 @@
     "linkState": "unlinked",
     "url": null
   },
-  "transition_notes": [],
+  "transition_notes": [
+    {
+      "actor": "ubtik@outlook.com",
+      "at": "2026-10-18T14:26:04.551482Z",
+      "keep_dependents": false,
+      "kind": "resolved",
+      "supersedes": [],
+      "text": "resolved by ubtik@outlook.com"
+    }
+  ],
   "type": "interview",
-  "updated_at": "2026-10-18T07:21:26.651189Z"
+  "updated_at": "2026-10-18T14:26:04.548592Z"
 }

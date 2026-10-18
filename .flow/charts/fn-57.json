@@ -131,7 +131,7 @@
       "depends_on": [],
       "id": "fn-57.D11",
       "record_path": ".flow/charts/fn-57/11.md",
-      "status": "open",
+      "status": "resolved",
       "title": "Analytics: what to measure and how",
       "type": "interview"
     },
@@ -172,5 +172,5 @@
     },
     "url": null
   },
-  "updated_at": "2026-10-18T07:38:04.754794Z"
+  "updated_at": "2026-10-18T14:26:04.548592Z"
 }
