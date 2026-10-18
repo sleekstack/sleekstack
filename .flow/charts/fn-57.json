@@ -211,7 +211,40 @@
   "id": "fn-57",
   "outcome": "apps/docs becomes a SleekStack ui app served by @sleekstack/start with no dependency on kit, react, next, islands or fumadocs, keeping every page, snippet test and navigation (and search if wanted), so the four packages can be deleted.",
   "parked_questions": [],
-  "produced_specs": [],
+  "produced_specs": [
+    {
+      "briefing": "B1",
+      "cluster": "1",
+      "decisions": [
+        "fn-57.D2",
+        "fn-57.D5",
+        "fn-57.D6",
+        "fn-57.D7",
+        "fn-57.D12"
+      ],
+      "linked_at": "2026-10-18T14:29:08.933067Z",
+      "linked_by": "ubtik@outlook.com",
+      "spec": "fn-59-docs-build-platform-on-ui-and-start",
+      "status": "linked"
+    },
+    {
+      "briefing": "B1",
+      "cluster": "2",
+      "decisions": [
+        "fn-57.D1",
+        "fn-57.D3",
+        "fn-57.D4",
+        "fn-57.D8",
+        "fn-57.D9",
+        "fn-57.D10",
+        "fn-57.D11"
+      ],
+      "linked_at": "2026-10-18T14:29:09.241195Z",
+      "linked_by": "ubtik@outlook.com",
+      "spec": "fn-60-docs-site-on-ui-and-start",
+      "status": "linked"
+    }
+  ],
   "status": "done",
   "title": "Rebuild the docs site on ui and start",
   "tracker": {
@@ -226,5 +259,5 @@
     },
     "url": null
   },
-  "updated_at": "2026-10-18T14:26:39.034523Z"
+  "updated_at": "2026-10-18T14:29:09.241195Z"
 }
