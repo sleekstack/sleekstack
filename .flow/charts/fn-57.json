@@ -98,31 +98,59 @@
       "status": "resolved",
       "title": "Visual design: reproduce or new?",
       "type": "interview"
+    },
+    {
+      "attendance": "attended",
+      "blocked_by": [],
+      "claimed_at": null,
+      "claimed_by": null,
+      "depends_on": [],
+      "id": "fn-57.D9",
+      "record_path": ".flow/charts/fn-57/9.md",
+      "status": "open",
+      "title": "Versioned documentation: scheme and scope",
+      "type": "interview"
+    },
+    {
+      "attendance": "attended",
+      "blocked_by": [],
+      "claimed_at": null,
+      "claimed_by": null,
+      "depends_on": [],
+      "id": "fn-57.D10",
+      "record_path": ".flow/charts/fn-57/10.md",
+      "status": "open",
+      "title": "Internationalization: languages and workflow",
+      "type": "interview"
+    },
+    {
+      "attendance": "attended",
+      "blocked_by": [],
+      "claimed_at": null,
+      "claimed_by": null,
+      "depends_on": [],
+      "id": "fn-57.D11",
+      "record_path": ".flow/charts/fn-57/11.md",
+      "status": "open",
+      "title": "Analytics: what to measure and how",
+      "type": "interview"
+    },
+    {
+      "attendance": "unattended",
+      "blocked_by": [],
+      "claimed_at": null,
+      "claimed_by": null,
+      "depends_on": [],
+      "id": "fn-57.D12",
+      "record_path": ".flow/charts/fn-57/12.md",
+      "status": "open",
+      "title": "Open Graph images: generation approach",
+      "type": "research"
     }
   ],
   "id": "fn-57",
   "outcome": "apps/docs becomes a SleekStack ui app served by @sleekstack/start with no dependency on kit, react, next, islands or fumadocs, keeping every page, snippet test and navigation (and search if wanted), so the four packages can be deleted.",
   "parked_questions": [
-    {
-      "body": "Versioned documentation",
-      "created": "2026-10-18T06:07:19.828616Z",
-      "key": "9e26dd29fd0ab0cd"
-    },
-    {
-      "body": "Internationalization",
-      "created": "2026-10-18T06:07:19.828638Z",
-      "key": "b3c0b2d2da0d7b9f"
-    },
-    {
-      "body": "Analytics",
-      "created": "2026-10-18T06:07:19.828643Z",
-      "key": "94c116ee118a7299"
-    },
-    {
-      "body": "Open Graph images",
-      "created": "2026-10-18T06:07:19.828649Z",
-      "key": "03bc2f3669f0f270"
-    },
     {
       "body": "Edit-on-GitHub links",
       "created": "2026-10-18T06:07:19.828654Z",
