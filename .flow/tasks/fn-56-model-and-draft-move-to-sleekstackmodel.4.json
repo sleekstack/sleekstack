@@ -11,7 +11,7 @@
   "priority": null,
   "spec": "fn-56-model-and-draft-move-to-sleekstackmodel",
   "spec_path": ".flow/tasks/fn-56-model-and-draft-move-to-sleekstackmodel.4.md",
-  "status": "todo",
+  "status": "done",
   "title": "showcase, docs, size budget and records for @sleekstack/model",
   "updated_at": "2026-10-17T12:15:23.611090Z"
 }

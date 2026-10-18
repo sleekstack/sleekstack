@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-56-model-and-draft-move-to-sleekstackmodel",
   "spec_path": ".flow/tasks/fn-56-model-and-draft-move-to-sleekstackmodel.3.md",
-  "status": "todo",
+  "status": "done",
   "title": "analyzer: recognize slot hooks from @sleekstack/model, extend the sync test",
   "updated_at": "2026-10-17T12:15:23.611069Z"
 }
