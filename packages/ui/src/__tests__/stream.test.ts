@@ -331,6 +331,19 @@ describe('renderToStream late boundaries (R3)', () => {
     expect(document.head.innerHTML).toBe('<title>elsewhere</title>')
     await act(async () => void (await h.dispose()))
   })
+
+  it('a late head patch after the hydrated mount is disposed changes nothing (R4)', async () => {
+    const { act, h, land } = await midStream()
+    const { mount } = await import('../index')
+    await act(async () => void (await h.dispose()))
+    const other = document.body.appendChild(document.createElement('div'))
+    const next = await act(async () =>
+      mount(jsx(Head, { children: jsx('title', { children: 'next' }) }), { layer, container: other }),
+    )
+    await land()
+    expect(document.head.innerHTML).toBe('<title>next</title>')
+    await act(async () => void (await next.dispose()))
+  })
 })
 
 describe('renderToStream Head (R1, R3)', () => {

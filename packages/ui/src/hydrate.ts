@@ -403,8 +403,8 @@ type Swap = {
  * Takes over the stream's swap for `ids`: a landing chunk swaps as usual, its state is seeded and the content runs
  * hydrating, then adopts the swapped DOM in place of the fallback. Landings run one at a time and wait for the walk, so
  * a nested chunk adopts after its parent. A chunk for an adopted boundary is ignored; one the stream ended without is
- * reported as `BoundaryChunkMissing`. The client's `Head`s own the head meanwhile, so a chunk's late head patch is
- * dropped: for a landing boundary they write the same tags, for one the client removed it would be stale. Returns `stop(dead)`: the walk is done (flush), or the hydration is gone.
+ * reported as `BoundaryChunkMissing`. The client's `Head`s own the head from then on, so a chunk's late head patch is
+ * dropped: for a landing boundary they write the same tags; for one the client removed, or after dispose, it is stale. Returns `stop(dead)`: the walk is done (flush), or the hydration is gone.
  */
 const landing = (
   container: Element,
@@ -418,7 +418,6 @@ const landing = (
   const g = globalThis as Swap
   const swap = g.__sleekSwap
   const end = g.__sleekEnd
-  const head = g.__sleekHead
   let dead = false
   let busy = 1
   const queue: Array<string> = []
@@ -460,7 +459,7 @@ const landing = (
   }
   g.__sleekSwap = (id) => (dead || !ids.has(id) ? swap?.(id) : (queue.push(id), flush()))
   g.__sleekEnd = (m) => (end?.(m), dead || m.forEach(gone))
-  g.__sleekHead = (patch) => void (dead && head?.(patch))
+  g.__sleekHead = () => {}
   return (stop: boolean) => {
     if (stop) return void (dead = true)
     g.__sleekGone?.forEach(gone)
