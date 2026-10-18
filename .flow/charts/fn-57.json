@@ -95,7 +95,7 @@
       "depends_on": [],
       "id": "fn-57.D8",
       "record_path": ".flow/charts/fn-57/8.md",
-      "status": "open",
+      "status": "resolved",
       "title": "Visual design: reproduce or new?",
       "type": "interview"
     }
@@ -144,5 +144,5 @@
     },
     "url": null
   },
-  "updated_at": "2026-10-18T06:51:18.145874Z"
+  "updated_at": "2026-10-18T07:02:44.010340Z"
 }

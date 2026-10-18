@@ -1,5 +1,6 @@
 {
-  "answer": null,
+  "answer": "Reproduce the current layout and behavior with a small hand-made stylesheet: sidebar from meta.json with collapse and a mobile drawer, light and dark theme with a switcher, previous and next footer, prose styling for tables, inline code, code blocks and blockquotes, and the search dialog from decision D5. No Tailwind and no fumadocs CSS. No new design: a design pass is left for later. The user chose this over a new design and over keeping Tailwind with a fumadocs-like theme (chosen by the user in the D8 interview).\n",
+  "answer_gist": "Reproduce the current layout and behavior with a small hand-made stylesheet: sidebar from meta.json with collapse and...",
   "assets": [],
   "attendance": "attended",
   "blocked_by": [],
@@ -13,7 +14,7 @@
   "n": 8,
   "question": "Reproduce the current fumadocs look (layout, sidebar, typography) or take this chance to design a new one; how much design effort is in scope.",
   "record_path": ".flow/charts/fn-57/8.md",
-  "status": "open",
+  "status": "resolved",
   "superseded_by": null,
   "supersedes": [],
   "title": "Visual design: reproduce or new?",
@@ -24,7 +25,16 @@
     "linkState": "unlinked",
     "url": null
   },
-  "transition_notes": [],
+  "transition_notes": [
+    {
+      "actor": "ubtik@outlook.com",
+      "at": "2026-10-18T07:02:44.012197Z",
+      "keep_dependents": false,
+      "kind": "resolved",
+      "supersedes": [],
+      "text": "resolved by ubtik@outlook.com"
+    }
+  ],
   "type": "interview",
-  "updated_at": "2026-10-18T06:07:19.828917Z"
+  "updated_at": "2026-10-18T07:02:44.010340Z"
 }
