@@ -762,6 +762,9 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
     devDependencies:
+      '@sleekstack/router':
+        specifier: workspace:*
+        version: link:../router
       '@types/node':
         specifier: ^22.20.1
         version: 22.20.1
