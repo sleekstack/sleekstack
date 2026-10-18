@@ -59,10 +59,14 @@ export const analyze = (run: Analyzer = sleekstackAnalyzer): Plugin => {
   }
   return {
     name: 'sleekstack:analyze',
-    // One run for every environment of a build.
+    // One run for every environment of a build; a new build (or a watch rebuild) analyzes afresh.
     sharedDuringBuild: true,
     configResolved(config) {
       project = path.join(config.root, 'tsconfig.json')
+      built = undefined
+    },
+    watchChange() {
+      built = undefined
     },
     async buildStart() {
       if (this.environment.mode !== 'build') return
@@ -97,9 +101,13 @@ const watch = (server: ViteDevServer, attempt: () => Promise<readonly AnalyzeErr
         : result.length
           ? overlayError(result)
           : undefined
-    if (next) server.ws.send({ type: 'error', err: next })
-    // An empty update closes the overlay (or reloads a page that opened on it).
-    else if (shown) server.ws.send({ type: 'update', updates: [] })
+    // Vite buffers an error sent with no browser connected and replays it to the next one, even once fixed; the
+    // connection handler below replays the current one instead.
+    if (server.ws.clients.size) {
+      if (next) server.ws.send({ type: 'error', err: next })
+      // An empty update closes the overlay (or reloads a page that opened on it).
+      else if (shown) server.ws.send({ type: 'update', updates: [] })
+    }
     shown = next
   }
   const schedule = (file: string) => {

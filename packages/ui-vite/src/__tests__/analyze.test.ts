@@ -1,5 +1,8 @@
+import * as fs from 'node:fs'
+import * as os from 'node:os'
+import * as path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { build, createLogger, createServer, type ViteDevServer } from 'vite'
+import { build, createLogger, createServer, type Plugin, type Rolldown, type ViteDevServer } from 'vite'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AnalyzeError } from '@sleekstack/analyze'
 import { analyze, type Analyzer } from '../analyze.js'
@@ -21,31 +24,43 @@ const crash: Analyzer = () => {
 let server: ViteDevServer | undefined
 afterEach(() => server?.close())
 
-/** A dev server on the fake analyzer, with its overlay messages and logged errors. */
-const serve = async (run: Analyzer) => {
+/**
+ * A dev server on the fake analyzer, with its overlay messages, logged errors and a `connect()` that opens a browser.
+ * The `record` plugin runs before the analyzer's first (initial) run.
+ */
+const serve = async (run: Analyzer, { connected = true } = {}) => {
   const logged: string[] = []
   const sent = vi.fn()
-  const logger = { ...createLogger('silent'), error: (msg: string) => void logged.push(msg) }
+  const clients = new Set<unknown>(connected ? [{}] : [])
+  let onConnection = () => {}
+  const record: Plugin = {
+    name: 'record',
+    configureServer(s) {
+      Object.defineProperty(s.ws, 'clients', { get: () => clients })
+      vi.spyOn(s.ws, 'send').mockImplementation(sent)
+      vi.spyOn(s.ws, 'on').mockImplementation(((event: string, cb: () => void) => {
+        if (event === 'connection') onConnection = cb
+        return s.ws
+      }) as never)
+    },
+  }
   server = await createServer({
     root,
     configFile: false,
-    customLogger: logger,
-    // Records overlay messages from before the analyzer plugin's first (initial) run.
-    plugins: [
-      { name: 'record', configureServer: (s) => void vi.spyOn(s.ws, 'send').mockImplementation(sent) },
-      analyze(run),
-    ],
+    customLogger: { ...createLogger('silent'), error: (msg: string) => void logged.push(msg) },
+    plugins: [record, analyze(run)],
     server: { middlewareMode: true, hmr: false, watch: null },
   })
-  return { server, sent, logged }
+  const connect = () => (clients.add({}), onConnection())
+  return { server, sent, logged, connect }
 }
 
-const bundle = (run: Analyzer, warn = vi.fn()) =>
+const bundle = (plugin: Plugin, warn = vi.fn()) =>
   build({
     root,
     configFile: false,
     logLevel: 'silent',
-    plugins: [analyze(run)],
+    plugins: [plugin],
     build: { write: false, rollupOptions: { input: `${root}/main.ts`, onwarn: warn } },
   })
 
@@ -77,16 +92,64 @@ describe('analyze() in dev', () => {
     )
     expect(logged.join('\n')).toContain('checker exploded')
   })
+
+  it('gives a browser that connects after the fix no stale error', async () => {
+    let errors: readonly AnalyzeError[] = [missing]
+    const run = vi.fn(() => errors)
+    const { server, sent, connect } = await serve(run, { connected: false })
+    await vi.waitFor(() => expect(run).toHaveBeenCalledTimes(1))
+    errors = []
+    server.watcher.emit('change', `${root}/src/app.ts`)
+    await vi.waitFor(() => expect(run).toHaveBeenCalledTimes(2))
+    await Promise.resolve()
+    connect()
+    expect(sent).not.toHaveBeenCalled()
+  })
 })
 
 describe('analyze() in build', () => {
   it('fails the build on an analyzer error, naming file:line', async () => {
-    await expect(bundle(() => [missing])).rejects.toThrow(`${root}/src/app.ts:7 MissingDependency`)
+    await expect(bundle(analyze(() => [missing]))).rejects.toThrow(`${root}/src/app.ts:7 MissingDependency`)
+  })
+
+  it('analyzes each build afresh, including watch rebuilds', async () => {
+    let errors: readonly AnalyzeError[] = []
+    const plugin = analyze(() => errors)
+    await expect(bundle(plugin)).resolves.toBeDefined()
+    errors = [missing]
+    await expect(bundle(plugin)).rejects.toThrow('MissingDependency')
+
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ui-vite-analyze-'))
+    fs.writeFileSync(path.join(dir, 'main.ts'), 'export const answer = 42\n')
+    errors = []
+    const watcher = (await build({
+      root: dir,
+      configFile: false,
+      logLevel: 'silent',
+      plugins: [plugin],
+      build: { write: false, watch: {}, rollupOptions: { input: path.join(dir, 'main.ts') } },
+    })) as Rolldown.RolldownWatcher
+    const outcomes: string[] = []
+    const settled = (n: number) => vi.waitFor(() => expect(outcomes).toHaveLength(n), { timeout: 5000 })
+    watcher.on('event', (e) => {
+      if (e.code === 'BUNDLE_END' || e.code === 'ERROR') outcomes.push(e.code)
+      if (e.code === 'BUNDLE_END') void e.result.close()
+    })
+    try {
+      await settled(1)
+      errors = [missing]
+      fs.writeFileSync(path.join(dir, 'main.ts'), 'export const answer = 43\n')
+      await settled(2)
+      expect(outcomes).toEqual(['BUNDLE_END', 'ERROR'])
+    } finally {
+      await watcher.close()
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
   })
 
   it('reports an analyzer crash as a warning and still builds', async () => {
     const warn = vi.fn()
-    await expect(bundle(crash, warn)).resolves.toBeDefined()
+    await expect(bundle(analyze(crash), warn)).resolves.toBeDefined()
     expect(warn).toHaveBeenCalledWith(
       expect.objectContaining({ message: expect.stringContaining('checker exploded') }),
       expect.anything(),
