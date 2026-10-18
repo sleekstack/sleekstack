@@ -33,9 +33,16 @@ Record the decision and document the feature. This supersedes ADR 0038's rejecti
 - [ ] AGENTS.md verify row for model still holds
 
 ## Done summary
-TBD
+Added ADR 0041 (records layer in `@sleekstack/model`): the Record Type / Transformation / Record Adapter / derived Draft split and the spec's resolved decisions, written from the shipped code. It supersedes the "relationships, and a record store as in EmberData" part of ADR 0038's Rejected section. The ADR index has a 0041 row, and the 0038 row notes the supersession. CONTEXT.md gains Record Type, Identity Map, Transformation (model), Record Adapter and Record Reference, each with `_Avoid_` entries (Entity, `Record`, `Ref`, record store). The Models guide gains a Records section covering fields and Transformations, the Identity Map, relationships, `find`/`useRecord`, `commit` with the derived Draft, the optional `./query` entry, client-only SSR, and a checklist. The model README export table lists every new export, including `./query`.
 
+Deviation: the guide test forbids inline code fences and requires every snippet to be included. The guide code therefore lives in three new snippet files outside Touches (apps/docs/snippets/models/records.ts, book-page.tsx, book-query.tsx), and the docs snippet test typechecks them. `model` is not added to `PACKAGES` in entry-points.mjs, which still covers only core/runtime/query/next/react/kit (not ui, router or start); coverage would require generated pages for every model export. Follow-up if wanted.
+
+Tests: `pnpm turbo run test typecheck --filter=docs` green (guide snippets compile, every snippet included). `node scripts/check-links.mjs` ok. The spec Quick command is green (receipt 1ef45f63).
+
+stage: impl-review - ran (codex gpt-6.1-sol fan-out, all three draws SHIP, no findings)
+Baseline: green via handoff (verified at 4d20a1a by task 7; only .flow/ changed since).
+Tier: explicit routing from project CLAUDE.md (implementer: opus at medium)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 1ef45f6368da2d2ebc933000d7c090133694d0f1
+- Tests: pnpm turbo run test typecheck --filter=docs, pnpm turbo run test typecheck --filter=@sleekstack/model... --filter=@sleekstack/analyze
 - PRs:
