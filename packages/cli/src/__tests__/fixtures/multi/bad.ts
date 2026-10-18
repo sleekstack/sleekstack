@@ -1,5 +1,6 @@
-import { layer, module, tag } from '@sleekstack/kit'
-import { configureRuntime } from '@sleekstack/kit/next'
-const A = tag<string>('A')
-const B = tag<string>('B')
-configureRuntime({ provide: [module({ name: 'Bad', provide: [layer(B, (a) => a, [A])] })] })
+import { Context, Effect, Layer } from 'effect'
+import { configureRuntime } from '@sleekstack/runtime'
+class A extends Context.Tag('A')<A, string>() {}
+class B extends Context.Tag('B')<B, string>() {}
+// A is never provided (the defect under test); `as never` keeps the fixture compiling.
+configureRuntime({ layer: Layer.effect(B, Effect.as(A, 'b')) } as never)

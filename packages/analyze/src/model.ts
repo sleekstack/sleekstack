@@ -1,7 +1,7 @@
 /**
  * packages/analyze/src/model.ts
  *
- * The static graph model. `Graph` mirrors kit/core `snapshot()` (one node per provided Tag,
+ * The static graph model. `Graph` mirrors core `snapshot()` (one node per provided Tag,
  * `Tag@Module` ids for shadowed providers) plus the module list and private Tags; built from
  * declarations read by `extract.ts`, never from executing app code.
  */
@@ -35,7 +35,7 @@ export interface AnalyzeError extends Location {
   readonly docs: string
 }
 
-/** A `layer()` / kit `effect()` / `declareLayer()` (Tags read from the Layer type) / bare Layer / plain-Layer leaf, as read from source. */
+/** A `declareLayer()` (Tags read from the Layer type) / bare Layer / plain-Layer leaf, as read from source. */
 export interface ProviderDecl {
   readonly provides: readonly string[]
   readonly requires: readonly string[]
@@ -44,7 +44,7 @@ export interface ProviderDecl {
   readonly loc: Location
 }
 
-/** A kit or core `module()` call, as read from source. */
+/** A core `module()` call, as read from source. */
 export interface ModuleDecl {
   readonly name: string
   readonly entries: ProviderDecl[]
@@ -79,13 +79,10 @@ export interface Shadowing {
   readonly shadowed: readonly string[]
 }
 
-/** A kit `defineEffect` / `defineQuery` / `effect` / `query` call: the Tags its body `yield*`s, plus `opts.scope`. */
-export interface ActionDecl {
-  readonly yields: { readonly tag: string; readonly loc: Location }[]
-  /** `opts.provide` as a synthetic module (its layers as entries, its modules as imports). */
-  readonly provide: ModuleDecl
-  readonly file: import('typescript').SourceFile
-  readonly loc: Location
+/** Core Effect / Stream atoms (`Atom.make`, also inside `Atom.family`) resolve from the store's scope; the Tags their `R` names are edges. */
+export interface Atoms {
+  readonly nodes: readonly (Location & { readonly id: string })[]
+  readonly edges: readonly Edge[]
 }
 
 /** The graph reachable from one root module. */
@@ -101,12 +98,6 @@ export interface Graph {
   })[]
   /** Ids of private Tag nodes. */
   readonly private: readonly string[]
-}
-
-/** Atoms live outside modules (resolved from the nearest LayerProvider); their deps arrays are edges. */
-export interface Atoms {
-  readonly nodes: readonly (Location & { readonly id: string })[]
-  readonly edges: readonly Edge[]
 }
 
 export interface Report {

@@ -13,7 +13,7 @@ Reported at build time by `sleekstack check` (with file:line). The runtime keeps
 
 | Code | Triggered when |
 | --- | --- |
-| `MissingDependency` | A service requires a Tag that no entry provides. A kit action whose dep is not provided rejects with it too. |
+| `MissingDependency` | A service requires a Tag that no entry provides. |
 | `DependencyCycle` | Services require each other in a cycle (`path` lists it). |
 | `AmbiguousProvider` | Two providers of one Tag sit at the same locality, so Shadowing cannot pick one. |
 | `ModuleCycle` | Modules import each other in a cycle (`path` lists it). |
@@ -30,9 +30,7 @@ Reported by `sleekstack check` (with file:line) when it cannot read a declaratio
 | --- | --- |
 | `Unresolvable` | A provider, module or Layer cannot be read statically (a computed or dynamically picked value). |
 | `Computed` | A provide list, import list or name is computed in a way the analyzer cannot evaluate (use literals, local consts or loops over literal lists). |
-| `UnnamedEffect` | An `effect()` inside a module has no literal `name`. |
 | `NonLiteralOptions` | `runEffect` options are not an object literal the analyzer can read. |
-| `UnownedAction` | Several runtimes exist and no `configureRuntime` file imports the action; pass `--entry` to pick one. |
 | `EmittedSibling` | Emitted JavaScript or declaration output (`.js`, `.jsx`, `.d.ts`) sits next to its `.ts` source; delete it. |
 
 ## Component errors

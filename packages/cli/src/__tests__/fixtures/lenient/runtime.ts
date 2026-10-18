@@ -1,9 +1,9 @@
-import { layer, module, tag } from '@sleekstack/kit'
-import { configureRuntime } from '@sleekstack/kit/next'
-import { runEffect } from '../../../../../runtime/src/index'
+import { Context, Layer } from 'effect'
+import { configureRuntime, runEffect } from '@sleekstack/runtime'
 
-const A = tag<string>('A')
-configureRuntime({ provide: [module({ name: 'App', provide: [layer(A, () => 'a')] })] })
+class A extends Context.Tag('A')<A, string>() {}
+
+configureRuntime({ layer: Layer.succeed(A, 'a') })
 
 const Untyped: any = {}
 export const run = () => runEffect(undefined as never, { request: Untyped })

@@ -59,18 +59,16 @@ Anything else is a `CaptiveDependency`. `request` and `component` never nest.
 ## Errors
 
 <!-- generated:errors:start -->
-- `MissingDependency`: Every Tag a service, action or component requires is provided by an entry in scope. Fix: Provide the Tag in this module or one it imports; Wrap the component in a Provide (or the mount layer) that supplies it.
+- `MissingDependency`: Every Tag a service or component requires is provided by an entry in scope. Fix: Provide the Tag in this module or one it imports; Wrap the component in a Provide (or the mount layer) that supplies it.
 - `DependencyCycle`: Services may not require each other in a cycle. Fix: Break the cycle: move the shared part into a third service both depend on.
 - `AmbiguousProvider`: At most one provider of a Tag sits at each locality, so Shadowing can pick one. Fix: Remove one of the providers; Move one provider into an imported module so the closer one shadows it.
 - `ModuleCycle`: Modules may not import each other in a cycle. Fix: Extract the shared entries into a module both import.
 - `DuplicateModule`: Each module name belongs to one module. Fix: Rename one of the modules; Import the existing module instead of declaring a second one.
 - `CaptiveDependency`: A service may only depend on services that live at least as long (app may not capture request or component). Fix: Shorten the dependent service lifetime; Lengthen the dependency lifetime.
 - `PrivateDependency`: Only Tags a module exports are visible outside it. Fix: Add the Tag to the module exports; Depend on an exported service instead.
-- `UnownedAction`: With several runtimes, each action is imported by exactly one configureRuntime file. Fix: Pass --entry to pick the runtime; Import the action from the file that calls configureRuntime.
 - `EmittedSibling`: Emitted .js/.d.ts output does not sit next to its .ts source. Fix: Delete the emitted file; Set outDir (or noEmit) in tsconfig.
 - `Unresolvable`: Every declaration in the graph is statically readable; the analyzer fails closed. Fix: Use a literal or a direct reference instead of a computed value; Annotate the value with its Layer type.
 - `Computed`: Provide lists, imports and names are statically evaluable (literals, local consts, loops over literal lists). Fix: Replace the computed expression with a literal list or a local const.
-- `UnnamedEffect`: effect() in a module has a literal name, so its graph identity is static. Fix: Pass a string literal `name` to effect().
 - `NonLiteralOptions`: runEffect options are statically readable. Fix: Pass the options as an object literal at the call.
 - `Unresolved`: Every component and Layer in a mount tree is statically readable (no any, no dynamically picked component). Fix: Type the component or Layer explicitly; Render the component directly instead of picking it at run time.
 - `UnhandledError`: Every tagged error a component can fail with is caught before mount. Fix: Wrap the component in a Catch for the error tag; Handle the error inside the component.

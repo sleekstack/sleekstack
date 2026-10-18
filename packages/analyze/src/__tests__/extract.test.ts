@@ -17,23 +17,36 @@ const shape = (g: {
 })
 
 describe('analyze', () => {
-  it('kit fixture: graph, privacy, atom and effect edges', () => {
-    const r = fixture('kit-app')
+  it('core fixture: clean graph, privacy and edges', () => {
+    const r = fixture('core-app')
     expect(r.errors).toEqual([])
     expect(r.graphs).toHaveLength(1)
     const g = r.graphs[0]!
     expect(g.private).toEqual(expect.arrayContaining(['Store']))
     expect(g.modules.find((m) => m.name === 'Infra')?.exports).toEqual(['Clock', 'Logger'])
-    expect(edgeKey(r.atoms.edges)).toEqual(['atom:count->Clock:Clock', 'atom:doubled->Clock:Clock'])
-    expect(edgeKey(g.edges)).toEqual(
-      expect.arrayContaining(['effect:boot->Logger:Logger', 'effect:boot->TaskRepo:TaskRepo']),
-    )
+    expect(shape(g).edges).toEqual(expect.arrayContaining(['Logger->Clock:Clock', 'Store->Logger:Logger']))
   })
 
-  it('core fixture: clean graph', () => {
-    const r = fixture('core-app')
-    expect(r.errors).toEqual([])
-    expect(shape(r.graphs[0]!).nodes.length).toBeGreaterThan(0)
+  it('core atoms: Effect / Stream atoms (family included) are nodes, their R Tags are edges; any fails closed', () => {
+    const r = fixture('core-atoms')
+    expect(r.atoms.nodes.map((n) => n.id).sort()).toEqual([
+      'atom:clock',
+      'atom:count',
+      'atom:doubled',
+      'atom:feed',
+      'atom:logger',
+      'atom:todo',
+    ])
+    expect(edgeKey(r.atoms.edges)).toEqual([
+      'atom:clock->Clock:Clock',
+      'atom:count->Clock:Clock',
+      'atom:doubled->Clock:Clock',
+      'atom:feed->Clock:Clock',
+      'atom:feed->Logger:Logger',
+      'atom:logger->Logger:Logger',
+      'atom:todo->Repo:Repo',
+    ])
+    expect(r.extraction.map(({ code, line }) => [code, line])).toEqual([['Unresolvable', 15]])
   })
 
   it('reports computed and unresolvable declarations with file:line', () => {
@@ -43,7 +56,6 @@ describe('analyze', () => {
       { code: 'Unresolvable', file: 'app.ts', line: 11 },
       { code: 'Computed', file: 'app.ts', line: 16 },
       { code: 'Computed', file: 'app.ts', line: 21 },
-      { code: 'UnnamedEffect', file: 'app.ts', line: 22 },
     ])
   })
 })
