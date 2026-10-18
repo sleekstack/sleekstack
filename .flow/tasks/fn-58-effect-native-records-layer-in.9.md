@@ -42,6 +42,7 @@ Notes:
 - shell.tsx is unchanged. Its page label stays "Model and Draft", because app.test.ts (outside Touches) pins that label.
 - A first gate re-run at HEAD exited 127 (a quoting slip in the shell). The gate receipt was written right after that run. The correct re-run at the same HEAD was green: 19/19 turbo tasks, served from turbo's cache of the identical pre-commit run, which ran 56 showcase tests fresh.
 
+stage: plan-sync - skipped(no drift)
 Baseline: green via handoff (verified at 1ef45f6 by task 8; only .flow/ changed since).
 stage: impl-review - ran (codex gpt-6.1-sol fan-out: correctness, contracts and integration all SHIP, 0 findings)
 Tier: explicit routing from project CLAUDE.md (implementer: opus at medium)
