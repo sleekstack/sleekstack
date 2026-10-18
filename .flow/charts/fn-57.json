@@ -1,6 +1,63 @@
 {
-  "briefings": [],
-  "claim_events": [],
+  "briefings": [
+    {
+      "chart_revision": "c7d322d4dc9e4fb8a1cb158614b9ad8e38880158b62436d1c621d38169f05ef1",
+      "clusters": [
+        {
+          "decisions": [
+            "fn-57.D2",
+            "fn-57.D5",
+            "fn-57.D6",
+            "fn-57.D7",
+            "fn-57.D12"
+          ],
+          "key": "1",
+          "latest_path": ".flow/charts/fn-57-briefing-1.md",
+          "path": ".flow/charts/fn-57-briefing-B1-1.md",
+          "rationale": "Docs build platform: the build and publish machinery the site needs, built as the real Vite plugin, head management and static generation pieces (MDX build step, per-page titles and Open Graph tags, route generation, static prerender, build-time search index, ui void-element fix)"
+        },
+        {
+          "decisions": [
+            "fn-57.D1",
+            "fn-57.D3",
+            "fn-57.D4",
+            "fn-57.D8",
+            "fn-57.D9",
+            "fn-57.D10",
+            "fn-57.D11"
+          ],
+          "key": "2",
+          "latest_path": ".flow/charts/fn-57-briefing-2.md",
+          "path": ".flow/charts/fn-57-briefing-B1-2.md",
+          "rationale": "Docs site on the platform: layout in plain CSS, the guides and generated API pages, tests and scripts carried over, English only and version-ready routes, no analytics, then removal of the four packages"
+        }
+      ],
+      "created": "2026-10-18T14:26:39.034523Z",
+      "created_by": "ubtik@outlook.com",
+      "fingerprint": "c365af08de7d390f727fbaa61ec162a743b0615d2a47ca1f2b09748c842ce699",
+      "force": false,
+      "id": "B1",
+      "paths": {
+        "cluster_1": ".flow/charts/fn-57-briefing-B1-1.md",
+        "cluster_2": ".flow/charts/fn-57-briefing-B1-2.md",
+        "index": ".flow/charts/fn-57-briefing-B1.md",
+        "latest_index": ".flow/charts/fn-57-briefing.md"
+      },
+      "shared_context": [
+        "fn-57.D6"
+      ],
+      "status": "final"
+    }
+  ],
+  "claim_events": [
+    {
+      "actor": "ubtik@outlook.com",
+      "briefing": "B1",
+      "chart": "fn-57",
+      "kind": "briefing_done",
+      "timestamp": "2026-10-18T14:26:39.034523Z"
+    }
+  ],
   "created": "2026-10-18T06:07:19.828811Z",
   "decisions": [
     {
@@ -148,11 +205,14 @@
       "type": "research"
     }
   ],
+  "done_at": "2026-10-18T14:26:39.034523Z",
+  "done_by": "ubtik@outlook.com",
+  "done_via_briefing": "B1",
   "id": "fn-57",
   "outcome": "apps/docs becomes a SleekStack ui app served by @sleekstack/start with no dependency on kit, react, next, islands or fumadocs, keeping every page, snippet test and navigation (and search if wanted), so the four packages can be deleted.",
   "parked_questions": [],
   "produced_specs": [],
-  "status": "open",
+  "status": "done",
   "title": "Rebuild the docs site on ui and start",
   "tracker": {
     "depRelations": [],
@@ -166,5 +226,5 @@
     },
     "url": null
   },
-  "updated_at": "2026-10-18T14:26:04.548592Z"
+  "updated_at": "2026-10-18T14:26:39.034523Z"
 }
