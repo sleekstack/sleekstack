@@ -36,6 +36,7 @@
     "@sleekstack/router": "workspace:*",
     "@sleekstack/testing": "workspace:*",
     "@sleekstack/ui": "workspace:*",
+    "@sleekstack/ui-vite": "workspace:*",
     "@tailwindcss/postcss": "^4.1.0",
     "@tanstack/react-query": "^5.104.1",
     "@testing-library/dom": "^10.4.1",

@@ -1,6 +1,7 @@
 /** @jsxImportSource @sleekstack/ui */
 import { useLocal, type Child } from '@sleekstack/ui'
 import { PageFooter } from './PageFooter'
+import { SearchDialog } from '../search/SearchDialog'
 import { Sidebar } from './Sidebar'
 import { ThemeSwitcher } from './ThemeSwitcher'
 import type { NavNode } from './nav'
@@ -33,6 +34,7 @@ export const DocsLayout = function* ({
         <a class="site-title" href="/docs">
           {title}
         </a>
+        <SearchDialog indexUrl="/search-index.json" />
         <ThemeSwitcher />
       </header>
       {open && <button type="button" class="backdrop" aria-label="Close menu" onClick={() => setOpen(false)} />}

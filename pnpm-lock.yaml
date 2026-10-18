@@ -141,6 +141,9 @@ importers:
       '@sleekstack/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@sleekstack/ui-vite':
+        specifier: workspace:*
+        version: link:../../packages/ui-vite
       '@tailwindcss/postcss':
         specifier: ^4.1.0
         version: 4.3.3
