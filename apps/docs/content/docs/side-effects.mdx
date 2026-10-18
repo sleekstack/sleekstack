@@ -1,12 +1,12 @@
 ---
 title: Side effects
-description: Run work when a scope opens and clean it up when it closes, with effect().
+description: Run work when a scope opens and clean it up when it closes, with a scoped Layer.
 ---
 
-`effect(fn, deps, { name, lifetime })` runs `fn` when its scope opens. If `fn` returns a function (or a promise of one), that function runs when the scope closes, like React's `useEffect`. List the effect in a module's `provide` like any Layer. It is an anonymous Layer (`effect:<name>` in the analyzer graph) that nothing else depends on.
+A side effect is a Layer that provides no service. `Layer.scopedDiscard` runs its Effect when the scope opens, and a finalizer added with `Effect.acquireRelease` runs when the scope closes. Wrap it with `declareLayer` and list it in a module's `entries` like any Layer.
 
-<include>../../snippets/kit/side-effects.ts</include>
+<include>../../snippets/effect/side-effects.ts</include>
 
-- An `app` effect runs once per app scope; a `request` effect runs per action/query call; a `component` effect runs per nested `LayerProvider`.
-- If `fn` throws or rejects, the scope fails to build with `LayerFailed`.
-- If the teardown throws, the failure goes to `onFinalizerError` as a `FinalizerError`; it is not thrown.
+- An `app` effect runs once per app scope; a `request` effect runs per request scope (one `runEffect` call or one `@sleekstack/start` request); a `component` effect runs per `Provider` subtree.
+- If the Effect fails or dies, the scope fails to build with that cause.
+- If a finalizer fails, the failure goes to the runtime's `onError` sink as a finalizer failure; it is not thrown.
