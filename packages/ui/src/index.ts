@@ -26,7 +26,7 @@ export {
 export { renderToString } from './string'
 export { renderToStream } from './stream'
 export type { StreamOptions } from './stream'
-export { Boundary, Pending, Portal, Provider } from './jsx-runtime'
+export { Boundary, Head, Pending, Portal, Provider } from './jsx-runtime'
 export type { Child, Reset } from './jsx-runtime'
 export type { BoundAction, ComponentResult } from './reactive'
 export type { FormAction } from './jsx-types'

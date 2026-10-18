@@ -109,6 +109,8 @@ export interface RunFrame {
   ordinals?: Map<Function, number>
   readonly owner: Slots
   readonly id: string
+  /** Instance nesting: the root frame is 0, each instance run one more than its parent's (`Head` uses it: deepest wins). */
+  readonly depth: number
   cursor: number
   /** Child ids that ran in this run. */
   seen?: Set<string>
@@ -133,7 +135,8 @@ export const makeFrame = (
     done: false,
   },
   id = '',
-): RunFrame => ({ owner, id, cursor: 0 })
+  depth = 0,
+): RunFrame => ({ owner, id, depth, cursor: 0 })
 
 /** A run called a different number of `useLocal`s than the instance's previous run. */
 export class SlotMismatch extends Data.TaggedError('SlotMismatch')<{
@@ -1167,7 +1170,7 @@ export const instance = <P>(
         pre = eff
       }
     } else slots = rootSlots ??= { atoms: [], releases: [], done: false }
-    const frame = makeFrame(slots, self)
+    const frame = makeFrame(slots, self, parentFrame ? parentFrame.depth + 1 : 0)
     const body = (own: Scope.CloseableScope | undefined): Effect.Effect<Node, any, any> => {
       const reads = new Reads(slots)
       slots.running = true
