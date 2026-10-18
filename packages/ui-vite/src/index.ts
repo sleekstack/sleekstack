@@ -1,6 +1,8 @@
 export { createStyleSheet } from './highlight.js'
 export { type BrokenLink, assertLinks, findBrokenLinks, headingIds } from './links.js'
 export { type CompileOptions, compileMdx } from './mdx.js'
+export type { OgFont, OgOptions } from './og.js'
+export { type OgMetaInput, ogMeta } from './og-meta.js'
 export { type DocsOptions, sleekContent } from './plugin.js'
 export { type Page, type RouteOptions, routeTable, scanPages } from './routes.js'
 export type { Assets, RenderEntry, Rendered } from './prerender.js'

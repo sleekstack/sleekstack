@@ -8,6 +8,7 @@ export default defineConfig({
     sleekContent({
       content: `${import.meta.dirname}/content`,
       app: 'app.ts',
+      og: { site: 'https://docs.test', fonts: [{ name: 'Inter', file: 'inter-700.woff', weight: 700 }] },
       prerender: { server: 'server.tsx', client: 'main.tsx' },
     }),
   ],

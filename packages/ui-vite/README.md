@@ -35,3 +35,15 @@ class SearchIndexMissing extends Error
 ```
 
 `search` ranks by score (title hit 10, heading 5, text 1, per term; every term must hit). `anchor` is the section URL, `/guide/a#configuration`. An empty query returns `[]`; a missing or malformed index throws `SearchIndexMissing`, as does `loadSearchIndex` on a failed request or bad body.
+
+## Open Graph images
+
+`sleekContent({ ..., og: { site, fonts: [{ name, file, weight? }] } })` writes one 1200 by 630 PNG per page at `og/<name>.png` (`og/index.png` for the root) from the page's frontmatter `title` and `description`, rendered with satori and `@resvg/resvg-js`. Font files (TTF, OTF, WOFF; paths relative to the project root) are read at build; a missing file or an empty `site` fails the build. `og` absent or `false` writes no image.
+
+The tags come from the page's own `<Head>`: `@sleekstack/ui-vite/og-meta` (no Node imports, safe in the browser entry) exports `ogMeta({ site, path, name, title, description?, base?, image? })`, the `og:*` and `twitter:card` props with an absolute `og:image`:
+
+```tsx
+<Head>{ogMeta({ site, path, name, title }).map((t) => <meta {...t} />)}</Head>
+```
+
+`image: false` (images off) drops every `og:image*` tag and sets `twitter:card` to `summary`. `ogMeta` throws on an empty `site`.

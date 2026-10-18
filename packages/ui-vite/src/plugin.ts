@@ -6,6 +6,8 @@ import { createServer, type Plugin, type ResolvedConfig, type ViteDevServer } fr
 import { devMiddleware } from './dev.js'
 import { createStyleSheet } from './highlight.js'
 import { assertLinks } from './links.js'
+import { frontmatterOf, loadFonts, type OgOptions, renderOgPng } from './og.js'
+import { ogImagePath } from './og-meta.js'
 import { compileMdx } from './mdx.js'
 import type { RenderEntry, prerenderPages } from './prerender.js'
 import { type Page, routeTable, scanPages } from './routes.js'
@@ -25,6 +27,11 @@ export type DocsOptions = {
   prerender?: { server: string; client: string }
   /** Write `search-index.json` at build. Default: true. */
   search?: boolean
+  /**
+   * One 1200 by 630 PNG per page at `og/<name>.png`, from the page's frontmatter `title` and `description`. Pair it with
+   * `ogMeta` in the server entry for the tags. Off when absent or `false`. Needs `site` and at least one readable font.
+   */
+  og?: OgOptions | false
 }
 
 const ROUTES = 'virtual:sleek-content'
@@ -111,6 +118,18 @@ export const sleekContent = (options: DocsOptions): Plugin => {
         })
       } finally {
         await server.close()
+      }
+      if (options.og) {
+        const { site, fonts } = options.og
+        if (!site) this.error('og: `site` (the origin the site is served from) is required for an absolute og:image')
+        const loaded = loadFonts(fonts, config.root)
+        for (const p of all) {
+          const meta = frontmatterOf(readFileSync(p.file, 'utf8'))
+          const png = await renderOgPng({ title: meta.title ?? p.name, description: meta.description }, loaded)
+          const file = resolve(outDir, ogImagePath(p.name).slice(1))
+          mkdirSync(dirname(file), { recursive: true })
+          writeFileSync(file, png)
+        }
       }
       if (options.search !== false) {
         const json = JSON.stringify(buildSearchIndex(all))
