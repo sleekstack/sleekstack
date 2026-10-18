@@ -92,6 +92,8 @@ export interface Slots {
   called?: boolean
   /** The observed instance that owns these slots (set only when the mount has an observer). */
   instance?: number
+  /** The function the last successful run of a hot-updatable instance called. */
+  ran?: Function
 }
 
 interface Memo {
@@ -155,6 +157,14 @@ export const disposeSlots = (s: Slots): void => {
   s.memo = undefined
   s.handlers = undefined
   s.instance = undefined
+  s.ran = undefined
+}
+
+/** Starts a hot instance over: its slots are disposed, its handler stand-ins (already in its props) stay. */
+const remountSlots = (s: Slots): void => {
+  const handlers = s.handlers
+  disposeSlots(s)
+  s.handlers = handlers
 }
 
 /**
@@ -1124,9 +1134,8 @@ export const instance = <P>(
   let effProps: P = props
   // Set by the renderer's own re-run (an atom changed): the memo must not answer it.
   let forced = false
-  // The function this attempt called, when `type` is hot-updatable, and the one its last successful run called.
+  // The function this attempt called, when `type` is hot-updatable.
   let ran: Function | undefined
-  let committed: Function | undefined
   // This instance's slots, for a hot remount.
   let current: Slots | undefined
   const attempt: Effect.Effect<Node, any, any> = Effect.flatMap(Effect.context<never>(), (ctx) => {
@@ -1323,7 +1332,7 @@ export const instance = <P>(
     onSuccess: (node) => {
       const hot = hotOf(type)
       if (hot && ran === hot.fn) hot.succeeded = true
-      if (ran) committed = ran
+      if (ran) current!.ran = ran
       return Effect.succeed(node)
     },
     onFailure: (cause) => {
@@ -1332,18 +1341,18 @@ export const instance = <P>(
       if (
         hot &&
         ran === hot.fn &&
-        committed !== undefined &&
-        ran !== committed &&
+        current!.ran !== undefined &&
+        ran !== current!.ran &&
         Cause.failures(cause).pipe(Chunk.some((e) => e instanceof SlotMismatch && e.id === id))
       ) {
-        const handlers = current!.handlers
-        disposeSlots(current!)
-        current!.handlers = handlers
+        remountSlots(current!)
         forced = true
         return run
       }
       if (!hot || ran !== hot.fn || hot.fn === hot.good || Cause.isInterruptedOnly(cause))
         return Effect.failCause(cause)
+      // A failed fresh run (a remount) left partial slots; the previous function starts over too.
+      if (!current!.done) remountSlots(current!)
       hot.fn = hot.good
       hot.succeeded = true
       rerunHot(hot)

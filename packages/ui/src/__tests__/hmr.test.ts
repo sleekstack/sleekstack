@@ -174,6 +174,56 @@ describe('acceptUpdate', () => {
     expect(text()).toBe('v3 a1,v3 b0,v3 c3')
   })
 
+  it('remounts when a parent re-run reaches the updated child first', async () => {
+    const errors: Array<Cause.Cause<unknown>> = []
+    const child = (label: string, hooks: number) => (props: { readonly n: number }) =>
+      Effect.gen(function* () {
+        for (let i = 0; i < hooks; i++) yield* useLocal(i)
+        return el('p', {}, `${label} ${props.n}`)
+      })
+    const v1 = child('v1', 1)
+    acceptUpdate('hmr.test#RaceChild', v1)
+    const parentTick = Atom.make(0)
+    const App = () =>
+      Effect.gen(function* () {
+        const n = yield* useAtomValue(parentTick)
+        return yield* rawJsx(v1, { n }, 'c')
+      })
+    const { container, store } = await go(jsx(App, {}), (cause) => errors.push(cause))
+    act(() => {
+      store.set(parentTick, 1)
+      acceptUpdate('hmr.test#RaceChild', child('v2', 2))
+    })
+    await tick()
+    expect(errors).toHaveLength(0)
+    expect(container.querySelector('p')!.textContent).toBe('v2 1')
+  })
+
+  it('a remount whose run throws reverts to the previous function with fresh slots', async () => {
+    const errors: Array<Cause.Cause<unknown>> = []
+    const v1 = version('v1')
+    acceptUpdate('hmr.test#ThrowAfterHook', v1)
+    const { container } = await go(jsx(v1, {}), (cause) => errors.push(cause))
+    act(() => set(3))
+    await tick()
+
+    // The update adds a hook (a remount), then throws: v1 runs again from fresh slots.
+    acceptUpdate('hmr.test#ThrowAfterHook', () =>
+      Effect.gen(function* () {
+        yield* useLocal(0)
+        yield* useLocal(0)
+        return yield* Effect.die(new Error('broken edit'))
+      }),
+    )
+    await tick()
+    expect(errors).toHaveLength(1)
+    expect(container.querySelector('p')!.textContent).toBe('v1 0')
+    act(() => set(1))
+    await tick()
+    expect(container.querySelector('p')!.textContent).toBe('v1 1')
+    expect(errors).toHaveLength(1)
+  })
+
   it('outside a hot update a hook-count change still fails into onError', async () => {
     const errors: Array<Cause.Cause<unknown>> = []
     let extra = false
