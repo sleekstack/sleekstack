@@ -59,6 +59,7 @@ Deviation: packages/model/src/transformation.ts is outside Touches but changed (
 
 New public names for task 7: `SaveInFlight`, `SaveResponseError`, `SaveError`, `RecordDraft`, `RecordInput`, `RecordChange`.
 
+stage: plan-sync - skipped(no drift; notes carried into tasks 6 and 7)
 Baseline: green via handoff (verified at dda089c by task 4; only .flow/ changed since). Post-edit gate green.
 stage: impl-review - ran (codex gpt-6.1-sol fan-out NEEDS_WORK: Draft input type of a transformed field, response id not checked, seeding without Services; fixed; re-review SHIP)
 Tier: explicit routing from project CLAUDE.md (implementer: opus at medium)
