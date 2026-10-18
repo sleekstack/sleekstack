@@ -103,10 +103,10 @@ interface Memo {
   readonly host?: HostDescriptor
 }
 
-/** One run of an instance: ordinals by component function, its own slots and cursor, and what its children did. `undefined` at the root. */
+/** One run of an instance: ordinals by component id, its own slots and cursor, and what its children did. `undefined` at the root. */
 export interface RunFrame {
-  /** Created by the first unkeyed child. */
-  ordinals?: Map<Function, number>
+  /** Created by the first unkeyed child; keyed by the component's id (stable across a hot update). */
+  ordinals?: Map<string, number>
   readonly owner: Slots
   readonly id: string
   cursor: number
@@ -207,6 +207,38 @@ const fnId = (f: Function): string => {
   let id = fnIds.get(f)
   if (id === undefined) fnIds.set(f, (id = String(nextFn++)))
   return id
+}
+
+/** A hot-updatable component: every function registered under one stable id shares its instance ids and runs `fn`. */
+interface HotEntry {
+  fn: Function
+  /** The function `fn` replaced, kept until a run of `fn` succeeds: a failing run reverts to it. */
+  prev?: Function
+  /** Read by every run, so bumping it re-runs the live instances. */
+  readonly version: Atom.Writable<number>
+  // ponytail: stores of disposed mounts stay referenced; dev-only, fine until HMR sessions get long-lived.
+  readonly stores: Set<AtomStore>
+}
+const hotIds = new Map<string, HotEntry>()
+const hotOf = (f: Function): HotEntry | undefined => {
+  const id = fnIds.get(f)
+  return id === undefined ? undefined : hotIds.get(id)
+}
+
+/**
+ * Registers `fn` as the component with stable id `id` (a dev transform calls it on every module evaluation). The first call
+ * only registers; a later call with another function swaps it in and re-runs the live instances, keeping their slots. A run
+ * of the new function that fails reverts to the previous one and reports the failure to the mount's `onError`.
+ */
+export const acceptUpdate = (id: string, fn: Function): void => {
+  const key = `hot:${id}`
+  fnIds.set(fn, key)
+  const entry = hotIds.get(key)
+  if (!entry) return void hotIds.set(key, { fn, version: Atom.make(0), stores: new Set() })
+  if (entry.fn === fn) return
+  entry.prev = entry.fn
+  entry.fn = fn
+  for (const s of entry.stores) s.update(entry.version, (n) => n + 1)
 }
 
 /** A slot hook's failure when no `Store` is provided. Typed `never` in E: `Store` is a requirement, so it is unreachable for checked code; at runtime it fails with a tagged `MissingDependency`. */
@@ -1083,18 +1115,34 @@ export const instance = <P>(
   let effProps: P = props
   // Set by the renderer's own re-run (an atom changed): the memo must not answer it.
   let forced = false
-  const run: Effect.Effect<Node, any, any> = Effect.flatMap(Effect.context<never>(), (ctx) => {
+  // The function this attempt called, when `type` is hot-updatable.
+  let ran: Function | undefined
+  const attempt: Effect.Effect<Node, any, any> = Effect.flatMap(Effect.context<never>(), (ctx) => {
     const first = id === undefined
     if (id === undefined) {
       if (key === undefined) {
         // Keyed calls take no ordinal: unkeyed siblings keep their ids when a keyed one comes or goes.
         const frame = Context.get(ctx, Frame)
         const ordinals = frame && (frame.ordinals ??= new Map())
-        const ordinal = ordinals?.get(type) ?? 0
-        ordinals?.set(type, ordinal + 1)
+        const ordinal = ordinals?.get(fnId(type)) ?? 0
+        ordinals?.set(fnId(type), ordinal + 1)
         id = `${fnId(type)}#${ordinal}`
       } else id = `${fnId(type)}:key:${key}`
     }
+    ran = undefined
+    const hot = hotOf(type)
+    const hotStore = hot && Context.getOption(ctx, Store)
+    if (hotStore && Option.isSome(hotStore)) hot!.stores.add(hotStore.value)
+    // A hot instance always runs the registered function and reads its version, so an update re-runs it.
+    const component = (props: P): ComponentResult => {
+      if (!hot) return type(props)
+      ran = hot.fn
+      return (hot.fn as typeof type)(props)
+    }
+    const callHot = (props: P): Effect.Effect<Node, any, any> =>
+      hotStore && Option.isSome(hotStore)
+        ? Effect.zipRight(useAtomValue(hot!.version), call(component, props))
+        : call(component, props)
     const self = id
     // The component's own Effect, when the host fast path already called it.
     let pre: Effect.Effect<Node, any, any> | undefined
@@ -1123,7 +1171,7 @@ export const instance = <P>(
         return Effect.succeed(m.node)
       // A row that returns a plain host element builds its node here, without the run machinery; unchanged output reuses the last node.
       // Only an instance with no local state or child slots of its own: otherwise the normal run checks its slot count.
-      if (hostBuilder.build && slots.atoms.length === 0 && slots.kids === undefined) {
+      if (!hot && hostBuilder.build && slots.atoms.length === 0 && slots.kids === undefined) {
         slots.running = true
         slots.called = false
         const eff = call(type, effProps)
@@ -1180,7 +1228,7 @@ export const instance = <P>(
       const inner = Context.unsafeMake(map)
       // One continuation: check the slot count, then build the node.
       return Effect.flatMap(
-        Effect.provide(((e) => ((pre = undefined), e))(pre ?? call(type, effProps)), inner),
+        Effect.provide(((e) => ((pre = undefined), e))(pre ?? callHot(effProps)), inner),
         (child): Effect.Effect<Node, SlotMismatch> => {
           if (slots.done && frame.cursor !== slots.atoms.length)
             return Effect.fail(
@@ -1245,6 +1293,22 @@ export const instance = <P>(
             Scope.close(own, exit),
           ),
     )
+  })
+  // A hot update on trial: its first successful run keeps it; a failing one reverts to the previous function, reports, and runs that.
+  const run: Effect.Effect<Node, any, any> = Effect.matchCauseEffect(attempt, {
+    onSuccess: (node) => {
+      const hot = hotOf(type)
+      if (hot && ran === hot.fn) hot.prev = undefined
+      return Effect.succeed(node)
+    },
+    onFailure: (cause) => {
+      const hot = hotOf(type)
+      if (!hot?.prev || ran !== hot.fn || Cause.isInterruptedOnly(cause)) return Effect.failCause(cause)
+      hot.fn = hot.prev
+      hot.prev = undefined
+      forced = true
+      return Effect.flatMap(MountError, (report) => ((report ?? console.error)(cause), run))
+    },
   })
   return run
 }

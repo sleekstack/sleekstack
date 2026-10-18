@@ -12,3 +12,5 @@ export { idle } from './reactive'
  */
 export { Frame, missingStore, Store, takeSlot, writeOwn } from './reactive'
 export type { RunFrame, Slots } from './reactive'
+/** Dev hot update: registers a component under a stable id, and swaps it in place on a module re-evaluation. */
+export { acceptUpdate } from './reactive'
