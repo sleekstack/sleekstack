@@ -150,13 +150,7 @@
   ],
   "id": "fn-57",
   "outcome": "apps/docs becomes a SleekStack ui app served by @sleekstack/start with no dependency on kit, react, next, islands or fumadocs, keeping every page, snippet test and navigation (and search if wanted), so the four packages can be deleted.",
-  "parked_questions": [
-    {
-      "body": "Edit-on-GitHub links",
-      "created": "2026-10-18T06:07:19.828654Z",
-      "key": "3fa3988dcc512ce4"
-    }
-  ],
+  "parked_questions": [],
   "produced_specs": [],
   "status": "open",
   "title": "Rebuild the docs site on ui and start",
