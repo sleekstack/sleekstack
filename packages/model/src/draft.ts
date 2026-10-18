@@ -73,6 +73,8 @@ interface DraftBasis {
 interface DraftState {
   readonly basis: DraftBasis
   readonly draft: unknown
+  // Counts the writes since the seed, so an edit that returns to the seed is still an edit.
+  readonly rev: number
 }
 interface DraftBox {
   readonly input: Atom.Writable<{ readonly spec: AnyDraftSpec; readonly src: unknown }>
@@ -89,7 +91,7 @@ const schemaOf = (b: DraftBasis) => (b.schema ??= b.spec.schema(b.src))
 const pristine = (b: DraftBasis, draft: unknown) => (b.equals ??= Schema.equivalence(schemaOf(b)))(b.seed, draft)
 const seeded = (spec: AnyDraftSpec, src: unknown): DraftState => {
   const seed = spec.create(src)
-  return { basis: { spec, src, seed }, draft: seed }
+  return { basis: { spec, src, seed }, draft: seed, rev: 0 }
 }
 const NO_ERRORS: { readonly [path: string]: ReadonlyArray<string> } = {}
 // A field write copies the Draft, and only a plain record or an array copies whole: a class instance (a `Date`, a `Map`)
@@ -105,6 +107,8 @@ const copyable = (d: unknown): Record<PropertyKey, unknown> => {
 export const FOLLOWS: unique symbol = Symbol('sleekstack/model/follows')
 
 const makeDraft = (spec: AnyDraftSpec, src: unknown, s: AtomStore): DraftBox => {
+  // The `rev` of the Draft when `toDto()` last built a write body: a change since then is an edit made during the save.
+  let submittedRev: number | undefined
   const input = Atom.make<{ readonly spec: AnyDraftSpec; readonly src: unknown }>({ spec, src })
   // Follows the source (an atom, or the value the newest run passed): a pristine Draft re-seeds, an edited one keeps its edits.
   const state = Atom.writable<DraftState>(
@@ -115,10 +119,14 @@ const makeDraft = (spec: AnyDraftSpec, src: unknown, s: AtomStore): DraftBox => 
       if (prev && same(prev.basis.spec, i.spec)) {
         if (same(prev.basis.src, now)) return prev
         // A record's derived Draft (`FOLLOWS`) measures `dirty` against the newest record; a spec's keeps its old seed.
-        if (!pristine(prev.basis, prev.draft)) {
+        // A record's derived Draft also keeps an edit made while a save ran, even one that returned to the old seed.
+        const editedDuringSave = FOLLOWS in i.spec && submittedRev !== undefined && prev.rev !== submittedRev
+        if (!pristine(prev.basis, prev.draft) || editedDuringSave) {
           const seed = FOLLOWS in i.spec ? i.spec.create(now) : prev.basis.seed
-          return { basis: { spec: i.spec, src: now, seed }, draft: prev.draft }
+          submittedRev = undefined
+          return { basis: { spec: i.spec, src: now, seed }, draft: prev.draft, rev: prev.rev }
         }
+        submittedRev = undefined
       }
       return seeded(i.spec, now)
     },
@@ -127,8 +135,8 @@ const makeDraft = (spec: AnyDraftSpec, src: unknown, s: AtomStore): DraftBox => 
   const value = Atom.writable<unknown>(
     (get) => get(state).draft,
     (cx, draft) => {
-      const { basis, draft: current } = cx.get(state)
-      if (!Object.is(current, draft)) cx.set(state, { basis, draft })
+      const { basis, draft: current, rev } = cx.get(state)
+      if (!Object.is(current, draft)) cx.set(state, { basis, draft, rev: rev + 1 })
     },
   )
   const fields = new Map<PropertyKey, Atom.Writable<unknown>>()
@@ -172,12 +180,14 @@ const makeDraft = (spec: AnyDraftSpec, src: unknown, s: AtomStore): DraftBox => 
     }),
     reset: () => {
       const { basis } = s.get(state)
+      submittedRev = undefined
       s.set(state, seeded(basis.spec, basis.src))
     },
     toDto: () =>
       Effect.flatMap(Effect.serviceOption(Store), (so) => {
         if (Option.isNone(so)) return missingStore('Draft.toDto')
-        const { basis, draft } = so.value.get(state)
+        const { basis, draft, rev } = so.value.get(state)
+        submittedRev = rev
         return Effect.flatMap(Schema.decode(schemaOf(basis), { errors: 'all' })(draft), (decoded) =>
           basis.spec.toDto(decoded, basis.src),
         )

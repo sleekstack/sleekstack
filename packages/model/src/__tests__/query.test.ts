@@ -6,11 +6,11 @@ import { QueryClientLive, QueryClientTag } from '@sleekstack/query'
 import { mount, type Mounted, Store, useAtomValue } from '@sleekstack/ui'
 import { jsx as rawJsx } from '@sleekstack/ui/jsx-runtime'
 import { dehydrate, hydrate, QueryClient } from '@tanstack/query-core'
-import { Cause, Data, Deferred, Effect, Exit, FiberId, Layer, ManagedRuntime, Option, type ParseResult } from 'effect'
+import { Cause, Data, Deferred, Effect, Exit, FiberId, Layer, ManagedRuntime, Option, ParseResult } from 'effect'
 import * as Schema from 'effect/Schema'
 import { act } from 'react'
 import { afterEach, beforeAll, describe, expect, expectTypeOf, it } from 'vitest'
-import { defineRecord, type RecordAdapter, useRecord } from '../index'
+import { defineRecord, defineTransformation, field, type RecordAdapter, useRecord } from '../index'
 import { queryOf } from '../query'
 import { slotOf } from '../registry'
 
@@ -75,7 +75,39 @@ const commit = (rt: ManagedRuntime.ManagedRuntime<Store | PostApi | QueryClientT
 
 const ackedAt = (s: AtomStore) => Option.getOrThrow(s.get(slotOf(s, 'post', '1')).ackedAt)
 
+// A transformation that hydrates but whose `serialize` always fails: reads and acknowledgements never serialize.
+const serializeCalls = { count: 0 }
+const Brittle = defineTransformation('brittle', () => ({
+  from: Schema.String,
+  to: Schema.String,
+  hydrate: (s: string) => Effect.succeed(s.toUpperCase()),
+  serialize: () =>
+    Effect.sync(() => void serializeCalls.count++).pipe(
+      Effect.zipRight(Effect.fail(new ParseResult.Type(Schema.String.ast, '', 'no'))),
+    ),
+  defaultValue: () => '',
+}))
+type NoteWire = { readonly id: string; readonly text: string | undefined }
+class NoteApi extends Effect.Tag('NoteApi')<NoteApi, RecordAdapter<NoteWire, unknown, NotFound>>() {}
+const Note = defineRecord('note', { fields: { id: Schema.String, text: field(Brittle) }, adapter: NoteApi })
+
 describe('queryOf(record).query', () => {
+  it('a read never runs a transformation serialize, so a successful hydrate is a successful query', async () => {
+    const store = makeAtomStore()
+    const api = Layer.succeed(NoteApi, {
+      find: () => Effect.succeed({ id: '1', text: 'hi' }),
+      save: () => Effect.die('x'),
+    })
+    const rt = ManagedRuntime.make(
+      QueryClientLive(config).pipe(Layer.provideMerge(Layer.merge(Layer.succeed(Store, store), api))),
+    )
+    const client = await rt.runPromise(QueryClientTag)
+    serializeCalls.count = 0
+    expect(await rt.runPromise(queryOf(Note).query('1'))).toEqual({ id: '1', text: 'HI' })
+    expect(client.getQueryData(['note', '1'])).toEqual({ id: '1', text: 'hi' })
+    expect(serializeCalls.count).toBe(0)
+  })
+
   it('caches, de-duplicates and ingests a fetch into the map', async () => {
     const { store, api, rt, client } = await setup()
     const read = () => rt.runPromise(queryOf(Post).query('1'))

@@ -7,6 +7,18 @@ export interface Slot<A> {
   readonly ackedAt: Option.Option<number>
 }
 
+// The wire each record was decoded from, so a cache entry can hold the response itself: a read or an acknowledgement
+// never runs a transformation's `serialize`, which belongs to `commit`.
+const wires = new WeakMap<object, unknown>()
+/** Remembers `wire` as the response `record` was decoded from. */
+export const remember = <A>(record: A, wire: unknown): A => {
+  if (typeof record === 'object' && record !== null) wires.set(record, wire)
+  return record
+}
+/** The wire `record` was decoded from, if it is known. */
+export const wireOfRecord = (record: unknown): unknown =>
+  typeof record === 'object' && record !== null ? wires.get(record) : undefined
+
 export const EMPTY: Slot<never> = { value: Option.none(), ackedAt: Option.none() }
 
 type Slots = Map<string, Atom.Writable<Slot<unknown>>>

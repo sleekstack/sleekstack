@@ -11,7 +11,7 @@ import {
   type SaveResponseError,
 } from './commit'
 import { useDraft } from './draft'
-import { recordAtom, slotOf } from './registry'
+import { recordAtom, remember, slotOf } from './registry'
 import { type Related, type RefField, type RefsField, relatedOf } from './relations'
 
 /** What `defineRecord` takes: Effect Schema fields, with a string `id`. */
@@ -114,7 +114,8 @@ export function defineRecord<const T extends string, F extends RecordFields>(
 ): RecordDefinition<T, F> {
   type A = Schema.Schema.Type<Schema.Struct<F>>
   const schema = Schema.Struct(def.fields)
-  const decode = Schema.decodeUnknown(schema)
+  const decodeRaw = Schema.decodeUnknown(schema)
+  const decode = (wire: unknown) => Effect.tap(decodeRaw(wire), (record) => Effect.sync(() => remember(record, wire)))
   const related = relatedOf(type, def.fields)
   const draftSpec = derivedSpec(def.fields)
   const idOf = (record: A) => (record as unknown as { readonly id: string }).id

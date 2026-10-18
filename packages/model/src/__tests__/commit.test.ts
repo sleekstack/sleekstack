@@ -195,4 +195,18 @@ describe('the derived Draft', () => {
     edit('A')
     expect(s.get(draft.dirty)).toBe(true)
   })
+
+  it('A, submit B, edit back to A while saving, acknowledge B: the edit is kept, and A reads dirty against B', async () => {
+    const { s, draft, edit, api } = setup('A')
+    edit('B')
+    const saving = run(s, api.layer, Order.commit('1', draft))
+    await tick()
+    edit('A')
+    api.answer(0, wire('B'))
+    await saving
+    expect(s.get(draft.field('note'))).toBe('A')
+    expect(s.get(draft.dirty)).toBe(true)
+    edit('B')
+    expect(s.get(draft.dirty)).toBe(false)
+  })
 })

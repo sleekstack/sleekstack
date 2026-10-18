@@ -11,7 +11,7 @@ import type { QueryClient } from '@tanstack/query-core'
 import { type Context, Effect, Option, ParseResult, Schema } from 'effect'
 import { type AdapterTag, type FetchStrategy, type FindError, ingest, stamp } from './adapter'
 import type { AdaptedRecord, RecordFields } from './record'
-import { slotOf } from './registry'
+import { remember, slotOf, wireOfRecord } from './registry'
 
 /**
  * A record's query binding (`queryOf(record)`). `query(id)` reads the entry `[type, id]` of the scope's `QueryClient`,
@@ -59,7 +59,6 @@ export const queryOf = <T extends string, F extends RecordFields, Ad extends Ada
   type Wire = Schema.Struct.Encoded<F>
   type E = FindError<Ad> | ParseResult.ParseError
   const decode = Schema.decodeUnknown(record.schema)
-  const encode = Schema.encode(record.schema)
   const keyOf = (id: string) => [record.type, id]
   // A wire of another record, under this id, would put that record in this id's slot.
   const checkId =
@@ -83,9 +82,12 @@ export const queryOf = <T extends string, F extends RecordFields, Ad extends Ada
         const startedAt = stamp()
         const adapter = yield* record.adapter as AdapterTag
         const wire = yield* adapter.find(id) as Effect.Effect<unknown, E>
-        const found = yield* decode(wire).pipe(Effect.flatMap(checkId(id, wire)))
+        const found = remember(yield* decode(wire).pipe(Effect.flatMap(checkId(id, wire))), wire)
         const current = ingest(store, record.type, id, found, startedAt)
-        return yield* Effect.tap(encode(current), (cached) => void decoded.set(cached, current))
+        // The entry holds the response itself (or the acknowledged one, when the response was dropped): no `serialize`.
+        const cached = wireOfRecord(current) ?? wire
+        if (typeof cached === 'object' && cached !== null) decoded.set(cached, current)
+        return cached
       }).pipe(Effect.catchAllDefect((d) => Effect.fail(new Defect(d)))),
     )
 
@@ -118,12 +120,7 @@ export const queryOf = <T extends string, F extends RecordFields, Ad extends Ada
     })
 
   // Writes each acknowledged save of the slot into the entry, dated by its acknowledgement.
-  const follow = (
-    store: AtomStore,
-    client: QueryClient,
-    id: string,
-    ctx: Context.Context<Schema.Struct.Context<F>>,
-  ) => {
+  const follow = (store: AtomStore, client: QueryClient, id: string) => {
     let byClient = following.get(store)
     if (!byClient) following.set(store, (byClient = new WeakMap()))
     let keys = byClient.get(client)
@@ -138,16 +135,11 @@ export const queryOf = <T extends string, F extends RecordFields, Ad extends Ada
       const { ackedAt, value } = store.get(slot)
       if (Option.isNone(ackedAt) || Option.isNone(value) || ackedAt.value === Option.getOrUndefined(acked)) return
       acked = ackedAt
-      Effect.runFork(
-        encode(value.value as A).pipe(
-          Effect.map((wire) => {
-            decoded.set(wire, value.value)
-            client.setQueryData(queryKey, wire, { updatedAt: ackedAt.value })
-          }),
-          Effect.catchAll(() => Effect.sync(() => client.removeQueries({ queryKey, exact: true }))),
-          Effect.provide(ctx),
-        ),
-      )
+      const wire = wireOfRecord(value.value)
+      // The acknowledged response, as the adapter sent it; a record with no known wire cannot fill the entry.
+      if (typeof wire !== 'object' || wire === null) return void client.removeQueries({ queryKey, exact: true })
+      decoded.set(wire, value.value)
+      client.setQueryData(queryKey, wire, { updatedAt: ackedAt.value })
     })
   }
 
@@ -155,8 +147,7 @@ export const queryOf = <T extends string, F extends RecordFields, Ad extends Ada
     Effect.gen(function* () {
       const client = yield* QueryClientTag
       const store = yield* Store
-      const ctx = yield* Effect.context<Schema.Struct.Context<F>>()
-      follow(store, client, id, ctx)
+      follow(store, client, id)
       const slot = slotOf(store, record.type, id)
       const before = store.get(slot)
       // An empty slot (evicted) with an entry no newer than its last acknowledgement: the entry cannot refill it, so fetch.
