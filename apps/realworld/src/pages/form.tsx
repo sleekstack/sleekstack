@@ -18,16 +18,23 @@ export const errorsOf = (outcome: Result.Result<unknown, unknown>): ReadonlyArra
   Result.isFailure(outcome) ? messagesOf(Option.getOrUndefined(Cause.failureOption(outcome.cause))) : []
 
 /**
- * The form `action` for a `useAction` pair: runs it and, once `result` is a success, navigates to `/`, where the
- * next page's loaders read the viewer again. After a failure it stays, and the Draft keeps its edits.
+ * The form `action` for a `useAction` pair: runs it and, once `result` is a success, navigates to `to(value)`, where the
+ * next page's loaders run again. After a failure it stays, and the Draft keeps its edits.
  */
-export const toHome =
-  (result: Atom.Atom<Result.Result<unknown, unknown>>, run: BoundAction<any>): FormAction =>
+export const toPage =
+  <A,>(result: Atom.Atom<Result.Result<A, unknown>>, run: BoundAction<any>, to: (value: A) => string): FormAction =>
   (event: ActionEvent) =>
     Effect.zipRight(
       run(event),
-      Effect.flatMap(Store, (store) => (Result.isSuccess(store.get(result)) ? redirect('/') : Effect.void)),
+      Effect.flatMap(Store, (store) => {
+        const outcome = store.get(result)
+        return Result.isSuccess(outcome) ? redirect(to(outcome.value)) : Effect.void
+      }),
     )
+
+/** `toPage` to `/`, where the next page's loaders read the viewer again. */
+export const toHome = (result: Atom.Atom<Result.Result<unknown, unknown>>, run: BoundAction<any>): FormAction =>
+  toPage(result, run, () => '/')
 
 export const ErrorList = ({ errors }: { errors: ReadonlyArray<string> }) =>
   errors.length > 0 ? (

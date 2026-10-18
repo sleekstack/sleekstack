@@ -122,12 +122,3 @@ export const NotFoundPage = () => (
     <Footer />
   </>
 )
-
-/** Stands in for a page a later change builds. */
-export const Placeholder = ({ title }: { title: string }) => (
-  <Layout>
-    <div class="container page">
-      <h1>{title}</h1>
-    </div>
-  </Layout>
-)

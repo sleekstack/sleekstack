@@ -1,8 +1,10 @@
 /** @jsxImportSource @sleekstack/ui */
 import { router } from '@sleekstack/router'
+import { article, ArticlePage, comments } from './pages/article'
 import { LoginPage, RegisterPage } from './pages/auth'
+import { editable, EditArticlePage, NewArticlePage } from './pages/editor'
 import { feedArticles, FeedPage, globalArticles, HomePage, popularTags, tagArticles, TagPage } from './pages/home'
-import { NotFoundPage, Placeholder, signedIn, viewer } from './pages/layout'
+import { NotFoundPage, signedIn, viewer } from './pages/layout'
 import { authoredArticles, FavoritesPage, favoritedArticles, profile, ProfilePage } from './pages/profile'
 import { table } from './pages/routes'
 import { SettingsPage } from './pages/settings'
@@ -23,9 +25,9 @@ export const pages = router({
     login: { render: () => <LoginPage />, loaders: open },
     register: { render: () => <RegisterPage />, loaders: open },
     settings: { render: () => <SettingsPage />, loaders: guarded },
-    newArticle: { render: () => <Placeholder title="New Article" />, loaders: guarded },
-    editArticle: { render: () => <Placeholder title="Edit Article" />, loaders: guarded },
-    article: { render: () => <Placeholder title="Article" />, loaders: open },
+    newArticle: { render: () => <NewArticlePage />, loaders: guarded },
+    editArticle: { render: () => <EditArticlePage />, loaders: [...guarded, article, editable] },
+    article: { render: () => <ArticlePage />, loaders: [...open, article, comments] },
     profile: { render: () => <ProfilePage />, loaders: [...open, profile, authoredArticles.first] },
     favorites: { render: () => <FavoritesPage />, loaders: [...open, profile, favoritedArticles.first] },
   },

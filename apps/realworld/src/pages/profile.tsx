@@ -35,7 +35,7 @@ export const favoritedArticles = articleSource('favoritedArticles', (paging) =>
 )
 
 /** Follow or unfollow `user`; the button shows the server's answer. A signed-out viewer gets a link to `/login`. */
-const FollowButton = function* ({ user, signedIn }: { user: Profile; signedIn: boolean }) {
+const Follow = function* ({ user, signedIn }: { user: Profile; signedIn: boolean }) {
   const call = yield* ServerFunctions
   const [result, run] = yield* useAction((): Effect.Effect<Profile, unknown> =>
     call(current.following ? unfollowContract : followContract)({ username: current.username }),
@@ -63,6 +63,9 @@ const FollowButton = function* ({ user, signedIn }: { user: Profile; signedIn: b
     </form>
   )
 }
+
+/** Follow or unfollow `user`, or a link to `/login` for a signed-out viewer. */
+export const FollowButton = (props: { user: Profile; signedIn: boolean }) => <Follow {...props} />
 
 const ProfileView = function* ({ favorites }: { favorites: boolean }) {
   const shown = yield* Effect.either(useLoader(profile))

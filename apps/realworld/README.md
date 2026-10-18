@@ -5,9 +5,18 @@ A [RealWorld](https://github.com/realworld-apps/realworld) ("Conduit") app built
 ```sh
 pnpm --filter realworld dev     # http://localhost:5173
 pnpm --filter realworld test
+pnpm --filter realworld check   # sleekstack check: no diagnostics
 ```
 
 The database is `./data/conduit.db` by default; set `CONDUIT_DB` to use another file (`:memory:` in tests). Tokens are signed with `CONDUIT_SECRET`, which a production boot requires.
+
+## Pages
+
+`src/pages/routes.ts` is the route table. `/` is the Global Feed, `/feed` Your Feed and `/tag/:tag` the tag tab: loaders see only the pathname, so tabs are routes and the page number is a client atom. The other pages are `/login`, `/register`, `/settings`, `/editor` and `/editor/:slug` (signed in only; another user's edit page sends them to the article), `/article/:slug`, `/profile/:username` and `/profile/:username/favorites`.
+
+An article body is markdown, rendered by `src/modules/articles/presentation/markdown.ts`: headings, paragraphs, fenced code, flat lists, inline code, strong, emphasis and links. It builds ui nodes, and ui has no raw-HTML node, so HTML in a body shows as text. A link that is not relative, `http:`, `https:` or `mailto:` keeps its label as text and loses the link.
+
+The tests in `test/` run the pages in a browser: each page is server-rendered by the real app, hydrated by `startRouter`, and calls the same app through `fetch`.
 
 ## Two server surfaces
 

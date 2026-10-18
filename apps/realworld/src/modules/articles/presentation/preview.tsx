@@ -10,7 +10,7 @@ export type Toggle = (article: Article) => Effect.Effect<Article, unknown>
 const profileHref = (username: string) => `/profile/${encodeURIComponent(username)}`
 
 /** A date as "January 20, 2026", the same on the server and in any browser time zone. */
-const formatDate = (iso: string) =>
+export const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
 
 const favorited = (a: Article, on: boolean): Article => ({
@@ -23,7 +23,7 @@ const favorited = (a: Article, on: boolean): Article => ({
  * The heart button: the new count shows at once and rolls back when the server refuses. A signed-out viewer gets a link
  * to `/login` instead.
  */
-const FavoriteButton = function* ({ article, toggle }: { article: Article; toggle: Toggle | null }) {
+const Favorite = function* ({ article, toggle }: { article: Article; toggle: Toggle | null }) {
   const [result, run] = yield* useAction((): Effect.Effect<Article, unknown> =>
     optimistic(!current.favorited, toggle!(current)),
   )
@@ -53,6 +53,9 @@ const FavoriteButton = function* ({ article, toggle }: { article: Article; toggl
     </form>
   )
 }
+
+/** The heart button with its count; `toggle` is `null` for a signed-out viewer. */
+export const FavoriteButton = (props: { article: Article; toggle: Toggle | null }) => <Favorite {...props} />
 
 const ArticlePreview = ({ article, toggle }: { article: Article; toggle: Toggle | null }) => (
   <div class="article-preview">

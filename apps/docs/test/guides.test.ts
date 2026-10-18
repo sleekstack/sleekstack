@@ -43,8 +43,8 @@ describe('guides', () => {
     expect(guides.filter((f) => /^\s*(```|~~~)/m.test(read(f)))).toEqual([])
   })
 
-  it('include only existing snippet or showcase files', () => {
-    const allowed = [snippetsDir, join(repoRoot, 'apps/showcase')]
+  it('include only existing snippet or showcase app files', () => {
+    const allowed = [snippetsDir, join(repoRoot, 'apps/showcase'), join(repoRoot, 'apps/realworld')]
     const bad = guides.flatMap((f) =>
       includesOf(f)
         .filter((p) => !existsSync(p) || !allowed.some((dir) => !relative(dir, p).startsWith('..')))
