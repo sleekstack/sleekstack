@@ -1,0 +1,30 @@
+{
+  "answer": null,
+  "assets": [],
+  "attendance": "attended",
+  "blocked_by": [],
+  "chart": "fn-57",
+  "claim_note": null,
+  "claimed_at": null,
+  "claimed_by": null,
+  "created": "2026-10-18T06:07:19.828917Z",
+  "depends_on": [],
+  "id": "fn-57.D8",
+  "n": 8,
+  "question": "Reproduce the current fumadocs look (layout, sidebar, typography) or take this chance to design a new one; how much design effort is in scope.",
+  "record_path": ".flow/charts/fn-57/8.md",
+  "status": "open",
+  "superseded_by": null,
+  "supersedes": [],
+  "title": "Visual design: reproduce or new?",
+  "tracker": {
+    "depRelations": [],
+    "id": null,
+    "identifier": null,
+    "linkState": "unlinked",
+    "url": null
+  },
+  "transition_notes": [],
+  "type": "interview",
+  "updated_at": "2026-10-18T06:07:19.828917Z"
+}

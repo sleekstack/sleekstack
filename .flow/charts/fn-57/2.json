@@ -1,0 +1,30 @@
+{
+  "answer": null,
+  "assets": [],
+  "attendance": "unattended",
+  "blocked_by": [],
+  "chart": "fn-57",
+  "claim_note": null,
+  "claimed_at": null,
+  "claimed_by": null,
+  "created": "2026-10-18T06:07:19.828855Z",
+  "depends_on": [],
+  "id": "fn-57.D2",
+  "n": 2,
+  "question": "Compile a real page with an MDX compiler targeting @sleekstack/ui's JSX runtime (headings, code blocks highlighted at build time, links, tables, callouts); report what works, what breaks and the smallest viable renderer.",
+  "record_path": ".flow/charts/fn-57/2.md",
+  "status": "open",
+  "superseded_by": null,
+  "supersedes": [],
+  "title": "Can MDX compile to the ui JSX runtime?",
+  "tracker": {
+    "depRelations": [],
+    "id": null,
+    "identifier": null,
+    "linkState": "unlinked",
+    "url": null
+  },
+  "transition_notes": [],
+  "type": "probe",
+  "updated_at": "2026-10-18T06:07:19.828855Z"
+}
