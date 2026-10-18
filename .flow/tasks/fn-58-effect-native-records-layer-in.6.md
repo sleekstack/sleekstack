@@ -41,9 +41,38 @@ The optional `@sleekstack/model/query` entry (with `queryOf`) that wraps `find` 
 - [ ] Tests: `packages/model/src/__tests__/query.test.ts`
 
 ## Done summary
-TBD
+Added the optional `@sleekstack/model/query` entry (packages/model/src/query.ts, not re-exported from index). `queryOf(record)` returns `{ query(id), fetch }`, so `queryOf(Post).query(id)` and `useRecord(Post, id, { via: queryOf(Post) })` both work. The Query Client's `client.query` handles the key `[type, id]`, which gives caching, de-duping and stale handling by `staleTime`.
 
+The query function runs find's steps in its own fiber through `effectFn`: `stamp()`, the adapter's `find`, decode, an id check, and `ingest`. The cache holds the wire. It runs with the Query Client Layer's services, so the Store and the adapter Layer must be provided to that Layer. A missing Tag is a defect naming it.
+
+Every read ingests, including a cache hit or a hydrated entry, dated by the entry's `dataUpdatedAt`. A read is dropped unless it is strictly newer than the slot's `ackedAt`, so a tie is dropped. An entry holding another id is a `ParseError`. An evicted slot whose entry is no newer than its last ack refetches.
+
+From task 5: after a read, the binding subscribes to the slot, keyed by type and id. Each new ack then writes the acknowledged wire into the entry with `updatedAt = ackedAt`. `commit.ts` and `record.ts` are unchanged. The last interrupted waiter cancels the query, and the abort signal interrupts the adapter call. The query never creates an observer (no `useQuery`).
+
+Tests: packages/model/src/__tests__/query.test.ts covers these cases, each checked red against the code before its fix:
+- cache, de-dupe and ingest
+- hydrated fill
+- an older hydrated entry against a save
+- the same-T tie
+- the ack written into the entry, with a second type sharing the id
+- evict then refetch
+- a wrong id
+- a missing Store or adapter in the Layer
+- `via` result states and a typed failure
+- unmount cancel interrupting the adapter, twice
+- the `./query` export
+
+Deviations:
+- packages/model/src/__tests__/adapter.test.ts is outside Touches. Its "package.json never mentions @sleekstack/query" assertion became: not in `dependencies`, and an optional peer. The task adds that optional peer.
+- pnpm-lock.yaml changed with the new devDependencies.
+- tsconfig.build.json needed no change.
+
+New public names for task 7: `queryOf`, `RecordQuery` (entry `./query`). Task 7 should bundle-check that index.ts loads no query code.
+
+stage: impl-review - ran (codex gpt-6.1-sol fan-out NEEDS_WORK: follow keyed by id only, waiter double-decrement, cancel not reaching the adapter, evicted slot not refilled, wrong-id ingest; fixed; re-review SHIP)
+Baseline: green via handoff (verified at bc1dd39 by task 5; only .flow/ changed since). Post-edit gate green.
+Tier: explicit routing from project CLAUDE.md (implementer: opus at medium)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 50400c6187756c9ee8803b5736fc47fd5ed1a226, 6f5dd339777154dfcef62c990aff337dc947875c
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/model... --filter=@sleekstack/analyze
 - PRs:
