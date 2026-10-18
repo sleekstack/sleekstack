@@ -65,6 +65,24 @@ describe('renderToStream (R1)', () => {
     expect(await new Response(renderToStream(app, { layer })).text()).toBe(await renderToString(app, { layer }))
   })
 
+  it('writes void elements without a closing tag, in the shell and in a streamed chunk', async () => {
+    const g = gate()
+    const Slow = () =>
+      Effect.map(
+        Effect.promise(() => g.promise),
+        () => el('p', {}, el('br'), el('img', { src: '/a.png' })),
+      )
+    const app = jsx('div', {
+      children: [jsx('hr', {}), jsx(Pending, { fallback: jsx('br', {}), children: jsx(Slow, {}) })],
+    })
+    const stream = renderToStream(app, { layer })
+    g.open()
+    const html = await new Response(stream).text()
+    expect(html).toContain('<div><hr><!--sleek-p:sleek-0--><br><!--/sleek-p--></div>')
+    expect(html).toContain('<template data-sleek-b="sleek-0"><p><br><img src="/a.png"></p></template>')
+    expect(html).not.toMatch(/<\/(br|hr|img)>/)
+  })
+
   it('rejects an invalid idPrefix', () => {
     expect(() => renderToStream(tree(), { layer, idPrefix: 'a"b' })).toThrow(TypeError)
   })

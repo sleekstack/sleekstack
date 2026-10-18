@@ -23,6 +23,7 @@ export {
   HydrationMismatch,
   hydrateMount,
 } from './hydrate'
+export { Head } from './head'
 export { renderToString } from './string'
 export { renderToStream } from './stream'
 export type { StreamOptions } from './stream'
