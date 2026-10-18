@@ -107,7 +107,7 @@
       "depends_on": [],
       "id": "fn-57.D9",
       "record_path": ".flow/charts/fn-57/9.md",
-      "status": "open",
+      "status": "resolved",
       "title": "Versioned documentation: scheme and scope",
       "type": "interview"
     },
@@ -138,8 +138,8 @@
     {
       "attendance": "unattended",
       "blocked_by": [],
-      "claimed_at": null,
-      "claimed_by": null,
+      "claimed_at": "2026-10-18T07:33:33.437948Z",
+      "claimed_by": "ubtik@outlook.com",
       "depends_on": [],
       "id": "fn-57.D12",
       "record_path": ".flow/charts/fn-57/12.md",
@@ -172,5 +172,5 @@
     },
     "url": null
   },
-  "updated_at": "2026-10-18T07:02:44.010340Z"
+  "updated_at": "2026-10-18T07:34:12.432198Z"
 }
