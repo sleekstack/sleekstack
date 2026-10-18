@@ -1,7 +1,7 @@
-import { Atom } from '@sleekstack/core'
+import type { Atom } from '@sleekstack/core'
 import { Store } from '@sleekstack/ui/internal'
 import { Effect, Option, type ParseResult, Schema } from 'effect'
-import { readSlot, slotOf } from './registry'
+import { recordAtom, slotOf } from './registry'
 
 /** What `defineRecord` takes: Effect Schema fields, with a string `id`. */
 export type RecordFields = Schema.Struct.Fields & { readonly id: Schema.Schema<string, any, any> }
@@ -32,24 +32,10 @@ export const defineRecord = <const T extends string, F extends RecordFields>(
   type A = Schema.Schema.Type<Schema.Struct<F>>
   const schema = Schema.Struct(def.fields)
   const decode = Schema.decodeUnknown(schema)
-  // ponytail: one small atom per id ever read, held for the process; the state itself lives in each Store's registry.
-  const atoms = new Map<string, Atom.Atom<Option.Option<A>>>()
   return {
     type,
     schema,
-    atom: (id) => {
-      let atom = atoms.get(id)
-      if (!atom)
-        atoms.set(
-          id,
-          // `Atom.make` would run an `Option` as an Effect; `writable` returns it as the value. Typed read-only.
-          (atom = Atom.writable<Option.Option<A>, never>(
-            (get) => readSlot(get, type, id).value as Option.Option<A>,
-            () => {},
-          )),
-        )
-      return atom
-    },
+    atom: (id) => recordAtom(type, id) as Atom.Atom<Option.Option<A>>,
     push: (wire) =>
       Effect.flatMap(decode(wire), (record) =>
         Effect.map(Store, (s) => {

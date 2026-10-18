@@ -22,7 +22,7 @@ describe('defineRecord', () => {
     const s = makeAtomStore()
     await run(s, Post.push({ id: '1', title: 'a', likes: '1' }))
     await run(s, PostAgain.push({ id: '1', title: 'b', likes: '2' }))
-    expect(Post.atom('1')).toBe(Post.atom('1'))
+    expect(PostAgain.atom('1')).toBe(Post.atom('1'))
     expect(s.get(Post.atom('1'))).toEqual(Option.some({ id: '1', title: 'b', likes: 2 }))
     expect(s.get(PostAgain.atom('1'))).toEqual(s.get(Post.atom('1')))
     expect(s.get(Post.atom('2'))).toEqual(Option.none())
