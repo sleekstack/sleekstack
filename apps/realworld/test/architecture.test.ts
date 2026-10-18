@@ -62,8 +62,8 @@ const ruleOf = (mod: string): Rule | undefined => {
   const exact: Record<string, Rule> = {
     errors: { local: [], packages: ['effect'] },
     layers: { local: [], packages: ['effect', '@sleekstack/query/ui'] },
-    app: { local: ['layers', 'pages/'], packages: [UI] },
-    main: { local: ['app', 'layers'], packages: [UI, '@sleekstack/core'] },
+    app: { local: ['layers', 'pages/'], packages: [UI, '@sleekstack/router'] },
+    main: { local: ['app', 'layers'], packages: ['effect', '@sleekstack/router'] },
   }
   return exact[mod]
 }

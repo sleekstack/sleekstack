@@ -1,13 +1,12 @@
-import { router, routes } from '@sleekstack/router'
 import { Cookies, serverFn, start } from '@sleekstack/start'
-import { jsx } from '@sleekstack/ui/jsx-runtime'
-import { Effect, Layer } from 'effect'
-import { App } from '../src/app'
+import { type Context, Effect, Layer } from 'effect'
+import { pages } from '../src/app'
 import { AppLive } from '../src/layers'
-import * as articles from '../src/modules/articles/application/contracts'
-import * as comments from '../src/modules/comments/application/contracts'
-import * as identity from '../src/modules/identity/application/contracts'
+import * as articles from '../src/modules/articles'
+import * as comments from '../src/modules/comments'
+import * as identity from '../src/modules/identity'
 import type { User } from '../src/modules/identity'
+import { ServerFunctions } from '../src/pages/functions'
 import {
   createArticle,
   deleteArticle,
@@ -173,12 +172,13 @@ const functions = [
   }),
 ]
 
-// The one page until the UI's route table lands.
-const pages = router({
-  table: routes({ home: '/' }),
-  pages: { home: { render: () => jsx(App, {}) } },
-  notFound: () => jsx(App, {}),
-})
+const byId = new Map(functions.map((fn) => [fn.id, fn]))
+/**
+ * The server's `ServerFunctions`: a page's loaders call the function in place. Its services (`Db`, `Cookies`, ...) are
+ * not in the stub's type: the page renders on the request fiber's runtime, which provides them.
+ */
+const ServerFunctionsInPlace = Layer.succeed(ServerFunctions, ((contract: { readonly id: string }) =>
+  byId.get(contract.id)!) as unknown as Context.Tag.Service<ServerFunctions>)
 
 /**
  * The server entry: the REST facade at `/api/`, the server functions and the pages, over SQLite (`CONDUIT_DB`, default
@@ -186,7 +186,7 @@ const pages = router({
  */
 export const app = start({
   router: pages,
-  layer: Layer.mergeAll(AppLive, DbLive(process.env.CONDUIT_DB), TokenSecretLive),
+  layer: Layer.mergeAll(AppLive, DbLive(process.env.CONDUIT_DB), TokenSecretLive, ServerFunctionsInPlace),
   middleware: [rest],
   functions,
 })

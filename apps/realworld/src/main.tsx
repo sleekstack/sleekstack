@@ -1,6 +1,9 @@
-/** @jsxImportSource @sleekstack/ui */
-import { mount } from '@sleekstack/ui'
-import { App } from './app'
+import { startRouter } from '@sleekstack/router'
+import { Layer } from 'effect'
+import { pages, ServerFunctionsClient } from './app'
 import { AppLive } from './layers'
 
-void mount(<App />, { layer: AppLive, container: document.getElementById('app')! })
+void startRouter(pages, {
+  layer: Layer.merge(AppLive, ServerFunctionsClient),
+  container: document.getElementById('app')!,
+})
