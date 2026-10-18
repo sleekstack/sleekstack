@@ -113,8 +113,21 @@ export const renderToStream = <E, A, LE = never>(
     atoms: new Map(),
     head: [],
   }
-  // Head marks a boundary's fallback emitted; they leave the head when its content arrives.
-  const fallbackHead = new Map<string, ReadonlyArray<HeadMark>>()
+  // Head ownership: a context is a boundary's fallback (its id) or its content (`c:` + id), nested in the context the
+  // boundary sits in. A mark lives while no context up its chain is retired: a fallback once its content swapped in,
+  // content once it failed to serialize (it never reaches the page).
+  let current: string | undefined
+  const within = new Map<string, string | undefined>()
+  const retired = new Set<string>()
+  const owner = new Map<HeadMark, string | undefined>()
+  const own = (from: number, ctx: string | undefined) => {
+    for (const m of c.head!.slice(from)) if (!owner.has(m)) owner.set(m, ctx)
+  }
+  const live = (m: HeadMark): boolean => {
+    for (let x = owner.get(m); x !== undefined; x = within.get(x)) if (retired.has(x)) return false
+    return true
+  }
+  const liveHead = () => c.head!.filter(live)
   let emit: (html: string) => void = () => {}
   let transfer: StateTransfer | undefined
   // Atom state sent so far: key -> encoded JSON (the `Transfer` tracks its own). One Collector spans the stream.
@@ -160,32 +173,42 @@ export const renderToStream = <E, A, LE = never>(
       const r = exit.value
       if (r._tag === 'Reactive' && r.pending && !r.pending.frame) return settle(r)
       // Content renders in the placeholder's text context, so swapped text keeps the separators renderToString writes.
-      const outer = parent
+      const outer = [parent, current] as const
+      const content = `c:${id}`
+      within.set(content, within.get(id))
       parent = path
-      const before = patchable(c.head!)
-      const kept = c.head!.length
+      current = content
+      const before = patchable(liveHead())
+      const from = c.head!.length
       let html: string
       try {
         html = serializeAll([r._tag === 'Reactive' ? r.child : r], c, around)
       } catch (error) {
-        // The fallback stays on screen, so its head marks stay; the failed content's go.
-        c.head!.length = kept
+        retired.add(content)
         throw error
       } finally {
-        parent = outer
+        own(from, content)
+        ;[parent, current] = outer
       }
-      const gone = new Set(fallbackHead.get(id))
-      c.head = c.head!.filter((m) => !gone.has(m))
+      retired.add(id)
       unsent.delete(id)
-      const patch = opts.onHead ? headPatch(before, patchable(c.head)) : ''
+      const patch = opts.onHead ? headPatch(before, patchable(liveHead())) : ''
       emit(
         `${state()}<template data-sleek-b="${id}">${html}</template><script${nonce}>__sleekSwap(${scriptJson(id)})${patch && `;${patch}`}</script>`,
       )
     }
     waiting.push(settle(node))
+    within.set(id, current)
+    const outer = current
     const from = c.head!.length
-    const fallback = serialize(node.child, c)
-    fallbackHead.set(id, c.head!.slice(from))
+    current = id
+    let fallback: string
+    try {
+      fallback = serialize(node.child, c)
+    } finally {
+      own(from, id)
+      current = outer
+    }
     return `<!--sleek-p:${id}-->${fallback}<!--/sleek-p-->`
   }
 
@@ -206,7 +229,7 @@ export const renderToStream = <E, A, LE = never>(
       try {
         html = serialize(nodeOrThrow(exit, opts.onError), c)
         html += state()
-        opts.onHead?.(headHtml(c.head!))
+        opts.onHead?.(headHtml(liveHead()))
       } catch (error) {
         await dispose()
         throw error

@@ -332,4 +332,43 @@ describe('renderToStream Head (R1, R3)', () => {
       '<title>done</title><meta name="description" content="late"><link rel="canonical" href="/shell">',
     )
   })
+
+  it.each([
+    ['inner', 'outer'],
+    ['outer', 'inner'],
+  ] as const)(
+    'a boundary nested in a fallback loses its head when the outer content replaces it (%s resolves first)',
+    async (...order) => {
+      const gates = { inner: gate(), outer: gate() }
+      const title = (text: string) => jsx(Head, { children: jsx('title', { children: text }) })
+      const after = (g: { promise: Promise<void> }, node: unknown) => () =>
+        Effect.flatMap(
+          Effect.promise(() => g.promise),
+          () => node as Effect.Effect<any>,
+        )
+      const Inner = after(gates.inner, title('inner'))
+      const Outer = after(gates.outer, Effect.succeed(el('b', {}, 'outer')))
+      const fallback = jsx('div', {
+        children: [
+          title('outer loading'),
+          jsx(Pending, { fallback: title('inner loading'), children: jsx(Inner, {}) }),
+        ],
+      })
+      const app = jsx('div', {
+        children: [title('shell'), jsx(Pending, { fallback, children: jsx(Outer, {}) })],
+      })
+      let shellHead = ''
+      const reader = renderToStream(app, { layer, onHead: (h) => (shellHead = h) }).getReader()
+      let html = decoder.decode((await reader.read()).value)
+      expect(shellHead).toBe('<title>inner loading</title>')
+      document.head.innerHTML = shellHead
+      for (const k of order) {
+        gates[k].open()
+        html += decoder.decode((await reader.read()).value)
+      }
+      html += await drain(reader)
+      apply(html)
+      expect(document.head.innerHTML).toBe('<title>shell</title>')
+    },
+  )
 })
