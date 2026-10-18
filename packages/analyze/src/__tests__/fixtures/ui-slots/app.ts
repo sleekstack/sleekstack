@@ -23,6 +23,7 @@ const Good = () =>
     yield* useDeferredAtom(count)
     yield* useDraft(Note, undefined)
     yield* useRecord(Post, '1', { via: fetchNothing })
+    yield* Post.useDraft('1')
     if (open) return el('p', {}, 'open')
     setOpen(true)
     return el('p')
@@ -37,6 +38,7 @@ const Bad = (flag: boolean, ids: readonly number[]) =>
     if (flag) yield* useDeferredAtom(count) // @error ConditionalSlot
     if (flag) yield* useDraft(Note, undefined) // @error ConditionalSlot
     if (flag) yield* useRecord(Post, '1', { via: fetchNothing }) // @error ConditionalSlot
+    if (flag) yield* Post.useDraft('1') // @error ConditionalSlot
     if (flag) yield* useOtherDraft(Note, undefined)
     for (const _ of ids) yield* useLocal(2) // @error ConditionalSlot
     const x = flag ? yield* useLocal(3) : undefined // @error ConditionalSlot

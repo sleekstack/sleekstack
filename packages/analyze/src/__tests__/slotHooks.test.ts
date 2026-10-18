@@ -19,11 +19,22 @@ describe('slot hooks', () => {
         .filter((f) => f.endsWith('.ts'))
         .flatMap((f) => slotHooks(MODEL + f)),
     ]
-    const analyzed = [...read('../components.ts').matchAll(/'(?:ui\/reactive|model\/\w+)#(\w+)'\) checkSlot/g)].map(
-      (m) => m[1],
+    const analyzed = [...read('../components.ts').matchAll(/'((?:ui\/reactive|model\/\w+)#\w+)'\) checkSlot/g)].map(
+      (m) => m[1]!,
     )
+    const declared = analyzed.filter((a) => !a.startsWith('model/record#')).map((a) => a.split('#')[1])
     expect(runtime).toContain('useDraft')
     expect(runtime).toContain('useRecord')
-    expect(analyzed.sort()).toEqual(runtime.sort())
+    expect(declared.sort()).toEqual(runtime.sort())
+  })
+
+  it('the analyzer checks every hook method of a record definition, which takes its slot through `useDraft`', () => {
+    // A record method delegates to a slot hook, so it has no `takeSlot` call of its own for the case above to find.
+    const methods = [...read(MODEL + 'record.ts').matchAll(/^ {2}readonly (use\w+):/gm)].map(
+      (m) => `model/record#${m[1]}`,
+    )
+    const analyzed = [...read('../components.ts').matchAll(/'(model\/record#\w+)'\) checkSlot/g)].map((m) => m[1])
+    expect(methods).toEqual(['model/record#useDraft'])
+    expect(analyzed).toEqual(methods)
   })
 })

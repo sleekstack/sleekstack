@@ -101,6 +101,9 @@ const copyable = (d: unknown): Record<PropertyKey, unknown> => {
   throw new TypeError('Draft.field() needs a plain record or array Draft: write a class instance through `value`')
 }
 
+/** Marks a record's derived Draft Spec: when the record changes, an edited Draft keeps its edits on the new seed. */
+export const FOLLOWS: unique symbol = Symbol('sleekstack/model/follows')
+
 const makeDraft = (spec: AnyDraftSpec, src: unknown, s: AtomStore): DraftBox => {
   const input = Atom.make<{ readonly spec: AnyDraftSpec; readonly src: unknown }>({ spec, src })
   // Follows the source (an atom, or the value the newest run passed): a pristine Draft re-seeds, an edited one keeps its edits.
@@ -111,8 +114,11 @@ const makeDraft = (spec: AnyDraftSpec, src: unknown, s: AtomStore): DraftBox => 
       const prev = get.self<DraftState>()
       if (prev && same(prev.basis.spec, i.spec)) {
         if (same(prev.basis.src, now)) return prev
-        if (!pristine(prev.basis, prev.draft))
-          return { basis: { spec: i.spec, src: now, seed: prev.basis.seed }, draft: prev.draft }
+        // A record's derived Draft (`FOLLOWS`) measures `dirty` against the newest record; a spec's keeps its old seed.
+        if (!pristine(prev.basis, prev.draft)) {
+          const seed = FOLLOWS in i.spec ? i.spec.create(now) : prev.basis.seed
+          return { basis: { spec: i.spec, src: now, seed }, draft: prev.draft }
+        }
       }
       return seeded(i.spec, now)
     },
