@@ -11,4 +11,5 @@ export interface StateTransfer {
   /** Seeds the client from one state `dehydrate` returned. Throws when the state is malformed (reported as `HydratePayloadInvalid`). */
   hydrate(state: unknown): void
 }
+/** The service that carries state from server to client: `dehydrate` on the server, `hydrate` on the client. */
 export class Transfer extends Context.Tag('@sleekstack/ui/Transfer')<Transfer, StateTransfer>() {}

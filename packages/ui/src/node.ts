@@ -4,10 +4,12 @@ import type { ComponentType } from 'react'
 import type { ActionEvent, Handler } from './handler'
 import type { RunFrame } from './reactive'
 
+/** A run of text. */
 export interface TextNode {
   readonly _tag: 'Text'
   readonly text: string
 }
+/** A DOM element: a tag, string attributes, children and the bindings that make it reactive or interactive. */
 export interface ElementNode {
   readonly _tag: 'Element'
   readonly tag: string
@@ -34,10 +36,12 @@ export interface EventBinding {
   /** A form's `action`: run after `run` on submit with the form's data; the default is prevented and the latest submit wins. */
   readonly action?: (event: ActionEvent) => Effect.Effect<void, never, any>
 }
+/** Children with no wrapper element. */
 export interface FragmentNode {
   readonly _tag: 'Fragment'
   readonly children: ReadonlyArray<Node>
 }
+/** A React component rendered inside the tree with its props (see `fromReact`). */
 export interface GuestNode {
   readonly _tag: 'Guest'
   readonly component: ComponentType<any>
@@ -81,6 +85,7 @@ export interface PortalNode {
   readonly container: Element | null | undefined
   readonly child: Node
 }
+/** What a component renders: a tree of these, mounted by `mount` and serialized by `renderToString`. */
 export type Node = TextNode | ElementNode | FragmentNode | GuestNode | ReactiveNode | BindNode | PortalNode
 
 const toNode = (c: Node | string): Node => (typeof c === 'string' ? { _tag: 'Text', text: c } : c)

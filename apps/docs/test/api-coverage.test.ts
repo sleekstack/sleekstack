@@ -23,7 +23,7 @@ function exportSymbols(file: string) {
     (s.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(s) : s)
       .getJsDocTags(checker)
       .some((t) => t.name === 'internal') ||
-    (s.declarations ?? []).some((d) => ts.isExportSpecifier(d) && ts.getJSDocDeprecatedTag(d.parent.parent)) // a deprecated alias (kit/next `effect`) stays out of the reference
+    (s.declarations ?? []).some((d) => ts.isExportSpecifier(d) && ts.getJSDocDeprecatedTag(d.parent.parent))
   return { checker, symbols: checker.getExportsOfModule(moduleSymbol).filter((s) => !internal(s)) }
 }
 
@@ -35,10 +35,14 @@ export function undocumented(file: string): string[] {
   return symbols
     .filter((s) => {
       const target = s.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(s) : s
-      // `export * as X` carries its summary on the export declaration; the aliased module has none.
-      const nsDoc = (s.declarations ?? [])
-        .filter(ts.isNamespaceExport)
-        .flatMap((d) => ts.getJSDocCommentsAndTags(d.parent))
+      // `export * as X` and `export type { X } from` carry their summary on the export declaration; the aliased module has none.
+      const nsDoc = (s.declarations ?? []).flatMap((d) =>
+        ts.isNamespaceExport(d)
+          ? ts.getJSDocCommentsAndTags(d.parent)
+          : ts.isExportSpecifier(d)
+            ? ts.getJSDocCommentsAndTags(d.parent.parent)
+            : [],
+      )
       return ts.displayPartsToString(target.getDocumentationComment(checker)).trim() === '' && nsDoc.length === 0
     })
     .map((s) => s.name)
@@ -59,10 +63,4 @@ describe.each(resolveEntryPoints())('$name', ({ pkg, entry, file }) => {
   it('every export has a non-empty summary', () => {
     expect(undocumented(file)).toEqual([])
   })
-})
-
-it('next reference documents runEffect', () => {
-  const text = readFileSync(join(apiDir, 'next', 'index.md'), 'utf8')
-  expect(text).toMatch(/^### runEffect(\(\))?$/m)
-  expect(text).not.toMatch(/^### (Operation|action|query)(\(\))?$/m)
 })

@@ -132,3 +132,30 @@ describe('build failures name the route', () => {
     expect(existsSync(join(dir, 'dist/search-index.json'))).toBe(false)
   }, 60_000)
 })
+
+describe('a base prefix other than the one the content links use', () => {
+  it('passes the link checker, rewrites the hrefs and redirects the root to the index page', async () => {
+    const dir = copy()
+    const edit = (file: string, from: string | RegExp, to: string) =>
+      writeFileSync(join(dir, file), readFileSync(join(dir, file), 'utf8').replace(from, to))
+    edit('content/index.mdx', '](/guide/a)', '](/docs/guide/a)')
+    edit('content/guide/b.mdx', '](/guide/a#', '](/docs/guide/a#')
+    edit('vite.config.ts', "app: 'app.ts',", "app: 'app.ts', base: '/other',")
+    await run(dir)
+    const out = join(dir, 'dist')
+    expect(readFileSync(join(out, 'other/index.html'), 'utf8')).toContain('href="/other/guide/a"')
+    expect(readFileSync(join(out, 'other/guide/b/index.html'), 'utf8')).toContain('href="/other/guide/a#configuration"')
+    const root = readFileSync(join(out, 'index.html'), 'utf8')
+    expect(root).toContain('<meta http-equiv="refresh" content="0; url=/other">')
+    expect(root).toContain('<a href="/other">')
+  }, 60_000)
+
+  it('still fails on a link that matches no page under the new prefix', async () => {
+    const dir = copy()
+    const edit = (file: string, from: string, to: string) =>
+      writeFileSync(join(dir, file), readFileSync(join(dir, file), 'utf8').replace(from, to))
+    edit('content/index.mdx', '](/guide/a)', '](/docs/guide/missing)')
+    edit('vite.config.ts', "app: 'app.ts',", "app: 'app.ts', base: '/other',")
+    await expect(run(dir)).rejects.toThrow(/index\.mdx -> \/docs\/guide\/missing/)
+  }, 60_000)
+})

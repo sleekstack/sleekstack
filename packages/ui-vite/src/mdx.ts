@@ -7,6 +7,7 @@ import remarkMdxFrontmatter from 'remark-mdx-frontmatter'
 import { VFile } from 'vfile'
 import { createStyleSheet, remarkKnownFenceLanguage, THEMES } from './highlight.js'
 import { remarkInclude } from './include.js'
+import { type Rebase, remarkRebase } from './links.js'
 
 export type CompileOptions = {
   /** Absolute path of the page; relative `<include>` paths resolve against it and errors name it. */
@@ -14,6 +15,8 @@ export type CompileOptions = {
   styles: ReturnType<typeof createStyleSheet>
   /** `function-body` is for `run()` in tests; the build wants the default `program`. */
   outputFormat?: 'program' | 'function-body'
+  /** Swaps a leading `from` of every internal link for `to`, so content written for one prefix serves under another. */
+  rebase?: Rebase
 }
 
 /** Compiles one page to a module exporting its component and `frontmatter`. Failures read `file:line: reason`. */
@@ -26,7 +29,14 @@ export const compileMdx = async (source: string, opts: CompileOptions): Promise<
       jsxImportSource: '@sleekstack/ui',
       elementAttributeNameCase: 'html',
       tableCellAlignToStyle: false,
-      remarkPlugins: [remarkFrontmatter, remarkMdxFrontmatter, remarkGfm, remarkInclude, remarkKnownFenceLanguage],
+      remarkPlugins: [
+        remarkFrontmatter,
+        remarkMdxFrontmatter,
+        remarkGfm,
+        remarkInclude,
+        remarkKnownFenceLanguage,
+        ...(opts.rebase ? [remarkRebase(opts.rebase)] : []),
+      ],
       rehypePlugins: [
         rehypeSlug,
         [rehypeShiki, { themes: THEMES, defaultColor: false, defaultLanguage: 'text' }],

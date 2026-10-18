@@ -31,6 +31,7 @@ export { Boundary, Pending, Portal, Provider } from './jsx-runtime'
 export type { Child, Reset } from './jsx-runtime'
 export type { BoundAction, ComponentResult } from './reactive'
 export type { FormAction } from './jsx-types'
+/** The `Result` namespace of `@sleekstack/core`: the success-or-failure value atoms hold while a query runs. */
 export type { Result } from '@sleekstack/core'
 export { lazy, LazyLoadError } from './lazy'
 export { Transfer } from './transfer'

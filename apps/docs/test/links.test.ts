@@ -18,10 +18,10 @@ describe('internal links', () => {
     )
     writeFileSync(join(dir, 'a.md'), '## Sub\n\n[up](/docs) [idx](./index)\n')
     expect(findBrokenLinks(dir)).toEqual([
-      { file: 'a.md', link: './index' },
       { file: 'index.mdx', link: '/docs/missing' },
       { file: 'index.mdx', link: '/docs/a#nope' },
       { file: 'index.mdx', link: '/docs/gone' },
+      { file: 'a.md', link: './index' },
     ])
   })
 })
@@ -33,8 +33,8 @@ describe('relative links', () => {
     writeFileSync(join(dir, 'concepts.mdx'), '# Concepts\n\n[ok](./index) [sib](./other)\n')
     writeFileSync(join(dir, 'other.mdx'), '# Other\n')
     expect(findBrokenLinks(dir)).toEqual([
-      { file: 'concepts.mdx', link: './index' },
       { file: 'index.mdx', link: './concepts' },
+      { file: 'concepts.mdx', link: './index' },
     ])
   })
 })

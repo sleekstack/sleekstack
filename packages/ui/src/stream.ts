@@ -18,6 +18,7 @@ const SWAP =
   "self.__sleekHead=function(a){a.forEach(function(h){var e=document.head.querySelector(h[0]),t=document.createElement('template');t.innerHTML=h[1];e?e.replaceWith(t.content):document.head.append(t.content)})};" +
   'self.__sleekEnd=function(m){(self.__sleekGone=self.__sleekGone||[]).push.apply(self.__sleekGone,m)}'
 
+/** Options for `renderToStream`: the layer the page runs in, plus the base run options. */
 export interface StreamOptions<A, LE> extends RunOptions {
   readonly layer: Layer.Layer<A, LE, never>
   /** Set on every inline script. */
