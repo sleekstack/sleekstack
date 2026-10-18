@@ -56,7 +56,8 @@ const post = (title: string): PostWire => ({ id: '1', title, likes: '2' })
 describe('find through the adapter', () => {
   it('works without @sleekstack/query, and a missing adapter Layer is in R', () => {
     const pkg = JSON.parse(readFileSync(path.join(__dirname, '../../package.json'), 'utf8'))
-    expect(JSON.stringify(pkg)).not.toContain('@sleekstack/query')
+    expect(pkg.dependencies?.['@sleekstack/query']).toBeUndefined()
+    expect(pkg.peerDependenciesMeta['@sleekstack/query']).toEqual({ optional: true })
     expectTypeOf<Effect.Effect.Context<ReturnType<typeof Post.find>>>().toEqualTypeOf<Store | PostApi>()
     expectTypeOf<Effect.Effect.Error<ReturnType<typeof Post.find>>>().toEqualTypeOf<NotFound | ParseResult.ParseError>()
     // @ts-expect-error a record with no adapter has no find
