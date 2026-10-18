@@ -56,10 +56,52 @@ const scan = (dir: string): Route[] => {
   return found
 }
 
+/** The module's code; computed keys keep a route named `__proto__` an own property. */
+const moduleCode = (found: readonly Route[]): string => {
+  const key = (r: Route) => `[${JSON.stringify(r.name)}]`
+  const imports = found.map((r, i) => `import p${i} from ${JSON.stringify(r.file)}\n`).join('')
+  const table = found.map((r) => `${key(r)}: ${JSON.stringify(r.path)}`).join(', ')
+  const pages = found.map((r, i) => `${key(r)}: p${i}`).join(', ')
+  return `${imports}export const table = { ${table} }\nexport const pages = { ${pages} }\n`
+}
+
+/** The module's types: literal paths, so `Params` reads them as from a hand-written table, and each page's type. */
+const declaration = (dir: string, found: readonly Route[]): string => {
+  const entries = (value: (r: Route) => string) =>
+    found.map((r) => `\n    readonly ${JSON.stringify(r.name)}: ${value(r)}`).join('')
+  const page = (r: Route) => `typeof import(${JSON.stringify(`./${path.posix.relative(dir, r.file)}`)}).default`
+  return `// Written by @sleekstack/ui-vite from the route files in this directory; do not edit.
+declare module '${ROUTES_MODULE}' {
+  export const table: {${entries((r) => JSON.stringify(r.path))}
+  }
+  export const pages: {${entries(page)}
+  }
+}
+`
+}
+
+/** Where the module's types are written: inside `routesDir`, so the app's tsconfig already includes it. */
+const DECLARATION = 'routes.gen.d.ts'
+
+/** Writes the declaration when it changed; an invalid route file leaves it as it was (the module load reports it). */
+const writeDeclaration = (dir: string) => {
+  if (!fs.existsSync(dir)) return
+  let found: Route[]
+  try {
+    found = scan(dir)
+  } catch {
+    return
+  }
+  const file = path.join(dir, DECLARATION)
+  const text = declaration(dir, found)
+  if (!fs.existsSync(file) || fs.readFileSync(file, 'utf8') !== text) fs.writeFileSync(file, text)
+}
+
 /**
  * Serves `virtual:sleekstack/routes`: `table`, a `@sleekstack/router` route table built from the files under
  * `routesDir` (params stay in the path strings, ADR 0036), and `pages`, each route file's default export by route name.
- * In dev, adding or removing a route file rebuilds the module and reloads the page.
+ * Its types are kept in `routes.gen.d.ts` inside `routesDir`. In dev, adding or removing a route file rebuilds the
+ * module and its types and reloads the page.
  */
 export const routes = (options: RoutesOptions = {}): Plugin => {
   let dir = ''
@@ -68,6 +110,9 @@ export const routes = (options: RoutesOptions = {}): Plugin => {
     configResolved(config) {
       dir = normalizePath(path.resolve(config.root, options.routesDir ?? 'src/routes'))
     },
+    buildStart() {
+      writeDeclaration(dir)
+    },
     resolveId: {
       filter: { id: new RegExp(`^${ROUTES_MODULE}$`) },
       handler: () => RESOLVED,
@@ -75,28 +120,26 @@ export const routes = (options: RoutesOptions = {}): Plugin => {
     load: {
       filter: { id: new RegExp(`^\0${ROUTES_MODULE}$`) },
       handler() {
-        let found: Route[]
         try {
-          found = scan(dir)
+          return moduleCode(scan(dir))
         } catch (e) {
           this.error((e as Error).message)
         }
-        const imports = found.map((r, i) => `import p${i} from ${JSON.stringify(r.file)}`)
-        const table = Object.fromEntries(found.map((r) => [r.name, r.path]))
-        const pages = found.map((r, i) => `${JSON.stringify(r.name)}: p${i}`)
-        return `${imports.join('\n')}\nexport const table = ${JSON.stringify(table)}\nexport const pages = { ${pages.join(', ')} }\n`
       },
     },
     configureServer(server) {
       const changed = (file: string) => {
         const f = normalizePath(file)
-        if (!f.startsWith(`${dir}/`) || !ROUTE_FILE.test(f)) return
+        if (!f.startsWith(`${dir}/`) || !ROUTE_FILE.test(f) || f.endsWith('.d.ts')) return
+        writeDeclaration(dir)
         for (const env of Object.values(server.environments)) {
           const mod = env.moduleGraph.getModuleById(RESOLVED)
           if (mod) env.moduleGraph.invalidateModule(mod)
         }
         server.ws.send({ type: 'full-reload' })
       }
+      // A routesDir outside the Vite root is not watched by default.
+      server.watcher.add(dir)
       server.watcher.on('add', changed).on('unlink', changed)
     },
   }
