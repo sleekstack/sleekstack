@@ -1,37 +1,21 @@
 ## Goal & Context
 <!-- scope: business -->
 
-Apps wire JSX config and the analyzer by hand. A SleekStack Vite plugin gives one setup line: JSX for ui files, analyzer diagnostics, file-based routes feeding `@sleekstack/router`, SSR/client entries, and stable component ids (needed by HMR, fn-31). Own plugin, not a meta-framework.
+Partly delivered by fn-59. `packages/ui-vite` exists: `sleekContent` compiles MDX pages with build-time highlighting, builds a `@sleekstack/router` table from a content tree (updating on add, rename and remove without a restart), checks links, and routes dev requests to the `start` handler (ADR 0043). What is left is the general app plugin: JSX setup, analyzer diagnostics, file-based routes beyond the content table, and stable component ids (needed by HMR, fn-31).
 
 ## Architecture & Data Models
 <!-- scope: technical -->
 
-- New package `packages/ui-vite` (task 1 checks Vite's current plugin and environment API).
-- **JSX stays opt-in per file** (ADR 0015: ui JSX uses a pragma; guest files use React JSX and ui-demo uses `@vitejs/plugin-react`). The plugin does not set a global `jsxImportSource`; it either relies on the pragma or accepts include/exclude globs, and coexists with plugin-react for guests.
-- **Analyzer:** whole-program TypeScript analysis, so it runs debounced on change and always on build; a failure never crashes the dev server (reported in the overlay). Reuses `@sleekstack/analyze`.
-- **Routes:** no TanStack generator (ADR 0036). Route files are turned into a `@sleekstack/router` const route table; params stay inferred from path strings.
-- **Stable ids:** a transform assigns each component function a stable id from file path + export name, consumed by `fnId` in `reactive.ts` (falls back to the counter without the plugin). This enables fn-31.
-- **SSR:** dev and build render through `renderToStream` (fn-27).
-
-## API Contracts
-<!-- scope: technical -->
-
-`sleekstack(options?: { include?; exclude?; routesDir?; entries? })`.
-
-## Edge Cases & Constraints
-<!-- scope: technical -->
-
-Route file add/rename/delete updates the tree; analyzer crash isolated; client and SSR bundles both build; the id transform is deterministic and survives re-export.
+- **Done (fn-59):** the package, the content route table, the dev entry, prerender (see fn-30).
+- **Left:** JSX stays opt-in per file (ADR 0015), no global `jsxImportSource`, coexisting with plugin-react for guests. The analyzer runs debounced on change and always on build, reusing `@sleekstack/analyze`; a crash is reported in the overlay, never thrown. Route files beyond the content table become a const route table (ADR 0036, no generator). A transform assigns each component function a stable id from file path and export name, read by `fnId` in `reactive.ts` (counter fallback without the plugin).
 
 ## Acceptance Criteria
 <!-- scope: both -->
 
-- **R1:** A Vite project with `sleekstack()` compiles pragma'd ui TSX and React guest TSX side by side. Errors: a file with neither pragma nor include match is left to the default.
-- **R2:** An analyzer error shows in the overlay with file:line and clears when fixed. Errors: an analyzer crash is reported, not thrown.
-- **R3:** Route files produce a route tree consumed by `@sleekstack/router`, updating on add/remove without restart. Errors: an invalid route file reports its path.
-- **R4:** `vite build` yields client and SSR bundles that render and hydrate an example app.
-- **R5:** Component ids are stable across a module re-evaluation in a test; without the plugin, ids still work. Errors: duplicate id from two files fails the build.
-- **R6:** ui-demo or a new example runs on the plugin.
+- **R1:** A Vite project with the plugin compiles pragma'd ui TSX and React guest TSX side by side.
+- **R2:** An analyzer error shows in the overlay with file:line and clears when fixed; a crash is reported, not thrown.
+- **R3:** Route files produce a route tree consumed by `@sleekstack/router`, updating without restart; an invalid route file reports its path.
+- **R5:** Component ids are stable across a module re-evaluation; without the plugin ids still work; a duplicate id fails the build.
 
 ## Quick commands
 <!-- scope: technical -->
@@ -41,9 +25,9 @@ Route file add/rename/delete updates the tree; analyzer crash isolated; client a
 ## Boundaries
 <!-- scope: business -->
 
-No HMR state preservation (fn-31), no SSG (fn-30), no deploy adapters.
+No HMR state preservation (fn-31), no deploy adapters.
 
 ## Decision Context
 <!-- scope: both -->
 
-Depends on fn-27 and fn-50 (`@sleekstack/router`, which absorbed fn-28 and fn-32).
+Depends on fn-27 and fn-50. Delivered part: fn-59, ADR 0043. R4 (client and SSR bundles) is met for content sites by fn-59's prerender build.

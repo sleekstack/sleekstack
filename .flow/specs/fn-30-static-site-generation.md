@@ -1,34 +1,22 @@
 ## Goal & Context
 <!-- scope: business -->
 
-Static sites should prerender routes to HTML at build time. SSG is a build mode over the SSR path, not a new renderer.
+Mostly delivered by fn-59 (ADR 0043). `sleekContent({ prerender: { server, client } })` makes `vite build` write `<route>/index.html` per page with rendered content, head tags (`Head`, ADR 0042), the stylesheet and the hydrating client script, plus `search-index.json` and Open Graph images. A page failing to compile or render fails the build as `prerender /route: reason`; the output is plain files that need no server logic.
+
+What is left is generic prerender for apps that are not content sites.
 
 ## Architecture & Data Models
 <!-- scope: technical -->
 
-- Vite plugin build step: enumerate routes, render each through the SSR entry, write `index.html` per path, emit the client bundle for hydration.
-- **One prerender source:** the plugin option `prerender: true | string[]` lists/enables routes; a route's own `prerender()` supplies param values for that route. The option is the switch, the route function expands dynamic params; the two are merged as a union.
-- Loaders run at build time; data is serialized as in SSR (fn-25 format). Title/meta come from head management (fn-33).
-- First user: `apps/ui-demo` or a new example app. `apps/docs` is Next/fumadocs and is not moved.
-
-## API Contracts
-<!-- scope: technical -->
-
-Plugin option `prerender`; route option `prerender(): Promise<Array<Params>>`.
-
-## Edge Cases & Constraints
-<!-- scope: technical -->
-
-A route failing at build fails the build with its path; dynamic params without `prerender()` are skipped with a warning; trailing-slash policy is one documented choice.
+- **Left:** the `prerender: true | string[]` option and a route's own `prerender()` supplying params for dynamic routes (merged as a union); a dynamic route without `prerender()` is skipped with a warning; loaders run at build time and serialize as in SSR; one documented trailing-slash policy.
+- Prerender today enumerates content pages only (every page route), from the route table.
 
 ## Acceptance Criteria
 <!-- scope: both -->
 
-- **R1:** `vite build` writes an HTML file per prerendered route with rendered content and head tags. Errors: none beyond R3.
-- **R2:** A prerendered page hydrates without `HydrationMismatch`.
-- **R3:** A loader or render error fails the build naming the route.
+- **R2:** A prerendered app page hydrates without `HydrationMismatch` (content pages: covered by fn-59).
+- **R3:** A loader error fails the build naming the route (render errors: covered by fn-59).
 - **R4:** Dynamic routes prerender from `prerender()`; one without it is skipped with a warning.
-- **R5:** The example app's build output serves correctly from a static file server in a test.
 
 ## Quick commands
 <!-- scope: technical -->
@@ -38,9 +26,9 @@ A route failing at build fails the build with its path; dynamic params without `
 ## Boundaries
 <!-- scope: business -->
 
-No ISR, no incremental builds, no deploy adapters, no docs-site migration.
+No ISR, no incremental builds, no deploy adapters.
 
 ## Decision Context
 <!-- scope: both -->
 
-Depends on fn-29, fn-50 (`@sleekstack/router` loaders, absorbed fn-32) and fn-33 (head must land first so prerendered pages have titles).
+Depends on fn-29 (remaining part) and fn-50. fn-33 landed in fn-59, so prerendered pages have titles.

@@ -1,5 +1,11 @@
 # @sleekstack/ui-vite
 
+Decisions: ADR 0042 (void elements, `Head`) and ADR 0043 (this package). Size budget of `ui`: ADR 0022.
+
+Exports: `@sleekstack/ui-vite` (the plugin `sleekContent`, `compileMdx`, `assertLinks`, `findBrokenLinks`), `@sleekstack/ui-vite/search-client` and `@sleekstack/ui-vite/og-meta` (both browser-safe).
+
+`sleekContent` options: `content` (directory, resolved against the cwd), `base?`, `app`, `prerender?: { server, client }`, `search?` (`false` turns the index off), `og?: { site, fonts }`. The frontmatter parser reads simple `key: value` lines only. `ui` and `effect` are peer dependencies; the virtual-module types (`virtual:sleek-content`) are not shipped.
+
 Build pipeline for `@sleekstack/ui` apps. `compileMdx` turns an MDX page into a module that exports its component and `frontmatter`, using the ui JSX runtime.
 
 - `<include>path</include>` expands to a code block read from the file (path relative to the page).
@@ -43,7 +49,11 @@ class SearchIndexMissing extends Error
 The tags come from the page's own `<Head>`: `@sleekstack/ui-vite/og-meta` (no Node imports, safe in the browser entry) exports `ogMeta({ site, path, name, title, description?, base?, image? })`, the `og:*` and `twitter:card` props with an absolute `og:image`:
 
 ```tsx
-<Head>{ogMeta({ site, path, name, title }).map((t) => <meta {...t} />)}</Head>
+<Head>
+  {ogMeta({ site, path, name, title }).map((t) => (
+    <meta {...t} />
+  ))}
+</Head>
 ```
 
 `image: false` (images off) drops every `og:image*` tag and sets `twitter:card` to `summary`. `ogMeta` throws on an empty `site`.
