@@ -64,4 +64,9 @@ export const unfavoriteContract = {
 }
 
 /** Every tag in use, sorted. */
-export const tagsContract = { id: 'tags.list', input: Schema.Void, success: Schema.Array(Schema.String) }
+export const tagsContract = {
+  id: 'tags.list',
+  input: Schema.Void,
+  success: Schema.Array(Schema.String),
+  error: Unauthorized,
+}

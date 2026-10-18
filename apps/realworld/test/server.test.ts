@@ -50,6 +50,12 @@ describe('session cookie', () => {
       error: { _tag: 'Unauthorized' },
     })
 
+    // A bad cookie is Unauthorized on every function that reads the viewer, an anonymous-friendly one included.
+    expect((await call('tags.list', undefined, `${SESSION}=bad.token.here`)).body).toEqual({
+      _tag: 'Failure',
+      error: { _tag: 'Unauthorized' },
+    })
+
     const out = await call('users.logout', undefined, cookie)
     expect(out.setCookie).toEqual([`${SESSION}=; Path=/; Max-Age=0`])
   })

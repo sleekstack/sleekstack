@@ -150,7 +150,7 @@ const functions = [
     articles.tagsContract.id,
     articles.tagsContract,
   )(function* () {
-    return yield* tags
+    return yield* asViewer(tags)
   }),
   serverFn(
     comments.listCommentsContract.id,
