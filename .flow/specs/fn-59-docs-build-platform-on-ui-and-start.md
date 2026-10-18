@@ -79,3 +79,29 @@ Dogfooding: the docs are the first real consumer of the build pipeline, so the p
 Rejected: building fn-29, fn-33 and fn-30 first and the docs after (delays package removal); a docs-only bespoke Vite setup (replaced later); a production `start` server (nothing a static site lacks); Playwright screenshots for Open Graph images (a browser dependency, unmeasured and slower); server-side search. [user]
 
 Source: chart fn-57 decisions D2, D5, D6, D7, D12 and briefing B1 cluster 1.
+
+
+## Quick commands
+
+```bash
+pnpm turbo run test typecheck --filter=@sleekstack/ui... --filter=@sleekstack/ui-vite... --filter=showcase
+```
+
+## Early proof point
+
+Task fn-59-docs-build-platform-on-ui-and-start.3 validates the core approach (real guides and API pages compile to ui components and render, with build-time highlighting). If it fails, re-evaluate the MDX route (decision D2 of chart fn-57) before continuing with .4 and later.
+
+## Requirement coverage
+
+| Req | Description | Task(s) | Gap justification |
+| --- | --- | --- | --- |
+| R1 | A content page compiles to a ui component that exports its frontmatter; all current guides and generated API pages compile and render to HTML. Errors: invalid MDX fails the build naming the file and line; an `<include>` with a missing file fails naming the page and the path. | fn-59-docs-build-platform-on-ui-and-start.3 | — |
+| R2 | Rendered pages have tables, links, lists, inline code, heading ids and build-time highlighted code blocks, with no style objects leaking into attributes and no client JavaScript for highlighting. Errors: an unknown fence language is reported at build, not silently dropped. | fn-59-docs-build-platform-on-ui-and-start.3 | — |
+| R3 | ui's string and stream renderers write void elements (`br`, `hr`, `img`, `input`, `meta`, `link` and the rest of the HTML list) without a closing tag. Errors: children given to a void element are reported as an error instead of rendered; existing ui tests keep passing. | fn-59-docs-build-platform-on-ui-and-start.1 | — |
+| R4 | `<Head>` sets title, meta and link in string, stream and DOM output, with nested overrides, key dedupe and hydration adopting server tags, as in the head-management spec; it carries Open Graph and Twitter-card tags. Errors: an `og:image` requested without a configured site origin fails the build with a clear message; an invalid tag or attribute is rejected like an element. | fn-59-docs-build-platform-on-ui-and-start.1, fn-59-docs-build-platform-on-ui-and-start.2, fn-59-docs-build-platform-on-ui-and-start.6 | — |
+| R5 | A route table is generated from the content tree and its order file, with an optional base prefix; internal links and heading anchors are validated at build. Errors: a broken link or anchor fails the build naming source and target; a route added or removed is picked up without restarting dev. | fn-59-docs-build-platform-on-ui-and-start.4 | — |
+| R6 | The build writes one HTML file per route (content and head tags) plus the client bundle; output serves correctly from a static file server in a test, and every page hydrates without a mismatch. Errors: a render or compile error fails the build naming the route. | fn-59-docs-build-platform-on-ui-and-start.5 | — |
+| R7 | In development the pages are served by the `start` fetch handler behind the Vite dev server and update when content changes; production output does not import `@sleekstack/start`. Errors: a content error is reported in the overlay and clears when fixed. | fn-59-docs-build-platform-on-ui-and-start.4 | — |
+| R8 | The build writes a search index from the guides and API pages and a client function searches it without a server; the build reports the index size. Errors: an empty query returns no results; a missing index is an error, not an empty result. | fn-59-docs-build-platform-on-ui-and-start.5 | — |
+| R9 | The build writes one 1200 by 630 PNG per route from the page title and description with the layout-tree renderer, referenced by an absolute `og:image`. Errors: a missing font file fails the build; with the switch off no image is written and no `og:image` is emitted. | fn-59-docs-build-platform-on-ui-and-start.6 | — |
+| R10 | The pieces ship as workspace packages with READMEs, ADRs for the decisions, AGENTS.md verify rows and CONTEXT terms; fn-29, fn-30 and fn-33 are trimmed or marked superseded; ui's size budget is re-measured. Errors: no error surface beyond the checks in R1 to R9. | fn-59-docs-build-platform-on-ui-and-start.7 | — |
