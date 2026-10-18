@@ -32,9 +32,11 @@ Generate the route table from the content tree and its order file, validate inte
 - [ ] `pnpm turbo run test typecheck --filter=@sleekstack/ui-vite...` is green
 
 ## Done summary
-TBD
+ui-vite gains scanPages/routeTable (meta.json order, base prefix), findBrokenLinks/assertLinks (github-slugger, heading ids tested against the MDX pipeline on every real page), and the sleekContent Vite plugin (virtual:sleek-content routes+pages, dev middleware into start fetch, overlay error/clear on content change, build-time link check).
 
+stage: impl-review - skipped(policy: standing user rule, no per-task review)
+Tier: implementer opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 46549f4f437cc5d4b9757ceaea8e8130a516a845
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/ui-vite..., pnpm run format:check
 - PRs:

@@ -8,6 +8,17 @@ import { app, UserCard, UserNotFound, UserRepoTest } from './fixtures/user-card'
 class Boom extends Data.TaggedError('Boom')<{}> {}
 
 describe('renderToString', () => {
+  it('writes void elements without a closing tag, and rejects children on one', async () => {
+    const voids = 'area base br col embed hr img input link meta source track wbr'.split(' ')
+    const html = await renderToString(Effect.succeed(fragment(...voids.map((t) => el(t, { 'data-x': '1' })))), {
+      layer: Layer.empty,
+    })
+    expect(html).toBe(voids.map((t) => `<${t} data-x="1">`).join(''))
+    await expect(renderToString(Effect.succeed(el('br', {}, 'x')), { layer: Layer.empty })).rejects.toBeInstanceOf(
+      TypeError,
+    )
+  })
+
   it('renders the UserCard example to exact markup', async () => {
     expect(await renderToString(app('1'), { layer: UserRepoTest })).toBe(
       '<div class="card"><h2>Ada</h2><sleek-guest style="display: contents;"><span class="avatar">Ada</span></sleek-guest></div>',

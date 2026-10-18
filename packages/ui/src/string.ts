@@ -5,6 +5,7 @@ import { type Atom, type AtomStore, dehydrate, makeAtomStore } from '@sleekstack
 import { reportRenderError, type RunOptions, runToNode } from './component'
 import { checkEvent, DuplicateBindKey, DuplicateHandler, type Handler, valueInfo } from './handler'
 import type { ElementNode, Node, ReactiveNode } from './node'
+import { HeadSink, makeHeadSink } from './headsink'
 import { Frame, makeFrame, Store } from './reactive'
 import { Transfer } from './transfer'
 
@@ -24,6 +25,9 @@ const checkName = (re: RegExp, kind: string, name: string): string => {
     throw new TypeError(`Invalid ${kind} name: ${JSON.stringify(name)}`)
   return name
 }
+
+/** HTML void elements: written without a closing tag, and without children. */
+const VOID = /^(?:area|base|br|col|embed|hr|img|input|link|meta|source|track|wbr)$/i
 
 const URL_ATTRS = new Set(['href', 'src', 'action', 'formaction', 'xlink:href'])
 /** Shared attribute policy: rejects invalid names, inline handlers, renderer-owned `data-sleek-*`, `srcdoc` and `javascript:` URLs. */
@@ -154,6 +158,10 @@ export const serialize = (node: Node, c: Collector, around: Around = NO_TEXT): s
           .map(([k, v]) => (checkAttr(k, v), ` ${k}="${escape(v)}"`))
           .join('') + boundAttrs(node, c)
       const on = node.on ? handlerAttrs(node.on, c) : ''
+      if (VOID.test(node.tag)) {
+        if (flatten(node.children).length > 0) throw new TypeError(`Void element <${node.tag}> cannot have children`)
+        return `<${node.tag}${attrs}${on}>`
+      }
       return `<${node.tag}${attrs}${on}>${serializeAll(node.children, c)}</${node.tag}>`
     }
     case 'Reactive':
@@ -181,14 +189,16 @@ export const serialize = (node: Node, c: Collector, around: Around = NO_TEXT): s
  * String renderer (SSR and tests). Rejection contract matches `mount`. Provides a fresh `Store`, disposed afterwards.
  * Handlers (`on`) and `bind` nodes emit `data-sleek-*` attributes and one trailing manifest script; rejects with
  * `DuplicateHandler`, `DuplicateBindKey` or `UnsupportedEvent`. Serializable atom state and the layer's `Transfer` state
- * cache go into a trailing `data-sleek-hydrate` script that `hydrateMount` seeds from.
+ * cache go into a trailing `data-sleek-hydrate` script that `hydrateMount` seeds from. `<Head>` tags are not in the
+ * returned string: `onHead` receives them once, for the caller's document shell.
  */
 export const renderToString = async <E, A, LE = never>(
   app: Effect.Effect<Node, E, A>,
-  opts: { layer: Layer.Layer<Exclude<A, Store>, LE, never> } & RunOptions,
+  opts: { layer: Layer.Layer<Exclude<A, Store>, LE, never>; onHead?: (html: string) => void } & RunOptions,
 ): Promise<string> => {
   // Idle nodes stay until dispose, so `dehydrate` sees every atom the render built.
   const store = makeAtomStore({ scheduleTask: () => {} })
+  const head = makeHeadSink()
   try {
     let transfer: unknown
     // The layer's `Transfer` (when it provides one) is read after the render's fetches settled.
@@ -201,10 +211,17 @@ export const renderToString = async <E, A, LE = never>(
     const withStore = captured.pipe(
       Effect.provideService(Store, store),
       Effect.provideService(Frame, makeFrame()),
+      Effect.provideService(HeadSink, head),
     ) as Effect.Effect<Node, E, Exclude<A, Store>>
     const node = await runToNode(withStore, opts.layer, opts)
     const c: Collector = { store, onError: opts.onError, handlers: new Map(), events: new Set(), atoms: new Map() }
     const html = serialize(node, c)
+    opts.onHead?.(
+      head
+        .resolved()
+        .map((r) => serialize(r.node, c))
+        .join(''),
+    )
     return html + manifest(c) + payload(dehydrate(store), transfer)
   } finally {
     await store.dispose()

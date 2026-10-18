@@ -1,8 +1,9 @@
 import { Context, Effect, Exit, Fiber, Layer, Option, Runtime, Scope } from 'effect'
 import { type AtomStore, dehydrate, makeAtomStore } from '@sleekstack/core'
 import { nodeOrThrow, reportRenderError, type RunOptions } from './component'
-import type { Node, ReactiveNode } from './node'
+import type { ElementNode, Node, ReactiveNode } from './node'
 import { disposeSlots, Frame, makeFrame, RenderScope, Store } from './reactive'
+import { HeadSink, makeHeadSink } from './headsink'
 import { Transfer, type StateTransfer } from './transfer'
 import { type Around, checkId, type Collector, escape, payload, scriptJson, serialize, serializeAll } from './string'
 
@@ -13,6 +14,8 @@ const SWAP =
   "while(x){var y=x.nextSibling;if(x.nodeType===8){if(x.data.indexOf('sleek-p:')===0)d++;else if(x.data==='/sleek-p'){if(!d){p.removeChild(x);break}d--}}p.removeChild(x);x=y}" +
   'p.replaceChild(t.content,n);t.remove()};' +
   // Stream end with boundaries that never got a chunk: kept for a client that hydrates later (`hydrateMount` reports them).
+  // Head patch: a tag registered after the shell flushed (`Head` in resolved `Pending` content) replaces the one with its selector, or is appended.
+  "self.__sleekHead=function(a){a.forEach(function(h){var e=document.head.querySelector(h[0]),t=document.createElement('template');t.innerHTML=h[1];e?e.replaceWith(t.content):document.head.append(t.content)})};" +
   'self.__sleekEnd=function(m){(self.__sleekGone=self.__sleekGone||[]).push.apply(self.__sleekGone,m)}'
 
 export interface StreamOptions<A, LE> extends RunOptions {
@@ -21,6 +24,12 @@ export interface StreamOptions<A, LE> extends RunOptions {
   readonly nonce?: string
   /** Prefix of placeholder ids; distinct per stream when several share a page. Default `sleek-`. */
   readonly idPrefix?: string
+  /**
+   * Receives the shell's head tags (`Head` as resolved when the shell rendered) once, before the shell's first chunk, for
+   * the caller's document `<head>`. Head policy after that: a tag a resolved `Pending` boundary adds or changes is patched
+   * into `document.head` by an inline script (with the nonce) ahead of that boundary's swap; a tag that goes away stays.
+   */
+  readonly onHead?: (html: string) => void
 }
 
 // Resolves once one of the instance's atoms differs from what its run read.
@@ -66,6 +75,25 @@ export const renderToStream = <E, A, LE = never>(
   let next = 0
   const waiting: Array<Promise<void>> = []
   const c: Collector = { store, onError: opts.onError, handlers: new Map(), events: new Set(), atoms: new Map() }
+  const head = makeHeadSink()
+  const sentHead = new Map<string, string>()
+  const attrSel = (n: string, v: string) => `[${n}="${v.replace(/["\\]/g, '\\$&')}"]`
+  // CSS selector of the element a head key names (`meta[name=x]` -> `meta[name="x"]`, `link[rel]+href` -> both attributes).
+  const selector = (key: string, node: ElementNode): string =>
+    node.tag === 'link'
+      ? `link${attrSel('rel', node.attrs.rel ?? '')}${attrSel('href', node.attrs.href ?? '')}`
+      : key.replace(/^meta\[([^=\]]+)=(.*)\]$/, (_, n: string, v: string) => `meta${attrSel(n, v)}`)
+  // The head tags whose serialized form differs from what the page has been sent.
+  const headChanges = (): Array<[string, string]> => {
+    const out: Array<[string, string]> = []
+    for (const { key, node } of head.resolved()) {
+      const html = serialize(node, c)
+      if (sentHead.get(key) === html) continue
+      sentHead.set(key, html)
+      if (!key.startsWith('meta#')) out.push([selector(key, node), html])
+    }
+    return out
+  }
   let emit: (html: string) => void = () => {}
   let transfer: StateTransfer | undefined
   // Atom state sent so far: key -> encoded JSON (the `Transfer` tracks its own). One Collector spans the stream.
@@ -120,8 +148,10 @@ export const renderToStream = <E, A, LE = never>(
         parent = outer
       }
       unsent.delete(id)
+      const patch = headChanges()
+      const headScript = patch.length ? `<script${nonce}>__sleekHead(${scriptJson(patch)})</script>` : ''
       emit(
-        `${state()}<template data-sleek-b="${id}">${html}</template><script${nonce}>__sleekSwap(${scriptJson(id)})</script>`,
+        `${headScript}${state()}<template data-sleek-b="${id}">${html}</template><script${nonce}>__sleekSwap(${scriptJson(id)})</script>`,
       )
     }
     waiting.push(settle(node))
@@ -135,6 +165,7 @@ export const renderToStream = <E, A, LE = never>(
         return Effect.provide(app, ctx)
       }).pipe(
         Effect.provideService(Store, store),
+        Effect.provideService(HeadSink, head),
         Effect.provideService(Frame, frame),
         Effect.provideService(RenderScope, scope),
       ) as Effect.Effect<Node, unknown, never>
@@ -145,6 +176,13 @@ export const renderToStream = <E, A, LE = never>(
       try {
         html = serialize(nodeOrThrow(exit, opts.onError), c)
         html += state()
+        headChanges()
+        opts.onHead?.(
+          head
+            .resolved()
+            .map((r) => serialize(r.node, c))
+            .join(''),
+        )
       } catch (error) {
         await dispose()
         throw error

@@ -7,6 +7,7 @@ import {
   bind,
   Boundary,
   el,
+  Head,
   Pending,
   fromReact,
   HydrateConflict,
@@ -58,6 +59,41 @@ const serverThenHydrate = async (app: () => any) => {
   expect(onError).not.toHaveBeenCalled()
   return { container, before }
 }
+
+describe('hydrateMount head adoption', () => {
+  it('adopts the server head tags: one of each, no mismatch', async () => {
+    const App = () =>
+      jsx('main', {
+        children: [
+          jsx(Head, {
+            children: [
+              jsx('title', { children: 'T' }),
+              jsx('meta', { name: 'description', content: 'd' }),
+              jsx('link', { rel: 'icon', href: '/i.png' }),
+            ],
+          }),
+          'x',
+        ],
+      })
+    let serverHead = ''
+    const container = document.createElement('div')
+    container.innerHTML = await renderToString(jsx(App, {}), { layer: Layer.empty, onHead: (h) => (serverHead = h) })
+    document.head.innerHTML = serverHead
+    const [t, m, l] = [...document.head.children]
+    const onError = vi.fn()
+    let h!: Mounted
+    await act(async () => void (h = await hydrateMount(jsx(App, {}), { layer: Layer.empty, container, onError })))
+    handles.push(h)
+    await tick()
+    expect(onError).not.toHaveBeenCalled()
+    expect([...document.head.children]).toEqual([t, m, l])
+    await act(async () => h.dispose())
+    handles = []
+    await tick()
+    expect(document.head.children.length).toBe(0)
+    document.head.innerHTML = ''
+  })
+})
 
 describe('hydrateMount', () => {
   it('an effectful component hydrates the server markup, then runs its effect with its ref set', async () => {

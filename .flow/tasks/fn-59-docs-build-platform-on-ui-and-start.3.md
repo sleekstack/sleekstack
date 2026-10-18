@@ -34,9 +34,12 @@ Create the Vite plugin package of fn-29 (`@sleekstack/ui-vite`) and its first pi
 - [ ] `pnpm turbo run test typecheck --filter=@sleekstack/ui-vite...` is green
 
 ## Done summary
-TBD
+New @sleekstack/ui-vite with compileMdx (MDX to ui JSX runtime, frontmatter, GFM, rehype-slug, include tag, build-time shiki with style-to-class and one stylesheet). 26 guides plus 13 generated API pages compile and render.
 
+baseline: none (new package)
+stage: impl-review - skipped(policy: user standing rule, no per-task review)
+GATE_SKIPPED:none
 ## Evidence
-- Commits:
-- Tests:
+- Commits: fc627827b02980d5923c27269ff7d3082eb8690b
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/ui-vite..., pnpm format:check
 - PRs:
