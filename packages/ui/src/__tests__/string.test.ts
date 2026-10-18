@@ -179,8 +179,13 @@ describe('renderToString', () => {
       ['an unsafe attribute', jsx('link', { rel: 'x', href: 'javascript:alert(1)' })],
       ['an invalid attribute name', jsx('meta', { 'a"b': 'x' })],
       ['an unsupported tag', jsx('script', { children: 'x' })],
-    ])('rejects %s like an element', async (_, tag) => {
-      await expect(head(jsx(Head, { children: tag }))).rejects.toThrow(TypeError)
+    ])('rejects %s like an element and reports it', async (_, tag) => {
+      const onError = vi.fn()
+      const render = renderToString(jsx(Head, { children: tag }), { layer: Layer.empty, onError })
+      const err = await render.catch((e) => e)
+      expect(err).toBeInstanceOf(TypeError)
+      expect(onError).toHaveBeenCalledOnce()
+      expect(Cause.squash(onError.mock.calls[0]![0])).toBe(err)
     })
   })
 })

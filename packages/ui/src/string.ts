@@ -129,11 +129,14 @@ export interface HeadMark {
 }
 /** What a `Head` emitted, keyed by its output node; a string or stream render collects it as it serializes the node. */
 export const headOf = new WeakMap<Node, HeadMark>()
-// An invalid head tag rejects the render, like an invalid element.
+// An invalid head tag rejects the render, like an invalid element, and is reported to `onError` (the render already ran).
 const collectHead = (n: Node, c: Collector): void => {
   const mark = headOf.get(n)
   if (!mark) return
-  if (mark.errors.length > 0) throw mark.errors[0]
+  if (mark.errors.length > 0) {
+    if (c.onError) reportRenderError(mark.errors[0], c.onError)
+    throw mark.errors[0]
+  }
   c.head?.push(mark)
 }
 
