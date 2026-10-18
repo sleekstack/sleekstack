@@ -20,6 +20,9 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "magic-string": "^0.30.21"
+  },
   "peerDependencies": {
     "vite": "^8.0.16"
   },

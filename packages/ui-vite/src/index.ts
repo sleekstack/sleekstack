@@ -1,7 +1,7 @@
 import type { Plugin } from 'vite'
-import { jsx, type JsxOptions } from './jsx'
+import { jsx, type JsxOptions } from './jsx.js'
 
-export type { JsxOptions } from './jsx'
+export type { JsxOptions } from './jsx.js'
 
 /** Options of {@link sleekstack}. */
 export type SleekstackOptions = JsxOptions

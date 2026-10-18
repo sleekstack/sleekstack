@@ -1,3 +1,4 @@
+import MagicString from 'magic-string'
 import { createFilter, type FilterPattern, type Plugin } from 'vite'
 
 /** Which files are ui JSX without writing the pragma. */
@@ -6,7 +7,11 @@ export interface JsxOptions {
   readonly exclude?: FilterPattern
 }
 
-export const PRAGMA = '/** @jsxImportSource @sleekstack/ui */'
+const PRAGMA = '/** @jsxImportSource @sleekstack/ui */'
+
+// oxc reads `@jsxImportSource` only from the comments before the first statement; anywhere else it is plain text.
+const LEADING_COMMENTS = /^(?:\s|\/\/[^\n]*|\/\*[\s\S]*?\*\/)*/
+const hasPragma = (code: string): boolean => /@jsxImportSource\s/.test(LEADING_COMMENTS.exec(code)![0])
 
 /**
  * Marks include-matched JSX files as ui JSX by adding the pragma, so Vite's oxc transform compiles them against
@@ -26,10 +31,9 @@ export const jsx = (options: JsxOptions = {}): Plugin => {
     transform: {
       filter: { id: /\.[jt]sx(?:$|\?)/ },
       handler(code, id) {
-        if (!matches(id) || code.includes('@jsxImportSource')) return null
-        // oxc reads the pragma only from leading comments; keeping it on line 1 leaves every other line's position
-        // as is. ponytail: `map: null` keeps the incoming map, so line-1 columns are off by the pragma's length.
-        return { code: PRAGMA + code, map: null }
+        if (!matches(id) || hasPragma(code)) return null
+        const out = new MagicString(code).prepend(PRAGMA)
+        return { code: out.toString(), map: out.generateMap({ hires: 'boundary', source: id }) }
       },
     },
   }

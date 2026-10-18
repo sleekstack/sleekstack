@@ -2,10 +2,16 @@ import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import { build, type Rolldown } from 'vite'
 import { describe, expect, it } from 'vitest'
-import { sleekstack } from '../index'
+import { sleekstack } from '../index.js'
 
 const root = fileURLToPath(new URL('./fixtures/jsx', import.meta.url))
-const entries = { ui: 'ui.tsx', guest: 'guest.tsx', counter: 'islands/counter.tsx', legacy: 'islands/legacy.tsx' }
+const entries = {
+  ui: 'ui.tsx',
+  guest: 'guest.tsx',
+  counter: 'islands/counter.tsx',
+  legacy: 'islands/legacy.tsx',
+  note: 'islands/note.tsx',
+}
 
 // One fixture build with `sleekstack()` beside plugin-react; the runtimes stay external so each chunk shows which one it imports.
 const runtimes = async () => {
@@ -39,6 +45,7 @@ describe('sleekstack() JSX', () => {
       counter: '@sleekstack/ui',
       guest: 'react',
       legacy: 'react',
+      note: '@sleekstack/ui',
     })
   })
 })
