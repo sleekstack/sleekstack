@@ -5,6 +5,9 @@ import { isUiJsx } from './jsx.js'
 
 /** The property `fnId` in `@sleekstack/ui` reads a component's stable id from. */
 const KEY = 'Symbol.for("@sleekstack/ui/component-id")'
+// `async function*` up to where a name goes, comments allowed between the tokens.
+const GAP = String.raw`(?:\s|//[^\n]*(?:\n|$)|/\*[\s\S]*?\*/)*`
+const FUNCTION_HEAD = new RegExp(`^(?:async${GAP})?function${GAP}(?:\\*${GAP})?`)
 
 type Node = { readonly type: string; readonly start: number; readonly end: number; readonly [k: string]: any }
 
@@ -53,8 +56,8 @@ const ownExports = (program: ESTree.Program, out: MagicString): Array<readonly [
         let local = '__sleekstack_default'
         while (out.original.includes(local)) local += '_'
         if (d.type === 'FunctionDeclaration') {
-          // Stays a hoisted declaration: only the name is added, after `function` / `function*`.
-          const head = /^(?:async\s+)?function\s*\*?/.exec(out.original.slice(d.start, d.end))![0]
+          // Stays a hoisted declaration: only the name is added, after `function` / `function*` and any comments.
+          const head = FUNCTION_HEAD.exec(out.original.slice(d.start, d.end))![0]
           out.appendLeft(d.start + head.length, ` ${local}`)
         } else {
           out.overwrite(s.start, d.start, `const ${local} = `)

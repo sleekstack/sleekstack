@@ -3,7 +3,7 @@ import * as path from 'node:path'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import type { ReadableStream as NodeReadableStream } from 'node:stream/web'
-import { isRunnableDevEnvironment, normalizePath, type Plugin, type Rollup } from 'vite'
+import { isRunnableDevEnvironment, normalizePath, type Plugin, type Rollup, type ViteDevServer } from 'vite'
 
 /** The app's browser and server entry modules. */
 export interface EntriesOptions {
@@ -22,12 +22,36 @@ const RESOLVED = `\0${CLIENT_MODULE}`
 
 const script = (src: string) => `<script type="module" src="${src}"></script>`
 
-// The client entry chunk and the CSS it imports, from the client build's output.
-const builtScripts = (output: Rollup.RollupOutput, entry: string, base: string): string => {
-  const chunk = output.output.find((o): o is Rollup.OutputChunk => o.type === 'chunk' && o.facadeModuleId === entry)
+type BuildResult = Rollup.RollupOutput | Rollup.RollupOutput[] | Rollup.RollupWatcher
+
+/**
+ * The client entry chunk and the CSS its static import graph loads (all emitted CSS when `cssCodeSplit` is off), from
+ * the client build's result.
+ */
+const builtScripts = (result: BuildResult, entry: string, base: string, cssCodeSplit: boolean): string => {
+  if (!Array.isArray(result) && !('output' in result))
+    throw new Error('sleekstack: `entries` does not support `vite build --watch`')
+  const files = (Array.isArray(result) ? result : [result]).flatMap((r) => r.output)
+  const chunks = new Map(files.flatMap((o) => (o.type === 'chunk' ? [[o.fileName, o] as const] : [])))
+  const chunk = [...chunks.values()].find((c) => c.facadeModuleId === entry)
   if (!chunk) throw new Error(`sleekstack: the client build has no chunk for ${entry}`)
-  const css = [...(chunk.viteMetadata?.importedCss ?? [])].map((f) => `<link rel="stylesheet" href="${base}${f}">`)
-  return css.join('') + script(base + chunk.fileName)
+  const css = new Set<string>()
+  const seen = new Set<string>()
+  const walk = (c: Rollup.OutputChunk) => {
+    if (seen.has(c.fileName)) return
+    seen.add(c.fileName)
+    for (const i of c.imports) if (chunks.has(i)) walk(chunks.get(i)!)
+    for (const f of c.viteMetadata?.importedCss ?? []) css.add(f)
+  }
+  walk(chunk)
+  if (!cssCodeSplit) for (const o of files) if (o.type === 'asset' && o.fileName.endsWith('.css')) css.add(o.fileName)
+  return [...css].map((f) => `<link rel="stylesheet" href="${base}${f}">`).join('') + script(base + chunk.fileName)
+}
+
+// The tags Vite's and the plugins' HTML transforms add to a page in dev (its client, React's refresh preamble).
+const devTags = async (server: ViteDevServer): Promise<string> => {
+  const html = await server.transformIndexHtml('/', '<html><head></head><body></body></html>')
+  return [...html.matchAll(/<(head|body)>([\s\S]*?)<\/\1>/g)].map((m) => m[2]).join('')
 }
 
 const toRequest = (req: IncomingMessage): Request => {
@@ -63,7 +87,7 @@ export const entries = (options: EntriesOptions = {}): Plugin => {
   const e = options.entries
   let root = ''
   let base = '/'
-  let dev = false
+  let server: ViteDevServer | undefined
   let scripts: string | undefined
   const abs = (file: string) => normalizePath(path.resolve(root, file))
   return {
@@ -89,15 +113,14 @@ export const entries = (options: EntriesOptions = {}): Plugin => {
     configResolved(config) {
       root = config.root
       base = config.base
-      dev = config.command === 'serve'
     },
     buildApp: {
       order: 'pre',
       async handler(builder) {
         if (!e) return
         const { client, ssr } = builder.environments
-        const output = await builder.build(client!)
-        scripts = builtScripts(output as Rollup.RollupOutput, abs(e.client), base)
+        const result = await builder.build(client!)
+        scripts = builtScripts(result, abs(e.client), base, client!.config.build.cssCodeSplit)
         await builder.build(ssr!)
       },
     },
@@ -107,22 +130,23 @@ export const entries = (options: EntriesOptions = {}): Plugin => {
     },
     load: {
       filter: { id: new RegExp(`^\0${CLIENT_MODULE}$`) },
-      handler() {
-        const html = dev
-          ? script(`${base}@vite/client`) + script(base + path.posix.relative(root, abs(e!.client)))
+      async handler() {
+        const html = server
+          ? (await devTags(server)) + script(base + path.posix.relative(root, abs(e!.client)))
           : scripts
         if (html === undefined)
           throw new Error(`sleekstack: ${CLIENT_MODULE} needs the client build first (vite build)`)
         return `export const scripts = ${JSON.stringify(html)}\n`
       },
     },
-    configureServer(server) {
+    configureServer(dev) {
+      server = dev
       if (!e) return
       // After Vite's own middlewares: modules and static files are served first.
       return () => {
-        server.middlewares.use(async (req, res, next) => {
+        dev.middlewares.use(async (req, res, next) => {
           try {
-            const ssr = server.environments.ssr
+            const ssr = dev.environments.ssr
             if (!ssr || !isRunnableDevEnvironment(ssr))
               throw new Error('sleekstack: the ssr environment cannot run modules')
             const mod = (await ssr.runner.import(abs(e.server))) as {

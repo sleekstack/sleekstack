@@ -1,2 +1,3 @@
 /** @jsxImportSource @sleekstack/ui */
-export default function* () {}
+// a comment between `function` and `*` must not get the generated name
+export default function /* gen */ * () {}
