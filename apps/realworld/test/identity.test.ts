@@ -112,6 +112,11 @@ describe('updateUser', () => {
       { _tag: 'ValidationError', errors: { username: ['has already been taken'] } },
     ],
     ['a blank email', { email: ' ' }, { _tag: 'ValidationError', errors: { email: ["can't be blank"] } }],
+    [
+      'a whitespace password',
+      { password: '   ' },
+      { _tag: 'ValidationError', errors: { password: ["can't be blank"] } },
+    ],
   ])('rejects %s', async (_, input, expected) => {
     const error = await run(
       Effect.gen(function* () {
@@ -121,6 +126,20 @@ describe('updateUser', () => {
       }),
     )
     expect(error).toMatchObject(expected)
+  })
+
+  it('keeps a concurrent update to another field', async () => {
+    const user = await run(
+      Effect.gen(function* () {
+        const { token } = yield* register(alice)
+        const me = as(token)
+        yield* Effect.all([me(updateUser({ password: 'fresh' })), me(updateUser({ bio: 'hi' }))], {
+          concurrency: 'unbounded',
+        })
+        return yield* me(currentUser)
+      }),
+    )
+    expect(user.bio).toBe('hi')
   })
 
   it('needs a signed-in viewer', async () => {

@@ -118,22 +118,26 @@ export const updateUser = (input: UpdateUser) =>
     yield* requireFields({
       ...(input.email !== undefined && { email }),
       ...(input.username !== undefined && { username }),
+      ...(input.password && { password: input.password }),
     })
     yield* requireFree({ ...(email && { email }), ...(username && { username }) }, row.id)
-    const hash = input.password ? yield* hashPassword(input.password) : row.password_hash
-    const db = yield* Db
-    yield* write(() =>
-      db
-        .prepare('UPDATE users SET email = ?, username = ?, password_hash = ?, bio = ?, image = ? WHERE id = ?')
-        .run(
-          email ?? row.email,
-          username ?? row.username,
-          hash,
-          input.bio === undefined ? row.bio : input.bio,
-          input.image === undefined ? row.image : input.image,
-          row.id,
-        ),
-    )
+    const changes: Record<string, string | null> = {
+      ...(email && { email }),
+      ...(username && { username }),
+      ...(input.password && { password_hash: yield* hashPassword(input.password) }),
+      ...(input.bio !== undefined && { bio: input.bio }),
+      ...(input.image !== undefined && { image: input.image }),
+    }
+    // Only the given columns are written, so a concurrent update to another field is kept.
+    const columns = Object.keys(changes)
+    if (columns.length) {
+      const db = yield* Db
+      yield* write(() =>
+        db
+          .prepare(`UPDATE users SET ${columns.map((c) => `${c} = ?`).join(', ')} WHERE id = ?`)
+          .run(...Object.values(changes), row.id),
+      )
+    }
     return toUser((yield* byId(row.id))!, token)
   })
 
