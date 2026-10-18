@@ -1,7 +1,7 @@
-import { type Child, type Node, Pending } from '@sleekstack/ui'
+import { type Child, type Node, Pending, type Store, type Transfer } from '@sleekstack/ui'
 import { jsx } from '@sleekstack/ui/jsx-runtime'
-import { Cause, Data, Effect, Option } from 'effect'
-import { match, routeLayer, type Match, type RouteTable } from './index'
+import { Cause, Data, Effect, type Layer, Option } from 'effect'
+import { match, type Route, routeLayer, type Match, type RouteTable } from './index'
 import { keyOf, type Loader, Loaders, useLoader } from './loader'
 
 /** Raised by a loader or action: go to `to` instead (R9). Control flow, not a failure. */
@@ -17,10 +17,14 @@ export const notFound = (): Effect.Effect<never, NotFound> => Effect.fail(new No
 /** Redirects followed in one navigation before it fails with `RedirectLoop`. */
 export const MAX_REDIRECTS = 10
 
-/** A page: renders the route's view; `loaders` run (and settle redirect / not-found) before it shows. */
-export interface Page {
-  readonly render: () => Effect.Effect<Node, any, any>
-  readonly loaders?: ReadonlyArray<Loader<any, any, any, any>>
+/**
+ * A page: renders the route's view; `loaders` run (and settle redirect / not-found) before it shows. `R` is what its
+ * render and loaders need; `startRouter` and `handle` take a layer providing it. A JSX render adds nothing to `R`:
+ * ui types JSX as requirement-free, so a component's services are checked by `sleekstack check`, not here.
+ */
+export interface Page<R = any> {
+  readonly render: () => Effect.Effect<Node, any, R>
+  readonly loaders?: ReadonlyArray<Loader<any, any, any, R>>
   /** Shown while a loader the page reads is still loading; the router wraps the page in `Pending` with it. */
   readonly fallback?: Child
 }
@@ -29,15 +33,45 @@ export interface Page {
 export const view = (page: Page): Effect.Effect<Node, never, never> =>
   jsx(Pending, { fallback: page.fallback, children: page.render() })
 
-/** A route table with a page per route and the page shown when nothing matches. */
-export interface Router<T extends RouteTable = RouteTable> {
+/**
+ * A route table with a page per route and the page shown when nothing matches; `R` is what the pages need beyond
+ * `Route` (which the router provides to matched pages) plus everything `notFound` needs.
+ */
+export interface Router<T extends RouteTable = RouteTable, R = any> {
   readonly table: T
-  readonly pages: { readonly [K in keyof T]: Page }
-  readonly notFound: () => Effect.Effect<Node, any, any>
+  readonly pages: { readonly [K in keyof T]: Page<R> }
+  readonly notFound: () => Effect.Effect<Node, any, R>
 }
 
-/** Identity that keeps the table literal and checks there is a page per route. */
-export const router = <const T extends RouteTable>(r: Router<T>): Router<T> => r
+// `Route` is provided around matched pages only, so it is dropped here and kept in what `notFound` needs.
+type PageNeeds<P> = Exclude<
+  | (P extends { readonly render: () => Effect.Effect<any, any, infer R> } ? R : never)
+  | (P extends { readonly loaders: ReadonlyArray<Loader<any, any, any, infer R>> } ? R : never),
+  Route
+>
+
+/** Services the router provides around every page, the not-found page included; an app's layer never has to. */
+export type RouterProvided = Loaders | Transfer | Store
+
+/** What a router's pages, loaders and not-found page need from the app's layer. */
+export type Requirements<R> = Exclude<R, RouterProvided>
+
+/**
+ * The app layer option of `startRouter` and `handle`: required and checked when the pages need services, optional
+ * when they need none (or when the router's requirements are not tracked, as for a `Router` annotated without `R`).
+ */
+export type AppLayer<R> = 0 extends 1 & R
+  ? { readonly layer?: Layer.Layer<any, any, never> }
+  : [Requirements<R>] extends [never]
+    ? { readonly layer?: Layer.Layer<any, any, never> }
+    : { readonly layer: Layer.Layer<Requirements<R>, any, never> }
+
+/** Identity that keeps the table literal, checks there is a page per route, and infers what the pages need. */
+export const router = <const T extends RouteTable, P extends { readonly [K in keyof T]: Page }, N = never>(r: {
+  readonly table: T
+  readonly pages: P
+  readonly notFound: () => Effect.Effect<Node, any, N>
+}): Router<T, PageNeeds<P[keyof P]> | N> => r as Router<T, PageNeeds<P[keyof P]> | N>
 
 export type Resolved =
   | { readonly _tag: 'Page'; readonly match: Match; readonly href: string; readonly error?: unknown }

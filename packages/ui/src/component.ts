@@ -1,4 +1,4 @@
-import { Cause, Effect, Exit, Layer, Option } from 'effect'
+import { Cause, Effect, Exit, Layer, Option, Runtime } from 'effect'
 import type { ComponentType } from 'react'
 import type { Node } from './node'
 
@@ -34,8 +34,14 @@ export const fromReact =
 export const runToNode = async <E, A, LE>(
   app: Effect.Effect<Node, E, A>,
   layer: Layer.Layer<A, LE, never>,
-  onError?: (cause: Cause.Cause<unknown>) => void,
-): Promise<Node> => nodeOrThrow(await Effect.runPromiseExit(Effect.provide(app, layer)), onError)
+  { onError, runtime = Runtime.defaultRuntime }: RunOptions = {},
+): Promise<Node> => nodeOrThrow(await Runtime.runPromiseExit(runtime)(Effect.provide(app, layer)), onError)
+
+/** How a render runs: `runtime` (default: Effect's) supplies the fibers' FiberRefs, tracer and base services. */
+export interface RunOptions {
+  readonly onError?: (cause: Cause.Cause<unknown>) => void
+  readonly runtime?: Runtime.Runtime<never>
+}
 
 /** A render exit's node, or its original failure / defect thrown (never a `FiberFailure`); `onError` gets the cause. */
 export const nodeOrThrow = (exit: Exit.Exit<Node, unknown>, onError?: (cause: Cause.Cause<unknown>) => void): Node => {

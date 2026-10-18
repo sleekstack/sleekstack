@@ -231,6 +231,16 @@ _Avoid_: Fetch, loader, resolver
 The dev-only introspection of a running app: a bounded event buffer in `@sleekstack/runtime` (per-service acquire/release, fiber id, owning scope) served by the route handler in `@sleekstack/next/devtools`, rendered by the `@sleekstack/devtools` panel (graph roots, live scopes, services, atoms of every open AtomStore, errors linked to their scope), and for `@sleekstack/ui` mounts `uiTrace()` with `<UiPanel>` (instance tree, atoms per instance, re-run reasons, effect runs) fed by a Render Observer. In production recording is off and the handler returns 404; the panel is excluded from production client chunks when mounted behind a dynamic import.
 _Avoid_: Inspector, debug panel
 
+### Start concepts (`@sleekstack/start`)
+
+**Server Function**:
+A server operation for ui apps, declared with `serverFn(id, { input, success, error? })(function* ...)` and listed in `start({ functions })` (ADR 0039). It runs in a Request Scope, served at `POST /_sleek/fn/<id>`: input decoded before the body, output encoded with the success Schema, the declared error typed across the wire. The browser calls it through a `client(contract)` stub built from the same Schemas. Distinct from an Action (the Next Server Action) and a Form Action (the ui submit handler, which a stub can be).
+_Avoid_: Action, Server Action, RPC, procedure
+
+**Server Endpoint**:
+A route handler given to `start({ handlers })` at an exact pathname: one Effect per HTTP method, answering the request with a `Response`, with the request services (`Request`, `Cookies`, `ResponseHeaders`) in the Request Scope (ADR 0039). An unsupported method is 405 with `Allow`.
+_Avoid_: API route, controller
+
 ### Query cache concepts
 
 **Cached Query**:
