@@ -65,6 +65,16 @@ The layer has three parts with one job each:
 - **R7:** A Draft-only bundle holds no records code; the size budget test passes; `useDraft(spec, src)` and `DraftSpec.toDto` behave as before.
 - **R8:** A new ADR supersedes ADR 0038's "Rejected" line on relationships and a record store and records the three-part split; CONTEXT.md defines the new terms (avoiding `Record` and `Entity`); the Models guide and the model README document it; AGENTS.md verify row for model still holds.
 
+## Quick commands
+
+```bash
+pnpm turbo run test typecheck --filter=@sleekstack/model... --filter=@sleekstack/analyze
+```
+
+## Early proof point
+
+Task fn-58-effect-native-records-layer-in.1 validates the core approach (one `keepAlive` registry per Store gives one stable atom per type and id, surviving idle removal and `evict`). If it fails, re-evaluate the identity-map storage (registry atom versus `AtomStore.retain` per slot) before continuing with fn-58-effect-native-records-layer-in.2 onward.
+
 ## Boundaries
 <!-- scope: business -->
 
@@ -86,10 +96,33 @@ The user ranks the Effect-native records layer above the earlier decision to lea
 
 A panel advised a separate `@sleekstack/records` package and no build; the user chose to build and asked to enrich the model package, so it goes in `model` with a tree-shakable layout. The adapter lives on the record (not wired inside each query), so fetching works without TanStack and `./query` only adds caching. Wire shape (envelope, request body, PATCH) lives in the adapter, per-field formats on the record, input on the Draft, as WarpDrive splits handlers from schema transformations. Rejected: a separate store with its own fetching (a second cache beside the Query Client); records as `Atom.family` keyed by id alone (identity is type plus id); one shared object for record and edit (edits would leak into the shared record); a whole-record two-way codec (ADR 0038); a string registry for transformations (types would not flow). [paraphrase]
 
-### Open design points (decide while planning)
+### Resolved while planning
 <!-- scope: technical -->
 
-- Relationship value: `Ref { id, value: Option<M> }`, or one stable atom per id and field with a "complete" flag on collections.
-- Overlapping saves: serialize or reject.
-- SSR: serializable map atoms or a client-only map.
-- Final names (record definition, transformation, `Ref`).
+Settled by the scouts and the gap analysis, with the defaults they recommended:
+
+- **Identity map storage:** one `keepAlive` registry atom per Store holds a map from `(type, id)` to a writable slot atom. `Atom.family` is not used (weak references can drop an atom and split identity). `evict` resets the slot to `None` and keeps the atom, so a re-`push` never builds a second atom. Ids are strings in v1.
+- **Store access:** `push`, `find` and `commit` take the Store as a Service (the `Store` Tag `draft.ts` already uses from the ui internal entry). The Query Client Layer must be given the same Store and the adapter Layer; `effectFn` does not inherit a component's Store.
+- **Overlapping saves:** a second `commit` of one `(type, id)` while one is in flight fails with a typed `SaveInFlight`. Each ingest carries a per-record counter taken when its request started, and a response older than the last acknowledgement is dropped.
+- **SSR:** the map is client-only in v1 and documented so. `Post.query` ingests on every read, including a hydrated cache hit, so the map rebuilds from the Query cache after hydration. No record atom is `serializable`.
+- **Draft after commit:** a pristine Draft re-seeds from the pushed record through the existing `useDraft` rule; an edited Draft keeps its edits and its `dirty` is measured against the new seed.
+- **Relationship value:** `RecordRef { id, value: Option<M> }`, no per-collection "complete" flag (partial membership is unsupported). A relationship read depends on the registry slot, so a late `push` of a missing target re-runs it.
+- **Names:** `defineRecord`, `defineTransformation`, `field`, `ref`, `refs`, `RecordRef`. Not `Record`, `Entity` or `Ref` (clashes with TS, CONTEXT `_Avoid_` and Effect's `Ref`).
+- **Scope disposal:** an in-flight `find` or `commit` is owned by the Store's scope; disposing the scope interrupts it and writes nothing.
+- **New-record Draft:** `defaultValue` seeds the Draft of a create form (`useDraft` with no source record); there is no separate `create()` API.
+
+
+
+## Requirement coverage
+
+| Req | Description | Task(s) | Gap justification |
+| --- | --- | --- | --- |
+| R1 | Pushing the same `(type, id)` from two sources yields one atom and one value; unread records survive until scope disposal or `evict`. Errors: a hydrate failure is a typed `ParseError`, no partial write. | fn-58-effect-native-records-layer-in.1 | — |
+| R2 | `ref` and `refs` update when either side's record changes, keep ids and order for missing targets, and never start a request on read. | fn-58-effect-native-records-layer-in.3, fn-58-effect-native-records-layer-in.9 | — |
+| R3 | A field transformation hydrates on `find` and `push`, serializes on `commit`, supplies `defaultValue` for a new record, and is reusable across records; a failure in either direction is a typed `ParseError`. | fn-58-effect-native-records-layer-in.2 | — |
+| R4 | `find` and `commit` work through the record's adapter Tag with no `query` installed; a missing adapter Layer is reported in `R`, and a fake Layer replaces it in a test; the same record works over two adapter Layers with different envelopes and PATCH shapes. | fn-58-effect-native-records-layer-in.4 | — |
+| R5 | `commit` writes the saved record into the map; a failed save leaves the map and the Draft unchanged and returns typed failures; a Draft edited during the save keeps its edits; a record with no explicit `draft` section gets a derived Draft. | fn-58-effect-native-records-layer-in.5, fn-58-effect-native-records-layer-in.9 | — |
+| R6 | `Post.query` caches, de-dupes and ingests results from a fetch, a cache hit and a hydrated state into the same atoms; entry `@sleekstack/model/query` is the only one that needs `query`. | fn-58-effect-native-records-layer-in.6 | — |
+| R7 | A Draft-only bundle holds no records code; the size budget test passes; `useDraft(spec, src)` and `DraftSpec.toDto` behave as before. | fn-58-effect-native-records-layer-in.7 | — |
+| R8 | A new ADR supersedes ADR 0038's "Rejected" line on relationships and a record store and records the three-part split; CONTEXT.md defines the new terms (avoiding `Record` and `Entity`); the Models guide and the model README document it; AGENTS.md verify row for model still holds. | fn-58-effect-native-records-layer-in.8 | — |
+

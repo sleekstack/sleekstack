@@ -1,0 +1,17 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-18T10:34:12.393559Z",
+  "depends_on": [
+    "fn-58-effect-native-records-layer-in.5",
+    "fn-58-effect-native-records-layer-in.6"
+  ],
+  "id": "fn-58-effect-native-records-layer-in.8",
+  "priority": null,
+  "spec": "fn-58-effect-native-records-layer-in",
+  "spec_path": ".flow/tasks/fn-58-effect-native-records-layer-in.8.md",
+  "status": "todo",
+  "title": "ADR, CONTEXT terms and docs",
+  "updated_at": "2026-10-18T10:34:12.393559Z"
+}
