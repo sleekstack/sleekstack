@@ -12,9 +12,9 @@ afterEach(async () => {
   handles = []
   document.body.replaceChildren()
 })
-const run = async (app: Effect.Effect<Node>, store = makeAtomStore()) => {
+const run = async (app: Effect.Effect<Node>, store = makeAtomStore(), doc = document) => {
   const errors: Array<unknown> = []
-  const container = document.body.appendChild(document.createElement('div'))
+  const container = doc.body.appendChild(doc.createElement('div'))
   const h = await mount(app, {
     layer: Layer.empty,
     container,
@@ -129,5 +129,41 @@ describe('Head', () => {
     store.set(rows, ['a', 'b'])
     await tick()
     expect(head()).toBe('<title>b</title>')
+  })
+
+  it('updating an earlier Head keeps the last mounted winning and leaves its other tags in place', async () => {
+    const t = Atom.make('a1')
+    const A = () =>
+      Effect.flatMap(useAtomValue(t), (v) =>
+        jsx(Head, { children: [jsx('title', { children: v }), jsx('link', { rel: 'stylesheet', href: '/a.css' })] }),
+      )
+    const B = () => jsx(Head, { children: jsx('title', { children: 'b' }) })
+    const store = makeAtomStore()
+    await run(jsx('div', { children: [jsx(A, {}), jsx(B, {})] }), store)
+    const link = document.head.querySelector('link')
+    store.set(t, 'a2')
+    await tick()
+    expect(document.title).toBe('b')
+    expect(document.head.querySelector('link')).toBe(link)
+  })
+
+  it('takes over a tag the document already has and restores it on unmount', async () => {
+    document.head.innerHTML = '<title>Shell</title><meta name="description" content="shell">'
+    const { h } = await run(
+      jsx(Head, {
+        children: [jsx('title', { children: 'Page' }), jsx('meta', { NAME: 'description', Content: 'page' })],
+      }),
+    )
+    expect(head()).toBe('<title>Page</title><meta name="description" content="page">')
+    await h.dispose()
+    expect(head()).toBe('<title>Shell</title><meta name="description" content="shell">')
+    document.head.replaceChildren()
+  })
+
+  it("patches the mount container's document, not the global one", async () => {
+    const other = document.implementation.createHTMLDocument('')
+    await run(jsx(Head, { children: jsx('title', { children: 'framed' }) }), makeAtomStore(), other)
+    expect(other.title).toBe('framed')
+    expect(head()).toBe('')
   })
 })
