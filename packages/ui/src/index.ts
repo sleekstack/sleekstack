@@ -30,6 +30,7 @@ export { Boundary, Pending, Portal, Provider } from './jsx-runtime'
 export type { Child, Reset } from './jsx-runtime'
 export type { BoundAction, ComponentResult } from './reactive'
 export type { FormAction } from './jsx-types'
+/** The async state of Effect and Stream atoms, re-exported from `@sleekstack/core`. */
 export type { Result } from '@sleekstack/core'
 export { lazy, LazyLoadError } from './lazy'
 export { Transfer } from './transfer'

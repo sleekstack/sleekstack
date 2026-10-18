@@ -35,10 +35,16 @@ export function undocumented(file: string): string[] {
   return symbols
     .filter((s) => {
       const target = s.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(s) : s
-      // `export * as X` carries its summary on the export declaration; the aliased module has none.
+      // `export * as X` (and a lone `export type { X } from`) carries its summary on the export declaration; the aliased module has none.
       const nsDoc = (s.declarations ?? [])
-        .filter(ts.isNamespaceExport)
-        .flatMap((d) => ts.getJSDocCommentsAndTags(d.parent))
+        .flatMap((d) =>
+          ts.isNamespaceExport(d)
+            ? [d.parent]
+            : ts.isExportSpecifier(d) && d.parent.elements.length === 1
+              ? [d.parent.parent]
+              : [],
+        )
+        .flatMap((d) => ts.getJSDocCommentsAndTags(d))
       return ts.displayPartsToString(target.getDocumentationComment(checker)).trim() === '' && nsDoc.length === 0
     })
     .map((s) => s.name)
