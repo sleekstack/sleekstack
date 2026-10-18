@@ -32,9 +32,14 @@ To-one and to-many relationships as derived atoms over the identity map. They ne
 - [ ] Tests: `packages/model/src/__tests__/relations.test.ts`
 
 ## Done summary
-TBD
+Added `ref(() => Other)` and `refs(() => Other)` relationship fields and `record.related(id, field)` in packages/model/src/relations.ts (wired into `defineRecord` in record.ts, exported from index.ts). A field holds target ids (`string | null` or `string[]` on the wire and in the record); `related` is one `Atom.family` atom per id and field per definition that reads the owner's record atom and each target's record atom, so an owner change, a target change or a late push of a missing target re-runs it; it never fetches. Value: `Option` (None while the owner is absent) of `RecordRef { id, value: Option }` or `null` for `ref`, and an ordered list for `refs` with missing targets and duplicates kept. The target thunk is called only on read, so cycles work; TypeScript needs one side's fields spelled out as a type for a cycle (documented on `ref`, shown in the test). A non-relation field name throws `TypeError`. Tests in packages/model/src/__tests__/relations.test.ts, one per AC (owner and target change, missing target fills in through the subscribed chain, no request on read, cyclic read, stable atom), mutation-checked red.
 
+Notes for later tasks: `RelationKey<F>` types the `field` argument. No inverse sync; a reverse view covers loaded records only (TSDoc on `related`). New public names `ref`, `refs`, `RecordRef`, `RefField`, `RefsField`, `Related`, `RelationTarget`, `RelationKey` for task 7's uniqueness guard.
+
+stage: impl-review - ran (codex gpt-6.1-sol fan-out: correctness, contracts, integration all SHIP, 0 findings)
+Baseline: green via handoff (verified at 96178f7 by task 2; only .flow/ changed since). Post-edit gate green.
+Tier: explicit routing from project CLAUDE.md (implementer: opus at medium)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: fda3dfe7d453dc0d18af8d21a25128cf19c522a0
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/model... --filter=@sleekstack/analyze
 - PRs:
