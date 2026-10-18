@@ -140,7 +140,7 @@ describe('dev middleware', () => {
   })
 
   it('serves /api/ through start and passes modules and assets to Vite', async () => {
-    expect(await respond('GET', '/api/tags', 'application/json')).toMatchObject({ next: false, status: 404 })
+    expect(await respond('GET', '/api/tags', 'application/json')).toMatchObject({ next: false, status: 200 })
     expect(await respond('GET', '/src/main.tsx', '*/*')).toEqual({ next: true })
   })
 })

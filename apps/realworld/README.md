@@ -1,0 +1,58 @@
+# realworld
+
+A [RealWorld](https://github.com/realworld-apps/realworld) ("Conduit") app built on SleekStack, over a `node:sqlite` database.
+
+```sh
+pnpm --filter realworld dev     # http://localhost:5173
+pnpm --filter realworld test
+```
+
+The database is `./data/conduit.db` by default; set `CONDUIT_DB` to use another file (`:memory:` in tests). Tokens are signed with `CONDUIT_SECRET`, which a production boot requires.
+
+## Two server surfaces
+
+Both call the same services in `server/`:
+
+- **Server functions** (`server/app.ts`, `POST /_sleek/fn/<id>`) serve the UI. They authenticate with the `HttpOnly` session cookie and never return the token.
+- **The REST facade** (`server/rest.ts`, `/api/...`) follows the RealWorld API. It authenticates with `Authorization: Token <jwt>` only. Without the header the viewer is anonymous. A bad token, or any other scheme, is 401 on every route, the optional-auth ones included.
+
+REST status codes and error bodies:
+
+| Case                                                | Status | Body                                                    |
+| --------------------------------------------------- | ------ | ------------------------------------------------------- |
+| Blank or taken field, non-numeric `limit`/`offset`  | 422    | `{"errors": {"<field>": ["can't be blank"]}}`           |
+| Malformed JSON                                      | 422    | `{"errors": {"body": ["is not valid JSON"]}}`           |
+| Missing envelope key (`user`, `article`, `comment`) | 422    | `{"errors": {"user": ["is missing"]}}`                  |
+| No token where one is required, bad token           | 401    | `{"errors": {"token": ["is missing" \| "is invalid"]}}` |
+| Wrong email or password                             | 403    | `{"errors": {"email or password": ["is invalid"]}}`     |
+| Not the author                                      | 403    | `{"errors": {"article": ["is not yours"]}}`             |
+| Unknown article, comment or profile                 | 404    | `{"errors": {"article": ["not found"]}}`                |
+| Unknown `/api/` route or method                     | 404    | `{"errors": {"body": ["not found"]}}`                   |
+
+Register, create article and add comment answer 201. Deleting an article or a comment answers 204 with no body.
+
+## Postman (Newman) run
+
+This run is manual and is not part of CI. Upstream removed the Postman collection in 2026 in favor of Hurl and Bruno suites. The run below pins the classic collection at commit `1fcad4a`, the last one before the v2 error rules. Start the server on a fresh database, then run the collection against it:
+
+```sh
+rm -f /tmp/conduit-newman.db
+CONDUIT_DB=/tmp/conduit-newman.db pnpm --filter realworld dev --port 5299 --strictPort &
+
+curl -sfLO https://raw.githubusercontent.com/realworld-apps/realworld/1fcad4a244fd322377b4df67b57acd89e04a756b/api/Conduit.postman_collection.json
+U=u$(date +%s)
+npx newman run Conduit.postman_collection.json \
+  --global-var "APIURL=http://localhost:5299/api" \
+  --global-var "USERNAME=$U" --global-var "EMAIL=$U@mail.com" --global-var "PASSWORD=password"
+```
+
+Result on 2026-10-18: 32 requests and 311 assertions, 0 failed.
+
+The v2 collection (`365fa47`, February 2026) adds error-case requests. Against it, 7 of 487 assertions fail. Each failure comes from a rule this app's spec decided differently:
+
+- A duplicate email or username: v2 expects 409, the spec says 422.
+- A wrong login: v2 expects 401 `credentials: ["invalid"]`, the spec says 403 `email or password`.
+- A duplicate title: v2 expects 409, while this app gives the article a suffixed slug (`title-2`).
+- Not the author: v2 expects the message `forbidden`, this app sends `is not yours`.
+
+A title change gives the article a new slug, and the response carries it. Neither collection changes a title, so neither tests whether the slug stays the same.

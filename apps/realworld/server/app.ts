@@ -32,6 +32,7 @@ import {
   updateUser,
   ViewerLive,
 } from './identity'
+import { rest } from './rest'
 
 /** The session cookie: the token, out of reach of scripts. */
 export const SESSION = 'conduit_session'
@@ -179,9 +180,13 @@ const pages = router({
   notFound: () => jsx(App, {}),
 })
 
-/** The server entry: the pages and the server functions over SQLite (`CONDUIT_DB`, default `./data/conduit.db`). */
+/**
+ * The server entry: the REST facade at `/api/`, the server functions and the pages, over SQLite (`CONDUIT_DB`, default
+ * `./data/conduit.db`).
+ */
 export const app = start({
   router: pages,
   layer: Layer.mergeAll(AppLive, DbLive(process.env.CONDUIT_DB), TokenSecretLive),
+  middleware: [rest],
   functions,
 })
