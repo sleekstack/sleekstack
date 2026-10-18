@@ -24,6 +24,8 @@ afterAll(() => browser.teardown(globalThis))
 let cookie = ''
 /** Every function the browser calls, by id. */
 const calls = vi.fn<(id: string) => void>()
+/** When set, a browser call waits for it before reaching the server. */
+let gate: Promise<void> | undefined
 
 beforeAll(() => {
   window.scrollTo = vi.fn() as never
@@ -33,6 +35,7 @@ beforeAll(() => {
     if (cookie) headers.set('cookie', cookie)
     const url = new URL(input, location.href)
     calls(url.pathname.replace('/_sleek/fn/', ''))
+    await gate
     return app.fetch(new Request(url, { ...init, headers }))
   })
 })
@@ -70,6 +73,7 @@ let nav: Navigation | undefined
 let container: HTMLElement
 const onError = vi.fn()
 afterEach(async () => {
+  gate = undefined
   await act(() => nav?.dispose())
   nav = undefined
   container?.remove()
@@ -145,7 +149,12 @@ describe('article page', () => {
     expect(all('.article-meta .favorite button')).toEqual(['1'])
 
     await type('.comment-form textarea', 'my reply')
-    await submit('.comment-form button')
+    let release!: () => void
+    gate = new Promise((r) => (release = r))
+    await act(async () => $<HTMLFormElement>('form.comment-form')!.requestSubmit()) // no flush: the call waits
+    // Text typed while posting would be dropped when the success clears the Draft: the field is read-only meanwhile.
+    expect($<HTMLTextAreaElement>('.comment-form textarea')!.matches(':disabled')).toBe(true)
+    await settle(release)
     expect(comments()).toEqual(['my reply', "the writer's"])
     expect($<HTMLTextAreaElement>('.comment-form textarea')!.value).toBe('')
     // Only the reader's own comment has a delete button.

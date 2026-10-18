@@ -20,7 +20,8 @@ const delimited = (d: string) => ({
 const STARS = delimited('\\*')
 const UNDERSCORES = delimited('_')
 const CODE = /^`([^`]+)`/
-const LINK = /^\[([^\]]+)\]\(([^)\s]+)\)/
+// A label holds no bracket and a target no parenthesis, so a failed match stops at the next one: linear on malformed input.
+const LINK = /^\[([^[\]]+)\]\(([^()\s]+)\)/
 
 const inline = (source: string): Array<Inline> => {
   const out: Array<Inline> = []

@@ -61,6 +61,12 @@ describe('markdown', () => {
     ])
   })
 
+  it.each([['['], ['[a]('], ['**a *'], ['`'], ['_a ']])('stays fast on a long run of unmatched %j', async (bit) => {
+    const start = performance.now()
+    await html(bit.repeat(100_000 / bit.length))
+    expect(performance.now() - start).toBeLessThan(1_000)
+  })
+
   it('renders an empty body as nothing', async () => {
     expect((await dom('')).childElementCount).toBe(0)
     expect((await dom('  \n\n')).textContent).toBe('')

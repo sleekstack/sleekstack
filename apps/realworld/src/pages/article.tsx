@@ -134,7 +134,8 @@ const CommentForm = function* ({
     <>
       <ErrorList errors={errorsOf(outcome)} />
       <form class="card comment-form" action={add}>
-        <div class="card-block">
+        {/* Read-only while posting: a success clears the Draft, which would drop text typed meanwhile. */}
+        <fieldset class="card-block" disabled={pending}>
           <textarea
             class="form-control"
             placeholder="Write a comment..."
@@ -142,7 +143,7 @@ const CommentForm = function* ({
             value={draft.field('body')}
             onInput={(e) => setBody(e.currentTarget.value)}
           ></textarea>
-        </div>
+        </fieldset>
         <div class="card-footer">
           {me.image && <img src={me.image} class="comment-author-img" alt="" />}
           <button class="btn btn-sm btn-primary" type="submit" disabled={pending}>
