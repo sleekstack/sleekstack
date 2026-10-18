@@ -138,6 +138,7 @@ describe('list and feed', () => {
     ['tag, author and favorited combined', { tag: 'x', author: 'alice', favorited: 'bob' }, [['c'], 1]],
     ['an unknown author', { author: 'nobody' }, [[], 0]],
     ['offset past the count', { offset: '10' }, [[], 3]],
+    ['an offset beyond SQLite integers', { offset: '1e20' }, [[], 3]],
     ['limit 0, clamped to 1', { limit: 0 }, [['c'], 3]],
     ['a huge limit, clamped to 100', { limit: '100000' }, [['c', 'b', 'a'], 3]],
     ['a negative offset, clamped to 0', { limit: 1, offset: -5 }, [['c'], 3]],
@@ -180,6 +181,20 @@ describe('list and feed', () => {
 
   it('lists the tags in use, sorted', async () => {
     expect(await run(Effect.zipRight(seeded, tags))).toEqual(['x', 'y'])
+  })
+
+  it('round-trips any tag text through the article, the tags list and the tag filter', async () => {
+    const odd = 'a\u001fb,"c"'
+    const [article, all, filtered] = await run(
+      Effect.gen(function* () {
+        const { alice } = yield* people
+        const article = yield* alice(createArticle(draft('T', [odd, 'a'])))
+        return [article, yield* tags, yield* anon(listArticles({ tag: odd }))] as const
+      }),
+    )
+    expect(article.tagList).toEqual(['a', odd])
+    expect(all).toEqual(['a', odd])
+    expect(filtered.articlesCount).toBe(1)
   })
 })
 

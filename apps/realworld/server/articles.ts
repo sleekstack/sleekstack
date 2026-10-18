@@ -14,7 +14,7 @@ interface Row {
   readonly body: string
   readonly created_at: string
   readonly updated_at: string
-  readonly tags: string | null
+  readonly tags: string
   readonly favorited: number
   readonly favorites_count: number
   readonly username: string
@@ -23,15 +23,13 @@ interface Row {
   readonly following: number
 }
 
-const TAG_SEP = '\u001f'
-
 /** The viewer's id for SQL, or null (which matches no favorite or follow) when anonymous. */
 export const viewerId = Effect.map(Viewer, (viewer) => Option.getOrNull(Option.map(viewer, (v) => v.id)))
 
 // Every article read: tags, the COUNT-derived favorites, and the `$viewer`-relative flags.
 const SELECT = `
 SELECT a.*, u.username, u.bio, u.image,
-  (SELECT group_concat(t.name, char(31)) FROM article_tags at JOIN tags t ON t.id = at.tag_id
+  (SELECT json_group_array(t.name) FROM article_tags at JOIN tags t ON t.id = at.tag_id
     WHERE at.article_id = a.id) AS tags,
   (SELECT COUNT(*) FROM favorites f WHERE f.article_id = a.id) AS favorites_count,
   EXISTS (SELECT 1 FROM favorites f WHERE f.article_id = a.id AND f.user_id = $viewer) AS favorited,
@@ -44,7 +42,7 @@ const toArticle = (row: Row): Article => ({
   title: row.title,
   description: row.description,
   body: row.body,
-  tagList: row.tags ? row.tags.split(TAG_SEP).sort() : [],
+  tagList: (JSON.parse(row.tags) as string[]).sort(),
   createdAt: row.created_at,
   updatedAt: row.updated_at,
   favorited: row.favorited === 1,
@@ -85,10 +83,13 @@ const param = (name: 'limit' | 'offset', value: string | number | undefined, fal
     return Math.floor(n)
   })
 
-/** `limit` (default 20, clamped to [1, 100]) and `offset` (default 0, at least 0); non-numeric fails per field. */
+/** `limit` (default 20, clamped to [1, 100]) and `offset` (default 0, clamped to [0, a SQLite integer]); non-numeric fails per field. */
 const paging = (page: Page) =>
   Effect.all({ limit: param('limit', page.limit, 20), offset: param('offset', page.offset, 0) }).pipe(
-    Effect.map(({ limit, offset }) => ({ limit: Math.min(100, Math.max(1, limit)), offset: Math.max(0, offset) })),
+    Effect.map(({ limit, offset }) => ({
+      limit: Math.min(100, Math.max(1, limit)),
+      offset: Math.min(Number.MAX_SAFE_INTEGER, Math.max(0, offset)),
+    })),
   )
 
 /** The page of articles matching every `where` clause, newest first, with the total match. */
