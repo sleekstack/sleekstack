@@ -27,7 +27,7 @@ Scope to one package with `pnpm turbo run <task> --filter=<name>`.
 | start (`packages/start`)      | `pnpm turbo run test typecheck --filter=@sleekstack/start...` (testing and showcase included) |
 | testing (`packages/testing`)  | `pnpm turbo run test typecheck --filter=@sleekstack/testing`                                  |
 | core / runtime                | `pnpm turbo run test typecheck --filter=@sleekstack/core...` (or `runtime...`)                |
-| docs (`apps/docs`)            | `pnpm turbo run test typecheck --filter=docs`                                                 |
+| docs (`apps/docs`)            | `pnpm turbo run test typecheck build --filter=docs` (ui-vite site, no Next or fumadocs)       |
 | showcase (`apps/showcase`)    | `pnpm turbo run test typecheck --filter=showcase`                                             |
 | a public export name          | the above, plus the fixture graph check below before and after: output must match             |
 

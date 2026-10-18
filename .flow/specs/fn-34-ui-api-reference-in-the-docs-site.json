@@ -7,7 +7,7 @@
   "plan_review_status": "unknown",
   "plan_reviewed_at": null,
   "spec_path": ".flow/specs/fn-34-ui-api-reference-in-the-docs-site.md",
-  "status": "open",
+  "status": "done",
   "title": "ui API reference in the docs site",
   "tracker": {
     "baseHashFlow": null,
@@ -20,5 +20,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-04T10:31:55.719642Z"
+  "updated_at": "2026-10-18T16:19:23.940054Z"
 }

@@ -1,7 +1,9 @@
 {
   "branch_name": "fn-55-remove-kit-react-next-and-islands",
   "created_at": "2026-10-17T11:45:46.395497Z",
-  "depends_on_epics": [],
+  "depends_on_epics": [
+    "fn-60-docs-site-on-ui-and-start"
+  ],
   "id": "fn-55-remove-kit-react-next-and-islands",
   "next_task": 1,
   "plan_review_status": "unknown",
@@ -20,5 +22,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-17T12:18:14.595167Z"
+  "updated_at": "2026-10-18T16:19:23.647933Z"
 }

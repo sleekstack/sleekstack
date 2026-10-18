@@ -12,6 +12,8 @@ Remove the four packages and every remaining reference outside docs prose: works
 
 ### Approach
 - Precondition: the docs site must no longer import the removed packages (the docs-site rebuild spec lands first). Search `apps/docs` for the four names; if any remain outside prose, stop with `NEEDS_HUMAN` naming the files and do not delete anything.
+  - fn-60 task 7 ran this search: `apps/docs` has no reference to the four names (positive control: the same grep over `packages` hits `packages/next`). Re-run it; it should still find nothing.
+  - Second precondition: `packages/cli/src/initAgents.ts` and `packages/analyze/src/__tests__/llms.test.ts` read `packages/kit/llms.md` and break when kit is deleted. Task 5 moves that file; confirm `grep -rn "kit/llms\|../../../kit" packages` finds nothing before `git rm`.
 - Search the whole repo for the four package names (positive control: confirm the search finds a hit before the removal) and clear what remains; delete the packages with `git rm`.
 - CI: update the package lists and the `build:types` step that names kit; keep the bench and size gates.
 - Equivalence pin: `packages/core` and `packages/runtime` test suites unchanged and passing; non-kit fixture graph output identical to task 4's saved output.

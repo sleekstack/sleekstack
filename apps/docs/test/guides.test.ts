@@ -8,7 +8,7 @@ const snippetsDir = join(contentDir, '../../snippets')
 const guides = readdirSync(contentDir).filter((f) => f.endsWith('.mdx'))
 const read = (f: string) => readFileSync(join(contentDir, f), 'utf8')
 
-/** Absolute paths of every `<include>` in a guide, resolved as fumadocs-mdx does (relative to the file). */
+/** Absolute paths of every `<include>` in a guide, resolved relative to the guide file. */
 const includesOf = (f: string) =>
   [...read(f).matchAll(/<include>([^<#]+)(?:#[^<]*)?<\/include>/g)].map((m) => resolve(contentDir, m[1]!.trim()))
 
