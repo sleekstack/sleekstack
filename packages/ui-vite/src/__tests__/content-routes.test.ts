@@ -90,7 +90,8 @@ describe('link validation', () => {
 
   it('passes on the real docs (the generated /docs/api pages are not in the tree)', () => {
     const broken = findBrokenLinks(scanPages(docs, { base: '/docs' }), docs)
-    expect(broken.filter((b) => !b.link.startsWith('/docs/api'))).toEqual([])
+    // the generated api/ tree may be present, absent or half-written (docs generate:api runs in parallel)
+    expect(broken.filter((b) => !b.link.startsWith('/docs/api') && !b.file.startsWith('api/'))).toEqual([])
   })
 
   it('heading ids equal the ids the MDX pipeline renders, on every real page', async () => {
