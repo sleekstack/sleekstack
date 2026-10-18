@@ -755,6 +755,12 @@ importers:
       '@shikijs/rehype':
         specifier: ^4.5.0
         version: 4.5.0
+      '@sleekstack/router':
+        specifier: workspace:*
+        version: link:../router
+      github-slugger:
+        specifier: 2.0.0
+        version: 2.0.0
       rehype-slug:
         specifier: ^6.0.0
         version: 6.0.0
@@ -777,6 +783,9 @@ importers:
         specifier: ^6.0.3
         version: 6.0.3
     devDependencies:
+      '@sleekstack/start':
+        specifier: workspace:*
+        version: link:../start
       '@sleekstack/ui':
         specifier: workspace:*
         version: link:../ui
@@ -792,6 +801,9 @@ importers:
       effect:
         specifier: ^3.15.0
         version: 3.21.2
+      vite:
+        specifier: ^8.0.16
+        version: 8.0.16(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)
       vitest:
         specifier: ^4.1.9
         version: 4.1.9(@types/node@22.20.1)(jsdom@29.1.1)(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
