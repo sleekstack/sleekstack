@@ -26,6 +26,9 @@ const checkName = (re: RegExp, kind: string, name: string): string => {
   return name
 }
 
+/** HTML void elements: written without a closing tag, and without children. */
+const VOID = /^(?:area|base|br|col|embed|hr|img|input|link|meta|source|track|wbr)$/i
+
 const URL_ATTRS = new Set(['href', 'src', 'action', 'formaction', 'xlink:href'])
 /** Shared attribute policy: rejects invalid names, inline handlers, renderer-owned `data-sleek-*`, `srcdoc` and `javascript:` URLs. */
 export const checkAttr = (name: string, value: string): void => {
@@ -200,7 +203,10 @@ export const serialize = (node: Node, c: Collector, around: Around = NO_TEXT): s
           .map(([k, v]) => (checkAttr(k, v), ` ${k}="${escape(v)}"`))
           .join('') + boundAttrs(node, c)
       const on = node.on ? handlerAttrs(node.on, c) : ''
-      return `<${node.tag}${attrs}${on}>${serializeAll(node.children, c)}</${node.tag}>`
+      const inner = serializeAll(node.children, c)
+      if (!VOID.test(node.tag)) return `<${node.tag}${attrs}${on}>${inner}</${node.tag}>`
+      if (inner !== '') throw new TypeError(`Void element <${node.tag}> cannot have children`)
+      return `<${node.tag}${attrs}${on}>`
     }
     case 'Reactive':
       if (node.pending && c.boundary) {

@@ -1,0 +1,78 @@
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
+import { run } from '@mdx-js/mdx'
+import * as runtime from '@sleekstack/ui/jsx-runtime'
+import { renderToString } from '@sleekstack/ui'
+import { Layer } from 'effect'
+import { describe, expect, it } from 'vitest'
+import { compileMdx, createStyleSheet } from '../index.js'
+
+const docs = resolve(import.meta.dirname, '../../../../apps/docs/content/docs')
+const pages = (dir: string): string[] =>
+  readdirSync(dir, { withFileTypes: true }).flatMap((d) =>
+    d.isDirectory() ? pages(join(dir, d.name)) : /\.mdx?$/.test(d.name) ? [join(dir, d.name)] : [],
+  )
+
+const render = async (file: string, source = readFileSync(file, 'utf8')) => {
+  const styles = createStyleSheet()
+  const code = await compileMdx(source, { file, styles, outputFormat: 'function-body' })
+  const mod = await run(code, runtime as never)
+  return { html: await renderToString((mod.default as (p: object) => never)({}), { layer: Layer.empty }), styles, mod }
+}
+
+describe('compileMdx on the real docs pages', () => {
+  const files = pages(docs)
+  it('finds the guides', () => expect(files.length).toBeGreaterThanOrEqual(26))
+
+  it.each(files.map((f) => [f.slice(docs.length + 1), f]))('%s renders', async (_, file) => {
+    const { html, styles } = await render(file)
+    expect(html).not.toContain('[object Object]')
+    expect(html).not.toMatch(/ style="/)
+    expect(styles.css()).toContain('.shiki')
+  })
+
+  it('renders tables, links, lists, inline code and heading ids', async () => {
+    const { html, mod } = await render(join(docs, 'index.mdx'))
+    for (const tag of ['<table', '<a ', '<li', '<code', '<h2 id="']) expect(html).toContain(tag)
+    expect(mod.frontmatter).toMatchObject({ title: expect.any(String) })
+  })
+
+  it('highlights code into classes with one stylesheet', async () => {
+    const { html, styles } = await render(join(docs, 'ui.mdx'))
+    expect(html).toMatch(/<pre [^>]*class="shiki[^"]*st-[0-9a-f]{8}/)
+    expect(html).toMatch(/<span class="st-[0-9a-f]{8}">/)
+    expect(styles.css()).toMatch(/\.st-[0-9a-f]{8}\{[^}]*--shiki-light:/)
+  })
+})
+
+describe('compileMdx failures name the file and line', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ui-vite-'))
+  const page = (name: string, body: string) => {
+    mkdirSync(dir, { recursive: true })
+    const file = join(dir, name)
+    writeFileSync(file, body)
+    return file
+  }
+  const fails = (name: string, body: string) => {
+    const file = page(name, body)
+    return compileMdx(body, { file, styles: createStyleSheet() }).then(
+      () => 'compiled',
+      (e: Error) => e.message,
+    )
+  }
+
+  it('invalid MDX', async () => {
+    expect(await fails('bad.mdx', '# ok\n\n<Unclosed>\n')).toMatch(/bad\.mdx: .*\(3:1/)
+  })
+  it('missing include file', async () => {
+    expect(await fails('inc.mdx', 'text\n\n<include>./nope.ts</include>\n')).toMatch(
+      /inc\.mdx:3: include file not found: \.\/nope\.ts/,
+    )
+  })
+  it('unknown fence language', async () => {
+    expect(await fails('lang.mdx', '```nonsense\nx\n```\n')).toMatch(
+      /lang\.mdx:1: unknown code fence language "nonsense"/,
+    )
+  })
+})

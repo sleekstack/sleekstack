@@ -32,9 +32,8 @@ Two ui changes in the same renderer files. First the void-element fix: `renderTo
 - [ ] ui exports are listed in the README; `pnpm turbo run test typecheck --filter=@sleekstack/ui... --filter=showcase` is green
 
 ## Done summary
-TBD
-
+Void elements (br, hr, img, input, meta, link, ...) now render without a closing tag in renderToString/renderToStream; children on one throw TypeError. Added <Head> (title/meta/link): HeadSink registry keyed by title, meta[name|property|http-equiv], link[rel]+href; deepest wins via new RunFrame.depth; removed on unmount via RenderScope finalizer; checkTag/checkAttr validation; renderToString `onHead(html)` option; with no renderer sink it patches document.head (microtask-batched, keyed, adopts an existing <title>). baseline: green. Size (gzip, dist): mount 198602->198623, hydrate 220145->220164, lazy 201082->201109; all within ADR 0022 caps. stage: impl-review - skipped(config: standing user rule, spec-level review only)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: d3c0d8d23037b6da164aea3cdd64aa34f963202d
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/ui... --filter=showcase
 - PRs:
