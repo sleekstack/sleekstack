@@ -1077,7 +1077,7 @@ export const start = async <E, A, LE = never>(
   let node: Node
   try {
     // The mount layer lives in the mount scope: re-runs reuse its services after the first render.
-    node = await runToNode(provided, Layer.effectContext(Layer.buildWithScope(opts.layer, scope)), onError)
+    node = await runToNode(provided, Layer.effectContext(Layer.buildWithScope(opts.layer, scope)), { onError })
   } catch (error) {
     // Cleanup failures are reported; the render failure stays the rejection.
     if (current()) await teardown(container, state).catch((e) => reportRenderError(e, onError))

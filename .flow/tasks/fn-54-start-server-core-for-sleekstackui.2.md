@@ -38,9 +38,18 @@ Create `@sleekstack/start` with the `start({ router, layer, functions, handlers,
 - [ ] `pnpm turbo run test typecheck --filter=@sleekstack/start...` is green
 
 ## Done summary
-TBD
+New package `@sleekstack/start`. `start({ router, layer, handlers, middleware, functions, onError })` configures the runtime over `layer` and returns `fetch`. Each request runs in one `runEffect` Request Scope: middleware in order (a `Response` short-circuits), then the server-function stage, then the route handler for the exact pathname (405 with `Allow` listing only the defined methods), then the router's `handle` (an unmatched path gets the not-found page with 404). The server-function stage is the `serverFunctions` placeholder in `start.ts`, which task 3 replaces. The request services are `Request`, `Cookies` and `ResponseHeaders` Tags. A cookie name, value, path, domain, maxAge or expires outside the grammar fails with `InvalidCookie`. `Set-Cookie` lines are keyed by name, path and domain and are added to every response, a 500 included. A defect or a typed failure in any stage reaches the error sink and answers an empty 500. `Redirect` / `NotFound` from middleware or a handler answer 302 / an empty 404. Task 3 owns R9's full wire behavior. Type test `layer.test-d.ts`: `layer` is required and checked when pages, handlers or middleware need services beyond the router's own and the request services. Tests in `start.test.ts` cover each acceptance criterion and error case.
 
+Deviations and follow-ups:
+- Peer deps are effect, ui and router. core is left out because start does not use it.
+- The page stage passes the Request Scope's context to `handle` as its layer, so services resolve in the scope. `handle` still runs its Effects on its own runtime, so runtime FiberRefs (devtools trace) do not reach page renders. Fixing that needs an Effect-returning router entry, outside these Touches. The review raised it, and the coordinator dropped it because the spec says the page stage delegates to `handle`.
+- `RouterProvided` still includes `Route`; this task did not touch it (outside Touches). start duplicates the router-provided set in its `Needs` type, because router does not export `Requirements`.
+- Spec Quick command: showcase#test fails in `test/fixtures.test.ts` "the demo app itself is clean" (expects 4 analyzer trees, gets 5). This branch changed no showcase or analyzer file. The failure comes from task .7's new startRouter/handle roots (inherited, not caused by this task).
+
+baseline: green (router; start did not exist)
+stage: impl-review - ran (codex fan-out round 1 NEEDS_WORK, 5 findings fixed in d76fc12; re-review --base master SHIP)
+Tier: implementer opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 564f26967811b08d6438e05a7408ee273d38077a, d76fc12b543f2676ee5684da0bcbfa0eed423981
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/start..., pnpm turbo run test typecheck --filter=@sleekstack/router... --filter=@sleekstack/start... --filter=@sleekstack/testing --filter=showcase (red: showcase fixtures.test.ts inherited from task .7)
 - PRs:

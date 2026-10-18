@@ -2,7 +2,7 @@ import { type Cause, Effect, type Layer, Option, Schema } from 'effect'
 import { createElement } from 'react'
 import { renderToString as reactRenderToString } from 'react-dom/server'
 import { type Atom, type AtomStore, dehydrate, makeAtomStore } from '@sleekstack/core'
-import { reportRenderError, runToNode } from './component'
+import { reportRenderError, type RunOptions, runToNode } from './component'
 import { checkEvent, DuplicateBindKey, DuplicateHandler, type Handler, valueInfo } from './handler'
 import type { ElementNode, Node, ReactiveNode } from './node'
 import { Frame, makeFrame, Store } from './reactive'
@@ -185,7 +185,7 @@ export const serialize = (node: Node, c: Collector, around: Around = NO_TEXT): s
  */
 export const renderToString = async <E, A, LE = never>(
   app: Effect.Effect<Node, E, A>,
-  opts: { layer: Layer.Layer<Exclude<A, Store>, LE, never>; onError?: (cause: Cause.Cause<unknown>) => void },
+  opts: { layer: Layer.Layer<Exclude<A, Store>, LE, never> } & RunOptions,
 ): Promise<string> => {
   // Idle nodes stay until dispose, so `dehydrate` sees every atom the render built.
   const store = makeAtomStore({ scheduleTask: () => {} })
@@ -202,7 +202,7 @@ export const renderToString = async <E, A, LE = never>(
       Effect.provideService(Store, store),
       Effect.provideService(Frame, makeFrame()),
     ) as Effect.Effect<Node, E, Exclude<A, Store>>
-    const node = await runToNode(withStore, opts.layer, opts.onError)
+    const node = await runToNode(withStore, opts.layer, opts)
     const c: Collector = { store, onError: opts.onError, handlers: new Map(), events: new Set(), atoms: new Map() }
     const html = serialize(node, c)
     return html + manifest(c) + payload(dehydrate(store), transfer)

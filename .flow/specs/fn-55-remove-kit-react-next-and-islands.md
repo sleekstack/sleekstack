@@ -69,3 +69,27 @@ A framework that ships adapters for the thing it replaces sends mixed signals, c
 <!-- scope: technical -->
 
 Order matters: the docs site, devtools, analyzer and CLI move off the packages first and the packages are deleted last, so every step stays buildable. Rejected: keeping thin deprecated re-exports (the user asked for no compatibility), and deleting packages first and fixing dependents after (leaves master broken between PRs). [paraphrase]
+
+
+## Quick commands
+
+```bash
+pnpm turbo run test typecheck --filter=@sleekstack/runtime... --filter=@sleekstack/devtools... --filter=@sleekstack/analyze --filter=sleekstack --filter=showcase --filter=docs
+```
+
+## Early proof point
+
+Task fn-55-remove-kit-react-next-and-islands.4 validates the approach (the analyzer works without kit and non-kit fixture output is identical). If it fails, re-evaluate which kit concepts have no core equivalent before continuing with the removal.
+
+
+## Requirement coverage
+
+| Req | Description | Task(s) | Gap justification |
+| --- | --- | --- | --- |
+| R1 | The four packages are gone from the workspace, and nothing in packages, apps, tests, fixtures or docs imports or names them as a dependency. Errors: a clean install, build, typecheck and test run from the repo root pass, with no workspace reference left dangling; the lockfile has no stray entries. | fn-55-remove-kit-react-next-and-islands.6 | — |
+| R2 | Devtools is built on `ui` with no dependency on React packages or the removed adapters, and shows what it shows today (atoms, `uiTrace`, queries, runtime graph and events). The runtime-event feed is a framework-agnostic fetch handler. Errors: the feed answers 404 in production; the panel stays out of production client chunks as the existing bundle test checks. | fn-55-remove-kit-react-next-and-islands.1, fn-55-remove-kit-react-next-and-islands.2, fn-55-remove-kit-react-next-and-islands.3 | — |
+| R3 | The analyzer no longer reads kit graphs; it reads core modules, plain Layers, runtime roots and ui trees. Errors: for every fixture that does not use kit, the check output is identical before and after (saved and diffed); fixtures that existed only for kit are removed; error-code docs and tables match the remaining codes. | fn-55-remove-kit-react-next-and-islands.4 | — |
+| R4 | The CLI's `check` works on core, plain-Layer and ui apps, and its agent-instructions command copies the file from its new home, idempotently. Errors: when the file cannot be found the command exits with the existing error code and says which package to install. | fn-55-remove-kit-react-next-and-islands.5 | — |
+| R5 | The playground app is ported to `ui` (or removed if it only demonstrated the React adapter, decided in planning); the bench app and the showcase carry no dependency on the removed packages. Errors: no error surface beyond R1. | fn-55-remove-kit-react-next-and-islands.5 | — |
+| R6 | Documentation and records match: pages and snippets about the removed packages are deleted, the remaining guides use core, runtime, ui, router and start, generated API docs cover only existing packages, ADRs for the removed packages are marked superseded by one new ADR, CONTEXT.md drops the kit, React-adapter, Next and Island terms, and AGENTS.md's verify table and fixture graph check use only remaining fixtures. Errors: the docs site build and snippet typecheck pass. | fn-55-remove-kit-react-next-and-islands.7 | — |
+| R7 | Core and runtime behave as before. Errors: their test suites pass unchanged and the non-kit fixture graphs are identical (R3's saved output). | fn-55-remove-kit-react-next-and-islands.4, fn-55-remove-kit-react-next-and-islands.6 | — |

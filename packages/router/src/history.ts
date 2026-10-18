@@ -1,14 +1,13 @@
 import { hydrateMount, type Mounted, mount, type Node } from '@sleekstack/ui'
 import { Cause, Effect, Exit, Fiber, Layer, Option } from 'effect'
-import { match, routeLayer } from './index'
+import { match, routeLayer, type RouteTable } from './index'
 import { type Held, Loaders, withLoaders } from './loader'
-import { controlOf, NotFound, Redirect, resolve, type Router, view } from './resolve'
+import { type AppLayer, controlOf, NotFound, Redirect, resolve, type Router, view } from './resolve'
 
-export interface StartOptions {
+/** `layer` is the app services for loaders and pages: required when the router's pages need any (`AppLayer`). */
+export type StartOptions<R = never> = AppLayer<R> & {
   /** The element the pages render into. Server-rendered content in it is hydrated. */
   readonly container: Element
-  /** App services for loaders and pages. */
-  readonly layer?: Layer.Layer<any, any, never>
   /** Gets failures the router does not handle itself (a `RedirectLoop`, a page's unhandled error). */
   readonly onError?: (cause: Cause.Cause<unknown>) => void
 }
@@ -27,7 +26,12 @@ type Mode = 'push' | 'replace' | 'pop'
  * interrupts it, stopping its loads. A loader's or action's `redirect` navigates and its `notFound` shows the router's
  * not-found page.
  */
-export const startRouter = async (r: Router, opts: StartOptions): Promise<Navigation> => {
+export const startRouter = async <T extends RouteTable, R>(
+  router: Router<T, R>,
+  opts: StartOptions<R>,
+): Promise<Navigation> => {
+  // The layer check is the signature's; inside, pages run under the merged layers.
+  const r: Router = router
   const { container } = opts
   const base = opts.layer ?? Layer.empty
   const all = new Map<string, Held>()

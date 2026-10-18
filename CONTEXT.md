@@ -119,7 +119,7 @@ _Avoid_: Persisted atom, hydratable atom
 The `Record<key, encoded value>` of the settled Serializable Atoms built in an AtomStore (`dehydrate`), sent from the server and used to seed a client AtomStore before the first read (`hydrate`). Result atoms enter it only on `Success`. It is JSON-safe only when each schema encodes to JSON values (a `bigint` encoding breaks the transport). Distinct from the query layer's Dehydrated State.
 _Avoid_: Payload, atom state
 
-### UI framework concepts (`@sleekstack/ui`, MVP)
+### UI framework concepts (`@sleekstack/ui`)
 
 **Component** *(ui)*:
 A function `(props: P) => Effect<Node, E, R>`: `R` is the Tags it needs, `E` its tagged errors, `Node` a small renderable tree (text, element, fragment, guest, reactive). Each call is an instance with a run-time id (per-function id plus ordinal, or key), so its local state and subscriptions survive re-runs. Unrelated to the `component` Lifetime.
@@ -230,6 +230,16 @@ _Avoid_: Fetch, loader, resolver
 **Devtools**:
 The dev-only introspection of a running app: a bounded event buffer in `@sleekstack/runtime` (per-service acquire/release, fiber id, owning scope) served by the route handler in `@sleekstack/next/devtools`, rendered by the `@sleekstack/devtools` panel (graph roots, live scopes, services, atoms of every open AtomStore, errors linked to their scope), and for `@sleekstack/ui` mounts `uiTrace()` with `<UiPanel>` (instance tree, atoms per instance, re-run reasons, effect runs) fed by a Render Observer. In production recording is off and the handler returns 404; the panel is excluded from production client chunks when mounted behind a dynamic import.
 _Avoid_: Inspector, debug panel
+
+### Start concepts (`@sleekstack/start`)
+
+**Server Function**:
+A server operation for ui apps, declared with `serverFn(id, { input, success, error? })(function* ...)` and listed in `start({ functions })` (ADR 0039). It runs in a Request Scope, served at `POST /_sleek/fn/<id>`: input decoded before the body, output encoded with the success Schema, the declared error typed across the wire. The browser calls it through a `client(contract)` stub built from the same Schemas. Distinct from an Action (the Next Server Action) and a Form Action (the ui submit handler, which a stub can be).
+_Avoid_: Action, Server Action, RPC, procedure
+
+**Server Endpoint**:
+A route handler given to `start({ handlers })` at an exact pathname: one Effect per HTTP method, answering the request with a `Response`, with the request services (`Request`, `Cookies`, `ResponseHeaders`) in the Request Scope (ADR 0039). An unsupported method is 405 with `Allow`.
+_Avoid_: API route, controller
 
 ### Query cache concepts
 

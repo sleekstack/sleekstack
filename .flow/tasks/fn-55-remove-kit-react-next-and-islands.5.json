@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-17T12:18:13.697474Z",
+  "depends_on": [
+    "fn-55-remove-kit-react-next-and-islands.4"
+  ],
+  "id": "fn-55-remove-kit-react-next-and-islands.5",
+  "priority": null,
+  "spec": "fn-55-remove-kit-react-next-and-islands",
+  "spec_path": ".flow/tasks/fn-55-remove-kit-react-next-and-islands.5.md",
+  "status": "todo",
+  "title": "CLI agent file relocation, playground and bench cleanup",
+  "updated_at": "2026-10-17T12:18:13.697474Z"
+}

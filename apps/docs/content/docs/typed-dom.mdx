@@ -1,0 +1,26 @@
+---
+title: Typed host elements
+description: Per-tag attribute, event and ref types for @sleekstack/ui JSX.
+---
+
+Host elements in `@sleekstack/ui` JSX are typed per tag, as in React: an unknown attribute, a wrong value type or a wrong event payload is a tsc error ([ADR 0031](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0031-typed-host-elements.md)). There is no runtime change; the types match what the renderer writes.
+
+<include>../../snippets/ui/typed-dom.tsx</include>
+
+## Attributes
+
+- Every HTML tag and every SVG-only tag has its own props. A tag name shared by HTML and SVG resolves to HTML.
+- A value is a primitive, `null` or `undefined` (the attribute is removed), or an atom of those. An atom binds the attribute: it follows the atom without re-running the component ([ADR 0021](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0021-atoms-bind-in-jsx.md)).
+- `class` is the canonical name and `className` is accepted, but not both on one element. The same holds for `for` and `htmlFor`.
+- `aria-*` and `data-*` work on every tag.
+- A custom element (a hyphenated tag) takes any props.
+
+The attribute table is written by hand in `packages/ui/src/jsx-types.ts`. When a platform attribute is missing, it is added there.
+
+## Events
+
+An `onXxx` prop is typed from the element's event map: `onClick` gets a `MouseEvent` whose `currentTarget` is the element, and multi-word events are camel-cased (`onPointerDown`). Its value is a function, a generator or an Effect (see [event closures](/docs/ui#event-closures)), or a `defineHandler` on bubbling events only. A string is a type error, and both renderers also reject string `on*`, `srcdoc` and `javascript:` attributes at run time.
+
+## Refs
+
+`ref` takes only a `Ref` of the matching element: `useRef<HTMLInputElement>()` fits `<input ref>` and nothing else, because `Ref` is invariant. `current` is the element once it is attached (before the commit's effects run) and `null` after it is removed ([ADR 0028](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0028-commit-effects-and-refs.md)).

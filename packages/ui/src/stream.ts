@@ -1,6 +1,6 @@
-import { type Cause, Context, Effect, Exit, Fiber, Layer, Option, Scope } from 'effect'
+import { Context, Effect, Exit, Fiber, Layer, Option, Runtime, Scope } from 'effect'
 import { type AtomStore, dehydrate, makeAtomStore } from '@sleekstack/core'
-import { nodeOrThrow, reportRenderError } from './component'
+import { nodeOrThrow, reportRenderError, type RunOptions } from './component'
 import type { Node, ReactiveNode } from './node'
 import { disposeSlots, Frame, makeFrame, RenderScope, Store } from './reactive'
 import { Transfer, type StateTransfer } from './transfer'
@@ -15,13 +15,12 @@ const SWAP =
   // Stream end with boundaries that never got a chunk: kept for a client that hydrates later (`hydrateMount` reports them).
   'self.__sleekEnd=function(m){(self.__sleekGone=self.__sleekGone||[]).push.apply(self.__sleekGone,m)}'
 
-export interface StreamOptions<A, LE> {
+export interface StreamOptions<A, LE> extends RunOptions {
   readonly layer: Layer.Layer<A, LE, never>
   /** Set on every inline script. */
   readonly nonce?: string
   /** Prefix of placeholder ids; distinct per stream when several share a page. Default `sleek-`. */
   readonly idPrefix?: string
-  readonly onError?: (cause: Cause.Cause<unknown>) => void
 }
 
 // Resolves once one of the instance's atoms differs from what its run read.
@@ -48,6 +47,7 @@ export const renderToStream = <E, A, LE = never>(
   const prefix = checkId('idPrefix', opts.idPrefix ?? 'sleek-')
   const nonce = opts.nonce === undefined ? '' : ` nonce="${escape(opts.nonce)}"`
   const encoder = new TextEncoder()
+  const fork = Runtime.runFork(opts.runtime ?? Runtime.defaultRuntime)
   const store = makeAtomStore({ scheduleTask: () => {} })
   const scope = Effect.runSync(Scope.make())
   const frame = makeFrame()
@@ -102,7 +102,7 @@ export const renderToStream = <E, A, LE = never>(
     const settle = async (n: ReactiveNode): Promise<void> => {
       await changed(store, n)
       if (disposed) return
-      const fiber = Effect.runFork(n.rerun)
+      const fiber = fork(n.rerun)
       reruns.add(fiber)
       const exit = await Effect.runPromise(Fiber.await(fiber))
       reruns.delete(fiber)
@@ -138,7 +138,7 @@ export const renderToStream = <E, A, LE = never>(
         Effect.provideService(Frame, frame),
         Effect.provideService(RenderScope, scope),
       ) as Effect.Effect<Node, unknown, never>
-      shell = Effect.runFork(run)
+      shell = fork(run)
       const exit = await Effect.runPromise(Fiber.await(shell))
       shell = undefined
       let html: string

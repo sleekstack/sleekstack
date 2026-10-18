@@ -11,7 +11,7 @@
   "priority": null,
   "spec": "fn-54-start-server-core-for-sleekstackui",
   "spec_path": ".flow/tasks/fn-54-start-server-core-for-sleekstackui.5.md",
-  "status": "todo",
+  "status": "done",
   "title": "showcase: a server-function page on the dev server, with a bundle test",
   "updated_at": "2026-10-17T11:31:30.136482Z"
 }
