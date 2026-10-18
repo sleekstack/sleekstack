@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { type Cause, Data, Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
-import { Boundary, el, fragment, Pending, renderToStream, renderToString } from '../index'
+import { Boundary, el, fragment, Head, Pending, renderToStream, renderToString } from '../index'
 import { jsx as rawJsx } from '../jsx-runtime'
 import { normalize } from './helpers/normalize'
 
@@ -198,6 +198,46 @@ describe('renderToStream boundaries (R2, R5)', () => {
     const scripts = [...html.matchAll(/<script\b[^>]*>/g)].map((m) => m[0])
     expect(scripts.length).toBeGreaterThanOrEqual(2)
     for (const s of scripts) expect(s).toContain('nonce="n0&quot;"')
+  })
+})
+
+describe('Head in renderToStream', () => {
+  it('onHead gets the shell head; a resolved Pending patches or adds tags by inline script with the nonce, never duplicating', async () => {
+    const g = gate()
+    const Late = () =>
+      Effect.flatMap(
+        Effect.promise(() => g.promise),
+        () =>
+          jsx('p', {
+            children: jsx(Head, {
+              children: [
+                jsx('title', { children: 'late' }),
+                jsx('meta', { name: 'description', content: 'late' }),
+                jsx('meta', { property: 'og:title', content: 'og' }),
+              ],
+            }),
+          }),
+      )
+    const app = jsx('div', {
+      children: [
+        jsx(Head, {
+          children: [jsx('title', { children: 'shell' }), jsx('meta', { name: 'description', content: 'shell' })],
+        }),
+        jsx(Pending, { fallback: 'wait', children: jsx(Late, {}) }),
+      ],
+    })
+    let shellHead = ''
+    const done = read(renderToStream(app, { layer, nonce: 'n1', onHead: (h) => (shellHead = h) }))
+    await new Promise((r) => setTimeout(r, 10))
+    expect(shellHead).toBe('<title>shell</title><meta name="description" content="shell">')
+    g.open()
+    const html = await done
+    expect(html).toContain('<script nonce="n1">__sleekHead(')
+    document.head.innerHTML = shellHead
+    apply(html)
+    expect(document.head.innerHTML).toBe(
+      '<title>late</title><meta name="description" content="late"><meta property="og:title" content="og">',
+    )
   })
 })
 

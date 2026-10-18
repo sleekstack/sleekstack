@@ -47,6 +47,11 @@ const textOf = (node: ElementNode): string => node.children.map((c) => (c._tag =
 /** Keeps `doc.head` equal to the sink's resolved tags: updates what it created, adds the new, removes the dropped. Patches once per microtask. */
 const domSink = (doc: Document): HeadSinkApi => {
   const owned = new Map<string, Element>()
+  const asNode = (e: Element) =>
+    ({
+      tag: e.localName,
+      attrs: Object.fromEntries(e.getAttributeNames().map((n) => [n, e.getAttribute(n)])),
+    }) as unknown as ElementNode
   let queued = false
   const sink: HeadSinkApi = makeHeadSink(() => {
     if (queued) return
@@ -58,8 +63,10 @@ const domSink = (doc: Document): HeadSinkApi => {
       for (const [k, node] of next) {
         let el = owned.get(k)
         if (!el) {
-          // An existing `<title>` is taken over rather than duplicated.
-          el = (node.tag === 'title' && doc.head.querySelector('title')) || doc.createElement(node.tag)
+          // A server-rendered tag with the same key is adopted, never duplicated.
+          el =
+            [...doc.head.querySelectorAll(node.tag)].find((e) => headKey(asNode(e), 0) === k) ??
+            doc.createElement(node.tag)
           owned.set(k, el)
         }
         for (const name of el.getAttributeNames()) if (!(name in node.attrs)) el.removeAttribute(name)
