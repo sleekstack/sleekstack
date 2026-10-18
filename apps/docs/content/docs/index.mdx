@@ -8,26 +8,26 @@ SleekStack gives you dependency injection, a service layer and module management
 - **Kit** (`@sleekstack/kit`): an Effect-free API. Tags, Layers and modules are plain functions and values, and every failure is one `SleekStackError`.
 - **Effect-native** (`@sleekstack/core`, `@sleekstack/runtime` or its preset `@sleekstack/next`, `@sleekstack/react`): Effect Tags, Layers and Effects directly, with typed errors.
 
-Both build the same graph, so you can start with kit and move one module to Effect later. [Kit vs Effect-native](/docs/kit-vs-effect) compares them.
+Both build the same graph, so you can start with kit and move one module to Effect later.
 
 ## Packages
 
-| Package | What it does |
-| --- | --- |
-| `@sleekstack/core` | Declared Layers, modules and scopes |
-| `@sleekstack/runtime` | The framework-agnostic Effect runtime: `configureRuntime`, `runEffect`, a pluggable control-flow classifier |
-| `@sleekstack/next` | The Next.js preset of the runtime: Next control flow, the devtools route handler |
-| `@sleekstack/devtools` | Dev-only panel: graph, scopes, atoms, errors |
-| `@sleekstack/react` | `LayerProvider` and `useService` |
-| `@sleekstack/kit` | The Effect-free facade, with `kit/next` and `kit/react` subpaths |
-| `@sleekstack/ui` | Components as Effects with typed services and errors, React components as Guests ([guide](/docs/ui)) |
-| `@sleekstack/router` | Typed routes, loaders and actions for `@sleekstack/ui` apps |
-| `@sleekstack/query` | TanStack Query on Effect Layers |
-| `@sleekstack/islands` | Lazy-hydrating React Islands |
-| `@sleekstack/testing` | Component tests for `@sleekstack/ui` |
+| Package                | What it does                                                                                                |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `@sleekstack/core`     | Declared Layers, modules and scopes                                                                         |
+| `@sleekstack/runtime`  | The framework-agnostic Effect runtime: `configureRuntime`, `runEffect`, a pluggable control-flow classifier |
+| `@sleekstack/next`     | The Next.js preset of the runtime: Next control flow, the devtools route handler                            |
+| `@sleekstack/devtools` | Dev-only panel: graph, scopes, atoms, errors                                                                |
+| `@sleekstack/react`    | `LayerProvider` and `useService`                                                                            |
+| `@sleekstack/kit`      | The Effect-free facade, with `kit/next` and `kit/react` subpaths                                            |
+| `@sleekstack/ui`       | Components as Effects with typed services and errors, React components as Guests ([guide](/docs/ui))        |
+| `@sleekstack/router`   | Typed routes, loaders and actions for `@sleekstack/ui` apps                                                 |
+| `@sleekstack/query`    | TanStack Query on Effect Layers                                                                             |
+| `@sleekstack/islands`  | Lazy-hydrating React Islands                                                                                |
+| `@sleekstack/testing`  | Component tests for `@sleekstack/ui`                                                                        |
 
 ## Where to go next
 
-- [Getting started (kit)](/docs/getting-started-kit) or [Getting started (Effect)](/docs/getting-started-effect)
+- [Getting started](/docs/getting-started-effect)
 - [Concepts](/docs/concepts): Tags, Layers, modules, lifetimes, scopes, Shadowing and privacy
 - [API reference](/docs/api), generated from the TSDoc in each package

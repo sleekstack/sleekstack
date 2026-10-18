@@ -49,7 +49,7 @@ Only atoms marked with a stable key and a `Schema` cross the wire. Pick a schema
 
 ### Next.js: `prefetchAtoms`
 
-Next owns its render, so there is no wrapper. Without one, a server `LayerProvider` serves atoms from an inert store: sync atoms compute, seeded atoms return their seed, and unseeded Effect and Stream atoms stay `Initial` without starting a fiber (`useAtomSuspense` on one renders its Suspense fallback). Load the values in the server component with `prefetchAtoms` and pass the snapshot to the client provider's `hydrate` prop; see [Next.js](/docs/nextjs#atom-ssr).
+Next owns its render, so there is no wrapper. Without one, a server `LayerProvider` serves atoms from an inert store: sync atoms compute, seeded atoms return their seed, and unseeded Effect and Stream atoms stay `Initial` without starting a fiber (`useAtomSuspense` on one renders its Suspense fallback). Load the values in the server component with `prefetchAtoms` and pass the snapshot to the client provider's `hydrate` prop.
 
 ### Queries
 

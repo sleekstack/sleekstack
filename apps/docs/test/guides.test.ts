@@ -14,12 +14,8 @@ const includesOf = (f: string) =>
 
 const scope = [
   'index',
-  'getting-started-kit',
   'getting-started-effect',
   'concepts',
-  'kit-vs-effect',
-  'nextjs',
-  'react',
   'atoms',
   'queries',
   'queries-ssr',
