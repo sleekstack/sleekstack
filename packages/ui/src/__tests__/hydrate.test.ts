@@ -9,6 +9,7 @@ import {
   el,
   Pending,
   fromReact,
+  Head,
   HydrateConflict,
   HydratePayloadInvalid,
   HydrationMismatch,
@@ -552,5 +553,41 @@ describe('hydrateMount Transfer', () => {
     expect(p.getAttribute('data-tone')).toBe('edited')
     await act(async () => store.set(tone, 'b'))
     expect(p.getAttribute('data-tone')).toBe('b')
+  })
+})
+
+describe('hydrateMount Head (R4)', () => {
+  it('adopts the server head tags without copies; they leave with their Head; a server tag no Head renders stays', async () => {
+    const show = Atom.make(true)
+    const Tags = () =>
+      jsx(Head, {
+        children: [
+          jsx('meta', { charset: 'utf-8' }),
+          jsx('title', { children: 'Page' }),
+          jsx('meta', { name: 'description', content: 'page' }),
+          jsx('link', { rel: 'icon', href: '/i.svg' }),
+        ],
+      })
+    const App = () => Effect.flatMap(useAtomValue(show), (on) => jsx('main', { children: on ? jsx(Tags, {}) : 'off' }))
+    const container = document.body.appendChild(document.createElement('div'))
+    let head = ''
+    container.innerHTML = await renderToString(jsx(App, {}), { layer: Layer.empty, onHead: (h) => (head = h) })
+    // `robots` is a server tag the client never renders: left as it is.
+    document.head.innerHTML = head + '<meta name="robots" content="none">'
+    const server = [...document.head.children]
+    const store = makeAtomStore()
+    const onError = vi.fn()
+    await act(
+      async () =>
+        void handles.push(await hydrateMount(jsx(App, {}), { layer: Layer.empty, container, store, onError })),
+    )
+    expect(onError).not.toHaveBeenCalled()
+    expect(document.head.children).toHaveLength(server.length)
+    expect(server.every((el, i) => document.head.children[i] === el)).toBe(true)
+    // Adopted tags are the Head's own: removed with it, not restored to the server copy.
+    await act(async () => store.set(show, false))
+    expect(document.head.innerHTML).toBe('<meta name="robots" content="none">')
+    document.head.replaceChildren()
+    container.remove()
   })
 })

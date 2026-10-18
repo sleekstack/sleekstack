@@ -271,6 +271,38 @@ describe('renderToStream late boundaries (R3)', () => {
     expect(container.querySelector('i')!.textContent).toBe('wait')
     await act(async () => void (await h.dispose()))
   })
+
+  it('hydrating mid-stream, the client and the late head patch share one tag per key (R4)', async () => {
+    const { act } = await import('react')
+    const { hydrateMount } = await import('../index')
+    const g = gate()
+    const title = (text: string) => jsx(Head, { children: jsx('title', { children: text }) })
+    const Late = () =>
+      Effect.flatMap(
+        Effect.promise(() => g.promise),
+        () => title('done'),
+      )
+    const app = () => jsx('div', { children: jsx(Pending, { fallback: title('loading'), children: jsx(Late, {}) }) })
+    let shellHead = ''
+    const reader = renderToStream(app(), { layer, onHead: (h) => (shellHead = h) }).getReader()
+    const shell = decoder.decode((await reader.read()).value)
+    document.head.innerHTML = shellHead
+    const server = document.head.firstElementChild
+    const container = document.createElement('div')
+    document.body.replaceChildren(container)
+    feed(container, shell)
+    let h: any
+    await act(async () => void (h = await hydrateMount(app(), { layer, container })))
+    g.open()
+    const rest = await drain(reader)
+    expect(rest).toContain('__sleekHead')
+    await act(async () => feed(container, rest))
+    await settle(act)
+    expect(document.head.innerHTML).toBe('<title>done</title>')
+    expect(document.head.firstElementChild).toBe(server)
+    await act(async () => void (await h.dispose()))
+    expect(document.head.innerHTML).toBe('')
+  })
 })
 
 describe('renderToStream Head (R1, R3)', () => {

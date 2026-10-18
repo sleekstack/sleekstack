@@ -1,6 +1,7 @@
 import { Cause, Context, Effect } from 'effect'
 import { type Child, Fragment } from './jsx-runtime'
 import { fragment, type Node } from './node'
+import { Hydrating } from './pending'
 import { Frame, MountError, useEffect, useRef } from './reactive'
 import { checkAttr, checkTag, headOf } from './string'
 
@@ -18,9 +19,12 @@ export interface HeadEntry {
   readonly remove: () => void
 }
 
-/** Where `Head` tags go: `add` registers one `Head` at its instance depth, in mount order. */
+/**
+ * Where `Head` tags go: `add` registers one `Head` at its instance depth, in mount order. `adopt` (hydrating): a matching
+ * tag already in the head is this `Head`'s server output, so it is taken over and removed with it rather than restored.
+ */
 export interface HeadTarget {
-  readonly add: (depth: number) => HeadEntry
+  readonly add: (depth: number, adopt: boolean) => HeadEntry
 }
 
 /** The render's head collector: `mount` provides its container document's; unset, `Head` does nothing. */
@@ -74,6 +78,7 @@ const apply = (el: Element, attrs: Readonly<Record<string, string>>, text: strin
 
 interface Reg {
   readonly depth: number
+  readonly adopt: boolean
   tags: ReadonlyArray<readonly [string, HeadTag]>
 }
 /** An element a key shows its winner in; `before` is the state of a tag the document already had, restored when the key empties. */
@@ -83,9 +88,20 @@ interface Slot {
 }
 
 const documents = new WeakMap<Document, HeadTarget>()
+const same = (el: Element, t: HeadTag): boolean => {
+  const attrs = attrsOf(el)
+  return (
+    Object.keys(attrs).length === Object.keys(t.attrs).length &&
+    Object.entries(t.attrs).every(([k, v]) => attrs[k] === v) &&
+    el.textContent === t.text
+  )
+}
+
 /**
  * The keyed patch of `doc.head`, one per document: each key shows its deepest tag, the last mounted on a tie. A key takes
- * over a matching tag the document already has (a shell `<title>`) and restores it when no `Head` holds the key.
+ * over a matching tag the document already has (a shell `<title>`) and restores it when no `Head` holds the key. An
+ * adopting (hydrating) registration takes over its server tags instead: by key, or an unkeyed one by equal attributes and
+ * text, and removes them when the key empties. A tag no `Head` takes over is left as it is.
  */
 export const documentHead = (doc: Document): HeadTarget => {
   const known = documents.get(doc)
@@ -94,31 +110,37 @@ export const documentHead = (doc: Document): HeadTarget => {
   const regs = new Set<Reg>()
   const slots = new Map<string, Slot>()
   let unkeyed = 0
-  const claim = (key: string, tag: string): Slot => {
+  const claim = (key: string, win: HeadTag, adopt: boolean): Slot => {
     const taken = new Set([...slots.values()].map((s) => s.el))
     const found = [...doc.head.children].find(
-      (el) => !taken.has(el) && el.localName === tag && keyOf(tag, attrsOf(el)) === key,
+      (el) =>
+        !taken.has(el) &&
+        el.localName === win.tag &&
+        (win.key === undefined
+          ? adopt && keyOf(win.tag, attrsOf(el)) === undefined && same(el, win)
+          : keyOf(win.tag, attrsOf(el)) === key),
     )
-    const slot: Slot = found
-      ? { el: found, before: { attrs: attrsOf(found), text: found.textContent ?? '' } }
-      : { el: doc.head.appendChild(doc.createElement(tag)) }
+    const slot: Slot = !found
+      ? { el: doc.head.appendChild(doc.createElement(win.tag)) }
+      : adopt
+        ? { el: found }
+        : { el: found, before: { attrs: attrsOf(found), text: found.textContent ?? '' } }
     slots.set(key, slot)
     return slot
   }
   const patch = (key: string): void => {
-    let win: HeadTag | undefined
-    let depth = -1
-    for (const r of regs) for (const [k, t] of r.tags) if (k === key && r.depth >= depth) ((win = t), (depth = r.depth))
+    let win: [HeadTag, Reg] | undefined
+    for (const r of regs) for (const [k, t] of r.tags) if (k === key && r.depth >= (win?.[1].depth ?? -1)) win = [t, r]
     const slot = slots.get(key)
-    if (win) return apply((slot ?? claim(key, win.tag)).el, win.attrs, win.text)
+    if (win) return apply((slot ?? claim(key, win[0], win[1].adopt)).el, win[0].attrs, win[0].text)
     if (!slot) return
     slots.delete(key)
     if (slot.before) apply(slot.el, slot.before.attrs, slot.before.text)
     else slot.el.remove()
   }
   const target: HeadTarget = {
-    add: (depth) => {
-      const reg: Reg = { depth, tags: [] }
+    add: (depth, adopt) => {
+      const reg: Reg = { depth, adopt, tags: [] }
       regs.add(reg)
       const update = (tags: ReadonlyArray<readonly [string, HeadTag]>) => {
         const keys = new Set([...reg.tags, ...tags].map(([k]) => k))
@@ -143,13 +165,16 @@ export const documentHead = (doc: Document): HeadTarget => {
  * `meta[property]`, `link[rel]+href`): the deepest `Head` wins, the last mounted on a tie; a `Head`'s tags are removed when
  * it unmounts, uncovering the entries below. A tag that fails the element name and attribute checks is skipped and reported to
  * `onError`; in `renderToString` and a stream's shell it rejects the render, like an invalid element. In a stream, a `Head`
- * inside `Pending` takes effect when its boundary resolves (ADR 0044).
+ * inside `Pending` takes effect when its boundary resolves (ADR 0044). `hydrateMount` takes over the server's head tags
+ * instead of adding copies; a server tag no client `Head` renders is left in place.
  */
 export const Head = (props: { children?: Child }): Effect.Effect<Node, never, never> =>
   Effect.flatMap(Effect.all([Fragment(props), Effect.context<never>()]), ([content, ctx]) => {
     const depth = Context.get(ctx, Frame)?.depth ?? 0
     const sink = Context.get(ctx, HeadSink)
     const report = Context.get(ctx, MountError)
+    // Hydrating, this run's tags are already in the head as the server (or a stream's late patch) wrote them.
+    const adopt = Context.get(ctx, Hydrating).on
     const tags: Array<HeadTag> = []
     const errors: Array<unknown> = []
     for (const n of flatten(content))
@@ -167,7 +192,7 @@ export const Head = (props: { children?: Child }): Effect.Effect<Node, never, ne
         Effect.zipRight(
           useEffect(() => {
             for (const e of errors) report?.(Cause.die(e))
-            if (sink) (entry.current ??= sink.add(depth)).set(tags)
+            if (sink) (entry.current ??= sink.add(depth, adopt)).set(tags)
           }, [JSON.stringify([tags, errors.map(String)])]),
           useEffect(() => () => entry.current?.remove(), []),
         ),
