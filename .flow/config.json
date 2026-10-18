@@ -41,7 +41,7 @@
     "enabled": true
   },
   "review": {
-    "backend": "codex:gpt-5.6-sol:medium",
+    "backend": "codex:gpt-6.1-sol:medium",
     "maxIterations": 4
   },
   "scouts": {
