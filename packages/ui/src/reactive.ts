@@ -1,5 +1,5 @@
 import { Atom, type AtomStore, markedWrites, MissingDependency, Result } from '@sleekstack/core'
-import { Cause, Context, Data, Effect, ExecutionStrategy, Exit, Fiber, Option, Scope } from 'effect'
+import { Cause, Chunk, Context, Data, Effect, ExecutionStrategy, Exit, Fiber, Option, Scope } from 'effect'
 import type { YieldWrap } from 'effect/Utils'
 import { type ActionEvent, handled as asEffect } from './handler'
 import type { Node, ReactiveNode, Ref } from './node'
@@ -1124,8 +1124,11 @@ export const instance = <P>(
   let effProps: P = props
   // Set by the renderer's own re-run (an atom changed): the memo must not answer it.
   let forced = false
-  // The function this attempt called, when `type` is hot-updatable.
+  // The function this attempt called, when `type` is hot-updatable, and the one its last successful run called.
   let ran: Function | undefined
+  let committed: Function | undefined
+  // This instance's slots, for a hot remount.
+  let current: Slots | undefined
   const attempt: Effect.Effect<Node, any, any> = Effect.flatMap(Effect.context<never>(), (ctx) => {
     const first = id === undefined
     if (id === undefined) {
@@ -1223,6 +1226,7 @@ export const instance = <P>(
         pre = eff
       }
     } else slots = rootSlots ??= { atoms: [], releases: [], done: false }
+    current = slots
     if (hotStore && Option.isSome(hotStore) && !hotSlots.has(slots)) {
       const stores = hot!.stores
       const s = hotStore.value
@@ -1319,10 +1323,25 @@ export const instance = <P>(
     onSuccess: (node) => {
       const hot = hotOf(type)
       if (hot && ran === hot.fn) hot.succeeded = true
+      if (ran) committed = ran
       return Effect.succeed(node)
     },
     onFailure: (cause) => {
       const hot = hotOf(type)
+      // A hot update that changed this instance's hook count remounts it: its slots start over, its handler stand-ins stay.
+      if (
+        hot &&
+        ran === hot.fn &&
+        committed !== undefined &&
+        ran !== committed &&
+        Cause.failures(cause).pipe(Chunk.some((e) => e instanceof SlotMismatch && e.id === id))
+      ) {
+        const handlers = current!.handlers
+        disposeSlots(current!)
+        current!.handlers = handlers
+        forced = true
+        return run
+      }
       if (!hot || ran !== hot.fn || hot.fn === hot.good || Cause.isInterruptedOnly(cause))
         return Effect.failCause(cause)
       hot.fn = hot.good

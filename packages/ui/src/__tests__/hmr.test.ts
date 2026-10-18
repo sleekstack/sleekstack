@@ -128,6 +128,71 @@ describe('acceptUpdate', () => {
     expect(errors).toHaveLength(2)
   })
 
+  it('an update that changes an instance hook count remounts that instance; keyed siblings keep their state', async () => {
+    const errors: Array<Cause.Cause<unknown>> = []
+    const sets = new Map<string, (n: number) => void>()
+    // `extraFor` names the row whose run calls one more `useLocal` than v1 did.
+    const row = (label: string, extraFor?: string) => (props: { readonly id: string }) =>
+      Effect.gen(function* () {
+        const [n, setN] = yield* useLocal(0)
+        if (props.id === extraFor) yield* useLocal('extra')
+        sets.set(props.id, setN)
+        return el('li', {}, `${label} ${props.id}${n}`)
+      })
+    const v1 = row('v1')
+    acceptUpdate('hmr.test#KeyedRow', v1)
+    const App = () =>
+      Effect.gen(function* () {
+        const ids = ['a', 'b', 'c']
+        return el('ul', {}, ...(yield* Effect.all(ids.map((id) => rawJsx(v1, { id }, id)))))
+      })
+    const { container } = await go(jsx(App, {}), (cause) => errors.push(cause))
+    const text = () => [...container.querySelectorAll('li')].map((li) => li.textContent).join(',')
+    act(() => {
+      for (const [id, n] of [
+        ['a', 1],
+        ['b', 2],
+        ['c', 3],
+      ] as const)
+        sets.get(id)!(n)
+    })
+    await tick()
+    expect(text()).toBe('v1 a1,v1 b2,v1 c3')
+
+    // Row b gains a hook: it remounts with fresh state, a and c keep theirs.
+    acceptUpdate('hmr.test#KeyedRow', row('v2', 'b'))
+    await tick()
+    expect(errors).toHaveLength(0)
+    expect(text()).toBe('v2 a1,v2 b0,v2 c3')
+
+    // Row b loses the hook again: another remount, still no error.
+    act(() => sets.get('b')!(4))
+    await tick()
+    acceptUpdate('hmr.test#KeyedRow', row('v3'))
+    await tick()
+    expect(errors).toHaveLength(0)
+    expect(text()).toBe('v3 a1,v3 b0,v3 c3')
+  })
+
+  it('outside a hot update a hook-count change still fails into onError', async () => {
+    const errors: Array<Cause.Cause<unknown>> = []
+    let extra = false
+    const C = () =>
+      Effect.gen(function* () {
+        const [n, setN] = yield* useLocal(0)
+        if (extra) yield* useLocal(0)
+        set = setN
+        return el('p', {}, String(n))
+      })
+    acceptUpdate('hmr.test#Conditional', C)
+    await go(jsx(C, {}), (cause) => errors.push(cause))
+    extra = true
+    act(() => set(1))
+    await tick()
+    expect(errors).toHaveLength(1)
+    expect(Cause.pretty(errors[0]!)).toContain('SlotMismatch')
+  })
+
   it('a disposed mount is not updated', async () => {
     const v1 = version('v1')
     acceptUpdate('hmr.test#Disposed', v1)
