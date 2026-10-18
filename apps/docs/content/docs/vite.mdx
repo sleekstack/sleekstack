@@ -1,0 +1,51 @@
+---
+title: Vite plugin
+description: One plugin for ui JSX, analyzer diagnostics, stable component ids, file-based routes and client and SSR bundles.
+---
+
+`@sleekstack/ui-vite` sets up a Vite app on `@sleekstack/ui` in one line: `plugins: [sleekstack(options)]`. Add `@vitejs/plugin-react` beside it when the app has React Guests. It is a plugin, not a meta-framework. `apps/playground/ui` in the repository is a working example: a router app streamed by `handle(..., { stream: true })` and hydrated by `startRouter`.
+
+## Options
+
+Every option is optional.
+
+| Option                | Default      | What it does                                                                                                                                                                   |
+| --------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `include` / `exclude` | none         | Globs (relative to the Vite root) or regexes of `.jsx` / `.tsx` files that are ui JSX without the pragma. A file that already names a `@jsxImportSource` keeps it.             |
+| `routesDir`           | `src/routes` | Directory of route files, relative to the Vite root. Serves `virtual:sleekstack/routes`.                                                                                       |
+| `entries`             | none         | `{ client, server }`, paths relative to the Vite root. `vite build` writes `dist/client` and `dist/server`, and the dev server answers every request through the server entry. |
+
+## The pragma rule
+
+ui JSX is opt-in per file ([ADR 0015](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0015-host-first-component-framework.md)). The plugin sets no global `jsxImportSource`:
+
+- A file whose first line is `/** @jsxImportSource @sleekstack/ui */` compiles as ui JSX. Vite reads the pragma only in the comments before the first statement. After an `import`, it is plain text and the file compiles as React JSX.
+- A file matched by `include` and not by `exclude` gets the pragma added on line 1.
+- Any other file keeps the default, which is React JSX for Guests. ui files and React files can sit side by side in one app.
+
+## Analyzer diagnostics
+
+The plugin runs the `sleekstack check` analysis over the Vite root's `tsconfig.json`. On `vite build`, an analyzer error fails the build with its file:line. In dev, the analyzer runs after source changes, with a debounce. Errors show in Vite's error overlay, and the overlay clears once the code is fixed. A crash inside the analyzer is reported and never stops the dev server. A run is whole-program TypeScript, so the dev server pauses while it runs.
+
+The analyzer reads the router's `pages` only as an object literal written in the `router({ ... })` call. Write the pages out there instead of passing `pages` from `virtual:sleekstack/routes`.
+
+## Stable component ids
+
+Each function that a ui JSX file exports gets a stable id, `<path from the Vite root>#<export name>`, in place of the load-order counter. A re-export keeps the id, and so does a re-evaluation of the module. Two files that would give the same id fail the build. Only functions written in the export get an id: a declaration, an arrow function or a function expression. Without the plugin, ids still work through the counter.
+
+## File-based routes
+
+Files under `routesDir` become a [router](/docs/routing) route table. `users/[id].tsx` gives `/users/:id`, and an `index` file gives its directory's path. `virtual:sleekstack/routes` exports `table`, which maps route names to path strings with params typed from those strings, and `pages`, which maps route names to each file's default export. In dev, adding or removing a route file updates the table without a restart. An invalid file name fails with the file's path.
+
+For TypeScript, the plugin writes a types-only `routes.gen.d.ts` into `routesDir` ([ADR 0045](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0045-vite-plugin-route-declaration.md)). The route table itself is never generated. Commit the file, or gitignore it and run Vite once before a plain `tsc`.
+
+## Client and SSR entries
+
+With `entries`, `vite build` builds the client bundle and then the server bundle. The server entry's default export takes a `Request` and returns a `Response`, for example `handle` from `@sleekstack/router` with `stream: true`. It imports `scripts` from `virtual:sleekstack/client` and puts it in the document head. In a build, `scripts` loads the built client chunk and its CSS. In dev, it loads the source entry with HMR.
+
+`virtual:sleekstack/client` has no generated declaration. Declare it in the app with `declare module 'virtual:sleekstack/client' { export const scripts: string }`, as `apps/playground/ui/src/env.d.ts` does. `vite build --watch` is not supported with `entries`.
+
+## Known limitations
+
+- With `entries`, use an absolute `base` (the default `/`, or a path such as `/app/`). A relative base such as `./` is rejected, because a nested route like `/users/42` would request its scripts and CSS from the wrong path.
+- No HMR state preservation, no static site generation and no deploy adapters yet.

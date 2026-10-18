@@ -213,9 +213,11 @@ export const dropSlots = (frame: RunFrame): void => {
 
 const fnIds = new WeakMap<Function, string>()
 let nextFn = 0
+/** Set by `@sleekstack/ui-vite` on exported components: `<file>#<export>`, the same across re-evaluations. */
+const STABLE_ID = Symbol.for('@sleekstack/ui/component-id')
 const fnId = (f: Function): string => {
   let id = fnIds.get(f)
-  if (id === undefined) fnIds.set(f, (id = String(nextFn++)))
+  if (id === undefined) fnIds.set(f, (id = (f as { [STABLE_ID]?: string })[STABLE_ID] ?? String(nextFn++)))
   return id
 }
 
