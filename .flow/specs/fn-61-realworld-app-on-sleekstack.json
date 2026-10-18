@@ -1,7 +1,7 @@
 {
   "branch_name": "fn-61-realworld-app-on-sleekstack",
   "completion_review_status": "ship",
-  "completion_reviewed_at": "2026-10-18T17:57:15.874409Z",
+  "completion_reviewed_at": "2026-10-18T18:11:54.801253Z",
   "created_at": "2026-10-18T15:44:22.948840Z",
   "default_impl": null,
   "default_review": null,
@@ -757,6 +757,50 @@
       "task": null,
       "timestamp": "2026-10-18T17:57:15.868707Z",
       "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "34740b3af33f99380050be38b4c46d39d0b26fbd7450fdd7fb2f11664c94e400",
+      "backend": "codex",
+      "base_sha": "17e76029753680606814c35927860aafa0eadfa8",
+      "counter_kind": "plan",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-bf03d931189d00862a004358f9d72062",
+            "classification": "introduced",
+            "findingId": "finding-bf03d931189d00862a004358f9d72062",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 1,
+      "head_sha": "34b154b618433ae4e1a8172fe76f9cc2d4ae5252",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-6.1-sol",
+      "outcome": "verdict",
+      "output_bytes": 7063,
+      "output_sha256": "4ea9e35c284b782ef2a9b5ca164b55e01e7d7ad8e5ae4e075a812bdf7301f82c",
+      "reservation_id": "d70f95836dde457abd35d4d764706db5",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-10-18T18:11:54.797013Z",
+      "verdict": "SHIP"
     }
   ],
   "review_hash_epoch": {
@@ -768,7 +812,7 @@
     "impl:fn-61-realworld-app-on-sleekstack.6": 1,
     "impl:fn-61-realworld-app-on-sleekstack.7": 1,
     "impl:fn-61-realworld-app-on-sleekstack.8": 1,
-    "plan#completion": 1
+    "plan#completion": 2
   },
   "review_pending_rounds": {},
   "review_reservations": {},
@@ -797,5 +841,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-18T17:57:15.875145Z"
+  "updated_at": "2026-10-18T18:11:54.801870Z"
 }
