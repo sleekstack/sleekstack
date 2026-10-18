@@ -1,0 +1,40 @@
+{
+  "answer": "Inventory at revision 4780eb0 (branch chart-docs-rebuild). All paths under apps/docs. Versions: fumadocs-core 15.8.5, fumadocs-ui 15.8.5, fumadocs-mdx 12.0.3 [package.json]. Count: 27 tracked .mdx guides (+1 generated benchmarks.mdx, gitignored, = 28) plus a gitignored generated content/docs/api/ tree of .md files [.gitignore]. The app is small: no custom MDX components, no remark/rehype options, no custom theme, no i18n.\n\nREPLACE (the new site must provide an equivalent)\n- MDX compile and collection: source.config.ts (defineDocs dir content/docs, defineConfig with defaults), next.config.mjs (createMDX), generated .source/index.ts (gitignored), typecheck script runs fumadocs-mdx first [package.json]. Feeds page.data.body, .title, .description, .toc.\n- The <include> tag, a fumadocs-mdx remark feature: 22 of 27 guides use it, 138 occurrences, all of the form <include>../../snippets/x/y.ext</include> (relative to the mdx file, no #region). Includes inline snippet source as a code block; guides must have no inline code fences (test/guides.test.ts lines 11-13, 42-57 re-implement the path resolution and require every snippet file to be included).\n- Code highlighting: fumadocs-mdx default Shiki rehype-code (no config in source.config.ts); every code block comes from an include; copy button and code-block chrome from fumadocs-ui/mdx defaultMdxComponents [app/docs/[[...slug]]/page.tsx].\n- Frontmatter: only title and description (27/27 guides), no other fields. Used for DocsTitle, DocsDescription and generateMetadata [app/docs/[[...slug]]/page.tsx]; the generated api/*.md also carry title and description [content/docs/api/core/index.md, written by scripts/generate-api.mjs].\n- Heading ids and TOC: fumadocs auto-ids headings (github-slugger) and builds page.data.toc for the DocsPage right rail [page.tsx]. scripts/check-links.mjs headings() and test/links.test.ts depend on the same slugging (github-slugger 2.0.0 is a devDependency for that). Replacement must produce identical ids or the link check changes.\n- Page tree and sidebar: lib/source.ts loader({ baseUrl: '/docs', source: docs.toFumadocsSource() }); app/docs/layout.tsx passes source.pageTree to DocsLayout (sidebar, mobile nav). Order comes from the single content/docs/meta.json (title SleekStack, 28 entries, last is \"api\"); api/ subfolders have no meta.json so they are ordered by the loader default, with index.md as the folder page. test/guides.test.ts line 35 reads meta.json directly and asserts listed slugs, so the file format is itself tested.\n- Routing and static params: app/docs/[[...slug]]/page.tsx uses source.getPage(slug), source.generateParams(), notFound(); app/page.tsx redirects / to /docs (next/navigation).\n- Page chrome: DocsLayout nav title \"SleekStack\"; DocsPage, DocsTitle, DocsDescription, DocsBody from fumadocs-ui/page. Typography/prose styling for tables (44 table rows in 6 guides plus api), inline code, blockquotes comes from fumadocs-ui css.\n- Dark mode and theme: RootProvider (next-themes under the hood) in app/layout.tsx with suppressHydrationWarning; app/global.css imports tailwindcss, fumadocs-ui/css/neutral.css, fumadocs-ui/css/preset.css; postcss.config.mjs uses @tailwindcss/postcss. No custom theme tokens. Dark mode is a fumadocs default, not a stated requirement (see D8).\n- Link components: guides use plain markdown links ('/docs/x', '/docs/x#heading', ADR links to github.com); defaultMdxComponents maps <a> to next/link and fumadocs Link. No MDX file imports or exports anything and uses no fumadocs JSX components (no Callout, Tabs, Steps, Card). Markdown tables and prose elements are mapped through defaultMdxComponents.\n- Metadata: root metadata title template '%s | SleekStack' in app/layout.tsx, per-page generateMetadata in page.tsx.\n\nKEEP (not fumadocs; stays regardless)\n- scripts/generate-api.mjs, generate-benchmarks.mjs, entry-points.mjs, check-links.mjs and tests in test/*.test.ts. None import fumadocs; they read content/docs/*.mdx and meta.json as files. Coupling to note only: the comment in check-links.mjs line 11 and guides.test.ts line 11 describe fumadocs behavior (slugging, include resolution) that they reimplement.\n- snippets/ (type-checked by test/examples.test.ts), generated API reference input, MDX pages themselves.\n\nDROP (used only by fumadocs or by default and not relied on)\n- Search: app/api/search/route.ts is createFromSource(source) from fumadocs-core/search/server (Orama index, served at /api/search) and is the only backing for the DocsLayout search dialog (cmd-K) that RootProvider mounts. Used by default, not referenced in content or tests. Needs a server route: a static host would not have it. Whether to replace is D5 (attended), not decided here.\n- DocsLayout extras: theme switcher, sidebar collapse, mobile drawer, prev/next page footer, breadcrumb, edit-on-GitHub (not configured), i18n (not configured), versioning (not configured), og images (not configured). None configured in layout files; they exist only as fumadocs-ui defaults.\n- fumadocs-mdx typecheck pre-step and .source output (replaced by whatever compiles MDX; see D2).\n- Next-specific: next.config.mjs transpilePackages list, next-env.d.ts, tsconfig plugins next, next/navigation redirect, next start/build scripts.\n\nNot used (confirmed absent by search of app/, lib/, content/docs, scripts, test): fumadocs components in MDX, custom MDX component overrides (page.tsx passes defaultMdxComponents unchanged), remark/rehype plugin config, fumadocs-core search client, i18n, openapi, twoslash, tabs, callouts, lastModified, structure/headings export, generateParams beyond default.\n",
+  "answer_gist": "Inventory at revision 4780eb0 (branch chart-docs-rebuild). All paths under apps/docs. Versions: fumadocs-core 15.8.5,...",
+  "assets": [],
+  "attendance": "unattended",
+  "blocked_by": [],
+  "chart": "fn-57",
+  "claim_note": null,
+  "claimed_at": null,
+  "claimed_by": null,
+  "created": "2026-10-18T06:07:19.828818Z",
+  "depends_on": [],
+  "id": "fn-57.D1",
+  "n": 1,
+  "question": "Inventory what the 28 pages and the layout actually rely on from fumadocs: sidebar from meta.json, search, table of contents, code highlighting, page tree, link components. Output: a list of features to replace, keep or drop.",
+  "record_path": ".flow/charts/fn-57/1.md",
+  "status": "resolved",
+  "superseded_by": null,
+  "supersedes": [],
+  "title": "Which fumadocs features does the site use?",
+  "tracker": {
+    "depRelations": [],
+    "id": null,
+    "identifier": null,
+    "linkState": "unlinked",
+    "url": null
+  },
+  "transition_notes": [
+    {
+      "actor": "ubtik@outlook.com",
+      "at": "2026-10-18T06:10:29.627247Z",
+      "keep_dependents": false,
+      "kind": "resolved",
+      "supersedes": [],
+      "text": "resolved by ubtik@outlook.com"
+    }
+  ],
+  "type": "research",
+  "updated_at": "2026-10-18T06:10:29.624820Z"
+}

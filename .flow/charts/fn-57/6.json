@@ -1,0 +1,40 @@
+{
+  "answer": "The docs rebuild is the first user of the Vite plugin, head management and static generation (open specs fn-29, fn-33 and fn-30). It builds the slimmed parts it needs (the build step, per-page titles, route generation, prerender) as the real packages those specs describe, not throwaway code, and those three specs are trimmed to what remains afterwards. The user chose this over building the three specs first and over a minimal bespoke setup (chosen by the user in the D6 interview). Consequence: the rebuild is larger and finishes later than a minimal setup, and fn-55 task 6 waits for it.\n",
+  "answer_gist": "The docs rebuild is the first user of the Vite plugin, head management and static generation (open specs fn-29, fn-33...",
+  "assets": [],
+  "attendance": "attended",
+  "blocked_by": [],
+  "chart": "fn-57",
+  "claim_note": null,
+  "claimed_at": null,
+  "claimed_by": null,
+  "created": "2026-10-18T06:07:19.828902Z",
+  "depends_on": [],
+  "id": "fn-57.D6",
+  "n": 6,
+  "question": "Wait for the Vite plugin, static generation and head management specs (all open, no tasks) before building the docs, or build the docs on a minimal bespoke Vite setup that those specs later replace?",
+  "record_path": ".flow/charts/fn-57/6.md",
+  "status": "resolved",
+  "superseded_by": null,
+  "supersedes": [],
+  "title": "Sequencing against fn-29, fn-30 and fn-33",
+  "tracker": {
+    "depRelations": [],
+    "id": null,
+    "identifier": null,
+    "linkState": "unlinked",
+    "url": null
+  },
+  "transition_notes": [
+    {
+      "actor": "ubtik@outlook.com",
+      "at": "2026-10-18T06:49:51.085220Z",
+      "keep_dependents": false,
+      "kind": "resolved",
+      "supersedes": [],
+      "text": "resolved by ubtik@outlook.com"
+    }
+  ],
+  "type": "interview",
+  "updated_at": "2026-10-18T06:49:51.083415Z"
+}

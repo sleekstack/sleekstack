@@ -1,0 +1,40 @@
+{
+  "answer": "Ship the docs as the only version for now, with routes and the build laid out so a version prefix such as /docs/v1/ can be added later without moving pages. No version switcher and no old-version builds in this rebuild. Every package is private at 0.0.1 with no release tags and no publish yet (ADR 0022 gates publishing), so there is nothing to version today. The user chose this over a next and latest split, over full per-release versions, and over no versioning (chosen by the user in the D9 interview).\n",
+  "answer_gist": "Ship the docs as the only version for now, with routes and the build laid out so a version prefix such as /docs/v1/ c...",
+  "assets": [],
+  "attendance": "attended",
+  "blocked_by": [],
+  "chart": "fn-57",
+  "claim_note": null,
+  "claimed_at": null,
+  "claimed_by": null,
+  "created": "2026-10-18T07:21:25.983115Z",
+  "depends_on": [],
+  "id": "fn-57.D9",
+  "n": 9,
+  "question": "The packages are private and unreleased today. What does versioned docs mean for this site: docs per released version side by side, a next/latest split, or one version with a changelog; how are old versions built and kept; and does it need to exist at launch or only be designed for?",
+  "record_path": ".flow/charts/fn-57/9.md",
+  "status": "resolved",
+  "superseded_by": null,
+  "supersedes": [],
+  "title": "Versioned documentation: scheme and scope",
+  "tracker": {
+    "depRelations": [],
+    "id": null,
+    "identifier": null,
+    "linkState": "unlinked",
+    "url": null
+  },
+  "transition_notes": [
+    {
+      "actor": "ubtik@outlook.com",
+      "at": "2026-10-18T07:34:12.434427Z",
+      "keep_dependents": false,
+      "kind": "resolved",
+      "supersedes": [],
+      "text": "resolved by ubtik@outlook.com"
+    }
+  ],
+  "type": "interview",
+  "updated_at": "2026-10-18T07:34:12.432198Z"
+}

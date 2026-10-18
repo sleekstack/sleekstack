@@ -1,0 +1,18 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-18T15:10:27.290677Z",
+  "depends_on": [
+    "fn-60-docs-site-on-ui-and-start.2",
+    "fn-60-docs-site-on-ui-and-start.3",
+    "fn-60-docs-site-on-ui-and-start.4"
+  ],
+  "id": "fn-60-docs-site-on-ui-and-start.5",
+  "priority": null,
+  "spec": "fn-60-docs-site-on-ui-and-start",
+  "spec_path": ".flow/tasks/fn-60-docs-site-on-ui-and-start.5.md",
+  "status": "todo",
+  "title": "docs app: swap Next and fumadocs for the ui-vite build",
+  "updated_at": "2026-10-18T15:10:27.290677Z"
+}

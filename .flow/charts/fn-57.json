@@ -1,0 +1,263 @@
+{
+  "briefings": [
+    {
+      "chart_revision": "c7d322d4dc9e4fb8a1cb158614b9ad8e38880158b62436d1c621d38169f05ef1",
+      "clusters": [
+        {
+          "decisions": [
+            "fn-57.D2",
+            "fn-57.D5",
+            "fn-57.D6",
+            "fn-57.D7",
+            "fn-57.D12"
+          ],
+          "key": "1",
+          "latest_path": ".flow/charts/fn-57-briefing-1.md",
+          "path": ".flow/charts/fn-57-briefing-B1-1.md",
+          "rationale": "Docs build platform: the build and publish machinery the site needs, built as the real Vite plugin, head management and static generation pieces (MDX build step, per-page titles and Open Graph tags, route generation, static prerender, build-time search index, ui void-element fix)"
+        },
+        {
+          "decisions": [
+            "fn-57.D1",
+            "fn-57.D3",
+            "fn-57.D4",
+            "fn-57.D8",
+            "fn-57.D9",
+            "fn-57.D10",
+            "fn-57.D11"
+          ],
+          "key": "2",
+          "latest_path": ".flow/charts/fn-57-briefing-2.md",
+          "path": ".flow/charts/fn-57-briefing-B1-2.md",
+          "rationale": "Docs site on the platform: layout in plain CSS, the guides and generated API pages, tests and scripts carried over, English only and version-ready routes, no analytics, then removal of the four packages"
+        }
+      ],
+      "created": "2026-10-18T14:26:39.034523Z",
+      "created_by": "ubtik@outlook.com",
+      "fingerprint": "c365af08de7d390f727fbaa61ec162a743b0615d2a47ca1f2b09748c842ce699",
+      "force": false,
+      "id": "B1",
+      "paths": {
+        "cluster_1": ".flow/charts/fn-57-briefing-B1-1.md",
+        "cluster_2": ".flow/charts/fn-57-briefing-B1-2.md",
+        "index": ".flow/charts/fn-57-briefing-B1.md",
+        "latest_index": ".flow/charts/fn-57-briefing.md"
+      },
+      "shared_context": [
+        "fn-57.D6"
+      ],
+      "status": "final"
+    }
+  ],
+  "claim_events": [
+    {
+      "actor": "ubtik@outlook.com",
+      "briefing": "B1",
+      "chart": "fn-57",
+      "kind": "briefing_done",
+      "timestamp": "2026-10-18T14:26:39.034523Z"
+    }
+  ],
+  "created": "2026-10-18T06:07:19.828811Z",
+  "decisions": [
+    {
+      "attendance": "unattended",
+      "blocked_by": [],
+      "claimed_at": null,
+      "claimed_by": null,
+      "depends_on": [],
+      "id": "fn-57.D1",
+      "record_path": ".flow/charts/fn-57/1.md",
+      "status": "resolved",
+      "title": "Which fumadocs features does the site use?",
+      "type": "research"
+    },
+    {
+      "attendance": "unattended",
+      "blocked_by": [],
+      "claimed_at": null,
+      "claimed_by": null,
+      "depends_on": [],
+      "id": "fn-57.D2",
+      "record_path": ".flow/charts/fn-57/2.md",
+      "status": "resolved",
+      "title": "Can MDX compile to the ui JSX runtime?",
+      "type": "probe"
+    },
+    {
+      "attendance": "unattended",
+      "blocked_by": [],
+      "claimed_at": null,
+      "claimed_by": null,
+      "depends_on": [],
+      "id": "fn-57.D3",
+      "record_path": ".flow/charts/fn-57/3.md",
+      "status": "resolved",
+      "title": "Which docs tests and scripts carry over?",
+      "type": "probe"
+    },
+    {
+      "attendance": "unattended",
+      "blocked_by": [],
+      "claimed_at": null,
+      "claimed_by": null,
+      "depends_on": [],
+      "id": "fn-57.D4",
+      "record_path": ".flow/charts/fn-57/4.md",
+      "status": "resolved",
+      "title": "How is the generated API reference consumed?",
+      "type": "research"
+    },
+    {
+      "attendance": "attended",
+      "blocked_by": [],
+      "claimed_at": null,
+      "claimed_by": null,
+      "depends_on": [],
+      "id": "fn-57.D5",
+      "record_path": ".flow/charts/fn-57/5.md",
+      "status": "resolved",
+      "title": "Is search needed at launch, and what kind?",
+      "type": "interview"
+    },
+    {
+      "attendance": "attended",
+      "blocked_by": [],
+      "claimed_at": null,
+      "claimed_by": null,
+      "depends_on": [],
+      "id": "fn-57.D6",
+      "record_path": ".flow/charts/fn-57/6.md",
+      "status": "resolved",
+      "title": "Sequencing against fn-29, fn-30 and fn-33",
+      "type": "interview"
+    },
+    {
+      "attendance": "attended",
+      "blocked_by": [],
+      "claimed_at": null,
+      "claimed_by": null,
+      "depends_on": [],
+      "id": "fn-57.D7",
+      "record_path": ".flow/charts/fn-57/7.md",
+      "status": "resolved",
+      "title": "Hosting: static build or running start server?",
+      "type": "interview"
+    },
+    {
+      "attendance": "attended",
+      "blocked_by": [],
+      "claimed_at": null,
+      "claimed_by": null,
+      "depends_on": [],
+      "id": "fn-57.D8",
+      "record_path": ".flow/charts/fn-57/8.md",
+      "status": "resolved",
+      "title": "Visual design: reproduce or new?",
+      "type": "interview"
+    },
+    {
+      "attendance": "attended",
+      "blocked_by": [],
+      "claimed_at": null,
+      "claimed_by": null,
+      "depends_on": [],
+      "id": "fn-57.D9",
+      "record_path": ".flow/charts/fn-57/9.md",
+      "status": "resolved",
+      "title": "Versioned documentation: scheme and scope",
+      "type": "interview"
+    },
+    {
+      "attendance": "attended",
+      "blocked_by": [],
+      "claimed_at": null,
+      "claimed_by": null,
+      "depends_on": [],
+      "id": "fn-57.D10",
+      "record_path": ".flow/charts/fn-57/10.md",
+      "status": "resolved",
+      "title": "Internationalization: languages and workflow",
+      "type": "interview"
+    },
+    {
+      "attendance": "attended",
+      "blocked_by": [],
+      "claimed_at": null,
+      "claimed_by": null,
+      "depends_on": [],
+      "id": "fn-57.D11",
+      "record_path": ".flow/charts/fn-57/11.md",
+      "status": "resolved",
+      "title": "Analytics: what to measure and how",
+      "type": "interview"
+    },
+    {
+      "attendance": "unattended",
+      "blocked_by": [],
+      "claimed_at": null,
+      "claimed_by": null,
+      "depends_on": [],
+      "id": "fn-57.D12",
+      "record_path": ".flow/charts/fn-57/12.md",
+      "status": "resolved",
+      "title": "Open Graph images: generation approach",
+      "type": "research"
+    }
+  ],
+  "done_at": "2026-10-18T14:26:39.034523Z",
+  "done_by": "ubtik@outlook.com",
+  "done_via_briefing": "B1",
+  "id": "fn-57",
+  "outcome": "apps/docs becomes a SleekStack ui app served by @sleekstack/start with no dependency on kit, react, next, islands or fumadocs, keeping every page, snippet test and navigation (and search if wanted), so the four packages can be deleted.",
+  "parked_questions": [],
+  "produced_specs": [
+    {
+      "briefing": "B1",
+      "cluster": "1",
+      "decisions": [
+        "fn-57.D2",
+        "fn-57.D5",
+        "fn-57.D6",
+        "fn-57.D7",
+        "fn-57.D12"
+      ],
+      "linked_at": "2026-10-18T14:29:08.933067Z",
+      "linked_by": "ubtik@outlook.com",
+      "spec": "fn-59-docs-build-platform-on-ui-and-start",
+      "status": "linked"
+    },
+    {
+      "briefing": "B1",
+      "cluster": "2",
+      "decisions": [
+        "fn-57.D1",
+        "fn-57.D3",
+        "fn-57.D4",
+        "fn-57.D8",
+        "fn-57.D9",
+        "fn-57.D10",
+        "fn-57.D11"
+      ],
+      "linked_at": "2026-10-18T14:29:09.241195Z",
+      "linked_by": "ubtik@outlook.com",
+      "spec": "fn-60-docs-site-on-ui-and-start",
+      "status": "linked"
+    }
+  ],
+  "status": "done",
+  "title": "Rebuild the docs site on ui and start",
+  "tracker": {
+    "depRelations": [],
+    "id": null,
+    "identifier": null,
+    "linkState": "unlinked",
+    "projection": {
+      "completed_steps": [],
+      "event_markers": [],
+      "revision": null
+    },
+    "url": null
+  },
+  "updated_at": "2026-10-18T14:29:09.241195Z"
+}
