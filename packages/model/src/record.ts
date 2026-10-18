@@ -1,6 +1,7 @@
 import type { Atom } from '@sleekstack/core'
 import { Store } from '@sleekstack/ui/internal'
-import { Effect, Option, type ParseResult, Schema } from 'effect'
+import { type Context, Effect, Option, type ParseResult, Schema } from 'effect'
+import { type AdapterTag, type FindError, findOf, ingest, type RecordAdapter } from './adapter'
 import { recordAtom, slotOf } from './registry'
 import { type Related, type RefField, type RefsField, relatedOf } from './relations'
 
@@ -28,6 +29,30 @@ export interface RecordDefinition<T extends string, F extends RecordFields> {
   readonly related: <K extends RelationKey<F>>(id: string, field: K) => Atom.Atom<Option.Option<Related<F[K]>>>
 }
 
+/**
+ * A record type with an adapter (`defineRecord(type, { fields, adapter })`): it also loads records through the
+ * adapter's Service, which a Layer supplies, so a missing adapter Layer shows in `R`.
+ */
+export interface AdaptedRecord<
+  T extends string,
+  F extends RecordFields,
+  Ad extends AdapterTag,
+> extends RecordDefinition<T, F> {
+  readonly adapter: Ad
+  /**
+   * The adapter's `find(id)`, then the fields' `hydrate`, then a write into the map, unless a save of the record was
+   * acknowledged after the request started (the older response is dropped). Concurrent calls for one id in a Store
+   * share one adapter call; a failed call is not reused. Disposing the Store interrupts it and writes nothing.
+   */
+  readonly find: (
+    id: string,
+  ) => Effect.Effect<
+    Schema.Schema.Type<Schema.Struct<F>>,
+    FindError<Ad> | ParseResult.ParseError,
+    Store | Context.Tag.Identifier<Ad> | Schema.Struct.Context<F>
+  >
+}
+
 /** The keys of `F` that are `ref` or `refs` fields. */
 export type RelationKey<F> = {
   [K in keyof F]: F[K] extends RefField<any> | RefsField<any> ? K : never
@@ -35,34 +60,38 @@ export type RelationKey<F> = {
   string
 
 /**
- * `defineRecord(type, { fields })`: a record type. Every `push` of one type and id, from any source, writes the same
- * slot of the Store's identity map, and `atom(id)` reads it. A pushed record stays until the Store is disposed or
- * `evict(id)`, whether or not anything reads it.
+ * `defineRecord(type, { fields, adapter? })`: a record type. Every `push` of one type and id, from any source, writes
+ * the same slot of the Store's identity map, and `atom(id)` reads it. A pushed record stays until the Store is disposed
+ * or `evict(id)`, whether or not anything reads it. `adapter` is the app's Tag of a `RecordAdapter` Service: the record
+ * then has `find`. Declare the Tag once at module level; never make one per call.
  */
-export const defineRecord = <const T extends string, F extends RecordFields>(
+export function defineRecord<
+  const T extends string,
+  F extends RecordFields,
+  Ad extends Context.Tag<any, RecordAdapter<Schema.Struct.Encoded<F>>>,
+>(type: T, def: { readonly fields: F; readonly adapter: Ad }): AdaptedRecord<T, F, Ad>
+export function defineRecord<const T extends string, F extends RecordFields>(
   type: T,
   def: { readonly fields: F },
-): RecordDefinition<T, F> => {
+): RecordDefinition<T, F>
+export function defineRecord<const T extends string, F extends RecordFields>(
+  type: T,
+  def: { readonly fields: F; readonly adapter?: AdapterTag },
+): RecordDefinition<T, F> {
   type A = Schema.Schema.Type<Schema.Struct<F>>
   const schema = Schema.Struct(def.fields)
   const decode = Schema.decodeUnknown(schema)
   const related = relatedOf(type, def.fields)
-  return {
+  const idOf = (record: A) => (record as unknown as { readonly id: string }).id
+  const base: RecordDefinition<T, F> = {
     type,
     schema,
     atom: (id) => recordAtom(type, id) as Atom.Atom<Option.Option<A>>,
     push: (wire) =>
-      Effect.flatMap(decode(wire), (record) =>
-        Effect.map(Store, (s) => {
-          s.update(slotOf(s, type, (record as unknown as { readonly id: string }).id), (slot) => ({
-            ...slot,
-            value: Option.some(record),
-          }))
-          return record
-        }),
-      ),
+      Effect.flatMap(decode(wire), (record) => Effect.map(Store, (s) => ingest(s, type, idOf(record), record))),
     evict: (id) =>
       Effect.map(Store, (s) => s.update(slotOf(s, type, id), (slot) => ({ ...slot, value: Option.none() }))),
     related: (id, field) => related(id, field) as never,
   }
+  return def.adapter ? Object.assign(base, { adapter: def.adapter, find: findOf(type, def.adapter, decode) }) : base
 }

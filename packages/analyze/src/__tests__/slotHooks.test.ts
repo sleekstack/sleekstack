@@ -23,6 +23,7 @@ describe('slot hooks', () => {
       (m) => m[1],
     )
     expect(runtime).toContain('useDraft')
+    expect(runtime).toContain('useRecord')
     expect(analyzed.sort()).toEqual(runtime.sort())
   })
 })
