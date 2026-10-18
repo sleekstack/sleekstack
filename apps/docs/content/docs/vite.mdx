@@ -48,4 +48,6 @@ With `entries`, `vite build` builds the client bundle and then the server bundle
 ## Known limitations
 
 - In a browser, the streamed page's inline scripts stay in the container. With them there, `hydrateMount` reports `HydrationMismatch` and falls back to a fresh mount. The page works, but the server's DOM is not kept.
+- With `entries`, use an absolute `base` (the default `/`, or a path such as `/app/`). A relative base such as `./` makes a nested route like `/users/42` request its scripts and CSS from the wrong path.
+- When an edit removes a ui file's last function export or its pragma, the dev server keeps that file's old ids, and a file that then exports the same id fails as a duplicate until the dev server restarts. Builds are not affected.
 - No HMR state preservation, no static site generation and no deploy adapters yet.
