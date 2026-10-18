@@ -11,7 +11,7 @@
   "priority": null,
   "spec": "fn-61-realworld-app-on-sleekstack",
   "spec_path": ".flow/tasks/fn-61-realworld-app-on-sleekstack.8.md",
-  "status": "todo",
+  "status": "done",
   "title": "Article page, markdown renderer, comments, editor and docs entry",
   "updated_at": "2026-10-18T15:54:30.582320Z"
 }

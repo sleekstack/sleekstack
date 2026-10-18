@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-61-realworld-app-on-sleekstack",
   "spec_path": ".flow/tasks/fn-61-realworld-app-on-sleekstack.7.md",
-  "status": "todo",
+  "status": "done",
   "title": "Home feed, tag filter, pagination and profile pages",
   "updated_at": "2026-10-18T15:48:45.465065Z"
 }

@@ -8,7 +8,7 @@
   "priority": null,
   "spec": "fn-61-realworld-app-on-sleekstack",
   "spec_path": ".flow/tasks/fn-61-realworld-app-on-sleekstack.1.md",
-  "status": "todo",
+  "status": "done",
   "title": "Scaffold apps/realworld, Db service, auth crypto, CI and ADR",
   "updated_at": "2026-10-18T15:48:45.464705Z"
 }

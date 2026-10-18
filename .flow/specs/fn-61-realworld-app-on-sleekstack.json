@@ -828,7 +828,7 @@
     "impl:fn-61-realworld-app-on-sleekstack.8": 0
   },
   "spec_path": ".flow/specs/fn-61-realworld-app-on-sleekstack.md",
-  "status": "open",
+  "status": "done",
   "title": "RealWorld app on SleekStack",
   "tracker": {
     "baseHashFlow": null,
@@ -841,5 +841,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-18T18:11:54.801870Z"
+  "updated_at": "2026-10-18T18:12:15.956403Z"
 }

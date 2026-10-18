@@ -11,7 +11,7 @@
   "priority": null,
   "spec": "fn-61-realworld-app-on-sleekstack",
   "spec_path": ".flow/tasks/fn-61-realworld-app-on-sleekstack.5.md",
-  "status": "todo",
+  "status": "done",
   "title": "REST /api facade with in-process contract tests",
   "updated_at": "2026-10-18T15:54:30.047913Z"
 }

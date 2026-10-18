@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-61-realworld-app-on-sleekstack",
   "spec_path": ".flow/tasks/fn-61-realworld-app-on-sleekstack.2.md",
-  "status": "todo",
+  "status": "done",
   "title": "Identity and profiles services (users, follows, Viewer)",
   "updated_at": "2026-10-18T15:48:45.464944Z"
 }

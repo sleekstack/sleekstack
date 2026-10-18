@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-61-realworld-app-on-sleekstack",
   "spec_path": ".flow/tasks/fn-61-realworld-app-on-sleekstack.4.md",
-  "status": "todo",
+  "status": "done",
   "title": "Server functions, cookie auth, SSR and dev server routing",
   "updated_at": "2026-10-18T15:48:45.465001Z"
 }
