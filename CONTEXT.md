@@ -296,13 +296,13 @@ One entry of a relationship: `RecordRef { id, value }`, the target's id as the o
 _Avoid_: `Ref` (Effect's), association, foreign key
 
 **Head**:
-The `<Head>` component of `@sleekstack/ui` (ADR 0042): `title`, `meta` and `link` elements that land in the document head, deduped by key with the deepest `Head` winning, removed when their component unmounts. `renderToString` hands them to `onHead`; `mount` patches `document.head`.
+The `<Head>` component of `@sleekstack/ui` (fn-33, ADR 0044): `title`, `meta` and `link` elements that land in the document head, deduped by key with the deepest `Head` winning, removed when their component unmounts. `renderToString` and `renderToStream` hand them to `onHead`; a stream patches later changes with an inline script; `mount` patches its document's head and `hydrateMount` adopts the server's tags.
 _Avoid_: Helmet, document head manager
 
 **HeadSink**:
-The `Context.Reference` that collects a render's `Head` tags (`@sleekstack/ui`). One per render or stream; not the `Collector` of `reactive.ts` or `string.ts`.
+The `Context.Reference` holding where a mount's `Head` tags go (`@sleekstack/ui`, a `HeadTarget`): `mount` provides its container document's head; unset, `Head` does nothing. String and stream renders read the tags off the output node instead. Not the `Collector` of `reactive.ts` or `string.ts`.
 _Avoid_: head collector
 
 **Prerender**:
-`vite build` with `sleekContent({ prerender })` (`@sleekstack/ui-vite`, ADR 0043): each page route rendered with `renderToString` to `<route>/index.html`, plus the search index and Open Graph images. Plain static files, no server logic.
+`vite build` with `sleekContent({ prerender })` (`@sleekstack/ui-vite`, ADR 0047): each page route rendered with `renderToString` to `<route>/index.html`, plus the search index and Open Graph images. Plain static files, no server logic.
 _Avoid_: SSG, static export

@@ -12,7 +12,7 @@
   "review": null,
   "spec": "fn-52-model-and-draft-usedraft-for-editable",
   "spec_path": ".flow/tasks/fn-52-model-and-draft-usedraft-for-editable.2.md",
-  "status": "todo",
+  "status": "done",
   "sync": null,
   "title": "Docs, ADR 0038, CONTEXT terms and size budget",
   "updated_at": "2026-10-15T20:44:58.277239Z"

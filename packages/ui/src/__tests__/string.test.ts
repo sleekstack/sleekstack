@@ -1,7 +1,7 @@
 import { Cause, Context, Data, Effect, Layer } from 'effect'
 import { createElement } from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import { el, fragment, fromReact, type Node, Pending, Provide, renderToString } from '../index'
+import { el, fragment, fromReact, Head, type Node, Pending, Provide, renderToString } from '../index'
 import { jsx } from '../jsx-runtime'
 import { app, UserCard, UserNotFound, UserRepoTest } from './fixtures/user-card'
 
@@ -146,5 +146,57 @@ describe('renderToString', () => {
     const boom = new Boom()
     const tree = jsx(Pending, { fallback: el('i', {}, 'wait'), children: Effect.fail(boom) })
     await expect(renderToString(tree, { layer: Layer.empty })).rejects.toBe(boom)
+  })
+
+  describe('Head', () => {
+    const head = async (tree: Effect.Effect<Node, unknown, never>) => {
+      let out: string | undefined
+      const html = await renderToString(tree, { layer: Layer.empty, onHead: (h) => (out = h) })
+      return { html, head: out }
+    }
+
+    it('collects title, meta and link; a nested Head wins over an outer one rendered after it', async () => {
+      const Inner = () =>
+        jsx(Head, {
+          children: [jsx('title', { children: 'inner' }), jsx('meta', { name: 'description', content: 'in' })],
+        })
+      const tree = jsx('div', {
+        children: [
+          jsx('p', { children: jsx(Inner, {}) }),
+          jsx(Head, {
+            children: [
+              jsx('title', { children: 'outer' }),
+              jsx('meta', { name: 'description', content: 'out' }),
+              jsx('link', { rel: 'icon', href: '/i.png' }),
+            ],
+          }),
+        ],
+      })
+      const { html, head: h } = await head(tree)
+      expect(h).toBe('<title>inner</title><meta name="description" content="in"><link rel="icon" href="/i.png">')
+      expect(html).not.toContain('title')
+    })
+
+    it('escapes title text and attribute values', async () => {
+      const tree = jsx(Head, {
+        children: [jsx('title', { children: '</title><script>' }), jsx('meta', { name: 'x', content: '"&<' })],
+      })
+      expect((await head(tree)).head).toBe(
+        '<title>&lt;/title&gt;&lt;script&gt;</title><meta name="x" content="&quot;&amp;&lt;">',
+      )
+    })
+
+    it.each([
+      ['an unsafe attribute', jsx('link', { rel: 'x', href: 'javascript:alert(1)' })],
+      ['an invalid attribute name', jsx('meta', { 'a"b': 'x' })],
+      ['an unsupported tag', jsx('script', { children: 'x' })],
+    ])('rejects %s like an element and reports it', async (_, tag) => {
+      const onError = vi.fn()
+      const render = renderToString(jsx(Head, { children: tag }), { layer: Layer.empty, onError })
+      const err = await render.catch((e) => e)
+      expect(err).toBeInstanceOf(TypeError)
+      expect(onError).toHaveBeenCalledOnce()
+      expect(Cause.squash(onError.mock.calls[0]![0])).toBe(err)
+    })
   })
 })

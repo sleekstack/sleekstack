@@ -1,0 +1,18 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-18T15:40:26.396356Z",
+  "depends_on": [
+    "fn-29-sleekstack-vite-plugin.2",
+    "fn-29-sleekstack-vite-plugin.3",
+    "fn-29-sleekstack-vite-plugin.4"
+  ],
+  "id": "fn-29-sleekstack-vite-plugin.5",
+  "priority": null,
+  "spec": "fn-29-sleekstack-vite-plugin",
+  "spec_path": ".flow/tasks/fn-29-sleekstack-vite-plugin.5.md",
+  "status": "todo",
+  "title": "Client and SSR builds with example app on the plugin",
+  "updated_at": "2026-10-18T15:40:26.396356Z"
+}

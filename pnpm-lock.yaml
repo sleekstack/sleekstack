@@ -195,6 +195,12 @@ importers:
       '@sleekstack/react':
         specifier: workspace:*
         version: link:../../packages/react
+      '@sleekstack/router':
+        specifier: workspace:*
+        version: link:../../packages/router
+      '@sleekstack/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       effect:
         specifier: ^3.21.2
         version: 3.21.2
@@ -205,6 +211,12 @@ importers:
         specifier: ^19.2.6
         version: 19.2.6(react@19.2.6)
     devDependencies:
+      '@sleekstack/ui-vite':
+        specifier: workspace:*
+        version: link:../../packages/ui-vite
+      '@types/node':
+        specifier: ^22.20.1
+        version: 22.20.1
       '@types/react':
         specifier: ^19.2.17
         version: 19.2.17
@@ -214,6 +226,9 @@ importers:
       '@vitejs/plugin-react':
         specifier: ^6.0.2
         version: 6.0.2(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+      jsdom:
+        specifier: ^29.1.1
+        version: 29.1.1
       vite:
         specifier: ^8.0.16
         version: 8.0.16(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)
@@ -758,9 +773,18 @@ importers:
       '@shikijs/rehype':
         specifier: ^4.5.0
         version: 4.5.0
+      '@sleekstack/analyze':
+        specifier: workspace:*
+        version: link:../analyze
       github-slugger:
         specifier: 2.0.0
         version: 2.0.0
+      jiti:
+        specifier: ^2.7.0
+        version: 2.7.0
+      magic-string:
+        specifier: ^0.30.21
+        version: 0.30.21
       rehype-slug:
         specifier: ^6.0.0
         version: 6.0.0
@@ -779,6 +803,9 @@ importers:
       shiki:
         specifier: ^4.5.0
         version: 4.5.0
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
       unist-util-visit:
         specifier: ^5.0.0
         version: 5.1.0
@@ -807,6 +834,9 @@ importers:
       '@types/node':
         specifier: ^22.20.1
         version: 22.20.1
+      '@vitejs/plugin-react':
+        specifier: ^6.0.2
+        version: 6.0.2(vite@8.0.16(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
       effect:
         specifier: ^3.15.0
         version: 3.21.2

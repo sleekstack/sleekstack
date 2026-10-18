@@ -3,21 +3,28 @@ import { Cause, Context, Data, Effect, Exit, Fiber, Layer, Option, Schema, Scope
 import { DuplicateBindKey, type Handler, type HandlerEvent, handled, submitData, valueInfo } from './handler'
 import { Store } from './reactive'
 
+/** The resume manifest is missing or not shaped as expected. */
 export class ManifestInvalid extends Data.TaggedError('ManifestInvalid')<{ readonly reason: string }> {}
+/** A bound atom's value in the manifest could not be decoded. */
 export class ManifestDecodeFailed extends Data.TaggedError('ManifestDecodeFailed')<{
   readonly key: string
   readonly cause?: unknown
 }> {}
+/** The markup names a handler id that `resume` was not given a loader for. */
 export class UnknownHandler extends Data.TaggedError('UnknownHandler')<{ readonly id: string }> {}
+/** A loaded handler's `id` differs from the id it was registered under. */
 export class HandlerIdMismatch extends Data.TaggedError('HandlerIdMismatch')<{
   readonly key: string
   readonly id: string
 }> {}
 
+/** Lazily loads one handler module whose default export is the `Handler`. */
 export type HandlerLoader<R> = () => Promise<{ readonly default: Handler<any, R, any> }>
+/** A resumed page; `dispose` detaches its listeners and closes its scope. */
 export interface Resumed {
   readonly dispose: () => Promise<void>
 }
+/** Options for `resume`: the container, the layer, the handler loaders and the bound atoms. */
 export interface ResumeOptions<R, LE> {
   readonly container: Element
   readonly layer: Layer.Layer<Exclude<R, Store>, LE, never>

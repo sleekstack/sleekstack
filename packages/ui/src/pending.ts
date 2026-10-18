@@ -131,7 +131,7 @@ const live = (props: { fallback: Child; children?: Child }) =>
           // ponytail: a successful fork keeps its closer until the Pending is disposed; prune on commit if forks get frequent.
           const release = () => (forks.get(slots) === fork && forks.delete(slots), closeScope(scope))
           slots.releases.push(release)
-          const cframe = makeFrame(slots, `${f.id}/content`, f.depth + 1)
+          const cframe = makeFrame(slots, `${f.id}/content`, f.depth)
           let resolved: Content | undefined
           const path = hydrating.on && hydrating.counts ? numbered(hydrating.counts, parent) : ''
           const run = Fragment({ children: props.children }).pipe(

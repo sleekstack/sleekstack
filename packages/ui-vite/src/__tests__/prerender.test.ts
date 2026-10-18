@@ -11,7 +11,7 @@ import { type SearchIndex, search } from '../index.js'
 const tmp: string[] = []
 const copy = () => {
   const dir = join(import.meta.dirname, `.tmp-${Math.random().toString(36).slice(2)}`)
-  cpSync(join(import.meta.dirname, 'fixture'), dir, { recursive: true })
+  cpSync(join(import.meta.dirname, 'fixtures/content-site'), dir, { recursive: true })
   tmp.push(dir)
   return dir
 }

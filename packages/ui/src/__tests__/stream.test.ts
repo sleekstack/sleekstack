@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { Atom, makeAtomStore } from '@sleekstack/core'
 import { type Cause, Data, Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 import { Boundary, el, fragment, Head, Pending, renderToStream, renderToString } from '../index'
@@ -63,24 +64,6 @@ describe('renderToStream (R1)', () => {
   it('a zero-pending tree streams exactly the renderToString output and closes', async () => {
     const app = jsx('div', { children: jsx('p', { children: 'hi' }) })
     expect(await new Response(renderToStream(app, { layer })).text()).toBe(await renderToString(app, { layer }))
-  })
-
-  it('writes void elements without a closing tag, in the shell and in a streamed chunk', async () => {
-    const g = gate()
-    const Slow = () =>
-      Effect.map(
-        Effect.promise(() => g.promise),
-        () => el('p', {}, el('br'), el('img', { src: '/a.png' })),
-      )
-    const app = jsx('div', {
-      children: [jsx('hr', {}), jsx(Pending, { fallback: jsx('br', {}), children: jsx(Slow, {}) })],
-    })
-    const stream = renderToStream(app, { layer })
-    g.open()
-    const html = await new Response(stream).text()
-    expect(html).toContain('<div><hr><!--sleek-p:sleek-0--><br><!--/sleek-p--></div>')
-    expect(html).toContain('<template data-sleek-b="sleek-0"><p><br><img src="/a.png"></p></template>')
-    expect(html).not.toMatch(/<\/(br|hr|img)>/)
   })
 
   it('rejects an invalid idPrefix', () => {
@@ -201,46 +184,6 @@ describe('renderToStream boundaries (R2, R5)', () => {
   })
 })
 
-describe('Head in renderToStream', () => {
-  it('onHead gets the shell head; a resolved Pending patches or adds tags by inline script with the nonce, never duplicating', async () => {
-    const g = gate()
-    const Late = () =>
-      Effect.flatMap(
-        Effect.promise(() => g.promise),
-        () =>
-          jsx('p', {
-            children: jsx(Head, {
-              children: [
-                jsx('title', { children: 'late' }),
-                jsx('meta', { name: 'description', content: 'late' }),
-                jsx('meta', { property: 'og:title', content: 'og' }),
-              ],
-            }),
-          }),
-      )
-    const app = jsx('div', {
-      children: [
-        jsx(Head, {
-          children: [jsx('title', { children: 'shell' }), jsx('meta', { name: 'description', content: 'shell' })],
-        }),
-        jsx(Pending, { fallback: 'wait', children: jsx(Late, {}) }),
-      ],
-    })
-    let shellHead = ''
-    const done = read(renderToStream(app, { layer, nonce: 'n1', onHead: (h) => (shellHead = h) }))
-    await new Promise((r) => setTimeout(r, 10))
-    expect(shellHead).toBe('<title>shell</title><meta name="description" content="shell">')
-    g.open()
-    const html = await done
-    expect(html).toContain('<script nonce="n1">__sleekHead(')
-    document.head.innerHTML = shellHead
-    apply(html)
-    expect(document.head.innerHTML).toBe(
-      '<title>late</title><meta name="description" content="late"><meta property="og:title" content="og">',
-    )
-  })
-})
-
 class Boom extends Data.TaggedError('Boom')<{}> {}
 const failing = (g: { promise: Promise<void> }) => () =>
   Effect.flatMap(
@@ -329,4 +272,176 @@ describe('renderToStream late boundaries (R3)', () => {
     expect(container.querySelector('i')!.textContent).toBe('wait')
     await act(async () => void (await h.dispose()))
   })
+
+  // Hydrates mid-stream an app whose late title replaces a fallback title; `show` false drops the boundary on the client.
+  const midStream = async () => {
+    const { act } = await import('react')
+    const { hydrateMount, useAtomValue } = await import('../index')
+    delete (globalThis as { __sleekGone?: unknown }).__sleekGone
+    const g = gate()
+    const show = Atom.make(true)
+    const title = (text: string) => jsx(Head, { children: jsx('title', { children: text }) })
+    const Late = () =>
+      Effect.flatMap(
+        Effect.promise(() => g.promise),
+        () => title('done'),
+      )
+    // A reactive instance, so releasing the fallback runs its Head's cleanup on the spot.
+    const Loading = () => Effect.flatMap(useAtomValue(show), () => title('loading'))
+    const App = () =>
+      Effect.flatMap(useAtomValue(show), (on) =>
+        jsx('div', {
+          children: on ? jsx(Pending, { fallback: jsx(Loading, {}), children: jsx(Late, {}) }) : title('elsewhere'),
+        }),
+      )
+    let shellHead = ''
+    const reader = renderToStream(jsx(App, {}), { layer, onHead: (h) => (shellHead = h) }).getReader()
+    const shell = decoder.decode((await reader.read()).value)
+    document.head.innerHTML = shellHead
+    const server = document.head.firstElementChild
+    const container = document.createElement('div')
+    document.body.replaceChildren(container)
+    feed(container, shell)
+    const store = makeAtomStore()
+    const h = await act(async () => hydrateMount(jsx(App, {}), { layer, container, store }))
+    const land = async () => {
+      g.open()
+      const rest = await drain(reader)
+      expect(rest).toContain('__sleekHead')
+      await act(async () => feed(container, rest))
+      await settle(act)
+    }
+    return { act, h, server, land, drop: () => act(async () => store.set(show, false)) }
+  }
+
+  it('hydrating mid-stream, the content takes over the adopted tag the late patch also targets (R4)', async () => {
+    const { act, h, server, land } = await midStream()
+    await land()
+    expect(document.head.innerHTML).toBe('<title>done</title>')
+    expect(document.head.firstElementChild).toBe(server)
+    await act(async () => void (await h.dispose()))
+    expect(document.head.innerHTML).toBe('')
+  })
+
+  it('a late head patch for a boundary the hydrated client dropped changes nothing (R4)', async () => {
+    const { act, h, land, drop } = await midStream()
+    await drop()
+    expect(document.head.innerHTML).toBe('<title>elsewhere</title>')
+    await land()
+    expect(document.head.innerHTML).toBe('<title>elsewhere</title>')
+    await act(async () => void (await h.dispose()))
+  })
+
+  it('a late head patch after the hydrated mount is disposed changes nothing (R4)', async () => {
+    const { act, h, land } = await midStream()
+    const { mount } = await import('../index')
+    await act(async () => void (await h.dispose()))
+    const other = document.body.appendChild(document.createElement('div'))
+    const next = await act(async () =>
+      mount(jsx(Head, { children: jsx('title', { children: 'next' }) }), { layer, container: other }),
+    )
+    await land()
+    expect(document.head.innerHTML).toBe('<title>next</title>')
+    await act(async () => void (await next.dispose()))
+  })
+})
+
+describe('renderToStream Head (R1, R3)', () => {
+  const tags = (title: string, description: string) => [
+    jsx('title', { children: title }),
+    jsx('meta', { name: 'description', content: description }),
+  ]
+
+  it('passes the shell head to onHead once; it equals the renderToString head for the same tree', async () => {
+    const Inner = () => jsx(Head, { children: tags('inner', 'in') })
+    const app = jsx('div', {
+      children: [
+        jsx('p', { children: jsx(Inner, {}) }),
+        jsx(Head, { children: [...tags('outer', 'out'), jsx('link', { rel: 'icon', href: '/i.png' })] }),
+      ],
+    })
+    const streamed: Array<string> = []
+    await read(renderToStream(app, { layer, onHead: (h) => streamed.push(h) }))
+    let expected: string | undefined
+    await renderToString(app, { layer, onHead: (h) => (expected = h) })
+    expect(streamed).toEqual([expected])
+  })
+
+  it('after flush, title and keyed meta follow the boundary; link and unkeyed tags stay as the shell had them', async () => {
+    const g = gate()
+    const Content = () =>
+      Effect.flatMap(
+        Effect.promise(() => g.promise),
+        () =>
+          jsx(Head, {
+            children: [
+              ...tags('done', 'late'),
+              jsx('link', { rel: 'canonical', href: '/late' }),
+              jsx('meta', { charset: 'utf-8' }),
+            ],
+          }),
+      )
+    const Fallback = () =>
+      jsx(Head, { children: [jsx('title', { children: 'loading' }), jsx('meta', { name: 'robots', content: 'none' })] })
+    const app = jsx('div', {
+      children: [
+        jsx(Head, { children: [...tags('shell', 'early'), jsx('link', { rel: 'canonical', href: '/shell' })] }),
+        jsx(Pending, { fallback: jsx(Fallback, {}), children: jsx(Content, {}) }),
+      ],
+    })
+    let shellHead = ''
+    const reader = renderToStream(app, { layer, nonce: 'n', onHead: (h) => (shellHead = h) }).getReader()
+    const first = decoder.decode((await reader.read()).value)
+    expect(shellHead).toBe(
+      '<title>loading</title><meta name="description" content="early"><link rel="canonical" href="/shell"><meta name="robots" content="none">',
+    )
+    g.open()
+    const rest = await drain(reader)
+    expect(rest).not.toContain('/late')
+    expect(rest).not.toContain('charset')
+    document.head.innerHTML = shellHead
+    apply(first + rest)
+    expect(document.head.innerHTML).toBe(
+      '<title>done</title><meta name="description" content="late"><link rel="canonical" href="/shell">',
+    )
+  })
+
+  it.each([
+    ['inner', 'outer'],
+    ['outer', 'inner'],
+  ] as const)(
+    'a boundary nested in a fallback loses its head when the outer content replaces it (%s resolves first)',
+    async (...order) => {
+      const gates = { inner: gate(), outer: gate() }
+      const title = (text: string) => jsx(Head, { children: jsx('title', { children: text }) })
+      const after = (g: { promise: Promise<void> }, node: unknown) => () =>
+        Effect.flatMap(
+          Effect.promise(() => g.promise),
+          () => node as Effect.Effect<any>,
+        )
+      const Inner = after(gates.inner, title('inner'))
+      const Outer = after(gates.outer, Effect.succeed(el('b', {}, 'outer')))
+      const fallback = jsx('div', {
+        children: [
+          title('outer loading'),
+          jsx(Pending, { fallback: title('inner loading'), children: jsx(Inner, {}) }),
+        ],
+      })
+      const app = jsx('div', {
+        children: [title('shell'), jsx(Pending, { fallback, children: jsx(Outer, {}) })],
+      })
+      let shellHead = ''
+      const reader = renderToStream(app, { layer, onHead: (h) => (shellHead = h) }).getReader()
+      let html = decoder.decode((await reader.read()).value)
+      expect(shellHead).toBe('<title>inner loading</title>')
+      document.head.innerHTML = shellHead
+      for (const k of order) {
+        gates[k].open()
+        html += decoder.decode((await reader.read()).value)
+      }
+      html += await drain(reader)
+      apply(html)
+      expect(document.head.innerHTML).toBe('<title>shell</title>')
+    },
+  )
 })

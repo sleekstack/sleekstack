@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { posix, relative } from 'node:path'
 import GithubSlugger from 'github-slugger'
-import type { Page } from './routes.js'
+import type { ContentPage } from './content-routes.js'
 
 export type BrokenLink = { file: string; link: string }
 
@@ -19,7 +19,7 @@ export const headingIds = (text: string): string[] => {
 const LINK = /\]\(([^)\s]+)[^)]*\)|^\s*\[[^\]]+\]:\s*(\S+)|href=["']([^"']+)["']/gm
 
 /** Internal links in `pages` that resolve to no page, or to no heading on it. `file` is relative to `root`. */
-export const findBrokenLinks = (pages: readonly Page[], root: string): BrokenLink[] => {
+export const findBrokenLinks = (pages: readonly ContentPage[], root: string): BrokenLink[] => {
   const texts = pages.map((p) => readFileSync(p.file, 'utf8'))
   const ids = new Map(pages.map((p, i) => [p.path, new Set(headingIds(texts[i]!))]))
   const broken: BrokenLink[] = []
@@ -40,7 +40,7 @@ export const findBrokenLinks = (pages: readonly Page[], root: string): BrokenLin
 }
 
 /** Throws one error naming every broken link by source and target. */
-export const assertLinks = (pages: readonly Page[], root: string): void => {
+export const assertLinks = (pages: readonly ContentPage[], root: string): void => {
   const broken = findBrokenLinks(pages, root)
   if (broken.length)
     throw new Error(`broken internal links:\n${broken.map((b) => `  ${b.file} -> ${b.link}`).join('\n')}`)

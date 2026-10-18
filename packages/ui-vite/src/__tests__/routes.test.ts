@@ -1,106 +1,105 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
-import { run } from '@mdx-js/mdx'
-import { renderToString } from '@sleekstack/ui'
-import * as runtime from '@sleekstack/ui/jsx-runtime'
-import { Layer } from 'effect'
-import { readFileSync } from 'node:fs'
-import { describe, expect, it } from 'vitest'
-import {
-  assertLinks,
-  compileMdx,
-  createStyleSheet,
-  findBrokenLinks,
-  headingIds,
-  routeTable,
-  scanPages,
-} from '../index.js'
+import * as fs from 'node:fs'
+import * as os from 'node:os'
+import * as path from 'node:path'
+import { match } from '@sleekstack/router'
+import ts from 'typescript'
+import { createServer, type ViteDevServer } from 'vite'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { routes } from '../routes.js'
 
-const docs = resolve(import.meta.dirname, '../../../../apps/docs/content/docs')
-
-const tree = (files: Record<string, string>) => {
-  const dir = mkdtempSync(join(tmpdir(), 'content-'))
-  for (const [name, text] of Object.entries(files)) {
-    mkdirSync(join(dir, name, '..'), { recursive: true })
-    writeFileSync(join(dir, name), text)
-  }
-  return dir
-}
-
-describe('route table', () => {
-  const dir = tree({
-    'meta.json': '{"pages":["index","b","guides"]}',
-    'a.md': '# A',
-    'b.mdx': '# B',
-    'index.mdx': '# Home',
-    'guides/x.mdx': '# X',
-    'guides/index.mdx': '# Guides',
-  })
-
-  it('follows the order file, unlisted pages last', () => {
-    expect(routeTable(scanPages(dir))).toEqual({
-      index: '/',
-      b: '/b',
-      guides: '/guides',
-      'guides/x': '/guides/x',
-      a: '/a',
-    })
-    expect(Object.keys(routeTable(scanPages(dir)))).toEqual(['index', 'b', 'guides', 'guides/x', 'a'])
-  })
-
-  it('applies a base prefix to every route', () => {
-    expect(routeTable(scanPages(dir, { base: '/docs/' }))).toMatchObject({
-      index: '/docs',
-      b: '/docs/b',
-      'guides/x': '/docs/guides/x',
-    })
-  })
-
-  it('reflects an added and a removed page on the next scan', () => {
-    const d = tree({ 'index.mdx': '# Home' })
-    expect(Object.keys(routeTable(scanPages(d)))).toEqual(['index'])
-    writeFileSync(join(d, 'new.mdx'), '# New')
-    expect(Object.keys(routeTable(scanPages(d)))).toEqual(['index', 'new'])
-  })
-
-  it('reads the real docs order file', () => {
-    const names = Object.keys(routeTable(scanPages(docs)))
-    expect(names.slice(0, 4)).toEqual(['index', 'getting-started-kit', 'getting-started-effect', 'concepts'])
-  })
+let server: ViteDevServer | undefined
+let base = ''
+afterEach(async () => {
+  await server?.close()
+  fs.rmSync(base, { recursive: true, force: true })
 })
 
-describe('link validation', () => {
-  const bad = tree({
-    'index.mdx':
-      '# Top\n\n[ok](/docs/a#sub) [self](#top) [bad](/docs/missing) [ext](https://x.dev) [hash](/docs/a#nope) [ref][t]\n\n[t]: /docs/gone\n',
-    'a.md': '## Sub\n\n[up](/docs) [rel](./index) [sib](./other)\n',
+/**
+ * A dev server over a fresh root with route `files` (each a page exporting its own name), in `src/routes` or, when
+ * `outside`, in a directory beside the root, watched for real.
+ */
+const serve = async (files: string[], { outside = false } = {}) => {
+  base = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'ui-vite-routes-')))
+  const root = path.join(base, 'app')
+  const dir = outside ? path.join(base, 'routes') : path.join(root, 'src/routes')
+  const write = (file: string) => {
+    const full = path.join(dir, file)
+    fs.mkdirSync(path.dirname(full), { recursive: true })
+    fs.writeFileSync(full, `export default ${JSON.stringify(file)} as const\n`)
+    return full
+  }
+  fs.mkdirSync(root)
+  files.forEach(write)
+  server = await createServer({
+    root,
+    configFile: false,
+    logLevel: 'silent',
+    plugins: [routes(outside ? { routesDir: '../routes' } : {})],
+    server: { middlewareMode: true, hmr: false, ...(outside ? {} : { watch: null }) },
+  })
+  await server.pluginContainer.buildStart({})
+  const reload = vi.spyOn(server.ws, 'send')
+  const load = () => server!.ssrLoadModule('virtual:sleekstack/routes')
+  return { server, dir, write, load, reload }
+}
+
+/** Type errors of `code` importing the route module, checked against the written declaration. */
+const typeErrors = (dir: string, code: string) => {
+  const consumer = path.join(dir, '..', 'consumer.ts')
+  fs.writeFileSync(consumer, code)
+  const program = ts.createProgram([consumer, path.join(dir, 'routes.gen.d.ts')], {
+    strict: true,
+    noEmit: true,
+    module: ts.ModuleKind.ESNext,
+    moduleResolution: ts.ModuleResolutionKind.Bundler,
+  })
+  return ts.getPreEmitDiagnostics(program).map((d) => ts.flattenDiagnosticMessageText(d.messageText, '\n'))
+}
+
+describe('routes()', () => {
+  it('builds a route table the router matches, with a page per route', async () => {
+    const { load } = await serve(['index.ts', 'users/index.ts', 'users/[id].ts', 'users/new.tsx', '__proto__.ts'])
+    const { table, pages } = await load()
+    expect(table).toEqual({
+      index: '/',
+      ['__proto__']: '/__proto__',
+      'users/index': '/users',
+      'users/new': '/users/new',
+      'users/[id]': '/users/:id',
+    })
+    expect(pages.__proto__).toBe('__proto__.ts')
+    expect(pages['users/[id]']).toBe('users/[id].ts')
+    expect(match(table, '/users/42')).toMatchObject({ value: { name: 'users/[id]', params: { id: '42' } } })
+    expect(match(table, '/users/new')).toMatchObject({ value: { name: 'users/new' } })
   })
 
-  it('names the source and the target of each broken link or anchor', () => {
-    expect(findBrokenLinks(scanPages(bad, { base: '/docs' }), bad)).toEqual([
-      { file: 'index.mdx', link: '/docs/missing' },
-      { file: 'index.mdx', link: '/docs/a#nope' },
-      { file: 'index.mdx', link: '/docs/gone' },
-      { file: 'a.md', link: './index' },
-      { file: 'a.md', link: './other' },
-    ])
-    expect(() => assertLinks(scanPages(bad, { base: '/docs' }), bad)).toThrow(/index\.mdx -> \/docs\/missing/)
+  it('types the module with literal paths and each page', async () => {
+    const { dir } = await serve(['index.ts', 'users/[id].ts'])
+    const code = `import { pages, table } from 'virtual:sleekstack/routes'
+export const path: '/users/:id' = table['users/[id]']
+export const page: 'users/[id].ts' = pages['users/[id]']
+// @ts-expect-error no such route
+table['users']
+`
+    expect(typeErrors(dir, code)).toEqual([])
   })
 
-  it('passes on the real docs (the generated /docs/api pages are not in the tree)', () => {
-    const broken = findBrokenLinks(scanPages(docs, { base: '/docs' }), docs)
-    expect(broken.filter((b) => !b.link.startsWith('/docs/api'))).toEqual([])
+  it('updates the module and its types on route file add and remove, without a restart', async () => {
+    const { dir, write, load, reload } = await serve(['index.ts'], { outside: true })
+    expect((await load()).table).toEqual({ index: '/' })
+    const about = write('about.ts')
+    await vi.waitFor(async () => expect((await load()).table).toEqual({ index: '/', about: '/about' }), 5000)
+    expect(reload).toHaveBeenCalledWith({ type: 'full-reload' })
+    expect(fs.readFileSync(path.join(dir, 'routes.gen.d.ts'), 'utf8')).toContain('"about": "/about"')
+    fs.rmSync(about)
+    await vi.waitFor(async () => expect((await load()).table).toEqual({ index: '/' }), 5000)
   })
 
-  it('heading ids equal the ids the MDX pipeline renders, on every real page', async () => {
-    for (const { file } of scanPages(docs)) {
-      const source = readFileSync(file, 'utf8')
-      const code = await compileMdx(source, { file, styles: createStyleSheet(), outputFormat: 'function-body' })
-      const mod = await run(code, runtime as never)
-      const html = await renderToString((mod.default as (p: object) => never)({}), { layer: Layer.empty })
-      const rendered = [...html.matchAll(/<h[1-6] id="([^"]*)"/g)].map((m) => m[1])
-      expect({ file, ids: headingIds(source) }).toEqual({ file, ids: rendered })
-    }
-  }, 60_000)
+  it.each([
+    ['an invalid segment', ['users/{id}.ts'], 'users/{id}.ts'],
+    ['two files with one path', ['users.ts', 'users/index.ts'], 'users/index.ts'],
+  ])('reports %s naming the route file', async (_, files, bad) => {
+    const { dir, load } = await serve(files)
+    await expect(load()).rejects.toThrow(path.join(dir, bad))
+  })
 })

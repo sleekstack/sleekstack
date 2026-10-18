@@ -10,7 +10,7 @@ import { frontmatterOf, loadFonts, type OgOptions, renderOgPng } from './og.js'
 import { ogImagePath } from './og-meta.js'
 import { compileMdx } from './mdx.js'
 import type { RenderEntry, prerenderPages } from './prerender.js'
-import { type Page, routeTable, scanPages } from './routes.js'
+import { type ContentPage, contentRouteTable, scanPages } from './content-routes.js'
 import { buildSearchIndex } from './search.js'
 
 export type DocsOptions = {
@@ -50,7 +50,7 @@ export const sleekContent = (options: DocsOptions): Plugin => {
   let config: ResolvedConfig | undefined
   let root = process.cwd()
   let entryChunk: { script: string; styles: string[] } | undefined
-  const pages = (): Page[] => scanPages(content, options)
+  const pages = (): ContentPage[] => scanPages(content, options)
 
   const reload = (server: ViteDevServer) => {
     for (const id of [ROUTES, CSS]) {
@@ -153,7 +153,7 @@ export const sleekContent = (options: DocsOptions): Plugin => {
       if (id !== `\0${ROUTES}`) return undefined
       const all = pages()
       const loaders = all.map((p) => `${JSON.stringify(p.name)}: () => import(${JSON.stringify(p.file)})`)
-      return `export const routes = ${JSON.stringify(routeTable(all))}\nexport const pages = {\n${loaders.join(',\n')}\n}\n`
+      return `export const routes = ${JSON.stringify(contentRouteTable(all))}\nexport const pages = {\n${loaders.join(',\n')}\n}\n`
     },
     async transform(code, id) {
       const file = id.split('?')[0]!

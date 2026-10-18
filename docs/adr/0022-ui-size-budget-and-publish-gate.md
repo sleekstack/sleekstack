@@ -21,18 +21,18 @@ Entries in `apps/showcase/src`:
 
 | Entry                 | Minified  | Gzip                           | Limit (gzip) |
 | --------------------- | --------- | ------------------------------ | ------------ |
-| `mount` hello-world   | 761,778 B | 198,623 B                      | 203,000 B    |
-| Hydrating app         | 849,583 B | 220,165 B                      | 225,000 B    |
+| `mount` hello-world   | 765,838 B | 200,038 B                      | 203,000 B    |
+| Hydrating app         | 853,218 B | 221,281 B                      | 225,000 B    |
 | Resume                | 307,040 B | 79,447 B (lazy handlers 229 B) | 83,000 B     |
-| `lazy` mount          | 768,795 B | 201,108 B (lazy chunk 286 B)   | 209,000 B    |
-| `mount` with a Draft  | 849,796 B | 220,119 B                      | 231,000 B    |
-| `mount` with a record | 856,502 B | 222,340 B                      | 233,000 B    |
+| `lazy` mount          | 773,136 B | 203,096 B (lazy chunk 284 B)   | 209,000 B    |
+| `mount` with a Draft  | 853,317 B | 221,223 B                      | 231,000 B    |
+| `mount` with a record | 860,026 B | 223,393 B                      | 233,000 B    |
 
-Remeasured after fn-56 (Model and Draft move to `@sleekstack/model`, ADR 0040), with the fn-45 render observer unattached, all within the limits. Against master before the move, `ui`'s entries shrank: `mount` hello-world from 198,667 B, the hydrating app from 220,221 B and `lazy` mount from 201,154 B gzip; the test keeps these pre-move sizes as a second bound on those entries. A `mount`-only bundle holds no Draft code (`useDraft`); the Draft entry measures the cost of opting in. Source and dist builds differ by at most 3 bytes, so the tsc build costs nothing. Limits are the measurement plus about 5%; the test fails above them. A change that raises a number on purpose updates the limit and this table together.
+Remeasured after fn-56 (Model and Draft move to `@sleekstack/model`, ADR 0040), with the fn-45 render observer unattached, all within the limits. Against master before the move, `ui`'s entries shrank: `mount` hello-world from 198,667 B, the hydrating app from 220,221 B and `lazy` mount from 201,154 B gzip; the test kept these pre-move sizes as a second bound on those entries until the fn-59 merge. A `mount`-only bundle holds no Draft code (`useDraft`); the Draft entry measures the cost of opting in. Source and dist builds differ by at most 3 bytes, so the tsc build costs nothing. Limits are the measurement plus about 5%; the test fails above them. A change that raises a number on purpose updates the limit and this table together.
 
 Remeasured after fn-58 (the records layer in `@sleekstack/model`). The Draft entry's limit is unchanged; the records entry costs about 2.2 KB gzip over it. A bundle importing only `useDraft` holds no records code and none of `@sleekstack/query`, which only the `@sleekstack/model/query` entry loads (`packages/model/src/__tests__/bundle.test.ts`).
 
-Remeasured after fn-59 (void elements without closing tags, `Head`; ADR 0042 and 0043). The `mount`, hydrating and `lazy` entries grew by 22 to 29 B gzip (the void-element list is a regex; `RunFrame` gained `depth`), the Draft and record entries by 79 and 125 B, `resume` not at all. Headroom under the pre-move bounds (`uiBeforeModel`) is now 44 to 56 B, so the next change to those entries raises a limit on purpose. The limits did not move.
+Remeasured after merging fn-59 with master (fn-31 HMR, fn-33 `Head` per ADR 0044, fn-59 void elements per ADR 0046). The `mount`, hydrating and `lazy` entries grew by about 1.1 to 2 KB gzip over the fn-58 numbers, from `Head` and HMR; void elements cost 0 B there, since `serialize` is not in a `mount` bundle. That growth crossed the pre-move bounds (`uiBeforeModel`: 198,667 B, 220,221 B, 201,154 B), so the test drops them on purpose: they checked the fn-56 move, and `ui` has since grown by decision. The limits did not move; all entries are within them.
 
 `mount` and `hydrateMount` include React and React DOM: `dom.ts` imports `react-dom/client` statically for guests, so an app without guests still ships them. The rest is mostly Effect. `resume` has no React path. Tree-shaking is verified: the mount-only bundle contains neither the resume runtime (`ManifestDecodeFailed`) nor the query bridge (`QueryFailed`). Code splitting is verified: the `lazy` entry's imported module is in its own chunk, not the eager bundle.
 
