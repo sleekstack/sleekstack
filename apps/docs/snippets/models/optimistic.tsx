@@ -1,7 +1,8 @@
 /** @jsxImportSource @sleekstack/ui */
 import type { Atom } from '@sleekstack/core'
 import { Effect } from 'effect'
-import { useAction, useAtomValue, useDraft, useOptimistic, useSetAtom } from '@sleekstack/ui'
+import { useDraft } from '@sleekstack/model'
+import { useAction, useAtomValue, useOptimistic, useSetAtom } from '@sleekstack/ui'
 import { type Profile, ProfileDraft, type ProfileForm, Profiles } from './profile'
 
 export const QuickRename = function* ({ profile }: { profile: Atom.Atom<Profile> }) {

@@ -1,4 +1,4 @@
-import type { DraftSpec, ModelSpec } from '@sleekstack/core'
+import type { DraftSpec, ModelSpec } from '@sleekstack/model'
 import { Context, Effect, Schema } from 'effect'
 
 // The wire: what the read endpoint returns, and what the write endpoint takes. They are different shapes.

@@ -120,6 +120,9 @@ importers:
       '@sleekstack/kit':
         specifier: workspace:*
         version: link:../../packages/kit
+      '@sleekstack/model':
+        specifier: workspace:*
+        version: link:../../packages/model
       '@sleekstack/next':
         specifier: workspace:*
         version: link:../../packages/next
@@ -226,6 +229,9 @@ importers:
       '@sleekstack/devtools':
         specifier: workspace:*
         version: link:../../packages/devtools
+      '@sleekstack/model':
+        specifier: workspace:*
+        version: link:../../packages/model
       '@sleekstack/query':
         specifier: workspace:*
         version: link:../../packages/query

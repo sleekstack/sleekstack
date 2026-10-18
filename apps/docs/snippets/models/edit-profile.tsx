@@ -1,6 +1,7 @@
 /** @jsxImportSource @sleekstack/ui */
 import type { Atom } from '@sleekstack/core'
-import { useAction, useAtomValue, useDraft, useFormStatus, useSetAtom } from '@sleekstack/ui'
+import { useDraft } from '@sleekstack/model'
+import { useAction, useAtomValue, useFormStatus, useSetAtom } from '@sleekstack/ui'
 import { type Profile, ProfileDraft, Profiles } from './profile'
 
 export const EditProfile = function* ({ profile }: { profile: Profile | Atom.Atom<Profile> }) {

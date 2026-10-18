@@ -10,6 +10,7 @@ const sourceAlias = [
   { find: /^@sleekstack\/ui$/, replacement: pkg('ui/src/index.ts') },
   { find: /^@sleekstack\/ui\/(.*)$/, replacement: pkg('ui/src/$1.ts') },
   { find: /^@sleekstack\/core$/, replacement: pkg('core/src/index.ts') },
+  { find: /^@sleekstack\/model$/, replacement: pkg('model/src/index.ts') },
   { find: /^@sleekstack\/query$/, replacement: pkg('query/src/index.ts') },
   { find: /^@sleekstack\/start$/, replacement: pkg('start/src/index.ts') },
   { find: /^@sleekstack\/start\/(.*)$/, replacement: pkg('start/src/$1.ts') },
@@ -50,6 +51,7 @@ const budgets = [
   { name: 'hydrating app', entry: 'size/hydrate.tsx', limit: 225_000 },
   { name: 'resume', entry: 'resume/entry.ts', limit: 83_000 },
   { name: 'lazy mount', entry: 'size/lazy.tsx', limit: 209_000 },
+  { name: 'mount with a Draft', entry: 'size/model.tsx', limit: 231_000 },
 ]
 
 describe('size budget (ADR 0022)', () => {
@@ -93,6 +95,16 @@ describe('size budget (ADR 0022)', () => {
         expect(code).toContain('items.add') // the page and its stub are in the client
         for (const marker of serverOnly) expect(code, `${marker} (source: ${source})`).not.toContain(marker)
       }
+    },
+  )
+
+  it(
+    'a mount-only bundle carries no Draft code; a Draft brings it from @sleekstack/model',
+    { timeout: 60_000 },
+    async () => {
+      // `useDraft` survives minification as the name in its missing-store error.
+      expect((await measure('size/mount.tsx')).code).not.toContain('useDraft')
+      expect((await measure('size/model.tsx')).code).toContain('useDraft')
     },
   )
 

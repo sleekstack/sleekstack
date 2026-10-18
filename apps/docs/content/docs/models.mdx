@@ -3,7 +3,7 @@ title: Models and Drafts
 description: Build a Model from wire data with fromDto, edit a copy of it with useDraft, and save it from a Form Action with toDto().
 ---
 
-A record crosses the wire twice: once as what the read endpoint returns, once as what the write endpoint takes. This page is the contract for both directions: `ModelSpec` and `DraftSpec` in `@sleekstack/core`, and `useDraft` in `@sleekstack/ui` ([ADR 0038](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0038-model-and-draft.md)). The idea of a record and its editable copy comes from EmberData, through ramcinpay-front.
+A record crosses the wire twice: once as what the read endpoint returns, once as what the write endpoint takes. This page is the contract for both directions: `ModelSpec`, `DraftSpec` and `useDraft` in `@sleekstack/model`, a package an app installs to opt in ([ADR 0038](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0038-model-and-draft.md), [ADR 0040](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0040-model-package.md)). The idea of a record and its editable copy comes from EmberData, through ramcinpay-front.
 
 ## The one idea
 
@@ -15,7 +15,7 @@ Read and write shapes are not inverses. The **Model** is the shape a component r
 - Write: `create` seeds a **Draft**, an editable copy of the Model and one save boundary. `toDto` turns the Draft into the write body. A Model with two parts saved by two requests has two Draft Specs.
 - Back: `toModel` projects an unsaved Draft into a read shape, for a live preview or an optimistic update.
 
-`ModelSpec` and `DraftSpec` are types only, so Kit Operations, server code and tests use them without `@sleekstack/ui` ([ADR 0038, Decision](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0038-model-and-draft.md#decision)). One file holds a Model and its Draft Specs:
+`ModelSpec` and `DraftSpec` are types only, so Kit Operations, server code and tests use them through `import type`, which loads nothing at run time ([ADR 0038, Decision](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0038-model-and-draft.md#decision)). One file holds a Model and its Draft Specs:
 
 <include>../../snippets/models/profile.ts</include>
 

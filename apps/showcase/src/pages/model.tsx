@@ -1,7 +1,8 @@
 /** @jsxImportSource @sleekstack/ui */
-import { Atom, type DraftSpec, type ModelSpec } from '@sleekstack/core'
+import { Atom } from '@sleekstack/core'
+import { type DraftSpec, type ModelSpec, useDraft } from '@sleekstack/model'
 import { Effect, Schema } from 'effect'
-import { useAction, useAtomValue, useDraft, useFormStatus, useSetAtom } from '@sleekstack/ui'
+import { useAction, useAtomValue, useFormStatus, useSetAtom } from '@sleekstack/ui'
 import { Viewer } from '../modules/identity'
 
 // The wire: what the read endpoint returns (a country code), and what the write endpoint takes.

@@ -264,13 +264,13 @@ _Avoid_: Snapshot, serialized cache
 The contract is ported from ramcinpay-front (`ModelSpec`, `DraftSpec`, `useDraftForm`), which took the idea of a record and its editable copy from EmberData (ADR 0038).
 
 **Model**:
-The shape a view renders, built from a read wire shape by a pure `fromDto(dto, ctx)` (`ModelSpec<Dto, M, Ctx>`, a type in `@sleekstack/core`). `ctx` is resolved data the DTO does not carry, never a Service or client. The read direction (`fromDto`) and the write direction (a Draft Spec) meet at the Model; neither is the inverse of the other, so there is no `toDto(model)`.
+The shape a view renders, built from a read wire shape by a pure `fromDto(dto, ctx)` (`ModelSpec<Dto, M, Ctx>`, a type in `@sleekstack/model`). `ctx` is resolved data the DTO does not carry, never a Service or client. The read direction (`fromDto`) and the write direction (a Draft Spec) meet at the Model; neither is the inverse of the other, so there is no `toDto(model)`.
 _Avoid_: DTO mapper, entity
 
 **Draft Spec**:
-`DraftSpec<D, Dto, Src, P, E, R>` (a type in `@sleekstack/core`): the write direction of a Model. `schema(src)` validates the Draft (its Type and Encoded are both `D`, so a field holds what its input holds; no coercion), `create(src)` seeds it, and `toDto(draft, src)` is an Effect of the write body whose ambients are Services in `R` and whose failures are `E`. Optional `toModel(draft, src)` projects a Draft into a read shape (`preview`, or the `apply` of `useOptimistic`); optional `diff(base, next)` is a minimal PATCH body. All but `toDto` are pure.
+`DraftSpec<D, Dto, Src, P, E, R>` (a type in `@sleekstack/model`): the write direction of a Model. `schema(src)` validates the Draft (its Type and Encoded are both `D`, so a field holds what its input holds; no coercion), `create(src)` seeds it, and `toDto(draft, src)` is an Effect of the write body whose ambients are Services in `R` and whose failures are `E`. Optional `toModel(draft, src)` projects a Draft into a read shape (`preview`, or the `apply` of `useOptimistic`); optional `diff(base, next)` is a minimal PATCH body. All but `toDto` are pure.
 _Avoid_: DTO mapper, form schema
 
-**Draft** *(ui)*:
-An editable copy of a Model, one save boundary: what `useDraft(spec, src)` returns, as atoms in the component's Store held by one slot of the instance (`value`, `field(name)`, `errors`, `valid`, `dirty`, `preview`, `changes`, `reset()`, `toDto()`). It starts as `spec.create(src)`; `src` is a value or an atom. While pristine (equal to its seed by the schema's equivalence) it re-seeds when the source changes; after an edit it keeps the edits. Released with the instance.
+**Draft** *(model)*:
+An editable copy of a Model, one save boundary: what `useDraft(spec, src)` (`@sleekstack/model`) returns, as atoms in the component's Store held by one slot of the instance (`value`, `field(name)`, `errors`, `valid`, `dirty`, `preview`, `changes`, `reset()`, `toDto()`). It starts as `spec.create(src)`; `src` is a value or an atom. While pristine (equal to its seed by the schema's equivalence) it re-seeds when the source changes; after an edit it keeps the edits. Released with the instance.
 _Avoid_: form state, form model

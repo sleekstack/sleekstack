@@ -14,17 +14,19 @@ Entries in `apps/showcase/src`:
 - `size/hydrate.tsx`: one reactive component (`useAtom` on a serializable atom, an `onClick` closure) under `hydrateMount`.
 - `resume/entry.ts`: the ADR 0017 resume entry, with a click handler and a form action (fn-51).
 - `size/lazy.tsx`: `mount` of a `Boundary` and `Pending` around a `lazy(() => import('./heavy'))` component (fn-48).
+- `size/model.tsx`: `mount` of a component with one Draft from `@sleekstack/model` (fn-56, ADR 0040).
 
 ## Measured size
 
 | Entry | Minified | Gzip | Limit (gzip) |
 |-------|----------|------|--------------|
-| `mount` hello-world | 761,701 B | 198,571 B | 203,000 B |
-| Hydrating app | 849,511 B | 220,129 B | 225,000 B |
+| `mount` hello-world | 761,739 B | 198,602 B | 203,000 B |
+| Hydrating app | 849,544 B | 220,145 B | 225,000 B |
 | Resume | 307,040 B | 79,447 B (lazy handlers 229 B) | 83,000 B |
-| `lazy` mount | 768,734 B | 201,093 B (lazy chunk 279 B) | 209,000 B |
+| `lazy` mount | 768,743 B | 201,083 B (lazy chunk 283 B) | 209,000 B |
+| `mount` with a Draft | 849,481 B | 220,001 B | 231,000 B |
 
-Remeasured after fn-52 (`useDraft`, ADR 0038), with the fn-45 render observer unattached, all within the limits. Source and dist builds differ by at most 3 bytes, so the tsc build costs nothing. Limits are the measurement plus about 5%; the test fails above them. A change that raises a number on purpose updates the limit and this table together.
+Remeasured after fn-56 (Model and Draft move to `@sleekstack/model`, ADR 0040), with the fn-45 render observer unattached, all within the limits. Against master before the move, `ui`'s entries shrank: `mount` hello-world from 198,667 B, the hydrating app from 220,221 B and `lazy` mount from 201,154 B gzip. A `mount`-only bundle holds no Draft code (`useDraft`); the Draft entry measures the cost of opting in. Source and dist builds differ by at most 3 bytes, so the tsc build costs nothing. Limits are the measurement plus about 5%; the test fails above them. A change that raises a number on purpose updates the limit and this table together.
 
 `mount` and `hydrateMount` include React and React DOM: `dom.ts` imports `react-dom/client` statically for guests, so an app without guests still ships them. The rest is mostly Effect. `resume` has no React path. Tree-shaking is verified: the mount-only bundle contains neither the resume runtime (`ManifestDecodeFailed`) nor the query bridge (`QueryFailed`). Code splitting is verified: the `lazy` entry's imported module is in its own chunk, not the eager bundle.
 
