@@ -34,9 +34,16 @@ Prove a Draft-only bundle holds no records code, keep export names unique across
 - [ ] The fixture graph check output is identical before and after
 
 ## Done summary
-TBD
+Added the R7 guards. packages/model/src/__tests__/bundle.test.ts now builds a virtual entry: a bundle exporting only `useDraft` renders none of adapter, commit, query, record, registry, relations or transformation and no `@sleekstack/query` or `@tanstack/query-core` module; the base entry loads no query code and `./query` does. New packages/model/src/__tests__/exportNames.test.ts checks one name, one declaration across `src/index.ts` and `src/query.ts` (ADR 0019). Both were checked red on an injected violation (`useRecord` in the Draft-only entry; a `useDraft` export added to query.ts).
 
+Size: new entry apps/showcase/src/size/records.tsx (`useRecord` plus `Post.useDraft` over an adapter Layer), `mount with a record` budget 233,000 B gzip (measured 222,215 B), a `@sleekstack/model/(.*)` source alias; the Draft entry keeps 231,000 B. ADR 0022's table was remeasured (all rows) and gains the records row and an fn-58 note. The fixture graph check output is byte-identical before and after.
+
+Deviation: apps/showcase/test/architecture.test.ts (rule for `size/records`) and apps/showcase/test/fixtures.test.ts (tree count 6 to 7) are outside Touches; both guard every src/ file, so a new size entry needs them.
+
+Baseline: green via handoff (verified at 6f5dd33 by task 6; only .flow/ changed since). Post-edit gate green: pnpm turbo run test typecheck --filter=@sleekstack/model... --filter=@sleekstack/analyze --filter=showcase (19/19).
+stage: impl-review - ran (codex gpt-6.1-sol fan-out, three draws SHIP, no findings)
+Tier: explicit routing from project CLAUDE.md (implementer: opus at medium)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 4d20a1a641916cb08c48b11cbf79a1c9bf38f06e
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/model... --filter=@sleekstack/analyze --filter=showcase, fixture graph check (kit-app, effect-app): identical before/after
 - PRs:
