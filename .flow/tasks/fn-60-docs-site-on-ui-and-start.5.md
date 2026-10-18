@@ -31,9 +31,11 @@ Put the site on the platform: the Vite config with the `ui-vite` plugin, the doc
 - [ ] `pnpm turbo run typecheck build --filter=docs` is green
 
 ## Done summary
-TBD
+Docs app now builds with the ui-vite plugin: Vite config, shared site builder for server/browser entries, dev start entry, Open Graph font committed; Next, fumadocs, Tailwind, PostCSS and the kit/react/islands/next deps and files removed. Built site checked: 35 pages, 1186 internal links, 1658 search anchors and ids all resolve, og images present. A different base prefix works in the site code but fails the plugin's link check because content links hard-code /docs (platform gap).
 
+Tier: implementer opus at medium (conductor line)
+stage: impl-review - skipped(policy: standing user rule, per-task Codex review skipped)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 6e715ed0d35c9d2212709dcd97b0e5c62df780e8
+- Tests: pnpm turbo run test typecheck build --filter=docs, pnpm format:check
 - PRs:
