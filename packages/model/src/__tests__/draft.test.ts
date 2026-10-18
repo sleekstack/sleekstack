@@ -1,21 +1,12 @@
 // @vitest-environment jsdom
-import { Atom, type DraftSpec, makeAtomStore, Result } from '@sleekstack/core'
+import { Atom, makeAtomStore, Result } from '@sleekstack/core'
 import { Cause, Context, Data, Deferred, Effect, Either, Layer, Option, ParseResult, Schema } from 'effect'
 import { act } from 'react'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
-import {
-  type Draft,
-  mount,
-  type Mounted,
-  Store,
-  useAction,
-  useAtomValue,
-  useDraft,
-  useFormStatus,
-  useOptimistic,
-} from '../index'
-import { jsx as rawJsx } from '../jsx-runtime'
-import { idle } from '../reactive'
+import { mount, type Mounted, Store, useAction, useAtomValue, useFormStatus, useOptimistic } from '@sleekstack/ui'
+import { idle } from '@sleekstack/ui/internal'
+import { jsx as rawJsx } from '@sleekstack/ui/jsx-runtime'
+import { type Draft, type DraftSpec, useDraft } from '../index'
 
 const jsx = (type: any, props: any) => rawJsx(type, props)
 const flush = () => act(async () => void (await new Promise((r) => setTimeout(r, 0))))

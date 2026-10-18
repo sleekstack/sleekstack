@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted. Amended by [ADR 0040](0040-model-package.md): the types and `useDraft` moved to `@sleekstack/model`.
 
 ## Context
 

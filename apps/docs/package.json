@@ -29,6 +29,7 @@
     "@sleekstack/devtools": "workspace:*",
     "@sleekstack/islands": "workspace:*",
     "@sleekstack/kit": "workspace:*",
+    "@sleekstack/model": "workspace:*",
     "@sleekstack/next": "workspace:*",
     "@sleekstack/query": "workspace:*",
     "@sleekstack/react": "workspace:*",

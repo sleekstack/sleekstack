@@ -10,6 +10,8 @@ const sourceAlias = [
   { find: /^@sleekstack\/ui$/, replacement: pkg('ui/src/index.ts') },
   { find: /^@sleekstack\/ui\/(.*)$/, replacement: pkg('ui/src/$1.ts') },
   { find: /^@sleekstack\/core$/, replacement: pkg('core/src/index.ts') },
+  { find: /^@sleekstack\/model$/, replacement: pkg('model/src/index.ts') },
+  { find: /^@sleekstack\/model\/(.*)$/, replacement: pkg('model/src/$1.ts') },
   { find: /^@sleekstack\/query$/, replacement: pkg('query/src/index.ts') },
   { find: /^@sleekstack\/start$/, replacement: pkg('start/src/index.ts') },
   { find: /^@sleekstack\/start\/(.*)$/, replacement: pkg('start/src/$1.ts') },
@@ -44,23 +46,26 @@ const measure = async (entry: string, source = false) => {
   }
 }
 
-// Gzip limits on the built packages: the ADR 0022 measurement plus about 5%.
-const budgets = [
-  { name: 'mount hello-world', entry: 'size/mount.tsx', limit: 203_000 },
-  { name: 'hydrating app', entry: 'size/hydrate.tsx', limit: 225_000 },
+// Gzip limits on the built packages: the ADR 0022 measurement plus about 5%. `uiBeforeModel` is the entry's gzip size
+// before Model and Draft left ui (ADR 0040): ui's entries must not grow past it.
+const budgets: ReadonlyArray<{ name: string; entry: string; limit: number; uiBeforeModel?: number }> = [
+  { name: 'mount hello-world', entry: 'size/mount.tsx', limit: 203_000, uiBeforeModel: 198_667 },
+  { name: 'hydrating app', entry: 'size/hydrate.tsx', limit: 225_000, uiBeforeModel: 220_221 },
   { name: 'resume', entry: 'resume/entry.ts', limit: 83_000 },
-  { name: 'lazy mount', entry: 'size/lazy.tsx', limit: 209_000 },
+  { name: 'lazy mount', entry: 'size/lazy.tsx', limit: 209_000, uiBeforeModel: 201_154 },
+  { name: 'mount with a Draft', entry: 'size/model.tsx', limit: 231_000 },
+  { name: 'mount with a record', entry: 'size/records.tsx', limit: 233_000 },
 ]
 
 describe('size budget (ADR 0022)', () => {
-  for (const { name, entry, limit } of budgets)
+  for (const { name, entry, limit, uiBeforeModel = limit } of budgets)
     it(`${name} stays within ${limit} B gzip`, { timeout: 60_000 }, async () => {
       const dist = await measure(entry)
       const src = await measure(entry, true)
       console.log(
         `${name}: dist ${dist.min} B min, ${dist.gz} B gzip (lazy ${dist.lazyGz} B); source ${src.min} B min, ${src.gz} B gzip`,
       )
-      expect(dist.gz).toBeLessThanOrEqual(limit)
+      expect(dist.gz).toBeLessThanOrEqual(Math.min(limit, uiBeforeModel))
     })
 
   it('a lazy component lands in its own chunk', { timeout: 60_000 }, async () => {
@@ -93,6 +98,16 @@ describe('size budget (ADR 0022)', () => {
         expect(code).toContain('items.add') // the page and its stub are in the client
         for (const marker of serverOnly) expect(code, `${marker} (source: ${source})`).not.toContain(marker)
       }
+    },
+  )
+
+  it(
+    'a mount-only bundle carries no Draft code; a Draft brings it from @sleekstack/model',
+    { timeout: 60_000 },
+    async () => {
+      // `useDraft` survives minification as the name in its missing-store error.
+      expect((await measure('size/mount.tsx')).code).not.toContain('useDraft')
+      expect((await measure('size/model.tsx')).code).toContain('useDraft')
     },
   )
 
