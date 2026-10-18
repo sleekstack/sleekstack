@@ -32,9 +32,13 @@ Add `HeadSink` (Context.Reference, name `@sleekstack/ui/HeadSink`, modeled on `H
 - [ ] `exportNames.test` style uniqueness of the new public names holds
 
 ## Done summary
-TBD
+Added `<Head>` (title/meta/link) with a `HeadSink` Context.Reference and a keyed `document.head` patch: tags dedupe by `title`, `meta[name]`, `meta[property]`, `link[rel]+href`; the deepest Head wins (instance depth now on `RunFrame`), the last mounted on a tie; each Head holds one stable registration updated in place and removed on unmount; existing shell tags are taken over and restored; `mount` provides the sink for its container's document. Invalid tags/attributes go through `checkTag`/`checkAttr`, are skipped, and are reported to `onError`. Tests: packages/ui/src/__tests__/head.test.ts (8 cases incl. conflicting titles, keyed list, invalid tags, shell restore, other document).
 
+Note for .2/.3: `HeadSink` value is `HeadTarget { add(depth) => HeadEntry { set(tags), remove() } }`; with no sink provided (string/stream render today) Head does nothing.
+
+Tier: implementer opus at medium
+stage: impl-review - ran (codex fan-out NEEDS_WORK, 4 findings fixed; re-review SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 7c6fd1cf60048ad993677e01c2b99655b1a61bd0, 84e6e46a6803e130275d7dbabce5f4990ed39df0, 1bd78a5a87f24de30ac27c5ed5bb22487c917dfc
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/ui...
 - PRs:

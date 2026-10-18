@@ -298,8 +298,9 @@ export const Boundary = <E extends { readonly _tag: string }>(props: {
       : content
   }) as Element
 
-// Not on the direct-call list in `jsx`: `Pending` and `Boundary` run as instances (id, key, slots).
+// Not on the direct-call list in `jsx`: `Pending`, `Boundary` and `Head` run as instances (id, key, slots).
 export { Pending } from './pending'
+export { Head } from './head'
 
 /** Types the JSX compiler reads: `Element` is an `Effect<Node>`. */
 export declare namespace JSX {

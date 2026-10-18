@@ -3,6 +3,7 @@ import { createElement } from 'react'
 import { renderToString as reactRenderToString } from 'react-dom/server'
 import { type Atom, type AtomStore, dehydrate, makeAtomStore } from '@sleekstack/core'
 import { reportRenderError, type RunOptions, runToNode } from './component'
+import type { HeadTag } from './head'
 import { checkEvent, DuplicateBindKey, DuplicateHandler, type Handler, valueInfo } from './handler'
 import type { ElementNode, Node, ReactiveNode } from './node'
 import { Frame, makeFrame, Store } from './reactive'
@@ -42,6 +43,8 @@ export interface Collector {
   handlers: Map<string, Handler<any, any, any>>
   events: Set<string>
   atoms: Map<string, { atom: Atom.Atom<any>; value: unknown }> // value is encoded
+  /** What the serialized `Head`s emitted, in document order; unset, they are checked and dropped. */
+  head?: Array<HeadMark>
   /** Set by `renderToStream`: emits an unresolved `Pending` instance as a placeholder. */
   boundary?: (node: ReactiveNode, around: Around) => string | undefined
 }
@@ -118,11 +121,54 @@ const HOST_OPEN = (tag: string): string => `<${tag} style="display: contents;">`
 // A plain atom binding renders as bare text, so it needs a separator next to other text like a Text node does.
 const isText = (n: Node | undefined): boolean => n?._tag === 'Text' || (n?._tag === 'Bind' && !!n.plain)
 
-const flatten = (nodes: ReadonlyArray<Node>): Array<Node> =>
-  nodes.flatMap((n) => (n._tag === 'Fragment' ? flatten(n.children) : n._tag === 'Portal' ? [] : [n]))
+/** One `Head` run: its instance depth, its valid tags, and the errors of the ones it rejected. */
+export interface HeadMark {
+  readonly depth: number
+  readonly tags: ReadonlyArray<HeadTag>
+  readonly errors: ReadonlyArray<unknown>
+}
+/** What a `Head` emitted, keyed by its output node; a string or stream render collects it as it serializes the node. */
+export const headOf = new WeakMap<Node, HeadMark>()
+// An invalid head tag rejects the render, like an invalid element, and is reported to `onError` (the render already ran).
+const collectHead = (n: Node, c: Collector): void => {
+  const mark = headOf.get(n)
+  if (!mark) return
+  if (mark.errors.length > 0) {
+    if (c.onError) reportRenderError(mark.errors[0], c.onError)
+    throw mark.errors[0]
+  }
+  c.head?.push(mark)
+}
+
+/** The DOM's dedupe: per key the deepest tag, the last on a tie, at the key's first place; an unkeyed tag is its own key. */
+export const headWinners = (marks: ReadonlyArray<HeadMark>): Map<string | HeadTag, HeadTag> => {
+  const win = new Map<string | HeadTag, { readonly depth: number; readonly tag: HeadTag }>()
+  for (const { depth, tags } of marks)
+    for (const tag of tags) {
+      const key = tag.key ?? tag
+      if (depth >= (win.get(key)?.depth ?? -1)) win.set(key, { depth, tag })
+    }
+  return new Map([...win].map(([k, { tag }]) => [k, tag]))
+}
+
+/** Head markup of the winning tags. */
+export const headHtml = (marks: ReadonlyArray<HeadMark>): string =>
+  [...headWinners(marks).values()]
+    .map((t) => {
+      const attrs = Object.entries(t.attrs)
+        .map(([k, v]) => ` ${k}="${escape(v)}"`)
+        .join('')
+      return `<${t.tag}${attrs}>${t.tag === 'title' ? `${escape(t.text)}</title>` : ''}`
+    })
+    .join('')
+
+const flatten = (nodes: ReadonlyArray<Node>, c: Collector): Array<Node> =>
+  nodes.flatMap((n) =>
+    n._tag === 'Fragment' ? (collectHead(n, c), flatten(n.children, c)) : n._tag === 'Portal' ? [] : [n],
+  )
 /** Children markup; `edge` is the text context around the list itself (a streamed boundary's content). */
 export const serializeAll = (nodes: ReadonlyArray<Node>, c: Collector, edge: Around = NO_TEXT): string =>
-  flatten(nodes)
+  flatten(nodes, c)
     .map((n, i, list) => {
       const before = i === 0 ? edge.before : isText(list[i - 1])
       const after = i === list.length - 1 ? edge.after : isText(list[i + 1])
@@ -146,7 +192,7 @@ export const serialize = (node: Node, c: Collector, around: Around = NO_TEXT): s
       return `<sleek-bind data-sleek-bind="${escape(key)}">${escape(String(value))}</sleek-bind>`
     }
     case 'Fragment':
-      return serializeAll(node.children, c)
+      return serializeAll([node], c)
     case 'Element': {
       checkTag(node.tag)
       const attrs =
@@ -181,11 +227,12 @@ export const serialize = (node: Node, c: Collector, around: Around = NO_TEXT): s
  * String renderer (SSR and tests). Rejection contract matches `mount`. Provides a fresh `Store`, disposed afterwards.
  * Handlers (`on`) and `bind` nodes emit `data-sleek-*` attributes and one trailing manifest script; rejects with
  * `DuplicateHandler`, `DuplicateBindKey` or `UnsupportedEvent`. Serializable atom state and the layer's `Transfer` state
- * cache go into a trailing `data-sleek-hydrate` script that `hydrateMount` seeds from.
+ * cache go into a trailing `data-sleek-hydrate` script that `hydrateMount` seeds from. `onHead` receives the `Head` tags'
+ * markup for the document head (deduped like the DOM: the deepest `Head` wins); an invalid head tag rejects like an element.
  */
 export const renderToString = async <E, A, LE = never>(
   app: Effect.Effect<Node, E, A>,
-  opts: { layer: Layer.Layer<Exclude<A, Store>, LE, never> } & RunOptions,
+  opts: { layer: Layer.Layer<Exclude<A, Store>, LE, never>; onHead?: (html: string) => void } & RunOptions,
 ): Promise<string> => {
   // Idle nodes stay until dispose, so `dehydrate` sees every atom the render built.
   const store = makeAtomStore({ scheduleTask: () => {} })
@@ -203,8 +250,17 @@ export const renderToString = async <E, A, LE = never>(
       Effect.provideService(Frame, makeFrame()),
     ) as Effect.Effect<Node, E, Exclude<A, Store>>
     const node = await runToNode(withStore, opts.layer, opts)
-    const c: Collector = { store, onError: opts.onError, handlers: new Map(), events: new Set(), atoms: new Map() }
+    const head: Array<HeadMark> = []
+    const c: Collector = {
+      store,
+      onError: opts.onError,
+      handlers: new Map(),
+      events: new Set(),
+      atoms: new Map(),
+      head,
+    }
     const html = serialize(node, c)
+    opts.onHead?.(headHtml(head))
     return html + manifest(c) + payload(dehydrate(store), transfer)
   } finally {
     await store.dispose()

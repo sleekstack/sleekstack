@@ -1,13 +1,563 @@
 {
   "branch_name": "fn-33-head-management-for-ui",
+  "completion_review_status": "ship",
+  "completion_reviewed_at": "2026-10-18T16:36:18.272219Z",
   "created_at": "2026-10-04T10:31:55.393239Z",
+  "default_impl": null,
+  "default_review": null,
+  "default_sync": null,
   "depends_on_epics": [
     "fn-27-streaming-ssr-for-sleekstackui"
   ],
   "id": "fn-33-head-management-for-ui",
+  "impl_review_rounds": {
+    "fn-33-head-management-for-ui.1": 0,
+    "fn-33-head-management-for-ui.2": 0,
+    "fn-33-head-management-for-ui.3": 0,
+    "fn-33-head-management-for-ui.4": 0
+  },
   "next_task": 1,
+  "plan_review_rounds": 0,
   "plan_review_status": "unknown",
   "plan_reviewed_at": null,
+  "review_attempts": [
+    {
+      "artifact_sha256": "ca9ae4286e9ff0cf18ca7cf3a09af4313f8530c7eeed7b986654eb468d6620bd",
+      "backend": "codex",
+      "base_sha": "17e76029753680606814c35927860aafa0eadfa8",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-d51dbc5e2ae33c3bba7df7fbc5e5f5d4",
+            "classification": "introduced",
+            "findingId": "finding-d51dbc5e2ae33c3bba7df7fbc5e5f5d4",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-e64ce6de7f738619f70f1208cae84ce6",
+            "classification": "introduced",
+            "findingId": "finding-e64ce6de7f738619f70f1208cae84ce6",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-db76f4464a7ed7b8af34b5a34ef098e1",
+            "classification": "introduced",
+            "findingId": "finding-db76f4464a7ed7b8af34b5a34ef098e1",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-e4a50ddd5a37b17da90336b42e31ab6e",
+            "classification": "introduced",
+            "findingId": "finding-e4a50ddd5a37b17da90336b42e31ab6e",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "7c6fd1cf60048ad993677e01c2b99655b1a61bd0",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-6.1-sol",
+      "outcome": "verdict",
+      "output_bytes": 2883,
+      "output_sha256": "c1bc6ab618a39bfdd0a3905846ee864737fa6d5f14884c6664e2efb2ba60b9d3",
+      "reservation_id": "b1028d51b29a4853b1df3019407087ad",
+      "round_consumed": true,
+      "scope": "impl:fn-33-head-management-for-ui.1",
+      "superseded_by": null,
+      "task": "fn-33-head-management-for-ui.1",
+      "timestamp": "2026-10-18T16:00:04.581577Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "52e0ca04cf9611073cda4697c0f730a1dcba8a2505ddf55d3e3cbc143f3e78e1",
+      "backend": "codex",
+      "base_sha": "17e76029753680606814c35927860aafa0eadfa8",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-d51dbc5e2ae33c3bba7df7fbc5e5f5d4",
+            "classification": "introduced",
+            "findingId": "finding-d51dbc5e2ae33c3bba7df7fbc5e5f5d4",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-e64ce6de7f738619f70f1208cae84ce6",
+            "classification": "introduced",
+            "findingId": "finding-e64ce6de7f738619f70f1208cae84ce6",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-db76f4464a7ed7b8af34b5a34ef098e1",
+            "classification": "introduced",
+            "findingId": "finding-db76f4464a7ed7b8af34b5a34ef098e1",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-e4a50ddd5a37b17da90336b42e31ab6e",
+            "classification": "introduced",
+            "findingId": "finding-e4a50ddd5a37b17da90336b42e31ab6e",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "84e6e46a6803e130275d7dbabce5f4990ed39df0",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-6.1-sol",
+      "outcome": "verdict",
+      "output_bytes": 747,
+      "output_sha256": "2ffd8940143ab3a50f12b0f4115b7ce54c1b975829be692de3b8768791ecff23",
+      "reservation_id": "f470e7be6a2944258922223d8c8e62a7",
+      "round_consumed": true,
+      "scope": "impl:fn-33-head-management-for-ui.1",
+      "superseded_by": null,
+      "task": "fn-33-head-management-for-ui.1",
+      "timestamp": "2026-10-18T16:02:35.527348Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "8eca0e5cfc342e9d2e0484fed51c99e1cd570b69c7cf0de805af4cff98dccfae",
+      "backend": "codex",
+      "base_sha": "17e76029753680606814c35927860aafa0eadfa8",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-afae2f4faf49a58f0f81b2d73a304717",
+            "classification": "introduced",
+            "findingId": "finding-afae2f4faf49a58f0f81b2d73a304717",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "a8d1ebf4169ed745d5e49af1757b139f4b5d4e36",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-6.1-sol",
+      "outcome": "verdict",
+      "output_bytes": 825,
+      "output_sha256": "cae0e69c0cd89ebb05c718795724eafc154bca80e06ccb7589721777417e976d",
+      "reservation_id": "78772aae0bd44c51bbf86e8d6d4dbbee",
+      "round_consumed": true,
+      "scope": "impl:fn-33-head-management-for-ui.2",
+      "superseded_by": null,
+      "task": "fn-33-head-management-for-ui.2",
+      "timestamp": "2026-10-18T16:08:58.331722Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "80f4c315c5bbd9f34b4b9541edbed7f54b779d15a9c8011f902fccecf74a9318",
+      "backend": "codex",
+      "base_sha": "17e76029753680606814c35927860aafa0eadfa8",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-afae2f4faf49a58f0f81b2d73a304717",
+            "classification": "introduced",
+            "findingId": "finding-afae2f4faf49a58f0f81b2d73a304717",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "49bbfa8bb3af6ff34fddfbd6884fbcdda31ac48a",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-6.1-sol",
+      "outcome": "verdict",
+      "output_bytes": 711,
+      "output_sha256": "cd11131901e6e7f2249c21614eebc7d17671ada41f8d1862794085ff0f501ab4",
+      "reservation_id": "b2d5ac810f8f4bdbb6992c28f9dd4a66",
+      "round_consumed": true,
+      "scope": "impl:fn-33-head-management-for-ui.2",
+      "superseded_by": null,
+      "task": "fn-33-head-management-for-ui.2",
+      "timestamp": "2026-10-18T16:10:17.158130Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "5b5e10b035a138abac542dc5eae63d28c3a3e29b76867a1deddea8173b042e98",
+      "backend": "codex",
+      "base_sha": "17e76029753680606814c35927860aafa0eadfa8",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-ba732504cfeb9945cf6af442f228ecf0",
+            "classification": "introduced",
+            "findingId": "finding-ba732504cfeb9945cf6af442f228ecf0",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "770e3ce6014edffe35843152ea9149f10adb63b2",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-6.1-sol",
+      "outcome": "verdict",
+      "output_bytes": 1125,
+      "output_sha256": "8a9388de9649c65e7223f321faa767bd45b104525b8d5e9e69b1ae78769e2cc8",
+      "reservation_id": "8e48410176f54669a741506b4c5c6024",
+      "round_consumed": true,
+      "scope": "impl:fn-33-head-management-for-ui.3",
+      "superseded_by": null,
+      "task": "fn-33-head-management-for-ui.3",
+      "timestamp": "2026-10-18T16:16:52.703475Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "70f5badaf8240ed778ad91a798ae58c1d4fcdacaf407c5d77391689d940f558b",
+      "backend": "codex",
+      "base_sha": "17e76029753680606814c35927860aafa0eadfa8",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-ba732504cfeb9945cf6af442f228ecf0",
+            "classification": "introduced",
+            "findingId": "finding-ba732504cfeb9945cf6af442f228ecf0",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "561bd976013928224a0ecbd4040f63487deb9f87",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-6.1-sol",
+      "outcome": "verdict",
+      "output_bytes": 820,
+      "output_sha256": "1cc9f70cfae06341dbfde6b246efdfbffc6fbd5b1f8068fd2de575bc9925e22b",
+      "reservation_id": "3670d28d8a1249db9452dd3a6b94b82c",
+      "round_consumed": true,
+      "scope": "impl:fn-33-head-management-for-ui.3",
+      "superseded_by": null,
+      "task": "fn-33-head-management-for-ui.3",
+      "timestamp": "2026-10-18T16:18:39.095390Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "9b38c12b3e52e33f86682ffffbb6e3f55cae131c2e0f38807396f26bba1ac3f8",
+      "backend": "codex",
+      "base_sha": "17e76029753680606814c35927860aafa0eadfa8",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-403a9402c79cd355632309d60de1b8df",
+            "classification": "introduced",
+            "findingId": "finding-403a9402c79cd355632309d60de1b8df",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-330c8efe0fb7bd1e007d1b5c99cd5bb4",
+            "classification": "introduced",
+            "findingId": "finding-330c8efe0fb7bd1e007d1b5c99cd5bb4",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "53b5027e58fe842a8e85af3a2f17f010b11b5b56",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-6.1-sol",
+      "outcome": "verdict",
+      "output_bytes": 1768,
+      "output_sha256": "352d6064ab9ddfde9c901e82ca75d1651e22b30be841fa3f714096bc21e5c127",
+      "reservation_id": "11b1f728024f48fd94a3456026c7994f",
+      "round_consumed": true,
+      "scope": "impl:fn-33-head-management-for-ui.4",
+      "superseded_by": null,
+      "task": "fn-33-head-management-for-ui.4",
+      "timestamp": "2026-10-18T16:30:00.904195Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "ed284996a0a593cf1c9003d78270e4b4ae21c16986413703c753ddd30925cef3",
+      "backend": "codex",
+      "base_sha": "17e76029753680606814c35927860aafa0eadfa8",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-403a9402c79cd355632309d60de1b8df",
+            "classification": "introduced",
+            "findingId": "finding-403a9402c79cd355632309d60de1b8df",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "not_fixed"
+          },
+          {
+            "chainRoot": "finding-330c8efe0fb7bd1e007d1b5c99cd5bb4",
+            "classification": "introduced",
+            "findingId": "finding-330c8efe0fb7bd1e007d1b5c99cd5bb4",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-fc8b5d776fa8ed666935984b50f2e15f",
+            "classification": "introduced",
+            "findingId": "finding-fc8b5d776fa8ed666935984b50f2e15f",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "2e838d200a3f436ed57ee6874b54c80c24df5663",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-6.1-sol",
+      "outcome": "verdict",
+      "output_bytes": 1392,
+      "output_sha256": "5c153cfa7e8f7f1602a948f04be9bf840792961af975a3cc2dafde5da20398a7",
+      "reservation_id": "0ebf9b9ba8904b559c30c9710bbb0863",
+      "round_consumed": true,
+      "scope": "impl:fn-33-head-management-for-ui.4",
+      "superseded_by": null,
+      "task": "fn-33-head-management-for-ui.4",
+      "timestamp": "2026-10-18T16:31:34.385031Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "c119e969d09993417d17f37360962933add9b23c8a176016e91355e8abcbebc7",
+      "backend": "codex",
+      "base_sha": "17e76029753680606814c35927860aafa0eadfa8",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-403a9402c79cd355632309d60de1b8df",
+            "classification": "introduced",
+            "findingId": "finding-403a9402c79cd355632309d60de1b8df",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-330c8efe0fb7bd1e007d1b5c99cd5bb4",
+            "classification": "introduced",
+            "findingId": "finding-330c8efe0fb7bd1e007d1b5c99cd5bb4",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-fc8b5d776fa8ed666935984b50f2e15f",
+            "classification": "introduced",
+            "findingId": "finding-fc8b5d776fa8ed666935984b50f2e15f",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "50503f436293ad821ae398254ad62f6798d416fc",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-6.1-sol",
+      "outcome": "verdict",
+      "output_bytes": 759,
+      "output_sha256": "ef14c22d0dfef2a639edd76d5d2776fdd4644917746ce32ea198d6d7f5860790",
+      "reservation_id": "e64e827e7c3e4e77a0c0653bc9c9ca04",
+      "round_consumed": true,
+      "scope": "impl:fn-33-head-management-for-ui.4",
+      "superseded_by": null,
+      "task": "fn-33-head-management-for-ui.4",
+      "timestamp": "2026-10-18T16:33:02.528106Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "57eab0975a697b402b718d06b6106ad4f367c97bdc3fbe4c062366a554d14bb5",
+      "backend": "codex",
+      "base_sha": "17e76029753680606814c35927860aafa0eadfa8",
+      "counter_kind": "plan",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "92911e7e7f1688d421776304fd08432994395973",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-6.1-sol",
+      "outcome": "verdict",
+      "output_bytes": 221377,
+      "output_sha256": "9c956fa926f12ac474e362a2ee3b61b5f1056276fe1eabbd601ec067b64635dc",
+      "reservation_id": "27d7bfcc980b4715aabb46a5e587fcde",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-10-18T16:36:18.267206Z",
+      "tool_calls": 12,
+      "verdict": "SHIP"
+    }
+  ],
+  "review_hash_epoch": {
+    "impl:fn-33-head-management-for-ui.1": 1,
+    "impl:fn-33-head-management-for-ui.2": 1,
+    "impl:fn-33-head-management-for-ui.3": 1,
+    "impl:fn-33-head-management-for-ui.4": 1,
+    "plan#completion": 1
+  },
+  "review_pending_rounds": {},
+  "review_reservations": {},
+  "review_transport_failures": {
+    "completion": 0,
+    "impl:fn-33-head-management-for-ui.1": 0,
+    "impl:fn-33-head-management-for-ui.2": 0,
+    "impl:fn-33-head-management-for-ui.3": 0,
+    "impl:fn-33-head-management-for-ui.4": 0
+  },
   "spec_path": ".flow/specs/fn-33-head-management-for-ui.md",
   "status": "open",
   "title": "Head management for ui",
@@ -22,5 +572,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-04T10:32:03.024847Z"
+  "updated_at": "2026-10-18T16:36:18.273572Z"
 }
