@@ -274,3 +274,23 @@ _Avoid_: DTO mapper, form schema
 **Draft** *(model)*:
 An editable copy of a Model, one save boundary: what `useDraft(spec, src)` (`@sleekstack/model`) returns, as atoms in the component's Store held by one slot of the instance (`value`, `field(name)`, `errors`, `valid`, `dirty`, `preview`, `changes`, `reset()`, `toDto()`). It starts as `spec.create(src)`; `src` is a value or an atom. While pristine (equal to its seed by the schema's equivalence) it re-seeds when the source changes; after an edit it keeps the edits. Released with the instance.
 _Avoid_: form state, form model
+
+**Record Type**:
+A server record kind made by `defineRecord(type, { fields, adapter? })` (`@sleekstack/model`, ADR 0041): Effect Schema fields with a string `id`, Transformations on fields, `ref` and `refs` relationship fields, and the Record Adapter Tag that loads and saves it. Its records live in the Identity Map; `record.useDraft(id)` derives a Draft from one, and `commit(id, draft)` saves it. A record and its Draft are two objects: an edit never touches the shared record.
+_Avoid_: Entity, `Record` (as a name), model class
+
+**Identity Map**:
+One slot per Record Type and id in each Store, so every `push`, `find` and `commit` of one record writes the same atom and every view reads one value. A record stays until the Store is disposed or `evict(id)`. Client-only: after SSR it refills from the Query cache through `queryOf(record)`.
+_Avoid_: record store, record cache
+
+**Transformation** *(model)*:
+One field's wire format, made by `defineTransformation(name, options => ({ from, to, hydrate, serialize, defaultValue }))` and attached as `field(Money, { currency })`. `hydrate` runs when wire data becomes a record, `serialize` when a Draft becomes a change; both fail with a `ParseError`. It reads one field only; a value computed from several fields is a derived atom.
+_Avoid_: serializer, transform registry
+
+**Record Adapter**:
+The wire contract of one Record Type: an app-written Service (`RecordAdapter`, behind an app-declared `Effect.Tag`, supplied as a Layer) whose `find(id)` and `save(id, change)` remove the response envelope and shape the request and PATCH bodies. Swapping REST for GraphQL changes only its Layer; a missing one shows in `R`.
+_Avoid_: serializer, HTTP client, data source
+
+**Record Reference**:
+One entry of a relationship: `RecordRef { id, value }`, the target's id as the owner holds it and the target record (`None` until it is in the Identity Map). `record.related(id, field)` is a derived atom of them that follows the owner and every target and never fetches; a missing target keeps its id and position.
+_Avoid_: `Ref` (Effect's), association, foreign key

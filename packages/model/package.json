@@ -10,6 +10,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./query": {
+      "types": "./dist/query.d.ts",
+      "default": "./dist/query.js"
     }
   },
   "files": [
@@ -23,7 +27,9 @@
   "peerDependencies": {
     "effect": "^3.15.0",
     "@sleekstack/core": "workspace:*",
-    "@sleekstack/ui": "workspace:*"
+    "@sleekstack/ui": "workspace:*",
+    "@sleekstack/query": "workspace:*",
+    "@tanstack/query-core": "^5.104.1"
   },
   "devDependencies": {
     "effect": "^3.15.0",
@@ -36,6 +42,16 @@
     "react-dom": "^19.2.6",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "jsdom": "^29.1.1"
+    "jsdom": "^29.1.1",
+    "@sleekstack/query": "workspace:*",
+    "@tanstack/query-core": "^5.104.1"
+  },
+  "peerDependenciesMeta": {
+    "@sleekstack/query": {
+      "optional": true
+    },
+    "@tanstack/query-core": {
+      "optional": true
+    }
   }
 }

@@ -1,5 +1,5 @@
 import { Atom } from '@sleekstack/core'
-import { type DraftSpec, useDraft } from '@sleekstack/model'
+import { type DraftSpec, defineRecord, useDraft, useRecord } from '@sleekstack/model'
 import { Effect, Layer, Schema } from 'effect'
 import { useDraft as useOtherDraft } from './other/draft'
 import { el, mount, useDeferredAtom, useDerivedAtom, useEffect, useLocal, useRef } from '@sleekstack/ui'
@@ -10,6 +10,8 @@ const Note = {
   create: () => '',
   toDto: (d: string) => Effect.succeed(d),
 } satisfies DraftSpec<string, string>
+const Post = defineRecord('post', { fields: { id: Schema.String } })
+const fetchNothing = { fetch: () => Effect.void }
 
 const Good = () =>
   Effect.gen(function* () {
@@ -20,6 +22,8 @@ const Good = () =>
     yield* useDerivedAtom((get) => get(count))
     yield* useDeferredAtom(count)
     yield* useDraft(Note, undefined)
+    yield* useRecord(Post, '1', { via: fetchNothing })
+    yield* Post.useDraft('1')
     if (open) return el('p', {}, 'open')
     setOpen(true)
     return el('p')
@@ -33,6 +37,8 @@ const Bad = (flag: boolean, ids: readonly number[]) =>
     if (flag) yield* useDerivedAtom((get) => get(count)) // @error ConditionalSlot
     if (flag) yield* useDeferredAtom(count) // @error ConditionalSlot
     if (flag) yield* useDraft(Note, undefined) // @error ConditionalSlot
+    if (flag) yield* useRecord(Post, '1', { via: fetchNothing }) // @error ConditionalSlot
+    if (flag) yield* Post.useDraft('1') // @error ConditionalSlot
     if (flag) yield* useOtherDraft(Note, undefined)
     for (const _ of ids) yield* useLocal(2) // @error ConditionalSlot
     const x = flag ? yield* useLocal(3) : undefined // @error ConditionalSlot

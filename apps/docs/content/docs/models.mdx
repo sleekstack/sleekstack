@@ -1,9 +1,9 @@
 ---
 title: Models and Drafts
-description: Build a Model from wire data with fromDto, edit a copy of it with useDraft, and save it from a Form Action with toDto().
+description: Build a Model from wire data with fromDto, edit a copy of it with useDraft, save it from a Form Action with toDto(), and share one record per type and id with defineRecord.
 ---
 
-A record crosses the wire twice: once as what the read endpoint returns, once as what the write endpoint takes. This page is the contract for both directions: `ModelSpec`, `DraftSpec` and `useDraft` in `@sleekstack/model`, a package an app installs to opt in ([ADR 0038](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0038-model-and-draft.md), [ADR 0040](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0040-model-package.md)). The idea of a record and its editable copy comes from EmberData, through ramcinpay-front.
+A record crosses the wire twice: once as what the read endpoint returns, once as what the write endpoint takes. This page is the contract for both directions: `ModelSpec`, `DraftSpec` and `useDraft` in `@sleekstack/model`, a package an app installs to opt in ([ADR 0038](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0038-model-and-draft.md), [ADR 0040](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0040-model-package.md)). The idea of a record and its editable copy comes from EmberData, through ramcinpay-front. [Records](#records) add what EmberData keeps around them: one shared record per type and id, relationships, and adapters that own the wire ([ADR 0041](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0041-records-layer.md)).
 
 ## The one idea
 
@@ -100,6 +100,91 @@ A Form Action does ([ADR 0038, Decision](https://github.com/sleekstack/sleekstac
 
 <include>../../snippets/models/optimistic.tsx</include>
 
+## Records
+
+A Model built in a component is that component's copy: a save in one view does not reach another that shows the same server record. A **Record Type** fixes that. `defineRecord(type, { fields, adapter })` keeps one record per type and id in the Store's **Identity Map**, and every view, relationship and save reads and writes that one value ([ADR 0041](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0041-records-layer.md)). It has four parts, each with one job:
+
+- The **Record Type** holds the fields as Effect Schema (with a string `id`), the per-field Transformations, the relationship fields and the adapter Tag.
+- A **Transformation** is one field's wire format.
+- The **Record Adapter** is the wire contract: response envelope, request body, PATCH shape. It is an app-written Service behind an app-declared Tag, supplied as a Layer.
+- The **Draft** is derived from the record: input validation, `dirty`, `reset`, `errors`.
+
+<include>../../snippets/models/records.ts</include>
+
+### Fields and Transformations
+
+A field is any Effect Schema. When the wire format of a field is not what the app holds, define a Transformation once and attach it to each field that uses it with `field(Money, { currency })` ([ADR 0041, Decision](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0041-records-layer.md#decision)):
+
+- `from` is the wire value, `to` the app value. `to`'s Encoded is what the Draft's input holds, so bound it there (`Money` caps the digits before `serialize` runs `Number()`).
+- `hydrate(wire, ast)` runs when wire data becomes a record; `serialize(input, ast)` when a Draft becomes a change. Both are Effects that fail with a `ParseIssue` such as `new ParseResult.Type(ast, value, message)`, surfaced as a typed `ParseError`.
+- `defaultValue()` fills a field whose wire value is `undefined` and seeds a new record's Draft.
+- A Transformation is passed as a value, never looked up by name, and reads its own field only. A value computed from several fields is a derived atom.
+- Dates and numbers from strings need no Transformation: Effect Schema has them.
+
+### The Identity Map
+
+- `Book.push(wire)` decodes the wire (running each `hydrate`) and replaces the record of its id. A `ParseError` writes nothing. It needs the `Store` as a Service, because an Effect run outside a component has no Store of its own.
+- `Book.atom(id)` is the record in the reading Store: `None` until it is pushed. It is the same atom for an id on every call.
+- A record stays until the Store is disposed or `Book.evict(id)`, whether or not anything reads it. `evict` empties the slot and keeps its atom, so a later `push` fills the same atom.
+- The map is client-only: no record atom is serialized for SSR. With `queryOf` below, it refills from the hydrated Query cache.
+
+### Relationships
+
+`ref(() => Author)` is a to-one field (wire `string | null`) and `refs(() => Author)` a to-many one (wire `string[]`). The target is a thunk, read only when the relationship is ([ADR 0041, Decision](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0041-records-layer.md#decision)).
+
+- `Book.related(id, 'author')` is a derived atom: `None` while the book is not in the map, otherwise a `RecordRef { id, value }` (or `null`) for `ref`, a list of them for `refs`. It is the same atom for an id and field on every call.
+- It follows the book and every target in the map, so a later `push` of the author updates it. It never fetches: load the author yourself (`Author.find`, or a list response pushed record by record).
+- A missing target keeps its id and its position with a `None` value, and a list keeps the server's order.
+- Relationships go one way. A reverse view built from `related` covers loaded records only.
+- Two Record Types that refer to each other, or one that refers to itself, need one definition annotated with its type (`const Post: RecordDefinition<'post', PostFields> = defineRecord(...)`), as TypeScript cannot infer the cycle.
+
+### Loading: `find` and `useRecord`
+
+With an adapter, a Record Type has `find` and `commit`; without one, it has the rest. Neither needs `@sleekstack/query`.
+
+- `Book.find(id)` calls the adapter's `find`, hydrates the wire and writes the record into the map. Its `R` holds `Store` and `BookApi`, so `sleekstack check` reports a missing adapter Layer, and its `E` holds the adapter's failures and `ParseError`. Concurrent calls for one id in a Store share one adapter call. The Store's scope owns the call: disposing it interrupts the call and writes nothing.
+- `useRecord(Book, id)` is a slot hook that reads the map and runs `find` once while the map has no record. It returns a `Result`: `Initial` while waiting on the first load, `Success` with the map's value, or a `Failure` with the typed error. A record in the map is a `Success` whatever the fetch does, so a refetch keeps showing it.
+- The adapter's Layer is where REST and GraphQL differ: `BookRest` above removes `{ data }`; a GraphQL Layer would remove its own envelope for the same Tag. A test supplies a fake Layer the same way.
+
+<include>../../snippets/models/book-page.tsx</include>
+
+### Saving: `commit` and the derived Draft
+
+`Book.useDraft(id)` returns a Draft of the record: every field but `id`, in its input form (a date as its string, a `field(...)` as its `to` input), validated by the fields' Schemas ([ADR 0041, Decision](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0041-records-layer.md#decision)).
+
+- It is seeded from the map, or from each field's `defaultValue` while the record is missing, which is the create form. There is no separate `create()`.
+- The Draft and the record are two objects: an edit never touches the shared record.
+- A pristine Draft re-seeds when the record changes. An edited one keeps its edits and measures `dirty` against the newest record, so after a save it is clean if it holds the saved value. Value A, submit B, edit to C, acknowledge B: B reads clean and A dirty.
+- It takes a slot like `useDraft`. It exists only for fields whose Schemas need no Service, because a Draft seeds and validates synchronously.
+
+`Book.commit(id, draft)` is pessimistic:
+
+- It validates the Draft (a `ParseError` before any `serialize`), serializes it to a `RecordChange`, sends it with the adapter's `save`, and writes the hydrated response into the map. Nothing is written before the server acknowledges.
+- A failure writes nothing and leaves the Draft as it is. A save that succeeded with a response that does not hydrate, or that is another record, fails with `SaveResponseError`.
+- A second `commit` of the record while one is saving fails with `SaveInFlight`.
+- A `find` response whose request started before the last acknowledged save is dropped, so a slow fetch never overwrites a save.
+- `DraftSpec.toDto` is not involved: the wire body is the adapter's job. Standalone `useDraft(spec, src)` is unchanged.
+
+### Caching: `@sleekstack/model/query`
+
+`find` de-dupes only calls in flight; it does not cache. For caching and stale handling, the optional entry `@sleekstack/model/query` exports `queryOf(record)`, which runs the same steps through the Query Client ([ADR 0041, Decision](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0041-records-layer.md#decision)). It is the only entry that needs `@sleekstack/query`, an optional peer; the base entry never loads it.
+
+<include>../../snippets/models/book-query.tsx</include>
+
+- `queryOf(Book).query(id)` reads the entry `['book', id]`, fetching with the adapter's `find` when it is missing or stale. Every read writes the record into the map, a cache hit and a hydrated entry included.
+- `useRecord(Book, id, { via: queryOf(Book) })` fetches through the Query Client, with the same `Result` states as the default.
+- The query function runs with the services of the Query Client Layer, not of the component: give that Layer the app's Store and the adapter Layer, or the read fails with a defect naming the missing Tag.
+- An entry is written into the map only when it is newer than the record's last acknowledged save, so an older cached entry never overwrites a save. After a commit, the saved record is written into the entry.
+
+### Checklist for a new Record Type
+
+1. Write the fields as Effect Schema with a string `id`, bounded where an input feeds them. Add a Transformation only for a wire format Effect Schema does not cover.
+2. Declare the adapter Tag once at module level, with the wire type, the change type and the failure type, and write its Layer: remove the envelope in `find`, shape the body in `save`.
+3. Add `ref` and `refs` fields for relationships, and load their targets where the data arrives.
+4. Read with `useRecord`, edit with `record.useDraft(id)`, and save with `record.commit(id, draft)` in a Form Action.
+5. Provide the Store and the adapter Layer to the app's Layer, and to the Query Client Layer when using `queryOf`.
+6. Test with a fake adapter Layer.
+
 ## Tests
 
 Test a spec with no UI: `fromDto` with a literal `ctx`, `toDto` with its Services provided, and the schema on the seed. The seed test catches the blank-field class of bug that a round trip on good data never reaches: an edit Draft's seed must pass its own schema, and a create Draft's must fail until its required fields are filled.
@@ -130,12 +215,18 @@ Test the hook through a component with `@sleekstack/testing` (see [component tes
 - **`NumberFromString` in the Draft schema, or an unbounded digit check.** The first is a type error; the second turns a long string into `Infinity`.
 - **Re-seeding by hand when the source changes.** `useDraft` re-seeds a pristine Draft and keeps edits; a hand-written reset on every new source discards what the user typed.
 - **A new class instance as `src` on every run.** It re-seeds a pristine Draft on every run. Pass an atom or a stable value.
-- **`useDraft` inside a condition.** It takes a slot: `ConditionalSlot`.
+- **`useDraft`, `useRecord` or `record.useDraft` inside a condition.** Each takes a slot: `ConditionalSlot`.
+- **Editing the record in the map.** Edit its Draft and `commit`; the map holds what the server acknowledged.
+- **Expecting `related` to fetch.** It reads the map; load the targets where the data arrives.
 
 ## Not covered
 
 ADR 0038 leaves these to user code ([Rejected](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0038-model-and-draft.md#rejected)):
 
 - Filters: a URL-to-query round trip has no save boundary and no validation, so it wants its own contract.
-- Relationships between Models.
-- A record cache shared by every component, as EmberData keeps one, and exported `fromDto`/`toDto` helpers, HTTP or query-cache code, coercion helpers and `<input bind>` sugar.
+- Exported `fromDto`/`toDto` helpers, coercion helpers and `<input bind>` sugar.
+
+Records leave these out of v1 ([ADR 0041, Consequences](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0041-records-layer.md#consequences)):
+
+- Inverse sync between relationship sides, optimistic writes to the shared record, partial records and unknown relationship membership, pagination and polymorphism.
+- An HTTP client or a JSON:API format: the Record Adapter is app code.

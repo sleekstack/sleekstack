@@ -1,8 +1,16 @@
 /** @jsxImportSource @sleekstack/ui */
-import { Atom } from '@sleekstack/core'
-import { type DraftSpec, type ModelSpec, useDraft } from '@sleekstack/model'
-import { Effect, Schema } from 'effect'
-import { useAction, useAtomValue, useFormStatus, useSetAtom } from '@sleekstack/ui'
+import { Atom, Result } from '@sleekstack/core'
+import {
+  type DraftSpec,
+  defineRecord,
+  type ModelSpec,
+  type RecordAdapter,
+  ref,
+  useDraft,
+  useRecord,
+} from '@sleekstack/model'
+import { Effect, Layer, Option, Schema } from 'effect'
+import { Provider, useAction, useAtomValue, useFormStatus, useSetAtom } from '@sleekstack/ui'
 import { Viewer } from '../modules/identity'
 
 // The wire: what the read endpoint returns (a country code), and what the write endpoint takes.
@@ -117,9 +125,110 @@ const ProfileEditor = function* () {
   )
 }
 
+// Records: one shared value per type and id in the Store, loaded and saved through an app-written adapter Service.
+type UserWire = { readonly id: string; readonly name: string }
+type PostWire = { readonly id: string; readonly title: string; readonly author: string | null }
+class UserApi extends Effect.Tag('UserApi')<UserApi, RecordAdapter<UserWire, Omit<UserWire, 'id'>>>() {}
+class PostApi extends Effect.Tag('PostApi')<PostApi, RecordAdapter<PostWire>>() {}
+
+const User = defineRecord('user', {
+  fields: { id: Schema.String, name: Schema.String.pipe(Schema.minLength(1, { message: () => 'Enter a name' })) },
+  adapter: UserApi,
+})
+const Post = defineRecord('post', {
+  fields: { id: Schema.String, title: Schema.String, author: ref(() => User) },
+  adapter: PostApi,
+})
+
+/** A fake server for both adapters: an in-memory table per mount, with a round trip on save. */
+const FakeApiLive = Layer.suspend(() => {
+  const users = new Map<string, UserWire>([['u1', { id: 'u1', name: 'Ada Lovelace' }]])
+  const posts = new Map<string, PostWire>([['post1', { id: 'post1', title: 'Notes on the Engine', author: 'u1' }]])
+  const find =
+    <W,>(table: Map<string, W>) =>
+    (id: string) =>
+      Effect.fromNullable(table.get(id)).pipe(Effect.orDieWith(() => `no record ${id}`))
+  return Layer.merge(
+    Layer.succeed(UserApi, {
+      find: find(users),
+      save: (id, change) =>
+        Effect.sleep('100 millis').pipe(
+          Effect.zipRight(find(users)(id)),
+          Effect.map((user) => {
+            const saved = { ...user, ...change }
+            users.set(id, saved)
+            return saved
+          }),
+        ),
+    }),
+    Layer.succeed(PostApi, { find: find(posts), save: () => Effect.dieMessage('posts are read-only here') }),
+  )
+})
+
+/** The post and its author through `related`: it follows the user in the map and never fetches. */
+const PostCard = function* () {
+  const post = yield* useRecord(Post, 'post1')
+  const author = yield* useAtomValue(Post.related('post1', 'author'))
+  const name = Option.flatMap(author, (a) => (a === null ? Option.none() : a.value))
+  if (Result.isInitial(post)) return <p className="post">Loading</p>
+  if (Result.isFailure(post)) return <p className="error">Could not load the post</p>
+  return (
+    <p className="post">
+      {post.value.title}, by {Option.match(name, { onNone: () => 'unknown', onSome: (u) => u.name })}
+    </p>
+  )
+}
+
+/** The user's derived Draft: `commit` saves it through `UserApi` and writes the acknowledged user into the map. */
+const UserEditor = function* () {
+  const draft = yield* User.useDraft('u1')
+  const setName = yield* useSetAtom(draft.field('name'))
+  const [result, save] = yield* useAction(function* () {
+    yield* User.commit('u1', draft)
+  })
+  const { pending } = yield* useFormStatus(result)
+  const errors = yield* useAtomValue(draft.errors)
+  const dirty = yield* useAtomValue(draft.dirty)
+  return (
+    <form className="user-draft" action={save}>
+      <label>
+        Author{' '}
+        <input
+          className="user-name"
+          name="name"
+          value={draft.field('name')}
+          onInput={(e) => setName(e.currentTarget.value)}
+        />
+      </label>
+      {errors.name && <p className="error user-error">{errors.name[0]}</p>}
+      <button type="submit" className="user-save" disabled={pending || !dirty}>
+        {pending ? 'Saving' : 'Save'}
+      </button>
+    </form>
+  )
+}
+
+/** The user, loaded through `UserApi` on first read; the editor shows once it is in the map. */
+const UserCard = function* () {
+  const user = yield* useRecord(User, 'u1')
+  if (Result.isInitial(user)) return <p className="user">Loading</p>
+  if (Result.isFailure(user)) return <p className="error">Could not load the user</p>
+  return (
+    <>
+      <p className="user">User: {user.value.name}</p>
+      <UserEditor />
+    </>
+  )
+}
+
 export const ModelDraftDemo = () => (
   <section className="demo model">
     <h2>Model and Draft</h2>
     <ProfileEditor />
+    <h3>Records</h3>
+    <Provider layer={FakeApiLive}>
+      <PostCard />
+      <UserCard />
+    </Provider>
   </section>
 )
