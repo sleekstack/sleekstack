@@ -26,24 +26,30 @@ const Post = defineRecord('post', {
   fields: { id: Schema.String, title: Schema.String, likes: Schema.NumberFromString },
   adapter: PostApi,
 })
+// Another record type over the same adapter, with ids shared with Post.
+const Page = defineRecord('page', {
+  fields: { id: Schema.String, title: Schema.String, likes: Schema.NumberFromString },
+  adapter: PostApi,
+})
 const post = (title: string): PostWire => ({ id: '1', title, likes: '2' })
 const record = (title: string) => ({ id: '1', title, likes: 2 })
 
 /** An adapter whose `find` waits until the test answers it; `save` echoes the change as the saved record. */
 const gated = () => {
   const calls: Array<Deferred.Deferred<PostWire, NotFound>> = []
+  const interrupted: Array<number> = []
   const layer = Layer.succeed(PostApi, {
     find: () =>
       Effect.suspend(() => {
         const reply = Deferred.unsafeMake<PostWire, NotFound>(FiberId.none)
-        calls.push(reply)
-        return Deferred.await(reply)
+        const i = calls.push(reply) - 1
+        return Effect.onInterrupt(Deferred.await(reply), () => Effect.sync(() => void interrupted.push(i)))
       }),
     save: (id, change) => Effect.succeed({ id, ...(change as Omit<PostWire, 'id'>) }),
   })
   const answer = (i: number, wire: PostWire) => Effect.runSync(Deferred.succeed(calls[i]!, wire))
   const fail = (i: number) => Effect.runSync(Deferred.fail(calls[i]!, new NotFound({ id: '1' })))
-  return { calls, layer, answer, fail }
+  return { calls, interrupted, layer, answer, fail }
 }
 
 const config = { defaultOptions: { queries: { staleTime: Infinity } } }
@@ -131,13 +137,45 @@ describe('queryOf(record).query', () => {
 
   it('after a read, a committed save writes its acknowledged wire into the query entry', async () => {
     const { store, api, rt, client } = await setup()
+    // A record of another type with the same id, read first, does not stand in for this one.
+    const page = rt.runPromise(queryOf(Page).query('1'))
+    await tick()
+    api.answer(0, post('page'))
+    await page
+    const read = rt.runPromise(queryOf(Post).query('1'))
+    await tick()
+    api.answer(1, post('a'))
+    await read
+    await commit(rt, store)('saved')
+    expect(client.getQueryData(['post', '1'])).toEqual(post('saved'))
+    expect(client.getQueryState(['post', '1'])?.dataUpdatedAt).toBe(ackedAt(store))
+  })
+
+  it('an evicted record whose entry is its last save is fetched again', async () => {
+    const { store, api, rt } = await setup()
     const read = rt.runPromise(queryOf(Post).query('1'))
     await tick()
     api.answer(0, post('a'))
     await read
     await commit(rt, store)('saved')
-    expect(client.getQueryData(['post', '1'])).toEqual(post('saved'))
-    expect(client.getQueryState(['post', '1'])?.dataUpdatedAt).toBe(ackedAt(store))
+    await rt.runPromise(Post.evict('1'))
+    const again = rt.runPromise(queryOf(Post).query('1'))
+    await tick()
+    expect(api.calls.length).toBe(2)
+    api.answer(1, post('fresh'))
+    expect(await again).toEqual(record('fresh'))
+    expect(store.get(Post.atom('1'))).toEqual(Option.some(record('fresh')))
+  })
+
+  it('an entry holding another id is a ParseError and fills no slot', async () => {
+    const { store, rt, client } = await setup()
+    client.setQueryData(['post', '2'], post('one'))
+    const exit = await rt.runPromiseExit(queryOf(Post).query('2'))
+    expect(Exit.isFailure(exit) && Option.getOrUndefined(Cause.failureOption(exit.cause))).toMatchObject({
+      _tag: 'ParseError',
+    })
+    expect(store.get(Post.atom('2'))).toEqual(Option.none())
+    expect(store.get(Post.atom('1'))).toEqual(Option.none())
   })
 
   it.each<[string, (s: AtomStore, api: Layer.Layer<PostApi>) => Layer.Layer<QueryClientTag, unknown>]>([
@@ -196,8 +234,8 @@ describe('useRecord via queryOf', () => {
         void mounts.push(await mount(jsx(Switch, {}), { layer: clientLayer(store, api.layer), container, store })),
     )
     const entry = () => box.client!.getQueryCache().find({ queryKey: ['post', '1'], exact: true })!
-    const hide = () => act(async () => store.set(show, false))
-    return { api, container, entry, hide, last: () => results[results.length - 1]! }
+    const toggle = (on: boolean) => act(async () => store.set(show, on))
+    return { api, container, entry, toggle, last: () => results[results.length - 1]! }
   }
 
   it('waits, then succeeds with the map value, fetching through the Query Client and never through useQuery', async () => {
@@ -220,12 +258,17 @@ describe('useRecord via queryOf', () => {
     expect(Result.isFailure(r) && Cause.failureOption(r.cause)).toEqual(Option.some(new NotFound({ id: '1' })))
   })
 
-  it('unmounting during the fetch cancels the query, aborting its signal', async () => {
-    const { entry, hide } = await view()
-    expect(entry().state.fetchStatus).toBe('fetching')
-    await hide()
-    await flush()
-    expect(entry().state.fetchStatus).toBe('idle')
+  it('unmounting during the fetch cancels the query and interrupts the adapter call, every time', async () => {
+    const { api, entry, toggle } = await view()
+    for (const i of [0, 1]) {
+      if (i > 0) await toggle(true)
+      expect(entry().state.fetchStatus).toBe('fetching')
+      expect(api.calls.length).toBe(i + 1)
+      await toggle(false)
+      await flush()
+      expect(entry().state.fetchStatus).toBe('idle')
+      expect(api.interrupted).toEqual(i === 0 ? [0] : [0, 1])
+    }
     expect(entry().state.data).toBeUndefined()
   })
 })
