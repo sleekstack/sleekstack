@@ -32,9 +32,16 @@ Point every consumer at the new package and record the move: showcase page and t
 - [ ] `pnpm turbo run test typecheck --filter=showcase --filter=docs` and the root `pnpm test` are green
 
 ## Done summary
-TBD
+Showcase (model page, size entry, architecture/fixtures tests) and the docs Models guide and snippets now import from `@sleekstack/model`, which both apps depend on. The size test aliases model source, adds a `mount with a Draft` entry (220,001 B gzip, limit 231,000), checks that a mount-only bundle has no Draft code (shown red when the entry re-exported useDraft), and caps ui's entries at their sizes measured on master before the move (mount 198,667 -> 198,602; hydrate 220,221 -> 220,145; lazy 201,154 -> 201,083 B gzip). ADR 0040 records the move and the `ui/internal` slot-hook extension point; ADR 0038 status and the ADR index point to it, and the ADR 0022 table is remeasured. CONTEXT (Model, Draft Spec, Draft), the AGENTS.md verify table (model row) and the showcase README name the package. The core and ui READMEs had already been updated in .2.
 
+Follow-up (outside Touches, not edited): root `README.md:71` still says ui has "forms and Drafts" and has no `@sleekstack/model` row (two Codex draws flagged it; dropped from the merge as out of Touches). Also outside Touches: `apps/docs/content/docs/ui.mdx:35` and `errors.mdx:48` list `useDraft` among slot hooks without naming its package. They are still accurate.
+
+baseline: red (pnpm turbo run test typecheck --filter=showcase --filter=docs; showcase typecheck failed on old core/ui imports, inherited from .2 and fixed here)
+Verify: pnpm turbo run test typecheck --filter=showcase --filter=docs green (11/11); root pnpm test green (26/26); pnpm-lock.yaml has no apps/sleek-codes entries; apps/bench/src/scenarios.ts untouched.
+
+Tier: implementer opus at medium
+stage: impl-review - ran (codex fan-out --base master: 3 draws NEEDS_WORK; kept size no-growth bound (fixed in 9837c9e), dropped ADR 0022 figures (reviewer sandbox build differs; table is from the test's own output) and root README (outside Touches); single re-review SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 371e16fb72ef19119fc748ca8d38214b9b7ea8e1, 9837c9ea08d29e25ac77c5619e85e2cec4aecf99
+- Tests: pnpm turbo run test typecheck --filter=showcase --filter=docs, pnpm test
 - PRs:
