@@ -14,7 +14,9 @@ Extend the showcase Model/Draft demo with a record, a relationship and a commit 
 - Reuse the existing demo structure in `apps/showcase/src/pages/model.tsx`; add a `Post` and `User` record with an in-memory adapter Layer, show `related`, and a form that edits through the derived Draft and `commit`.
 - Keep the demo test free of build artifacts (memory: showcase tests must not read gitignored build files).
 
-### Investigation targets
+#- From task 8: the docs snippets in `apps/docs/snippets/models/` (`records.ts`, `book-page.tsx`, `book-query.tsx`) show the shipped record API in use; match that style. The showcase architecture and fixtures tests require every file under `src/` to be registered (task 7 added the `size/records` rule), so register any new showcase file the same way.
+
+## Investigation targets
 **Required**:
 - `apps/showcase/src/pages/model.tsx` - current demo
 - `apps/showcase/test/` - existing demo test pattern

@@ -40,6 +40,7 @@ Deviation: the guide test forbids inline code fences and requires every snippet 
 Tests: `pnpm turbo run test typecheck --filter=docs` green (guide snippets compile, every snippet included). `node scripts/check-links.mjs` ok. The spec Quick command is green (receipt 1ef45f63).
 
 stage: impl-review - ran (codex gpt-6.1-sol fan-out, all three draws SHIP, no findings)
+stage: plan-sync - skipped(no drift)
 Baseline: green via handoff (verified at 4d20a1a by task 7; only .flow/ changed since).
 Tier: explicit routing from project CLAUDE.md (implementer: opus at medium)
 ## Evidence
