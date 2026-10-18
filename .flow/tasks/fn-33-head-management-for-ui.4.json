@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-18T15:40:33.197179Z",
+  "depends_on": [
+    "fn-33-head-management-for-ui.3"
+  ],
+  "id": "fn-33-head-management-for-ui.4",
+  "priority": null,
+  "spec": "fn-33-head-management-for-ui",
+  "spec_path": ".flow/tasks/fn-33-head-management-for-ui.4.md",
+  "status": "todo",
+  "title": "Hydration adopts server head tags, docs",
+  "updated_at": "2026-10-18T15:40:33.197179Z"
+}
