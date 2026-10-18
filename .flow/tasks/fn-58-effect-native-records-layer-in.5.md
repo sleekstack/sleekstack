@@ -41,9 +41,28 @@ Write path: `commit` and a Draft derived from the record, with `useDraft(spec, s
 - [ ] Tests: `packages/model/src/__tests__/commit.test.ts` and the analyzer slot-hook test
 
 ## Done summary
-TBD
+Added `record.commit(id, draft)` and `record.useDraft(id)` in packages/model/src/commit.ts and record.ts. `commit` runs the Draft's `toDto()`, which decodes the input (a transformed field's `to` checks it before `serialize`) and encodes it to a change. It then calls the adapter's `save`, hydrates the response and writes it into the slot with `ackedAt = stamp()`. The save is forked into a per-Store scope. A second commit of one record fails with `SaveInFlight`. A response that does not hydrate, or that is another record, fails with `SaveResponseError`. Any failure leaves the map and the Draft unchanged.
 
+`record.useDraft(id)` delegates to `useDraft` with a derived spec. The Draft holds every field except `id` in input form: a date as its string, a `field(...)` as `to`'s Encoded. A missing record is seeded from `defaultValue`. The spec carries the internal `FOLLOWS` mark from draft.ts, so an edited Draft moves its seed to the new record and keeps its edits. Standalone `useDraft` is unchanged.
+
+The analyzer checks `model/record#useDraft`. The ui-slots fixture has a good call and a conditional call. slotHooks.test.ts has a case that requires every `use*` method of `RecordDefinition` to be checked. Tests in packages/model/src/__tests__/commit.test.ts cover one AC each:
+- save writes the acknowledged record
+- save failure, unreadable response or another record: map and Draft unchanged
+- oversized input: ParseError before `serialize`
+- `SaveInFlight`
+- derived Draft input forms, date string and create-form defaults
+- the A, submit B, edit C, ack B sequence
+
+Each was checked to fail first: the FOLLOWS rule, the in-flight guard and the analyzer line.
+
+Deviation: packages/model/src/transformation.ts is outside Touches but changed (type only). `TransformedField` is now an interface carrying `readonly to: To` (true at runtime), so `RecordInput` can type a transformed field's Draft as `Encoded<To>`. All three reviewers flagged the guessed type without it. `record.useDraft` is typed `never` for fields whose Schemas need a Service, because Draft seeding is synchronous. Not done: writing the acknowledged wire into the query entry (task 6 binding). The ack is one direct slot update, not `ingest()`, because an ack always wins.
+
+New public names for task 7: `SaveInFlight`, `SaveResponseError`, `SaveError`, `RecordDraft`, `RecordInput`, `RecordChange`.
+
+Baseline: green via handoff (verified at dda089c by task 4; only .flow/ changed since). Post-edit gate green.
+stage: impl-review - ran (codex gpt-6.1-sol fan-out NEEDS_WORK: Draft input type of a transformed field, response id not checked, seeding without Services; fixed; re-review SHIP)
+Tier: explicit routing from project CLAUDE.md (implementer: opus at medium)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: dec4ab79e3a15dde3e66f8035b9ea26f14979030, bc1dd39b98d372ebe98cf92a7c9082d9e95e31aa
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/model... --filter=@sleekstack/analyze
 - PRs:
