@@ -33,7 +33,13 @@ const gated = () => {
       Effect.suspend(() => {
         const call = { id, reply: Deferred.unsafeMake<PostWire, NotFound>(FiberId.none), interrupted: false }
         calls.push(call)
-        return Effect.onInterrupt(Deferred.await(call.reply), () => Effect.sync(() => void (call.interrupted = true)))
+        return Effect.onInterrupt(Deferred.await(call.reply), () =>
+          // Asynchronous cleanup: `dispose` must wait for it.
+          Effect.delay(
+            Effect.sync(() => void (call.interrupted = true)),
+            '10 millis',
+          ),
+        )
       }),
     save: () => Effect.die('unused'),
   })
@@ -177,5 +183,23 @@ describe('useRecord', () => {
     expect(container.textContent).toBe('Failure')
     const r = last()
     expect(Result.isFailure(r) && Cause.failureOption(r.cause)).toEqual(Option.some(new NotFound({ id: '2' })))
+  })
+
+  it('a synchronous fetch strategy that fills the map is a success', async () => {
+    const shown: Array<Result.Result<{ readonly id: string }, unknown>> = []
+    const View = function* () {
+      const r = yield* useRecord(Note, 'n', { via: { fetch: (id) => Note.push({ id }) } })
+      shown.push(r)
+      return jsx('p', { children: r._tag })
+    }
+    const container = document.createElement('div')
+    document.body.append(container)
+    await act(
+      async () =>
+        void mounts.push(await mount(jsx(View, {}), { layer: Layer.empty, container, store: makeAtomStore() })),
+    )
+    // Every run, the first included, sees the record the fetch wrote.
+    expect(shown.length).toBeGreaterThan(0)
+    expect(shown.every((r) => Result.isSuccess(r) && r.value.id === 'n')).toBe(true)
   })
 })

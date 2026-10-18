@@ -1,7 +1,7 @@
 import { Atom, type AtomStore, Result } from '@sleekstack/core'
 import { SlotMismatch, useAtomValue } from '@sleekstack/ui'
 import { Collector, Frame, missingStore, Store, takeSlot } from '@sleekstack/ui/internal'
-import { Cause, Context, Deferred, Effect, Exit, FiberId, Option, type ParseResult, type Schema, Scope } from 'effect'
+import { Cause, Context, Deferred, Effect, FiberId, Option, type ParseResult, type Schema, Scope } from 'effect'
 import { slotOf } from './registry'
 
 let last = 0
@@ -37,19 +37,14 @@ export type AdapterTag<W = any> = Context.Tag<any, RecordAdapter<W>>
 /** The failure of the adapter's `find`. */
 export type FindError<Ad extends AdapterTag> = Effect.Effect.Error<ReturnType<Context.Tag.Service<Ad>['find']>>
 
-// One per Store: the in-flight `find` of each type and id, and a scope owning their fibers, closed when the Store is
-// disposed. A finished call leaves the map, so a failure is not reused.
+// One per Store: the in-flight `find` of each type and id, and a scope owning their fibers. The scope is the build scope
+// of an Effect atom, so `dispose` closes it and waits for the interrupted calls' cleanup. A finished call leaves the map,
+// so a failure is not reused.
 interface InFlight {
   readonly calls: Map<string, Deferred.Deferred<any, any>>
-  readonly scope: Scope.CloseableScope
+  readonly scope: Scope.Scope
 }
-const inFlight = Atom.keepAlive(
-  Atom.make((get): InFlight => {
-    const scope = Effect.runSync(Scope.make())
-    get.addFinalizer(() => void Effect.runFork(Scope.close(scope, Exit.void)))
-    return { calls: new Map(), scope }
-  }),
-)
+const inFlight = Atom.keepAlive(Atom.make(Effect.map(Effect.scope, (scope): InFlight => ({ calls: new Map(), scope }))))
 
 /**
  * The `find` of record type `type`: the adapter's `find`, then `decode`, then a write into the map unless a save was
@@ -64,7 +59,10 @@ export const findOf =
   ) =>
   (id: string): Effect.Effect<A, E | ParseResult.ParseError, R | Store> =>
     Effect.flatMap(Store, (s) => {
-      const own = s.get(inFlight)
+      const built = s.get(inFlight)
+      // The build is synchronous; only an inert Store (server rendering) leaves it unbuilt.
+      if (!Result.isSuccess(built)) return Effect.dieMessage(`find('${id}') of '${type}' needs a live Store`)
+      const own = built.value
       const key = JSON.stringify([type, id])
       const running = own.calls.get(key)
       if (running) return Deferred.await(running)
@@ -182,7 +180,8 @@ export function useRecord(
       // Fetch only for an empty slot; once fetched, keep reading it so a refetch shows as `waiting`.
       if (Option.isSome(value) && !fetch.read) return Effect.succeed(resultOf(value, undefined, what))
       fetch.read = true
-      return Effect.map(useAtomValue(fetch.atom), (fetched) => resultOf(value, fetched, what))
+      // A synchronous fetch fills the map while it is read: read the map again after it.
+      return Effect.map(useAtomValue(fetch.atom), (fetched) => resultOf(s.get(record.atom(id)), fetched, what))
     })
   })
 }
