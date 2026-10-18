@@ -11,7 +11,7 @@
   ],
   "id": "fn-31-hmr-that-keeps-component-state",
   "impl_review_rounds": {
-    "fn-31-hmr-that-keeps-component-state.1": 1
+    "fn-31-hmr-that-keeps-component-state.1": 0
   },
   "next_task": 1,
   "plan_review_rounds": 0,
@@ -77,9 +77,71 @@
       "task": "fn-31-hmr-that-keeps-component-state.1",
       "timestamp": "2026-10-18T15:57:52.483565Z",
       "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "a7ad60efe80a512b7c92637e2e8d7a964f9640eab681cdbe6795b55b8604d171",
+      "backend": "codex",
+      "base_sha": "17e76029753680606814c35927860aafa0eadfa8",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-ff47e120f68159d9a8ea5464f4082851",
+            "classification": "introduced",
+            "findingId": "finding-ff47e120f68159d9a8ea5464f4082851",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-c54f743b98468e2892933240cc985894",
+            "classification": "introduced",
+            "findingId": "finding-c54f743b98468e2892933240cc985894",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-bf497faaef4a7f95e8906b77205b986b",
+            "classification": "introduced",
+            "findingId": "finding-bf497faaef4a7f95e8906b77205b986b",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "def5fd5781cd29cc41321ada1f0434dcb4578b0f",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-6.1-sol",
+      "outcome": "verdict",
+      "output_bytes": 865,
+      "output_sha256": "9ef932ac961734b155658d049145f0f61a9cdbe6316075957da3bd617ec181cd",
+      "reservation_id": "28c2100a828445c6ae02e4872b886f53",
+      "round_consumed": true,
+      "scope": "impl:fn-31-hmr-that-keeps-component-state.1",
+      "superseded_by": null,
+      "task": "fn-31-hmr-that-keeps-component-state.1",
+      "timestamp": "2026-10-18T16:00:30.047657Z",
+      "verdict": "SHIP"
     }
   ],
-  "review_hash_epoch": {},
+  "review_hash_epoch": {
+    "impl:fn-31-hmr-that-keeps-component-state.1": 1
+  },
   "review_pending_rounds": {},
   "review_reservations": {},
   "review_transport_failures": {
@@ -99,5 +161,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-18T15:57:52.485842Z"
+  "updated_at": "2026-10-18T16:00:30.050677Z"
 }
