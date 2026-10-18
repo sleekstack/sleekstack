@@ -1,7 +1,7 @@
 ## Conversation Evidence
 
 - [user] "move Model and Draft out of core into it's own package"
-- [user] scope: "Types and useDraft together" (ModelSpec, DraftSpec, useDraft, Draft and field() all move)
+- [user] scope: "Types and useDraft together" (ModelSpec, DraftSpec, useDraft and Draft with its field() method all move)
 - [user] name: "@sleekstack/model"
 - [user] timing: "Spec now, run after fn-53 merges"
 
@@ -21,7 +21,7 @@ Model and Draft (ADR 0038) are an optional feature, but their types live in `@sl
 ## API Contracts
 <!-- scope: technical -->
 
-- Public names are unchanged (`ModelSpec`, `DraftSpec`, `Draft`, `useDraft`, `field`) and are exported from `@sleekstack/model`; none remain in `@sleekstack/core` or `@sleekstack/ui`. No re-export or alias from the old locations (ADR 0019: one public name, one meaning). [paraphrase]
+- Public names are unchanged (`ModelSpec`, `DraftSpec`, `Draft`, `useDraft`; `field(name)` is a method of `Draft`, not a separate export, and moves with it) and are exported from `@sleekstack/model`; none remain in `@sleekstack/core` or `@sleekstack/ui`. No re-export or alias from the old locations (ADR 0019: one public name, one meaning). [paraphrase]
 - The `ui/internal` extension point is documented as unstable, like the rest of that entry. [inferred]
 
 ## Edge Cases & Constraints
@@ -34,7 +34,7 @@ Model and Draft (ADR 0038) are an optional feature, but their types live in `@sl
 ## Acceptance Criteria
 <!-- scope: both -->
 
-- **R1:** `@sleekstack/model` exports the Model Spec and Draft Spec types, `useDraft`, `Draft` and `field`, and `@sleekstack/core` and `@sleekstack/ui` export none of them. Errors: importing the old names from core or ui is a compile error; the exports-name test (ADR 0019) passes. [paraphrase]
+- **R1:** `@sleekstack/model` exports the Model Spec and Draft Spec types, `useDraft` and `Draft` (including its `field(name)` method; master never exported a standalone `field`), and `@sleekstack/core` and `@sleekstack/ui` export none of them. Errors: importing the old names from core or ui is a compile error; the exports-name test (ADR 0019) passes. [paraphrase]
 - **R2:** Behavior and types are unchanged: the Draft runtime and type tests move with the code and pass with identical assertions, and the showcase Model/Draft demo and its test pass with only imports changed. Errors: no error surface beyond R1 and the existing assertions. [paraphrase]
 - **R3:** `ui/internal` offers the slot-hook extension point that `useDraft` needs, and `ui` has no dependency on `model`. Errors: using the extension point outside a component run fails with the same error as `ui`'s own hooks. [inferred]
 - **R4:** `sleekstack check` still reports a conditionally called `useDraft` (and a missing store) exactly as before, with the hook now defined in `@sleekstack/model`; the analyzer/ui sync test covers external slot hooks. Errors: an unrecognized external hook is not reported as a slot hook; a fixture proves both cases. [inferred]
@@ -61,3 +61,27 @@ Optional features belong in opt-in packages so the base packages stay small and 
 <!-- scope: technical -->
 
 A package that defines a slot hook needs access to ui's slot machinery. Rejected: keeping `useDraft` in `ui` with only the types moved (the user chose to move both); rebuilding `useDraft` on ui's public hooks only (risks the pristine re-seed and render-time input write behavior ADR 0038 pins). Chosen: a narrow extension point in `ui/internal`, the same route `query/ui` already uses for `Collector` and `RenderScope`. [paraphrase]
+
+
+## Quick commands
+
+```bash
+pnpm turbo run test typecheck --filter=@sleekstack/model... --filter=@sleekstack/ui... --filter=@sleekstack/analyze --filter=sleekstack --filter=showcase --filter=docs
+```
+
+## Early proof point
+
+Task fn-56-model-and-draft-move-to-sleekstackmodel.1 validates the approach (a package outside ui can take slots through `ui/internal` with no behavior change). If it fails, re-evaluate keeping `useDraft` in ui with only the types moved before continuing with .2+.
+
+
+## Requirement coverage
+
+| Req | Description | Task(s) | Gap justification |
+| --- | --- | --- | --- |
+| R1 | `@sleekstack/model` exports the Model Spec and Draft Spec types, `useDraft` and `Draft` (including its `field(name)` method; master never exported a standalone `field`), and `@sleekstack/core` and `@sleekstack/ui` export none of them. Errors: importing the old names from core or ui is a compile error; the exports-name test (ADR 0019) passes. | fn-56-model-and-draft-move-to-sleekstackmodel.2 | — |
+| R2 | Behavior and types are unchanged: the Draft runtime and type tests move with the code and pass with identical assertions, and the showcase Model/Draft demo and its test pass with only imports changed. Errors: no error surface beyond R1 and the existing assertions. | fn-56-model-and-draft-move-to-sleekstackmodel.2 | — |
+| R3 | `ui/internal` offers the slot-hook extension point that `useDraft` needs, and `ui` has no dependency on `model`. Errors: using the extension point outside a component run fails with the same error as `ui`'s own hooks. | fn-56-model-and-draft-move-to-sleekstackmodel.1 | — |
+| R4 | `sleekstack check` still reports a conditionally called `useDraft` (and a missing store) exactly as before, with the hook now defined in `@sleekstack/model`; the analyzer/ui sync test covers external slot hooks. Errors: an unrecognized external hook is not reported as a slot hook; a fixture proves both cases. | fn-56-model-and-draft-move-to-sleekstackmodel.3 | — |
+| R5 | The size budget test shows `ui`'s entry smaller or equal and `model` measured separately. Errors: no error surface beyond the budget check. | fn-56-model-and-draft-move-to-sleekstackmodel.4 | — |
+| R6 | Docs and records match: the Models guide and its snippets import from `@sleekstack/model`, CONTEXT.md and READMEs name the new package, AGENTS.md has a verify row for it, ADR 0038 is amended by a new ADR recording the move and the extension point, and the docs site typechecks. Errors: no error surface beyond the typecheck. | fn-56-model-and-draft-move-to-sleekstackmodel.4 | — |
+

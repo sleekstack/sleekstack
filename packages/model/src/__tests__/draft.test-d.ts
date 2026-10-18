@@ -1,7 +1,8 @@
-import type { Atom, DraftSpec, Result } from '@sleekstack/core'
+import type { Atom, Result } from '@sleekstack/core'
 import { Context, Data, Effect, type ParseResult, Schema } from 'effect'
 import { expectTypeOf } from 'vitest'
-import { type BoundAction, type Store, useAction, useDraft } from '../index'
+import { type BoundAction, type Store, useAction } from '@sleekstack/ui'
+import { type DraftSpec, useDraft } from '../index'
 
 type Model = { readonly name: string; readonly age: number }
 type Form = { readonly name: string; readonly age: string }

@@ -14,7 +14,7 @@ import { expect, it } from 'vitest'
 //   app, main         composition roots for the UI
 //   devtools          dev-only React root for the `@sleekstack/devtools` ui panel, loaded by main
 //   resume/*          the resumable counter and its form: no React, no components, no domain
-//   size/*            size-budget entries: built `@sleekstack/ui` output only
+//   size/*            size-budget entries: built `@sleekstack/ui` (and `@sleekstack/model`) output only
 // Modules reach each other only through `index`, and only along MODULE_DEPS (no cycles).
 const MODULE_DEPS: Record<string, ReadonlyArray<string>> = { identity: [], projects: [], tasks: ['identity'] }
 
@@ -48,7 +48,14 @@ const ruleOf = (mod: string): Rule | undefined => {
   if (mod.startsWith('pages/'))
     return {
       local: ['pages/'],
-      packages: ['effect', '@sleekstack/core', '@sleekstack/router', '@sleekstack/start/client', UI],
+      packages: [
+        'effect',
+        '@sleekstack/core',
+        '@sleekstack/model',
+        '@sleekstack/router',
+        '@sleekstack/start/client',
+        UI,
+      ],
     }
   const exact: Record<string, Rule> = {
     layers: { local: [], packages: ['effect', '@sleekstack/query/ui'] },
@@ -59,6 +66,7 @@ const ruleOf = (mod: string): Rule | undefined => {
     'size/hydrate': { local: [], packages: ['@sleekstack/core', UI, 'effect'] },
     'size/lazy': { local: ['size/heavy'], packages: [UI, 'effect'] },
     'size/heavy': { local: [], packages: [] },
+    'size/model': { local: [], packages: ['@sleekstack/model', UI, 'effect'] },
     'resume/count': { local: [], packages: ['@sleekstack/core', 'effect'] },
     'resume/increment': { local: ['resume/count'], packages: [UI, 'effect'] },
     'resume/set': { local: ['resume/count'], packages: [UI, 'effect'] },

@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-17T12:15:23.611043Z",
+  "depends_on": [
+    "fn-56-model-and-draft-move-to-sleekstackmodel.1"
+  ],
+  "id": "fn-56-model-and-draft-move-to-sleekstackmodel.2",
+  "priority": null,
+  "spec": "fn-56-model-and-draft-move-to-sleekstackmodel",
+  "spec_path": ".flow/tasks/fn-56-model-and-draft-move-to-sleekstackmodel.2.md",
+  "status": "done",
+  "title": "model: new package with the Model/Draft types, useDraft and tests",
+  "updated_at": "2026-10-17T12:15:23.611043Z"
+}

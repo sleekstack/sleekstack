@@ -13,6 +13,7 @@
   "dependencies": {
     "@sleekstack/core": "workspace:*",
     "@sleekstack/devtools": "workspace:*",
+    "@sleekstack/model": "workspace:*",
     "@sleekstack/query": "workspace:*",
     "@sleekstack/router": "workspace:*",
     "@sleekstack/start": "workspace:*",

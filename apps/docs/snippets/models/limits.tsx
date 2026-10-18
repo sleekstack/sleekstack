@@ -1,7 +1,7 @@
 /** @jsxImportSource @sleekstack/ui */
-import type { DraftSpec } from '@sleekstack/core'
+import { type DraftSpec, useDraft } from '@sleekstack/model'
 import { Effect, Schema } from 'effect'
-import { useAtomValue, useDraft, useSetAtom } from '@sleekstack/ui'
+import { useAtomValue, useSetAtom } from '@sleekstack/ui'
 
 // A create form: no source, so `create` takes nothing and the call still passes `undefined`.
 type TagForm = { readonly name: string }
