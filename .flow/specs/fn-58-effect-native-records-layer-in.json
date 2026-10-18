@@ -1,0 +1,24 @@
+{
+  "branch_name": "fn-records-layer",
+  "created_at": "2026-10-18T09:59:17.290211Z",
+  "depends_on_epics": [],
+  "id": "fn-58-effect-native-records-layer-in",
+  "next_task": 1,
+  "plan_review_status": "unknown",
+  "plan_reviewed_at": null,
+  "spec_path": ".flow/specs/fn-58-effect-native-records-layer-in.md",
+  "status": "open",
+  "title": "Effect-native records layer in @sleekstack/model",
+  "tracker": {
+    "baseHashFlow": null,
+    "baseHashTracker": null,
+    "depRelations": [],
+    "id": null,
+    "identifier": null,
+    "lastSyncedAt": null,
+    "mergeBaseFlow": null,
+    "mergeBaseTracker": null,
+    "url": null
+  },
+  "updated_at": "2026-10-18T10:25:00.126891Z"
+}
