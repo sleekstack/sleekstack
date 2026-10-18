@@ -31,9 +31,15 @@ Add an explicit hot-update mode to the ui renderer so a swapped component functi
 - [ ] `pnpm turbo run test typecheck --filter=@sleekstack/ui...` passes
 
 ## Done summary
-TBD
+Added `acceptUpdate(id, fn)` (exported from `@sleekstack/ui/internal`). It gives a component a stable id, so instance ids and frame ordinals survive a module re-evaluation. A later call swaps the function and re-runs live instances through a per-id version atom, and their `useLocal` slots and input focus stay intact. An update stays on trial until the next one. If a run of it fails, every instance goes back to the last function that ran successfully, and the error goes to `onError`. Without a registered id, behavior does not change. Live stores are counted per instance, so disposed mounts stop getting updates.
 
+Tests: packages/ui/src/__tests__/hmr.test.ts covers state and focus kept across a swap, a re-evaluated parent reference, the R1 error case (a throwing update keeps the previous function and reports), revert across several instances and overlapping updates, and disposed mounts. Mutation-checked: each test fails when its logic is removed.
+
+Quick command note: the spec's `--filter=@sleekstack/ui-vite...` targets a package that doesn't exist yet (fn-29). Only the `@sleekstack/ui...` part was run.
+
+stage: impl-review - ran (codex fan-out NEEDS_WORK with 3 findings, all fixed in def5fd5, re-review SHIP)
+Tier: implementer opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: ed1e0a2c7780e8284b6922347210a52553ee4a69, def5fd5781cd29cc41321ada1f0434dcb4578b0f, 31511cdbd5d38bafa6a41ca37a8af0f065cd2224
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/ui..., baseline: green
 - PRs:
