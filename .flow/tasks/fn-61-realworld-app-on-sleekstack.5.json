@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-18T15:48:45.465027Z",
+  "depends_on": [
+    "fn-61-realworld-app-on-sleekstack.3"
+  ],
+  "id": "fn-61-realworld-app-on-sleekstack.5",
+  "priority": null,
+  "spec": "fn-61-realworld-app-on-sleekstack",
+  "spec_path": ".flow/tasks/fn-61-realworld-app-on-sleekstack.5.md",
+  "status": "todo",
+  "title": "REST /api facade with in-process contract tests",
+  "updated_at": "2026-10-18T15:48:45.465027Z"
+}
