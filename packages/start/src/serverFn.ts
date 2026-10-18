@@ -37,12 +37,21 @@ type Requirements<Eff> = [Eff] extends [never]
  *
  * @example
  * ```ts
- * const rename = serverFn('profile.rename', {
+ * import { serverFn } from '@sleekstack/start'
+ * import { Effect, Schema } from 'effect'
+ *
+ * class NameTaken extends Schema.TaggedError<NameTaken>()('NameTaken', { name: Schema.String }) {}
+ * class Profiles extends Effect.Service<Profiles>()('Profiles', {
+ *   succeed: { rename: (name: string) => Effect.succeed({ name }) },
+ * }) {}
+ *
+ * export const rename = serverFn('profile.rename', {
  *   input: Schema.Struct({ name: Schema.NonEmptyString }),
  *   success: Schema.Struct({ name: Schema.String }),
  *   error: NameTaken,
  * })(function* ({ name }) {
- *   return yield* Profiles.rename(name)
+ *   const profiles = yield* Profiles
+ *   return yield* profiles.rename(name)
  * })
  * ```
  */

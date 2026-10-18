@@ -1,22 +1,27 @@
 ---
 title: Queries on the server
-description: Prefetch queries on the server and hydrate them on the client.
+description: Render queries on the server and hydrate them on the client.
 ---
 
-Prefetch on the server with `prefetchQueries`, then hand TanStack's dehydrated state to `HydrationBoundary`. The client's first render reads that data and does not fetch again until it is stale.
+`renderToString` and `renderToStream` from `@sleekstack/ui` write the query cache into the page, and `hydrateMount` seeds the client's `QueryClient` from it. The client's first render reads that data and does not fetch again until it is stale.
 
 <include>../../snippets/queries-ssr.tsx</include>
 
 ## The parts
 
-- `prefetchQueries(queries, options?)` is in `@sleekstack/next`. It runs through `runEffect` (options: `request` and `overrides` Layers, as for `runEffect`), prefetches each `queryOptions` on the scope's `QueryClient` and returns `dehydrate(client)`. The run must provide `QueryClientTag`, usually by merging `QueryClientLive()` into `request`, so every request gets a fresh client.
-- `HydrationBoundary` is TanStack's, from `@tanstack/react-query`. It needs a `QueryProvider` (or any `QueryClientProvider`) above it.
-- An `effectFn` query prefetched this way sees the request scope's services, including `request` and `overrides`.
+- `UiQueryClientLive()` is `QueryClientLive()` plus the `Transfer` that carries the cache. A layer without it renders and hydrates without query state.
+- `useSuspenseQuery` waits on the query inside `<Pending fallback>`; under `renderToString` it fetches and is awaited, with no fallback and no timeout.
+- An `effectFn` query sees the services of the layer that built the client.
+- A query skips the refetch on hydrate only when its `staleTime` is above 0.
 
-## Queries that were not prefetched
+## Queries that were not fetched
 
-TanStack does not fetch during a server render: an un-prefetched `useQuery` renders `pending` on the server and fetches on the client. **Prefetch anything the first paint needs.**
+Under `renderToString`, `useQuery` does not subscribe or fetch: a query already in the cache renders its data, any other renders `pending` and fetches on the client. **Use `useSuspenseQuery` for anything the first paint needs.**
 
 ## Mutations in a server render
 
-TanStack's `useMutation` is idle on the server. `@sleekstack/ui`'s `useMutation` is also idle under `renderToString`, and its `useQuery` renders cached data without fetching. Its `renderToString` writes the query cache into the `data-sleek-hydrate` script and `hydrateMount` seeds the client QueryClient from it; a query skips the refetch on hydrate only when its `staleTime` is above 0.
+`useMutation` is idle under `renderToString`.
+
+## From a server function
+
+Server-side reads and writes that must not run in the browser belong in a server function of `@sleekstack/start`, which runs in the Request Scope of one request ([ADR 0039](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0039-start-server-core.md)). Call it from a query's `queryFn` through its client stub.

@@ -105,9 +105,9 @@ declare module 'virtual:sleekstack/client' {
 
 `sleekContent(options)` is a second, separate plugin for documentation-style sites built from a tree of `.md` / `.mdx` pages (ADR 0047). Use it beside `sleekstack()`; it does not replace it. MDX pages compile straight to JavaScript against `@sleekstack/ui/jsx-runtime`, so they need neither the pragma nor `include`.
 
-Exports: `@sleekstack/ui-vite` (`sleekContent`, `compileMdx`, `createStyleSheet`, `assertLinks`, `findBrokenLinks`, `headingIds`, `scanPages`, `contentRouteTable`, `buildSearchIndex`, `searchEntries`, and the search client), `@sleekstack/ui-vite/search-client` and `@sleekstack/ui-vite/og-meta` (both browser-safe).
+Exports: `@sleekstack/ui-vite` (`sleekContent`, `compileMdx`, `createStyleSheet`, `assertLinks`, `findBrokenLinks`, `headingIds`, `headings`, `rebaseLink`, `scanPages`, `contentRouteTable`, `buildSearchIndex`, `searchEntries`, and the search client), `@sleekstack/ui-vite/search-client` and `@sleekstack/ui-vite/og-meta` (both browser-safe), and `@sleekstack/ui-vite/links` and `@sleekstack/ui-vite/content-routes` (Node-only, for scripts that check content links without loading the plugin).
 
-Options: `content` (directory, resolved against the cwd), `base?`, `app`, `prerender?: { server, client }`, `search?` (`false` turns the index off), `og?: { site, fonts }`. The frontmatter parser reads simple `key: value` lines only. `ui` and `effect` are peer dependencies; the virtual-module types (`virtual:sleek-content`) are not shipped. Void elements and `<Head>` come from `@sleekstack/ui` (ADR 0046, ADR 0044).
+Options: `content` (directory, resolved against the cwd), `base?`, `contentBase?` (the prefix the content's own links are written with, default `/docs`; rewritten to `base`, so the same content builds under any prefix), `app`, `prerender?: { server, client }`, `search?` (`false` turns the index off), `og?: { site, fonts }`. The frontmatter parser reads simple `key: value` lines only. `ui` and `effect` are peer dependencies; the virtual-module types (`virtual:sleek-content`) are not shipped. Void elements and `<Head>` come from `@sleekstack/ui` (ADR 0046, ADR 0044).
 
 `compileMdx` turns an MDX page into a module that exports its component and `frontmatter`, using the ui JSX runtime.
 
@@ -125,7 +125,7 @@ Options: `content` (directory, resolved against the cwd), `base?`, `app`, `prere
 `sleekContent({ ..., prerender: { server, client }, search? })` makes `vite build` write the whole site:
 
 - `client` is the browser entry (the build input). It hydrates `#app` with `hydrateMount`; it must not import `virtual:sleek-content.css`, the plugin writes `assets/sleek-content.css` itself and links it.
-- `server` is a module exporting `render(path)`, returning `{ app, layer }` for a route (see `RenderEntry`). The build calls it for every page, renders with `renderToString`, waits for `onHead`, and writes `<route>/index.html` (`/` is `index.html`) with the head tags, the stylesheet and the client script. A page that fails to compile or render fails the build as `prerender /route: reason`.
+- `server` is a module exporting `render(path)`, returning `{ app, layer }` for a route (see `RenderEntry`). The build calls it for every page, renders with `renderToString`, waits for `onHead`, and writes `<route>/index.html` (`/` is `index.html`) with the head tags, the stylesheet and the client script. A page that fails to compile or render fails the build as `prerender /route: reason`. When `base` moves the index page off `/`, a root `index.html` redirects to it.
 - Output is plain files and needs no server logic; it never imports `@sleekstack/start`.
 - `search-index.json` is written at the end unless `search: false`; the build logs its size. The stylesheet is written last, after every page compiled.
 

@@ -20,6 +20,7 @@ type StartLayer<R> = 0 extends 1 & R
     ? { readonly layer?: Layer.Layer<any, any, never> }
     : { readonly layer: Layer.Layer<R, any, never> }
 
+/** What `start` takes: the router, handlers by pathname, and the layer the app's requirements come from. */
 export type StartOptions<T extends RouteTable, RP, RH, RM, RF> = {
   readonly router: Router<T, RP>
   /** Route handlers by exact pathname. */
@@ -39,6 +40,7 @@ export type StartOptions<T extends RouteTable, RP, RH, RM, RF> = {
   readonly onError?: ErrorSink
 } & StartLayer<NoInfer<Needs<RP | RH | RM | RF>>>
 
+/** The app `start` returns: a standard `fetch` handler over the router. */
 export interface Start {
   readonly fetch: (request: globalThis.Request) => Promise<Response>
 }

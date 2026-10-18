@@ -1,28 +1,20 @@
+import { Context, Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
-import { layer, module, tag } from '@sleekstack/kit'
-import { defineQuery } from '@sleekstack/kit/next'
+import { declareLayer, makeAppScope, module } from '@sleekstack/core'
 
-interface Clock {
-  now(): number
-}
-const Clock = tag<Clock>('Clock')
-export const AppModule = module({ name: 'app', provide: [layer(Clock, { now: () => Date.now() })] })
-
-// Assumes configureRuntime({ provide: [AppModule] }) ran in a setup file.
-const readNow = defineQuery(function* () {
-  return (yield* Clock).now()
+class Clock extends Context.Tag('Clock')<Clock, { now(): number }>() {}
+export const AppModule = module({
+  name: 'app',
+  entries: [declareLayer(Layer.succeed(Clock, { now: () => Date.now() }))],
 })
-// A provide passed to defineQuery shadows the runtime graph for this operation only.
-const readFixedNow = defineQuery(
-  function* () {
-    return (yield* Clock).now()
-  },
-  { provide: [layer(Clock, { now: () => 0 })] },
-)
+
+const nowIn = (extra: Parameters<typeof makeAppScope>[0] = []) =>
+  Effect.runPromise(makeAppScope([AppModule, ...extra])).then((app) => Context.get(app.context, Clock).now())
 
 describe('app graph', () => {
-  it('swaps a service for one call', async () => {
-    expect(await readFixedNow()).toBe(0)
-    expect(await readNow()).toBeGreaterThan(0)
+  it('swaps a service with a later, more local entry', async () => {
+    // Entries build in order and the later Clock shadows the module's.
+    expect(await nowIn([declareLayer(Layer.succeed(Clock, { now: () => 0 }))])).toBe(0)
+    expect(await nowIn()).toBeGreaterThan(0)
   })
 })

@@ -5,7 +5,7 @@ import type { Start } from '@sleekstack/start'
 import { createServer, type Plugin, type ResolvedConfig, type ViteDevServer } from 'vite'
 import { devMiddleware } from './dev.js'
 import { createStyleSheet } from './highlight.js'
-import { assertLinks } from './links.js'
+import { assertLinks, DEFAULT_CONTENT_BASE } from './links.js'
 import { frontmatterOf, loadFonts, type OgOptions, renderOgPng } from './og.js'
 import { ogImagePath } from './og-meta.js'
 import { compileMdx } from './mdx.js'
@@ -18,10 +18,13 @@ export type DocsOptions = {
   content: string
   /** Prefix for every route, such as `/docs`. */
   base?: string
+  /** The prefix the content's own links are written with, swapped for `base`. Default: `/docs`. */
+  contentBase?: string
   /** The dev server entry, relative to the project root: a module exporting `app`, a `start(...)` result. */
   app: string
   /**
-   * `vite build` writes one `index.html` per route and the search index. `server` is a module (relative to the project
+   * `vite build` writes one `index.html` per route, a root `index.html` that redirects to the index page when `base`
+   * puts it elsewhere, and the search index. `server` is a module (relative to the project
    * root) exporting `render(path)`, see `RenderEntry`; `client` is the browser entry that hydrates `#app`.
    */
   prerender?: { server: string; client: string }
@@ -33,6 +36,12 @@ export type DocsOptions = {
    */
   og?: OgOptions | false
 }
+
+/** A page that sends the browser to `to` (a meta refresh, with a link for clients that ignore it). */
+export const redirectDocument = (to: string) =>
+  `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Redirecting</title>` +
+  `<meta http-equiv="refresh" content="0; url=${to}"><link rel="canonical" href="${to}"></head>` +
+  `<body><a href="${to}">${to}</a></body></html>`
 
 const ROUTES = 'virtual:sleek-content'
 const CSS = 'virtual:sleek-content.css'
@@ -51,6 +60,8 @@ export const sleekContent = (options: DocsOptions): Plugin => {
   let root = process.cwd()
   let entryChunk: { script: string; styles: string[] } | undefined
   const pages = (): ContentPage[] => scanPages(content, options)
+  const from = options.contentBase ?? DEFAULT_CONTENT_BASE
+  const rebase = { from, to: options.base ?? from }
 
   const reload = (server: ViteDevServer) => {
     for (const id of [ROUTES, CSS]) {
@@ -62,8 +73,8 @@ export const sleekContent = (options: DocsOptions): Plugin => {
 
   const check = async (server: ViteDevServer, file: string) => {
     try {
-      await compileMdx(readFileSync(file, 'utf8'), { file, styles })
-      assertLinks(pages(), content)
+      await compileMdx(readFileSync(file, 'utf8'), { file, styles, rebase })
+      assertLinks(pages(), content, rebase)
     } catch (e) {
       server.ws.send({ type: 'error', err: { message: (e as Error).message, stack: '', plugin: 'sleek-content' } })
       return
@@ -94,7 +105,7 @@ export const sleekContent = (options: DocsOptions): Plugin => {
       const all = pages()
       // Compiling every page fills the stylesheet; it is written last.
       for (const p of all)
-        await compileMdx(readFileSync(p.file, 'utf8'), { file: p.file, styles }).catch((e: Error) => {
+        await compileMdx(readFileSync(p.file, 'utf8'), { file: p.file, styles, rebase }).catch((e: Error) => {
           throw new Error(`prerender ${p.path}: ${e.message}`, { cause: e })
         })
       const server = await createServer({
@@ -119,6 +130,8 @@ export const sleekContent = (options: DocsOptions): Plugin => {
       } finally {
         await server.close()
       }
+      const home = all.find((p) => p.name === 'index')?.path
+      if (home && home !== '/') writeFileSync(resolve(outDir, 'index.html'), redirectDocument(home))
       if (options.og) {
         const { site, fonts } = options.og
         if (!site) this.error('og: `site` (the origin the site is served from) is required for an absolute og:image')
@@ -142,7 +155,7 @@ export const sleekContent = (options: DocsOptions): Plugin => {
     },
     buildStart() {
       try {
-        assertLinks(pages(), content)
+        assertLinks(pages(), content, rebase)
       } catch (e) {
         this.error((e as Error).message)
       }
@@ -159,7 +172,7 @@ export const sleekContent = (options: DocsOptions): Plugin => {
       const file = id.split('?')[0]!
       if (!isPage(file, content)) return undefined
       try {
-        return { code: await compileMdx(code, { file, styles }), map: null }
+        return { code: await compileMdx(code, { file, styles, rebase }), map: null }
       } catch (e) {
         const route = pages().find((p) => p.file === file)?.path
         throw route ? new Error(`${route}: ${(e as Error).message}`, { cause: e }) : e

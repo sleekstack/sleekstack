@@ -56,10 +56,20 @@ const issues = (error: ParseResult.ParseError) =>
  * Schema.
  *
  * @example
- * ```ts
- * const rename = client(contracts.rename)
- * yield* rename({ name: 'Ada' })
- * <form action={rename}>...</form>
+ * ```tsx
+ * import { client } from '@sleekstack/start/client'
+ * import { Effect, Schema } from 'effect'
+ *
+ * const rename = client({
+ *   id: 'profile.rename',
+ *   input: Schema.Struct({ name: Schema.NonEmptyString }),
+ *   success: Schema.Struct({ name: Schema.String }),
+ * })
+ *
+ * export const call = Effect.gen(function* () {
+ *   return yield* rename({ name: 'Ada' })
+ * })
+ * export const form = <form action={rename}>...</form>
  * ```
  */
 export const client = <C extends Contract>(contract: C): Stub<C> =>

@@ -5,14 +5,12 @@ description: What SleekStack adds on top of TanStack Query.
 
 SleekStack uses TanStack Query directly (ADR 0018 supersedes the native query layer of ADR 0014). Everything in the TanStack docs applies; this page lists what the bridge adds.
 
-| TanStack Query | SleekStack |
-| --- | --- |
-| `new QueryClient()` + `QueryClientProvider` | `QueryClientLive()` in a `LayerProvider` + `QueryProvider` (client disposed with the scope) |
-| `queryFn` (a Promise) | `effectFn(effect)`: an Effect whose Tags come from the client's layer |
-| `prefetchQuery` + `dehydrate` | `prefetchQueries` from `@sleekstack/next` (runs on the configured runtime) |
-| `HydrationBoundary`, hooks, devtools | used as is |
-| `queryOptions` / `useMutation` without Effect | kit `cachedQuery` / `mutation` (generator bodies, `yield*` Tags) |
-| hooks outside React | `useQuery` / `useMutation` from `@sleekstack/query/ui` |
+| TanStack Query                              | SleekStack                                                                                         |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `new QueryClient()` + `QueryClientProvider` | `QueryClientLive()` in the mount layer (client disposed with the scope)                            |
+| `queryFn` (a Promise)                       | `effectFn(effect)`: an Effect whose Tags come from the client's layer                              |
+| `prefetchQuery` + `dehydrate`               | `renderToString` / `renderToStream` carry the cache, `hydrateMount` seeds it (`UiQueryClientLive`) |
+| hooks outside React                         | `useQuery` / `useMutation` / `useSuspenseQuery` from `@sleekstack/query/ui`                        |
 
 ## Differences from the old native layer
 

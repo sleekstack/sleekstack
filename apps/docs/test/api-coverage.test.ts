@@ -23,7 +23,7 @@ function exportSymbols(file: string) {
     (s.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(s) : s)
       .getJsDocTags(checker)
       .some((t) => t.name === 'internal') ||
-    (s.declarations ?? []).some((d) => ts.isExportSpecifier(d) && ts.getJSDocDeprecatedTag(d.parent.parent)) // a deprecated alias (kit/next `effect`) stays out of the reference
+    (s.declarations ?? []).some((d) => ts.isExportSpecifier(d) && ts.getJSDocDeprecatedTag(d.parent.parent))
   return { checker, symbols: checker.getExportsOfModule(moduleSymbol).filter((s) => !internal(s)) }
 }
 
@@ -65,10 +65,4 @@ describe.each(resolveEntryPoints())('$name', ({ pkg, entry, file }) => {
   it('every export has a non-empty summary', () => {
     expect(undocumented(file)).toEqual([])
   })
-})
-
-it('next reference documents runEffect', () => {
-  const text = readFileSync(join(apiDir, 'next', 'index.md'), 'utf8')
-  expect(text).toMatch(/^### runEffect(\(\))?$/m)
-  expect(text).not.toMatch(/^### (Operation|action|query)(\(\))?$/m)
 })

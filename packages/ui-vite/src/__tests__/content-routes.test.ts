@@ -14,6 +14,7 @@ import {
   findBrokenLinks,
   headingIds,
   contentRouteTable,
+  rebaseLink,
   scanPages,
 } from '../index.js'
 
@@ -66,7 +67,24 @@ describe('route table', () => {
 
   it('reads the real docs order file', () => {
     const names = Object.keys(contentRouteTable(scanPages(docs)))
-    expect(names.slice(0, 4)).toEqual(['index', 'getting-started-kit', 'getting-started-effect', 'concepts'])
+    expect(names.slice(0, 4)).toEqual(['index', 'getting-started-effect', 'concepts', 'atoms'])
+  })
+})
+
+describe('rebaseLink', () => {
+  const r = { from: '/docs', to: '/site/' }
+  it.each([
+    ['/docs', '/site'],
+    ['/docs/a#x', '/site/a#x'],
+    ['/docs#x', '/site#x'],
+    ['/docsy', '/docsy'],
+    ['./a', './a'],
+    ['https://x.dev/docs', 'https://x.dev/docs'],
+  ])('%s -> %s', (url, out) => expect(rebaseLink(url, r)).toBe(out))
+
+  it('a root base keeps the link absolute', () => {
+    expect(rebaseLink('/docs', { from: '/docs', to: '/' })).toBe('/')
+    expect(rebaseLink('/docs#x', { from: '/docs', to: '/' })).toBe('/#x')
   })
 })
 

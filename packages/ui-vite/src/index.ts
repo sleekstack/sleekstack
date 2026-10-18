@@ -27,7 +27,17 @@ export const sleekstack = (options: SleekstackOptions = {}): Array<Plugin> => [
 
 // Content sites (ADR 0047): MDX pages, prerender, search and Open Graph images, served by `sleekContent`.
 export { createStyleSheet } from './highlight.js'
-export { type BrokenLink, assertLinks, findBrokenLinks, headingIds } from './links.js'
+export {
+  type BrokenLink,
+  DEFAULT_CONTENT_BASE,
+  type Heading,
+  type Rebase,
+  assertLinks,
+  findBrokenLinks,
+  headingIds,
+  headings,
+  rebaseLink,
+} from './links.js'
 export { type CompileOptions, compileMdx } from './mdx.js'
 export type { OgFont, OgOptions } from './og.js'
 export { type OgMetaInput, ogMeta } from './og-meta.js'

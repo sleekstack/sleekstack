@@ -15,6 +15,14 @@
       "types": "./dist/search-client.d.ts",
       "default": "./dist/search-client.js"
     },
+    "./links": {
+      "types": "./dist/links.d.ts",
+      "default": "./dist/links.js"
+    },
+    "./content-routes": {
+      "types": "./dist/content-routes.d.ts",
+      "default": "./dist/content-routes.js"
+    },
     "./og-meta": {
       "types": "./dist/og-meta.d.ts",
       "default": "./dist/og-meta.js"
