@@ -8,7 +8,7 @@ Prove a Draft-only bundle holds no records code, keep export names unique across
 
 **Size:** S
 **Files:** packages/model/src/__tests__/bundle.test.ts, packages/model/src/__tests__/exportNames.test.ts, apps/showcase/test/size.test.ts, apps/showcase/src/size/records.tsx, docs/adr/0022-ui-size-budget-and-publish-gate.md
-**Touches:** packages/model/src/__tests__/**, apps/showcase/test/size.test.ts, apps/showcase/src/size/**, docs/adr/0022-ui-size-budget-and-publish-gate.md
+**Touches:** packages/model/src/__tests__/bundle.test.ts, packages/model/src/__tests__/exportNames.test.ts, apps/showcase/test/size.test.ts, apps/showcase/src/size/records.tsx, docs/adr/0022-ui-size-budget-and-publish-gate.md
 
 ### Approach
 - Extend `bundle.test.ts` (Vite build of the entry): a bundle importing only `useDraft` contains no records or query code; `./query` pulls in `@sleekstack/query` only when imported.

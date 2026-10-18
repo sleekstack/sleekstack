@@ -8,7 +8,7 @@ The adapter Tag on the record and `find`. The adapter owns the wire contract (en
 
 **Size:** M
 **Files:** packages/model/src/adapter.ts, packages/model/src/record.ts, packages/model/src/index.ts, packages/model/src/__tests__/adapter.test.ts
-**Touches:** packages/model/src/**
+**Touches:** packages/model/src/adapter.ts, packages/model/src/record.ts, packages/model/src/index.ts, packages/model/src/__tests__/adapter.test.ts
 
 ### Approach
 - `defineRecord(type, { fields, adapter })` takes an app-declared `Effect.Tag` of `{ find, save }` (typed Effects). The package defines the adapter shape, not the Tags. A record with no adapter has only `push`, `atom`, `related`.

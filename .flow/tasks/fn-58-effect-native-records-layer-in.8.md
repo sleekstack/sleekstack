@@ -8,7 +8,7 @@ Record the decision and document the feature. This supersedes ADR 0038's rejecti
 
 **Size:** M
 **Files:** docs/adr/README.md, docs/adr/0041-records-layer.md (take the next free number at write time; fn-55 task 7 edits the same files), CONTEXT.md, apps/docs/content/docs/models.mdx, packages/model/README.md, apps/docs/scripts/entry-points.mjs
-**Touches:** docs/**, CONTEXT.md, packages/model/README.md, apps/docs/**
+**Touches:** docs/adr/README.md, docs/adr/0041-records-layer.md, CONTEXT.md, apps/docs/content/docs/models.mdx, packages/model/README.md, apps/docs/scripts/entry-points.mjs
 
 ### Approach
 - New ADR: records layer in `@sleekstack/model`, the Record, Transformation and Adapter split, the resolved decisions in the spec, and an explicit supersession of the relationships-and-record-store line in ADR 0038's Rejected section. Read that section first for the exact wording; add the index row.

@@ -8,7 +8,7 @@ To-one and to-many relationships as derived atoms over the identity map. They ne
 
 **Size:** M
 **Files:** packages/model/src/relations.ts, packages/model/src/record.ts, packages/model/src/index.ts, packages/model/src/__tests__/relations.test.ts
-**Touches:** packages/model/src/**
+**Touches:** packages/model/src/relations.ts, packages/model/src/record.ts, packages/model/src/index.ts, packages/model/src/__tests__/relations.test.ts
 
 ### Approach
 - `ref(() => Other)` (to-one, `null` or a `RecordRef`) and `refs(() => Other)` (to-many, ordered list of `RecordRef`); `record.related(id, field)` returns one stable atom per id and field.

@@ -8,7 +8,7 @@ Extend the showcase Model/Draft demo with a record, a relationship and a commit 
 
 **Size:** S
 **Files:** apps/showcase/src/pages/model.tsx, apps/showcase/src/pages/shell.tsx, apps/showcase/test/model.test.tsx
-**Touches:** apps/showcase/src/pages/**, apps/showcase/test/**
+**Touches:** apps/showcase/src/pages/model.tsx, apps/showcase/src/pages/shell.tsx, apps/showcase/test/model.test.tsx
 
 ### Approach
 - Reuse the existing demo structure in `apps/showcase/src/pages/model.tsx`; add a `Post` and `User` record with an in-memory adapter Layer, show `related`, and a form that edits through the derived Draft and `commit`.

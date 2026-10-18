@@ -8,7 +8,7 @@ WarpDrive-style per-field transformations on top of the record from task 1. A tr
 
 **Size:** M
 **Files:** packages/model/src/transformation.ts, packages/model/src/record.ts, packages/model/src/index.ts, packages/model/src/__tests__/transformation.test.ts
-**Touches:** packages/model/src/**
+**Touches:** packages/model/src/transformation.ts, packages/model/src/record.ts, packages/model/src/index.ts, packages/model/src/__tests__/transformation.test.ts, packages/model/src/__tests__/transformation.test-d.ts
 
 ### Approach
 - `defineTransformation(name, options => { from, to, hydrate, serialize, defaultValue })` builds an Effect Schema transform; `field(Transformation, options)` attaches it.
