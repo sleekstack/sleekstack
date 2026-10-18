@@ -1,3 +1,5 @@
 export type { DraftSpec, ModelSpec } from './model'
 export type { Draft } from './draft'
 export { useDraft } from './draft'
+export type { RecordDefinition, RecordFields } from './record'
+export { defineRecord } from './record'
