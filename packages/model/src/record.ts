@@ -40,9 +40,12 @@ export interface RecordDefinition<T extends string, F extends RecordFields> {
    * The Draft of the record `id`: every field but `id`, in its input form (a date holds its string, a `field(...)` its
    * `to` input), validated by the fields' Schemas, seeded from the map (a transformation's `defaultValue` while the
    * record is missing). When the record changes, a pristine Draft re-seeds; an edited one keeps its edits and measures
-   * `dirty` against the new record. Takes a slot like `useDraft`, so call it unconditionally.
+   * `dirty` against the new record. Takes a slot like `useDraft`, so call it unconditionally. Only for fields whose
+   * Schemas need no Service (the Draft seeds and validates synchronously); otherwise it is `never`.
    */
-  readonly useDraft: (id: string) => Effect.Effect<RecordDraft<F>, never, Store>
+  readonly useDraft: [Schema.Struct.Context<F>] extends [never]
+    ? (id: string) => Effect.Effect<RecordDraft<F>, never, Store>
+    : never
 }
 
 /**
@@ -69,7 +72,7 @@ export interface AdaptedRecord<
   >
   /**
    * Saves `draft` as the record `id`: validates it (a `ParseError` before any `serialize`), serializes it to a change,
-   * sends it with the adapter's `save`, and writes the hydrated response into the map as the record's acknowledged
+   * sends it with the adapter's `save`, and writes the hydrated response (which must be the record `id`) into the map as the record's acknowledged
    * value. Pessimistic: nothing is written before the acknowledgement, and a failure writes nothing and leaves the
    * Draft as it is (`SaveResponseError` when the save succeeded but its response did not hydrate). A second commit of
    * the record while one is saving fails with `SaveInFlight`. Disposing the Store interrupts it.
@@ -124,7 +127,7 @@ export function defineRecord<const T extends string, F extends RecordFields>(
     evict: (id) =>
       Effect.map(Store, (s) => s.update(slotOf(s, type, id), (slot) => ({ ...slot, value: Option.none() }))),
     related: (id, field) => related(id, field) as never,
-    useDraft: (id) => useDraft(draftSpec as never, recordAtom(type, id) as never) as never,
+    useDraft: ((id: string) => useDraft(draftSpec as never, recordAtom(type, id) as never)) as never,
   }
   return def.adapter
     ? Object.assign(base, {

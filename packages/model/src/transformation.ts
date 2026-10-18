@@ -26,12 +26,17 @@ export interface TransformationParts<From extends Schema.Schema.Any, To extends 
   readonly defaultValue: () => Schema.Schema.Encoded<To>
 }
 
-/** A field's Schema made by `field`: the app value as Type, the wire value (or `undefined`) as Encoded. */
-export type TransformedField<From extends Schema.Schema.Any, To extends Schema.Schema.Any> = Schema.Schema<
+/**
+ * A field's Schema made by `field`: the app value as Type, the wire value (or `undefined`) as Encoded. `to` is the
+ * transformation's app Schema, whose Encoded is the input a record's Draft holds.
+ */
+export interface TransformedField<From extends Schema.Schema.Any, To extends Schema.Schema.Any> extends Schema.Schema<
   Schema.Schema.Type<To>,
   Schema.Schema.Encoded<From> | undefined,
   Schema.Schema.Context<From> | Schema.Schema.Context<To>
->
+> {
+  readonly to: To
+}
 
 /** A per-field transformation made by `defineTransformation`, attached to a field with `field(transformation, options)`. */
 export interface Transformation<N extends string, O, From extends Schema.Schema.Any, To extends Schema.Schema.Any> {

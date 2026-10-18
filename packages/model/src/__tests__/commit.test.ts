@@ -21,18 +21,33 @@ const Money = defineTransformation('money', (_: { readonly currency: string }) =
   serialize: (amount: string) => Effect.sync(() => (serialized.count++, Math.round(Number(amount) * 100))),
   defaultValue: () => '0.00',
 }))
+// Its `to` input (a string) differs from its app value (a number).
+const Count = defineTransformation('count', () => ({
+  from: Schema.Number,
+  to: Schema.NumberFromString,
+  hydrate: (n: number) => Effect.succeed(String(n)),
+  serialize: (input: string) => Effect.succeed(Number(input)),
+  defaultValue: () => '0',
+}))
 
 type OrderWire = {
   readonly id: string
   readonly note: string
   readonly due: string
   readonly total: number | undefined
+  readonly qty: number | undefined
 }
 class Rejected extends Data.TaggedError('Rejected')<{}> {}
 class OrderApi extends Effect.Tag('OrderApi')<OrderApi, RecordAdapter<OrderWire, unknown, Rejected>>() {}
 
 const Order = defineRecord('order', {
-  fields: { id: Schema.String, note: Schema.String, due: Schema.Date, total: field(Money, { currency: 'EUR' }) },
+  fields: {
+    id: Schema.String,
+    note: Schema.String,
+    due: Schema.Date,
+    total: field(Money, { currency: 'EUR' }),
+    qty: field(Count),
+  },
   adapter: OrderApi,
 })
 
@@ -56,8 +71,8 @@ const gated = () => {
 const run = <A, E>(s: AtomStore, layer: Layer.Layer<OrderApi>, e: Effect.Effect<A, E, Store | OrderApi>) =>
   Effect.runPromiseExit(e.pipe(Effect.provide(layer), Effect.provideService(Store, s)))
 const tick = () => new Promise((r) => setTimeout(r, 0))
-const wire = (note: string): OrderWire => ({ id: '1', note, due: '2026-01-02T00:00:00.000Z', total: 1250 })
-const record = (note: string) => ({ id: '1', note, due: new Date('2026-01-02T00:00:00.000Z'), total: '12.50' })
+const wire = (note: string): OrderWire => ({ id: '1', note, due: '2026-01-02T00:00:00.000Z', total: 1250, qty: 3 })
+const record = (note: string) => ({ id: '1', note, due: new Date('2026-01-02T00:00:00.000Z'), total: '12.50', qty: 3 })
 
 /** A store holding order 1 with `note`, and its Draft, kept alive as a component's would be. */
 const setup = (note = 'A') => {
@@ -77,7 +92,7 @@ describe('commit', () => {
     const saving = run(s, api.layer, Order.commit('1', draft))
     await tick()
     expect(api.saves.map((x) => [x.id, x.change])).toEqual([
-      ['1', { note: 'B', due: '2026-01-02T00:00:00.000Z', total: 1250 }],
+      ['1', { note: 'B', due: '2026-01-02T00:00:00.000Z', total: 1250, qty: 3 }],
     ])
     expect(s.get(Order.atom('1'))).toEqual(Option.some(record('A')))
     api.answer(0, wire('B'))
@@ -95,6 +110,11 @@ describe('commit', () => {
     [
       'its response does not hydrate',
       (api: ReturnType<typeof gated>) => api.answer(0, { ...wire('B'), due: 'not a date' }),
+      SaveResponseError,
+    ],
+    [
+      'its response is another record',
+      (api: ReturnType<typeof gated>) => api.answer(0, { ...wire('B'), id: '2' }),
       SaveResponseError,
     ],
   ])('when %s, the map and the Draft are unchanged', async (_, settle, failure) => {
@@ -137,18 +157,27 @@ describe('commit', () => {
   })
 })
 
+class Locale extends Effect.Tag('Locale')<Locale, { readonly tag: string }>() {}
+const Localized = defineRecord('localized', {
+  fields: { id: Schema.String, name: Schema.String.pipe(Schema.filterEffect(() => Effect.as(Locale, true))) },
+})
+// @ts-expect-error a derived Draft seeds synchronously, so fields that need a Service have none
+void Localized.useDraft('1')
+
 describe('the derived Draft', () => {
   it('holds every field but id in its input form; a date holds its string; defaultValue seeds a missing record', () => {
     const { s, draft } = setup()
-    expect(s.get(draft.value)).toEqual({ note: 'A', due: '2026-01-02T00:00:00.000Z', total: '12.50' })
+    expect(s.get(draft.value)).toEqual({ note: 'A', due: '2026-01-02T00:00:00.000Z', total: '12.50', qty: '3' })
     // The input types: a transformed field is its `to` input, not the wire's `number | undefined`.
-    const input: { readonly note: string; readonly due: string; readonly total: string } = s.get(draft.value)
+    const input: { readonly note: string; readonly due: string; readonly total: string; readonly qty: string } = s.get(
+      draft.value,
+    )
     void input
     s.set(draft.field('due'), 'not a date')
     expect(Object.keys(s.get(draft.errors))).toEqual(['due'])
 
     const blank = Effect.runSync(Effect.provideService(Order.useDraft('new'), Store, s))
-    expect(s.get(blank.value)).toEqual({ note: undefined, due: undefined, total: '0.00' })
+    expect(s.get(blank.value)).toEqual({ note: undefined, due: undefined, total: '0.00', qty: '0' })
   })
 
   it('A, submit B, edit C, acknowledge B: the C edit is kept, B reads clean and A reads dirty', async () => {

@@ -5,11 +5,15 @@ import { type AdapterTag, stamp } from './adapter'
 import { type Draft, FOLLOWS } from './draft'
 import type { DraftSpec } from './model'
 import { slotOf } from './registry'
+import type { TransformedField } from './transformation'
 
 /** A second `commit` of one record while its first is still saving. */
 export class SaveInFlight extends Data.TaggedError('SaveInFlight')<{ readonly type: string; readonly id: string }> {}
 
-/** The adapter's `save` succeeded, but its response did not hydrate: the map and the Draft are unchanged. */
+/**
+ * The adapter's `save` succeeded, but its response did not hydrate or is another record: the map and the Draft are
+ * unchanged.
+ */
 export class SaveResponseError extends Data.TaggedError('SaveResponseError')<{
   readonly type: string
   readonly id: string
@@ -20,14 +24,11 @@ export class SaveResponseError extends Data.TaggedError('SaveResponseError')<{
 export type SaveError<Ad extends AdapterTag> = Effect.Effect.Error<ReturnType<Context.Tag.Service<Ad>['save']>>
 
 type Editable<F> = Omit<F, 'id'>
-// A `field(...)` Schema's wire may be `undefined` while its app value may not: the Draft holds its `to` input, typed
-// as the app value (a `to` whose Type is its Encoded, as the input forms in the guides are).
+// A `field(...)` Schema (its wire may be `undefined`): the Draft holds its `to` input.
 type InputFields<F> = {
-  [K in keyof Editable<F>]: F[K] extends Schema.Schema<infer A, infer I, infer R>
-    ? undefined extends I
-      ? undefined extends A
-        ? F[K]
-        : Schema.Schema<A, A, R>
+  [K in keyof Editable<F>]: F[K] extends TransformedField<any, infer To>
+    ? undefined extends Schema.Schema.Encoded<F[K]>
+      ? Schema.Schema<Schema.Schema.Encoded<To>, Schema.Schema.Encoded<To>, Schema.Schema.Context<To>>
       : F[K]
     : F[K]
 }
@@ -116,7 +117,18 @@ export const commitOf =
       ids.add(key)
       const work = draft.toDto().pipe(
         Effect.flatMap((change) => Effect.flatMap(adapter, (a) => a.save(id, change))),
-        Effect.flatMap((wire) => Effect.mapError(decode(wire), (cause) => new SaveResponseError({ type, id, cause }))),
+        Effect.flatMap((wire) =>
+          decode(wire).pipe(
+            Effect.filterOrFail(
+              (record) => (record as { readonly id: string }).id === id,
+              () =>
+                new ParseResult.ParseError({
+                  issue: new ParseResult.Type(Schema.Literal(id).ast, wire, `expected the saved record '${id}'`),
+                }),
+            ),
+            Effect.mapError((cause) => new SaveResponseError({ type, id, cause })),
+          ),
+        ),
         Effect.map((record) => {
           s.update(slotOf(s, type, id), () => ({ value: Option.some(record), ackedAt: Option.some(stamp()) }))
           return record
