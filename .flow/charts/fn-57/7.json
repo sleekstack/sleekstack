@@ -1,5 +1,6 @@
 {
-  "answer": null,
+  "answer": "The docs ship as a static site: production is prerendered HTML plus a client bundle, hostable on any static host or CDN. The start fetch handler is used in development only, behind the Vite dev server. Every page must prerender at build time, which makes static generation (spec fn-30's prerender step) a hard prerequisite. The user chose this over running a start server in production and over shipping both (chosen by the user in the D7 interview).\n",
+  "answer_gist": "The docs ship as a static site: production is prerendered HTML plus a client bundle, hostable on any static host or C...",
   "assets": [],
   "attendance": "attended",
   "blocked_by": [],
@@ -13,7 +14,7 @@
   "n": 7,
   "question": "Should the docs ship as a prerendered static site or run on the @sleekstack/start fetch handler in production; this decides whether static generation is a prerequisite.",
   "record_path": ".flow/charts/fn-57/7.md",
-  "status": "open",
+  "status": "resolved",
   "superseded_by": null,
   "supersedes": [],
   "title": "Hosting: static build or running start server?",
@@ -24,7 +25,16 @@
     "linkState": "unlinked",
     "url": null
   },
-  "transition_notes": [],
+  "transition_notes": [
+    {
+      "actor": "ubtik@outlook.com",
+      "at": "2026-10-18T06:51:18.147934Z",
+      "keep_dependents": false,
+      "kind": "resolved",
+      "supersedes": [],
+      "text": "resolved by ubtik@outlook.com"
+    }
+  ],
   "type": "interview",
-  "updated_at": "2026-10-18T06:07:19.828909Z"
+  "updated_at": "2026-10-18T06:51:18.145874Z"
 }

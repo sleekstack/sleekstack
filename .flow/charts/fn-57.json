@@ -83,7 +83,7 @@
       "depends_on": [],
       "id": "fn-57.D7",
       "record_path": ".flow/charts/fn-57/7.md",
-      "status": "open",
+      "status": "resolved",
       "title": "Hosting: static build or running start server?",
       "type": "interview"
     },
@@ -144,5 +144,5 @@
     },
     "url": null
   },
-  "updated_at": "2026-10-18T06:49:51.083415Z"
+  "updated_at": "2026-10-18T06:51:18.145874Z"
 }
