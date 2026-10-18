@@ -46,7 +46,7 @@ beforeAll(async () => {
   http = serve(out)
   await new Promise<void>((r) => http.listen(0, r))
   url = `http://localhost:${(http.address() as AddressInfo).port}`
-}, 60_000)
+})
 
 afterAll(() => {
   http?.close()
@@ -116,13 +116,13 @@ describe('build failures name the route', () => {
     const dir = copy()
     writeFileSync(join(dir, 'server.tsx'), `export const render = () => { throw new Error('boom') }\n`)
     await expect(run(dir)).rejects.toThrow('prerender /: boom')
-  }, 60_000)
+  })
 
   it('a page that fails to compile', async () => {
     const dir = copy()
     writeFileSync(join(dir, 'content/guide/b.mdx'), '# Second\n\n<Unclosed>\n')
     await expect(run(dir)).rejects.toThrow(/\/guide\/b: .*b\.mdx/)
-  }, 60_000)
+  })
 
   it('writes no search index when the switch is off', async () => {
     const dir = copy()
@@ -130,5 +130,5 @@ describe('build failures name the route', () => {
     writeFileSync(cfg, readFileSync(cfg, 'utf8').replace("app: 'app.ts',", "app: 'app.ts', search: false,"))
     await run(dir)
     expect(existsSync(join(dir, 'dist/search-index.json'))).toBe(false)
-  }, 60_000)
+  })
 })
