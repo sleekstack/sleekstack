@@ -42,6 +42,7 @@ import {
 } from './reactive'
 import { checkAttr, checkTag } from './string'
 
+/** A mounted tree; `dispose` unmounts it and closes its scope. */
 export interface Mounted {
   dispose(): Promise<void>
 }

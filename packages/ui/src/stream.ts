@@ -15,6 +15,7 @@ const SWAP =
   // Stream end with boundaries that never got a chunk: kept for a client that hydrates later (`hydrateMount` reports them).
   'self.__sleekEnd=function(m){(self.__sleekGone=self.__sleekGone||[]).push.apply(self.__sleekGone,m)}'
 
+/** Options for `renderToStream`: the layer that provides the tree's services. */
 export interface StreamOptions<A, LE> extends RunOptions {
   readonly layer: Layer.Layer<A, LE, never>
   /** Set on every inline script. */
