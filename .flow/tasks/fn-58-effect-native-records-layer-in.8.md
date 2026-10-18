@@ -16,7 +16,9 @@ Record the decision and document the feature. This supersedes ADR 0038's rejecti
 - Models guide and the model README: define, find, relationships, commit, the optional `./query` entry, the client-only map, the Store requirement.
 - Add `model` to `PACKAGES` in `entry-points.mjs` if the generated API docs should cover it; never hand-edit generated API docs, run `generate:api`.
 
-### Investigation targets
+#- From task 7: the ADR 0022 table already has the measured rows for the new records entry (222,215 B gzip against a 233,000 B limit; the existing Draft entry stays under its unchanged 231,000 B limit); reference them, do not remeasure. Reviewers measuring in their own sandboxes read about 100 to 150 B lower, all budgets pass either way. Task 7 also added a `size/records` rule to the showcase architecture and fixtures tests.
+
+## Investigation targets
 **Required**:
 - `docs/adr/0038-model-and-draft.md` - the Rejected section
 - `docs/adr/0040-model-package.md` - format and the amend wording

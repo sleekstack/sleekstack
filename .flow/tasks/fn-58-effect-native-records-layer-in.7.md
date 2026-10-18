@@ -40,6 +40,7 @@ Size: new entry apps/showcase/src/size/records.tsx (`useRecord` plus `Post.useDr
 
 Deviation: apps/showcase/test/architecture.test.ts (rule for `size/records`) and apps/showcase/test/fixtures.test.ts (tree count 6 to 7) are outside Touches; both guard every src/ file, so a new size entry needs them.
 
+stage: plan-sync - skipped(no drift)
 Baseline: green via handoff (verified at 6f5dd33 by task 6; only .flow/ changed since). Post-edit gate green: pnpm turbo run test typecheck --filter=@sleekstack/model... --filter=@sleekstack/analyze --filter=showcase (19/19).
 stage: impl-review - ran (codex gpt-6.1-sol fan-out, three draws SHIP, no findings)
 Tier: explicit routing from project CLAUDE.md (implementer: opus at medium)
