@@ -2,7 +2,7 @@ import { Cause, Context, Effect } from 'effect'
 import { type Child, Fragment } from './jsx-runtime'
 import { fragment, type Node } from './node'
 import { Frame, MountError, useEffect, useRef } from './reactive'
-import { checkAttr, checkTag } from './string'
+import { checkAttr, checkTag, headOf } from './string'
 
 /** One `Head` tag, validated; attribute names are lowercase. Tags with the same `key` replace each other; a tag with no key stands alone. */
 export interface HeadTag {
@@ -49,6 +49,7 @@ const headTag = (node: Node): HeadTag => {
   const tag = checkTag(node.tag).toLowerCase()
   if (!HEAD_TAGS.has(tag)) throw new TypeError(`Unsupported head tag: ${JSON.stringify(node.tag)}`)
   if (node.bound || node.on || node.events) throw new TypeError(`Head tags take plain attributes: <${tag}>`)
+  if (tag !== 'title' && node.children.length > 0) throw new TypeError(`<${tag}> takes no content`)
   const attrs: Record<string, string> = {}
   // HTML attribute names are case-insensitive: lowercase them so keys match what the DOM holds.
   for (const [k, v] of Object.entries(node.attrs)) (checkAttr(k, v), (attrs[k.toLowerCase()] = v))
@@ -140,7 +141,8 @@ export const documentHead = (doc: Document): HeadTarget => {
 /**
  * `<Head>…</Head>`: `title`, `meta` and `link` tags for the document head. Tags dedupe by key (`title`, `meta[name]`,
  * `meta[property]`, `link[rel]+href`): the deepest `Head` wins, the last mounted on a tie; a `Head`'s tags are removed when
- * it unmounts, uncovering the entries below. A tag that fails the element name and attribute checks is skipped and reported to `onError`.
+ * it unmounts, uncovering the entries below. A tag that fails the element name and attribute checks is skipped and reported to
+ * `onError`; in `renderToString` it rejects the render, like an invalid element.
  */
 export const Head = (props: { children?: Child }): Effect.Effect<Node, never, never> =>
   Effect.flatMap(Effect.all([Fragment(props), Effect.context<never>()]), ([content, ctx]) => {
@@ -155,6 +157,9 @@ export const Head = (props: { children?: Child }): Effect.Effect<Node, never, ne
       } catch (error) {
         errors.push(error)
       }
+    // A string or stream render reads the tags off the output node when it serializes it.
+    const out = fragment()
+    headOf.set(out, { depth, tags, errors })
     // Registered once, after the first commit (mount only), so the mount order stands; a run with new content updates it in place.
     return Effect.flatMap(useRef<HeadEntry>(), (entry) =>
       Effect.as(
@@ -165,7 +170,7 @@ export const Head = (props: { children?: Child }): Effect.Effect<Node, never, ne
           }, [JSON.stringify([tags, errors.map(String)])]),
           useEffect(() => () => entry.current?.remove(), []),
         ),
-        fragment(),
+        out,
       ),
     )
   }) as Effect.Effect<Node, never, never>
