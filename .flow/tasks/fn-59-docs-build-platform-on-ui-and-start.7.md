@@ -29,9 +29,10 @@ Record the work: ADR(s) for the decisions, the package README, AGENTS.md verify 
 - [ ] `pnpm turbo run test typecheck --filter=showcase --filter=@sleekstack/ui-vite...` is green
 
 ## Done summary
-TBD
+Recorded fn-59: ADR 0042 (void elements, Head, stream patch, hydration) and 0043 (MDX, routes, prerender, search, OG, packaging), indexed; ui-vite README exports/options; AGENTS verify row; CONTEXT Head, HeadSink, Prerender; ADR 0022 re-measured (limits unchanged, 44-56 B headroom); fn-29, fn-30, fn-33 trimmed via spec set-plan.
 
+stage: impl-review - skipped(policy: standing user rule, no per-task review)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 74d8c87274c1dd8d7e8dfd5f2e0cdd751c91c73d
+- Tests: pnpm turbo run test typecheck --filter=showcase --filter=@sleekstack/ui-vite... (green), pnpm format:check (green)
 - PRs:
