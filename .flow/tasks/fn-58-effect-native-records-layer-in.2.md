@@ -37,6 +37,7 @@ Added `defineTransformation(name, options => { from, to, hydrate, serialize, def
 
 Notes for later tasks: a Draft of a transformed field holds `to`'s Encoded; the create-form seed is `Schema.decodeUnknownSync(fieldSchema)(undefined)` (runs `defaultValue`). Serializing a Draft value runs `serialize` over that Encoded value: task 5 must validate it with `to` first (e.g. `Schema.encodeUnknown(Schema.compose(Schema.encodedSchema(to)... ))` or decode via `to` then `Schema.encode(field)`). record.ts needed no change. A transformed field's wire key is typed `number | undefined` (required key).
 
+stage: plan-sync - skipped(no drift; downstream notes folded into task 5 by the conductor)
 Baseline: green via handoff (verified at 7bb21e4 by task 1; only .flow/ changed since). Post-edit gate green.
 
 stage: impl-review - ran (codex gpt-6.1-sol fan-out: correctness, contracts, integration all SHIP, 0 findings)
