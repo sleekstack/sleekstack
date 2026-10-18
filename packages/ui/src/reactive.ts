@@ -212,33 +212,42 @@ const fnId = (f: Function): string => {
 /** A hot-updatable component: every function registered under one stable id shares its instance ids and runs `fn`. */
 interface HotEntry {
   fn: Function
-  /** The function `fn` replaced, kept until a run of `fn` succeeds: a failing run reverts to it. */
-  prev?: Function
+  /** The last function that ran successfully: a failing run of `fn` (while it differs) reverts every instance to it. */
+  good: Function
+  /** `fn` has run successfully at least once; only then does the next update keep it as `good`. */
+  succeeded: boolean
   /** Read by every run, so bumping it re-runs the live instances. */
   readonly version: Atom.Writable<number>
-  // ponytail: stores of disposed mounts stay referenced; dev-only, fine until HMR sessions get long-lived.
-  readonly stores: Set<AtomStore>
+  /** Live instances per store, so an update reaches only the stores that still show the component. */
+  readonly stores: Map<AtomStore, number>
 }
 const hotIds = new Map<string, HotEntry>()
 const hotOf = (f: Function): HotEntry | undefined => {
   const id = fnIds.get(f)
   return id === undefined ? undefined : hotIds.get(id)
 }
+const rerunHot = (entry: HotEntry): void => {
+  for (const s of entry.stores.keys()) s.update(entry.version, (n) => n + 1)
+}
+// Instance slots counted in `HotEntry.stores`; their release uncounts them.
+const hotSlots = new WeakSet<Slots>()
 
 /**
  * Registers `fn` as the component with stable id `id` (a dev transform calls it on every module evaluation). The first call
- * only registers; a later call with another function swaps it in and re-runs the live instances, keeping their slots. A run
- * of the new function that fails reverts to the previous one and reports the failure to the mount's `onError`.
+ * only registers; a later call with another function swaps it in and re-runs the live instances, keeping their slots. Until
+ * the next update, a failing run of the new function reverts every instance to the last function that ran successfully and
+ * reports the failure to the mount's `onError`.
  */
 export const acceptUpdate = (id: string, fn: Function): void => {
   const key = `hot:${id}`
   fnIds.set(fn, key)
   const entry = hotIds.get(key)
-  if (!entry) return void hotIds.set(key, { fn, version: Atom.make(0), stores: new Set() })
+  if (!entry) return void hotIds.set(key, { fn, good: fn, succeeded: false, version: Atom.make(0), stores: new Map() })
   if (entry.fn === fn) return
-  entry.prev = entry.fn
+  if (entry.succeeded) entry.good = entry.fn
   entry.fn = fn
-  for (const s of entry.stores) s.update(entry.version, (n) => n + 1)
+  entry.succeeded = false
+  rerunHot(entry)
 }
 
 /** A slot hook's failure when no `Store` is provided. Typed `never` in E: `Store` is a requirement, so it is unreachable for checked code; at runtime it fails with a tagged `MissingDependency`. */
@@ -1132,7 +1141,6 @@ export const instance = <P>(
     ran = undefined
     const hot = hotOf(type)
     const hotStore = hot && Context.getOption(ctx, Store)
-    if (hotStore && Option.isSome(hotStore)) hot!.stores.add(hotStore.value)
     // A hot instance always runs the registered function and reads its version, so an update re-runs it.
     const component = (props: P): ComponentResult => {
       if (!hot) return type(props)
@@ -1215,6 +1223,18 @@ export const instance = <P>(
         pre = eff
       }
     } else slots = rootSlots ??= { atoms: [], releases: [], done: false }
+    if (hotStore && Option.isSome(hotStore) && !hotSlots.has(slots)) {
+      const stores = hot!.stores
+      const s = hotStore.value
+      hotSlots.add(slots)
+      stores.set(s, (stores.get(s) ?? 0) + 1)
+      slots.releases.push(() => {
+        hotSlots.delete(slots)
+        const n = stores.get(s)! - 1
+        if (n === 0) stores.delete(s)
+        else stores.set(s, n)
+      })
+    }
     const frame = makeFrame(slots, self)
     const body = (own: Scope.CloseableScope | undefined): Effect.Effect<Node, any, any> => {
       const reads = new Reads(slots)
@@ -1294,18 +1314,20 @@ export const instance = <P>(
           ),
     )
   })
-  // A hot update on trial: its first successful run keeps it; a failing one reverts to the previous function, reports, and runs that.
+  // A hot update stays on trial until the next one: a failing run reverts every instance to the last good function, reports, and runs that.
   const run: Effect.Effect<Node, any, any> = Effect.matchCauseEffect(attempt, {
     onSuccess: (node) => {
       const hot = hotOf(type)
-      if (hot && ran === hot.fn) hot.prev = undefined
+      if (hot && ran === hot.fn) hot.succeeded = true
       return Effect.succeed(node)
     },
     onFailure: (cause) => {
       const hot = hotOf(type)
-      if (!hot?.prev || ran !== hot.fn || Cause.isInterruptedOnly(cause)) return Effect.failCause(cause)
-      hot.fn = hot.prev
-      hot.prev = undefined
+      if (!hot || ran !== hot.fn || hot.fn === hot.good || Cause.isInterruptedOnly(cause))
+        return Effect.failCause(cause)
+      hot.fn = hot.good
+      hot.succeeded = true
+      rerunHot(hot)
       forced = true
       return Effect.flatMap(MountError, (report) => ((report ?? console.error)(cause), run))
     },

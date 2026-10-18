@@ -2,7 +2,7 @@
 import { Atom, makeAtomStore } from '@sleekstack/core'
 import { Cause, Effect, Layer } from 'effect'
 import { act } from 'react'
-import { afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { el, mount, type Mounted, useAtomValue, useLocal } from '../index'
 import { acceptUpdate } from '../internal'
 import { jsx as rawJsx } from '../jsx-runtime'
@@ -98,5 +98,43 @@ describe('acceptUpdate', () => {
     await tick()
     expect(container.querySelector('p')!.textContent).toBe('fixed 6')
     expect(errors).toHaveLength(1)
+  })
+
+  it('an update that throws for one instance reverts every instance, also after a second update before any re-run', async () => {
+    const errors: Array<Cause.Cause<unknown>> = []
+    const row = (label: string) => (props: { readonly bad?: boolean }) => {
+      if (props.bad && label !== 'v1') throw new Error(`${label} broke`)
+      return Effect.succeed(el('li', {}, label))
+    }
+    const v1 = row('v1')
+    acceptUpdate('hmr.test#Row', v1)
+    const App = () =>
+      Effect.gen(function* () {
+        return el('ul', {}, yield* jsx(v1, {}), yield* jsx(v1, { bad: true }))
+      })
+    const { container } = await go(jsx(App, {}), (cause) => errors.push(cause))
+    const text = () => [...container.querySelectorAll('li')].map((li) => li.textContent).join(',')
+
+    acceptUpdate('hmr.test#Row', row('v2'))
+    await tick()
+    expect(text()).toBe('v1,v1')
+    expect(errors).toHaveLength(1)
+
+    // Two broken updates land before the re-run: the revert goes to v1, the last one that ran, not to the first broken one.
+    acceptUpdate('hmr.test#Row', row('v3'))
+    acceptUpdate('hmr.test#Row', row('v4'))
+    await tick()
+    expect(text()).toBe('v1,v1')
+    expect(errors).toHaveLength(2)
+  })
+
+  it('a disposed mount is not updated', async () => {
+    const v1 = version('v1')
+    acceptUpdate('hmr.test#Disposed', v1)
+    const { store } = await go(jsx(v1, {}))
+    await act(async () => void (await handles.pop()!.dispose()))
+    const update = vi.spyOn(store, 'update')
+    acceptUpdate('hmr.test#Disposed', version('v2'))
+    expect(update).not.toHaveBeenCalled()
   })
 })
