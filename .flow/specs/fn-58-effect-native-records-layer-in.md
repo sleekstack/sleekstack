@@ -104,7 +104,7 @@ A panel advised a separate `@sleekstack/records` package and no build; the user 
 
 Settled by the scouts and the gap analysis, with the defaults they recommended:
 
-- **Identity map storage:** one `keepAlive` registry atom per Store holds a map from `(type, id)` to a writable slot atom. `Atom.family` is not used (weak references can drop an atom and split identity). `evict` resets the slot to `None` and keeps the atom, so a re-`push` never builds a second atom. Ids are strings in v1.
+- **Identity map storage:** one `keepAlive` registry atom per Store holds a map from `(type, id)` to a writable slot atom. State never lives in `Atom.family` (weak references can drop an atom and split identity); `Atom.family` is used only for the stateless reader atom per `(type, id)`, shared across definitions, while the slots stay kept alive. `evict` resets the slot to `None` and keeps the atom, so a re-`push` never builds a second atom. Ids are strings in v1.
 - **Store access:** `push`, `find` and `commit` take the Store as a Service (the `Store` Tag `draft.ts` already uses from the ui internal entry). The Query Client Layer must be given the same Store and the adapter Layer; `effectFn` does not inherit a component's Store.
 - **Overlapping saves:** a second `commit` of one `(type, id)` while one is in flight fails with a typed `SaveInFlight`. Each ingest carries a per-record counter taken when its request started, and a response older than the last acknowledgement is dropped.
 - **SSR:** the map is client-only in v1 and documented so. `queryOf(Post).query` ingests on every read, including a hydrated cache hit, so the map rebuilds from the Query cache after hydration. No record atom is `serializable`.

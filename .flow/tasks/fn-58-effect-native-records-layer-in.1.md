@@ -41,6 +41,7 @@ An unread `push` is dropped on the next microtask unless the atom is kept alive.
 Added the records identity map to @sleekstack/model: `defineRecord(type, { fields })` with `atom(id)`, `push(wire)` and `evict(id)`, backed by one keepAlive registry atom per Store holding a keepAlive slot (`value`, `ackedAt`) per type and id; tests in packages/model/src/__tests__/record.test.ts cover every acceptance item, including the ParseError case.
 
 Notes for later tasks: `slotOf(store, type, id)` and `recordAtom(type, id)` live in packages/model/src/registry.ts (internal, not exported). The public reader atom is held weakly by `Atom.family` because it holds no state; the slots stay `keepAlive` and never use `family`. `Atom.make` runs an `Option` as an Effect, so a derived atom returning `Option` must use `Atom.writable`. `evict` keeps `ackedAt`. SSR: no record atom is serializable (client-only, per spec).
+stage: plan-sync - skipped(no downstream drift beyond the spec's Atom.family sentence, updated by the conductor)
 Baseline: not run before the first edit (the dependency builds ran first on the post-edit gate run). Post-edit gate green.
 
 stage: impl-review - ran (codex gpt-6.1-sol: fan-out NEEDS_WORK, two findings fixed, re-review SHIP)
