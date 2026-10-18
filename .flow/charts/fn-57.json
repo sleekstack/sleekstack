@@ -119,7 +119,7 @@
       "depends_on": [],
       "id": "fn-57.D10",
       "record_path": ".flow/charts/fn-57/10.md",
-      "status": "open",
+      "status": "resolved",
       "title": "Internationalization: languages and workflow",
       "type": "interview"
     },
@@ -172,5 +172,5 @@
     },
     "url": null
   },
-  "updated_at": "2026-10-18T07:34:12.432198Z"
+  "updated_at": "2026-10-18T07:35:30.819504Z"
 }

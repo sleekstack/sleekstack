@@ -1,5 +1,6 @@
 {
-  "answer": null,
+  "answer": "Ship English only, with routes laid out so a locale prefix such as /en/docs/ can be added later without moving pages. No translation workflow and no language switcher in this rebuild; the generated API pages stay English because their text comes from TSDoc. Fumadocs' i18n is not configured today. The user chose this over adding one more language at launch, over full localization, and over English only for good (chosen by the user in the D10 interview).\n",
+  "answer_gist": "Ship English only, with routes laid out so a locale prefix such as /en/docs/ can be added later without moving pages....",
   "assets": [],
   "attendance": "attended",
   "blocked_by": [],
@@ -13,7 +14,7 @@
   "n": 10,
   "question": "Which languages besides English, who translates and how translations stay in step with the source pages, how routes and search handle locales, and what ships at launch versus later.",
   "record_path": ".flow/charts/fn-57/10.md",
-  "status": "open",
+  "status": "resolved",
   "superseded_by": null,
   "supersedes": [],
   "title": "Internationalization: languages and workflow",
@@ -24,7 +25,16 @@
     "linkState": "unlinked",
     "url": null
   },
-  "transition_notes": [],
+  "transition_notes": [
+    {
+      "actor": "ubtik@outlook.com",
+      "at": "2026-10-18T07:35:30.822221Z",
+      "keep_dependents": false,
+      "kind": "resolved",
+      "supersedes": [],
+      "text": "resolved by ubtik@outlook.com"
+    }
+  ],
   "type": "interview",
-  "updated_at": "2026-10-18T07:21:26.326658Z"
+  "updated_at": "2026-10-18T07:35:30.819504Z"
 }
