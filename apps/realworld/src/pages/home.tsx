@@ -49,8 +49,8 @@ export const articleSource = (key: string, query: Query): ArticleSource => ({
 
 const LoadFailed = () => <div class="article-preview">Articles could not be loaded: try again.</div>
 
-/** A page past the first, fetched in the browser; picking another page refetches. */
-const LaterPage = function* ({ source, toggle }: { source: ArticleSource; toggle: Toggle | null }) {
+/** A picked page, fetched in the browser; picking another page refetches, the first page included. */
+const PickedPage = function* ({ source, toggle }: { source: ArticleSource; toggle: Toggle | null }) {
   const list = yield* useDerivedAtom(function* (get) {
     const { page } = get(pageAtom)
     return yield* source.query({ limit: PAGE_SIZE, offset: page * PAGE_SIZE })
@@ -61,7 +61,10 @@ const LaterPage = function* ({ source, toggle }: { source: ArticleSource; toggle
   return <ArticlePreviews articles={result.value.articles} toggle={toggle} />
 }
 
-/** A list's previews with its page links: the first page comes with the route, a later one when it is picked. */
+/**
+ * A list's previews with its page links: the first page comes with the route; once a page is picked on this path,
+ * every page shown is fetched, so returning to the first one shows the server's current state.
+ */
 export const ArticleFeed = function* ({ source }: { source: ArticleSource }) {
   const call = yield* ServerFunctions
   const { pathname } = yield* Route
@@ -70,16 +73,17 @@ export const ArticleFeed = function* ({ source }: { source: ArticleSource }) {
   const picked = yield* useAtomValue(pageAtom)
   const pick = yield* useSetAtom(pageAtom)
   if (first._tag === 'Left') return <LoadFailed />
-  const page = picked.path === pathname ? picked.page : 0
+  const paged = picked.path === pathname
+  const page = paged ? picked.page : 0
   const toggle: Toggle | null = user
     ? (a) => call(a.favorited ? unfavoriteContract : favoriteContract)({ slug: a.slug })
     : null
   return (
     <>
-      {page === 0 ? (
-        <ArticlePreviews articles={first.right.articles} toggle={toggle} />
+      {paged ? (
+        <PickedPage source={source} toggle={toggle} />
       ) : (
-        <LaterPage source={source} toggle={toggle} />
+        <ArticlePreviews articles={first.right.articles} toggle={toggle} />
       )}
       <Pagination
         count={first.right.articlesCount}

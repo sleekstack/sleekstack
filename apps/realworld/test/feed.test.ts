@@ -159,6 +159,20 @@ describe('home feeds', () => {
     expect([titles().length, all('.pagination .active')]).toEqual([10, ['1']])
   })
 
+  it('a favorite made on page 1 still shows after a round trip to page 2', async () => {
+    const [writer, fan] = [await user(), await user()]
+    let last = ''
+    for (let i = 1; i <= 11; i++) last = (await post(writer.session, `Trip ${i}`, ['trip'])).value.slug
+    cookie = fan.session
+    await open('/tag/trip')
+    await submit('.favorite button')
+    await click('.pagination li:nth-child(2) .page-link')
+    await click('.pagination li:nth-child(1) .page-link')
+    expect([titles()[0], hearts()[0]]).toEqual(['Trip 11', '1'])
+    await submit('.favorite button') // unfavorites: the button knows it is favorited
+    expect((await fn('articles.get', { slug: last }, fan.session)).value.favorited).toBe(false)
+  })
+
   it('favoriting shows the new count at once and keeps the server answer', async () => {
     const [writer, fan] = [await user(), await user()]
     await post(writer.session, 'Liked', ['liked'])
