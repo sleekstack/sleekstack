@@ -11,6 +11,7 @@ const sourceAlias = [
   { find: /^@sleekstack\/ui\/(.*)$/, replacement: pkg('ui/src/$1.ts') },
   { find: /^@sleekstack\/core$/, replacement: pkg('core/src/index.ts') },
   { find: /^@sleekstack\/model$/, replacement: pkg('model/src/index.ts') },
+  { find: /^@sleekstack\/model\/(.*)$/, replacement: pkg('model/src/$1.ts') },
   { find: /^@sleekstack\/query$/, replacement: pkg('query/src/index.ts') },
   { find: /^@sleekstack\/start$/, replacement: pkg('start/src/index.ts') },
   { find: /^@sleekstack\/start\/(.*)$/, replacement: pkg('start/src/$1.ts') },
@@ -53,6 +54,7 @@ const budgets: ReadonlyArray<{ name: string; entry: string; limit: number; uiBef
   { name: 'resume', entry: 'resume/entry.ts', limit: 83_000 },
   { name: 'lazy mount', entry: 'size/lazy.tsx', limit: 209_000, uiBeforeModel: 201_154 },
   { name: 'mount with a Draft', entry: 'size/model.tsx', limit: 231_000 },
+  { name: 'mount with a record', entry: 'size/records.tsx', limit: 233_000 },
 ]
 
 describe('size budget (ADR 0022)', () => {
