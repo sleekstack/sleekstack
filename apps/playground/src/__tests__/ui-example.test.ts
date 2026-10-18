@@ -42,8 +42,8 @@ it.each([true, false])(
       expect(src).toBeDefined()
 
       document.body.innerHTML = new DOMParser().parseFromString(html, 'text/html').body.innerHTML
-      // The stream's inline scripts (the boundary swap) run as they arrive; run and drop them as the router's tests do.
-      for (const s of document.querySelectorAll('script:not([type])')) (s.remove(), new Function(s.textContent!)())
+      // The stream's inline scripts (the boundary swap) run as they arrive, and a browser leaves them in the page.
+      for (const s of document.querySelectorAll('script:not([type])')) new Function(s.textContent!)()
       const button = document.querySelector('button')!
       vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
       const client = await import(pathToFileURL(path.join(out, 'client', src!)).href)

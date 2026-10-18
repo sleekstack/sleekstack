@@ -245,6 +245,17 @@ describe('hydrateMount mismatch', () => {
     expect(container.innerHTML).toBe('<p>x</p>')
   })
 
+  it('inline stream scripts a browser leaves in the page are ignored without a report', async () => {
+    const app = () => jsx('p', { children: 'x' })
+    const { container, errors } = await mismatchCase({
+      server: app,
+      client: app,
+      html: (h) => `<script>0</script>${h}<script>0</script>`,
+    })
+    expect(errors).toEqual([])
+    expect(container.innerHTML).toBe('<p>x</p>')
+  })
+
   // Documented non-goal: the parser inserts <tbody>, so the walk sees a mismatch and recovers.
   it('parser-normalised DOM is not adopted: it reports and recovers to a client render', async () => {
     const app = () => jsx('table', { children: jsx('tr', { children: jsx('td', { children: 'c' }) }) })

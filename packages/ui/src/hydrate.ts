@@ -345,6 +345,8 @@ export const hydrateMount = async <E, A, LE = never>(
 ): Promise<Mounted> => {
   const { container, onError } = opts
   if (owned(container)) throw new HydrateConflict({ container })
+  // A browser leaves the stream's inline scripts (the swap helpers, the boundary swaps) in the page once they have run.
+  for (const c of [...container.children]) if (c.matches('script:not([type])')) c.remove()
   const p = readPayload(container, onError)
   if (p) app = Effect.zipRight(seed(p, onError), app) as typeof app
   // Mid-stream: boundaries whose placeholder is still on screen hydrate their fallback and adopt the content on landing.
