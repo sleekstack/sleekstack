@@ -584,7 +584,7 @@
     "impl:fn-52-model-and-draft-usedraft-for-editable.3": 0
   },
   "spec_path": ".flow/specs/fn-52-model-and-draft-usedraft-for-editable.md",
-  "status": "open",
+  "status": "done",
   "title": "Model and Draft: useDraft for editable copies of atoms",
   "tracker": {
     "baseHashFlow": null,
@@ -597,5 +597,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-16T12:32:35.127684Z"
+  "updated_at": "2026-10-18T15:14:00.507765Z"
 }

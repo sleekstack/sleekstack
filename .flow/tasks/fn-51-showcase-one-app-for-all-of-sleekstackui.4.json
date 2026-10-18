@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-51-showcase-one-app-for-all-of-sleekstackui",
   "spec_path": ".flow/tasks/fn-51-showcase-one-app-for-all-of-sleekstackui.4.md",
-  "status": "todo",
+  "status": "done",
   "title": "Showcase demos: Portal, Boundary reset, router, devtools, testing, README",
   "updated_at": "2026-10-15T09:00:49.645488Z"
 }
