@@ -10,6 +10,5 @@ export {
   unfollowContract,
   updateUserContract,
 } from './application/contracts'
-export { requireFields } from './application/validate'
 export { LoginUser, NewUser, Profile, UpdateUser, User } from './domain/model'
 export { type SignedIn, Viewer } from './domain/ports'

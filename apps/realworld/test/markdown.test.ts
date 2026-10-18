@@ -67,6 +67,33 @@ describe('markdown', () => {
     expect(performance.now() - start).toBeLessThan(1_000)
   })
 
+  it("drops a heading's closing #s only after whitespace", async () => {
+    const body = await dom('## Title ##  \n\n### a#\n\n# x # y')
+    expect([...body.children].map((e) => [e.tagName, e.textContent])).toEqual([
+      ['H2', 'Title'],
+      ['H3', 'a#'],
+      ['H1', 'x # y'],
+    ])
+  })
+
+  const SPACES = ' '.repeat(200_000)
+  it.each([
+    ['heading', `# a${SPACES}x`],
+    ['heading with closing #s', `## a${SPACES}##${SPACES}`],
+    ['paragraph', `a${SPACES}b`],
+    ['list item', `${SPACES}- x`],
+    ['ordered item', `${SPACES}1x`],
+    ['blank-ish lines', `${' '.repeat(9)}\n`.repeat(20_000)],
+    ['emphasis', `*${SPACES}`],
+    ['strong around emphasis', `**a ${'*b* '.repeat(50_000)}`],
+    ['link label', `[${SPACES}`],
+    ['link target', `[a](${'[b]'.repeat(70_000)}`],
+  ])('stays fast on a 200KB %s full of whitespace', async (_, source) => {
+    const start = performance.now()
+    await html(source)
+    expect(performance.now() - start).toBeLessThan(500)
+  })
+
   it('renders an empty body as nothing', async () => {
     expect((await dom('')).childElementCount).toBe(0)
     expect((await dom('  \n\n')).textContent).toBe('')

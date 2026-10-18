@@ -228,6 +228,31 @@ describe('auth and request errors', () => {
     })
   })
 
+  it('a body over 1 MiB is 413, by its declared length or by the bytes streamed; one just under is read', async () => {
+    const TOO_LARGE = { status: 413, body: { errors: { body: ['is too large'] } } }
+    const login = (email: string) => ({ user: { email, password: 'p' } })
+    const big = JSON.stringify(login('x'.repeat(1024 * 1024)))
+    expect(await api('POST', 'users/login', { body: big })).toEqual(TOO_LARGE)
+    const declared = await app.fetch(
+      new Request('http://conduit.test/api/users/login', {
+        method: 'POST',
+        headers: { 'content-length': String(2 * 1024 * 1024) },
+        body: '{}',
+      }),
+    )
+    expect([declared.status, await declared.json()]).toEqual([413, TOO_LARGE.body])
+    const streamed = await app.fetch(
+      new Request('http://conduit.test/api/users/login', {
+        method: 'POST',
+        body: new Blob([big]).stream(),
+        duplex: 'half',
+      } as RequestInit),
+    )
+    expect([streamed.status, await streamed.json()]).toEqual([413, TOO_LARGE.body])
+    const under = JSON.stringify(login('x'.repeat(1024 * 1024 - 100)))
+    expect((await api('POST', 'users/login', { body: under })).status).toBe(403)
+  })
+
   it('an unknown route or method under /api/ is 404; other paths pass on', async () => {
     for (const [method, path] of [
       ['GET', 'nope'],

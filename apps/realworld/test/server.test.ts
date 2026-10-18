@@ -50,14 +50,57 @@ describe('session cookie', () => {
       error: { _tag: 'Unauthorized' },
     })
 
-    // A bad cookie is Unauthorized on every function that reads the viewer, an anonymous-friendly one included.
-    expect((await call('tags.list', undefined, `${SESSION}=bad.token.here`)).body).toEqual({
-      _tag: 'Failure',
-      error: { _tag: 'Unauthorized' },
-    })
-
     const out = await call('users.logout', undefined, cookie)
     expect(out.setCookie).toEqual([`${SESSION}=; Path=/; Max-Age=0`])
+  })
+
+  it('the session cookie is Secure on https', async () => {
+    const https = 'https://conduit.test'
+    const response = await app.fetch(
+      new Request(`${https}/_sleek/fn/users.register`, {
+        method: 'POST',
+        headers: { origin: https, 'content-type': 'application/json' },
+        body: JSON.stringify(user('sec')),
+      }),
+    )
+    expect(response.headers.getSetCookie()).toEqual([
+      expect.stringMatching(new RegExp(`^${SESSION}=[^;]+; Path=/; Max-Age=2592000; HttpOnly; Secure; SameSite=Lax$`)),
+    ])
+  })
+
+  it('a stale cookie reads as signed out and is cleared; a function that needs a viewer is Unauthorized', async () => {
+    const stale = `${SESSION}=bad.token.here`
+    const cleared = [`${SESSION}=; Path=/; Max-Age=0`]
+    const author = pair((await call('users.register', user('eve'))).setCookie)
+    await call('articles.create', { title: 'Stale cookies', description: 'd', body: 'Still readable' }, author)
+
+    const tags = await call('tags.list', undefined, stale)
+    expect([tags.body, tags.setCookie]).toEqual([{ _tag: 'Success', value: expect.any(Array) }, cleared])
+    expect((await call('articles.get', { slug: 'stale-cookies' }, stale)).body).toMatchObject({
+      value: { title: 'Stale cookies', favorited: false },
+    })
+    expect((await call('profiles.get', { username: 'eve' }, stale)).body).toMatchObject({ value: { following: false } })
+    expect((await call('comments.list', { slug: 'stale-cookies' }, stale)).body).toEqual({ _tag: 'Success', value: [] })
+    for (const [id, input] of [
+      ['user.current', undefined],
+      ['articles.favorite', { slug: 'stale-cookies' }],
+      ['comments.add', { slug: 'stale-cookies', comment: { body: 'x' } }],
+    ] as const) {
+      const out = await call(id, input, stale)
+      expect([id, out.body, out.setCookie]).toEqual([id, { _tag: 'Failure', error: { _tag: 'Unauthorized' } }, cleared])
+    }
+
+    // Pages render their content with the signed-out header, and clear the cookie.
+    for (const [path, content] of [
+      ['/', 'Stale cookies'],
+      ['/profile/eve', 'eve'],
+      ['/article/stale-cookies', 'Still readable'],
+    ]) {
+      const page = await app.fetch(new Request(`${ORIGIN}${path}`, { headers: { cookie: stale, accept: 'text/html' } }))
+      const html = await page.text()
+      expect([path, page.status, html.includes(content), html.includes('Sign in')]).toEqual([path, 200, true, true])
+      expect(page.headers.getSetCookie()).toEqual(cleared)
+    }
   })
 
   it('register signs in; a wrong login is the declared Forbidden', async () => {

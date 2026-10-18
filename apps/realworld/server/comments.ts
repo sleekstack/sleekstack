@@ -1,8 +1,7 @@
-import { Clock, Effect } from 'effect'
-import { Forbidden, NotFound } from '../src/errors'
+import { Effect } from 'effect'
+import { Forbidden, NotFound, requireFields } from '../src/errors'
 import type { Comment, NewComment } from '../src/modules/comments'
-import { requireFields } from '../src/modules/identity'
-import { articleAt, viewerId } from './articles'
+import { articleAt, now, viewerId } from './articles'
 import { Db } from './db'
 import { requireViewer } from './identity'
 
@@ -49,11 +48,13 @@ export const addComment = (slug: string, input: NewComment) =>
     yield* requireFields({ body: input.body })
     const { id } = yield* articleAt(slug)
     const db = yield* Db
-    const at = new Date(yield* Clock.currentTimeMillis).toISOString()
+    const at = yield* now
     const { lastInsertRowid } = db
       .prepare('INSERT INTO comments (article_id, author_id, body, created_at, updated_at) VALUES (?, ?, ?, ?, ?)')
       .run(id, viewer.id, input.body, at, at)
-    const row = db.prepare(`${SELECT} WHERE c.id = $id`).get({ viewer: viewer.id, id: lastInsertRowid }) as unknown as Row
+    const row = db
+      .prepare(`${SELECT} WHERE c.id = $id`)
+      .get({ viewer: viewer.id, id: lastInsertRowid }) as unknown as Row
     return toComment(row)
   })
 

@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted. Built in spec fn-61. Supersedes nothing.
+Accepted. Built in spec fn-61. Supersedes nothing. Its bad-JWT rule for the session cookie is amended by 0043.
 
 ## Context
 

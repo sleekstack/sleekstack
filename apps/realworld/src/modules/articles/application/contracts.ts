@@ -3,7 +3,7 @@ import { Forbidden, NotFound, Unauthorized, ValidationError } from '../../../err
 import { Article, ArticleList, ArticleQuery, NewArticle, Page, UpdateArticle } from '../domain/model'
 
 // The client-safe halves of the article server functions: ids and Schemas, built into functions by `server/app.ts`.
-// A bad session cookie is `Unauthorized` on every one that reads the viewer.
+// A stale session cookie reads as anonymous; `Unauthorized` is for one that needs a signed-in viewer.
 
 const BySlug = Schema.Struct({ slug: Schema.String })
 

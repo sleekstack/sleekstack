@@ -1,8 +1,8 @@
 import type { DatabaseSync } from 'node:sqlite'
 import { Clock, Effect, Option } from 'effect'
-import { Forbidden, NotFound, ValidationError } from '../src/errors'
+import { Forbidden, NotFound, requireFields, ValidationError } from '../src/errors'
 import type { Article, ArticleList, ArticleQuery, NewArticle, Page, UpdateArticle } from '../src/modules/articles'
-import { requireFields, Viewer } from '../src/modules/identity'
+import { Viewer } from '../src/modules/identity'
 import { Db } from './db'
 import { requireViewer } from './identity'
 
@@ -205,7 +205,8 @@ const transaction = <A>(db: DatabaseSync, f: () => A) =>
     }
   })
 
-const now = Effect.map(Clock.currentTimeMillis, (ms) => new Date(ms).toISOString())
+/** The current time from the Effect `Clock`, as the ISO string the columns hold. */
+export const now = Effect.map(Clock.currentTimeMillis, (ms) => new Date(ms).toISOString())
 
 /** Publishes an article by the signed-in viewer, under a slug made unique from its title. */
 export const createArticle = (input: NewArticle) =>
@@ -249,9 +250,10 @@ export const updateArticle = (slug: string, input: UpdateArticle) =>
       ...(input.body !== undefined && { body: input.body }),
       updated_at: at,
     }
-    const current = db.prepare('SELECT title FROM articles WHERE id = ?').get(id) as { title: string }
     const columns = Object.keys(changes)
     const next = yield* transaction(db, () => {
+      // The title before this write, read in its transaction: a new title is what gives a new slug.
+      const current = db.prepare('SELECT title FROM articles WHERE id = ?').get(id) as { title: string }
       db.prepare(`UPDATE articles SET ${columns.map((c) => `${c} = ?`).join(', ')} WHERE id = ?`).run(
         ...Object.values(changes),
         id,

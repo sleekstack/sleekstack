@@ -55,7 +55,16 @@ const inline = (source: string): Array<Inline> => {
 }
 
 const FENCE = /^```/
-const HEADING = /^(#{1,6})\s+(.*?)(?:\s+#+)?\s*$/
+const HEADING = /^#{1,6}\s/
+/** An ATX heading's level and text, without its closing `#`s. Plain string work: no regex backtracks on its spaces. */
+const heading = (line: string) => {
+  const level = line.search(/[^#]/)
+  let text = line.slice(level).trimEnd()
+  let end = text.length
+  while (end > 0 && text[end - 1] === '#') end--
+  if (end < text.length && /\s/.test(text[end - 1] ?? ' ')) text = text.slice(0, end)
+  return { level, text: text.trim() }
+}
 const ITEM = /^\s*(?:[-*+]|\d+[.)])\s+/
 const ORDERED = /^\s*\d/
 const startsBlock = (line: string) => FENCE.test(line) || HEADING.test(line) || ITEM.test(line)
@@ -74,8 +83,8 @@ const blocks = (source: string): Array<Node> => {
       i++
       out.push(el('pre', {}, el('code', {}, code.join('\n'))))
     } else if (HEADING.test(line)) {
-      const [, hashes, text] = HEADING.exec(line)!
-      out.push(el(`h${hashes!.length}`, {}, ...inline(text!)))
+      const { level, text } = heading(line)
+      out.push(el(`h${level}`, {}, ...inline(text)))
       i++
     } else if (ITEM.test(line)) {
       const ordered = ORDERED.test(line)

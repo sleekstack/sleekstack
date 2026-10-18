@@ -1,5 +1,5 @@
 import type { Middleware } from '@sleekstack/start'
-import { Effect, ParseResult, Schema } from 'effect'
+import { Data, Effect, ParseResult, Schema } from 'effect'
 import type { Forbidden, NotFound, Unauthorized, ValidationError } from '../src/errors'
 import { ArticleQuery, NewArticle, Page, UpdateArticle } from '../src/modules/articles'
 import { NewComment } from '../src/modules/comments'
@@ -31,7 +31,7 @@ import {
 
 const PREFIX = '/api/'
 
-type Failure = ValidationError | Unauthorized | Forbidden | NotFound | ParseResult.ParseError
+type Failure = ValidationError | Unauthorized | Forbidden | NotFound | ParseResult.ParseError | TooLarge
 
 /** What a route answers: a status and a JSON body, or no body. */
 type Reply = readonly [status: number, body?: unknown]
@@ -39,8 +39,8 @@ type Reply = readonly [status: number, body?: unknown]
 interface Call {
   readonly params: ReadonlyArray<string>
   readonly query: URLSearchParams
-  /** The JSON body decoded by `schema`: malformed JSON or a body `schema` rejects is a 422. */
-  readonly body: <A, I>(schema: Schema.Schema<A, I>) => Effect.Effect<A, ParseResult.ParseError>
+  /** The JSON body decoded by `schema`: malformed JSON or a body `schema` rejects is a 422, one over 1 MiB a 413. */
+  readonly body: <A, I>(schema: Schema.Schema<A, I>) => Effect.Effect<A, ParseResult.ParseError | TooLarge>
 }
 
 type Route = readonly [
@@ -134,6 +134,8 @@ const failure = (error: Failure, hasToken: boolean): Reply => {
   switch (error._tag) {
     case 'ParseError':
       return errors(422, parseErrors(error))
+    case 'TooLarge':
+      return errors(413, { body: ['is too large'] })
     case 'ValidationError':
       return errors(422, error.errors)
     case 'Unauthorized':
@@ -145,12 +147,38 @@ const failure = (error: Failure, hasToken: boolean): Reply => {
   }
 }
 
+/** A request body over the limit (start's server-function limit, 1 MiB): 413. */
+class TooLarge extends Data.TaggedError('TooLarge') {}
+const BODY_LIMIT = 1024 * 1024
+
+/** The body's text, or `undefined` once it passes `BODY_LIMIT` (its declared length or the bytes read so far). */
+const readText = async (request: Request) => {
+  if (Number(request.headers.get('content-length')) > BODY_LIMIT) return undefined
+  const chunks: Uint8Array[] = []
+  let size = 0
+  for await (const chunk of request.body ?? []) {
+    size += chunk.byteLength
+    // Leaving the loop cancels the stream: the rest is never read.
+    if (size > BODY_LIMIT) return undefined
+    chunks.push(chunk)
+  }
+  return Buffer.concat(chunks).toString('utf8')
+}
+
 const readJson = (request: Request) =>
-  Effect.tryPromise({
-    try: () => request.json() as Promise<unknown>,
-    catch: () =>
-      new ParseResult.ParseError({ issue: new ParseResult.Type(Schema.Unknown.ast, undefined, 'is not valid JSON') }),
-  })
+  Effect.flatMap(
+    Effect.promise(() => readText(request)),
+    (text): Effect.Effect<unknown, ParseResult.ParseError | TooLarge> =>
+      text === undefined
+        ? Effect.fail(new TooLarge())
+        : Effect.try({
+            try: () => JSON.parse(text) as unknown,
+            catch: () =>
+              new ParseResult.ParseError({
+                issue: new ParseResult.Type(Schema.Unknown.ast, undefined, 'is not valid JSON'),
+              }),
+          }),
+  )
 
 /** `Authorization: Token <jwt>`: `undefined` without the header; any other scheme is a token that fails to verify. */
 const tokenOf = (request: Request) => {
