@@ -45,6 +45,7 @@ Added the adapter on the record: `defineRecord(type, { fields, adapter })` takes
 Notes for later tasks: `stamp()` (strictly increasing ms clock) and `ingest(store, type, id, record, startedAt?)` live in adapter.ts (internal, not exported from index): task 5 should set `ackedAt` with `stamp()`. `RecordAdapter<W, C, E>` has one `E` for both methods. New public names for task 7: `useRecord`, `RecordAdapter`, `AdapterTag`, `FindError`, `FetchStrategy`, `AdaptedRecord`. Deviation: tests swap the adapter with `Layer.succeed` only; `mockLayer` from packages/testing cannot be imported (tsc rootDir) without adding `@sleekstack/testing` to model's package.json, which is outside this task's Touches. registry.ts unchanged.
 
 stage: impl-review - ran (codex gpt-6.1-sol fan-out NEEDS_WORK: sync-fetch defect and dispose not awaiting cleanup; fixed; re-review NEEDS_WORK on the outside-component branch; fixed; re-review SHIP)
+stage: plan-sync - skipped(no drift; notes carried into tasks 5 and 7)
 Baseline: green via handoff (verified at fda3dfe by task 3; only .flow/ changed since). Post-edit gate green.
 Tier: explicit routing from project CLAUDE.md (implementer: opus at medium)
 ## Evidence

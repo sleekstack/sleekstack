@@ -11,6 +11,7 @@ Prove a Draft-only bundle holds no records code, keep export names unique across
 **Touches:** packages/model/src/__tests__/bundle.test.ts, packages/model/src/__tests__/exportNames.test.ts, apps/showcase/test/size.test.ts, apps/showcase/src/size/records.tsx, docs/adr/0022-ui-size-budget-and-publish-gate.md
 
 ### Approach
+- Names from task 4 to include: `useRecord`, `RecordAdapter`, `AdapterTag`, `FindError`, `FetchStrategy`, `AdaptedRecord`.
 - Names from task 3 to include in the uniqueness check: `ref`, `refs`, `RecordRef`, `RefField`, `RefsField`, `Related`, `RelationTarget`, `RelationKey`.
 - Extend `bundle.test.ts` (Vite build of the entry): a bundle importing only `useDraft` contains no records or query code; `./query` pulls in `@sleekstack/query` only when imported.
 - Add a name-uniqueness test for `src/index.ts` and `src/query.ts`, modelled on `packages/kit/src/__tests__/exportNames.test.ts` (kit's test does not cover model).

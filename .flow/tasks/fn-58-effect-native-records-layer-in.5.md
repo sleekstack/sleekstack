@@ -17,6 +17,7 @@ Write path: `commit` and a Draft derived from the record, with `useDraft(spec, s
 - Baseline after a save: standalone `useDraft` keeps an edited Draft's old seed when its source changes (`packages/model/src/draft.ts`), so reusing that rule would report a Draft returned to the old value as clean. The derived Draft updates its baseline to the acknowledged record and keeps edits made during the save, without changing standalone `useDraft`. Hold this sequence in a test: value A, submit B, edit to C, acknowledge B; then B reads clean and A reads dirty. `defaultValue` seeds a create form's Draft.
 - On every acknowledged save, set the slot's `ackedAt` (field added in task 1) and, when task 6's binding is in use, write the acknowledged wire into that record's query entry so the cache converges.
 - Pessimistic only: no optimistic shared writes in v1.
+- From task 4: the internal helpers `stamp()` and `ingest()` are in `packages/model/src/adapter.ts`; `commit` sets the slot's `ackedAt` with `stamp()` and writes through `ingest()`.
 - From task 2: `serialize` receives the Draft's input form and only the encode direction checks it against the transformation's `to` schema first. `commit` must validate Draft values against `to` before calling `serialize`, so an oversized string never reaches `Number()`. A transformed field's wire key is typed `T | undefined`, so keep the key present in the wire object.
 
 ### Investigation targets
