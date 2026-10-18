@@ -99,8 +99,10 @@ export const ids = (): Plugin => {
     transform: {
       filter: { id: /\.[jt]sx(?:$|\?)/ },
       handler(code, moduleId) {
-        if (!isUiJsx(code)) return null
         const file = normalizePath(moduleId.replace(/\?.*$/, ''))
+        // A file that stops exporting components releases its ids, even on the early returns below.
+        forget(file)
+        if (!isUiJsx(code)) return null
         const { program, errors } = parseSync(file, code, { lang: file.endsWith('.tsx') ? 'tsx' : 'jsx' })
         // A syntax error is the JSX transform's to report.
         if (errors.length) return null
@@ -108,7 +110,6 @@ export const ids = (): Plugin => {
         const exported = ownExports(program, out)
         if (!exported.length) return null
         const base = path.posix.relative(normalizePath(root), file).replace(/\.[jt]sx$/, '')
-        forget(file)
         const entries = exported.map(([local, name]) => {
           const id = `${base}#${name}`
           const owner = owners.get(id)

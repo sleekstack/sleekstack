@@ -113,6 +113,9 @@ export const entries = (options: EntriesOptions = {}): Plugin => {
     configResolved(config) {
       root = config.root
       base = config.base
+      // Page URLs are nested, so a relative base would resolve assets against the wrong directory.
+      if (e && !base.startsWith('/') && !/^[a-z][a-z\d+.-]*:/i.test(base))
+        throw new Error(`sleekstack: \`entries\` needs an absolute \`base\` (got "${base}")`)
     },
     buildApp: {
       order: 'pre',

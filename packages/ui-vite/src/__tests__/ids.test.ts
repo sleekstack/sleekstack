@@ -62,3 +62,23 @@ describe('sleekstack() component ids', () => {
     await expect(bundle({ a: `${root}/dup/meta.tsx`, b: `${root}/dup/meta.jsx` })).resolves.toBeDefined()
   })
 })
+
+describe('sleekstack() ids in dev re-transforms', () => {
+  it('releases a file ids when an edit removes its last component export', () => {
+    const plugin = sleekstack()
+      .flat()
+      .find((p) => (p as { name?: string }).name === 'sleekstack:ids') as any
+    plugin.configResolved({ root })
+    plugin.buildStart()
+    const ctx = {
+      error(msg: string) {
+        throw new Error(msg)
+      },
+    }
+    const run = (file: string, code: string) => plugin.transform.handler.call(ctx, code, `${root}/${file}`)
+    const pragma = '/** @jsxImportSource @sleekstack/ui */\n'
+    run('x.tsx', `${pragma}export function A() { return null }`)
+    run('x.tsx', `${pragma}export const n = 1`)
+    expect(() => run('x.jsx', `${pragma}export function A() { return null }`)).not.toThrow()
+  })
+})

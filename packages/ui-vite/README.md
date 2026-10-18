@@ -104,8 +104,7 @@ declare module 'virtual:sleekstack/client' {
 ## Known limitations
 
 - **Hydration of a streamed page in a browser:** a browser leaves the stream's inline scripts in the container. When they are left there, `hydrateMount` in `@sleekstack/ui` reports `HydrationMismatch` and falls back to a fresh mount, so the page works but the server's DOM is not kept. The fix belongs in `@sleekstack/ui`'s hydrate. The example's test removes the scripts before hydrating, as the router's tests do, so it covers hydration without them and is not evidence that a browser keeps the server's DOM.
-- **Relative `base` with `entries`:** `scripts` uses Vite's `base` as given. With a relative base such as `./`, a page at `/users/42` requests its client chunk from `/users/assets/...`, so CSS and hydration fail on nested routes. Set an absolute `base` (the default `/`, or a path such as `/app/`).
-- **Stale component ids in dev:** when an edit removes a ui file's last function export, or removes its pragma, the dev server still holds that file's old ids. A file that then exports the same id fails with a duplicate-id error until the dev server restarts. A build is not affected.
+- **Relative `base` with `entries`:** a relative `base` such as `./` is rejected, because a page at `/users/42` would request its client chunk from `/users/assets/...`. Use an absolute `base` (the default `/`, or a path such as `/app/`).
 - No HMR state preservation (fn-31), no static site generation (fn-30) and no deploy adapters.
 
 ## Vite API check (Vite 8.0.16)
