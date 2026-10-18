@@ -28,9 +28,10 @@ A cmd-K dialog component that searches the build-time index with the platform's 
 - [ ] `pnpm turbo run test typecheck --filter=docs` is green
 
 ## Done summary
-TBD
+Added SearchDialog (apps/docs/src/search): cmd/ctrl-K opens, escape closes, focus in input, arrows + enter navigate, no-results message, alert on index load failure. Mounted in the DocsLayout topbar; @sleekstack/ui-vite added as docs dependency (lockfile +3 lines).
 
+stage: impl-review - skipped(policy: user rule, per-task review skipped)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: a842a7fc3ae2305c790002791ea17008b2b80299
+- Tests: pnpm turbo run test typecheck --filter=docs
 - PRs:
