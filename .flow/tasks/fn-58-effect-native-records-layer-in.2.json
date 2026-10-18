@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-58-effect-native-records-layer-in",
   "spec_path": ".flow/tasks/fn-58-effect-native-records-layer-in.2.md",
-  "status": "todo",
+  "status": "done",
   "title": "Per-field transformations: defineTransformation and field",
   "updated_at": "2026-10-18T10:34:12.393424Z"
 }

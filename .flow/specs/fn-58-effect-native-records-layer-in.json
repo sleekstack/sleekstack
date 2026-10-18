@@ -1235,7 +1235,7 @@
     "plan": 0
   },
   "spec_path": ".flow/specs/fn-58-effect-native-records-layer-in.md",
-  "status": "open",
+  "status": "done",
   "title": "Effect-native records layer in @sleekstack/model",
   "tracker": {
     "baseHashFlow": null,
@@ -1248,5 +1248,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-18T12:58:59.812789Z"
+  "updated_at": "2026-10-18T14:25:24.099620Z"
 }

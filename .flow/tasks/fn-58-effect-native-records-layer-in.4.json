@@ -12,7 +12,7 @@
   "priority": null,
   "spec": "fn-58-effect-native-records-layer-in",
   "spec_path": ".flow/tasks/fn-58-effect-native-records-layer-in.4.md",
-  "status": "todo",
+  "status": "done",
   "title": "Adapter on the record: find, de-dupe, stale-write guard, scope ownership",
   "updated_at": "2026-10-18T10:41:42.794902Z"
 }
