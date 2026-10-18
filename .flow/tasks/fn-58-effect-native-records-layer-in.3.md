@@ -37,6 +37,7 @@ Added `ref(() => Other)` and `refs(() => Other)` relationship fields and `record
 Notes for later tasks: `RelationKey<F>` types the `field` argument. No inverse sync; a reverse view covers loaded records only (TSDoc on `related`). New public names `ref`, `refs`, `RecordRef`, `RefField`, `RefsField`, `Related`, `RelationTarget`, `RelationKey` for task 7's uniqueness guard.
 
 stage: impl-review - ran (codex gpt-6.1-sol fan-out: correctness, contracts, integration all SHIP, 0 findings)
+stage: plan-sync - skipped(no drift; new public names noted in task 7)
 Baseline: green via handoff (verified at 96178f7 by task 2; only .flow/ changed since). Post-edit gate green.
 Tier: explicit routing from project CLAUDE.md (implementer: opus at medium)
 ## Evidence
