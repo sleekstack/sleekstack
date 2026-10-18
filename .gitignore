@@ -17,3 +17,6 @@ dist/
 *.tsbuildinfo
 test-results/
 playwright-report/
+
+# The RealWorld app's SQLite database, created on boot
+apps/realworld/data/

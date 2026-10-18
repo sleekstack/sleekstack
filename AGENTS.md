@@ -28,6 +28,7 @@ Scope to one package with `pnpm turbo run <task> --filter=<name>`.
 | core / runtime                | `pnpm turbo run test typecheck --filter=@sleekstack/core...` (or `runtime...`)                       |
 | docs (`apps/docs`)            | `pnpm turbo run test typecheck --filter=docs`                                                        |
 | showcase (`apps/showcase`)    | `pnpm turbo run test typecheck --filter=showcase`                                                    |
+| realworld (`apps/realworld`)  | `pnpm turbo run test typecheck --filter=realworld` and `pnpm --filter realworld check`               |
 | a public export name          | the above, plus the fixture graph check below before and after: output must match                    |
 
 Fixture graph check: from the repo root, `for app in kit-app effect-app; do (cd packages/cli/src/__tests__/fixtures/$app && node ../../../../bin/cli.js check --json --entry runtime.ts); done`. Save the output before the change and diff it with the output after.
