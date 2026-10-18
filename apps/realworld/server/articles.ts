@@ -157,10 +157,16 @@ const slugify = (title: string) =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '') || 'article'
 
-/** Runs `write` with the first free slug for `title` (`x`, `x-2`, `x-3`, ...); the UNIQUE index decides "free". */
+// `/api/articles/feed` is the feed, so no article may take that slug.
+const RESERVED_SLUGS = new Set(['feed'])
+
+/**
+ * Runs `write` with the first free slug for `title` (`x`, `x-2`, `x-3`, ...); the UNIQUE index decides "free", and a
+ * reserved slug is never free.
+ */
 const withSlug = (title: string, write: (slug: string) => void) => {
   const base = slugify(title)
-  for (let n = 1; ; n++) {
+  for (let n = RESERVED_SLUGS.has(base) ? 2 : 1; ; n++) {
     const slug = n === 1 ? base : `${base}-${n}`
     try {
       write(slug)

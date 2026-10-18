@@ -170,6 +170,19 @@ describe('articles, favorites, comments and tags', () => {
     expect(await api('GET', 'tags')).toMatchObject({ status: 200, body: { tags: expect.arrayContaining(['t']) } })
   })
 
+  it('an article titled Feed stays reachable: `feed` is the feed route, never a slug', async () => {
+    const hal = await register('hal')
+    const created = await api('POST', 'articles', {
+      token: hal,
+      body: { article: { title: 'Feed', description: 'd', body: 'b' } },
+    })
+    expect(created.body.article.slug).toBe('feed-2')
+    expect(await api('GET', `articles/${created.body.article.slug}`)).toMatchObject({
+      status: 200,
+      body: { article: { title: 'Feed' } },
+    })
+  })
+
   it('non-numeric paging is 422', async () => {
     expect(await api('GET', 'articles?limit=abc')).toEqual({
       status: 422,
