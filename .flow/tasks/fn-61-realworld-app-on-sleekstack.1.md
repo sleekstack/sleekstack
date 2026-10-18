@@ -32,9 +32,18 @@ Copy the `apps/showcase` shape into `apps/realworld` (package.json, vite.config.
 - [ ] TBD
 
 ## Done summary
-TBD
+Scaffolded `apps/realworld` on the showcase shape. It has the Conduit CDN stylesheets, three module indexes (identity, articles, comments), and the tagged error set in `src/errors.ts` (ValidationError, Unauthorized, Forbidden, NotFound as Schema.TaggedError). It also adds a server-only `Db` Layer over `node:sqlite` (idempotent `IF NOT EXISTS` schema, foreign keys on, cascades, `data/` created on boot and gitignored) and `server/crypto.ts`: scrypt hash/verify, HS256 JWT sign/verify with `timingSafeEqual` on the Effect Clock, and `conduitSecret()`, which throws on a production boot without CONDUIT_SECRET. The commit also covers CI, the AGENTS.md row, a README line, and ADR 0042 with its index row.
 
+- Tests: `test/db.test.ts` checks idempotent reboot, data-dir creation, FK enforcement and article cascade. A mutation check (pragma OFF) turns the FK and cascade tests red. `test/crypto.test.ts` covers a wrong password, a tampered payload, another secret, a malformed token, expiry on TestClock, and the production secret throw. `test/architecture.test.ts` has the layering rules with the `node:` allowance removed. A unit case shows that `server/`, `node:sqlite` and `node:crypto` imports from src are violations, and a client-chunk build check confirms no server markers reach the client.
+- `sleekstack check` finds the `mount` component root, so no `sleekstack.entry` is needed.
+- pnpm-lock.yaml gains the realworld importer (required by the new package). A local-only `apps/sleek-codes` importer, which is excluded through .git/info/exclude, was stripped from the lockfile.
+- Vite config has no plugins yet (no React plugin; ui JSX uses the per-file pragma). Task 4 adds the dev middleware.
+- Note for later tasks: the domain `NotFound` shares its tag with the router's `NotFound`. They don't collide on the wire, and ADR 0042 records this.
+- `baseline: none` (the app did not exist before this task).
+- Tier: session (jev-unavailable(no_key))
+
+stage: impl-review - ran (codex fan-out, 3 draws SHIP, rid c27ae423214c4976a116ef4bf842eadc)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: efe04e56bd8cb0fb35351bb9a65ade0059581501
+- Tests: pnpm turbo run test typecheck --filter=realworld, pnpm --filter realworld check
 - PRs:

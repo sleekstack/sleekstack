@@ -1,11 +1,65 @@
 {
   "branch_name": "fn-61-realworld-app-on-sleekstack",
+  "completion_review_status": "unknown",
+  "completion_reviewed_at": null,
   "created_at": "2026-10-18T15:44:22.948840Z",
+  "default_impl": null,
+  "default_review": null,
+  "default_sync": null,
   "depends_on_epics": [],
   "id": "fn-61-realworld-app-on-sleekstack",
+  "impl_review_rounds": {
+    "fn-61-realworld-app-on-sleekstack.1": 0
+  },
   "next_task": 1,
+  "plan_review_rounds": 0,
   "plan_review_status": "unknown",
   "plan_reviewed_at": null,
+  "review_attempts": [
+    {
+      "artifact_sha256": "e90ae78a79ba85df094426aec27e520259276b8047d341b8e36f1abc80c953e8",
+      "backend": "codex",
+      "base_sha": "a7325804004b16752d4499e8bbe505846c2daa55",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "efe04e56bd8cb0fb35351bb9a65ade0059581501",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-6.1-sol",
+      "outcome": "verdict",
+      "output_bytes": 158,
+      "output_sha256": "6ff70da3d83706800ca3cabc6ba62603ba0485fcf5259d27f1be54ce68686975",
+      "reservation_id": "c27ae423214c4976a116ef4bf842eadc",
+      "round_consumed": true,
+      "scope": "impl:fn-61-realworld-app-on-sleekstack.1",
+      "superseded_by": null,
+      "task": "fn-61-realworld-app-on-sleekstack.1",
+      "timestamp": "2026-10-18T16:02:19.092943Z",
+      "verdict": "SHIP"
+    }
+  ],
+  "review_hash_epoch": {
+    "impl:fn-61-realworld-app-on-sleekstack.1": 1
+  },
+  "review_pending_rounds": {},
+  "review_reservations": {},
+  "review_transport_failures": {
+    "impl:fn-61-realworld-app-on-sleekstack.1": 0
+  },
   "spec_path": ".flow/specs/fn-61-realworld-app-on-sleekstack.md",
   "status": "open",
   "title": "RealWorld app on SleekStack",
@@ -20,5 +74,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-18T15:48:04.844772Z"
+  "updated_at": "2026-10-18T16:02:19.095097Z"
 }
