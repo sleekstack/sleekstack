@@ -138,12 +138,12 @@
     {
       "attendance": "unattended",
       "blocked_by": [],
-      "claimed_at": "2026-10-18T07:33:33.437948Z",
-      "claimed_by": "ubtik@outlook.com",
+      "claimed_at": null,
+      "claimed_by": null,
       "depends_on": [],
       "id": "fn-57.D12",
       "record_path": ".flow/charts/fn-57/12.md",
-      "status": "open",
+      "status": "resolved",
       "title": "Open Graph images: generation approach",
       "type": "research"
     }
@@ -172,5 +172,5 @@
     },
     "url": null
   },
-  "updated_at": "2026-10-18T07:35:30.819504Z"
+  "updated_at": "2026-10-18T07:38:04.754794Z"
 }

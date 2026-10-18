@@ -1,19 +1,20 @@
 {
-  "answer": null,
+  "answer": "Use satori (layout to SVG) plus @resvg/resvg-js (SVG to PNG), run as a build step over the page list, with a plain object layout tree and fonts read from files. Needs no React and no browser. Access date for all sources: 2026-10-18.\n\nMeasured (throwaway dir, macOS arm64, Node via npm, satori 0.62.0, @resvg/resvg-js 2.6.2, satori-html 0.3.2, Inter woff 400 and 700 from @fontsource/inter 5.3.0): 40 images at 1200x630 took 351 ms with a plain object tree and 307 ms with satori-html; one PNG is about 22-26 KB. Install weight: satori 25 MB unpacked, resvg native binary 3.4 MB per platform.\n\nCandidates\n1. satori + resvg-js (recommended). Input: React-element-like objects {type, props:{style, children}} with inline styles only, flexbox/grid subset (https://github.com/vercel/satori). Needs no React: objects work directly, an experimental builtin runtime exists via the satori/jsx import-source pragma, and satori-html turns an HTML string into those objects (https://github.com/natemoo-re/satori-html, inline styles only, no classes or Tailwind). Fonts are mandatory for any text: TTF, OTF, WOFF, WOFF2 passed as Buffer with name, weight, style; text is emitted as SVG paths, so the PNG needs no fonts at raster time. Wasm: satori lays out with wasm (Yoga/Taffy) embedded in the package; resvg-js is a native Rust binding with prebuilt binaries per OS/arch (wasm variant exists but is slower in Node) (https://github.com/thx/resvg-js). Risk: the native binary is per platform, so CI needs normal optional-dependency install.\n2. satori + sharp for the PNG step. sharp is already in the repo lockfile (0.35.5). It renders SVG input with libvips; its page says SVG text relies on fontconfig and embedded SVG fonts are unsupported (https://sharp.pixelplumbing.com/install), which does not matter because satori outputs paths. Native prebuilt binaries. Fine alternative to resvg; not benchmarked here.\n3. Headless browser screenshot (Playwright; playwright 1.63.0 is already in the lockfile). Input is a real HTML/CSS page, so full CSS and the site's own stylesheet and fonts work; the screenshot API is page.screenshot (https://playwright.dev/docs/screenshots). Cost: a browser binary download, a browser launch in CI, and an HTTP server or file URLs for the card pages. Not measured; expected slower than satori by a wide margin (unverified). Only choose it if cards must match the site pixel for pixel.\n4. Hand-written SVG template string rasterized by resvg or sharp. Input is a string with <text> elements. Cheapest and no layout engine, but no text wrapping or measuring: long titles overflow unless wrapped by hand. Fonts must be given to resvg through fontFiles or fontBuffers, or sharp via fontconfig. Viable for a fixed short-title card.\n\nCan ui's JSX feed it? No. ui's jsx() returns an Effect-based Element (internal fields _ht, _hp, _hn on host nodes), not a {type, props} object, so satori cannot read it and relying on the internal fields would be fragile. The card is small: write it as a plain object tree (or a satori/jsx or satori-html template) separate from the page components. Feeding ui's renderToString output through satori-html is plausible but not tested here.\n\nHead management (fn-33, .flow/specs/fn-33-head-management-for-ui.md): Head already dedupes meta by name and property, so og:title, og:description, og:image, og:image:width/height/alt, og:url, og:type fit its keyed model with no change. One gap: og:image must be an absolute http(s) URL (https://ogp.me/), and a static host has no request origin, so the build needs a configured site origin (site URL) and each page's image path joined to it; a root-relative path like /og/page.png is not valid for crawlers. fn-33 does not mention a site origin; fn-30 (static generation) or the Vite plugin config should own it. Also emit twitter:card summary_large_image; I could not verify X's current card documentation (the page returned HTTP 402), so treat the twitter tags as unverified. Images should be PNG (not SVG), 1200x630, written to e.g. /og/<slug>.png as static files next to the prerendered pages, one per route from the same page list the static generator walks. The generation step needs only each page's title and description, available from MDX frontmatter at build time (D2/D4 pipeline). Build cost is small enough to run on every build; no cache needed. The dev server can skip images and emit the meta only.\n\nNot verified: Playwright build time and browser-download size; sharp SVG rasterization speed; Windows/Linux resvg binary behavior (docs list prebuilt platforms); X card requirements; whether ui's renderToString output parses cleanly through satori-html.\n\nWould change this if: cards must reuse the site's CSS exactly (go Playwright); the team wants zero native dependencies (satori + resvg wasm, slower, or hand SVG); only one shared image is wanted (skip generation, ship one static og.png); satori is dropped or stalls (switch to hand SVG templates).\n",
+  "answer_gist": "Use satori (layout to SVG) plus @resvg/resvg-js (SVG to PNG), run as a build step over the page list, with a plain ob...",
   "assets": [],
   "attendance": "unattended",
   "blocked_by": [],
   "chart": "fn-57",
   "claim_note": null,
-  "claimed_at": "2026-10-18T07:33:33.437948Z",
-  "claimed_by": "ubtik@outlook.com",
+  "claimed_at": null,
+  "claimed_by": null,
   "created": "2026-10-18T07:21:26.973572Z",
   "depends_on": [],
   "id": "fn-57.D12",
   "n": 12,
   "question": "How to generate per-page Open Graph images at build time on a static ui site (no React): candidate tools, how they take layout input, build cost for about 40 pages, and what the head management (fn-33 slice) must emit.",
   "record_path": ".flow/charts/fn-57/12.md",
-  "status": "open",
+  "status": "resolved",
   "superseded_by": null,
   "supersedes": [],
   "title": "Open Graph images: generation approach",
@@ -24,7 +25,16 @@
     "linkState": "unlinked",
     "url": null
   },
-  "transition_notes": [],
+  "transition_notes": [
+    {
+      "actor": "ubtik@outlook.com",
+      "at": "2026-10-18T07:38:04.755603Z",
+      "keep_dependents": false,
+      "kind": "resolved",
+      "supersedes": [],
+      "text": "resolved by ubtik@outlook.com"
+    }
+  ],
   "type": "research",
-  "updated_at": "2026-10-18T07:33:33.437958Z"
+  "updated_at": "2026-10-18T07:38:04.754794Z"
 }
