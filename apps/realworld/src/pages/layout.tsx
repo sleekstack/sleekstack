@@ -29,15 +29,17 @@ const profileHref = (username: string) => `/profile/${encodeURIComponent(usernam
 const Header = function* () {
   // A viewer the browser could not load (the network failed) shows the signed-out links; the next navigation reloads it.
   const user = yield* Effect.orElseSucceed(useLoader(viewer), () => null)
+  // Home is the viewer's default tab: Your Feed when signed in, else the Global Feed.
+  const home = user ? '/feed' : '/'
   return (
     <nav class="navbar navbar-light">
       <div class="container">
-        <a class="navbar-brand" href="/">
+        <a class="navbar-brand" href={home}>
           conduit
         </a>
         <ul class="nav navbar-nav pull-xs-right">
           <li class="nav-item">
-            <a class="nav-link" href="/">
+            <a class="nav-link" href={home}>
               Home
             </a>
           </li>
@@ -126,19 +128,6 @@ export const Placeholder = ({ title }: { title: string }) => (
   <Layout>
     <div class="container page">
       <h1>{title}</h1>
-    </div>
-  </Layout>
-)
-
-export const HomePage = () => (
-  <Layout>
-    <div class="home-page">
-      <div class="banner">
-        <div class="container">
-          <h1 class="logo-font">conduit</h1>
-          <p>A place to share your knowledge.</p>
-        </div>
-      </div>
     </div>
   </Layout>
 )

@@ -44,7 +44,10 @@ const ruleOf = (mod: string): Rule | undefined => {
       }
     if (layer === 'infrastructure') return { local: ['domain/', 'infrastructure/', 'errors'], packages: ['effect'] }
     if (layer === 'presentation')
-      return { local: ['domain/', 'application/', 'presentation/', 'errors'], packages: ['effect', UI] }
+      return {
+        local: ['domain/', 'application/', 'presentation/', 'errors'],
+        packages: ['effect', '@sleekstack/core', UI],
+      }
     return undefined
   }
   if (mod.startsWith('pages/'))
