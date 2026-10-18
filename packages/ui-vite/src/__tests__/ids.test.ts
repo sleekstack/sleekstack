@@ -20,10 +20,13 @@ let evaluations = 0
 const evaluate = async (code: string) =>
   import(`data:text/javascript,${encodeURIComponent(`${code}\n//${evaluations++}`)}`)
 
-const idsOf = (mod: Record<string, Record<string, unknown>>) =>
+const idOf = (value: unknown) => (value as Record<symbol, unknown>)[ID]
+const idsOf = (mod: Record<string, unknown>) =>
   Object.fromEntries(
-    Object.entries(mod).flatMap(([ns, exports]) =>
-      Object.entries(exports).map(([name, value]) => [`${ns}.${name}`, (value as Record<symbol, unknown>)[ID]]),
+    Object.entries(mod).flatMap(([ns, value]) =>
+      typeof value === 'function'
+        ? [[ns, idOf(value)]]
+        : Object.entries(value as object).map(([name, v]) => [`${ns}.${name}`, idOf(v)]),
     ),
   )
 
@@ -43,6 +46,8 @@ describe('sleekstack() component ids', () => {
       'alias.Counter': 'components#Counter',
       'alias.Alias': 'components#Counter',
       'alias.Own': 'alias#Own',
+      arrow: 'defaults/arrow#default',
+      declaration: 'defaults/declaration#default',
     })
     expect(idsOf(second)).toEqual(idsOf(first))
   })
@@ -51,5 +56,9 @@ describe('sleekstack() component ids', () => {
     await expect(bundle({ a: `${root}/dup/a.tsx`, b: `${root}/dup/a.jsx` })).rejects.toThrow(
       /duplicate component id "dup\/a#A"/,
     )
+  })
+
+  it('gives non-function exports no id, so they never collide', async () => {
+    await expect(bundle({ a: `${root}/dup/meta.tsx`, b: `${root}/dup/meta.jsx` })).resolves.toBeDefined()
   })
 })

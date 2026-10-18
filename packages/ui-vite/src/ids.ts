@@ -6,47 +6,73 @@ import { isUiJsx } from './jsx.js'
 /** The property `fnId` in `@sleekstack/ui` reads a component's stable id from. */
 const KEY = 'Symbol.for("@sleekstack/ui/component-id")'
 
-/** Top-level value bindings: the only names a module-end statement can reference (not types, imports or `declare`s). */
-const valueNames = (body: ReadonlyArray<ESTree.Statement | ESTree.Directive | ESTree.ModuleDeclaration>) => {
+type Node = { readonly type: string; readonly start: number; readonly end: number; readonly [k: string]: any }
+
+const unwrap = (e: Node): Node =>
+  e.type === 'TSAsExpression' || e.type === 'TSSatisfiesExpression' || e.type === 'ParenthesizedExpression'
+    ? unwrap(e.expression)
+    : e
+const isFunction = (e: Node | null | undefined): boolean =>
+  !!e && ['ArrowFunctionExpression', 'FunctionExpression', 'FunctionDeclaration'].includes(unwrap(e).type)
+
+/** Top-level bindings whose value is a function written in place: the only exports that get an id. */
+const functionNames = (body: ReadonlyArray<ESTree.Statement | ESTree.Directive | ESTree.ModuleDeclaration>) => {
   const names = new Set<string>()
   for (const s of body) {
     const d = s.type === 'ExportNamedDeclaration' || s.type === 'ExportDefaultDeclaration' ? s.declaration : s
     if (!d || ('declare' in d && d.declare)) continue
-    if ((d.type === 'FunctionDeclaration' || d.type === 'ClassDeclaration') && d.id) names.add(d.id.name)
+    if (d.type === 'FunctionDeclaration' && d.id) names.add(d.id.name)
     else if (d.type === 'VariableDeclaration')
-      for (const v of d.declarations) if (v.id.type === 'Identifier') names.add(v.id.name)
+      for (const v of d.declarations) if (v.id.type === 'Identifier' && isFunction(v.init)) names.add(v.id.name)
   }
   return names
 }
 
-/** `[local, exported]` for each export of a binding this module declares; re-exports keep their source module's id. */
-const ownExports = (program: ESTree.Program): Array<readonly [string, string]> => {
-  const values = valueNames(program.body)
-  const out: Array<readonly [string, string]> = []
-  const add = (local: string, exported: string) => values.has(local) && out.push([local, exported])
+/**
+ * `[local, exported]` for each function export this module declares; re-exports keep their source module's id. An
+ * anonymous default function gets a local binding (`out` is edited) so it can be named.
+ */
+const ownExports = (program: ESTree.Program, out: MagicString): Array<readonly [string, string]> => {
+  const functions = functionNames(program.body)
+  const found: Array<readonly [string, string]> = []
+  const add = (local: string, exported: string) => functions.has(local) && found.push([local, exported])
   for (const s of program.body) {
     if (s.type === 'ExportNamedDeclaration' && !s.source && s.exportKind !== 'type') {
       const d = s.declaration
-      if ((d?.type === 'FunctionDeclaration' || d?.type === 'ClassDeclaration') && d.id) add(d.id.name, d.id.name)
+      if (d?.type === 'FunctionDeclaration' && d.id) add(d.id.name, d.id.name)
       else if (d?.type === 'VariableDeclaration')
         for (const v of d.declarations) if (v.id.type === 'Identifier') add(v.id.name, v.id.name)
       for (const sp of s.specifiers)
         if (sp.exportKind !== 'type' && sp.local.type === 'Identifier')
           add(sp.local.name, sp.exported.type === 'Identifier' ? sp.exported.name : String(sp.exported.value))
     } else if (s.type === 'ExportDefaultDeclaration') {
-      const d = s.declaration
-      if ((d.type === 'FunctionDeclaration' || d.type === 'ClassDeclaration') && d.id) add(d.id.name, 'default')
+      const d = s.declaration as Node
+      if (d.type === 'FunctionDeclaration' && d.id) add(d.id.name, 'default')
       else if (d.type === 'Identifier') add(d.name, 'default')
+      else if (isFunction(d)) {
+        let local = '__sleekstack_default'
+        while (out.original.includes(local)) local += '_'
+        if (d.type === 'FunctionDeclaration') {
+          // Stays a hoisted declaration: only the name is added, after `function` / `function*`.
+          const head = /^(?:async\s+)?function\s*\*?/.exec(out.original.slice(d.start, d.end))![0]
+          out.appendLeft(d.start + head.length, ` ${local}`)
+        } else {
+          out.overwrite(s.start, d.start, `const ${local} = `)
+          out.appendLeft(d.end, `;\nexport default ${local}`)
+        }
+        found.push([local, 'default'])
+      }
     }
   }
-  return out
+  return found
 }
 
 /**
  * Gives each function a ui JSX file exports a stable id, `<path from the Vite root, no extension>#<export name>`, which
  * `fnId` in `@sleekstack/ui` uses instead of its load-order counter. The id is set once on the function object where
  * it is declared, so a re-export (or a later re-evaluation of the same module) keeps it. Two files that would give the
- * same id (`a.tsx` and `a.jsx` both exporting `A`) fail the build. Anonymous default exports keep the counter.
+ * same id (`a.tsx` and `a.jsx` both exporting `A`) fail the build. Only functions written in the export (a declaration,
+ * an arrow or function expression) get an id; any other value keeps `fnId`'s counter.
  */
 export const ids = (): Plugin => {
   let root = ''
@@ -75,7 +101,8 @@ export const ids = (): Plugin => {
         const { program, errors } = parseSync(file, code, { lang: file.endsWith('.tsx') ? 'tsx' : 'jsx' })
         // A syntax error is the JSX transform's to report.
         if (errors.length) return null
-        const exported = ownExports(program)
+        const out = new MagicString(code)
+        const exported = ownExports(program, out)
         if (!exported.length) return null
         const base = path.posix.relative(normalizePath(root), file).replace(/\.[jt]sx$/, '')
         forget(file)
@@ -87,8 +114,9 @@ export const ids = (): Plugin => {
           owners.set(id, file)
           return `[${local}, ${JSON.stringify(id)}]`
         })
-        const out = new MagicString(code).append(
-          `\n;for (const [f, i] of [${entries.join(', ')}]) if (typeof f === "function" && !Object.hasOwn(f, ${KEY})) Object.defineProperty(f, ${KEY}, { value: i });\n`,
+        // A function exported under two names keeps the first.
+        out.append(
+          `\n;for (const [f, i] of [${entries.join(', ')}]) if (!Object.hasOwn(f, ${KEY})) Object.defineProperty(f, ${KEY}, { value: i });\n`,
         )
         return { code: out.toString(), map: out.generateMap({ hires: 'boundary', source: moduleId }) }
       },
