@@ -12,7 +12,7 @@
   "priority": null,
   "spec": "fn-60-docs-site-on-ui-and-start",
   "spec_path": ".flow/tasks/fn-60-docs-site-on-ui-and-start.5.md",
-  "status": "todo",
+  "status": "done",
   "title": "docs app: swap Next and fumadocs for the ui-vite build",
   "updated_at": "2026-10-18T15:10:27.290677Z"
 }

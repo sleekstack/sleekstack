@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-33-head-management-for-ui",
   "spec_path": ".flow/tasks/fn-33-head-management-for-ui.4.md",
-  "status": "todo",
+  "status": "done",
   "title": "Hydration adopts server head tags, docs",
   "updated_at": "2026-10-18T15:40:33.197179Z"
 }

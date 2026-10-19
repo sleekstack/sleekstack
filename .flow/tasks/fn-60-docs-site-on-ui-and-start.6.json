@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-60-docs-site-on-ui-and-start",
   "spec_path": ".flow/tasks/fn-60-docs-site-on-ui-and-start.6.md",
-  "status": "todo",
+  "status": "done",
   "title": "docs tests and scripts carry over, and the API reference covers the surviving packages",
   "updated_at": "2026-10-18T15:10:27.290701Z"
 }

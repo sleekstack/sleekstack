@@ -336,7 +336,7 @@
     "impl:fn-55-remove-kit-react-next-and-islands.3": 1
   },
   "spec_path": ".flow/specs/fn-55-remove-kit-react-next-and-islands.md",
-  "status": "open",
+  "status": "done",
   "title": "Remove kit, react, next and islands; migrate dependents",
   "tracker": {
     "baseHashFlow": null,
@@ -349,5 +349,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-18T16:19:23.647933Z"
+  "updated_at": "2026-10-19T07:28:04.730752Z"
 }
