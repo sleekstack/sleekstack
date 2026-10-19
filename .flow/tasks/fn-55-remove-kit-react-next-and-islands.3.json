@@ -11,7 +11,7 @@
   "priority": null,
   "spec": "fn-55-remove-kit-react-next-and-islands",
   "spec_path": ".flow/tasks/fn-55-remove-kit-react-next-and-islands.3.md",
-  "status": "todo",
+  "status": "done",
   "title": "devtools: SleekStackDevtools panel (graph, scopes, errors, atoms, queries) on ui",
   "updated_at": "2026-10-17T12:18:13.697433Z"
 }

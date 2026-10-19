@@ -112,8 +112,22 @@ describe('link validation', () => {
     expect(broken.filter((b) => !b.link.startsWith('/docs/api') && !b.file.startsWith('api/'))).toEqual([])
   })
 
+  it('a heading of inline code keeps its underscore, as the MDX pipeline renders it (`_tag` is #_tag, not #tag)', async () => {
+    const source = '## `_tag`\n\n## snake_case and _em_\n'
+    const code = await compileMdx(source, { file: 'x.mdx', styles: createStyleSheet(), outputFormat: 'function-body' })
+    const mod = await run(code, runtime as never)
+    const html = await renderToString((mod.default as (p: object) => never)({}), { layer: Layer.empty })
+    const rendered = [...html.matchAll(/<h[1-6] id="([^"]*)"/g)].map((m) => m[1])
+    expect(headingIds(source)).toEqual(['_tag', 'snake_case-and-em'])
+    expect(rendered).toEqual(headingIds(source))
+    const dir = tree({ 'index.mdx': '# Top\n\n[ok](/docs/a#_tag) [bad](/docs/a#tag)\n', 'a.mdx': source })
+    expect(findBrokenLinks(scanPages(dir, { base: '/docs' }), dir)).toEqual([
+      { file: 'index.mdx', link: '/docs/a#tag' },
+    ])
+  })
+
   it('heading ids equal the ids the MDX pipeline renders, on every real page', async () => {
-    // the generated api/ tree is not stable input (headings like `_tag`), skip it
+    // the generated api/ tree may be absent or half-written while docs generate:api runs; the `_tag` case is covered above
     for (const { file } of scanPages(docs).filter((p) => !p.file.includes('/api/'))) {
       const source = readFileSync(file, 'utf8')
       const code = await compileMdx(source, { file, styles: createStyleSheet(), outputFormat: 'function-body' })
