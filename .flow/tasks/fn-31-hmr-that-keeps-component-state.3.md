@@ -30,9 +30,11 @@ Wire the runtime to Vite: the transform emits `acceptUpdate` for component-only 
 - [ ] `pnpm turbo run test typecheck --filter=@sleekstack/ui... --filter=@sleekstack/ui-vite...` passes; docs mention the option
 
 ## Done summary
-TBD
+Vite plugin `hmr` option (default true, dev only): ui modules whose value exports are all components register with acceptUpdate and self-accept, reloading the page when the export shape changes or the module is not components-only; guests and builds get no HMR code. Docs updated.
 
+stage: plan-sync - skipped(config: planSync disabled)
+stage: impl-review - ran codex, 2 rounds, SHIP
 ## Evidence
-- Commits:
-- Tests:
+- Commits: e48f576430bdf6b5eac63fd6c253a64f6a5b6992
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/ui-vite (plugin.test.ts search-index case flakes on master too)
 - PRs:
