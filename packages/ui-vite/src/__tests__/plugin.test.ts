@@ -5,6 +5,9 @@ import { join, resolve } from 'node:path'
 import { createServer, type ViteDevServer } from 'vite'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { sleekContent } from '../index.js'
+import { buildSearchIndex } from '../search.js'
+import { loadSearchIndex, search } from '../search-client.js'
+import { scanPages } from '../content-routes.js'
 
 const root = mkdtempSync(join(resolve(import.meta.dirname, '../..'), '.tmp-dev-'))
 const content = join(root, 'content')
@@ -77,6 +80,15 @@ describe('dev entry', () => {
     writeFileSync(page('a.mdx'), '# A\n')
     vite.watcher.emit('change', page('a.mdx'))
     await vi.waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'full-reload' }))
+  })
+
+  it('serves the build-format search index, current with the content, that the search client can search', async () => {
+    writeFileSync(page('a.mdx'), '# A\n\n## Install\n\nrun the zebra installer\n')
+    const index = await loadSearchIndex(`${url}/search-index.json`)
+    expect(index).toEqual(buildSearchIndex(scanPages(content, { base: '/docs' })))
+    expect(search(index, 'zebra')).toMatchObject([{ heading: 'Install', anchor: '/docs/a#install' }])
+    writeFileSync(page('a.mdx'), '# A\n')
+    expect(search(await loadSearchIndex(`${url}/search-index.json`), 'zebra')).toEqual([])
   })
 
   it('compiles a page through the Vite transform', async () => {
