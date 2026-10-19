@@ -1,3 +1,4 @@
+import { parseSync } from 'vite'
 import { describe, expect, it } from 'vitest'
 import { sleekstack } from '../index.js'
 
@@ -26,7 +27,7 @@ describe('sleekstack() hmr', () => {
     const out = transform(`${PRAGMA}export const A = () => null\nexport default function B() { return null }`, dev)!
     expect(out).toContain('__sleekstack_accept(i, f)')
     expect(out).toContain('"@sleekstack/ui/internal"')
-    expect(out).toContain('sleekstackOnly = true')
+    expect(out).toContain('sleekstackShape')
   })
 
   it('reloads the page when the module exports anything else', () => {
@@ -38,18 +39,28 @@ describe('sleekstack() hmr', () => {
       "export * from './x'",
     ]) {
       const out = transform(`${PRAGMA}export const A = () => null\n${extra}`, dev)!
-      expect(out).toContain('sleekstackOnly = false')
+      expect(out).toContain('sleekstackShape')
       expect(out).not.toContain('__sleekstack_accept')
     }
   })
 
   it('a module that stops exporting components still reports its new shape to the previous accept callback', () => {
-    expect(transform(`${PRAGMA}export const n = 1`, dev)).toContain('sleekstackOnly = false')
+    expect(transform(`${PRAGMA}export const n = 1`, dev)).toContain('sleekstackShape')
+  })
+
+  it('emits parseable code whatever the module ends with', () => {
+    for (const src of [
+      'export const n = 1',
+      'export const A = () => null',
+      'export const A = () => null\nexport const n = 1',
+    ]) {
+      expect(parseSync('c.tsx', transform(`${PRAGMA}${src}`, dev)!, { lang: 'tsx' }).errors).toEqual([])
+    }
   })
 
   it('ignores type exports when judging components-only', () => {
     const out = transform(`${PRAGMA}export const A = () => null\nexport type P = {}\nexport interface Q {}`, dev)!
-    expect(out).toContain('sleekstackOnly = true')
+    expect(out).toContain('sleekstackShape')
   })
 
   it('adds no HMR code with hmr: false, in a build, or to a React guest', () => {

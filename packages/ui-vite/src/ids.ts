@@ -154,11 +154,13 @@ export const ids = (options: { readonly hmr?: boolean } = {}): Plugin => {
           // Vite runs the PREVIOUS evaluation's accept callback with the update, so each evaluation leaves its verdict in
           // `hot.data` for the callback to read; a page reload, not `invalidate`, because a self-accepting parent would stop that.
           const only = entries.length > 0 && valueExportCount(program) === exported.length
+          const shape = only ? JSON.stringify(exported.map(([, name]) => name).sort()) : 'null'
+          // ponytail: a changed export set also reloads, so a removed component never stays registered.
           out.append(
-            `${only ? 'import { acceptUpdate as __sleekstack_accept } from "@sleekstack/ui/internal";\n' : ''}` +
-              `if (import.meta.hot) { import.meta.hot.data.sleekstackOnly = ${only};` +
+            `\n;${only ? 'import { acceptUpdate as __sleekstack_accept } from "@sleekstack/ui/internal";\n' : ''}` +
+              `if (import.meta.hot) { import.meta.hot.data.sleekstackShape = ${JSON.stringify(shape)};` +
               `${only ? ` for (const [f, i] of ${list}) __sleekstack_accept(i, f);` : ''}` +
-              ` import.meta.hot.accept(() => { if (!import.meta.hot.data.sleekstackOnly) typeof location === "undefined" ? import.meta.hot.invalidate() : location.reload() }) }\n`,
+              ` import.meta.hot.accept(() => { if (${JSON.stringify(shape)} === "null" || import.meta.hot.data.sleekstackShape !== ${JSON.stringify(shape)}) typeof location === "undefined" ? import.meta.hot.invalidate() : location.reload() }) }\n`,
           )
         }
         return { code: out.toString(), map: out.generateMap({ hires: 'boundary', source: moduleId }) }
