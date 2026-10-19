@@ -156,11 +156,16 @@ export const ids = (options: { readonly hmr?: boolean } = {}): Plugin => {
           const only = entries.length > 0 && valueExportCount(program) === exported.length
           const shape = only ? JSON.stringify(exported.map(([, name]) => name).sort()) : 'null'
           // ponytail: a changed export set also reloads, so a removed component never stays registered.
+          const reload = 'typeof location === "undefined" ? import.meta.hot.invalidate() : location.reload()'
+          // A helper edited beneath this boundary re-evaluates the module through Vite's propagation (path is the edited
+          // file, acceptedPath the boundary), which is not a component edit and reloads too.
+          const dependency =
+            'const me = new URL(import.meta.url).pathname; if (p.updates.some((u) => u.acceptedPath.split("?")[0] === me && u.path.split("?")[0] !== me)) '
           out.append(
             `\n;${only ? 'import { acceptUpdate as __sleekstack_accept } from "@sleekstack/ui/internal";\n' : ''}` +
               `if (import.meta.hot) { import.meta.hot.data.sleekstackShape = ${JSON.stringify(shape)};` +
-              `${only ? ` for (const [f, i] of ${list}) __sleekstack_accept(i, f);` : ''}` +
-              ` import.meta.hot.accept(() => { if (${JSON.stringify(shape)} === "null" || import.meta.hot.data.sleekstackShape !== ${JSON.stringify(shape)}) typeof location === "undefined" ? import.meta.hot.invalidate() : location.reload() }) }\n`,
+              `${only ? ` for (const [f, i] of ${list}) __sleekstack_accept(i, f); import.meta.hot.on("vite:beforeUpdate", (p) => { ${dependency}${reload} });` : ''}` +
+              ` import.meta.hot.accept(() => { if (${JSON.stringify(shape)} === "null" || import.meta.hot.data.sleekstackShape !== ${JSON.stringify(shape)}) ${reload} }) }\n`,
           )
         }
         return { code: out.toString(), map: out.generateMap({ hires: 'boundary', source: moduleId }) }

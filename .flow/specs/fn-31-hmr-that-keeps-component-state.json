@@ -1,7 +1,7 @@
 {
   "branch_name": "fn-31-hmr-that-keeps-component-state",
-  "completion_review_status": "unknown",
-  "completion_reviewed_at": null,
+  "completion_review_status": "needs_work",
+  "completion_reviewed_at": "2026-10-19T09:44:32.429732Z",
   "created_at": "2026-10-04T09:15:13.148977Z",
   "default_impl": null,
   "default_review": null,
@@ -16,7 +16,7 @@
     "fn-31-hmr-that-keeps-component-state.3": 0
   },
   "next_task": 1,
-  "plan_review_rounds": 0,
+  "plan_review_rounds": 1,
   "plan_review_status": "unknown",
   "plan_reviewed_at": null,
   "review_attempts": [
@@ -374,6 +374,51 @@
       "task": "fn-31-hmr-that-keeps-component-state.3",
       "timestamp": "2026-10-19T09:42:20.445367Z",
       "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "5e34b1fd6c042d53507a84789801953db8dc5d32ad10bcdd3e4a2a05e0dfe19a",
+      "backend": "codex",
+      "base_sha": "f152cef5dc5e32bb9e1c23d023f00b32407f89ac",
+      "counter_kind": "plan",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-494e0f6e4cfa7f3bdaaf290a5ea8345e",
+            "classification": "introduced",
+            "findingId": "finding-494e0f6e4cfa7f3bdaaf290a5ea8345e",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "d983bacc1ebf2885c484fe6dafe5758732d95d60",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-6.1-sol",
+      "outcome": "verdict",
+      "output_bytes": 122826,
+      "output_sha256": "1a1965311fed198341b62e28645f16d3e36637b8a3007e1fe9cffb1e93ac5f8b",
+      "reservation_id": "bdb7511f75d64631be209e26849913a0",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-10-19T09:44:32.424483Z",
+      "tool_calls": 11,
+      "verdict": "NEEDS_WORK"
     }
   ],
   "review_hash_epoch": {
@@ -384,6 +429,7 @@
   "review_pending_rounds": {},
   "review_reservations": {},
   "review_transport_failures": {
+    "completion": 0,
     "impl:fn-31-hmr-that-keeps-component-state.1": 0,
     "impl:fn-31-hmr-that-keeps-component-state.2": 0,
     "impl:fn-31-hmr-that-keeps-component-state.3": 0
@@ -402,5 +448,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-19T09:42:20.447863Z"
+  "updated_at": "2026-10-19T09:44:32.430559Z"
 }

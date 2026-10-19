@@ -48,6 +48,10 @@ describe('sleekstack() hmr', () => {
     expect(transform(`${PRAGMA}export const n = 1`, dev)).toContain('sleekstackShape')
   })
 
+  it('reloads when an update reaches a components-only module from a dependency', () => {
+    expect(transform(`${PRAGMA}export const A = () => null`, dev)).toContain('vite:beforeUpdate')
+  })
+
   it('emits parseable code whatever the module ends with', () => {
     for (const src of [
       'export const n = 1',
