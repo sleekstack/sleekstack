@@ -104,6 +104,8 @@ const valueExportCount = (program: ESTree.Program): number => {
 export const ids = (options: { readonly hmr?: boolean } = {}): Plugin => {
   let root = ''
   let hot = false
+  // Files that are components-only boundaries (they accept their own updates), kept current as they transform.
+  const boundaries = new Set<string>()
   // id -> the file that owns it, for the duplicate check; reset per build, and per file as it re-transforms in dev.
   const owners = new Map<string, string>()
   const forget = (file: string) => {
@@ -115,6 +117,22 @@ export const ids = (options: { readonly hmr?: boolean } = {}): Plugin => {
     configResolved(config) {
       root = config.root
       hot = options.hmr !== false && config.command === 'serve'
+    },
+    // A helper edited beneath a components-only boundary would be absorbed by that boundary and re-evaluated, keeping its
+    // state; a non-component edit reloads instead. An edit of a boundary itself is a component edit.
+    hotUpdate({ file, modules }) {
+      if (!hot || this.environment.name !== 'client' || boundaries.has(normalizePath(file))) return
+      const seen = new Set<unknown>()
+      const queue = [...modules]
+      for (let m = queue.pop(); m; m = queue.pop()) {
+        if (seen.has(m)) continue
+        seen.add(m)
+        if (m.file && boundaries.has(normalizePath(m.file))) {
+          this.environment.hot.send({ type: 'full-reload' })
+          return []
+        }
+        queue.push(...m.importers)
+      }
     },
     buildStart() {
       owners.clear()
@@ -128,6 +146,7 @@ export const ids = (options: { readonly hmr?: boolean } = {}): Plugin => {
         const file = normalizePath(moduleId.replace(/\?.*$/, ''))
         // A file that stops exporting components releases its ids, even on the early returns below.
         forget(file)
+        boundaries.delete(file)
         if (!isUiJsx(code)) return null
         const { program, errors } = parseSync(file, code, { lang: file.endsWith('.tsx') ? 'tsx' : 'jsx' })
         // A syntax error is the JSX transform's to report.
@@ -154,17 +173,14 @@ export const ids = (options: { readonly hmr?: boolean } = {}): Plugin => {
           // Vite runs the PREVIOUS evaluation's accept callback with the update, so each evaluation leaves its verdict in
           // `hot.data` for the callback to read; a page reload, not `invalidate`, because a self-accepting parent would stop that.
           const only = entries.length > 0 && valueExportCount(program) === exported.length
+          if (only) boundaries.add(file)
           const shape = only ? JSON.stringify(exported.map(([, name]) => name).sort()) : 'null'
           // ponytail: a changed export set also reloads, so a removed component never stays registered.
           const reload = 'typeof location === "undefined" ? import.meta.hot.invalidate() : location.reload()'
-          // A helper edited beneath this boundary re-evaluates the module through Vite's propagation (path is the edited
-          // file, acceptedPath the boundary), which is not a component edit and reloads too.
-          const dependency =
-            'const me = new URL(import.meta.url).pathname; if (p.updates.some((u) => u.acceptedPath.split("?")[0] === me && u.path.split("?")[0] !== me)) '
           out.append(
             `\n;${only ? 'import { acceptUpdate as __sleekstack_accept } from "@sleekstack/ui/internal";\n' : ''}` +
               `if (import.meta.hot) { import.meta.hot.data.sleekstackShape = ${JSON.stringify(shape)};` +
-              `${only ? ` for (const [f, i] of ${list}) __sleekstack_accept(i, f); import.meta.hot.on("vite:beforeUpdate", (p) => { ${dependency}${reload} });` : ''}` +
+              `${only ? ` for (const [f, i] of ${list}) __sleekstack_accept(i, f);` : ''}` +
               ` import.meta.hot.accept(() => { if (${JSON.stringify(shape)} === "null" || import.meta.hot.data.sleekstackShape !== ${JSON.stringify(shape)}) ${reload} }) }\n`,
           )
         }

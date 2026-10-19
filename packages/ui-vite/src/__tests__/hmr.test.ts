@@ -48,8 +48,37 @@ describe('sleekstack() hmr', () => {
     expect(transform(`${PRAGMA}export const n = 1`, dev)).toContain('sleekstackShape')
   })
 
-  it('reloads when an update reaches a components-only module from a dependency', () => {
-    expect(transform(`${PRAGMA}export const A = () => null`, dev)).toContain('vite:beforeUpdate')
+  it('reloads when a helper edited beneath a components-only boundary would be absorbed by it', () => {
+    const plugin = sleekstack()
+      .flat()
+      .find((p) => (p as { name?: string }).name === 'sleekstack:ids') as any
+    plugin.configResolved({ root: '/app', command: 'serve' })
+    plugin.buildStart()
+    const ctx = {
+      error: (m: string) => {
+        throw new Error(m)
+      },
+    }
+    plugin.transform.handler.call(ctx, `${PRAGMA}export const A = () => null`, '/app/A.tsx')
+    const sent: unknown[] = []
+    const env = { name: 'client', hot: { send: (m: unknown) => sent.push(m) } }
+    const helper = { file: '/app/helper.ts', importers: new Set([{ file: '/app/A.tsx', importers: new Set() }]) }
+    expect(plugin.hotUpdate.call({ environment: env }, { file: '/app/helper.ts', modules: [helper] })).toEqual([])
+    expect(sent).toEqual([{ type: 'full-reload' }])
+    // The boundary's own edit, and a helper no boundary imports, update as usual.
+    expect(
+      plugin.hotUpdate.call(
+        { environment: env },
+        { file: '/app/A.tsx', modules: [helper.importers.values().next().value] },
+      ),
+    ).toBeUndefined()
+    expect(
+      plugin.hotUpdate.call(
+        { environment: env },
+        { file: '/app/x.ts', modules: [{ file: '/app/x.ts', importers: new Set() }] },
+      ),
+    ).toBeUndefined()
+    expect(sent).toHaveLength(1)
   })
 
   it('emits parseable code whatever the module ends with', () => {
