@@ -29,12 +29,11 @@ export type LinkProps<R> = AnchorAttrs & {
  */
 export const Link = <R>({ table, code, loaders = [], prefetch = true, ...attrs }: LinkProps<R>) => {
   const warm = Effect.suspend(() => {
-    void code?.().catch(() => {})
     const url = new URL(attrs.href, location.href)
     const m = url.origin === location.origin ? match(table, url.pathname) : Option.none()
-    return Option.isNone(m)
-      ? Effect.void
-      : Effect.forEach(loaders, (l) => prefetchLoader(l, m.value), { discard: true })
+    if (Option.isNone(m)) return Effect.void
+    void code?.().catch(() => {})
+    return Effect.forEach(loaders, (l) => prefetchLoader(l, m.value), { discard: true })
   }).pipe(Effect.catchAllCause(() => Effect.void))
   return jsx('a', prefetch ? { ...attrs, onMouseEnter: () => warm, onFocus: () => warm } : attrs)
 }

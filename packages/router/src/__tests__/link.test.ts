@@ -105,13 +105,13 @@ describe('Link', () => {
   it.each([
     ['cross-origin', 'https://elsewhere.example/users/7'],
     ['unmatched', '/nowhere'],
-  ])('a %s href prefetches no loader and keeps the attributes', async (_, href) => {
-    const { state, l } = counted()
-    const { a, all } = await render(jsx(Link, { href, table, loaders: [l], ...attrs }))
+  ])('a %s href prefetches nothing and keeps the attributes', async (_, href) => {
+    const { state, l, code } = counted()
+    const { a, all } = await render(jsx(Link, { href, table, code, loaders: [l], ...attrs }))
     expect(anchorAttrs(a)).toEqual({ href, ...attrs })
     a.dispatchEvent(new MouseEvent('mouseenter'))
     await flush()
-    expect(state.calls).toBe(0)
+    expect(state).toEqual({ calls: 0, imports: 0 })
     expect(all.size).toBe(0)
   })
 

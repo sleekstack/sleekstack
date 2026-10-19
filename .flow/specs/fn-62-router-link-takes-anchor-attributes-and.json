@@ -1,11 +1,74 @@
 {
   "branch_name": "fn-62-router-link-takes-anchor-attributes-and",
+  "completion_review_status": "unknown",
+  "completion_reviewed_at": null,
   "created_at": "2026-10-19T06:55:25.231433Z",
+  "default_impl": null,
+  "default_review": null,
+  "default_sync": null,
   "depends_on_epics": [],
   "id": "fn-62-router-link-takes-anchor-attributes-and",
+  "impl_review_rounds": {
+    "fn-62-router-link-takes-anchor-attributes-and.1": 0
+  },
   "next_task": 1,
+  "plan_review_rounds": 0,
   "plan_review_status": "unknown",
   "plan_reviewed_at": null,
+  "review_attempts": [
+    {
+      "artifact_sha256": "ac5d498b9289574daba3371066b790c97276efe6e6f93af90a6e8664bcb0cb50",
+      "backend": "codex",
+      "base_sha": "19763a07ae3716f6f2923631baefa241941d0834",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-4d1e45ce9f61061373182fd702c03f25",
+            "classification": "pre_existing",
+            "findingId": "finding-4d1e45ce9f61061373182fd702c03f25",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "854ec321724d9401fccf288f1c78eaca2c8ef950",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-6.1-sol",
+      "outcome": "verdict",
+      "output_bytes": 768,
+      "output_sha256": "d932ef7d83752f4bd6c88f2eb0c978de8bdf361978f79d0d936c351cd6aa8b95",
+      "reservation_id": "ebc00fd2bdc342c9a9f9a0ba4135a68e",
+      "round_consumed": true,
+      "scope": "impl:fn-62-router-link-takes-anchor-attributes-and.1",
+      "superseded_by": null,
+      "task": "fn-62-router-link-takes-anchor-attributes-and.1",
+      "timestamp": "2026-10-19T07:13:08.518949Z",
+      "verdict": "SHIP"
+    }
+  ],
+  "review_hash_epoch": {
+    "impl:fn-62-router-link-takes-anchor-attributes-and.1": 1
+  },
+  "review_pending_rounds": {},
+  "review_reservations": {},
+  "review_transport_failures": {
+    "impl:fn-62-router-link-takes-anchor-attributes-and.1": 0
+  },
   "spec_path": ".flow/specs/fn-62-router-link-takes-anchor-attributes-and.md",
   "status": "open",
   "title": "Router Link takes anchor attributes and passes sleekstack check",
@@ -20,5 +83,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-19T06:59:44.064983Z"
+  "updated_at": "2026-10-19T07:13:08.520930Z"
 }
