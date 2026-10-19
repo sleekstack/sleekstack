@@ -2,7 +2,7 @@
 import { Cause, Data, Effect, Schema } from 'effect'
 import { act } from 'react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { Boundary, el } from '@sleekstack/ui'
+import { Boundary, el, Head } from '@sleekstack/ui'
 import { jsx as rawJsx } from '@sleekstack/ui/jsx-runtime'
 import {
   handle,
@@ -32,6 +32,7 @@ const table = routes({
   hidden: '/hidden',
   lazy: '/lazy',
   hiddenGone: '/hidden-gone',
+  titled: '/titled',
 })
 
 class Teapot extends Data.TaggedError('Teapot')<{ readonly status: number }> {}
@@ -85,6 +86,7 @@ const app = router({
     // No manual `Pending`: the router wraps the page with its `fallback`.
     lazy: { render: read(slow), fallback: 'wait' },
     hiddenGone: { render: read(gone) },
+    titled: { render: () => jsx(Head, { children: jsx('title', { children: 'Titled' }) }) },
   },
   notFound: () => Effect.succeed(el('h1', {}, 'not found')),
 })
@@ -110,6 +112,15 @@ describe('handle', () => {
     const html = await res.text()
     expect(html).toMatch(/^<body>[\s\S]*data-sleek-hydrate[\s\S]*user 7[\s\S]*<\/body>$/)
     expect(calls).toBe(1)
+  })
+
+  // A streamed page is under the router's `Pending`, so its head arrives after the shell as a patch (ADR 0044).
+  it.each([
+    [false, /^<head><title>Titled<\/title><\/head><body>/],
+    [true, /^<head><\/head><body>[\s\S]*__sleekHead\(\[\[\["title"\],\["title",\{\},"Titled"\]\]\]\)/],
+  ])("gives a before function the page's Head tags (stream: %s)", async (stream, expected) => {
+    const document = { before: (head: string) => `<head>${head}</head><body>`, after: '</body>' }
+    expect(await (await get('/titled', { stream, document })).text()).toMatch(expected)
   })
 
   it('a loader redirect is a 302 to where the redirects end', async () => {

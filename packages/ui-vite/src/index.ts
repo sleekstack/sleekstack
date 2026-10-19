@@ -22,7 +22,8 @@ export type SleekstackOptions = JsxOptions &
      * Needs `entries`, whose server entry also exports its router as `router`; `vite build` requests each path from the
      * built server entry, `(request, { onError })`, and writes the response to the client output. A path that throws,
      * answers other than 200 or reports to `onError` fails the build naming it: pass `onError` on to `handle`, the only
-     * place a streamed page's render error goes.
+     * place a streamed page's render error goes. For the page's `Head` tags in the written head, give `handle` a
+     * `document.before` function and no `stream` (a streamed page's tags arrive later, as a script).
      */
     readonly prerender?: PrerenderOption
   }
