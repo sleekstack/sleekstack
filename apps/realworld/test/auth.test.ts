@@ -102,8 +102,7 @@ const click = async (href: string) => {
 const ANONYMOUS = ['Home', 'Sign in', 'Sign up']
 const signedInAs = (name: string) => ['Home', 'New Article', 'Settings', name]
 
-// Each case drives real page loads, server functions and SQLite, so a slow CI runner needs more than the default 5 s.
-describe('auth pages', { timeout: 30_000 }, () => {
+describe('auth pages', () => {
   it('register, update settings, log out and log in; server errors show inline and the Draft keeps its edits', async () => {
     await open('/register')
     expect(nav_()).toEqual(ANONYMOUS)

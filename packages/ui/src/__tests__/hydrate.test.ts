@@ -464,7 +464,15 @@ describe('hydrateMount keyed lists, form values, whitespace', () => {
 
 describe('hydrateMount Pending (R2)', () => {
   it('a server-rendered Pending adopts its content with no fallback and no mismatch; later re-runs fork as usual', async () => {
-    const Slow = (p: { v: number }) => Effect.zipRight(Effect.sleep('5 millis'), jsx('b', { children: `v${p.v}` }))
+    // v0 resolves on its own (server render and hydration); later values wait for the test to release them, so
+    // the "old content stays" check cannot race a timer on a slow runner.
+    let release!: () => void
+    const gate = new Promise<void>((r) => (release = r))
+    const Slow = (p: { v: number }) =>
+      Effect.zipRight(
+        p.v === 0 ? Effect.sleep('5 millis') : Effect.promise(() => gate),
+        jsx('b', { children: `v${p.v}` }),
+      )
     const App = () =>
       Effect.flatMap(useLocal(0), ([v, set]) =>
         jsx('div', {
@@ -482,7 +490,7 @@ describe('hydrateMount Pending (R2)', () => {
     await act(async () => container.querySelector('button')!.click())
     expect(container.querySelector('b')!.textContent).toBe('v0')
     expect(container.querySelector('i')).toBeNull()
-    await act(() => new Promise((r) => setTimeout(r, 30)))
+    await act(async () => (release(), await new Promise((r) => setTimeout(r, 30))))
     expect(container.querySelector('b')!.textContent).toBe('v1')
     expect(container.querySelector('i')).toBeNull()
   })

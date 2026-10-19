@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 import { devMiddleware } from './server/dev'
 
 export default defineConfig({
@@ -20,4 +20,9 @@ export default defineConfig({
       },
     },
   ],
+  test: {
+    // The page tests drive real SSR, hydration, scrypt and SQLite end to end (~0.5 s for the auth flow here); a CI
+    // runner shared with the other turbo test tasks runs them ~10x slower, past the 5 s default.
+    testTimeout: 30_000,
+  },
 })
