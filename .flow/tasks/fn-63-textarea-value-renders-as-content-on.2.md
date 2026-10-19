@@ -32,9 +32,13 @@ Remove the duplicate textarea children and their comments in the settings bio an
 - [ ] TBD
 
 ## Done summary
-TBD
+The RealWorld settings bio and editor body textareas now pass `value` only; their duplicate children and workaround comments are gone. The settings (auth.test.ts) and author-edit (article.test.ts) tests now also assert that the server HTML carries the text as textarea content with no `value` attribute. ui.mdx has a note that a textarea's `value` renders as its content on the server and that `value` plus children throws a `TypeError`. The ADR 0021 amendment already landed in task .1.
 
+baseline: red (realworld#test, 3 editor tests hit the value+children TypeError; inherited from task .1, recorded in its done summary). Post-change: `pnpm turbo run test typecheck --filter=realworld --filter=docs` green (realworld 152/152, docs 52/52), `pnpm --filter realworld check` green, spec Quick command `pnpm turbo run test typecheck --filter=@sleekstack/ui... --filter=showcase --filter=realworld` green (15/15, turbo cache hits on the committed tree).
+
+stage: impl-review - ran (codex fan-out, 3 draws SHIP, rid 1fe90608d8354976b41fbfd68e316e43)
+Tier: session (jev-unavailable(no_key)); actual model: claude-opus-5-5
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 9669c43631535a41a922193c71daf9824344bc14
+- Tests: pnpm turbo run test typecheck --filter=realworld --filter=docs, pnpm --filter realworld check, pnpm turbo run test typecheck --filter=@sleekstack/ui... --filter=showcase --filter=realworld
 - PRs:
