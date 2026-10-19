@@ -39,6 +39,42 @@ describe('search dialog', () => {
     await dispose()
   })
 
+  const openWithResults = async () => {
+    const view = await mount()
+    await userEvent.click(view.ui.getByRole('button', { name: 'Search' }))
+    await flush()
+    await userEvent.keyboard('install')
+    await flush()
+    return view
+  }
+
+  it('escape from a result link closes and returns focus to the trigger', async () => {
+    const { ui, dispose } = await openWithResults()
+    await userEvent.tab()
+    expect(document.activeElement).toBe(ui.getAllByRole('link')[0])
+    await userEvent.keyboard('{Escape}')
+    await flush()
+    expect(ui.queryByRole('dialog')).toBeNull()
+    expect(document.activeElement).toBe(ui.getByRole('button', { name: 'Search' }))
+    await dispose()
+  })
+
+  it('keeps focus inside the dialog: tab and shift-tab wrap', async () => {
+    const { ui, dispose } = await openWithResults()
+    const [first, second] = ui.getAllByRole('link')
+    const input = ui.getByRole('combobox')
+    await userEvent.tab()
+    await userEvent.tab()
+    expect(document.activeElement).toBe(second)
+    await userEvent.tab()
+    expect(document.activeElement).toBe(input)
+    await userEvent.tab({ shift: true })
+    expect(document.activeElement).toBe(second)
+    await userEvent.tab({ shift: true })
+    expect(document.activeElement).toBe(first)
+    await dispose()
+  })
+
   it('opens on meta-K too', async () => {
     const { ui, dispose } = await mount()
     await userEvent.keyboard('{Meta>}k{/Meta}')

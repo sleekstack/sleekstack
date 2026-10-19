@@ -5,8 +5,9 @@ import { loadSearchIndex, search, type SearchIndex } from '@sleekstack/ui-vite/s
 type Load = { status: 'idle' | 'loading' } | { status: 'ready'; index: SearchIndex } | { status: 'error' }
 
 /**
- * The search trigger and its cmd-K dialog. The index loads on first open; the keyboard opens (cmd or ctrl K), closes
- * (escape), moves (arrows) and navigates (enter).
+ * The search trigger and its cmd-K modal dialog. The index loads on first open; the keyboard opens (cmd or ctrl K),
+ * closes (escape, anywhere in the dialog), moves (arrows) and navigates (enter). Tab wraps inside the dialog, and
+ * closing returns focus to the trigger.
  */
 export const SearchDialog = function* ({
   indexUrl,
@@ -22,6 +23,9 @@ export const SearchDialog = function* ({
   const [active, setActive] = yield* useLocal(0)
   const [load, setLoad] = yield* useLocal<Load>({ status: 'idle' })
   const input = yield* useRef<HTMLInputElement>()
+  const trigger = yield* useRef<HTMLButtonElement>()
+  const dialog = yield* useRef<HTMLDivElement>()
+  const opened = yield* useRef(false)
 
   yield* useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -35,7 +39,11 @@ export const SearchDialog = function* ({
   }, [])
 
   yield* useEffect(() => {
-    if (!open) return
+    if (!open) {
+      if (opened.current) trigger.current?.focus()
+      return
+    }
+    opened.current = true
     input.current?.focus()
     if (load.status !== 'idle') return
     setLoad({ status: 'loading' })
@@ -55,9 +63,21 @@ export const SearchDialog = function* ({
     close()
     navigate(url)
   }
-  const onKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Escape') close()
-    else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+  const onDialogKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      close()
+    } else if (e.key === 'Tab') {
+      const focusable = [...(dialog.current?.querySelectorAll<HTMLElement>('input, a[href], button') ?? [])]
+      const edge = e.shiftKey ? focusable[0] : focusable[focusable.length - 1]
+      if (focusable.length && (document.activeElement === edge || !dialog.current!.contains(document.activeElement))) {
+        e.preventDefault()
+        ;(e.shiftKey ? focusable[focusable.length - 1] : focusable[0])!.focus()
+      }
+    }
+  }
+  const onInputKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault()
       if (results.length) setActive((i) => (i + (e.key === 'ArrowDown' ? 1 : results.length - 1)) % results.length)
     } else if (e.key === 'Enter' && results[active]) go(results[active].anchor)
@@ -65,17 +85,19 @@ export const SearchDialog = function* ({
 
   return (
     <div class="search">
-      <button type="button" class="search-trigger" aria-haspopup="dialog" onClick={() => setOpen(true)}>
+      <button ref={trigger} type="button" class="search-trigger" aria-haspopup="dialog" onClick={() => setOpen(true)}>
         Search
       </button>
       {open && (
         <div class="search-overlay" onClick={close}>
           <div
+            ref={dialog}
             class="search-dialog"
             role="dialog"
             aria-modal="true"
             aria-label="Search documentation"
             onClick={(e: Event) => e.stopPropagation()}
+            onKeyDown={onDialogKeyDown}
           >
             <input
               ref={input}
@@ -89,7 +111,7 @@ export const SearchDialog = function* ({
                 setQuery((e.target as HTMLInputElement).value)
                 setActive(0)
               }}
-              onKeyDown={onKeyDown}
+              onKeyDown={onInputKeyDown}
             />
             {load.status === 'error' && <p role="alert">The search index could not be loaded.</p>}
             {load.status === 'loading' && <p role="status">Loading…</p>}

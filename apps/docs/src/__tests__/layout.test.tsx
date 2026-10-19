@@ -54,6 +54,33 @@ describe('sidebar and pager', () => {
     expect(neighbours(tree, '/docs').prev).toBeUndefined()
   })
 
+  it.each([
+    ['/docs', '/docs', '/docs/concepts', '/docs/ui'],
+    ['/', '/', '/concepts', '/ui'],
+    ['/other', '/other', '/other/concepts', '/other/ui'],
+    ['/other/', '/other', '/other/concepts', '/other/ui'],
+  ])('base %s: sidebar and previous/next links join the base once', async (base, root, concepts, ui) => {
+    const based = buildNav(order, pages, base)
+    expect(
+      flatPages(based)
+        .slice(0, 3)
+        .map((p) => p.url),
+    ).toEqual([root, concepts, ui])
+    expect(neighbours(based, concepts)).toMatchObject({ prev: { url: root }, next: { url: ui } })
+    const { container, dispose } = await render(
+      <DocsLayout title="SleekStack" tree={based} current={concepts} home={root}>
+        <h1>Page</h1>
+      </DocsLayout>,
+      { layer: Layer.empty },
+    )
+    const hrefs = [...container.querySelectorAll('a')].map((a) => a.getAttribute('href'))
+    expect(hrefs.filter((h) => h!.includes('//'))).toEqual([])
+    expect(container.querySelector('a[rel="prev"]')!.getAttribute('href')).toBe(root)
+    expect(container.querySelector('a[rel="next"]')!.getAttribute('href')).toBe(ui)
+    expect(container.querySelector('a[aria-current="page"]')!.getAttribute('href')).toBe(concepts)
+    await dispose()
+  })
+
   it('highlights the current page, opens its folder, and collapses a folder', async () => {
     const { container } = await mountAt('/docs/api/core')
     const ui = within(container)

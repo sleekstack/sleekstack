@@ -19,9 +19,12 @@ export type NavNode =
       readonly children: ReadonlyArray<NavNode>
     }
 
-/** A page's URL; an `index` slug is its folder's own URL (`['api', 'index']` is `/docs/api`, `['index']` is `/docs`). */
+/**
+ * A page's URL; an `index` slug is its folder's own URL (`['api', 'index']` is `/docs/api`, `['index']` is `/docs`).
+ * The base's trailing slash is dropped as the route table drops it, so base `/` puts the root page at `/`.
+ */
 export const pageUrl = (slug: ReadonlyArray<string>, base = '/docs'): string =>
-  [base, ...(slug[slug.length - 1] === 'index' ? slug.slice(0, -1) : slug)].join('/')
+  [base.replace(/\/+$/, ''), ...(slug[slug.length - 1] === 'index' ? slug.slice(0, -1) : slug)].join('/') || '/'
 
 const byDefaultOrder = (a: PageEntry, b: PageEntry): number => {
   const index = (p: PageEntry) => (p.slug[p.slug.length - 1] === 'index' ? 0 : 1)
