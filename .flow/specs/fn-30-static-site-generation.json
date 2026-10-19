@@ -14,7 +14,8 @@
   "id": "fn-30-static-site-generation",
   "impl_review_rounds": {
     "fn-30-static-site-generation.1": 0,
-    "fn-30-static-site-generation.2": 0
+    "fn-30-static-site-generation.2": 0,
+    "fn-30-static-site-generation.3": 1
   },
   "next_task": 1,
   "plan_review_rounds": 0,
@@ -250,8 +251,19 @@
     "impl:fn-30-static-site-generation.1": 1,
     "impl:fn-30-static-site-generation.2": 1
   },
-  "review_pending_rounds": {},
-  "review_reservations": {},
+  "review_pending_rounds": {
+    "impl:fn-30-static-site-generation.3": 1
+  },
+  "review_reservations": {
+    "f282e9f821fa48c086da151e45c77a64": {
+      "artifact_sha256": "7106af4589572d37b9f5e92e8e3feaebfec9adcf02eab1ca0f115aa19fe9148c",
+      "counter_scope": "impl:fn-30-static-site-generation.3",
+      "epoch": 0,
+      "exclusive": true,
+      "forced": false,
+      "review_type": "impl"
+    }
+  },
   "review_transport_failures": {
     "impl:fn-30-static-site-generation.1": 0,
     "impl:fn-30-static-site-generation.2": 0
@@ -270,5 +282,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-19T09:57:58.627853Z"
+  "updated_at": "2026-10-19T10:05:51.544980Z"
 }

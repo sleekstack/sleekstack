@@ -213,6 +213,13 @@ describe('startRouter', () => {
     expect(calls).toBe(2) // a navigation loads again
   })
 
+  it('hydrates a page rendered at /users/9 when opened at /users/9/ without reloading (prerendered, trailing slash)', async () => {
+    const before = calls
+    const res = await get('/users/9')
+    await start('/users/9/', await res.text())
+    expect([container().textContent, calls - before]).toEqual(['user 9', 1])
+  })
+
   it('leaves a fragment link of the shown page to the browser', async () => {
     await start('/')
     const a = container().querySelectorAll('a')[1]!
