@@ -240,6 +240,7 @@ describe('editor', () => {
     const writer = await user()
     const slug = await post(writer.session, 'Old title', 'old body', ['keep'])
     cookie = writer.session
+    expect(await (await serve(`/editor/${slug}`)).text()).toMatch(/<textarea(?![^>]*\bvalue=)[^>]*>old body<\/textarea>/)
     await open(`/editor/${slug}`)
     expect([
       $<HTMLInputElement>('input[placeholder="Article Title"]')!.value,

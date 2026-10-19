@@ -58,10 +58,7 @@ const Settings = function* ({ user }: { user: Account }) {
                     placeholder="Short bio about you"
                     value={draft.field('bio')}
                     onInput={(e) => setBio(e.currentTarget.value)}
-                  >
-                    {/* A server-rendered textarea shows its content, not its `value` attribute. */}
-                    {user.bio ?? ''}
-                  </textarea>
+                />
                 </fieldset>
                 <Field value={draft.field('email')} placeholder="Email" type="email" />
                 <Field value={draft.field('password')} placeholder="New Password" type="password" />
