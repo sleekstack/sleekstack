@@ -70,15 +70,42 @@ const ownExports = (program: ESTree.Program, out: MagicString): Array<readonly [
   return found
 }
 
+// Declarations TypeScript erases; enums and namespaces are runtime values.
+const ERASED = new Set(['TSTypeAliasDeclaration', 'TSInterfaceDeclaration'])
+
+/** How many value exports the module has: anything a re-evaluation could not swap in place counts. */
+const valueExportCount = (program: ESTree.Program): number => {
+  let n = 0
+  for (const s of program.body) {
+    if (s.type === 'ExportAllDeclaration') n += s.exportKind === 'type' ? 0 : 1
+    else if (s.type === 'ExportDefaultDeclaration') n += 1
+    else if (s.type === 'ExportNamedDeclaration' && s.exportKind !== 'type') {
+      const d = s.declaration
+      if (d?.type === 'VariableDeclaration') n += d.declarations.length
+      else if (d && !ERASED.has(d.type) && !('declare' in d && d.declare)) n += 1
+      n += s.specifiers.filter((sp) => sp.exportKind !== 'type').length
+    }
+  }
+  return n
+}
+
 /**
  * Gives each function a ui JSX file exports a stable id, `<path from the Vite root, no extension>#<export name>`, which
  * `fnId` in `@sleekstack/ui` uses instead of its load-order counter. The id is set once on the function object where
  * it is declared, so a re-export (or a later re-evaluation of the same module) keeps it. Two files that would give the
  * same id (`a.tsx` and `a.jsx` both exporting `A`) fail the build. Only functions written in the export (a declaration,
  * an arrow or function expression) get an id; any other value keeps `fnId`'s counter.
+ *
+ * With `hmr` (the default, dev server only) a module whose value exports are all such functions also registers them with
+ * `acceptUpdate` and accepts its own updates, so an edit swaps the components and keeps their state. A ui module that
+ * exports anything else reloads the page. Modules without the ui pragma (React
+ * guests) get no HMR code.
  */
-export const ids = (): Plugin => {
+export const ids = (options: { readonly hmr?: boolean } = {}): Plugin => {
   let root = ''
+  let hot = false
+  // Files that are components-only boundaries (they accept their own updates), kept current as they transform.
+  const boundaries = new Set<string>()
   // id -> the file that owns it, for the duplicate check; reset per build, and per file as it re-transforms in dev.
   const owners = new Map<string, string>()
   const forget = (file: string) => {
@@ -89,6 +116,23 @@ export const ids = (): Plugin => {
     enforce: 'pre',
     configResolved(config) {
       root = config.root
+      hot = options.hmr !== false && config.command === 'serve'
+    },
+    // A helper edited beneath a components-only boundary would be absorbed by that boundary and re-evaluated, keeping its
+    // state; a non-component edit reloads instead. An edit of a boundary itself is a component edit.
+    hotUpdate({ file, modules }) {
+      if (!hot || this.environment.name !== 'client' || boundaries.has(normalizePath(file))) return
+      const seen = new Set<unknown>()
+      const queue = [...modules]
+      for (let m = queue.pop(); m; m = queue.pop()) {
+        if (seen.has(m)) continue
+        seen.add(m)
+        if (m.file && boundaries.has(normalizePath(m.file))) {
+          this.environment.hot.send({ type: 'full-reload' })
+          return []
+        }
+        queue.push(...m.importers)
+      }
     },
     buildStart() {
       owners.clear()
@@ -102,13 +146,14 @@ export const ids = (): Plugin => {
         const file = normalizePath(moduleId.replace(/\?.*$/, ''))
         // A file that stops exporting components releases its ids, even on the early returns below.
         forget(file)
+        boundaries.delete(file)
         if (!isUiJsx(code)) return null
         const { program, errors } = parseSync(file, code, { lang: file.endsWith('.tsx') ? 'tsx' : 'jsx' })
         // A syntax error is the JSX transform's to report.
         if (errors.length) return null
         const out = new MagicString(code)
         const exported = ownExports(program, out)
-        if (!exported.length) return null
+        if (!exported.length && !hot) return null
         const base = path.posix.relative(normalizePath(root), file).replace(/\.[jt]sx$/, '')
         const entries = exported.map(([local, name]) => {
           const id = `${base}#${name}`
@@ -118,10 +163,27 @@ export const ids = (): Plugin => {
           owners.set(id, file)
           return `[${local}, ${JSON.stringify(id)}]`
         })
+        const list = `[${entries.join(', ')}]`
         // A function exported under two names keeps the first.
-        out.append(
-          `\n;for (const [f, i] of [${entries.join(', ')}]) if (!Object.hasOwn(f, ${KEY})) Object.defineProperty(f, ${KEY}, { value: i });\n`,
-        )
+        if (entries.length)
+          out.append(
+            `\n;for (const [f, i] of ${list}) if (!Object.hasOwn(f, ${KEY})) Object.defineProperty(f, ${KEY}, { value: i });\n`,
+          )
+        if (hot) {
+          // Vite runs the PREVIOUS evaluation's accept callback with the update, so each evaluation leaves its verdict in
+          // `hot.data` for the callback to read; a page reload, not `invalidate`, because a self-accepting parent would stop that.
+          const only = entries.length > 0 && valueExportCount(program) === exported.length
+          if (only) boundaries.add(file)
+          const shape = only ? JSON.stringify(exported.map(([, name]) => name).sort()) : 'null'
+          // ponytail: a changed export set also reloads, so a removed component never stays registered.
+          const reload = 'typeof location === "undefined" ? import.meta.hot.invalidate() : location.reload()'
+          out.append(
+            `\n;${only ? 'import { acceptUpdate as __sleekstack_accept } from "@sleekstack/ui/internal";\n' : ''}` +
+              `if (import.meta.hot) { import.meta.hot.data.sleekstackShape = ${JSON.stringify(shape)};` +
+              `${only ? ` for (const [f, i] of ${list}) __sleekstack_accept(i, f);` : ''}` +
+              ` import.meta.hot.accept(() => { if (${JSON.stringify(shape)} === "null" || import.meta.hot.data.sleekstackShape !== ${JSON.stringify(shape)}) ${reload} }) }\n`,
+          )
+        }
         return { code: out.toString(), map: out.generateMap({ hires: 'boundary', source: moduleId }) }
       },
     },

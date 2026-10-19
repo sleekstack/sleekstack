@@ -16,6 +16,7 @@ export type { RoutesOptions } from './routes.js'
 export type SleekstackOptions = JsxOptions &
   RoutesOptions &
   EntriesOptions & {
+<<<<<<< HEAD
     /**
      * Prerender pages to HTML at build: `true` for every static route, or a list of paths; a route's page adds its
      * dynamic paths with `prerender()`. Paths have no trailing slash (root `/`) and are written to `<path>/index.html`.
@@ -26,6 +27,10 @@ export type SleekstackOptions = JsxOptions &
      * `document.before` function and no `stream` (a streamed page's tags arrive later, as a script).
      */
     readonly prerender?: PrerenderOption
+=======
+    /** Hot updates that keep component state (dev only). A ui module that is not components-only reloads the page. Default: true. */
+    readonly hmr?: boolean
+>>>>>>> origin/master
   }
 
 /**
@@ -35,7 +40,7 @@ export type SleekstackOptions = JsxOptions &
  */
 export const sleekstack = (options: SleekstackOptions = {}): Array<Plugin> => [
   jsx(options),
-  ids(),
+  ids(options),
   analyze(),
   routes(options),
   entries(options),
