@@ -20,7 +20,7 @@ This spec is the platform half: the pipeline and its packages. The site itself (
 - **Code highlighting.** Done at build time by a rehype plugin; the output is static markup plus one generated stylesheet and no client JavaScript. Highlighter inline styles become classes because ui renders style objects as `[object Object]`. [paraphrase]
 - **ui renderer fix.** The string renderer has no list of void elements, so it writes `<br></br>`, `<hr></hr>` and `<img></img>`; browsers read the closing `</br>` as a second `<br>`. It must write void elements without closing tags. [paraphrase]
 - **Head.** Per-page `title`, `meta` and `link` for string, stream and DOM rendering, with the contract of the open head-management spec (fn-33): entries dedupe by key, the deepest wins, hydration adopts server tags. It carries Open Graph and Twitter-card tags. `og:image` must be an absolute URL, so the build needs a configured site origin; a static host has no request origin. [paraphrase]
-- **Routes.** Generated from the content tree and its order file into a route table the router can use, with an optional base prefix (so a version or locale prefix can be added later without moving pages). [paraphrase]
+- **Routes.** Generated from the content tree and its order file (the `meta.json` convention, ADR 0047; not an option) into a route table the router can use, with an optional base prefix (so a version or locale prefix can be added later without moving pages). [paraphrase]
 - **Prerender.** The build writes one HTML file per route plus the client bundle. In development the same pages are served by the `@sleekstack/start` fetch handler behind the Vite dev server; production output does not depend on `start`. [user]
 - **Search index.** The build writes an index (title, headings, text) from guides and API pages; the browser searches it with a small client function, no server. [user]
 - **Open Graph images.** One 1200 by 630 PNG per route at build time: a plain layout tree rendered to SVG (satori) and rasterized (resvg), fonts read from files, no React and no browser. Measured about 350 ms for 40 images. [paraphrase]
@@ -29,7 +29,7 @@ This spec is the platform half: the pipeline and its packages. The site itself (
 ## API Contracts
 <!-- scope: technical -->
 
-- **Plugin options:** content directory, order file, site origin, optional base prefix, Open Graph switch and font files, search-index switch. [paraphrase]
+- **Plugin options:** content directory (its order file is the fixed `meta.json` convention, ADR 0047; there is no order-file option), site origin, optional base prefix, Open Graph switch and font files, search-index switch. [paraphrase]
 - **`<Head>` component** and the head string for `renderToString` / `renderToStream` as fn-33 specifies. [paraphrase]
 - **A compiled page** exports its component and `frontmatter`. [paraphrase]
 - **Search client:** given the index and a query, returns ranked results (title, anchor, snippet); empty query returns none. [inferred]
@@ -50,7 +50,7 @@ This spec is the platform half: the pipeline and its packages. The site itself (
 - **R2:** Rendered pages have tables, links, lists, inline code, heading ids and build-time highlighted code blocks, with no style objects leaking into attributes and no client JavaScript for highlighting. Errors: an unknown fence language is reported at build, not silently dropped. [paraphrase]
 - **R3:** ui's string and stream renderers write void elements (`br`, `hr`, `img`, `input`, `meta`, `link` and the rest of the HTML list) without a closing tag. Errors: children given to a void element are reported as an error instead of rendered; existing ui tests keep passing. [paraphrase]
 - **R4:** `<Head>` sets title, meta and link in string, stream and DOM output, with nested overrides, key dedupe and hydration adopting server tags, as in the head-management spec; it carries Open Graph and Twitter-card tags. Errors: an `og:image` requested without a configured site origin fails the build with a clear message; an invalid tag or attribute is rejected like an element. [paraphrase]
-- **R5:** A route table is generated from the content tree and its order file, with an optional base prefix; internal links and heading anchors are validated at build. Errors: a broken link or anchor fails the build naming source and target; a route added or removed is picked up without restarting dev. [paraphrase]
+- **R5:** A route table is generated from the content tree and its `meta.json` order file, with an optional base prefix; internal links and heading anchors are validated at build. Errors: a broken link or anchor fails the build naming source and target; a route added or removed is picked up without restarting dev. [paraphrase]
 - **R6:** The build writes one HTML file per route (content and head tags) plus the client bundle; output serves correctly from a static file server in a test, and every page hydrates without a mismatch. Errors: a render or compile error fails the build naming the route. [user]
 - **R7:** In development the pages are served by the `start` fetch handler behind the Vite dev server and update when content changes; production output does not import `@sleekstack/start`. Errors: a content error is reported in the overlay and clears when fixed. [user]
 - **R8:** The build writes a search index from the guides and API pages and a client function searches it without a server; the build reports the index size. Errors: an empty query returns no results; a missing index is an error, not an empty result. [user]
@@ -85,6 +85,14 @@ Source: chart fn-57 decisions D2, D5, D6, D7, D12 and briefing B1 cluster 1.
 
 fn-33 (`<Head>`, `HeadSink`, `onHead`, the stream head patch and hydration adoption, ADR 0044) and fn-29 (the `sleekstack()` plugin in `@sleekstack/ui-vite`, ADR 0045) landed on master while fn-59 was built; their versions replaced fn-59's. fn-59 keeps void elements (ADR 0046) and `sleekContent` with MDX, content routes (`contentRouteTable`), prerender, search and Open Graph images (ADR 0047) beside master's plugin. fn-29, fn-30 and fn-33 are no longer trimmed by this spec.
 
+## Review follow-up
+
+Completion review findings fixed on branch `fix-docs-review`:
+
+- Heading ids for inline-code headings (`` ## `_tag` ``): verified that `headingIds` matches the MDX pipeline (`#_tag` valid, `#tag` broken) with a deterministic regression test in `packages/ui-vite/src/__tests__/content-routes.test.ts`; the real-docs equality test still skips the generated `api/` tree.
+- Order file: the spec now says the order file is the `meta.json` convention with no plugin option, as ADR 0047 records.
+- Dev search index: `sleekContent` serves `<vite base>search-index.json` in dev, built from the content tree per request in the build's format (`plugin.test.ts`).
+
 ## Quick commands
 
 ```bash
@@ -103,7 +111,7 @@ Task fn-59-docs-build-platform-on-ui-and-start.3 validates the core approach (re
 | R2 | Rendered pages have tables, links, lists, inline code, heading ids and build-time highlighted code blocks, with no style objects leaking into attributes and no client JavaScript for highlighting. Errors: an unknown fence language is reported at build, not silently dropped. | fn-59-docs-build-platform-on-ui-and-start.3 | — |
 | R3 | ui's string and stream renderers write void elements (`br`, `hr`, `img`, `input`, `meta`, `link` and the rest of the HTML list) without a closing tag. Errors: children given to a void element are reported as an error instead of rendered; existing ui tests keep passing. | fn-59-docs-build-platform-on-ui-and-start.1 | — |
 | R4 | `<Head>` sets title, meta and link in string, stream and DOM output, with nested overrides, key dedupe and hydration adopting server tags, as in the head-management spec; it carries Open Graph and Twitter-card tags. Errors: an `og:image` requested without a configured site origin fails the build with a clear message; an invalid tag or attribute is rejected like an element. | fn-59-docs-build-platform-on-ui-and-start.1, fn-59-docs-build-platform-on-ui-and-start.2, fn-59-docs-build-platform-on-ui-and-start.6 | — |
-| R5 | A route table is generated from the content tree and its order file, with an optional base prefix; internal links and heading anchors are validated at build. Errors: a broken link or anchor fails the build naming source and target; a route added or removed is picked up without restarting dev. | fn-59-docs-build-platform-on-ui-and-start.4 | — |
+| R5 | A route table is generated from the content tree and its `meta.json` order file, with an optional base prefix; internal links and heading anchors are validated at build. Errors: a broken link or anchor fails the build naming source and target; a route added or removed is picked up without restarting dev. | fn-59-docs-build-platform-on-ui-and-start.4 | — |
 | R6 | The build writes one HTML file per route (content and head tags) plus the client bundle; output serves correctly from a static file server in a test, and every page hydrates without a mismatch. Errors: a render or compile error fails the build naming the route. | fn-59-docs-build-platform-on-ui-and-start.5 | — |
 | R7 | In development the pages are served by the `start` fetch handler behind the Vite dev server and update when content changes; production output does not import `@sleekstack/start`. Errors: a content error is reported in the overlay and clears when fixed. | fn-59-docs-build-platform-on-ui-and-start.4 | — |
 | R8 | The build writes a search index from the guides and API pages and a client function searches it without a server; the build reports the index size. Errors: an empty query returns no results; a missing index is an error, not an empty result. | fn-59-docs-build-platform-on-ui-and-start.5 | — |

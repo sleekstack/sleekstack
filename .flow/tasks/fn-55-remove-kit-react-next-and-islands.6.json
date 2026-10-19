@@ -14,7 +14,7 @@
   "priority": null,
   "spec": "fn-55-remove-kit-react-next-and-islands",
   "spec_path": ".flow/tasks/fn-55-remove-kit-react-next-and-islands.6.md",
-  "status": "todo",
+  "status": "done",
   "title": "delete kit, react, next and islands; clean workspace, CI and root README",
   "updated_at": "2026-10-17T12:18:13.697492Z"
 }
