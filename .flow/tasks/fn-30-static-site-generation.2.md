@@ -29,9 +29,17 @@ Depends on fn-29 (plugin SSR/client entries) and fn-33 (head API); API names unk
 - [ ] Tests for success and failing-route cases
 
 ## Done summary
-TBD
+`vite build` with `prerender` requests each enumerated path from the built server entry (which exports its `router` and takes `(request, { onError })`) and writes `<path>/index.html` to the client output; a throw, a non-200, or an `onError` report fails the build naming the route, and a path that maps unsafely (encoded separator, `.`/`..`, two paths to one file) is rejected. Touches widened by the conductor to packages/router/src/server.ts: `handle`'s `document.before` may be `(head) => string`, so page `<Head>` tags land in the written head (string render; a streamed page's tags arrive as a late patch).
 
+Tests: packages/ui-vite/src/prerender/__tests__/build.test.ts (R1 head/content/loader data; R3 loader, render, encoded-separator failures); packages/router/src/__tests__/navigation.test.ts (Head in string and stream modes).
+
+Gates: baseline red (pnpm turbo run test build --filter=@sleekstack/ui-vite... failed pre-edit on plugin.test.ts "serves the build-format search index" - SearchIndexMissing fetch failed, known env issue, same at verify; no receipt). Router gate `pnpm turbo run test typecheck --filter=@sleekstack/router...` green. Focused prerender tests and typecheck green.
+
+Follow-ups: apps/playground/ui entry needs a `router` export and `onError` pass-through for prerender (task .3).
+
+Tier: implementer: opus at medium
+stage: impl-review - ran (codex fan-out NEEDS_WORK, 2 findings: Head tags dropped, encoded-separator file collision; both fixed, re-review SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: a319fd4ceb284e50d7a740e9b26063e9714b9c23, 4bf4db55957ba58fe9ac3c9873f420cdc5a14962, 3d933573dbce23aca74b13ffb2f18a9fa44b6d87
+- Tests: pnpm turbo run test build --filter=@sleekstack/ui-vite... (1 inherited env failure: plugin.test.ts search index fetch failed), pnpm turbo run test typecheck --filter=@sleekstack/router..., npx vitest run src/prerender (packages/ui-vite)
 - PRs:
