@@ -1,55 +1,30 @@
 /** @jsxImportSource @sleekstack/ui */
 import { type DraftSpec, useDraft } from '@sleekstack/model'
-import { Link, loader, notFound, Route, useLoader } from '@sleekstack/router'
+import { Link, useLoader } from '@sleekstack/router'
 import { useAction, useAtomValue, useFormStatus, useLocal, useSetAtom } from '@sleekstack/ui'
-import { Effect, Schema } from 'effect'
+import { Effect } from 'effect'
 import {
   Article,
   deleteArticleContract,
   FavoriteButton,
   favoriteContract,
   formatDate,
-  getArticleContract,
   markdown,
   type Toggle,
   unfavoriteContract,
 } from '../modules/articles'
-import {
-  addCommentContract,
-  Comment,
-  deleteCommentContract,
-  listCommentsContract,
-  NewComment,
-} from '../modules/comments'
+import { addCommentContract, Comment, deleteCommentContract, NewComment } from '../modules/comments'
 import type { Account } from '../modules/identity'
 import { ErrorList, errorsOf, toHome } from './form'
 import { ServerFunctions } from './functions'
-import { Layout, signedIn, viewer } from './layout'
-import { FollowButton, profileLoaders } from './profile'
+import { Layout, viewer } from './layout'
+import { article, authLoaders, comments, editLoaders, previewLinks, profileLoaders } from './loaders'
+import { FollowButton } from './profile'
+
+export { article, comments }
 import { table } from './routes'
 
 const profileHref = (username: string) => `/profile/${encodeURIComponent(username)}`
-
-// The article and editor routes both name the article `:slug`.
-const slug = Effect.map(Route, (m) => m.params['slug']!)
-
-/** The article the route names; an unknown slug is the 404 page. */
-export const article = loader(
-  'article',
-  Article,
-  Effect.flatMap(Effect.zip(ServerFunctions, slug), ([call, s]) => call(getArticleContract)({ slug: s })).pipe(
-    Effect.catchTag('NotFound', notFound),
-  ),
-)
-
-/** The article's comments, newest first. */
-export const comments = loader(
-  'comments',
-  Schema.Array(Comment),
-  Effect.flatMap(Effect.zip(ServerFunctions, slug), ([call, s]) => call(listCommentsContract)({ slug: s })).pipe(
-    Effect.catchTag('NotFound', notFound),
-  ),
-)
 
 /** The author's Edit and Delete buttons; a delete lands on `/`. */
 const OwnerActions = function* ({ slug }: { slug: string }) {
@@ -62,7 +37,7 @@ const OwnerActions = function* ({ slug }: { slug: string }) {
       {/* The editor's `editable` loader is not named: its module imports this one. */}
       <Link
         table={table}
-        loaders={[viewer, signedIn, article]}
+        loaders={editLoaders}
         class="btn btn-sm btn-outline-secondary"
         href={`/editor/${encodeURIComponent(slug)}`}
       >
@@ -101,7 +76,7 @@ const ArticleMeta = function* ({ article, me }: { article: Article; me: Account 
       ) : (
         <>
           <FollowButton user={author} signedIn={me !== null} />
-          <FavoriteButton article={article} toggle={toggle} table={table} />
+          <FavoriteButton article={article} toggle={toggle} links={previewLinks} />
         </>
       )}
     </div>
@@ -232,11 +207,11 @@ const Comments = function* ({ slug, me }: { slug: string; me: Account | null }) 
         <CommentForm slug={slug} me={me} onAdded={(c) => edit((l) => [c, ...l])} />
       ) : (
         <p>
-          <Link table={table} loaders={[viewer]} href="/login">
+          <Link table={table} loaders={authLoaders} href="/login">
             Sign in
           </Link>{' '}
           or{' '}
-          <Link table={table} loaders={[viewer]} href="/register">
+          <Link table={table} loaders={authLoaders} href="/register">
             sign up
           </Link>{' '}
           to add comments on this article.

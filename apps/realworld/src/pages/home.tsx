@@ -1,11 +1,9 @@
 /** @jsxImportSource @sleekstack/ui */
 import { Atom } from '@sleekstack/core'
-import { Link, type Loader, loader, params, Route, useLoader } from '@sleekstack/router'
+import { Link, loader, params, Route, useLoader } from '@sleekstack/router'
 import { useAtomValue, useSetAtom } from '@sleekstack/ui'
-import type { Stub } from '@sleekstack/start/client'
 import { Effect, Schema } from 'effect'
 import {
-  ArticleList,
   ArticlePreviews,
   favoriteContract,
   feedContract,
@@ -19,35 +17,14 @@ import {
 } from '../modules/articles'
 import { ServerFunctions } from './functions'
 import { Layout, type RouteLoaders, signedIn, viewer } from './layout'
+import { type ArticleSource, articleSource, PAGE_SIZE, previewLinks } from './loaders'
 import { table } from './routes'
-
-const PAGE_SIZE = 10
-
-interface Paging {
-  readonly limit: number
-  readonly offset: number
-}
 
 /**
  * The page a list shows, for the path it was picked on: another path reads page 0, so the page resets when the route
  * changes. Client state only (loaders see the pathname, not a query string): the server always renders page 0.
  */
 const pageAtom = Atom.make({ path: '', page: 0 })
-
-/** How a list call fails: the list and feed functions share their errors. */
-type ListFailure = Effect.Effect.Error<ReturnType<Stub<typeof listArticlesContract>>>
-type Query = (paging: Paging) => Effect.Effect<ArticleList, ListFailure, ServerFunctions | Route>
-
-/** A list of articles: its first page as a loader (server-rendered), any page by `query`. */
-export interface ArticleSource {
-  readonly first: Loader<ArticleList, typeof ArticleList.Encoded, ListFailure, ServerFunctions | Route>
-  readonly query: Query
-}
-
-export const articleSource = (key: string, query: Query): ArticleSource => ({
-  first: loader(key, ArticleList, query({ limit: PAGE_SIZE, offset: 0 })),
-  query,
-})
 
 const LoadFailed = () => <div class="article-preview">Articles could not be loaded: try again.</div>
 
@@ -83,7 +60,7 @@ export const ArticleFeed = function* ({ source }: { source: ArticleSource }) {
       ) : list.isError ? (
         <LoadFailed />
       ) : (
-        <ArticlePreviews articles={list.data.articles} toggle={toggle} table={table} />
+        <ArticlePreviews articles={list.data.articles} toggle={toggle} links={previewLinks} />
       )}
       <Pagination
         count={first.right.articlesCount}

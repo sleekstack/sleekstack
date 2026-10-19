@@ -147,16 +147,20 @@ describe('home feeds', () => {
     expect(location.pathname).toBe('/tag/wyverns')
   })
 
-  it("hovering a tag prefetches its route's loaders; following it then makes no call", async () => {
+  it.each([
+    ['a tag', '.sidebar a[href="/tag/hover"]', ['articles.list']],
+    ['an article preview', '.preview-link', ['articles.get', 'comments.list']],
+    ['a preview author', '.article-preview .author', ['profiles.get', 'articles.list']],
+  ])("hovering %s link prefetches its route's loaders; following it then makes no call", async (_, link, ids) => {
     const a = await user()
     await post(a.session, 'Hovered', ['hover'])
     await open('/')
-    const tag = '.sidebar a[href="/tag/hover"]'
-    await act_(() => container.querySelector(tag)!.dispatchEvent(new MouseEvent('mouseenter')))
-    expect(calls).toHaveBeenCalledWith('articles.list')
+    const href = container.querySelector(link)!.getAttribute('href')
+    await act_(() => container.querySelector(link)!.dispatchEvent(new MouseEvent('mouseenter')))
+    for (const id of ids) expect(calls).toHaveBeenCalledWith(id)
     calls.mockClear()
-    await click(tag)
-    expect([location.pathname, titles(), calls.mock.calls]).toEqual(['/tag/hover', ['Hovered'], []])
+    await click(link)
+    expect([location.pathname, calls.mock.calls]).toEqual([href, []])
   })
 
   it('picking a page fetches it; a route change resets to the first page', async () => {

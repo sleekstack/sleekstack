@@ -1,43 +1,26 @@
 /** @jsxImportSource @sleekstack/ui */
 import { Result } from '@sleekstack/core'
-import { Link, loader, notFound, Route, useLoader } from '@sleekstack/router'
+import { Link, useLoader } from '@sleekstack/router'
 import { useAction, useAtomValue, useDerivedAtom, useFormStatus } from '@sleekstack/ui'
 import { Effect, Option } from 'effect'
-import { listArticlesContract } from '../modules/articles'
-import { followContract, Profile, profileContract, unfollowContract } from '../modules/identity'
+import { followContract, type Profile, unfollowContract } from '../modules/identity'
 import { ServerFunctions } from './functions'
-import { ArticleFeed, type ArticleSource, articleSource } from './home'
-import { Layout, type RouteLoaders, signedIn, viewer } from './layout'
+import { ArticleFeed } from './home'
+import { Layout, signedIn, viewer } from './layout'
+import {
+  type ArticleSource,
+  authLoaders,
+  authoredArticles,
+  favoritedArticles,
+  favoritesLoaders,
+  profile,
+  profileLoaders,
+} from './loaders'
 import { table } from './routes'
 
+export { authoredArticles, favoritedArticles, profile }
+
 const profileHref = (username: string) => `/profile/${encodeURIComponent(username)}`
-
-// Both profile routes name the user `:username`.
-const username = Effect.map(Route, (m) => m.params['username']!)
-
-/** The profile the route names; an unknown user is the 404 page. */
-export const profile = loader(
-  'profile',
-  Profile,
-  Effect.flatMap(Effect.zip(ServerFunctions, username), ([call, name]) =>
-    call(profileContract)({ username: name }),
-  ).pipe(Effect.catchTag('NotFound', notFound)),
-)
-
-export const authoredArticles = articleSource('authoredArticles', (paging) =>
-  Effect.flatMap(Effect.zip(ServerFunctions, username), ([call, author]) =>
-    call(listArticlesContract)({ ...paging, author }),
-  ),
-)
-export const favoritedArticles = articleSource('favoritedArticles', (paging) =>
-  Effect.flatMap(Effect.zip(ServerFunctions, username), ([call, favorited]) =>
-    call(listArticlesContract)({ ...paging, favorited }),
-  ),
-)
-
-/** The profile and favorites routes' loaders, for links to them. */
-export const profileLoaders: RouteLoaders = [viewer, profile, authoredArticles.first]
-const favoritesLoaders: RouteLoaders = [viewer, profile, favoritedArticles.first]
 
 /** Follow or unfollow `user`; the button shows the server's answer. A signed-out viewer gets a link to `/login`. */
 const Follow = function* ({ user, signedIn }: { user: Profile; signedIn: boolean }) {
@@ -56,7 +39,7 @@ const Follow = function* ({ user, signedIn }: { user: Profile; signedIn: boolean
   )
   if (!signedIn)
     return (
-      <Link table={table} loaders={[viewer]} class={style} href="/login">
+      <Link table={table} loaders={authLoaders} class={style} href="/login">
         {label}
       </Link>
     )

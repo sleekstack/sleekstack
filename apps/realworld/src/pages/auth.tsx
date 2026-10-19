@@ -7,7 +7,8 @@ import { Effect } from 'effect'
 import { LoginUser, loginContract, NewUser, registerContract } from '../modules/identity'
 import { ErrorList, errorsOf, toHome } from './form'
 import { ServerFunctions } from './functions'
-import { Layout, viewer } from './layout'
+import { Layout } from './layout'
+import { authLoaders } from './loaders'
 import { table } from './routes'
 
 /** A text input bound to a Draft field. */
@@ -108,7 +109,7 @@ export const LoginPage = () => (
   <AuthPage
     title="Sign in"
     other={
-      <Link table={table} loaders={[viewer]} href="/register">
+      <Link table={table} loaders={authLoaders} href="/register">
         Need an account?
       </Link>
     }
@@ -121,7 +122,7 @@ export const RegisterPage = () => (
   <AuthPage
     title="Sign up"
     other={
-      <Link table={table} loaders={[viewer]} href="/login">
+      <Link table={table} loaders={authLoaders} href="/login">
         Have an account?
       </Link>
     }
