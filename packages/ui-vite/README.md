@@ -11,7 +11,7 @@ export default defineConfig({
   plugins: [
     react(), // only when the app has React guests
     sleekstack({
-      include: 'src/**/*.tsx',
+      include: 'src/ui/**/*.tsx', // React guests live outside this glob
       entries: { client: 'src/entry-client.ts', server: 'src/entry-server.ts' },
     }),
   ],
