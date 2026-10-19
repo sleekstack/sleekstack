@@ -1,0 +1,14 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-19T06:59:25.345110Z",
+  "depends_on": [],
+  "id": "fn-63-textarea-value-renders-as-content-on.1",
+  "priority": null,
+  "spec": "fn-63-textarea-value-renders-as-content-on",
+  "spec_path": ".flow/tasks/fn-63-textarea-value-renders-as-content-on.1.md",
+  "status": "todo",
+  "title": "ui: textarea value as server content, hydration adopts it",
+  "updated_at": "2026-10-19T06:59:25.345110Z"
+}
