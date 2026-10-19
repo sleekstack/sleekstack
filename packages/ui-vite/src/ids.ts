@@ -70,15 +70,37 @@ const ownExports = (program: ESTree.Program, out: MagicString): Array<readonly [
   return found
 }
 
+/** How many value exports the module has: anything a re-evaluation could not swap in place counts. */
+const valueExportCount = (program: ESTree.Program): number => {
+  let n = 0
+  for (const s of program.body) {
+    if (s.type === 'ExportAllDeclaration') n += s.exportKind === 'type' ? 0 : 1
+    else if (s.type === 'ExportDefaultDeclaration') n += 1
+    else if (s.type === 'ExportNamedDeclaration' && s.exportKind !== 'type') {
+      const d = s.declaration
+      if (d?.type === 'VariableDeclaration') n += d.declarations.length
+      else if (d && !d.type.startsWith('TS') && !('declare' in d && d.declare)) n += 1
+      n += s.specifiers.filter((sp) => sp.exportKind !== 'type').length
+    }
+  }
+  return n
+}
+
 /**
  * Gives each function a ui JSX file exports a stable id, `<path from the Vite root, no extension>#<export name>`, which
  * `fnId` in `@sleekstack/ui` uses instead of its load-order counter. The id is set once on the function object where
  * it is declared, so a re-export (or a later re-evaluation of the same module) keeps it. Two files that would give the
  * same id (`a.tsx` and `a.jsx` both exporting `A`) fail the build. Only functions written in the export (a declaration,
  * an arrow or function expression) get an id; any other value keeps `fnId`'s counter.
+ *
+ * With `hmr` (the default, dev server only) a module whose value exports are all such functions also registers them with
+ * `acceptUpdate` and accepts its own updates, so an edit swaps the components and keeps their state. A ui module that
+ * exports anything else invalidates the update, which ends in a full reload. Modules without the ui pragma (React
+ * guests) get no HMR code.
  */
-export const ids = (): Plugin => {
+export const ids = (options: { readonly hmr?: boolean } = {}): Plugin => {
   let root = ''
+  let hot = false
   // id -> the file that owns it, for the duplicate check; reset per build, and per file as it re-transforms in dev.
   const owners = new Map<string, string>()
   const forget = (file: string) => {
@@ -89,6 +111,7 @@ export const ids = (): Plugin => {
     enforce: 'pre',
     configResolved(config) {
       root = config.root
+      hot = options.hmr !== false && config.command === 'serve'
     },
     buildStart() {
       owners.clear()
@@ -122,6 +145,14 @@ export const ids = (): Plugin => {
         out.append(
           `\n;for (const [f, i] of [${entries.join(', ')}]) if (!Object.hasOwn(f, ${KEY})) Object.defineProperty(f, ${KEY}, { value: i });\n`,
         )
+        if (hot) {
+          const componentsOnly = valueExportCount(program) === exported.length
+          out.append(
+            componentsOnly
+              ? `import { acceptUpdate as __sleekstack_accept } from "@sleekstack/ui/internal";\nif (import.meta.hot) { for (const [f, i] of [${entries.join(', ')}]) __sleekstack_accept(i, f); import.meta.hot.accept() }\n`
+              : `if (import.meta.hot) import.meta.hot.accept(() => import.meta.hot.invalidate());\n`,
+          )
+        }
         return { code: out.toString(), map: out.generateMap({ hires: 'boundary', source: moduleId }) }
       },
     },
