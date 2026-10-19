@@ -3,14 +3,24 @@ import { analyze } from './analyze.js'
 import { entries, type EntriesOptions } from './entries.js'
 import { ids } from './ids.js'
 import { jsx, type JsxOptions } from './jsx.js'
+import type { PrerenderOption } from './prerender/enumerate.js'
 import { routes, type RoutesOptions } from './routes.js'
 
 export type { EntriesOptions } from './entries.js'
 export type { JsxOptions } from './jsx.js'
+export type { PrerenderOption, PrerenderParams } from './prerender/enumerate.js'
 export type { RoutesOptions } from './routes.js'
 
 /** Options of {@link sleekstack}. */
-export type SleekstackOptions = JsxOptions & RoutesOptions & EntriesOptions
+export type SleekstackOptions = JsxOptions &
+  RoutesOptions &
+  EntriesOptions & {
+    /**
+     * Prerender pages to HTML at build: `true` for every static route, or a list of paths; a route's page adds its
+     * dynamic paths with `prerender()`. Paths have no trailing slash (root `/`) and are written to `<path>/index.html`.
+     */
+    readonly prerender?: PrerenderOption
+  }
 
 /**
  * The SleekStack Vite plugin: ui JSX, stable component ids, `@sleekstack/analyze` diagnostics (dev overlay, failing build),
