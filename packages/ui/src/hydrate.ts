@@ -180,7 +180,9 @@ const adoptOne = (
         const el = dom as Element
         for (const [k, v] of Object.entries(n.attrs)) checkAttr(k, v)
         // Attributes and form `value` / `checked` are left as the server (or the user) left them.
-        const kids = adoptAll(n.children, el, env, scopes)
+        // A textarea's `value` is its server text content: no client child stands for it, so the text is left alone.
+        const valued = n.tag === 'textarea' && n.children.length === 0
+        const kids = valued ? [] : adoptAll(n.children, el, env, scopes)
         return { node: n, dom: el, kids, ...wire(el, n, env, true), ...keyed }
       }
       case 'Reactive': {

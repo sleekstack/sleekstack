@@ -118,6 +118,22 @@ const boundAttrs = (node: ElementNode, c: Collector): string =>
     })
     .join('')
 
+// A browser ignores a textarea's `value` attribute: its value is written as the (escaped, RCDATA) content instead.
+// The parser drops one newline right after `<textarea>`, so a value starting with one gets an extra newline.
+const textareaValue = (node: ElementNode, c: Collector): string | undefined => {
+  const bound = node.bound?.value
+  if (!bound && !Object.hasOwn(node.attrs, 'value')) return undefined
+  if (node.children.length > 0) throw new TypeError('A <textarea> with a value cannot have children')
+  const v: unknown = bound ? c.store.get(bound) : node.attrs.value
+  const s = v == null || v === false || v === true ? '' : String(v)
+  return (/^[\r\n]/.test(s) ? '\n' : '') + escape(s)
+}
+const withoutValue = (node: ElementNode): ElementNode => {
+  const { value: _a, ...attrs } = node.attrs
+  const { value: _b, ...bound } = node.bound ?? {}
+  return { ...node, attrs, bound }
+}
+
 // Same host markup the DOM renderer creates (`dom.ts` build), so server DOM maps one-to-one onto the client tree.
 const HOST_OPEN = (tag: string): string => `<${tag} style="display: contents;">`
 
@@ -198,12 +214,14 @@ export const serialize = (node: Node, c: Collector, around: Around = NO_TEXT): s
       return serializeAll([node], c)
     case 'Element': {
       checkTag(node.tag)
+      const text = node.tag === 'textarea' ? textareaValue(node, c) : undefined
+      const shown = text === undefined ? node : withoutValue(node)
       const attrs =
-        Object.entries(node.attrs)
+        Object.entries(shown.attrs)
           .map(([k, v]) => (checkAttr(k, v), ` ${k}="${escape(v)}"`))
-          .join('') + boundAttrs(node, c)
+          .join('') + boundAttrs(shown, c)
       const on = node.on ? handlerAttrs(node.on, c) : ''
-      const inner = serializeAll(node.children, c)
+      const inner = text ?? serializeAll(node.children, c)
       if (!VOID.test(node.tag)) return `<${node.tag}${attrs}${on}>${inner}</${node.tag}>`
       if (inner !== '') throw new TypeError(`Void element <${node.tag}> cannot have children`)
       return `<${node.tag}${attrs}${on}>`

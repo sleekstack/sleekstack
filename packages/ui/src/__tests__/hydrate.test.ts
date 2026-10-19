@@ -354,6 +354,40 @@ describe('hydrateMount keyed lists, form values, whitespace', () => {
     container.remove()
   })
 
+  it.each(['', '\n', '\nx', '\r\nx', '\rx', 'a\n'])(
+    'a textarea value %j round-trips through the HTML parser',
+    async (value) => {
+      const container = document.createElement('div')
+      container.innerHTML = await renderToString(Effect.succeed(el('textarea', { value })), { layer: Layer.empty })
+      const typed = document.createElement('textarea')
+      typed.value = value
+      expect(container.querySelector('textarea')!.value).toBe(typed.value)
+    },
+  )
+
+  it('a textarea value adopts its server text: no mismatch, no node removed, typed text kept, atom changes apply', async () => {
+    const bio = Atom.make('\nserver bio')
+    const App = () =>
+      jsx('form', { children: [jsx('textarea', { value: 'static' }), jsx('textarea', { name: 'b', value: bio })] })
+    const container = document.createElement('div')
+    container.innerHTML = await renderToString(jsx(App, {}), { layer: Layer.empty })
+    const before = all(container)
+    const [plain, bound] = [...container.querySelectorAll('textarea')]
+    expect([plain!.value, bound!.value]).toEqual(['static', '\nserver bio'])
+    plain!.value = 'typed'
+    const store = makeAtomStore()
+    const onError = vi.fn()
+    await act(
+      async () =>
+        void handles.push(await hydrateMount(jsx(App, {}), { layer: Layer.empty, container, onError, store })),
+    )
+    expect(onError).not.toHaveBeenCalled()
+    expect(all(container)).toEqual(before)
+    expect([plain!.value, bound!.value]).toEqual(['typed', '\nserver bio'])
+    await act(async () => store.set(bio, 'next'))
+    expect(bound!.value).toBe('next')
+  })
+
   it('adjacent text, whitespace-only text and empty text adopt without creating nodes', async () => {
     const name = Atom.make('')
     const App = () => Effect.flatMap(useAtomValue(name), (n) => jsx('p', { children: ['  ', 'a', ' ', n, 'b', '\n'] }))

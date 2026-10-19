@@ -1,3 +1,4 @@
+import { Atom } from '@sleekstack/core'
 import { Cause, Context, Data, Effect, Layer } from 'effect'
 import { createElement } from 'react'
 import { describe, expect, it, vi } from 'vitest'
@@ -197,6 +198,49 @@ describe('renderToString', () => {
       expect(err).toBeInstanceOf(TypeError)
       expect(onError).toHaveBeenCalledOnce()
       expect(Cause.squash(onError.mock.calls[0]![0])).toBe(err)
+    })
+  })
+
+  describe('textarea value', () => {
+    const html = (props: Record<string, unknown>) => renderToString(jsx('textarea', props), { layer: Layer.empty })
+
+    it.each([
+      ['a<b&c', 'a&lt;b&amp;c'],
+      [`</textarea>"'`, '&lt;/textarea&gt;&quot;&#39;'],
+      [7, '7'],
+      [0, '0'],
+      [null, ''],
+      [undefined, ''],
+      [false, ''],
+      [true, ''],
+      ['', ''],
+    ])('a static value %j renders as content, never an attribute', async (value, content) => {
+      expect(await html({ name: 'b', value })).toBe(`<textarea name="b">${content}</textarea>`)
+    })
+
+    it.each([
+      ['a<b', 'a&lt;b'],
+      [0, '0'],
+      [null, ''],
+    ])('an atom-bound value %j renders its current value as content', async (value, content) => {
+      expect(await html({ value: Atom.make<unknown>(value) })).toBe(`<textarea>${content}</textarea>`)
+    })
+
+    it('a value plus children is a TypeError, static or atom-bound', async () => {
+      await expect(html({ value: 'a', children: 'b' })).rejects.toBeInstanceOf(TypeError)
+      await expect(html({ value: Atom.make('a'), children: 'b' })).rejects.toBeInstanceOf(TypeError)
+    })
+
+    it('input and select keep value as an attribute', async () => {
+      const tree = el(
+        'form',
+        {},
+        el('input', { value: 'x' }),
+        el('select', { value: 'x' }, el('option', { value: 'x' })),
+      )
+      expect(await renderToString(Effect.succeed(tree), { layer: Layer.empty })).toBe(
+        '<form><input value="x"><select value="x"><option value="x"></option></select></form>',
+      )
     })
   })
 })
