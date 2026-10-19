@@ -1,5 +1,7 @@
 # The Effect runtime lives in `@sleekstack/runtime`; `@sleekstack/next` is its Next preset
 
+> Superseded in part by [ADR 0049](0049-remove-kit-react-next-and-islands.md): `@sleekstack/next` is removed; `@sleekstack/runtime` stays.
+
 `configureRuntime`, `runEffect`, `getRuntime`, `RuntimeNotConfigured`, `reportFinalizerFailure`, the error-sink and config types and the dev event buffer move from `@sleekstack/next` into the framework-agnostic `@sleekstack/runtime`. Supersedes the package-boundary part of ADR 0012; the runtime contract it describes (one sink, retried builds, reconfigure, `id`) is unchanged. `@sleekstack/next` re-exports the generic APIs and owns only Next-specific parts: `isNextControlFlow`, a `runEffect` that passes that classifier on every call (so an old slot that won the first-config race still rethrows Next control flow) and the `@sleekstack/next/devtools` route handler. Kit imports the runtime package and sets `isControlFlow: isNextControlFlow` in `kit/next`.
 
 ## Considered options

@@ -15,28 +15,28 @@ Scope to one package with `pnpm turbo run <task> --filter=<name>`.
 
 ## Verify this change
 
-| You changed                   | Run                                                                                           |
-| ----------------------------- | --------------------------------------------------------------------------------------------- |
-| analyzer (`packages/analyze`) | `pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack`              |
-| CLI (`packages/cli`)          | `pnpm turbo run test typecheck --filter=sleekstack`                                           |
-| kit (`packages/kit`)          | `pnpm turbo run test typecheck --filter=@sleekstack/kit...` (dependents included)             |
-| react (`packages/react`)      | `pnpm turbo run test typecheck --filter=@sleekstack/react...`                                 |
-| router (`packages/router`)    | `pnpm turbo run test typecheck --filter=@sleekstack/router...`                                |
-| model (`packages/model`)      | `pnpm turbo run test typecheck --filter=@sleekstack/model... --filter=@sleekstack/analyze`    |
-| ui-vite (`packages/ui-vite`)  | `pnpm turbo run test typecheck --filter=@sleekstack/ui-vite...`                               |
-| start (`packages/start`)      | `pnpm turbo run test typecheck --filter=@sleekstack/start...` (testing and showcase included) |
-| testing (`packages/testing`)  | `pnpm turbo run test typecheck --filter=@sleekstack/testing`                                  |
-| core / runtime                | `pnpm turbo run test typecheck --filter=@sleekstack/core...` (or `runtime...`)                |
-| docs (`apps/docs`)            | `pnpm turbo run test typecheck build --filter=docs` (ui-vite site, no Next or fumadocs)       |
-| showcase (`apps/showcase`)    | `pnpm turbo run test typecheck --filter=showcase`                                             |
-| a public export name          | the above, plus the fixture graph check below before and after: output must match             |
+| You changed                    | Run                                                                                           |
+| ------------------------------ | --------------------------------------------------------------------------------------------- |
+| analyzer (`packages/analyze`)  | `pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack`              |
+| CLI (`packages/cli`)           | `pnpm turbo run test typecheck --filter=sleekstack`                                           |
+| router (`packages/router`)     | `pnpm turbo run test typecheck --filter=@sleekstack/router...`                                |
+| ui (`packages/ui`)             | `pnpm turbo run test typecheck --filter=@sleekstack/ui...`                                    |
+| query (`packages/query`)       | `pnpm turbo run test typecheck --filter=@sleekstack/query...`                                 |
+| devtools (`packages/devtools`) | `pnpm turbo run test typecheck --filter=@sleekstack/devtools`                                 |
+| model (`packages/model`)       | `pnpm turbo run test typecheck --filter=@sleekstack/model... --filter=@sleekstack/analyze`    |
+| ui-vite (`packages/ui-vite`)   | `pnpm turbo run test typecheck --filter=@sleekstack/ui-vite...`                               |
+| start (`packages/start`)       | `pnpm turbo run test typecheck --filter=@sleekstack/start...` (testing and showcase included) |
+| testing (`packages/testing`)   | `pnpm turbo run test typecheck --filter=@sleekstack/testing`                                  |
+| core / runtime                 | `pnpm turbo run test typecheck --filter=@sleekstack/core...` (or `runtime...`)                |
+| docs (`apps/docs`)             | `pnpm turbo run test typecheck build --filter=docs` (ui-vite site, no Next or fumadocs)       |
+| showcase (`apps/showcase`)     | `pnpm turbo run test typecheck --filter=showcase`                                             |
+| a public export name           | the above, plus the fixture graph check below before and after: output must match             |
 
 Fixture graph check: from the repo root, `(cd packages/cli/src/__tests__/fixtures/effect-app && node ../../../../bin/cli.js check --json --entry runtime.ts)`. Save the output before the change and diff it with the output after.
 
 ## Rules
 
 - Do not hand-edit generated docs (`apps/docs/content/docs/api/*.md`); run `generate:api`.
-- One public name, one meaning across kit entry points (ADR 0019; enforced by `packages/kit/src/__tests__/exportNames.test.ts`).
 - Analyzer diagnostics use the closed `AnalyzeCode` union; a new code needs its table row (rule, fix, docs).
 
 <!-- BEGIN:turborepo-agent-rules -->

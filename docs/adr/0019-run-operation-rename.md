@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by [ADR 0049](0049-remove-kit-react-next-and-islands.md): `kit/next` is removed.
 
 ## Context
 

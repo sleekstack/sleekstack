@@ -3,6 +3,8 @@
 Status: draft for discussion. D1 to D4 and D6 are decided in [ADR 0039](../adr/0039-start-server-core.md) (spec fn-54); the other "Decisions to take" each become an ADR before building (AGENTS.md).
 Date: 2026-10-17. Name: `@sleekstack/start` (decided).
 
+Note (fn-55, ADR 0049): `@sleekstack/kit`, `@sleekstack/next`, `@sleekstack/react` and `@sleekstack/islands` are removed; mentions of them below record the state when this was written.
+
 ## 1. Premise
 
 Next.js is React plus a router, a server rendering model (RSC), Server Actions, route handlers, middleware, a dev server and build, and deploy targets. `@sleekstack/ui` already has the React-equivalent half: a host-first component model, SSR, streaming, hydration, resume, router, forms, transitions, testing and devtools. What it lacks is the framework around it: nothing wires those pieces into one app with a server, and nothing lets a component call the backend.

@@ -2,6 +2,8 @@
 
 Date: 2026-10-03. Scope: what makes a TypeScript framework easy for AI coding agents and humans to read, write and verify, with SleekStack as the case.
 
+> Note (fn-55, ADR 0049): this brief is history. `packages/kit` and the `evals/` harness cited below are deleted; the quoted paths and results describe the repo at 2026-10-03.
+
 ## 0. How to read this document
 
 Every claim is tagged:
