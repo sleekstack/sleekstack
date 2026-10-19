@@ -34,9 +34,12 @@ Remove the four packages and every remaining reference outside docs prose: works
 - [ ] CI config lists only existing packages; core and runtime suites unchanged; fixture graph output identical for the remaining fixtures
 
 ## Done summary
-TBD
+Deleted packages/kit, react, next, islands and the kit-only evals/ harness; CI, root and package READMEs, analyzer (next ids dropped), runtime slot key and the effect-app fixture (now on @sleekstack/runtime) cleaned. Merged origin/master first (playground reduced to the ui example).
 
+baseline: green (post-merge turbo run, 34/34)
+stage: impl-review - skipped(policy: standing user rule, per-task review skipped)
+Tier: opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 8eac32bc83c0d635a544f7c9d78965bbfaf8cb2e
+- Tests: pnpm turbo run test typecheck build (43 tasks; ui-vite test flaked once on a docs .tmp race, green on rerun), pnpm format:check
 - PRs:
