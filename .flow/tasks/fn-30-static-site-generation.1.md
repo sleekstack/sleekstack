@@ -29,9 +29,18 @@ fn-29 creates `packages/ui-vite`; if not landed yet, work is blocked on it.
 - [ ] Unit tests for static, dynamic, duplicate and missing-`prerender()` cases
 
 ## Done summary
-TBD
+Added `enumerate(routes, option)` in packages/ui-vite/src/prerender/enumerate.ts: the union of the `prerender: true | string[]` option and each page's `prerender()` expansion, deduplicated, with a warning per skipped dynamic route. `SleekstackOptions.prerender` is typed in packages/ui-vite/src/index.ts (type only; task .2 wires it into the build).
 
+Decisions: the option lives on `sleekstack()`; a route's `prerender()` is an optional field on its page entry in the router's `pages` (no new registry, router package untouched; `PrerenderRoutes` accepts `router()` output structurally). Trailing-slash policy: paths normalized without a trailing slash (root `/`), written to `<path>/index.html`, documented in the option TSDoc. Option off/undefined enumerates nothing. With a list, a dynamic route without `prerender()` warns only if no listed path fills it. Param values are percent-encoded; a missing (non-own or empty) or `.`/`..` param throws naming the route; a throwing `prerender()` is rethrown naming the route. The existing content-tree prerender.ts is unchanged.
+
+Tests: packages/ui-vite/src/prerender/__tests__/enumerate.test.ts covers static, dynamic, duplicate/normalized, missing-prerender() warning, bad params, and a real `router()` input.
+
+Gates: focused enumerate tests and ui-vite typecheck green. Full `pnpm turbo run test build --filter=@sleekstack/ui-vite...` was green at baseline but red at verify on one unrelated test (plugin.test.ts "serves the build-format search index ...": SearchIndexMissing fetch failed); it fails identically with this task's changes removed, so it is inherited/environmental, recorded INCONCLUSIVE, no receipt written.
+
+Tier: implementer: opus at medium
+
+stage: impl-review - ran (codex fan-out NEEDS_WORK, 3 findings fixed, re-review SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 62a32a3af199f616f877b5cbe7dbe0062a6dd3c4, e135b454a0ed34dbaacd2911eaa039f306e1f82c, c711221ece9c442520a9932e35806bfe192d4ab4
+- Tests: npx vitest run src/prerender (ui-vite): 10 passed, pnpm turbo run typecheck --filter=@sleekstack/ui-vite: green, pnpm turbo run test build --filter=@sleekstack/ui-vite...: baseline green; verify INCONCLUSIVE - 1 unrelated failure (plugin.test.ts search index fetch failed), reproduces without this task's changes
 - PRs:
