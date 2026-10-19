@@ -117,6 +117,7 @@ Current surface:
 * `@sleekstack/runtime` runtime management (`configureRuntime`, `runEffect`)
 
 For small worked graphs, see the `sleekstack check` fixtures in [`packages/cli/src/__tests__/fixtures`](packages/cli/src/__tests__/fixtures): `effect-app` (Effect Layers on `@sleekstack/runtime`, with request and overrides roots). [`apps/showcase`](apps/showcase/README.md) is a runnable `@sleekstack/ui` app on Effect Layers; its README lists every demo page and how to run it.
+[`apps/realworld`](apps/realworld) is the [RealWorld](https://github.com/realworld-apps/realworld) "Conduit" app built on SleekStack end to end, over `node:sqlite` (ADR 0042); `pnpm --filter realworld dev` runs it.
 
 Still ahead: session/transient/job lifetimes, and stream-aware request-scope finalization.
 

@@ -35,18 +35,21 @@ jobs:
 
       - name: Require test/typecheck scripts
         run: |
-          for pkg in packages/core packages/query packages/router packages/runtime packages/devtools packages/testing apps/showcase apps/docs apps/bench; do
+          for pkg in packages/core packages/query packages/router packages/runtime packages/devtools packages/testing apps/showcase apps/realworld apps/docs apps/bench; do
             node -e "const s=require('./$pkg/package.json').scripts||{};for(const k of ['test','typecheck'])if(!s[k]){console.error('$pkg missing script: '+k);process.exit(1)}"
           done
 
       - name: Dependency graph check
-        run: pnpm --filter showcase check
+        run: pnpm --filter showcase check && pnpm --filter realworld check
 
       - name: Test
         run: pnpm test
 
       - name: Build showcase
         run: pnpm --filter showcase build
+
+      - name: Build realworld
+        run: pnpm --filter realworld build
 
       - name: Build docs
         run: pnpm --filter docs build
