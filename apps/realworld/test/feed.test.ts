@@ -147,6 +147,18 @@ describe('home feeds', () => {
     expect(location.pathname).toBe('/tag/wyverns')
   })
 
+  it("hovering a tag prefetches its route's loaders; following it then makes no call", async () => {
+    const a = await user()
+    await post(a.session, 'Hovered', ['hover'])
+    await open('/')
+    const tag = '.sidebar a[href="/tag/hover"]'
+    await act_(() => container.querySelector(tag)!.dispatchEvent(new MouseEvent('mouseenter')))
+    expect(calls).toHaveBeenCalledWith('articles.list')
+    calls.mockClear()
+    await click(tag)
+    expect([location.pathname, titles(), calls.mock.calls]).toEqual(['/tag/hover', ['Hovered'], []])
+  })
+
   it('picking a page fetches it; a route change resets to the first page', async () => {
     const a = await user()
     for (let i = 1; i <= 12; i++) await post(a.session, `Paged ${i}`, ['paged'])

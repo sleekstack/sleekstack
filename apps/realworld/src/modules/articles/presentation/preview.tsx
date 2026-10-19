@@ -1,5 +1,6 @@
 /** @jsxImportSource @sleekstack/ui */
 import { Result } from '@sleekstack/core'
+import { Link, type RouteTable } from '@sleekstack/router'
 import { useAction, useAtomValue, useDerivedAtom, useFormStatus, useOptimistic } from '@sleekstack/ui'
 import { type Effect, Option } from 'effect'
 import type { Article } from '../domain/model'
@@ -23,7 +24,15 @@ const favorited = (a: Article, on: boolean): Article => ({
  * The heart button: the new count shows at once and rolls back when the server refuses. A signed-out viewer gets a link
  * to `/login` instead.
  */
-const Favorite = function* ({ article, toggle }: { article: Article; toggle: Toggle | null }) {
+const Favorite = function* ({
+  article,
+  toggle,
+  table,
+}: {
+  article: Article
+  toggle: Toggle | null
+  table: RouteTable
+}) {
   const [result, run] = yield* useAction((): Effect.Effect<Article, unknown> =>
     optimistic(!current.favorited, toggle!(current)),
   )
@@ -41,9 +50,9 @@ const Favorite = function* ({ article, toggle }: { article: Article; toggle: Tog
   )
   if (!toggle)
     return (
-      <a class={style} href="/login">
+      <Link table={table} class={style} href="/login">
         {label}
-      </a>
+      </Link>
     )
   return (
     <form class="favorite" action={run}>
@@ -54,24 +63,26 @@ const Favorite = function* ({ article, toggle }: { article: Article; toggle: Tog
   )
 }
 
-/** The heart button with its count; `toggle` is `null` for a signed-out viewer. */
-export const FavoriteButton = (props: { article: Article; toggle: Toggle | null }) => <Favorite {...props} />
+/** The heart button with its count; `toggle` is `null` for a signed-out viewer, who gets a link to `/login`. */
+export const FavoriteButton = (props: { article: Article; toggle: Toggle | null; table: RouteTable }) => (
+  <Favorite {...props} />
+)
 
-const ArticlePreview = ({ article, toggle }: { article: Article; toggle: Toggle | null }) => (
+const ArticlePreview = ({ article, toggle, table }: { article: Article; toggle: Toggle | null; table: RouteTable }) => (
   <div class="article-preview">
     <div class="article-meta">
-      <a href={profileHref(article.author.username)}>
+      <Link table={table} href={profileHref(article.author.username)}>
         {article.author.image && <img src={article.author.image} alt="" />}
-      </a>
+      </Link>
       <div class="info">
-        <a href={profileHref(article.author.username)} class="author">
+        <Link table={table} href={profileHref(article.author.username)} class="author">
           {article.author.username}
-        </a>
+        </Link>
         <span class="date">{formatDate(article.createdAt)}</span>
       </div>
-      <FavoriteButton article={article} toggle={toggle} />
+      <FavoriteButton article={article} toggle={toggle} table={table} />
     </div>
-    <a href={`/article/${encodeURIComponent(article.slug)}`} class="preview-link">
+    <Link table={table} href={`/article/${encodeURIComponent(article.slug)}`} class="preview-link">
       <h1>{article.title}</h1>
       <p>{article.description}</p>
       <span>Read more...</span>
@@ -82,18 +93,26 @@ const ArticlePreview = ({ article, toggle }: { article: Article; toggle: Toggle 
           </li>
         ))}
       </ul>
-    </a>
+    </Link>
   </div>
 )
 
-/** One page of previews, or the empty state. `toggle` is `null` for a signed-out viewer. */
-export const ArticlePreviews = ({ articles, toggle }: { articles: ReadonlyArray<Article>; toggle: Toggle | null }) =>
+/** One page of previews, or the empty state. `toggle` is `null` for a signed-out viewer; `table` is the app's routes. */
+export const ArticlePreviews = ({
+  articles,
+  toggle,
+  table,
+}: {
+  articles: ReadonlyArray<Article>
+  toggle: Toggle | null
+  table: RouteTable
+}) =>
   articles.length === 0 ? (
     <div class="article-preview">No articles are here... yet.</div>
   ) : (
     <>
       {articles.map((a) => (
-        <ArticlePreview key={a.slug} article={a} toggle={toggle} />
+        <ArticlePreview key={a.slug} article={a} toggle={toggle} table={table} />
       ))}
     </>
   )

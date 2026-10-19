@@ -1,13 +1,14 @@
 /** @jsxImportSource @sleekstack/ui */
 import { Result } from '@sleekstack/core'
-import { loader, notFound, Route, useLoader } from '@sleekstack/router'
+import { Link, loader, notFound, Route, useLoader } from '@sleekstack/router'
 import { useAction, useAtomValue, useDerivedAtom, useFormStatus } from '@sleekstack/ui'
 import { Effect, Option } from 'effect'
 import { listArticlesContract } from '../modules/articles'
 import { followContract, Profile, profileContract, unfollowContract } from '../modules/identity'
 import { ServerFunctions } from './functions'
 import { ArticleFeed, type ArticleSource, articleSource } from './home'
-import { Layout, viewer } from './layout'
+import { Layout, type RouteLoaders, signedIn, viewer } from './layout'
+import { table } from './routes'
 
 const profileHref = (username: string) => `/profile/${encodeURIComponent(username)}`
 
@@ -34,6 +35,10 @@ export const favoritedArticles = articleSource('favoritedArticles', (paging) =>
   ),
 )
 
+/** The profile and favorites routes' loaders, for links to them. */
+export const profileLoaders: RouteLoaders = [viewer, profile, authoredArticles.first]
+const favoritesLoaders: RouteLoaders = [viewer, profile, favoritedArticles.first]
+
 /** Follow or unfollow `user`; the button shows the server's answer. A signed-out viewer gets a link to `/login`. */
 const Follow = function* ({ user, signedIn }: { user: Profile; signedIn: boolean }) {
   const call = yield* ServerFunctions
@@ -51,9 +56,9 @@ const Follow = function* ({ user, signedIn }: { user: Profile; signedIn: boolean
   )
   if (!signedIn)
     return (
-      <a class={style} href="/login">
+      <Link table={table} loaders={[viewer]} class={style} href="/login">
         {label}
-      </a>
+      </Link>
     )
   return (
     <form class="follow" action={run}>
@@ -83,9 +88,14 @@ const ProfileView = function* ({ favorites }: { favorites: boolean }) {
               <h4>{user.username}</h4>
               {user.bio && <p>{user.bio}</p>}
               {me?.username === user.username ? (
-                <a class="btn btn-sm btn-outline-secondary action-btn" href="/settings">
+                <Link
+                  table={table}
+                  loaders={[viewer, signedIn]}
+                  class="btn btn-sm btn-outline-secondary action-btn"
+                  href="/settings"
+                >
                   <i class="ion-gear-a"></i> Edit Profile Settings
-                </a>
+                </Link>
               ) : (
                 <FollowButton user={user} signedIn={me !== null} />
               )}
@@ -99,17 +109,24 @@ const ProfileView = function* ({ favorites }: { favorites: boolean }) {
             <div class="articles-toggle">
               <ul class="nav nav-pills outline-active">
                 <li class="nav-item">
-                  <a class={favorites ? 'nav-link' : 'nav-link active'} href={profileHref(user.username)}>
+                  <Link
+                    table={table}
+                    loaders={profileLoaders}
+                    class={favorites ? 'nav-link' : 'nav-link active'}
+                    href={profileHref(user.username)}
+                  >
                     My Articles
-                  </a>
+                  </Link>
                 </li>
                 <li class="nav-item">
-                  <a
+                  <Link
+                    table={table}
+                    loaders={favoritesLoaders}
                     class={favorites ? 'nav-link active' : 'nav-link'}
                     href={`${profileHref(user.username)}/favorites`}
                   >
                     Favorited Articles
-                  </a>
+                  </Link>
                 </li>
               </ul>
             </div>

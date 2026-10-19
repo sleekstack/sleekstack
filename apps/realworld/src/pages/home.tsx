@@ -1,6 +1,6 @@
 /** @jsxImportSource @sleekstack/ui */
 import { Atom } from '@sleekstack/core'
-import { type Loader, loader, params, Route, useLoader } from '@sleekstack/router'
+import { Link, type Loader, loader, params, Route, useLoader } from '@sleekstack/router'
 import { useAtomValue, useSetAtom } from '@sleekstack/ui'
 import type { Stub } from '@sleekstack/start/client'
 import { Effect, Schema } from 'effect'
@@ -18,7 +18,7 @@ import {
   useStaleArticleLists,
 } from '../modules/articles'
 import { ServerFunctions } from './functions'
-import { Layout, viewer } from './layout'
+import { Layout, type RouteLoaders, signedIn, viewer } from './layout'
 import { table } from './routes'
 
 const PAGE_SIZE = 10
@@ -83,7 +83,7 @@ export const ArticleFeed = function* ({ source }: { source: ArticleSource }) {
       ) : list.isError ? (
         <LoadFailed />
       ) : (
-        <ArticlePreviews articles={list.data.articles} toggle={toggle} />
+        <ArticlePreviews articles={list.data.articles} toggle={toggle} table={table} />
       )}
       <Pagination
         count={first.right.articlesCount}
@@ -116,6 +116,11 @@ export const popularTags = loader(
 
 const tagHref = (tag: string) => `/tag/${encodeURIComponent(tag)}`
 
+// Each feed route's loaders, for its tab and tag links.
+const globalLoaders: RouteLoaders = [viewer, popularTags, globalArticles.first]
+const feedLoaders: RouteLoaders = [viewer, signedIn, popularTags, feedArticles.first]
+const tagLoaders: RouteLoaders = [viewer, popularTags, tagArticles.first]
+
 const Sidebar = function* () {
   const tags = yield* Effect.either(useLoader(popularTags))
   return (
@@ -126,9 +131,9 @@ const Sidebar = function* () {
       ) : (
         <div class="tag-list">
           {tags.right.map((t) => (
-            <a key={t} href={tagHref(t)} class="tag-pill tag-default">
+            <Link key={t} table={table} loaders={tagLoaders} href={tagHref(t)} class="tag-pill tag-default">
               {t}
-            </a>
+            </Link>
           ))}
         </div>
       )}
@@ -138,11 +143,21 @@ const Sidebar = function* () {
 
 type Tab = { readonly kind: 'feed' } | { readonly kind: 'global' } | { readonly kind: 'tag'; readonly tag: string }
 
-const TabLink = ({ href, active, children }: { href: string; active: boolean; children?: string }) => (
+const TabLink = ({
+  href,
+  loaders,
+  active,
+  children,
+}: {
+  href: string
+  loaders: RouteLoaders
+  active: boolean
+  children?: string
+}) => (
   <li class="nav-item">
-    <a class={active ? 'nav-link active' : 'nav-link'} href={href}>
+    <Link table={table} loaders={loaders} class={active ? 'nav-link active' : 'nav-link'} href={href}>
       {children}
-    </a>
+    </Link>
   </li>
 )
 
@@ -165,15 +180,15 @@ const Home = function* ({ tab, source }: { tab: Tab; source: ArticleSource }) {
             <div class="feed-toggle">
               <ul class="nav nav-pills outline-active">
                 {user && (
-                  <TabLink href="/feed" active={tab.kind === 'feed'}>
+                  <TabLink href="/feed" loaders={feedLoaders} active={tab.kind === 'feed'}>
                     Your Feed
                   </TabLink>
                 )}
-                <TabLink href="/" active={tab.kind === 'global'}>
+                <TabLink href="/" loaders={globalLoaders} active={tab.kind === 'global'}>
                   Global Feed
                 </TabLink>
                 {tab.kind === 'tag' && (
-                  <TabLink href={tagHref(tab.tag)} active>
+                  <TabLink href={tagHref(tab.tag)} loaders={tagLoaders} active>
                     {`#${tab.tag}`}
                   </TabLink>
                 )}

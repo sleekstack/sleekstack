@@ -1,9 +1,10 @@
 /** @jsxImportSource @sleekstack/ui */
-import { loader, redirect, useLoader } from '@sleekstack/router'
+import { Link, type LinkProps, type Loaders, loader, redirect, Route, useLoader } from '@sleekstack/router'
 import type { Child } from '@sleekstack/ui'
 import { Effect, Schema } from 'effect'
 import { Account, currentUserContract } from '../modules/identity'
 import { ServerFunctions } from './functions'
+import { table } from './routes'
 
 /**
  * Who is signed in, or `null`: every page declares it, so the server resolves it from the session cookie and sends it
@@ -26,6 +27,9 @@ export const signedIn = loader(
 
 const profileHref = (username: string) => `/profile/${encodeURIComponent(username)}`
 
+/** A target route's loaders (as `app.tsx` declares them) for a page-body `Link`, so hover and focus prefetch them. */
+export type RouteLoaders = LinkProps<ServerFunctions | Route | Loaders>['loaders']
+
 const Header = function* () {
   // A viewer the browser could not load (the network failed) shows the signed-out links; the next navigation reloads it.
   const user = yield* Effect.orElseSucceed(useLoader(viewer), () => null)
@@ -34,45 +38,45 @@ const Header = function* () {
   return (
     <nav class="navbar navbar-light">
       <div class="container">
-        <a class="navbar-brand" href={home}>
+        <Link table={table} class="navbar-brand" href={home}>
           conduit
-        </a>
+        </Link>
         <ul class="nav navbar-nav pull-xs-right">
           <li class="nav-item">
-            <a class="nav-link" href={home}>
+            <Link table={table} class="nav-link" href={home}>
               Home
-            </a>
+            </Link>
           </li>
           {user ? (
             <>
               <li class="nav-item">
-                <a class="nav-link" href="/editor">
+                <Link table={table} class="nav-link" href="/editor">
                   <i class="ion-compose"></i> New Article
-                </a>
+                </Link>
               </li>
               <li class="nav-item">
-                <a class="nav-link" href="/settings">
+                <Link table={table} class="nav-link" href="/settings">
                   <i class="ion-gear-a"></i> Settings
-                </a>
+                </Link>
               </li>
               <li class="nav-item">
-                <a class="nav-link" href={profileHref(user.username)}>
+                <Link table={table} class="nav-link" href={profileHref(user.username)}>
                   {user.image && <img class="user-pic" src={user.image} alt="" />}
                   {user.username}
-                </a>
+                </Link>
               </li>
             </>
           ) : (
             <>
               <li class="nav-item">
-                <a class="nav-link" href="/login">
+                <Link table={table} class="nav-link" href="/login">
                   Sign in
-                </a>
+                </Link>
               </li>
               <li class="nav-item">
-                <a class="nav-link" href="/register">
+                <Link table={table} class="nav-link" href="/register">
                   Sign up
-                </a>
+                </Link>
               </li>
             </>
           )}
@@ -85,9 +89,9 @@ const Header = function* () {
 const Footer = () => (
   <footer>
     <div class="container">
-      <a href="/" class="logo-font">
+      <Link table={table} href="/" class="logo-font">
         conduit
-      </a>
+      </Link>
       <span class="attribution">
         An interactive learning project from <a href="https://thinkster.io">Thinkster</a>. Code &amp; design licensed
         under MIT.
@@ -110,14 +114,16 @@ export const NotFoundPage = () => (
   <>
     <nav class="navbar navbar-light">
       <div class="container">
-        <a class="navbar-brand" href="/">
+        <Link table={table} class="navbar-brand" href="/">
           conduit
-        </a>
+        </Link>
       </div>
     </nav>
     <div class="container page">
       <h1>Page not found</h1>
-      <a href="/">Back to the home page</a>
+      <Link table={table} href="/">
+        Back to the home page
+      </Link>
     </div>
     <Footer />
   </>
