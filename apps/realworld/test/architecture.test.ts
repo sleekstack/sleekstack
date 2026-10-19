@@ -161,6 +161,13 @@ it('client code that imports server/ or a Node built-in is a violation', () => {
   ])
 })
 
+const pkg = (p: string) => path.join(__dirname, '../../../packages', p)
+// The workspace packages as TypeScript source, so the build never reads a dist that another task is rebuilding.
+const sourceAlias = [
+  { find: /^@sleekstack\/(ui|core|model|query|router)$/, replacement: pkg('$1/src/index.ts') },
+  { find: /^@sleekstack\/(ui|model|query|start)\/(.*)$/, replacement: pkg('$1/src/$2.ts') },
+]
+
 it('the client chunk holds no server module', { timeout: 60_000 }, async () => {
   // Strings only the server side holds: the `Db` Tag key and schema (server/db.ts), the password hash format and the dev
   // secret (server/crypto.ts).
@@ -170,6 +177,7 @@ it('the client chunk holds no server module', { timeout: 60_000 }, async () => {
   const out = await build({
     configFile: false,
     logLevel: 'silent',
+    resolve: { alias: sourceAlias },
     define: { 'process.env.NODE_ENV': '"production"' },
     build: { write: false, minify: true, lib: { entry: path.join(src, 'main.tsx'), formats: ['es'] } },
   })
