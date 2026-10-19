@@ -22,11 +22,18 @@ const messageOf = (cause: unknown) => {
   return e instanceof Error ? e.message : String(e)
 }
 
-/** The file of `pathname` (`/a%20b` is `a b/index.html`) inside `outDir`; throws when it would land outside. */
+/**
+ * The file of `pathname` inside `outDir`, each segment decoded (`/a%20b` is `a b/index.html`). Throws for a segment that
+ * decodes to a separator or to `.` / `..`, which would write another path's file.
+ */
 const fileOf = (outDir: string, pathname: string) => {
-  const file = path.join(outDir, decodeURIComponent(pathname), 'index.html')
-  if (path.relative(outDir, file).startsWith('..')) throw new Error(`prerender: ${pathname} is outside the output`)
-  return file
+  const parts = pathname
+    .split('/')
+    .filter(Boolean)
+    .map((s) => decodeURIComponent(s))
+  const bad = parts.find((s) => /[/\\]/.test(s) || s === '.' || s === '..')
+  if (bad !== undefined) throw new Error(`segment '${bad}' does not map to a file`)
+  return path.join(outDir, ...parts, 'index.html')
 }
 
 /**
@@ -43,12 +50,20 @@ const prerenderBuilt = async (
   if (!server.router) throw new Error('sleekstack: `prerender` needs the server entry to export its router as `router`')
   const { paths, warnings } = await enumerate(server.router, option)
   warnings.forEach(warn)
+  const requested = new Set<string>()
+  const written = new Map<string, string>()
   for (const p of paths) {
     const url = new URL(p, 'http://localhost')
+    // `/a b` and `/a%20b` are one page.
+    if (requested.has(url.pathname)) continue
+    requested.add(url.pathname)
     let html: string
     let file: string
     try {
       file = fileOf(outDir, url.pathname)
+      const other = written.get(file)
+      if (other !== undefined) throw new Error(`writes the same file as ${other}`)
+      written.set(file, p)
       const errors: unknown[] = []
       const response = await server.default(new Request(url), { onError: (cause) => errors.push(cause) })
       html = await response.text()

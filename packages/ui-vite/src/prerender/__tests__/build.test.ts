@@ -23,12 +23,13 @@ function* Crash() {
 }
 
 export const router = make({
-  table: { index: '/', user: '/users/:id', broken: '/broken', crash: '/crash' },
+  table: { index: '/', user: '/users/:id', broken: '/broken', crash: '/crash', file: '/files/:name' },
   pages: {
     index: { loaders: [greeting], render: () => <Greeting /> },
     user: { prerender: async () => [{ id: '1' }, { id: 'a b' }], render: () => <p>user page</p> },
     broken: { loaders: [broken], render: () => <p>broken</p> },
     crash: { render: () => <Crash /> },
+    file: { render: () => <p>file</p> },
   },
   notFound: () => <h1>Not found</h1>,
 })
@@ -87,9 +88,12 @@ describe('prerender build', () => {
   })
 
   it.each([
-    ['loader', '/broken'],
-    ['render', '/crash'],
-  ])('fails the build naming the route on a %s failure (R3)', async (_, path) => {
-    await expect(build([path], `fail${path}`)).rejects.toThrow(`prerender: route ${path} failed`)
+    ['a loader failure', '/broken', 'status 500'],
+    ['a render failure', '/crash', 'render boom'],
+    ['an encoded separator', '/files/a%2F..%2Findex', "segment 'a/../index'"],
+  ])('fails the build naming the route on %s (R3)', async (_, path, why) => {
+    const error = await build([path], `fail${path.replace(/%/g, '')}`).catch((e: Error) => e)
+    expect(String(error)).toContain(`prerender: route ${path} failed: `)
+    expect(String(error)).toContain(why)
   })
 })
