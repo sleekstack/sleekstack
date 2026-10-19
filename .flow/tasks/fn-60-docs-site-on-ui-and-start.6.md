@@ -33,9 +33,10 @@ Keep the docs checks meaningful on the new site and bring the API reference in l
 - [ ] `pnpm turbo run test typecheck --filter=docs --filter=@sleekstack/ui... --filter=@sleekstack/start...` is green
 
 ## Done summary
-TBD
-
+API reference now covers core, runtime, query, ui and start (no jsx-dev-runtime/internal pages); TSDoc added to ui and start exports; examples.test typechecks ui/start @example blocks (two start examples made self-contained). Gaps from .5 closed: heading ids shared via ui-vite `headings` (underscores kept, check-links.mjs now wraps ui-vite), real-docs tests skip generated api/, `contentBase` + `rebase` rewrites /docs links to the configured base (tested with base /other), root index.html redirect, DEFAULT_SITE constant. fn-34 superseded (records task owns the note).
+Drift for fn-60.7: packages/cli initAgents and the analyze llms test still read packages/kit/llms.md (not fixed here). ui-vite gained ./links and ./routes subpath exports and DocsOptions.contentBase.
+stage: impl-review - skipped(config: standing user rule, per-task Codex review skipped)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: dcfc44590b2666290d9c6e0d8daf2ba5f3cde618
+- Tests: pnpm turbo run test typecheck build --filter=docs..., pnpm format:check
 - PRs:

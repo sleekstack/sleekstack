@@ -41,7 +41,9 @@ import {
   counted,
 } from './reactive'
 import { checkAttr, checkTag } from './string'
+import { documentHead, HeadSink } from './head'
 
+/** A mounted tree; `dispose` unmounts it and closes its scope. */
 export interface Mounted {
   dispose(): Promise<void>
 }
@@ -1069,6 +1071,7 @@ export const start = async <E, A, LE = never>(
     Effect.provideService(Store, store),
     Effect.provideService(RenderScope, scope),
     Effect.provideService(MountScope, scope),
+    Effect.provideService(HeadSink, documentHead(container.ownerDocument)),
     Effect.provideService(MountError, (cause) => safeReport(cause, onError)),
     Effect.provideService(EffectObserver, observe),
     Effect.provideService(Frame, frame),

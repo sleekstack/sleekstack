@@ -34,6 +34,7 @@ export interface CookieJar {
   ) => Effect.Effect<void, InvalidCookie>
 }
 
+/** The request's cookies, readable and settable; the response carries what was set. */
 export class Cookies extends Context.Tag('@sleekstack/start/Cookies')<Cookies, CookieJar>() {}
 
 /** The services `start` provides to every stage of a request. */

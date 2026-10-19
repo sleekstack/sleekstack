@@ -15,21 +15,22 @@ Scope to one package with `pnpm turbo run <task> --filter=<name>`.
 
 ## Verify this change
 
-| You changed                   | Run                                                                                                  |
-| ----------------------------- | ---------------------------------------------------------------------------------------------------- |
-| analyzer (`packages/analyze`) | `pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack`                     |
-| CLI (`packages/cli`)          | `pnpm turbo run test typecheck --filter=sleekstack`                                                  |
-| kit (`packages/kit`)          | `pnpm turbo run test typecheck --filter=@sleekstack/kit...` (dependents included)                    |
-| react (`packages/react`)      | `pnpm turbo run test typecheck --filter=@sleekstack/react...`                                        |
-| router (`packages/router`)    | `pnpm turbo run test typecheck --filter=@sleekstack/router...`                                       |
-| model (`packages/model`)      | `pnpm turbo run test typecheck --filter=@sleekstack/model... --filter=@sleekstack/analyze`           |
-| start (`packages/start`)      | `pnpm turbo run test typecheck --filter=@sleekstack/start...` (testing and showcase included)        |
-| testing (`packages/testing`)  | `pnpm turbo run test typecheck --filter=@sleekstack/testing`                                         |
-| core / runtime                | `pnpm turbo run test typecheck --filter=@sleekstack/core...` (or `runtime...`)                       |
-| docs (`apps/docs`)            | `pnpm turbo run test typecheck --filter=docs`                                                        |
-| showcase (`apps/showcase`)    | `pnpm turbo run test typecheck --filter=showcase`                                                    |
-| realworld (`apps/realworld`)  | `pnpm turbo run test typecheck --filter=realworld` and `pnpm --filter realworld check`               |
-| a public export name          | the above, plus the fixture graph check below before and after: output must match                    |
+| You changed                   | Run                                                                                           |
+| ----------------------------- | --------------------------------------------------------------------------------------------- |
+| analyzer (`packages/analyze`) | `pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack`              |
+| CLI (`packages/cli`)          | `pnpm turbo run test typecheck --filter=sleekstack`                                           |
+| kit (`packages/kit`)          | `pnpm turbo run test typecheck --filter=@sleekstack/kit...` (dependents included)             |
+| react (`packages/react`)      | `pnpm turbo run test typecheck --filter=@sleekstack/react...`                                 |
+| router (`packages/router`)    | `pnpm turbo run test typecheck --filter=@sleekstack/router...`                                |
+| model (`packages/model`)      | `pnpm turbo run test typecheck --filter=@sleekstack/model... --filter=@sleekstack/analyze`    |
+| ui-vite (`packages/ui-vite`)  | `pnpm turbo run test typecheck --filter=@sleekstack/ui-vite...`                               |
+| start (`packages/start`)      | `pnpm turbo run test typecheck --filter=@sleekstack/start...` (testing and showcase included) |
+| testing (`packages/testing`)  | `pnpm turbo run test typecheck --filter=@sleekstack/testing`                                  |
+| core / runtime                | `pnpm turbo run test typecheck --filter=@sleekstack/core...` (or `runtime...`)                |
+| docs (`apps/docs`)            | `pnpm turbo run test typecheck build --filter=docs` (ui-vite site, no Next or fumadocs)       |
+| showcase (`apps/showcase`)    | `pnpm turbo run test typecheck --filter=showcase`                                             |
+| realworld (`apps/realworld`)  | `pnpm turbo run test typecheck --filter=realworld` and `pnpm --filter realworld check`        |
+| a public export name          | the above, plus the fixture graph check below before and after: output must match             |
 
 Fixture graph check: from the repo root, `for app in kit-app effect-app; do (cd packages/cli/src/__tests__/fixtures/$app && node ../../../../bin/cli.js check --json --entry runtime.ts); done`. Save the output before the change and diff it with the output after.
 

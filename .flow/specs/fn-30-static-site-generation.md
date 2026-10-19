@@ -44,3 +44,5 @@ No ISR, no incremental builds, no deploy adapters, no docs-site migration.
 <!-- scope: both -->
 
 Depends on fn-29, fn-50 (`@sleekstack/router` loaders, absorbed fn-32) and fn-33 (head must land first so prerendered pages have titles).
+
+Content trees already prerender through `sleekContent({ prerender })` in `@sleekstack/ui-vite` (fn-59, ADR 0047); this spec covers `sleekstack()` apps.

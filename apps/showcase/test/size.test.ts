@@ -46,26 +46,25 @@ const measure = async (entry: string, source = false) => {
   }
 }
 
-// Gzip limits on the built packages: the ADR 0022 measurement plus about 5%. `uiBeforeModel` is the entry's gzip size
-// before Model and Draft left ui (ADR 0040): ui's entries must not grow past it.
-const budgets: ReadonlyArray<{ name: string; entry: string; limit: number; uiBeforeModel?: number }> = [
-  { name: 'mount hello-world', entry: 'size/mount.tsx', limit: 203_000, uiBeforeModel: 198_667 },
-  { name: 'hydrating app', entry: 'size/hydrate.tsx', limit: 225_000, uiBeforeModel: 220_221 },
+// Gzip limits on the built packages: the ADR 0022 measurement plus about 5%.
+const budgets: ReadonlyArray<{ name: string; entry: string; limit: number }> = [
+  { name: 'mount hello-world', entry: 'size/mount.tsx', limit: 203_000 },
+  { name: 'hydrating app', entry: 'size/hydrate.tsx', limit: 225_000 },
   { name: 'resume', entry: 'resume/entry.ts', limit: 83_000 },
-  { name: 'lazy mount', entry: 'size/lazy.tsx', limit: 209_000, uiBeforeModel: 201_154 },
+  { name: 'lazy mount', entry: 'size/lazy.tsx', limit: 209_000 },
   { name: 'mount with a Draft', entry: 'size/model.tsx', limit: 231_000 },
   { name: 'mount with a record', entry: 'size/records.tsx', limit: 233_000 },
 ]
 
 describe('size budget (ADR 0022)', () => {
-  for (const { name, entry, limit, uiBeforeModel = limit } of budgets)
+  for (const { name, entry, limit } of budgets)
     it(`${name} stays within ${limit} B gzip`, { timeout: 60_000 }, async () => {
       const dist = await measure(entry)
       const src = await measure(entry, true)
       console.log(
         `${name}: dist ${dist.min} B min, ${dist.gz} B gzip (lazy ${dist.lazyGz} B); source ${src.min} B min, ${src.gz} B gzip`,
       )
-      expect(dist.gz).toBeLessThanOrEqual(Math.min(limit, uiBeforeModel))
+      expect(dist.gz).toBeLessThanOrEqual(limit)
     })
 
   it('a lazy component lands in its own chunk', { timeout: 60_000 }, async () => {

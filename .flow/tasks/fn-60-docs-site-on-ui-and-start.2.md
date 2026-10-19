@@ -30,9 +30,10 @@ Eight surviving pages and their snippets still use kit, the React adapter, the N
 - [ ] `pnpm turbo run test typecheck --filter=docs` is green
 
 ## Done summary
-TBD
+Rewrote the surviving docs pages (index, agents, atoms, errors, getting-started-effect, queries, queries-ssr, tanstack-query, concepts, side-effects, testing) and their snippets against core, ui and query; the Next and React server passages are cut or point at @sleekstack/start (ADR 0039). A search of content and snippets for kit, react, next and islands now finds nothing (it found 30+ hits before, as the positive control). guides.test.ts scope list rewritten.
 
+stage: impl-review - skipped(policy: user standing rule, no per-task Codex review)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: a6e4553cb9c51414a617d554e80bc0ee587633c3
+- Tests: pnpm turbo run test typecheck --filter=docs, pnpm format:check
 - PRs:

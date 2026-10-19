@@ -32,9 +32,10 @@ Generate one 1200 by 630 PNG per route at build time and emit the Open Graph and
 - [ ] `pnpm turbo run test typecheck build --filter=@sleekstack/ui-vite...` is green
 
 ## Done summary
-TBD
+Added the `og` plugin option (satori + @resvg/resvg-js, one 1200x630 PNG per page at og/<name>.png from frontmatter title/description) and a browser-safe `ogMeta` helper (subpath `@sleekstack/ui-vite/og-meta`) that the server entry's <Head> uses for og:* and twitter:card tags with an absolute og:image. Missing font, empty site, or off switch behave per spec.
 
+stage: impl-review - skipped(policy: standing user rule, per-task Codex review skipped)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 310eab19f03e81bcb63fd3e2c4bca56f9db598a9
+- Tests: pnpm turbo run test typecheck build --filter=@sleekstack/ui-vite..., pnpm run format:check
 - PRs:

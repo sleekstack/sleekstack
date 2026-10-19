@@ -81,6 +81,10 @@ Rejected: building fn-29, fn-33 and fn-30 first and the docs after (delays packa
 Source: chart fn-57 decisions D2, D5, D6, D7, D12 and briefing B1 cluster 1.
 
 
+## Reconciled with master
+
+fn-33 (`<Head>`, `HeadSink`, `onHead`, the stream head patch and hydration adoption, ADR 0044) and fn-29 (the `sleekstack()` plugin in `@sleekstack/ui-vite`, ADR 0045) landed on master while fn-59 was built; their versions replaced fn-59's. fn-59 keeps void elements (ADR 0046) and `sleekContent` with MDX, content routes (`contentRouteTable`), prerender, search and Open Graph images (ADR 0047) beside master's plugin. fn-29, fn-30 and fn-33 are no longer trimmed by this spec.
+
 ## Quick commands
 
 ```bash

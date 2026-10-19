@@ -1,11 +1,11 @@
 // Shared by generate-api.mjs and test/api-coverage.test.ts: the one list of public entry points
-// (a package's `./internal` subpath is adapter plumbing, never public).
+// (a package's `./internal` subpath is adapter plumbing, never public); `./jsx-dev-runtime` only re-exports `./jsx-runtime` for dev builds.
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 export const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
-export const PACKAGES = ['core', 'runtime', 'query', 'next', 'react', 'kit']
+export const PACKAGES = ['core', 'runtime', 'query', 'ui', 'start']
 
 /** @returns {{ pkg: string, name: string, entry: string, file: string, route: string }[]} */
 export function resolveEntryPoints() {
@@ -14,7 +14,7 @@ export function resolveEntryPoints() {
     const json = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'))
     const subpaths = json.exports
       ? Object.entries(json.exports)
-          .filter(([key]) => key !== './internal')
+          .filter(([key]) => key !== './internal' && key !== './jsx-dev-runtime')
           .map(([key, v]) => [key, typeof v === 'string' ? v : (v.types ?? v.default)])
       : [['.', json.types]]
     return subpaths

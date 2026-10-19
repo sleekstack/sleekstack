@@ -33,9 +33,10 @@ The production build: one HTML file per route with content and head tags plus th
 - [ ] `pnpm turbo run test typecheck build --filter=@sleekstack/ui-vite...` is green
 
 ## Done summary
-TBD
+ui-vite static build: `sleekContent({ prerender: { server, client }, search })` writes one index.html per route (head tags, stylesheet, client script), the client bundle, search-index.json (size logged) and the stylesheet last. Errors name the route. Browser search client at packages/ui-vite/src/search-client.ts (export `@sleekstack/ui-vite/search-client`). Tier: implementer opus at medium. Review skipped by standing user rule (REVIEW_MODE none).
 
+stage: impl-review - skipped(config: standing user rule, no per-task review)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 3a23866430711e3a4a9fea5ca2d9a6f001a704b3
+- Tests: pnpm turbo run test typecheck build --filter=@sleekstack/ui-vite..., pnpm format:check
 - PRs:

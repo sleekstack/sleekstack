@@ -31,7 +31,10 @@ const Logger = Context.GenericTag<{ log(m: string): void }>('Logger')
 const Greeter = Context.GenericTag<{ greet(n: string): string }>('Greeter')
 
 const GreeterDef = declareLayer(
-  Layer.effect(Greeter, Effect.map(Logger, (logger) => ({ greet: (n: string) => (logger.log(n), `Hello, ${n}`) }))),
+  Layer.effect(
+    Greeter,
+    Effect.map(Logger, (logger) => ({ greet: (n: string) => (logger.log(n), `Hello, ${n}`) })),
+  ),
 )
 const LoggerDef = declareLayer(Layer.succeed(Logger, { log: console.log }))
 const AppModule = module({ name: 'App', entries: [LoggerDef, GreeterDef], exports: [Greeter] })
@@ -51,6 +54,15 @@ export const App = () => (
 
 A bare `Layer` works as an entry too, but it must be self-contained. Wrap a Layer that needs other Tags in
 `declareLayer(layer)`; `sleekstack check` reads what it provides and requires from its type. Entries build in listing order, so list a Layer after the ones it needs.
+
+## ui example on the Vite plugin
+
+`ui/` is a small `@sleekstack/ui` app built with `sleekstack()` from `@sleekstack/ui-vite`: ui JSX by `include`,
+the analyzer, file-based routes under `ui/src/routes` and `entries`. The server entry streams each page through
+`handle` from `@sleekstack/router` (`renderToStream`); the client entry hydrates it with `startRouter`.
+`pnpm --filter sleekstack-playground dev:ui` serves it with SSR; `vite build ui` writes `ui/dist/client` and
+`ui/dist/server`. `src/__tests__/ui-example.test.ts` builds both bundles, renders and hydrates the page, and
+checks the dev server.
 
 ## Running
 

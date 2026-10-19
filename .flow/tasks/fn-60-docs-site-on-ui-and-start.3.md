@@ -32,9 +32,10 @@ Build the site's layout as ui components in a new `apps/docs/src/` tree and a ha
 - [ ] `pnpm turbo run test typecheck --filter=docs` is green
 
 ## Done summary
-TBD
+Added apps/docs/src/layout (nav tree builder, Sidebar, DocsLayout drawer, ThemeSwitcher, PageFooter) and src/styles.css (plain CSS, light/dark, prose). Tests in src/__tests__/layout.test.tsx.
 
+stage: impl-review - skipped(config: standing user rule, spec-level review only)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: bc8c4b20d8fd6ccd8d1d165cc391a27c49ea27de
+- Tests: pnpm turbo run test typecheck --filter=docs
 - PRs:

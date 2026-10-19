@@ -2,6 +2,7 @@ import { Effect } from 'effect'
 
 const methods = ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'] as const
 
+/** An HTTP method a route handler can answer. */
 export type Method = (typeof methods)[number]
 
 /** A route handler: one Effect per HTTP method, each answering the request with a `Response`. */

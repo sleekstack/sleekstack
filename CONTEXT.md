@@ -121,7 +121,7 @@ _Avoid_: Payload, atom state
 
 ### UI framework concepts (`@sleekstack/ui`)
 
-**Component** *(ui)*:
+**Component** _(ui)_:
 A function `(props: P) => Effect<Node, E, R>`: `R` is the Tags it needs, `E` its tagged errors, `Node` a small renderable tree (text, element, fragment, guest, reactive). Each call is an instance with a run-time id (per-function id plus ordinal, or key), so its local state and subscriptions survive re-runs. Unrelated to the `component` Lifetime.
 _Avoid_: Effect component, view, widget
 
@@ -133,11 +133,11 @@ _Avoid_: Shell, root component
 A plain React component wrapped by `fromReact`, a `Component<P, never, never>` leaf. React renders it with its own `react-dom`; it receives no Effect context and its subtree is opaque. A Component under a Guest is an `EffectInsideReact` error.
 _Avoid_: Island, embedded React
 
-**Handler** *(ui)*:
+**Handler** _(ui)_:
 A named Effect program run on a DOM event, declared at module top level as `const h = defineHandler('id', (event) => ...)` and attached with `on(node, { click: h })`. The server emits only its id; `resume` loads its chunk on first use. A handler the Analyzer cannot prove is such a reference is a `NonResumableHandler` error (ADR 0017). Used only for `resume`; client-rendered trees use event closures (a function `onXxx` prop run with the element's context). Not a Kit Operation.
 _Avoid_: Event listener, callback, action
 
-**Form Action** *(ui)*:
+**Form Action** _(ui)_:
 A host `<form>`'s `action` prop: a function, generator, Effect or `defineHandler` run on submit with an `ActionEvent` (`formData` built at dispatch); the browser submit is prevented (ADR 0033). `useAction` binds one to a `Result` atom. Distinct from an Action, the server operation.
 _Avoid_: Server action, submit handler
 
@@ -177,7 +177,7 @@ _Avoid_: concurrent render, lane, priority
 `<Portal container={el}>{children}</Portal>`: renders its children into another DOM container while keeping the `Provider` layers and `Store` of its position in the tree; removed with its owner. Renders nothing on the server.
 _Avoid_: Teleport, createPortal
 
-**Store** *(ui)*:
+**Store** _(ui)_:
 The `Store` Tag over core's `AtomStore`, one per `mount`. A host component that reads an atom through `useAtomValue` / `useAtom` re-runs when it changes; the Reconciler patches its subtree and matched guests keep their React state (ADR 0015).
 _Avoid_: State, signal
 
@@ -189,7 +189,7 @@ _Avoid_: Diff, virtual DOM
 The renderer's record of what is mounted: DOM nodes, instances with their run scope and slots, guest roots and event bindings. The Reconciler patches it.
 _Avoid_: Fiber tree, shadow tree
 
-**Key** *(ui)*:
+**Key** _(ui)_:
 The `key` prop on an element or component: its identity among siblings, so it is matched across re-runs and moves. Two siblings with one key raise `DuplicateKey`.
 _Avoid_: "key" alone where it could mean a Tag key or a bind key; say "key prop"
 
@@ -201,11 +201,11 @@ _Avoid_: Hook state, useState
 `@sleekstack/router` (ADR 0036): a const route table with params typed from path strings, a page per route, loaders (`loader` / `useLoader`), actions, prefetching `Link`, `redirect` / `notFound` as control flow, the server entry `handle` and the browser entry `startRouter`.
 _Avoid_: ui-router
 
-**Render Observer** *(ui)*:
+**Render Observer** _(ui)_:
 The optional `observe` callback of `mount` / `hydrateMount` (`RenderObserver`). It receives Render Events and never changes what renders; with none attached the renderer builds no events. Effect events reach it through the `EffectObserver` context reference, provided only by an observed mount.
 _Avoid_: Profiler, hook, listener
 
-**Render Event** *(ui)*:
+**Render Event** _(ui)_:
 A plain-data record the Render Observer receives: `create`, `adopt` (hydration; resume adopts no instances), `rerun` with its reasons, `dispose`, `slot` and `effect` (`start`, `restart`, `cleanup`). It carries the mount id and an instance id, never a live instance, so a disposed instance is not retained.
 _Avoid_: Trace entry, instance reference
 
@@ -223,7 +223,7 @@ _Avoid_: Mutation, procedure, RPC
 `@sleekstack/runtime`, the framework-agnostic Effect app runtime: `configureRuntime`, `runEffect`, `getRuntime`, the `onError` sink and a pluggable `isControlFlow` classifier (default: nothing is control flow). `@sleekstack/next` is its Next preset, adding `isNextControlFlow` and the devtools route handler (ADR 0013). `@sleekstack/runtime/internal` is for sibling packages only.
 _Avoid_: Next runtime, server runtime
 
-**Query** *(server-side)*:
+**Query** _(server-side)_:
 A server-side read operation declared with `defineQuery()` / `query()` from `@sleekstack/kit/next`. Runs a generator in a Request Scope and caches nothing. Distinct from a Cached Query.
 _Avoid_: Fetch, loader, resolver
 
@@ -240,6 +240,12 @@ _Avoid_: Action, Server Action, RPC, procedure
 **Server Endpoint**:
 A route handler given to `start({ handlers })` at an exact pathname: one Effect per HTTP method, answering the request with a `Response`, with the request services (`Request`, `Cookies`, `ResponseHeaders`) in the Request Scope (ADR 0039). An unsupported method is 405 with `Allow`.
 _Avoid_: API route, controller
+
+### Docs site concepts (`apps/docs`)
+
+**Docs Site**:
+The documentation site: a `@sleekstack/ui` app built to static pages by `@sleekstack/ui-vite` (ADR 0048), served by `@sleekstack/start` only in dev. Guides are MDX under `content/docs` ordered by `meta.json`; the API reference is generated by TypeDoc into a gitignored tree; search reads a build-time index. Pages sit under a base prefix (`VITE_DOCS_BASE`, default `/docs`).
+_Avoid_: Fumadocs site, docs app
 
 ### Query cache concepts
 
@@ -271,7 +277,7 @@ _Avoid_: DTO mapper, entity
 `DraftSpec<D, Dto, Src, P, E, R>` (a type in `@sleekstack/model`): the write direction of a Model. `schema(src)` validates the Draft (its Type and Encoded are both `D`, so a field holds what its input holds; no coercion), `create(src)` seeds it, and `toDto(draft, src)` is an Effect of the write body whose ambients are Services in `R` and whose failures are `E`. Optional `toModel(draft, src)` projects a Draft into a read shape (`preview`, or the `apply` of `useOptimistic`); optional `diff(base, next)` is a minimal PATCH body. All but `toDto` are pure.
 _Avoid_: DTO mapper, form schema
 
-**Draft** *(model)*:
+**Draft** _(model)_:
 An editable copy of a Model, one save boundary: what `useDraft(spec, src)` (`@sleekstack/model`) returns, as atoms in the component's Store held by one slot of the instance (`value`, `field(name)`, `errors`, `valid`, `dirty`, `preview`, `changes`, `reset()`, `toDto()`). It starts as `spec.create(src)`; `src` is a value or an atom. While pristine (equal to its seed by the schema's equivalence) it re-seeds when the source changes; after an edit it keeps the edits. Released with the instance.
 _Avoid_: form state, form model
 
@@ -283,7 +289,7 @@ _Avoid_: Entity, `Record` (as a name), model class
 One slot per Record Type and id in each Store, so every `push`, `find` and `commit` of one record writes the same atom and every view reads one value. A record stays until the Store is disposed or `evict(id)`. Client-only: after SSR it refills from the Query cache through `queryOf(record)`.
 _Avoid_: record store, record cache
 
-**Transformation** *(model)*:
+**Transformation** _(model)_:
 One field's wire format, made by `defineTransformation(name, options => ({ from, to, hydrate, serialize, defaultValue }))` and attached as `field(Money, { currency })`. `hydrate` runs when wire data becomes a record, `serialize` when a Draft becomes a change; both fail with a `ParseError`. It reads one field only; a value computed from several fields is a derived atom.
 _Avoid_: serializer, transform registry
 
@@ -294,3 +300,15 @@ _Avoid_: serializer, HTTP client, data source
 **Record Reference**:
 One entry of a relationship: `RecordRef { id, value }`, the target's id as the owner holds it and the target record (`None` until it is in the Identity Map). `record.related(id, field)` is a derived atom of them that follows the owner and every target and never fetches; a missing target keeps its id and position.
 _Avoid_: `Ref` (Effect's), association, foreign key
+
+**Head**:
+The `<Head>` component of `@sleekstack/ui` (fn-33, ADR 0044): `title`, `meta` and `link` elements that land in the document head, deduped by key with the deepest `Head` winning, removed when their component unmounts. `renderToString` and `renderToStream` hand them to `onHead`; a stream patches later changes with an inline script; `mount` patches its document's head and `hydrateMount` adopts the server's tags.
+_Avoid_: Helmet, document head manager
+
+**HeadSink**:
+The `Context.Reference` holding where a mount's `Head` tags go (`@sleekstack/ui`, a `HeadTarget`): `mount` provides its container document's head; unset, `Head` does nothing. String and stream renders read the tags off the output node instead. Not the `Collector` of `reactive.ts` or `string.ts`.
+_Avoid_: head collector
+
+**Prerender**:
+`vite build` with `sleekContent({ prerender })` (`@sleekstack/ui-vite`, ADR 0047): each page route rendered with `renderToString` to `<route>/index.html`, plus the search index and Open Graph images. Plain static files, no server logic.
+_Avoid_: SSG, static export

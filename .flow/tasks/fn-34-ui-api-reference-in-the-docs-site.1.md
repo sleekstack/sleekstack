@@ -35,9 +35,10 @@ The spec names `query` as a ui subpath, but ui exports only `.`, `./jsx-runtime`
 - [ ] TBD
 
 ## Done summary
-TBD
-
+Added ui to PACKAGES in entry-points.mjs, skipped ./jsx-dev-runtime (re-exports jsx-runtime names; one name per meaning), added TSDoc to 24 undocumented ui exports, let a lone re-export carry its summary in the coverage test.
+stage: plan-sync - skipped(config: planSync disabled)
+stage: impl-review - ran (codex fan-out, SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 9c84b6df37d7acae9a17328510f45f6210ff8285
+- Tests: pnpm turbo run test typecheck --filter=docs --filter=@sleekstack/ui..., pnpm turbo run build --filter=docs
 - PRs:

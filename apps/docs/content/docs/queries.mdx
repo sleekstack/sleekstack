@@ -5,30 +5,17 @@ description: Cached server reads and mutations with TanStack Query, wired to the
 
 SleekStack's queries are [TanStack Query](https://tanstack.com/query). `@sleekstack/query` is a thin bridge: a `QueryClient` that lives in a Layer's scope, and `effectFn`, which turns an Effect into a `queryFn` / `mutationFn`. Keys, caching, retries, optimistic updates and devtools are TanStack's own. See [Using TanStack Query](/docs/tanstack-query) for what the bridge adds.
 
-## Effect
+## Effect queries
 
-Provide `QueryClientLive()` in a `LayerProvider` and wrap the tree in `QueryProvider` (from `@sleekstack/react`). The hooks are the official ones from `@tanstack/react-query`.
+Provide `UiQueryClientLive()` in the mount's layer, over the layers your queries need, and read with `useQuery` and `useMutation` from `@sleekstack/query/ui`. `effectFn(effect)` turns an Effect into the `queryFn` / `mutationFn`.
 
 <include>../../snippets/queries-effect.tsx</include>
 
-- `QueryClientLive(config?)` is a scoped Layer providing `QueryClientTag`. Each `LayerProvider` root that provides it gets its own client; the client is unmounted and cleared when that scope closes.
-- `QueryProvider` renders TanStack's `QueryClientProvider` with the nearest scope's client. It suspends while the scope builds.
-- `effectFn(effect)` runs the Effect with the services of the layer that built the calling client. It rejects with the original failure or defect, and an aborted `signal` interrupts the fiber. Its `R` is not checked against the layer: a missing Tag rejects at run time.
+- `QueryClientLive(config?)` is a scoped Layer providing `QueryClientTag`. Each mount layer that provides it gets its own client; the client is unmounted and cleared when that scope closes.
+- `effectFn(effect)` runs the Effect with the services of the layer that built the calling client, so build the client over the layers its queries use. It rejects with the original failure or defect, and an aborted `signal` interrupts the fiber. Its `R` is not checked against the layer: a missing Tag rejects at run time.
 - Query errors are not typed: TanStack sees a rejected Promise, so `error` is `Error` (or whatever the Effect failed with), not your `E`. This is a deliberate trade for TanStack's ecosystem.
 
-## kit
-
-`cachedQuery` and `mutation` come from `@sleekstack/kit`; `useQuery`, `useMutation`, `useQueryClient` and `QueryProvider` come from `@sleekstack/kit/react`. They lower to TanStack options whose function is an `effectFn`, so `yield*` resolves Tags from the nearest `LayerProvider`. They are named apart from the server-side `query` / `defineQuery` of `@sleekstack/kit/next`, which run once per request and cache nothing.
-
-<include>../../snippets/queries.tsx</include>
-
-- `useQuery` never suspends: check `isPending`. A failure comes back as `error` (a `SleekStackError`), with any earlier `data` kept.
-- `staleTime` and `gcTime` are milliseconds; `retry` is a number of retries (default 0).
-- `mutate` resolves with the value or rejects with a `SleekStackError`. `useQueryClient()` gives `invalidate`, `refetch`, `setData` and `getData`.
-- Keys hash as TanStack's `hashKey` does; a key that cannot be hashed throws `SleekStackError`.
-- kit queries have no server prefetch; they fetch on the client.
-
-## `@sleekstack/ui`
+## The ui hooks
 
 `useQuery` and `useMutation` from `@sleekstack/query/ui` read the `QueryClientTag` of the mount layer. `UiQueryClientLive()` is `QueryClientLive()` plus the `Transfer` that carries the cache through `renderToString` / `renderToStream` and `hydrateMount`; a layer without it renders and hydrates without query state.
 
@@ -41,11 +28,11 @@ Provide `QueryClientLive()` in a `LayerProvider` and wrap the tree in `QueryProv
 
 ## Build-time checks
 
-`sleekstack check` reads kit `cachedQuery` / `mutation` bodies like action bodies: a Tag that no reaching provider gives is a `MissingDependency` at file:line. A kit key must be a function that returns a tuple literal of literals and its own parameters, like `(id: string) => ['todo', id]`; a parameter typed `any`, `unknown` or a union fails closed as `Computed`. A `@sleekstack/ui` component using the query hooks requires `QueryClientTag` from its mount layer. An `effectFn` body is not checked.
+A `@sleekstack/ui` component using the query hooks requires `QueryClientTag` from its mount layer, and `sleekstack check` reports it as a `MissingDependency` when no layer provides it. An `effectFn` body is not checked.
 
 ## Devtools
 
-The `@sleekstack/devtools` Queries tab reads the scope client's `QueryCache`. TanStack's own React Query Devtools also work under `QueryProvider`.
+The `@sleekstack/devtools` Queries tab reads the scope client's `QueryCache`.
 
 ## Limits
 

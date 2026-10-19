@@ -30,9 +30,10 @@ Finish the head contract: a head change after the stream shell has flushed follo
 - [ ] `pnpm turbo run test typecheck --filter=@sleekstack/ui... --filter=showcase` is green
 
 ## Done summary
-TBD
+Head in streams: renderToStream provides a HeadSink and takes `onHead` (shell head string, called once before the shell's first chunk). Policy (for the records ADR): the shell head is what resolved at shell time; a tag a resolved Pending boundary adds or changes is patched into document.head by an inline `__sleekHead` script (stream nonce) ahead of that boundary's swap, replacing the element matching the key's selector or appending; a tag that disappears after the shell stays (no removal patch); unkeyed meta is not patched. Hydration/DOM sink adopts existing head elements by key (title, meta, link) instead of duplicating; head lives outside the hydrate container so no HydrationMismatch is possible. Tests: stream (shell + Pending patch with nonce), hydrate (one of each tag adopted).
 
+stage: impl-review - skipped(policy: user standing rule, no per-task Codex review)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 1661eada613cbf321dc9f842709fadec6cc51d81
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/ui... --filter=showcase, pnpm format:check
 - PRs:

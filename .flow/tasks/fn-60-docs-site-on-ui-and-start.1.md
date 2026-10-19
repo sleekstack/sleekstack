@@ -30,9 +30,10 @@ Remove the pages and snippet folders that exist only for kit, the React adapter,
 - [ ] `pnpm turbo run test --filter=docs` passes for the content-level tests that run today
 
 ## Done summary
-TBD
+Deleted the five kit/react/next/islands pages and their exclusive snippets (kit/getting-started, kit/next, kit/react, effect/next, effect/react, atoms-next-prefetch, islands/). Fixed meta.json, the four links into deleted pages (index, atoms, getting-started-effect) and the guides test scope list. Kept kit/side-effects.ts and effect/getting-started.ts (still included by surviving pages).
 
+stage: impl-review - skipped(policy: standing user rule, spec-level review only)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 28f7979290d064a4c867be9044e7cb27c438fc31
+- Tests: pnpm turbo run test typecheck --filter=docs, pnpm run format:check
 - PRs:
