@@ -68,10 +68,7 @@ const Editor = function* ({ article }: { article: Article | null }) {
                     placeholder="Write your article (in markdown)"
                     value={draft.field('body')}
                     onInput={(e) => setBody(e.currentTarget.value)}
-                  >
-                    {/* A server-rendered textarea shows its content, not its `value` attribute. */}
-                    {article?.body ?? ''}
-                  </textarea>
+                  />
                 </fieldset>
                 <fieldset class="form-group">
                   <input

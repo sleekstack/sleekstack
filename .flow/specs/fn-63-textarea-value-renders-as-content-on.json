@@ -1,0 +1,154 @@
+{
+  "branch_name": "fn-63-textarea-value-renders-as-content-on",
+  "completion_review_status": "ship",
+  "completion_reviewed_at": "2026-10-19T07:19:00.493846Z",
+  "created_at": "2026-10-19T06:55:25.565200Z",
+  "default_impl": null,
+  "default_review": null,
+  "default_sync": null,
+  "depends_on_epics": [],
+  "id": "fn-63-textarea-value-renders-as-content-on",
+  "impl_review_rounds": {
+    "fn-63-textarea-value-renders-as-content-on.1": 0,
+    "fn-63-textarea-value-renders-as-content-on.2": 0
+  },
+  "next_task": 1,
+  "plan_review_rounds": 0,
+  "plan_review_status": "unknown",
+  "plan_reviewed_at": null,
+  "review_attempts": [
+    {
+      "artifact_sha256": "d8e9f5363827b154e36fa3bc2faf17677642af33b50ae8b7fd535f85d02be5c8",
+      "backend": "codex",
+      "base_sha": "57a347ec8844410cc74601d5df8630ff07713895",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "87fde24430d385ec51a2fa83663628868b499031",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-6.1-sol",
+      "outcome": "verdict",
+      "output_bytes": 158,
+      "output_sha256": "6ff70da3d83706800ca3cabc6ba62603ba0485fcf5259d27f1be54ce68686975",
+      "reservation_id": "3a5d70b1249344b284536c69c9eaa683",
+      "round_consumed": true,
+      "scope": "impl:fn-63-textarea-value-renders-as-content-on.1",
+      "superseded_by": null,
+      "task": "fn-63-textarea-value-renders-as-content-on.1",
+      "timestamp": "2026-10-19T07:12:33.867294Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "b2d739475882fc388a836c87e2929dc92cc02f30dc0ddf8bb624740accfaa0dc",
+      "backend": "codex",
+      "base_sha": "0954bf0222003892e4b34cf3763135491e54d1e7",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "9669c43631535a41a922193c71daf9824344bc14",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-6.1-sol",
+      "outcome": "verdict",
+      "output_bytes": 158,
+      "output_sha256": "6ff70da3d83706800ca3cabc6ba62603ba0485fcf5259d27f1be54ce68686975",
+      "reservation_id": "1fe90608d8354976b41fbfd68e316e43",
+      "round_consumed": true,
+      "scope": "impl:fn-63-textarea-value-renders-as-content-on.2",
+      "superseded_by": null,
+      "task": "fn-63-textarea-value-renders-as-content-on.2",
+      "timestamp": "2026-10-19T07:16:08.838362Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "aa42c12d349d26b78e940a08fbd6fe08e96deeaa180582e5e8f7e8c3a18a3fa5",
+      "backend": "codex",
+      "base_sha": "50f76797934bec3bfd0647379fe1bfad7796e9ea",
+      "counter_kind": "plan",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "f7ef6e09791ba937dd98c1d8b597c57dd0115ed1",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-6.1-sol",
+      "outcome": "verdict",
+      "output_bytes": 95779,
+      "output_sha256": "a58a5862d936dcd78f4b2aca9eff79b5745edd21cdce78014eadec045a5db5ee",
+      "reservation_id": "49eb04e671bf40aaa34028c926ea2159",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-10-19T07:19:00.491384Z",
+      "tool_calls": 6,
+      "verdict": "SHIP"
+    }
+  ],
+  "review_hash_epoch": {
+    "impl:fn-63-textarea-value-renders-as-content-on.1": 1,
+    "impl:fn-63-textarea-value-renders-as-content-on.2": 1,
+    "plan#completion": 1
+  },
+  "review_pending_rounds": {},
+  "review_reservations": {},
+  "review_transport_failures": {
+    "completion": 0,
+    "impl:fn-63-textarea-value-renders-as-content-on.1": 0,
+    "impl:fn-63-textarea-value-renders-as-content-on.2": 0
+  },
+  "spec_path": ".flow/specs/fn-63-textarea-value-renders-as-content-on.md",
+  "status": "done",
+  "title": "Textarea value renders as content on the server",
+  "tracker": {
+    "baseHashFlow": null,
+    "baseHashTracker": null,
+    "depRelations": [],
+    "id": null,
+    "identifier": null,
+    "lastSyncedAt": null,
+    "mergeBaseFlow": null,
+    "mergeBaseTracker": null,
+    "url": null
+  },
+  "updated_at": "2026-10-19T07:51:05.827800Z"
+}

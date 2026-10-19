@@ -122,6 +122,7 @@ describe('auth pages', () => {
     expect([location.pathname, nav_()]).toEqual(['/', signedInAs('ann2')])
     await click('/settings')
     expect($<HTMLTextAreaElement>('textarea').value).toBe('I write.')
+    expect(await (await serve('/settings')).text()).toMatch(/<textarea(?![^>]*\bvalue=)[^>]*>I write\.<\/textarea>/)
 
     await submit('.btn-outline-danger')
     expect([location.pathname, nav_(), cookie]).toEqual(['/', ANONYMOUS, ''])

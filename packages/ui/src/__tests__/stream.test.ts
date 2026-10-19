@@ -56,6 +56,23 @@ describe('renderToStream (R1)', () => {
     expect(normalize(apply(first + rest))).toBe(await renderToString(tree(), { layer }))
   })
 
+  it('a textarea swapped in from a Pending boundary keeps a leading newline in its value', async () => {
+    const g = gate()
+    const Slow = () =>
+      Effect.map(
+        Effect.promise(() => g.promise),
+        () => el('textarea', { value: '\nbody' }),
+      )
+    const reader = renderToStream(jsx(Pending, { fallback: 'wait', children: jsx(Slow, {}) }), { layer }).getReader()
+    let html = decoder.decode((await reader.read()).value)
+    expect(html).not.toContain('textarea')
+    g.open()
+    for (let r = await reader.read(); !r.done; r = await reader.read()) html += decoder.decode(r.value)
+    expect(html).toContain('<template data-sleek-b="sleek-0"><textarea>\n\nbody</textarea></template>')
+    apply(html)
+    expect(document.querySelector('textarea')!.value).toBe('\nbody')
+  })
+
   it('a defect before flush rejects the stream with the original error', async () => {
     const defect = new Error('defect')
     await expect(new Response(renderToStream(Effect.die(defect), { layer })).text()).rejects.toBe(defect)
