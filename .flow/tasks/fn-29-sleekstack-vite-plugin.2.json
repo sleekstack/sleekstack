@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-29-sleekstack-vite-plugin",
   "spec_path": ".flow/tasks/fn-29-sleekstack-vite-plugin.2.md",
-  "status": "todo",
+  "status": "done",
   "title": "Analyzer diagnostics in dev overlay and build",
   "updated_at": "2026-10-18T15:40:26.396252Z"
 }

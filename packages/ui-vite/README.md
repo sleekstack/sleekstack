@@ -18,7 +18,7 @@ export default defineConfig({
 })
 ```
 
-`apps/playground/ui` is a working example: a router app streamed by `handle(..., { stream: true })` and hydrated by `startRouter`.
+`apps/playground/ui` is a working example: a router app rendered to a string by `handle`, prerendered by `vite build` (`prerender: true`) and hydrated by `startRouter`.
 
 ## Options
 
@@ -207,7 +207,7 @@ The tags come from the page's own `<Head>`: `@sleekstack/ui-vite/og-meta` (no No
 ## Known limitations
 
 - **Relative `base` with `entries`:** a relative `base` such as `./` is rejected, because a page at `/users/42` would request its client chunk from `/users/assets/...`. Use an absolute `base` (the default `/`, or a path such as `/app/`).
-- No HMR state preservation (fn-31), no static site generation for `sleekstack()` apps (fn-30) and no deploy adapters. `sleekContent` prerenders content trees only.
+- No deploy adapters. HMR state preservation (the `hmr` option, see the Vite guide) and static site generation (`prerender`) are covered above. `sleekContent` prerenders content trees only.
 
 ## Vite API check (Vite 8.0.16)
 
