@@ -13,7 +13,7 @@
   "impl_review_rounds": {
     "fn-31-hmr-that-keeps-component-state.1": 0,
     "fn-31-hmr-that-keeps-component-state.2": 0,
-    "fn-31-hmr-that-keeps-component-state.3": 1
+    "fn-31-hmr-that-keeps-component-state.3": 0
   },
   "next_task": 1,
   "plan_review_rounds": 0,
@@ -243,28 +243,45 @@
       "task": "fn-31-hmr-that-keeps-component-state.2",
       "timestamp": "2026-10-18T16:08:16.473436Z",
       "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "9cbe51e6ac0bcee23733c83b41180c4357a16b7299a91bed8806fbde54b36647",
+      "backend": "codex",
+      "base_sha": "f152cef5dc5e32bb9e1c23d023f00b32407f89ac",
+      "counter_kind": "impl",
+      "failure_class": "head_moved",
+      "finalized": {
+        "digest": "not_applicable",
+        "receipt": "not_applicable",
+        "status": "not_applicable"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "41c97a140a81f248d7b375f5e3b86641115e6cdd",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "outcome": "transport_failure",
+      "output_bytes": 65,
+      "output_sha256": "cf62a4b3cfc1c4ac07b6a513a6c5a573595952faaea8362871405a900644290f",
+      "reservation_id": "19dc0afa516c4d249acd42e84be48f6d",
+      "round_consumed": false,
+      "scope": "impl:fn-31-hmr-that-keeps-component-state.3",
+      "superseded_by": null,
+      "task": "fn-31-hmr-that-keeps-component-state.3",
+      "timestamp": "2026-10-19T09:39:00.102560Z",
+      "verdict": null
     }
   ],
   "review_hash_epoch": {
     "impl:fn-31-hmr-that-keeps-component-state.1": 1,
     "impl:fn-31-hmr-that-keeps-component-state.2": 1
   },
-  "review_pending_rounds": {
-    "impl:fn-31-hmr-that-keeps-component-state.3": 1
-  },
-  "review_reservations": {
-    "19dc0afa516c4d249acd42e84be48f6d": {
-      "artifact_sha256": "9cbe51e6ac0bcee23733c83b41180c4357a16b7299a91bed8806fbde54b36647",
-      "counter_scope": "impl:fn-31-hmr-that-keeps-component-state.3",
-      "epoch": 0,
-      "exclusive": true,
-      "forced": false,
-      "review_type": "impl"
-    }
-  },
+  "review_pending_rounds": {},
+  "review_reservations": {},
   "review_transport_failures": {
     "impl:fn-31-hmr-that-keeps-component-state.1": 0,
-    "impl:fn-31-hmr-that-keeps-component-state.2": 0
+    "impl:fn-31-hmr-that-keeps-component-state.2": 0,
+    "impl:fn-31-hmr-that-keeps-component-state.3": 1
   },
   "spec_path": ".flow/specs/fn-31-hmr-that-keeps-component-state.md",
   "status": "open",
@@ -280,5 +297,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-19T09:36:26.238152Z"
+  "updated_at": "2026-10-19T09:39:00.103364Z"
 }

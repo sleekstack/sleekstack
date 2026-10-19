@@ -98,7 +98,7 @@ const valueExportCount = (program: ESTree.Program): number => {
  *
  * With `hmr` (the default, dev server only) a module whose value exports are all such functions also registers them with
  * `acceptUpdate` and accepts its own updates, so an edit swaps the components and keeps their state. A ui module that
- * exports anything else invalidates the update, which ends in a full reload. Modules without the ui pragma (React
+ * exports anything else reloads the page. Modules without the ui pragma (React
  * guests) get no HMR code.
  */
 export const ids = (options: { readonly hmr?: boolean } = {}): Plugin => {

@@ -29,7 +29,7 @@ describe('sleekstack() hmr', () => {
     expect(out).toContain('sleekstackOnly = true')
   })
 
-  it('invalidates the update (full reload) when the module exports anything else', () => {
+  it('reloads the page when the module exports anything else', () => {
     for (const extra of [
       'export const n = 1',
       'export enum Mode { A }',

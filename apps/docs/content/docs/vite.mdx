@@ -36,7 +36,7 @@ Each function that a ui JSX file exports gets a stable id, `<path from the Vite 
 
 ## Hot updates
 
-In dev, a ui module whose value exports are all functions written in place registers them with `acceptUpdate` and accepts its own updates, so editing a component re-runs its live instances with their state and focus. A ui module that also exports a constant, a class or a re-export invalidates the update, which ends in a full reload. Files without the ui pragma, such as React guests, get no HMR code. Production builds never carry it. Set `hmr: false` to turn it off in dev.
+In dev, a ui module whose value exports are all functions written in place registers them with `acceptUpdate` and accepts its own updates, so editing a component re-runs its live instances with their state and focus. A ui module that also exports a constant, a class or a re-export reloads the page. Files without the ui pragma, such as React guests, get no HMR code. Production builds never carry it. Set `hmr: false` to turn it off in dev.
 
 ## File-based routes
 
