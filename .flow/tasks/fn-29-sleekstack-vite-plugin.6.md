@@ -15,9 +15,8 @@ Finalize docs: package README, docs site page, ADR note only if a decided behavi
 - [ ] TBD
 
 ## Done summary
-TBD
-
+Docs, README and ADR 0045 for ui-vite; Codex impl review SHIP after README include-glob fix.
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 1a763453
+- Tests: pnpm turbo run test typecheck --filter=docs
 - PRs:
