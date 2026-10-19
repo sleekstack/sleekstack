@@ -15,7 +15,7 @@
   "impl_review_rounds": {
     "fn-30-static-site-generation.1": 0,
     "fn-30-static-site-generation.2": 0,
-    "fn-30-static-site-generation.3": 1
+    "fn-30-static-site-generation.3": 0
   },
   "next_task": 1,
   "plan_review_rounds": 0,
@@ -245,28 +245,81 @@
       "task": "fn-30-static-site-generation.2",
       "timestamp": "2026-10-19T09:57:58.624867Z",
       "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "7106af4589572d37b9f5e92e8e3feaebfec9adcf02eab1ca0f115aa19fe9148c",
+      "backend": "codex",
+      "base_sha": "f152cef5dc5e32bb9e1c23d023f00b32407f89ac",
+      "counter_kind": "impl",
+      "failure_class": "head_moved",
+      "finalized": {
+        "digest": "not_applicable",
+        "receipt": "not_applicable",
+        "status": "not_applicable"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "9cf52d8ac0b9c6bed19cf7ff7aed1b7e007cc7a7",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "outcome": "transport_failure",
+      "output_bytes": 65,
+      "output_sha256": "c78190abf2c3640fc8e03dfad1150e19e196c0617db821e4ee9d31f1426ea7c9",
+      "reservation_id": "f282e9f821fa48c086da151e45c77a64",
+      "round_consumed": false,
+      "scope": "impl:fn-30-static-site-generation.3",
+      "superseded_by": null,
+      "task": "fn-30-static-site-generation.3",
+      "timestamp": "2026-10-19T10:09:47.211271Z",
+      "verdict": null
+    },
+    {
+      "artifact_sha256": "140a8a88171c87f2c3e7cc96074dbbd1631da9604c38253580e5fd2059474bf4",
+      "backend": "codex",
+      "base_sha": "f152cef5dc5e32bb9e1c23d023f00b32407f89ac",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "007448b3f1c372cf4b8c82292440f26d58d5d9cd",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-6.1-sol",
+      "outcome": "verdict",
+      "output_bytes": 158,
+      "output_sha256": "6ff70da3d83706800ca3cabc6ba62603ba0485fcf5259d27f1be54ce68686975",
+      "reservation_id": "94ddc8bd652641b0b48f4721c96166e5",
+      "round_consumed": true,
+      "scope": "impl:fn-30-static-site-generation.3",
+      "superseded_by": null,
+      "task": "fn-30-static-site-generation.3",
+      "timestamp": "2026-10-19T10:12:05.194963Z",
+      "verdict": "SHIP"
     }
   ],
   "review_hash_epoch": {
     "impl:fn-30-static-site-generation.1": 1,
-    "impl:fn-30-static-site-generation.2": 1
-  },
-  "review_pending_rounds": {
+    "impl:fn-30-static-site-generation.2": 1,
     "impl:fn-30-static-site-generation.3": 1
   },
-  "review_reservations": {
-    "f282e9f821fa48c086da151e45c77a64": {
-      "artifact_sha256": "7106af4589572d37b9f5e92e8e3feaebfec9adcf02eab1ca0f115aa19fe9148c",
-      "counter_scope": "impl:fn-30-static-site-generation.3",
-      "epoch": 0,
-      "exclusive": true,
-      "forced": false,
-      "review_type": "impl"
-    }
-  },
+  "review_pending_rounds": {},
+  "review_reservations": {},
   "review_transport_failures": {
     "impl:fn-30-static-site-generation.1": 0,
-    "impl:fn-30-static-site-generation.2": 0
+    "impl:fn-30-static-site-generation.2": 0,
+    "impl:fn-30-static-site-generation.3": 0
   },
   "spec_path": ".flow/specs/fn-30-static-site-generation.md",
   "status": "open",
@@ -282,5 +335,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-19T10:05:51.544980Z"
+  "updated_at": "2026-10-19T10:12:05.198334Z"
 }
