@@ -10,7 +10,12 @@ export type { JsxOptions } from './jsx.js'
 export type { RoutesOptions } from './routes.js'
 
 /** Options of {@link sleekstack}. */
-export type SleekstackOptions = JsxOptions & RoutesOptions & EntriesOptions
+export type SleekstackOptions = JsxOptions &
+  RoutesOptions &
+  EntriesOptions & {
+    /** Hot updates that keep component state (dev only). A ui module that is not components-only reloads the page. Default: true. */
+    readonly hmr?: boolean
+  }
 
 /**
  * The SleekStack Vite plugin: ui JSX, stable component ids, `@sleekstack/analyze` diagnostics (dev overlay, failing build),
@@ -19,7 +24,7 @@ export type SleekstackOptions = JsxOptions & RoutesOptions & EntriesOptions
  */
 export const sleekstack = (options: SleekstackOptions = {}): Array<Plugin> => [
   jsx(options),
-  ids(),
+  ids(options),
   analyze(),
   routes(options),
   entries(options),

@@ -9,11 +9,12 @@ description: One plugin for ui JSX, analyzer diagnostics, stable component ids, 
 
 Every option is optional.
 
-| Option                | Default      | What it does                                                                                                                                                                   |
-| --------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `include` / `exclude` | none         | Globs (relative to the Vite root) or regexes of `.jsx` / `.tsx` files that are ui JSX without the pragma. A file that already names a `@jsxImportSource` keeps it.             |
-| `routesDir`           | `src/routes` | Directory of route files, relative to the Vite root. Serves `virtual:sleekstack/routes`.                                                                                       |
-| `entries`             | none         | `{ client, server }`, paths relative to the Vite root. `vite build` writes `dist/client` and `dist/server`, and the dev server answers every request through the server entry. |
+| Option                | Default      | What it does                                                                                                                                                                                                                                |
+| --------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `include` / `exclude` | none         | Globs (relative to the Vite root) or regexes of `.jsx` / `.tsx` files that are ui JSX without the pragma. A file that already names a `@jsxImportSource` keeps it.                                                                          |
+| `routesDir`           | `src/routes` | Directory of route files, relative to the Vite root. Serves `virtual:sleekstack/routes`.                                                                                                                                                    |
+| `entries`             | none         | `{ client, server }`, paths relative to the Vite root. `vite build` writes `dist/client` and `dist/server`, and the dev server answers every request through the server entry.                                                              |
+| `hmr`                 | `true`       | Dev only. A ui module whose exports are all components hot-updates and keeps its `useLocal` state; a ui module that exports anything else reloads the page. React guests are untouched (Fast Refresh owns them). `false` emits no HMR code. |
 
 ## The pragma rule
 
@@ -32,6 +33,10 @@ The analyzer reads the router's `pages` only as an object literal written in the
 ## Stable component ids
 
 Each function that a ui JSX file exports gets a stable id, `<path from the Vite root>#<export name>`, in place of the load-order counter. A re-export keeps the id, and so does a re-evaluation of the module. Two files that would give the same id fail the build. Only functions written in the export get an id: a declaration, an arrow function or a function expression. Without the plugin, ids still work through the counter.
+
+## Hot updates
+
+In dev, a ui module whose value exports are all functions written in place registers them with `acceptUpdate` and accepts its own updates, so editing a component re-runs its live instances with their state and focus. A ui module that also exports a constant, a class or a re-export reloads the page, and so does an edit to a non-component file such as a helper that such a module imports. Files without the ui pragma, such as React guests, get no HMR code. Production builds never carry it. Set `hmr: false` to turn it off in dev.
 
 ## File-based routes
 
