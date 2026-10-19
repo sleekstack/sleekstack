@@ -12,7 +12,8 @@
   "id": "fn-31-hmr-that-keeps-component-state",
   "impl_review_rounds": {
     "fn-31-hmr-that-keeps-component-state.1": 0,
-    "fn-31-hmr-that-keeps-component-state.2": 0
+    "fn-31-hmr-that-keeps-component-state.2": 0,
+    "fn-31-hmr-that-keeps-component-state.3": 1
   },
   "next_task": 1,
   "plan_review_rounds": 0,
@@ -248,8 +249,19 @@
     "impl:fn-31-hmr-that-keeps-component-state.1": 1,
     "impl:fn-31-hmr-that-keeps-component-state.2": 1
   },
-  "review_pending_rounds": {},
-  "review_reservations": {},
+  "review_pending_rounds": {
+    "impl:fn-31-hmr-that-keeps-component-state.3": 1
+  },
+  "review_reservations": {
+    "19dc0afa516c4d249acd42e84be48f6d": {
+      "artifact_sha256": "9cbe51e6ac0bcee23733c83b41180c4357a16b7299a91bed8806fbde54b36647",
+      "counter_scope": "impl:fn-31-hmr-that-keeps-component-state.3",
+      "epoch": 0,
+      "exclusive": true,
+      "forced": false,
+      "review_type": "impl"
+    }
+  },
   "review_transport_failures": {
     "impl:fn-31-hmr-that-keeps-component-state.1": 0,
     "impl:fn-31-hmr-that-keeps-component-state.2": 0
@@ -268,5 +280,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-18T16:08:16.477792Z"
+  "updated_at": "2026-10-19T09:36:26.238152Z"
 }

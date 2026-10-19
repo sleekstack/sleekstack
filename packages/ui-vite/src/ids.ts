@@ -70,6 +70,9 @@ const ownExports = (program: ESTree.Program, out: MagicString): Array<readonly [
   return found
 }
 
+// Declarations TypeScript erases; enums and namespaces are runtime values.
+const ERASED = new Set(['TSTypeAliasDeclaration', 'TSInterfaceDeclaration'])
+
 /** How many value exports the module has: anything a re-evaluation could not swap in place counts. */
 const valueExportCount = (program: ESTree.Program): number => {
   let n = 0
@@ -79,7 +82,7 @@ const valueExportCount = (program: ESTree.Program): number => {
     else if (s.type === 'ExportNamedDeclaration' && s.exportKind !== 'type') {
       const d = s.declaration
       if (d?.type === 'VariableDeclaration') n += d.declarations.length
-      else if (d && !d.type.startsWith('TS') && !('declare' in d && d.declare)) n += 1
+      else if (d && !ERASED.has(d.type) && !('declare' in d && d.declare)) n += 1
       n += s.specifiers.filter((sp) => sp.exportKind !== 'type').length
     }
   }
@@ -131,7 +134,7 @@ export const ids = (options: { readonly hmr?: boolean } = {}): Plugin => {
         if (errors.length) return null
         const out = new MagicString(code)
         const exported = ownExports(program, out)
-        if (!exported.length) return null
+        if (!exported.length && !hot) return null
         const base = path.posix.relative(normalizePath(root), file).replace(/\.[jt]sx$/, '')
         const entries = exported.map(([local, name]) => {
           const id = `${base}#${name}`
@@ -141,16 +144,21 @@ export const ids = (options: { readonly hmr?: boolean } = {}): Plugin => {
           owners.set(id, file)
           return `[${local}, ${JSON.stringify(id)}]`
         })
+        const list = `[${entries.join(', ')}]`
         // A function exported under two names keeps the first.
-        out.append(
-          `\n;for (const [f, i] of [${entries.join(', ')}]) if (!Object.hasOwn(f, ${KEY})) Object.defineProperty(f, ${KEY}, { value: i });\n`,
-        )
-        if (hot) {
-          const componentsOnly = valueExportCount(program) === exported.length
+        if (entries.length)
           out.append(
-            componentsOnly
-              ? `import { acceptUpdate as __sleekstack_accept } from "@sleekstack/ui/internal";\nif (import.meta.hot) { for (const [f, i] of [${entries.join(', ')}]) __sleekstack_accept(i, f); import.meta.hot.accept() }\n`
-              : `if (import.meta.hot) import.meta.hot.accept(() => import.meta.hot.invalidate());\n`,
+            `\n;for (const [f, i] of ${list}) if (!Object.hasOwn(f, ${KEY})) Object.defineProperty(f, ${KEY}, { value: i });\n`,
+          )
+        if (hot) {
+          // Vite runs the PREVIOUS evaluation's accept callback with the update, so each evaluation leaves its verdict in
+          // `hot.data` for the callback to read; a page reload, not `invalidate`, because a self-accepting parent would stop that.
+          const only = entries.length > 0 && valueExportCount(program) === exported.length
+          out.append(
+            `${only ? 'import { acceptUpdate as __sleekstack_accept } from "@sleekstack/ui/internal";\n' : ''}` +
+              `if (import.meta.hot) { import.meta.hot.data.sleekstackOnly = ${only};` +
+              `${only ? ` for (const [f, i] of ${list}) __sleekstack_accept(i, f);` : ''}` +
+              ` import.meta.hot.accept(() => { if (!import.meta.hot.data.sleekstackOnly) typeof location === "undefined" ? import.meta.hot.invalidate() : location.reload() }) }\n`,
           )
         }
         return { code: out.toString(), map: out.generateMap({ hires: 'boundary', source: moduleId }) }
