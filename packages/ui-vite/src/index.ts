@@ -3,16 +3,29 @@ import { analyze } from './analyze.js'
 import { entries, type EntriesOptions } from './entries.js'
 import { ids } from './ids.js'
 import { jsx, type JsxOptions } from './jsx.js'
+import { prerender } from './prerender/build.js'
+import type { PrerenderOption } from './prerender/enumerate.js'
 import { routes, type RoutesOptions } from './routes.js'
 
 export type { EntriesOptions } from './entries.js'
 export type { JsxOptions } from './jsx.js'
+export type { PrerenderOption, PrerenderParams } from './prerender/enumerate.js'
 export type { RoutesOptions } from './routes.js'
 
 /** Options of {@link sleekstack}. */
 export type SleekstackOptions = JsxOptions &
   RoutesOptions &
   EntriesOptions & {
+    /**
+     * Prerender pages to HTML at build: `true` for every static route, or a list of paths; a route's page adds its
+     * dynamic paths with `prerender()`. Paths have no trailing slash (root `/`) and are written to `<path>/index.html`.
+     * Needs `entries`, whose server entry also exports its router as `router`; `vite build` requests each path from the
+     * built server entry, `(request, { onError })`, and writes the response to the client output. A path that throws,
+     * answers other than 200 or reports to `onError` fails the build naming it: pass `onError` on to `handle`, the only
+     * place a streamed page's render error goes. For the page's `Head` tags in the written head, give `handle` a
+     * `document.before` function and no `stream` (a streamed page's tags arrive later, as a script).
+     */
+    readonly prerender?: PrerenderOption
     /** Hot updates that keep component state (dev only). A ui module that is not components-only reloads the page. Default: true. */
     readonly hmr?: boolean
   }
@@ -28,6 +41,7 @@ export const sleekstack = (options: SleekstackOptions = {}): Array<Plugin> => [
   analyze(),
   routes(options),
   entries(options),
+  prerender(options.prerender, options.entries?.server),
 ]
 
 // Content sites (ADR 0047): MDX pages, prerender, search and Open Graph images, served by `sleekContent`.

@@ -64,8 +64,12 @@ const start = <A, I, E, R>(
     return e
   })
 
-/** Where `l`'s result for `pathname` is held in `Loaders`. */
-export const keyOf = (l: Loader<any, any, any, any>, pathname: string): string => JSON.stringify([l.key, pathname])
+/**
+ * Where `l`'s result for `pathname` is held in `Loaders`. A trailing slash is dropped, so a page rendered at `/a` (as
+ * prerendering does) hydrates from its results when a static server answers it at `/a/`.
+ */
+export const keyOf = (l: Loader<any, any, any, any>, pathname: string): string =>
+  JSON.stringify([l.key, pathname.replace(/(.)\/+$/, '$1')])
 
 /** Loader results of one render (server) or app (client), keyed by loader key and pathname. */
 export class Loaders extends Context.Tag('@sleekstack/router/Loaders')<Loaders, Map<string, Held>>() {}

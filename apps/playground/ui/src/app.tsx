@@ -6,6 +6,9 @@ import User from './routes/users/[id]'
 // Pages written out, not taken from the routes module's `pages`: `sleekstack check` reads only an object literal here.
 export const app = router({
   table,
-  pages: { index: { render: () => <Home /> }, 'users/[id]': { render: () => <User /> } },
+  pages: {
+    index: { render: () => <Home /> },
+    'users/[id]': { prerender: async () => [{ id: '42' }], render: () => <User /> },
+  },
   notFound: () => <h1>Not found</h1>,
 })

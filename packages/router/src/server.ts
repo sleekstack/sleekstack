@@ -11,8 +11,11 @@ import { type AppLayer, controlOf, isControl, type NotFound, Redirect, resolve, 
 export type HandleOptions<R = never> = AppLayer<R> & {
   /** Stream the page (`renderToStream`) instead of rendering it to a string. */
   readonly stream?: boolean
-  /** Markup around the rendered page: the document head before, the closing tags after. */
-  readonly document?: { readonly before: string; readonly after: string }
+  /**
+   * Markup around the rendered page: the document head before, the closing tags after. A `before` function gets the
+   * page's `Head` tags, to put in the document head.
+   */
+  readonly document?: DocumentMarkup
   /** Gets a 500's cause: a `RedirectLoop`, a defect, or a render failure. */
   readonly onError?: (cause: Cause.Cause<unknown>) => void
   /**
@@ -20,6 +23,18 @@ export type HandleOptions<R = never> = AppLayer<R> & {
    * passes the request fiber's `Effect.runtime()`). Default: Effect's own.
    */
   readonly runtime?: Runtime.Runtime<never>
+}
+
+interface DocumentMarkup {
+  readonly before: string | ((head: string) => string)
+  readonly after: string
+}
+
+/** The document's opening markup for the page's head, and the renderer's `onHead` when `before` takes the head. */
+const opening = (d: DocumentMarkup) => {
+  let head = ''
+  const open = () => (typeof d.before === 'string' ? d.before : d.before(head))
+  return typeof d.before === 'string' ? { open } : { open, onHead: (h: string) => void (head = h) }
 }
 
 const redirectTo = (location: string) => new Response(null, { status: 302, headers: { location } })
@@ -35,18 +50,26 @@ const statusOf = (e: unknown): number => {
 const js = (v: unknown) => JSON.stringify(v).replace(/</g, '\\u003c')
 
 // Wraps the stream in the document; `late()` is markup to send before the next chunk (or the end), for a redirect or
-// not-found raised after the status was sent.
-const wrap = (body: ReadableStream<Uint8Array>, d: { before: string; after: string }, late: () => Promise<string>) => {
+// not-found raised after the status was sent. `open()` is sent before the first chunk, once the shell's head is known.
+const wrap = (body: ReadableStream<Uint8Array>, open: () => string, after: string, late: () => Promise<string>) => {
   const enc = new TextEncoder()
+  let opened = false
+  const start = (c: TransformStreamDefaultController<Uint8Array>) => {
+    if (!opened) c.enqueue(enc.encode(open()))
+    opened = true
+  }
   return body.pipeThrough(
     new TransformStream<Uint8Array, Uint8Array>({
-      start: (c) => c.enqueue(enc.encode(d.before)),
       transform: async (chunk, c) => {
+        start(c)
         c.enqueue(chunk)
         const l = await late()
         if (l) c.enqueue(enc.encode(l))
       },
-      flush: async (c) => c.enqueue(enc.encode((await late()) + d.after)),
+      flush: async (c) => {
+        start(c)
+        c.enqueue(enc.encode((await late()) + after))
+      },
     }),
   )
 }
@@ -68,7 +91,7 @@ export const handle = async <T extends RouteTable, R>(
   const href = url.pathname + url.search
   const base = opts.layer ?? Layer.empty
   const all = new Map<string, Held>()
-  const doc = opts.document ?? { before: '', after: '' }
+  const doc: DocumentMarkup = opts.document ?? { before: '', after: '' }
   const runtime = opts.runtime ?? Runtime.defaultRuntime
   const exit = await Runtime.runPromiseExit(runtime)(
     Effect.provide(resolve(r, href, url.origin), Layer.merge(Layer.succeed(Loaders, all), base)),
@@ -93,9 +116,10 @@ export const handle = async <T extends RouteTable, R>(
       if (c) ctl ??= c
       else opts.onError?.(cause)
     }
+    const { open, onHead } = opening(doc)
     let html = ''
     try {
-      html = await renderToString(page, { layer, onError, runtime })
+      html = await renderToString(page, { layer, onError, runtime, onHead })
     } catch (error) {
       const e = Runtime.isFiberFailure(error) ? Cause.squash(error[Runtime.FiberFailureCauseId]) : error
       if (!isControl(e)) return fail(Cause.die(error))
@@ -103,7 +127,7 @@ export const handle = async <T extends RouteTable, R>(
     }
     if (ctl instanceof Redirect) return redirectTo(ctl.to)
     if (ctl && status !== 404) return notFoundPage()
-    return new Response(doc.before + html + doc.after, { status, headers: HTML })
+    return new Response(open() + html + doc.after, { status, headers: HTML })
   }
   if (res._tag !== 'Page') return notFoundPage()
   const status = 'error' in res ? statusOf(res.error) : 200
@@ -117,7 +141,7 @@ const stream = async (
   r: Router,
   [page, layer, status]: readonly [Effect.Effect<Node, any, any>, Layer.Layer<any, any>, number],
   loaders: Layer.Layer<any, any>,
-  doc: { before: string; after: string },
+  doc: DocumentMarkup,
   { onError: report, runtime }: Pick<HandleOptions, 'onError' | 'runtime'>,
 ): Promise<Response> => {
   let ctl: Redirect | NotFound | undefined
@@ -134,5 +158,9 @@ const stream = async (
     if (c) ctl ??= c
     else report?.(cause)
   }
-  return new Response(wrap(renderToStream(page, { layer, onError, runtime }), doc, late), { status, headers: HTML })
+  const { open, onHead } = opening(doc)
+  return new Response(wrap(renderToStream(page, { layer, onError, runtime, onHead }), open, doc.after, late), {
+    status,
+    headers: HTML,
+  })
 }
