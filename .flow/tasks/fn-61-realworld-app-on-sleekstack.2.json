@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-18T15:48:45.464944Z",
+  "depends_on": [
+    "fn-61-realworld-app-on-sleekstack.1"
+  ],
+  "id": "fn-61-realworld-app-on-sleekstack.2",
+  "priority": null,
+  "spec": "fn-61-realworld-app-on-sleekstack",
+  "spec_path": ".flow/tasks/fn-61-realworld-app-on-sleekstack.2.md",
+  "status": "done",
+  "title": "Identity and profiles services (users, follows, Viewer)",
+  "updated_at": "2026-10-18T15:48:45.464944Z"
+}

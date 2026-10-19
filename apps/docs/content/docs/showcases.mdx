@@ -1,6 +1,6 @@
 ---
 title: Showcase
-description: One Vite app that runs @sleekstack/ui end to end.
+description: Two Vite apps that run SleekStack end to end, a feature tour and a RealWorld (Conduit) app.
 ---
 
 [`apps/showcase`](https://github.com/sleekstack/sleekstack/tree/master/apps/showcase) is a team task board built with `@sleekstack/ui` components on Effect Layers (see the [UI components guide](/docs/ui)). It is a Vite app: run it with `pnpm --filter showcase dev`.
@@ -22,3 +22,17 @@ The app links one page per feature, each opened in a `startTransition`:
 The app's [README](https://github.com/sleekstack/sleekstack/blob/master/apps/showcase/README.md) lists the source and test of each page.
 
 Its tests cover server rendering, streaming, hydration and resume, the folder layering, the size budget of ADR 0022, and one fixture per error code of the Analyzer's component pass (`apps/showcase/fixtures/`). Some of them are written with [`@sleekstack/testing`](/docs/testing).
+
+## Conduit (RealWorld)
+
+[`apps/realworld`](https://github.com/sleekstack/sleekstack/tree/master/apps/realworld) is a [RealWorld](https://github.com/realworld-apps/realworld) ("Conduit") app: sign up, settings, feeds, tags, profiles, follows, favorites, articles with a markdown body, and comments. It is a full-stack app on one `node:sqlite` database. Run it with `pnpm --filter realworld dev`.
+
+- **Pages**: a `@sleekstack/router` table (below). Loaders see only the pathname, so the feed tab and the tag are routes, and the page number is a client atom.
+- **Server**: `@sleekstack/start` server functions serve the UI and authenticate with an `HttpOnly` session cookie. Page loaders call them in place while the server renders, so the signed-in header renders the same on the server and in the browser.
+- **REST**: an `/api` facade follows the RealWorld API over the same services. The app's [README](https://github.com/sleekstack/sleekstack/blob/master/apps/realworld/README.md) has its status codes and the Postman run.
+- **Forms**: login, settings, the editor and comments use a Draft from `useDraft` and a Form Action from `useAction`.
+- **Markdown**: an article body is parsed by a small in-app renderer into ui nodes. ui has no raw-HTML node, so HTML in a body shows as text, and a `javascript:` link loses its link.
+
+<include>../../../realworld/src/pages/routes.ts</include>
+
+Its tests run the pages in a browser against the real server, server render and hydrate included, and check the folder layering and that the client chunk holds no server module.

@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-18T15:48:45.465047Z",
+  "depends_on": [
+    "fn-61-realworld-app-on-sleekstack.4"
+  ],
+  "id": "fn-61-realworld-app-on-sleekstack.6",
+  "priority": null,
+  "spec": "fn-61-realworld-app-on-sleekstack",
+  "spec_path": ".flow/tasks/fn-61-realworld-app-on-sleekstack.6.md",
+  "status": "done",
+  "title": "UI shell and auth pages (login, register, settings)",
+  "updated_at": "2026-10-18T15:48:45.465047Z"
+}
