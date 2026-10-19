@@ -1,7 +1,7 @@
 {
   "branch_name": "fn-31-hmr-that-keeps-component-state",
-  "completion_review_status": "needs_work",
-  "completion_reviewed_at": "2026-10-19T09:46:18.048964Z",
+  "completion_review_status": "ship",
+  "completion_reviewed_at": "2026-10-19T09:48:03.797718Z",
   "created_at": "2026-10-04T09:15:13.148977Z",
   "default_impl": null,
   "default_review": null,
@@ -16,7 +16,7 @@
     "fn-31-hmr-that-keeps-component-state.3": 0
   },
   "next_task": 1,
-  "plan_review_rounds": 2,
+  "plan_review_rounds": 0,
   "plan_review_status": "unknown",
   "plan_reviewed_at": null,
   "review_attempts": [
@@ -471,12 +471,42 @@
       "task": null,
       "timestamp": "2026-10-19T09:46:18.046209Z",
       "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "5032ec4a8d68f7ffea0443b0f133940e3790c3ce95b93c4393e0219b66f94660",
+      "backend": "codex",
+      "base_sha": "f152cef5dc5e32bb9e1c23d023f00b32407f89ac",
+      "counter_kind": "plan",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "c3d9604f3ba075f0ddcec775f3ae355bd75107de",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-6.1-sol",
+      "outcome": "verdict",
+      "output_bytes": 3261,
+      "output_sha256": "f85a4afd02c4fba69e0a9f253d856e8a05ca42675a5d74746ed11663fe2daae6",
+      "reservation_id": "da4026acf1134c58baa1fef13e4337b5",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-10-19T09:48:03.795175Z",
+      "verdict": "SHIP"
     }
   ],
   "review_hash_epoch": {
     "impl:fn-31-hmr-that-keeps-component-state.1": 1,
     "impl:fn-31-hmr-that-keeps-component-state.2": 1,
-    "impl:fn-31-hmr-that-keeps-component-state.3": 1
+    "impl:fn-31-hmr-that-keeps-component-state.3": 1,
+    "plan#completion": 1
   },
   "review_pending_rounds": {},
   "review_reservations": {},
@@ -500,5 +530,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-19T09:46:18.049347Z"
+  "updated_at": "2026-10-19T09:48:03.798036Z"
 }
