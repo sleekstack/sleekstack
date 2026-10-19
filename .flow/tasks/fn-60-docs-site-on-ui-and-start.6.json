@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-18T15:10:27.290701Z",
+  "depends_on": [
+    "fn-60-docs-site-on-ui-and-start.5"
+  ],
+  "id": "fn-60-docs-site-on-ui-and-start.6",
+  "priority": null,
+  "spec": "fn-60-docs-site-on-ui-and-start",
+  "spec_path": ".flow/tasks/fn-60-docs-site-on-ui-and-start.6.md",
+  "status": "todo",
+  "title": "docs tests and scripts carry over, and the API reference covers the surviving packages",
+  "updated_at": "2026-10-18T15:10:27.290701Z"
+}

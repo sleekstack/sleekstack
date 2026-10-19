@@ -1,0 +1,31 @@
+---
+title: Portal and Boundary reset
+description: Render @sleekstack/ui content into another DOM container, and retry a failed subtree from its Boundary fallback.
+---
+
+Both come from [ADR 0035](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0035-boundary-instance-reset.md).
+
+## Portal
+
+`<Portal container={el}>` renders its children into `el` while they keep the `Provider` layers, `Store` and error handling of the position where the portal appears.
+
+<include>../../snippets/ui/portal.tsx</include>
+
+- The children render inside a `<sleek-portal style="display: contents">` host that is appended to `el` on commit. A remount appends again, so it lands at the end of the container.
+- The host is removed with the portal or with its owner.
+- A missing or detached container fails with `PortalContainerMissing`.
+- The server renders nothing for a portal, so its content and event closures are client-only, and `hydrateMount` builds it fresh.
+- `sleekstack check` treats a portal like a fragment: its children's `E` and `R` belong to the tree around it.
+
+## Boundary reset
+
+A `Boundary` fallback is `(error, reset)`. `reset` re-runs only the boundary's children.
+
+<include>../../snippets/ui/reset.tsx</include>
+
+- `reset` returns `Effect.void`, so it works as `onClick={reset}` and as `yield* reset()`.
+- Only the first call per failure counts. After the boundary has re-run or been removed, `reset` does nothing.
+- A `Pending` inside the boundary retries its failed content, so a failed [`lazy`](/docs/lazy) import loads again.
+- A one-argument fallback, `(error) => ...`, still works.
+
+A `Boundary` is an instance, so its server markup sits inside a `<sleek-reactive style="display: contents">` element like any component that reads an atom.

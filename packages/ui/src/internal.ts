@@ -5,3 +5,12 @@
 export { Collector, RenderScope } from './reactive'
 /** True when no renderer work (re-runs, effect and handler fibers, Pending content) is in flight; `flush` waits for it. */
 export { idle } from './reactive'
+/**
+ * Slot hooks defined outside `ui`, built like `ui`'s own: read `Store` (else fail with `missingStore(name)`), return a
+ * slot-free value when `Collector` or `Frame` is unset (outside a component), else `takeSlot(frame)`: fail with its
+ * `SlotMismatch`, or push the slot's atom on its first run. A run that writes an atom it reads wraps the write in `writeOwn`.
+ */
+export { Frame, missingStore, Store, takeSlot, writeOwn } from './reactive'
+export type { RunFrame, Slots } from './reactive'
+/** Dev hot update: registers a component under a stable id, and swaps it in place on a module re-evaluation. */
+export { acceptUpdate } from './reactive'

@@ -11,6 +11,6 @@
   "spec": "fn-55-remove-kit-react-next-and-islands",
   "spec_path": ".flow/tasks/fn-55-remove-kit-react-next-and-islands.7.md",
   "status": "todo",
-  "title": "docs content, generated API docs, ADR, CONTEXT and AGENTS.md for the removal",
-  "updated_at": "2026-10-17T12:18:13.697509Z"
+  "title": "records: removal ADR, superseded markers, CONTEXT and AGENTS.md (docs content done by fn-60)",
+  "updated_at": "2026-10-18T16:19:28.360937Z"
 }

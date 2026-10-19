@@ -1,23 +1,13 @@
 ---
 title: Atoms
-description: Reactive state that reads services from the nearest LayerProvider, rendered on the server and hydrated on the client.
+description: Reactive state that reads services from the mount's layer, rendered on the server and hydrated on the client.
 ---
 
-An atom is a lazy, reactive value. It is defined once at module level, and its state lives in the `AtomStore` of the nearest `LayerProvider`, so each provider has its own copy and unmounting the provider disposes it. A derived atom reads services from that provider's scope and other atoms through `get`, and recomputes when they change. The design follows [effect-atom](https://github.com/tim-smart/effect-atom), with `AtomStore` in place of its Registry and SleekStack scopes in place of `Atom.runtime`.
+An atom is a lazy, reactive value. It is defined once at module level, and its state lives in the `AtomStore` of the mount that reads it, so each mount has its own copy and disposing the mount disposes it. A derived atom reads services from the mount's layer and other atoms through `get`, and recomputes when they change. The design follows [effect-atom](https://github.com/tim-smart/effect-atom), with `AtomStore` in place of its Registry and SleekStack scopes in place of `Atom.runtime`.
 
-## kit
+## Defining and reading atoms
 
-<include>../../snippets/atoms.tsx</include>
-
-- `atom(value)` is writable state; `useAtomSet` takes a value or an updater.
-- `atom(fn, deps)` resolves `deps` like `layer` and calls `fn(...services, get)`, which returns a value or a Promise.
-- `atom.family(fn, deps)` gives one atom per key; equal keys return the same atom.
-- Readers suspend until the first value, and failures reach the error boundary as `SleekStackError` (`MissingDependency`, `AtomCycle`).
-- An atom with no readers is disposed after an idle delay; pass `{ keepAlive: true }` to keep it until the provider unmounts.
-
-## Effect-native
-
-`@sleekstack/core` has `Atom.make` for values, derived functions, Effects and Streams, and `Result` (`Initial`, `Success`, `Failure`, with a `waiting` flag). The `@sleekstack/react` hooks return the `Result` instead of suspending; `useAtomSuspense` suspends instead.
+`@sleekstack/core` has `Atom.make` for values, derived functions, Effects and Streams, and `Result` (`Initial`, `Success`, `Failure`, with a `waiting` flag). In a `@sleekstack/ui` component, `useAtom`, `useAtomValue` and `useSetAtom` read and write them, and an Effect atom's value is its `Result`. A component that reads an atom re-runs when it changes ([UI components](/docs/ui#local-state-and-hooks)).
 
 <include>../../snippets/atoms-effect.tsx</include>
 
@@ -27,7 +17,7 @@ Atom hooks run during a server render. Opted-in atoms are serialized to a `Snaps
 
 ### Serializable atoms
 
-Only atoms marked with a stable key and a `Schema` cross the wire. Pick a schema whose encoded side is JSON (strings, numbers, booleans, null, arrays, plain objects): the snapshot travels as JSON, so an encoding such as `bigint` breaks `AtomsSnapshot` and the Next prop.
+Only atoms marked with a stable key and a `Schema` cross the wire. Pick a schema whose encoded side is JSON (strings, numbers, booleans, null, arrays, plain objects): the snapshot travels as JSON, so an encoding such as `bigint` breaks the transfer.
 
 <include>../../snippets/atoms-serializable.tsx</include>
 
@@ -36,31 +26,10 @@ Only atoms marked with a stable key and a `Schema` cross the wire. Pick a schema
 - Keys are unique per store: building a second, distinct serializable atom with a key already built in that store throws `DuplicateAtomKey`. In an `Atom.family` callback, build the key from the argument.
 - A seeded writable atom uses the seed as its initial value only. A derived atom that is not serializable recomputes on the client from its seeded sources.
 
-### React: `renderWithAtoms`
-
-`renderWithAtoms` from `@sleekstack/react` owns a server request. Each `LayerProvider` in the tree opens its scopes in a request registry (keyed by `useId`, so a Suspense retry reuses its scope); nesting, `provide` and shadowing behave as on the client. When the render ends the registry closes every scope, deepest provider first, root app scope last.
-
-<include>../../snippets/atoms-ssr.tsx</include>
-
-- Suspension: a provider whose scope is still opening suspends, `useAtomSuspense` on an unsettled result atom suspends, and `useAtomValue` on one returns `Initial`. Stream mode waits for suspended work. `renderToString` cannot wait: a subtree still suspended renders its nearest Suspense fallback, and unsettled atoms render `Initial`. Use stream mode for anything that must wait.
-- `<AtomsSnapshot />` emits `<script type="application/json" data-sleekstack-atoms="<snapshotId>">` with the dehydrated store of the nearest provider. Render it inside the provider after the atom readers: tree order decides which atoms are built, and in stream mode readers still suspended when it renders are left out. On the client it re-renders the server's content, so it never mismatches. The content is escaped against `</script>`, `<!--` and U+2028/U+2029.
-- On the client the provider seeds from the tag whose id equals its `snapshotId`. A provider without `snapshotId` reads the unkeyed tag only when exactly one exists. Give sibling roots distinct `snapshotId`s. Malformed JSON becomes an empty snapshot with a dev warning and a normal load.
-- The `hydrate` prop seeds the provider's store directly and wins over the transport tag. It is read once, when the store is built.
-
-### Next.js: `prefetchAtoms`
-
-Next owns its render, so there is no wrapper. Without one, a server `LayerProvider` serves atoms from an inert store: sync atoms compute, seeded atoms return their seed, and unseeded Effect and Stream atoms stay `Initial` without starting a fiber (`useAtomSuspense` on one renders its Suspense fallback). Load the values in the server component with `prefetchAtoms` and pass the snapshot to the client provider's `hydrate` prop; see [Next.js](/docs/nextjs#atom-ssr).
-
 ### Queries
 
-Query hydration is TanStack's own (`prefetchQueries` + `HydrationBoundary`, see [Queries SSR](/docs/queries-ssr)); it does not go through the atom store.
+Query hydration goes through the query cache, not the atom store; see [Queries on the server](/docs/queries-ssr).
 
 ### `@sleekstack/ui` host trees: `hydrateMount`
 
 `renderToString` from `@sleekstack/ui` appends a `<script data-sleek-hydrate>` with the store's dehydrated atoms and the layer's query cache. `hydrateMount(app, { layer, container })` reads it, seeds the store before the first run and adopts the server DOM, so each component runs once. A malformed script is reported as `HydratePayloadInvalid` and atoms start from their initial values; a missing script (no state on the server) is not an error.
-
-## Limits
-
-- `@sleekstack/kit` has no serializable atoms: kit atom hooks render on the server, but their values are not transferred.
-- Late-arriving streamed atoms are not transferred: a snapshot holds what was built when `AtomsSnapshot` rendered.
-- Two sibling providers with identical `provide` entries and children, rendered in different slices of one time-sliced pass, can share one scope and its atom state. React gives no identity for an uncommitted component, so give such siblings different entries if they must stay separate.

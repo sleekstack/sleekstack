@@ -3,7 +3,12 @@
   "compilerOptions": {
     "jsx": "react-jsx",
     "jsxImportSource": "@sleekstack/ui",
-    "paths": { "@sleekstack/ui": ["../../../../../ui/src/index.ts"], "@sleekstack/ui/jsx-runtime": ["../../../../../ui/src/jsx-runtime.ts"] }
+    "paths": {
+      "@sleekstack/ui": ["../../../../../ui/src/index.ts"],
+      "@sleekstack/ui/internal": ["../../../../../ui/src/internal.ts"],
+      "@sleekstack/ui/jsx-runtime": ["../../../../../ui/src/jsx-runtime.ts"],
+      "@sleekstack/model": ["../../../../../model/src/index.ts"]
+    }
   },
   "include": ["."]
 }

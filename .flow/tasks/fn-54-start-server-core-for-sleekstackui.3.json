@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-54-start-server-core-for-sleekstackui",
   "spec_path": ".flow/tasks/fn-54-start-server-core-for-sleekstackui.3.md",
-  "status": "todo",
+  "status": "done",
   "title": "start: serverFn declaration, wire protocol and security checks",
   "updated_at": "2026-10-17T11:31:30.136440Z"
 }

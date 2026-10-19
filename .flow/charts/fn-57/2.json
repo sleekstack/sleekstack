@@ -1,0 +1,40 @@
+{
+  "answer": "Yes. MDX compiles to the @sleekstack/ui JSX runtime with no changes to ui. All 27 hand-written pages and the 13 generated api pages compile and render through `renderToString`. Two MDX options and one small rehype pass are needed to work around ui's string-only attributes.\n\n**Setup.** Throwaway probe at the session scratchpad `mdx-probe/` (outside the repo, no repo files or lockfiles touched). @sleekstack/ui is the workspace `packages/ui` dist at branch chart-docs-rebuild (4780eb0), symlinked in. Versions: Node 22.20.0, @mdx-js/mdx 3.1.1 (the version fumadocs-mdx 12.0.3 resolves in the repo), remark-gfm 4.0.1, remark-frontmatter 5.0.0, remark-mdx-frontmatter 6.0.0, rehype-slug 6.0.0, shiki and @shikijs/rehype 4.5.0, @shikijs/transformers 4.5.0, effect 3.21.2 (ui's copy), tsx 4.23.15. Each page went through `compile(src, { jsxImportSource: '@sleekstack/ui', ... })`, then the ESM was written out and imported, and `renderToString(MDXContent({ components }), { layer: Layer.empty })` rendered it. A second check used `evaluate(src, { ...uiJsxRuntime })`.\n\n**What works**\n- The MDX output calls `jsx`, `jsxs` and `Fragment` from `@sleekstack/ui/jsx-runtime`. `MDXContent(props)` returns an `Effect<Node>`, which drops straight into a ui tree and into `renderToString`.\n- Headings, paragraphs, lists, inline code, emphasis and links work, and so do GFM tables once remark-gfm is added (index.mdx: 1 table, 22 cells; benchmarks.mdx: 4 tables, 338 cells).\n- The components map works. An `a` override rewrote 14 internal links on ui.mdx. A custom `<Note>` component (callout-shaped) and a `wrapper` layout both render, because ui runs map entries as component instances.\n- Text in code is escaped (`&lt;Node`).\n- Timing: compile takes about 5-90 ms per page and about 320 ms for the first shiki page, which is highlighter init. Render takes 2-18 ms.\n\n**What breaks, and the fix for each**\n1. **Frontmatter.** Without remark-frontmatter, the YAML block renders as an `<hr>` plus a setext `<h2>`. Fix: remark-frontmatter + remark-mdx-frontmatter. This exports `frontmatter` (title, description) for nav and `<head>`.\n2. **Code blocks.** The pages have no fences. All code comes from fumadocs `<include>path</include>` (53 uses across the pages). Without a plugin it renders as a literal `<include>` element. Fix: a remark plugin of about 20 lines that reads the file and replaces the include with a `code` node, taking the language from the file extension. The probe's stand-in reproduced all 9 code blocks on ui.mdx. Snippet tests are unaffected because they read the same files.\n3. **Style attributes.** MDX turns a hast `style` string into a JSX object, and ui's `split` stringifies every attribute, so it renders as `style=\"[object Object]\"`. This came from two places:\n   - shiki token colours (945 spans on ui.mdx). Fix: a rehype pass after shiki that hoists every `style` into a hashed class and emits one CSS file. The probe's version is about 15 lines. Stock `transformerStyleToClass` only caught the `pre`, because with a single theme the token colour is not in `htmlStyle`.\n   - GFM column alignment. Fix: the MDX option `tableCellAlignToStyle: false`, which emits `align=\"right\"`.\n   The alternative is for ui to serialize object `style` values, which would be a ui change.\n4. **Heading ids.** Headings have no ids, so there are no anchors and no TOC. Fix: rehype-slug (ids on 7 headings for ui.mdx, verified). A TOC export, like fumadocs' remark-heading, is not probed. It would be a small remark plugin.\n5. **Attribute case.** By default MDX emits `className` and `tabIndex`. ui renames `className`, but `tabIndex` passes through as-is. Fix: `elementAttributeNameCase: 'html'`, which gives `class` and `tabindex`.\n6. **ui serializer bug (not MDX).** `renderToString` has no void-element list, so it writes `<br></br>`, `<hr></hr>` and `<img ...></img>`. Browsers read `</br>` as a second `<br>`, which doubles the break on markdown hard breaks. A stray `</hr>` or `</img>` is just ignored. The generated api pages carry `<hr>` on every page (up to 33). This should be fixed in ui's string serializer (`packages/ui/src/string.ts`) as part of the rebuild.\n7. **Loading ui's dist under plain Node ESM fails.** The dist uses extensionless relative imports (bundler resolution). The probe ran under tsx, and Vite or start's bundler would resolve them. A raw-node build script cannot import `@sleekstack/ui` as built today.\n8. ui has no raw-HTML escape hatch, so pre-highlighted HTML strings cannot be injected. Highlighting has to stay in hast, before MDX turns it into JSX, which is how the shiki path above works.\n\n**Highlighting at build time.** Add `@shikijs/rehype` as a rehype plugin at compile time (theme plus langs ts and tsx), then the style-to-class pass. The output is static `<pre class=\"shiki ...\"><code><span class=\"line\"><span class=\"st-...\">` markup plus a generated CSS file, with no client JS. Dual light and dark themes would use shiki's `themes` and `defaultColor: false` (CSS variables), still hoisted to classes. Not probed.\n\n**Smallest viable renderer.** Build or SSR step, per content file:\n\n`compile(src, { jsxImportSource: '@sleekstack/ui', elementAttributeNameCase: 'html', tableCellAlignToStyle: false, remarkPlugins: [remarkFrontmatter, remarkMdxFrontmatter, remarkGfm, include], rehypePlugins: [rehypeSlug, [rehypeShiki, opts], styleToClass] })`\n\nThis gives an ESM module exporting `default` (MDXContent) and `frontmatter`. A docs layout component then renders `<Layout meta={frontmatter}>{MDXContent({ components: { a: DocLink } })}</Layout>`, and `renderToString(page, { layer })` turns the result into HTML. This needs no fumadocs, React or Next. `evaluate()` with the ui runtime spread in also works, for an on-the-fly server path. The remaining pieces to build are the include plugin, the style-to-class pass, a TOC/heading export, nav from `meta.json`, and the ui void-element fix.\n\nEvidence: scratchpad `mdx-probe/probe.mjs` (stages bare, full and fixed), `mdx-probe/void.mjs`, and the compiled `.mjs`, `.html` and `shiki.css` under `mdx-probe/out/` (session-scoped, throwaway).\n",
+  "answer_gist": "Yes. MDX compiles to the @sleekstack/ui JSX runtime with no changes to ui. All 27 hand-written pages and the 13 gener...",
+  "assets": [],
+  "attendance": "unattended",
+  "blocked_by": [],
+  "chart": "fn-57",
+  "claim_note": null,
+  "claimed_at": null,
+  "claimed_by": null,
+  "created": "2026-10-18T06:07:19.828855Z",
+  "depends_on": [],
+  "id": "fn-57.D2",
+  "n": 2,
+  "question": "Compile a real page with an MDX compiler targeting @sleekstack/ui's JSX runtime (headings, code blocks highlighted at build time, links, tables, callouts); report what works, what breaks and the smallest viable renderer.",
+  "record_path": ".flow/charts/fn-57/2.md",
+  "status": "resolved",
+  "superseded_by": null,
+  "supersedes": [],
+  "title": "Can MDX compile to the ui JSX runtime?",
+  "tracker": {
+    "depRelations": [],
+    "id": null,
+    "identifier": null,
+    "linkState": "unlinked",
+    "url": null
+  },
+  "transition_notes": [
+    {
+      "actor": "ubtik@outlook.com",
+      "at": "2026-10-18T06:14:15.831651Z",
+      "keep_dependents": false,
+      "kind": "resolved",
+      "supersedes": [],
+      "text": "resolved by ubtik@outlook.com"
+    }
+  ],
+  "type": "probe",
+  "updated_at": "2026-10-18T06:14:15.830037Z"
+}

@@ -32,7 +32,7 @@ import {
   EffectObserver,
   type EffectEvent,
   MountScope,
-  ownWrite,
+  isOwnWrite,
   RenderScope,
   type RunFrame,
   runScopes,
@@ -41,7 +41,9 @@ import {
   counted,
 } from './reactive'
 import { checkAttr, checkTag } from './string'
+import { documentHead, HeadSink } from './head'
 
+/** A mounted tree; `dispose` unmounts it and closes its scope. */
 export interface Mounted {
   dispose(): Promise<void>
 }
@@ -894,7 +896,7 @@ export const watch = (inst: Instance, node: ReactiveNode, env: Env): void => {
   // Changes in one tick (a store batch, or several atoms) coalesce into one re-run.
   const epoch = inst.epoch
   const changed = (atom?: Atom.Atom<any>) => {
-    if (inst.epoch !== epoch || (ownWrite.slots && ownWrite.slots === inst.frame?.owner)) return
+    if (inst.epoch !== epoch || isOwnWrite(inst.frame?.owner)) return
     if (atom && inst.reasons && !inst.reasons.some((r) => r.cause === 'atom' && r.atom === atom.label))
       inst.reasons.push({ cause: 'atom', atom: atom.label })
     // Per write: one ordinary change in the tick makes the coalesced re-run ordinary.
@@ -1069,6 +1071,7 @@ export const start = async <E, A, LE = never>(
     Effect.provideService(Store, store),
     Effect.provideService(RenderScope, scope),
     Effect.provideService(MountScope, scope),
+    Effect.provideService(HeadSink, documentHead(container.ownerDocument)),
     Effect.provideService(MountError, (cause) => safeReport(cause, onError)),
     Effect.provideService(EffectObserver, observe),
     Effect.provideService(Frame, frame),
@@ -1077,7 +1080,7 @@ export const start = async <E, A, LE = never>(
   let node: Node
   try {
     // The mount layer lives in the mount scope: re-runs reuse its services after the first render.
-    node = await runToNode(provided, Layer.effectContext(Layer.buildWithScope(opts.layer, scope)), onError)
+    node = await runToNode(provided, Layer.effectContext(Layer.buildWithScope(opts.layer, scope)), { onError })
   } catch (error) {
     // Cleanup failures are reported; the render failure stays the rejection.
     if (current()) await teardown(container, state).catch((e) => reportRenderError(e, onError))

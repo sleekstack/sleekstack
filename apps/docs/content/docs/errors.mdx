@@ -3,49 +3,50 @@ title: Errors
 description: Every error code, and what triggers it.
 ---
 
-In kit, every failure is a `SleekStackError` with a `code`, a `message` and `details`. Core and the adapters throw Effect tagged errors with the same names (`_tag`), which kit normalizes. Handling by code:
+Core, the runtime and ui fail with Effect tagged errors whose `_tag` is the code in the tables below. Handling by code:
 
 <include>../../snippets/errors/handle.ts</include>
 
 ## Graph errors
 
-Reported at build time by `sleekstack check` (with file:line). The runtime keeps no graph: it builds in position order and only `DuplicateTag` (a kit check) and `MissingDependency` (a Tag not built yet or never provided) are thrown at run time. Privacy, ambiguity, cycles and captive dependencies are build-time only.
+Reported at build time by `sleekstack check` (with file:line). The runtime keeps no graph: it builds in position order and only `MissingDependency` (a Tag not built yet or never provided) is thrown at run time. Privacy, ambiguity, cycles and captive dependencies are build-time only.
 
-| Code | Triggered when |
-| --- | --- |
-| `MissingDependency` | A service requires a Tag that no entry provides. |
-| `DependencyCycle` | Services require each other in a cycle (`path` lists it). |
-| `AmbiguousProvider` | Two providers of one Tag sit at the same locality, so Shadowing cannot pick one. |
-| `ModuleCycle` | Modules import each other in a cycle (`path` lists it). |
-| `DuplicateModule` | Two distinct modules share one name. |
-| `InvalidModule` | A module config is malformed: an empty name, a `provide`/`entries` item that is not a Layer, or malformed `imports`/`exports`. Thrown by `module()` itself. |
-| `CaptiveDependency` | A service depends on one whose lifetime it may not capture, for example `app` on `request`. |
-| `PrivateDependency` | Something outside a module requires a Tag the module does not export. Build-time only: the runtime does not enforce it. |
+| Code                | Triggered when                                                                                                                                              |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MissingDependency` | A service requires a Tag that no entry provides.                                                                                                            |
+| `DependencyCycle`   | Services require each other in a cycle (`path` lists it).                                                                                                   |
+| `AmbiguousProvider` | Two providers of one Tag sit at the same locality, so Shadowing cannot pick one.                                                                            |
+| `ModuleCycle`       | Modules import each other in a cycle (`path` lists it).                                                                                                     |
+| `DuplicateModule`   | Two distinct modules share one name.                                                                                                                        |
+| `InvalidModule`     | A module config is malformed: an empty name, a `provide`/`entries` item that is not a Layer, or malformed `imports`/`exports`. Thrown by `module()` itself. |
+| `CaptiveDependency` | A service depends on one whose lifetime it may not capture, for example `app` on `request`.                                                                 |
+| `PrivateDependency` | Something outside a module requires a Tag the module does not export. Build-time only: the runtime does not enforce it.                                     |
 
 ## Analyzer read errors
 
 Reported by `sleekstack check` (with file:line) when it cannot read a declaration statically. The analyzer fails closed: an unreadable declaration is an error, never a skip.
 
-| Code | Triggered when |
-| --- | --- |
-| `Unresolvable` | A provider, module or Layer cannot be read statically (a computed or dynamically picked value). |
-| `Computed` | A provide list, import list or name is computed in a way the analyzer cannot evaluate (use literals, local consts or loops over literal lists). |
-| `NonLiteralOptions` | `runEffect` options are not an object literal the analyzer can read. |
-| `EmittedSibling` | Emitted JavaScript or declaration output (`.js`, `.jsx`, `.d.ts`) sits next to its `.ts` source; delete it. |
+| Code                | Triggered when                                                                                                                                  |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Unresolvable`      | A provider, module or Layer cannot be read statically (a computed or dynamically picked value).                                                 |
+| `Computed`          | A provide list, import list or name is computed in a way the analyzer cannot evaluate (use literals, local consts or loops over literal lists). |
+| `NonLiteralOptions` | `runEffect` options are not an object literal the analyzer can read.                                                                            |
+| `UnownedAction`     | Several runtimes exist and the analyzer cannot tell which `configureRuntime` file a root belongs to; pass `--entry` to pick one.                |
+| `EmittedSibling`    | Emitted JavaScript or declaration output (`.js`, `.jsx`, `.d.ts`) sits next to its `.ts` source; delete it.                                     |
 
 ## Component errors
 
-Reported by `sleekstack check` (with file:line) for projects whose package.json lists `@sleekstack/ui`, the Effect-native component framework MVP. There is one tree per `mount` call.
+Reported by `sleekstack check` (with file:line) for projects whose package.json lists `@sleekstack/ui`, the Effect-native component framework ([guide](/docs/ui)). There is one tree per `mount` call.
 
-| Code | Triggered when |
-| --- | --- |
-| `MissingDependency` | A component needs a Tag that no `Provide` or mount layer supplies. |
-| `UnhandledError` | A tagged error in a component's `E` reaches `mount` without a matching `Catch`, or an event closure (`onXxx`) has any error in `E` (closures must handle their errors, even under a matching `Boundary`). |
-| `EffectInsideReact` | An Effect component is placed under a `fromReact` guest, in its JSX or through its props. |
-| `Unresolved` | The analyzer cannot read a component or Layer (`any`, a dynamically picked component). It fails closed: never a skip. |
-| `ConditionalSlot` | A `useLocal` call is not a top-level statement of the component's generator body (`function*` or `Effect.gen`) before any return (inside a condition, loop, nested or helper function). |
-| `MissingKey` | A `.map` / `.flatMap` / `Array.from` callback in child position returns an element, component or fragment without a `key` prop. |
-| `NonResumableHandler` | An `on(node, { event: h })` entry or a `resume` handler map is not provably a reference to a top-level `const h = defineHandler('literal-id', ...)` (a non-literal id, an inline function, an unreadable loader or handlers object). |
+| Code                  | Triggered when                                                                                                                                                                                                                                                                                            |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MissingDependency`   | A component needs a Tag that no `Provide` or mount layer supplies.                                                                                                                                                                                                                                        |
+| `UnhandledError`      | A tagged error in a component's `E` reaches `mount` without a matching `Catch`, or an event closure (`onXxx`) has any error in `E` (closures must handle their errors, even under a matching `Boundary`).                                                                                                 |
+| `EffectInsideReact`   | An Effect component is placed under a `fromReact` guest, in its JSX or through its props.                                                                                                                                                                                                                 |
+| `Unresolved`          | The analyzer cannot read a component or Layer (`any`, a dynamically picked component). It fails closed: never a skip.                                                                                                                                                                                     |
+| `ConditionalSlot`     | A slot hook call (`useLocal`, `useRef`, `useEffect`, `useDerivedAtom`, `useDeferredAtom`, `useAction`, `useOptimistic`, `useDraft`) is not a top-level statement of the component's generator body (`function*` or `Effect.gen`) before any return (inside a condition, loop, nested or helper function). |
+| `MissingKey`          | A `.map` / `.flatMap` / `Array.from` callback in child position returns an element, component or fragment without a `key` prop.                                                                                                                                                                           |
+| `NonResumableHandler` | An `on(node, { event: h })` entry or a `resume` handler map is not provably a reference to a top-level `const h = defineHandler('literal-id', ...)` (a non-literal id, an inline function, an unreadable loader or handlers object).                                                                      |
 
 A `<Pending>` is transparent to these checks: its content's `E` and `R` belong to the enclosing tree. At run time a failed Pending content renders the matching `Boundary` fallback (on a re-run too, replacing old content); with no match it goes to `onError` and the old content stays. `useSuspenseQuery` fails with `QueryFailed { cause }`.
 
@@ -57,36 +58,18 @@ A `<Portal container={el}>` is transparent to the checks too: its children's `E`
 
 Raised by `@sleekstack/ui` at render or `resume` time as tagged errors (`Data.TaggedError`), not by `sleekstack check`:
 
-| Code | Raised when |
-| --- | --- |
-| `UnsupportedAtom` | `bind` (or `resume`) receives an atom that is not a serializable value-kind atom: a plain atom or a result-kind atom. Carries the bind `key`. Use `Atom.serializable` with a Schema; the manifest holds each key's encoded value. |
-| `ManifestInvalid` | The container has no manifest, more than one, or a malformed one. |
-| `ManifestDecodeFailed` | A bound atom's value fails to decode. `resume` rejects (a wrong seed would render a wrong page); the error names the atom key. |
-| `DuplicateHandler`, `DuplicateBindKey` | Two different handlers share an id, or two different atoms share a bind key, in one render. |
-| `DuplicateKey` | Two siblings share one `key` prop. Reported to `onError` once per patch; carries the `key`. |
-| `SlotMismatch` | A component re-run called `useLocal` a different number of times than its first run. Carries the instance id and both counts. |
-| `PortalContainerMissing` | A `Portal`'s `container` is missing or not attached to the document. The mount fails with it (a re-run reports it to `onError`). |
-| `UnknownHandler`, `HandlerIdMismatch`, `UnsupportedEvent` | A handler id is missing from the `handlers` map, differs from its chunk's declared id, or names a non-bubbling event. |
+| Code                                                      | Raised when                                                                                                                                                                                                                       |
+| --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `UnsupportedAtom`                                         | `bind` (or `resume`) receives an atom that is not a serializable value-kind atom: a plain atom or a result-kind atom. Carries the bind `key`. Use `Atom.serializable` with a Schema; the manifest holds each key's encoded value. |
+| `ManifestInvalid`                                         | The container has no manifest, more than one, or a malformed one.                                                                                                                                                                 |
+| `ManifestDecodeFailed`                                    | A bound atom's value fails to decode. `resume` rejects (a wrong seed would render a wrong page); the error names the atom key.                                                                                                    |
+| `DuplicateHandler`, `DuplicateBindKey`                    | Two different handlers share an id, or two different atoms share a bind key, in one render.                                                                                                                                       |
+| `DuplicateKey`                                            | Two siblings share one `key` prop. Reported to `onError` once per patch; carries the `key`.                                                                                                                                       |
+| `SlotMismatch`                                            | A component re-run called slot hooks (`useLocal`, `useRef`, `useEffect` and the others that take a slot) a different number of times than its first run. Carries the instance id and both counts.                                 |
+| `PortalContainerMissing`                                  | A `Portal`'s `container` is missing or not attached to the document. The mount fails with it (a re-run reports it to `onError`).                                                                                                  |
+| `UnknownHandler`, `HandlerIdMismatch`, `UnsupportedEvent` | A handler id is missing from the `handlers` map, differs from its chunk's declared id, or names a non-bubbling event.                                                                                                             |
 
-## Kit checks
+## Runtime
 
-| Code | Triggered when |
-| --- | --- |
-| `DuplicateTag` | One provide set holds two distinct Tag objects with the same key. |
-| `InvalidTag` | `tag()` gets an empty or non-string name, or a dep is neither a `tag()` nor a named class. |
-
-## Runtime errors
-
-| Code | Triggered when |
-| --- | --- |
-| `LayerFailed` | A Layer factory or constructor (or an `effect()` function) throws or rejects while its scope builds. `details.cause` holds the message. |
-| `HandlerFailed` | A kit action/query handler throws something other than `fail()`. |
-| `CleanupFailed` | A `withCleanup` cleanup or an `effect()` teardown throws. It is not thrown to you: `onFinalizerError` receives a plain `FinalizerError` (`{ message, tag }`) instead. |
-| `Unknown` | Anything else. In kit this includes `useService` with no `LayerProvider` above or a Tag the provider does not provide, and an action/query called before `configureRuntime`. |
-
-`fail(message)` is not an error code: an action resolves `{ ok: false, error }` and a query rejects with a plain `Error` carrying the message.
-
-## Effect-native adapters
-
-- `@sleekstack/runtime` (and `@sleekstack/next`): `runEffect` called before `configureRuntime` rejects with `RuntimeNotConfigured`. A failure or defect rejects as `Effect.runPromise` does; defects, finalizer failures and failed layer builds reach `onError(cause, { phase })`. Values your `isControlFlow` classifies (in `@sleekstack/next`, Next's `redirect()`/`notFound()`) are rethrown untouched and never reported, including when thrown while the app Layer builds.
-- `@sleekstack/react`: `useService` with no provider, or an unprovided Tag, throws a plain `Error`; a failed scope build is rethrown from `useService` to the nearest error boundary.
+- `@sleekstack/runtime`: `runEffect` called before `configureRuntime` rejects with `RuntimeNotConfigured`. A failure or defect rejects as `Effect.runPromise` does; defects, finalizer failures and failed layer builds reach `onError(cause, { phase })`. Values your `isControlFlow` classifies are rethrown untouched and never reported, including when thrown while the app Layer builds.
+- `@sleekstack/start`: `DuplicateServerFn` and `InvalidServerFnId` fail `start`, and `InvalidOrigin` fails an `origins` entry that is not a bare origin. A server function call that cannot decode its input answers 400 with a `DecodeError`; an undeclared failure or a defect reaches the error sink and answers an empty 500 ([ADR 0039](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0039-start-server-core.md)).

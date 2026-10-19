@@ -10,7 +10,7 @@
   "review": null,
   "spec": "fn-52-model-and-draft-usedraft-for-editable",
   "spec_path": ".flow/tasks/fn-52-model-and-draft-usedraft-for-editable.1.md",
-  "status": "todo",
+  "status": "done",
   "sync": null,
   "title": "useDraft in @sleekstack/ui with analyzer slot-hook entry",
   "updated_at": "2026-10-15T20:44:58.277059Z"

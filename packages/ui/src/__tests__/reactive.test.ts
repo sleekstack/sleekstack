@@ -252,3 +252,29 @@ describe('generator components', () => {
     await expect(renderToString(jsx(Failing, {}), { layer: Layer.empty })).rejects.toBe(boom)
   })
 })
+
+describe('component ids', () => {
+  const idOf = async (type: Function) => {
+    const node = await Effect.runPromise(Effect.provideService(jsx(type, {}), Store, makeAtomStore()))
+    if (node._tag !== 'Reactive') throw new Error('expected a reactive node')
+    return node.id
+  }
+  // What `@sleekstack/ui-vite` sets on an exported component; a re-evaluated module makes a new function with the same id.
+  const stable = () =>
+    Object.defineProperty(() => Effect.map(useAtomValue(count), String), Symbol.for('@sleekstack/ui/component-id'), {
+      value: 'src/counter#Counter',
+    })
+
+  it('uses the stable id the Vite plugin sets, the same across re-evaluations', async () => {
+    expect(await idOf(stable())).toBe('src/counter#Counter#0')
+    expect(await idOf(stable())).toBe('src/counter#Counter#0')
+  })
+
+  it('falls back to a per-function counter without the plugin', async () => {
+    const Plain = () => Effect.map(useAtomValue(count), String)
+    const id = await idOf(Plain)
+    expect(id).toMatch(/^\d+#0$/)
+    expect(await idOf(Plain)).toBe(id)
+    expect(await idOf(() => Effect.map(useAtomValue(count), String))).not.toBe(id)
+  })
+})

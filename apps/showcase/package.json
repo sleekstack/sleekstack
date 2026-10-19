@@ -13,8 +13,10 @@
   "dependencies": {
     "@sleekstack/core": "workspace:*",
     "@sleekstack/devtools": "workspace:*",
+    "@sleekstack/model": "workspace:*",
     "@sleekstack/query": "workspace:*",
     "@sleekstack/router": "workspace:*",
+    "@sleekstack/start": "workspace:*",
     "@sleekstack/ui": "workspace:*",
     "effect": "^3.21.2",
     "react": "^19.2.6",

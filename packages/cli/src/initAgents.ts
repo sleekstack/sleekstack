@@ -36,7 +36,8 @@ export function initAgents(argv: readonly string[], io: Io): number {
   file = path.resolve(io.cwd, file)
 
   const llms = findLlms(path.dirname(file))
-  if (!llms) return (io.err('Cannot find sleekstack/llms.md: install sleekstack (the SleekStack CLI) in this project first.'), 2)
+  if (!llms)
+    return (io.err('Cannot find sleekstack/llms.md: install sleekstack (the SleekStack CLI) in this project first.'), 2)
   const rel = path.relative(path.dirname(file), llms).split(path.sep).join('/')
 
   const old = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : ''

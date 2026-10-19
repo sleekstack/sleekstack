@@ -10,7 +10,11 @@ const sourceAlias = [
   { find: /^@sleekstack\/ui$/, replacement: pkg('ui/src/index.ts') },
   { find: /^@sleekstack\/ui\/(.*)$/, replacement: pkg('ui/src/$1.ts') },
   { find: /^@sleekstack\/core$/, replacement: pkg('core/src/index.ts') },
+  { find: /^@sleekstack\/model$/, replacement: pkg('model/src/index.ts') },
+  { find: /^@sleekstack\/model\/(.*)$/, replacement: pkg('model/src/$1.ts') },
   { find: /^@sleekstack\/query$/, replacement: pkg('query/src/index.ts') },
+  { find: /^@sleekstack\/start$/, replacement: pkg('start/src/index.ts') },
+  { find: /^@sleekstack\/start\/(.*)$/, replacement: pkg('start/src/$1.ts') },
 ]
 
 /** ADR 0017's method: production lib build, minified; eager = entry plus its static imports, gzipped. */
@@ -43,11 +47,13 @@ const measure = async (entry: string, source = false) => {
 }
 
 // Gzip limits on the built packages: the ADR 0022 measurement plus about 5%.
-const budgets = [
+const budgets: ReadonlyArray<{ name: string; entry: string; limit: number }> = [
   { name: 'mount hello-world', entry: 'size/mount.tsx', limit: 203_000 },
   { name: 'hydrating app', entry: 'size/hydrate.tsx', limit: 225_000 },
   { name: 'resume', entry: 'resume/entry.ts', limit: 83_000 },
   { name: 'lazy mount', entry: 'size/lazy.tsx', limit: 209_000 },
+  { name: 'mount with a Draft', entry: 'size/model.tsx', limit: 231_000 },
+  { name: 'mount with a record', entry: 'size/records.tsx', limit: 233_000 },
 ]
 
 describe('size budget (ADR 0022)', () => {
@@ -76,6 +82,33 @@ describe('size budget (ADR 0022)', () => {
     expect((await measure('resume/entry.ts')).code).toContain('ManifestDecodeFailed')
     expect(readFileSync(pkg('query/dist/ui.js'), 'utf8')).toContain('QueryFailed')
   })
+
+  it(
+    'the client chunk holds the server function contract, no server module and no server Layer graph',
+    { timeout: 60_000 },
+    async () => {
+      // Strings only the server side holds: the `Items` Tag key (server/app.ts and its Layer), start's origin check
+      // (origin.ts, beside the endpoint in wire.ts) and its function registry and cookie jar.
+      const serverOnly = ['showcase/server/Items', 'sec-fetch-site', 'DuplicateServerFn', 'InvalidCookie']
+      const server = (await measure('../server/app.ts', true)).code
+      for (const marker of serverOnly) expect(server).toContain(marker)
+      for (const source of [false, true]) {
+        const { code } = await measure('main.tsx', source)
+        expect(code).toContain('items.add') // the page and its stub are in the client
+        for (const marker of serverOnly) expect(code, `${marker} (source: ${source})`).not.toContain(marker)
+      }
+    },
+  )
+
+  it(
+    'a mount-only bundle carries no Draft code; a Draft brings it from @sleekstack/model',
+    { timeout: 60_000 },
+    async () => {
+      // `useDraft` survives minification as the name in its missing-store error.
+      expect((await measure('size/mount.tsx')).code).not.toContain('useDraft')
+      expect((await measure('size/model.tsx')).code).toContain('useDraft')
+    },
+  )
 
   it('ui has no dependency on the router', () => {
     const { dependencies = {}, peerDependencies = {} } = JSON.parse(readFileSync(pkg('ui/package.json'), 'utf8'))

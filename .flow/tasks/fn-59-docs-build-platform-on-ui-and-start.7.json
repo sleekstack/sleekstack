@@ -1,0 +1,21 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-18T14:47:10.410138Z",
+  "depends_on": [
+    "fn-59-docs-build-platform-on-ui-and-start.1",
+    "fn-59-docs-build-platform-on-ui-and-start.2",
+    "fn-59-docs-build-platform-on-ui-and-start.3",
+    "fn-59-docs-build-platform-on-ui-and-start.4",
+    "fn-59-docs-build-platform-on-ui-and-start.5",
+    "fn-59-docs-build-platform-on-ui-and-start.6"
+  ],
+  "id": "fn-59-docs-build-platform-on-ui-and-start.7",
+  "priority": null,
+  "spec": "fn-59-docs-build-platform-on-ui-and-start",
+  "spec_path": ".flow/tasks/fn-59-docs-build-platform-on-ui-and-start.7.md",
+  "status": "todo",
+  "title": "records: ADRs, AGENTS.md, CONTEXT, size budget and the trimmed fn-29, fn-30, fn-33",
+  "updated_at": "2026-10-18T14:47:10.410138Z"
+}

@@ -6,7 +6,9 @@
   "default_impl": null,
   "default_review": null,
   "default_sync": null,
-  "depends_on_epics": [],
+  "depends_on_epics": [
+    "fn-60-docs-site-on-ui-and-start"
+  ],
   "id": "fn-55-remove-kit-react-next-and-islands",
   "impl_review_rounds": {
     "fn-55-remove-kit-react-next-and-islands.1": 0,
@@ -347,5 +349,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-17T21:45:30.687967Z"
+  "updated_at": "2026-10-18T16:19:23.647933Z"
 }

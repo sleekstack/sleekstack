@@ -40,6 +40,6 @@ describe('one fixture per Analyzer code', { timeout: 60_000 }, () => {
   it('the demo app itself is clean', () => {
     const r = analyzeComponents({ project: path.join(root, 'tsconfig.json') })
     expect(r.errors).toEqual([])
-    expect(r.trees).toHaveLength(5) // main.tsx, the devtools panel mount, the resume entry, and the size/mount and size/lazy budget entries
+    expect(r.trees).toHaveLength(8) // main.tsx, the devtools panel mount, the resume entry, the size/mount, size/lazy, size/model and size/records budget entries, and the router demo's startRouter root
   })
 })

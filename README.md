@@ -68,14 +68,20 @@ This enables:
 | [`@sleekstack/devtools`](packages/devtools/README.md) | Dev-only panel: graph, scopes, atoms, errors; ui panel: instance tree, atoms per instance, re-runs, effect runs |
 | [`@sleekstack/react`](packages/react/README.md) | Suspense-native `LayerProvider` / `useService`, and atoms (`useAtom`, `useAtomValue`) whose state lives per provider |
 | [`@sleekstack/kit`](packages/kit/README.md) | Effect-free facade over core, runtime, next and react (`tag`, `layer`, `effect`, `module`) |
-| [`@sleekstack/ui`](packages/ui/README.md) | MVP spike: Effect-native components (`Component<P, E, R>`, `Provide`, `Catch`) with React guests, typed requirements and errors checked by `sleekstack check`; demo pages in [`apps/showcase`](apps/showcase/README.md) |
+| [`@sleekstack/ui`](packages/ui/README.md) | Effect-native components (`Component<P, E, R>`, `Provider`, `Boundary`, `Pending`, `Portal`, `lazy`) with React components as Guests; typed host elements, local state and effects, forms, string, streaming and DOM renderers, hydration and resume. Requirements and errors are checked by `sleekstack check`; demo pages in [`apps/showcase`](apps/showcase/README.md) |
+| [`@sleekstack/model`](packages/model/README.md) | Model and Draft for `@sleekstack/ui` (ADR 0038, 0040): `ModelSpec` / `DraftSpec` and `useDraft`, an editable copy of a Model with one save boundary |
 | [`@sleekstack/testing`](packages/testing/README.md) | Vitest + jsdom component tests for `@sleekstack/ui`: `render`, `flush`, `mockLayer`, used with Testing Library |
+| [`@sleekstack/router`](packages/router/README.md) | Typed routes for `@sleekstack/ui` apps: a const route table, loaders, actions, prefetching `Link`, a server `handle` and a browser `startRouter` |
+| [`@sleekstack/start`](packages/start/README.md) | The full-stack layer for `@sleekstack/ui` apps (ADR 0039): a `fetch` entry with middleware and route handlers, server functions with typed client stubs, request services |
+| [`@sleekstack/query`](packages/query/README.md) | TanStack Query on Effect Layers (`QueryClientLive`, `effectFn`), with ui hooks in `@sleekstack/query/ui` |
+| [`@sleekstack/islands`](packages/islands/README.md) | Lazy-hydrating React Islands for server-rendered apps, with services from the kit |
+| [`@sleekstack/analyze`](packages/analyze/README.md) | The static Analyzer behind `sleekstack check`: the dependency Graph and the component pass, read through the TypeScript checker |
+| [`sleekstack`](packages/cli/README.md) | The CLI: `sleekstack check` and `sleekstack explain <CODE>` |
 
 Planned:
 
 ```txt
 @sleekstack/rpc
-@sleekstack/query
 ```
 
 ---
@@ -135,7 +141,7 @@ The docs site lives in [`apps/docs`](apps/docs/README.md): guides plus an API re
 
 ## Current Status
 
-SleekStack's core engine, Next.js adapter, React adapter and kit facade are implemented, with lifetime safety, module shadowing, and a serializable dependency graph in place across `packages/core`, `packages/next`, and `packages/react`.
+SleekStack's core engine, Next.js adapter, React adapter, kit facade and the `@sleekstack/ui` component framework are implemented, with lifetime safety, module shadowing, and a serializable dependency graph in place across `packages/core`, `packages/next`, and `packages/react`.
 
 Current surface:
 

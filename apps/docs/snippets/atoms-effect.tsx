@@ -1,24 +1,18 @@
-'use client'
+/** @jsxImportSource @sleekstack/ui */
 import { Context, Effect, Layer } from 'effect'
-import { Atom, Result, declareLayer, module } from '@sleekstack/core'
-import { LayerProvider, useAtom, useAtomRefresh, useAtomValue } from '@sleekstack/react'
+import { Atom, Result } from '@sleekstack/core'
+import { mount, useAtom, useAtomValue } from '@sleekstack/ui'
 
 class Api extends Context.Tag('Api')<Api, { user(id: number): Effect.Effect<string> }>() {}
-const provide = [
-  module({
-    name: 'app',
-    entries: [declareLayer(Layer.succeed(Api, { user: (id: number) => Effect.succeed(`user ${id}`) }))],
-  }),
-]
+const ApiLive = Layer.succeed(Api, { user: (id: number) => Effect.succeed(`user ${id}`) })
 
 const userId = Atom.make(1)
-// An Effect atom: `Api` resolves from the nearest LayerProvider scope; its value is a Result.
+// An Effect atom: `Api` resolves from the mount's layer; its value is a Result.
 const userName = Atom.make((get) => Effect.flatMap(Api, (api) => api.user(get(userId))))
 
-function User() {
-  const [id, setId] = useAtom(userId)
-  const refresh = useAtomRefresh(userName)
-  const name = Result.match(useAtomValue(userName), {
+const User = function* () {
+  const [id, setId] = yield* useAtom(userId)
+  const name = Result.match(yield* useAtomValue(userName), {
     onInitial: () => 'Loading',
     onSuccess: (r) => r.value,
     onFailure: () => 'Failed',
@@ -26,14 +20,11 @@ function User() {
   return (
     <p>
       {name}
-      <button onClick={() => setId(id + 1)}>next</button>
-      <button onClick={refresh}>refresh</button>
+      <button type="button" onClick={() => setId(id + 1)}>
+        next
+      </button>
     </p>
   )
 }
 
-export const App = () => (
-  <LayerProvider provide={provide}>
-    <User />
-  </LayerProvider>
-)
+export const start = (container: Element) => mount(<User />, { layer: ApiLive, container })

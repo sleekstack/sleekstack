@@ -1,35 +1,30 @@
 ---
 satisfies: [R6]
 ---
-# fn-55-remove-kit-react-next-and-islands.7 docs content, generated API docs, ADR, CONTEXT and AGENTS.md for the removal
+# fn-55-remove-kit-react-next-and-islands.7 records: removal ADR, superseded markers, CONTEXT and AGENTS.md (docs content done by fn-60)
 
 ## Description
-Bring prose and records in line: delete pages and snippets about the removed packages, rewrite the remaining guides on core, runtime, ui, router and start, regenerate the API reference, and record the decision.
+Bring the remaining records in line with the removal. The docs-site rebuild (fn-60) already did the docs content part: pages and snippets of kit, react, next and islands are deleted, the remaining guides and snippets are rewritten on core, ui, query and start, and the generated API reference covers only surviving packages (ui and start included). Do not redo it; only re-check it.
 
-**Size:** M
-**Files:** apps/docs/content/docs/*.mdx and meta.json, apps/docs/snippets/**, generated apps/docs/content/docs/api (via generate:api only), docs/adr/0040-*.md and README row, superseded markers on earlier ADRs, CONTEXT.md, AGENTS.md
-**Touches:** [apps/docs/content/**, apps/docs/snippets/**, docs/adr/**, CONTEXT.md, AGENTS.md]
+**Size:** S
+**Files:** docs/adr/ (new ADR, next free number after 0048) and README row, superseded markers on earlier ADRs, CONTEXT.md, AGENTS.md
+**Touches:** [docs/adr/**, CONTEXT.md, AGENTS.md]
 
 ### Approach
-- Delete pages for kit, the React adapter, Next and islands (including kit-vs-effect and getting-started-kit); keep or rewrite concepts, errors and testing guides on remaining packages. Never hand-edit generated API pages; run `generate:api`.
-- One new ADR records the removal and that Redirect/NotFound and the runtime feed live where they now do; earlier ADRs for the removed packages get a superseded status line pointing at it.
-- CONTEXT.md: drop the Kit facade, React integration, Island and Next integration terms; keep Request Scope, Runtime Package and Devtools wording accurate for the surviving packages.
-- AGENTS.md: verify table rows and the fixture graph check use only remaining packages and fixtures.
+- Already done by fn-60 (skip): docs pages and snippets, meta.json, generated API pages, ADR 0048 (docs site), AGENTS.md docs row, `apps/docs` free of the four packages.
+- One new ADR records the removal and that Redirect/NotFound and the runtime feed live where they now do; earlier ADRs for the removed packages (0004, 0009 to 0013, 0018, 0019) get a superseded status line pointing at it. ADR 0040 is taken (model package); use the next free number.
+- CONTEXT.md: drop the Kit facade, React integration, Island and Next.js integration terms and the intro wording; keep Request Scope, Runtime Package and Devtools accurate for the surviving packages.
+- AGENTS.md: verify table rows and the fixture graph check use only remaining packages and fixtures (the `kit-app` fixture and the kit and react rows go).
+- Confirm `apps/docs` still has no reference to the four packages (grep with a positive control).
 
 ### Investigation targets
 **Required**:
-- `apps/docs/content/docs/meta.json` and the pages named above
 - `CONTEXT.md` (Kit facade, React integration, Next.js integration sections)
 - `AGENTS.md`, `docs/adr/README.md`
 - ADRs 0004, 0009 to 0013, 0018, 0019 for status lines
-**Optional**:
-- `apps/docs/package.json` (`generate:api`)
-
 ## Acceptance
-- [ ] No docs page, snippet or generated API page names a removed package; snippets typecheck
 - [ ] New ADR indexed; ADRs of removed packages marked superseded; CONTEXT and AGENTS.md match the remaining packages
-- [ ] `pnpm turbo run test typecheck --filter=docs` and the root `pnpm test` are green
-
+- [ ] A grep of `apps/docs` for the four package names finds nothing; `pnpm turbo run test typecheck --filter=docs` and the root `pnpm test` are green
 ## Done summary
 TBD
 
