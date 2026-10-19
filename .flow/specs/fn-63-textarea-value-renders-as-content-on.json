@@ -1,11 +1,65 @@
 {
   "branch_name": "fn-63-textarea-value-renders-as-content-on",
+  "completion_review_status": "unknown",
+  "completion_reviewed_at": null,
   "created_at": "2026-10-19T06:55:25.565200Z",
+  "default_impl": null,
+  "default_review": null,
+  "default_sync": null,
   "depends_on_epics": [],
   "id": "fn-63-textarea-value-renders-as-content-on",
+  "impl_review_rounds": {
+    "fn-63-textarea-value-renders-as-content-on.1": 0
+  },
   "next_task": 1,
+  "plan_review_rounds": 0,
   "plan_review_status": "unknown",
   "plan_reviewed_at": null,
+  "review_attempts": [
+    {
+      "artifact_sha256": "d8e9f5363827b154e36fa3bc2faf17677642af33b50ae8b7fd535f85d02be5c8",
+      "backend": "codex",
+      "base_sha": "57a347ec8844410cc74601d5df8630ff07713895",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "87fde24430d385ec51a2fa83663628868b499031",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-6.1-sol",
+      "outcome": "verdict",
+      "output_bytes": 158,
+      "output_sha256": "6ff70da3d83706800ca3cabc6ba62603ba0485fcf5259d27f1be54ce68686975",
+      "reservation_id": "3a5d70b1249344b284536c69c9eaa683",
+      "round_consumed": true,
+      "scope": "impl:fn-63-textarea-value-renders-as-content-on.1",
+      "superseded_by": null,
+      "task": "fn-63-textarea-value-renders-as-content-on.1",
+      "timestamp": "2026-10-19T07:12:33.867294Z",
+      "verdict": "SHIP"
+    }
+  ],
+  "review_hash_epoch": {
+    "impl:fn-63-textarea-value-renders-as-content-on.1": 1
+  },
+  "review_pending_rounds": {},
+  "review_reservations": {},
+  "review_transport_failures": {
+    "impl:fn-63-textarea-value-renders-as-content-on.1": 0
+  },
   "spec_path": ".flow/specs/fn-63-textarea-value-renders-as-content-on.md",
   "status": "open",
   "title": "Textarea value renders as content on the server",
@@ -20,5 +74,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-19T06:59:49.697053Z"
+  "updated_at": "2026-10-19T07:12:33.868891Z"
 }

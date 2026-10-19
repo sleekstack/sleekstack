@@ -35,9 +35,15 @@ Server-render a textarea's `value` (static or atom-bound) as escaped content ins
 - [ ] TBD
 
 ## Done summary
-TBD
+`renderToString` (and so stream and Pending output) now writes a textarea's static or atom-bound `value` as escaped content, never an attribute, with one extra leading newline when the value starts with a line break; `value` plus children is a `TypeError`. Hydration skips child adoption for a value-only textarea, so the server text and typed value survive with no mismatch while the atom still subscribes without a first write. ADR 0021 amended.
 
+Tests: string.test.ts (static/atom values, escaping, number/0, nullish/false/true/"" empty, value+children TypeError, input/select unchanged), hydrate.test.ts (jsdom parser round trip for "", "\n", "\nx", "\r\nx", "\rx", "a\n"; static + atom-bound adopt with no mismatch, no removed node, typed text kept, later atom change applied), stream.test.ts (Pending-streamed textarea with a leading newline). Each new test was confirmed red against the old code.
+
+Gates: `pnpm turbo run test typecheck --filter=@sleekstack/ui... --filter=showcase --filter=!realworld` green (13/13, showcase size test included). The spec Quick command with `--filter=realworld` is red on realworld#test: 3 editor tests hit the new value-plus-children TypeError because apps/realworld editor.tsx/settings.tsx still pass both (the workaround task .2 removes; apps/realworld is outside this task's Touches). Task .2 must land before the spec gate goes green.
+
+stage: impl-review - ran (codex fan-out, 3 draws SHIP, rid 3a5d70b1249344b284536c69c9eaa683)
+Tier: session (jev-unavailable(no_key)); actual model: claude-opus-5-5
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 87fde24430d385ec51a2fa83663628868b499031
+- Tests: baseline: green (pnpm turbo run test typecheck --filter=@sleekstack/ui... --filter=showcase --filter=realworld), pnpm turbo run test typecheck --filter=@sleekstack/ui... --filter=showcase --filter=!realworld (green), pnpm turbo run test typecheck --filter=@sleekstack/ui... --filter=showcase --filter=realworld (red: realworld#test, 3 editor tests, value+children TypeError until task .2)
 - PRs:
