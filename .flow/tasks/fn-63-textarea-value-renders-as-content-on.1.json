@@ -8,7 +8,7 @@
   "priority": null,
   "spec": "fn-63-textarea-value-renders-as-content-on",
   "spec_path": ".flow/tasks/fn-63-textarea-value-renders-as-content-on.1.md",
-  "status": "todo",
+  "status": "done",
   "title": "ui: textarea value as server content, hydration adopts it",
   "updated_at": "2026-10-19T06:59:25.345110Z"
 }

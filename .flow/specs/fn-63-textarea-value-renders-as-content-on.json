@@ -137,7 +137,7 @@
     "impl:fn-63-textarea-value-renders-as-content-on.2": 0
   },
   "spec_path": ".flow/specs/fn-63-textarea-value-renders-as-content-on.md",
-  "status": "open",
+  "status": "done",
   "title": "Textarea value renders as content on the server",
   "tracker": {
     "baseHashFlow": null,
@@ -150,5 +150,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-19T07:19:00.494447Z"
+  "updated_at": "2026-10-19T07:51:05.827800Z"
 }
