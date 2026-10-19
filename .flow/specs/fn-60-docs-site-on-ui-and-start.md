@@ -81,6 +81,14 @@ Source: chart fn-57 decisions D1, D3, D4, D8, D9, D10, D11 and briefing B1 clust
 fn-60 was built on an early fn-59 branch. Master then gained fn-29/31/33/34 and fn-59 itself (ADRs 0044 to 0047, `sleekContent` with `contentRouteTable`, `ContentPage`, `ContentRouteOptions`). Master's versions of ui, the Head implementation, the `sleekstack()` plugin and fn-34 (the ui API reference, done there as its own work, not superseded) were kept; this spec's docs-site ADR is 0048, and the API reference adds start to master's list.
 
 
+## Review follow-up
+
+Completion review findings fixed on branch `fix-docs-review`:
+
+- Base joining: `pageUrl` drops the base's trailing slashes, so base `/` gives `/concepts` (root page `/`) and `/other/` gives `/other/concepts`; sidebar and previous/next links tested with `/docs`, `/`, `/other` and `/other/`.
+- Search dialog: escape closes from anywhere in the dialog, tab and shift-tab wrap inside it, and closing returns focus to the trigger.
+- Search in dev: the index is served by the `sleekContent` dev middleware at the URL the site fetches (`${import.meta.env.BASE_URL}search-index.json`, where the build writes it), so search works under `pnpm --filter docs dev`.
+
 ## Quick commands
 
 ```bash

@@ -28,7 +28,7 @@ export type DocsOptions = {
    * root) exporting `render(path)`, see `RenderEntry`; `client` is the browser entry that hydrates `#app`.
    */
   prerender?: { server: string; client: string }
-  /** Write `search-index.json` at build. Default: true. */
+  /** Write `search-index.json` at build and serve it at the same URL in dev. Default: true. */
   search?: boolean
   /**
    * One 1200 by 630 PNG per page at `og/<name>.png`, from the page's frontmatter `title` and `description`. Pair it with
@@ -182,6 +182,12 @@ export const sleekContent = (options: DocsOptions): Plugin => {
       const load = async () => (await server.ssrLoadModule(resolve(root, options.app))).app as Start
       const accepts = (pathname: string) =>
         pathname.startsWith('/_sleek/') || pages().some((p) => p.path === (pathname.replace(/(.)\/$/, '$1') || '/'))
+      // The build's search index, at the same URL (`<vite base>search-index.json`), rebuilt per request so it follows edits.
+      if (options.search !== false)
+        server.middlewares.use(`${server.config.base}search-index.json`, (_req, res) => {
+          res.setHeader('content-type', 'application/json')
+          res.end(JSON.stringify(buildSearchIndex(pages())))
+        })
       server.middlewares.use(devMiddleware(load, accepts))
       server.watcher.add(content)
       server.watcher.on('change', (file) => {
