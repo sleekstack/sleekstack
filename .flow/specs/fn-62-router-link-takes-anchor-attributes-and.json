@@ -1,7 +1,7 @@
 {
   "branch_name": "fn-62-router-link-takes-anchor-attributes-and",
-  "completion_review_status": "unknown",
-  "completion_reviewed_at": null,
+  "completion_review_status": "ship",
+  "completion_reviewed_at": "2026-10-19T07:48:28.788561Z",
   "created_at": "2026-10-19T06:55:25.231433Z",
   "default_impl": null,
   "default_review": null,
@@ -199,15 +199,53 @@
       "task": "fn-62-router-link-takes-anchor-attributes-and.2",
       "timestamp": "2026-10-19T07:27:14.304559Z",
       "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "11bbc67c33723e5412123df86c5e89b3fd3189977e83c30ed6c1427de37d1b17",
+      "backend": "codex",
+      "base_sha": "50f76797934bec3bfd0647379fe1bfad7796e9ea",
+      "counter_kind": "plan",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "8bc6520efb77e77fc68feafdf7d2170e2ae8462f",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-6.1-sol",
+      "outcome": "verdict",
+      "output_bytes": 243172,
+      "output_sha256": "b38baafb7d9a8cfa89f16381a3f159f3af22d587488f77d9b750e867f94affdc",
+      "reservation_id": "ff9261b13fc64c9598de55b70f6230c8",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-10-19T07:48:28.784737Z",
+      "tool_calls": 14,
+      "verdict": "SHIP"
     }
   ],
   "review_hash_epoch": {
     "impl:fn-62-router-link-takes-anchor-attributes-and.1": 2,
-    "impl:fn-62-router-link-takes-anchor-attributes-and.2": 1
+    "impl:fn-62-router-link-takes-anchor-attributes-and.2": 1,
+    "plan#completion": 1
   },
   "review_pending_rounds": {},
   "review_reservations": {},
   "review_transport_failures": {
+    "completion": 0,
     "impl:fn-62-router-link-takes-anchor-attributes-and.1": 0,
     "impl:fn-62-router-link-takes-anchor-attributes-and.2": 0
   },
@@ -225,5 +263,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-19T07:27:14.307791Z"
+  "updated_at": "2026-10-19T07:48:28.789719Z"
 }
