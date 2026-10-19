@@ -1,1 +1,0 @@
-{ "name": "eval-app", "private": true, "type": "module", "sleekstack": { "entry": "src/app.ts" } }

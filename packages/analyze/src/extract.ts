@@ -35,8 +35,9 @@ export function libId(sym: ts.Symbol | undefined, checker: ts.TypeChecker): stri
   if (sym.flags & ts.SymbolFlags.Alias) sym = checker.getAliasedSymbol(sym)
   const file = sym.declarations?.[0]?.getSourceFile().fileName.replace(/\\/g, '/')
   if (!file) return undefined
-  const own =
-    /\/(?:packages|@sleekstack)\/(core|next|runtime|query|ui|router)\/(?:src|dist)\/(.+?)(?:\.d)?\.tsx?$/.exec(file)
+  const own = /\/(?:packages|@sleekstack)\/(core|runtime|query|ui|router)\/(?:src|dist)\/(.+?)(?:\.d)?\.tsx?$/.exec(
+    file,
+  )
   if (own) return `${own[1]}/${own[2]}#${sym.name}`
   if (/\/effect\/dist\/dts\/Context\.d\.ts$/.test(file)) return `effect/Context#${sym.name}`
   if (/\/effect\/dist\/dts\/Effect\.d\.ts$/.test(file)) return `effect/Effect#${sym.name}`
@@ -50,7 +51,7 @@ const TAG_CALL = 'effect/Context#GenericTag'
 const TAG_CLASS_CALLS = new Set(['effect/Context#Tag', 'effect/Effect#Tag'])
 const MODULE_CALL = 'core/module#makeModule'
 const ATOM_CALL = 'core/atom/Atom#make'
-const RUNTIME_CALLS = new Set(['next/runtime#configureRuntime', 'runtime/runtime#configureRuntime'])
+const RUNTIME_CALLS = new Set(['runtime/runtime#configureRuntime'])
 /** Plain Layer combinators walked structurally (data-first or as `.pipe` steps). */
 const LAYER_COMBINATORS = new Set([
   'effect/Layer#mergeAll',
@@ -752,7 +753,7 @@ export function extract(project: string, entries?: readonly string[], lenient = 
     out(layerLeaf(e))
   }
   /** A `configureRuntime({ provide, layer })` call as a root: a synthetic module importing its modules and holding its layers (a plain `layer`'s leaves included). */
-  const runtimeOf = (n: ts.CallExpression, core: boolean) => {
+  const runtimeOf = (n: ts.CallExpression) => {
     const l = loc(n)
     const m: ModuleDecl = {
       name: `${l.file}:${l.line}`,
@@ -774,7 +775,7 @@ export function extract(project: string, entries?: readonly string[], lenient = 
         try {
           const f = follow(x)
           if (ts.isCallExpression(f) && calleeOf(f) === MODULE_CALL) m.imports.push(moduleOf(x))
-          else m.entries.push(provider(x, core))
+          else m.entries.push(provider(x, false))
         } catch (err) {
           if (err instanceof Unbound) throw err
           report(err, m)
@@ -848,7 +849,7 @@ export function extract(project: string, entries?: readonly string[], lenient = 
         }
       } else if (id && RUNTIME_CALLS.has(id) && isRootFile(n.getSourceFile())) {
         try {
-          runtimeOf(n, id === 'next/runtime#configureRuntime')
+          runtimeOf(n)
         } catch (err) {
           report(err)
         }

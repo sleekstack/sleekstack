@@ -1,6 +1,6 @@
 # @sleekstack/runtime
 
-The framework-agnostic Effect app runtime that [`@sleekstack/next`](../next) is a preset of. Use it directly to host an Effect app in any server framework.
+The framework-agnostic Effect app runtime Use it to host an Effect app in any server framework.
 
 | Export                                                         | What it does                                                                                                                                                                  |
 | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

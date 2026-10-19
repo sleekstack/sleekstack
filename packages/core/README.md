@@ -1,6 +1,6 @@
 # @sleekstack/core
 
-The Effect-native engine. Core has no Effect-hiding sugar (that is [`@sleekstack/kit`](../kit)): everything it accepts is a plain Effect `Layer`. It has no runtime graph either; the dependency graph exists only at build time, in [`sleekstack check`](../cli).
+The Effect-native engine. Everything it accepts is a plain Effect `Layer`. It has no runtime graph: the dependency graph exists only at build time, in [`sleekstack check`](../cli).
 
 | Export | What it is |
 | --- | --- |
