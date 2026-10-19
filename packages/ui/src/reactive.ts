@@ -1333,7 +1333,7 @@ export const instance = <P>(
     )
   })
   // A hot update stays on trial until the next one: a failing run reverts every instance to the last good function, reports, and runs that.
-  const run: Effect.Effect<Node, any, any> = Effect.matchCauseEffect(attempt, {
+  const guarded: Effect.Effect<Node, any, any> = Effect.matchCauseEffect(attempt, {
     onSuccess: (node) => {
       const hot = hotOf(type)
       if (hot && ran === hot.fn) hot.succeeded = true
@@ -1365,5 +1365,7 @@ export const instance = <P>(
       return Effect.flatMap(MountError, (report) => ((report ?? console.error)(cause), run))
     },
   })
+  // Only a hot-updatable component pays for the guard: hot or not is fixed when its module registers it, before it renders.
+  const run: Effect.Effect<Node, any, any> = hotOf(type) ? guarded : attempt
   return run
 }
