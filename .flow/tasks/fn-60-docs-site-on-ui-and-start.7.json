@@ -15,7 +15,7 @@
   "priority": null,
   "spec": "fn-60-docs-site-on-ui-and-start",
   "spec_path": ".flow/tasks/fn-60-docs-site-on-ui-and-start.7.md",
-  "status": "todo",
+  "status": "done",
   "title": "records: ADR, docs README, CONTEXT and AGENTS.md, and unblock the removal spec",
   "updated_at": "2026-10-18T15:10:27.290724Z"
 }

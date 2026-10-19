@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-59-docs-build-platform-on-ui-and-start",
   "spec_path": ".flow/tasks/fn-59-docs-build-platform-on-ui-and-start.2.md",
-  "status": "todo",
+  "status": "done",
   "title": "ui: Head in streams and hydration adopts server head tags",
   "updated_at": "2026-10-18T14:47:10.410024Z"
 }

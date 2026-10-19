@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-60-docs-site-on-ui-and-start",
   "spec_path": ".flow/tasks/fn-60-docs-site-on-ui-and-start.4.md",
-  "status": "todo",
+  "status": "done",
   "title": "docs app: the cmd-K search dialog over the build-time index",
   "updated_at": "2026-10-18T15:10:27.290648Z"
 }

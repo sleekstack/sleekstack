@@ -559,7 +559,7 @@
     "impl:fn-33-head-management-for-ui.4": 0
   },
   "spec_path": ".flow/specs/fn-33-head-management-for-ui.md",
-  "status": "open",
+  "status": "done",
   "title": "Head management for ui",
   "tracker": {
     "baseHashFlow": null,
@@ -572,5 +572,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-18T16:36:18.273572Z"
+  "updated_at": "2026-10-19T07:28:04.004606Z"
 }

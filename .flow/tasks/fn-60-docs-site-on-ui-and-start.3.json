@@ -8,7 +8,7 @@
   "priority": null,
   "spec": "fn-60-docs-site-on-ui-and-start",
   "spec_path": ".flow/tasks/fn-60-docs-site-on-ui-and-start.3.md",
-  "status": "todo",
+  "status": "done",
   "title": "docs app: layout components in plain CSS (sidebar, drawer, theme, prev and next)",
   "updated_at": "2026-10-18T15:10:27.290617Z"
 }

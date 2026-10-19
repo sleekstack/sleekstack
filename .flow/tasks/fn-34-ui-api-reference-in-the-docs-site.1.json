@@ -8,7 +8,7 @@
   "priority": null,
   "spec": "fn-34-ui-api-reference-in-the-docs-site",
   "spec_path": ".flow/tasks/fn-34-ui-api-reference-in-the-docs-site.1.md",
-  "status": "todo",
+  "status": "done",
   "title": "Add @sleekstack/ui to the generated API reference",
   "updated_at": "2026-10-18T15:40:26.258379Z"
 }

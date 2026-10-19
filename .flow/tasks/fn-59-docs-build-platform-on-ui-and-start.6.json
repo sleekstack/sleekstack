@@ -11,7 +11,7 @@
   "priority": null,
   "spec": "fn-59-docs-build-platform-on-ui-and-start",
   "spec_path": ".flow/tasks/fn-59-docs-build-platform-on-ui-and-start.6.md",
-  "status": "todo",
+  "status": "done",
   "title": "ui-vite: Open Graph images and the og tags",
   "updated_at": "2026-10-18T14:47:10.410118Z"
 }

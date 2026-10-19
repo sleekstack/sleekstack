@@ -8,7 +8,7 @@
   "priority": null,
   "spec": "fn-33-head-management-for-ui",
   "spec_path": ".flow/tasks/fn-33-head-management-for-ui.1.md",
-  "status": "todo",
+  "status": "done",
   "title": "HeadSink reference, Head component and DOM patching",
   "updated_at": "2026-10-18T15:40:33.196902Z"
 }

@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-33-head-management-for-ui",
   "spec_path": ".flow/tasks/fn-33-head-management-for-ui.2.md",
-  "status": "todo",
+  "status": "done",
   "title": "Head in renderToString",
   "updated_at": "2026-10-18T15:40:33.197121Z"
 }
