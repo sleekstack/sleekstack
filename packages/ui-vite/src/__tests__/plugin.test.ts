@@ -35,6 +35,9 @@ export const app = { fetch: async (r: Request) => new Response(JSON.stringify({ 
     plugins: [sleekContent({ content, base: '/docs', app: 'app.ts' })],
   })
   http = listen(vite.middlewares)
+  // The fetch client shares this event loop: a long sync compile can stall it past the 5s keep-alive, so the
+  // server drops a socket the client then reuses (ECONNRESET, "fetch failed"). Let only the client close idle sockets.
+  http.keepAliveTimeout = 0
   await new Promise<void>((r) => http.listen(0, r))
   url = `http://localhost:${(http.address() as AddressInfo).port}`
 })

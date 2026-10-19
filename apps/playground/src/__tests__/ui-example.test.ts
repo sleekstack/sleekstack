@@ -96,7 +96,6 @@ it.each([true, false])(
       rmSync(out, { recursive: true, force: true })
     }
   },
-  60_000,
 )
 
 it('the dev server answers a page through the server entry, loading the client entry from source (R6)', async () => {
@@ -116,4 +115,4 @@ it('the dev server answers a page through the server entry, loading the client e
   } finally {
     await server.close()
   }
-}, 60_000)
+})
