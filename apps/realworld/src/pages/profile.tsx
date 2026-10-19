@@ -1,38 +1,26 @@
 /** @jsxImportSource @sleekstack/ui */
 import { Result } from '@sleekstack/core'
-import { loader, notFound, Route, useLoader } from '@sleekstack/router'
+import { Link, useLoader } from '@sleekstack/router'
 import { useAction, useAtomValue, useDerivedAtom, useFormStatus } from '@sleekstack/ui'
 import { Effect, Option } from 'effect'
-import { listArticlesContract } from '../modules/articles'
-import { followContract, Profile, profileContract, unfollowContract } from '../modules/identity'
+import { followContract, type Profile, unfollowContract } from '../modules/identity'
 import { ServerFunctions } from './functions'
-import { ArticleFeed, type ArticleSource, articleSource } from './home'
-import { Layout, viewer } from './layout'
+import { ArticleFeed } from './home'
+import { Layout, signedIn, viewer } from './layout'
+import {
+  type ArticleSource,
+  authLoaders,
+  authoredArticles,
+  favoritedArticles,
+  favoritesLoaders,
+  profile,
+  profileLoaders,
+} from './loaders'
+import { table } from './routes'
+
+export { authoredArticles, favoritedArticles, profile }
 
 const profileHref = (username: string) => `/profile/${encodeURIComponent(username)}`
-
-// Both profile routes name the user `:username`.
-const username = Effect.map(Route, (m) => m.params['username']!)
-
-/** The profile the route names; an unknown user is the 404 page. */
-export const profile = loader(
-  'profile',
-  Profile,
-  Effect.flatMap(Effect.zip(ServerFunctions, username), ([call, name]) =>
-    call(profileContract)({ username: name }),
-  ).pipe(Effect.catchTag('NotFound', notFound)),
-)
-
-export const authoredArticles = articleSource('authoredArticles', (paging) =>
-  Effect.flatMap(Effect.zip(ServerFunctions, username), ([call, author]) =>
-    call(listArticlesContract)({ ...paging, author }),
-  ),
-)
-export const favoritedArticles = articleSource('favoritedArticles', (paging) =>
-  Effect.flatMap(Effect.zip(ServerFunctions, username), ([call, favorited]) =>
-    call(listArticlesContract)({ ...paging, favorited }),
-  ),
-)
 
 /** Follow or unfollow `user`; the button shows the server's answer. A signed-out viewer gets a link to `/login`. */
 const Follow = function* ({ user, signedIn }: { user: Profile; signedIn: boolean }) {
@@ -51,9 +39,9 @@ const Follow = function* ({ user, signedIn }: { user: Profile; signedIn: boolean
   )
   if (!signedIn)
     return (
-      <a class={style} href="/login">
+      <Link table={table} loaders={authLoaders} class={style} href="/login">
         {label}
-      </a>
+      </Link>
     )
   return (
     <form class="follow" action={run}>
@@ -83,9 +71,14 @@ const ProfileView = function* ({ favorites }: { favorites: boolean }) {
               <h4>{user.username}</h4>
               {user.bio && <p>{user.bio}</p>}
               {me?.username === user.username ? (
-                <a class="btn btn-sm btn-outline-secondary action-btn" href="/settings">
+                <Link
+                  table={table}
+                  loaders={[viewer, signedIn]}
+                  class="btn btn-sm btn-outline-secondary action-btn"
+                  href="/settings"
+                >
                   <i class="ion-gear-a"></i> Edit Profile Settings
-                </a>
+                </Link>
               ) : (
                 <FollowButton user={user} signedIn={me !== null} />
               )}
@@ -99,17 +92,24 @@ const ProfileView = function* ({ favorites }: { favorites: boolean }) {
             <div class="articles-toggle">
               <ul class="nav nav-pills outline-active">
                 <li class="nav-item">
-                  <a class={favorites ? 'nav-link' : 'nav-link active'} href={profileHref(user.username)}>
+                  <Link
+                    table={table}
+                    loaders={profileLoaders}
+                    class={favorites ? 'nav-link' : 'nav-link active'}
+                    href={profileHref(user.username)}
+                  >
                     My Articles
-                  </a>
+                  </Link>
                 </li>
                 <li class="nav-item">
-                  <a
+                  <Link
+                    table={table}
+                    loaders={favoritesLoaders}
                     class={favorites ? 'nav-link active' : 'nav-link'}
                     href={`${profileHref(user.username)}/favorites`}
                   >
                     Favorited Articles
-                  </a>
+                  </Link>
                 </li>
               </ul>
             </div>

@@ -1,11 +1,19 @@
 import { Effect, Option } from 'effect'
-import type { Child } from '@sleekstack/ui/jsx-runtime'
+import type { Child, JSX } from '@sleekstack/ui/jsx-runtime'
 import { jsx } from '@sleekstack/ui/jsx-runtime'
 import { match, type RouteTable } from './index'
 import { type Loader, Loaders, prefetchLoader } from './loader'
 
-/** `Link` props: `table` matches `href`; `code` imports the route's page (the `lazy` import) and `loaders` are its loaders. */
-export interface LinkProps<R> {
+/** Distributes over a union, so `class` / `className` stay one-of-never-both. */
+type OmitEach<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never
+/** The `<a>` attributes `Link` passes through: no `href` (re-declared), `children`, `key`, `ref` or event handler (`on*`). */
+type AnchorAttrs = OmitEach<JSX.IntrinsicElements['a'], 'href' | 'children' | 'key' | 'ref' | `on${string}`>
+
+/**
+ * `Link` props: `table` matches `href`; `code` imports the route's page (the `lazy` import) and `loaders` are its loaders.
+ * Every other non-event anchor attribute (`class`, `id`, `aria-*`, `data-*`, `rel`, `target`, ...) goes to the `<a>`.
+ */
+export type LinkProps<R> = AnchorAttrs & {
   readonly href: string
   readonly table: RouteTable
   readonly code?: () => Promise<unknown>
@@ -19,16 +27,13 @@ export interface LinkProps<R> {
  * An `<a href>` that prefetches its route's code and loaders on hover or focus (R6), unless `prefetch={false}`.
  * Loads are shared with the page's reads and dropped after a bounded time unread; a prefetch error is silent (R13).
  */
-export const Link = <R>({ href, table, code, loaders = [], prefetch = true, children }: LinkProps<R>) => {
+export const Link = <R>({ table, code, loaders = [], prefetch = true, ...attrs }: LinkProps<R>) => {
   const warm = Effect.suspend(() => {
-    void code?.().catch(() => {})
-    const url = new URL(href, location.href)
+    const url = new URL(attrs.href, location.href)
     const m = url.origin === location.origin ? match(table, url.pathname) : Option.none()
-    return Option.isNone(m)
-      ? Effect.void
-      : Effect.forEach(loaders, (l) => prefetchLoader(l, m.value), { discard: true })
+    if (Option.isNone(m)) return Effect.void
+    void code?.().catch(() => {})
+    return Effect.forEach(loaders, (l) => prefetchLoader(l, m.value), { discard: true })
   }).pipe(Effect.catchAllCause(() => Effect.void))
-  return prefetch
-    ? jsx('a', { href, onMouseEnter: () => warm, onFocus: () => warm, children })
-    : jsx('a', { href, children })
+  return jsx('a', prefetch ? { ...attrs, onMouseEnter: () => warm, onFocus: () => warm } : attrs)
 }

@@ -1,25 +1,18 @@
 /** @jsxImportSource @sleekstack/ui */
 import { type DraftSpec, useDraft } from '@sleekstack/model'
-import { loader, redirect, useLoader } from '@sleekstack/router'
+import { useLoader } from '@sleekstack/router'
 import { useAction, useAtomValue, useFormStatus, useSetAtom } from '@sleekstack/ui'
 import { Effect, Schema } from 'effect'
 import { Article, createArticleContract, type NewArticle, updateArticleContract } from '../modules/articles'
-import { article } from './article'
 import { Field } from './auth'
 import { ErrorList, errorsOf, toPage } from './form'
 import { ServerFunctions } from './functions'
-import { Layout, signedIn } from './layout'
+import { Layout } from './layout'
+import { editable } from './loaders'
+
+export { editable }
 
 const articleHref = (slug: string) => `/article/${encodeURIComponent(slug)}`
-
-/** The article to edit: only its author may; anyone else is sent to the article. */
-export const editable = loader(
-  'editable',
-  Article,
-  Effect.flatMap(Effect.zip(useLoader(signedIn), useLoader(article)), ([user, a]) =>
-    a.author.username === user.username ? Effect.succeed(a) : redirect(articleHref(a.slug)),
-  ),
-)
 
 // `tag` is the tag input, added to `tagList` with Enter; it is not sent. The server checks the required fields.
 const EditorForm = Schema.Struct({

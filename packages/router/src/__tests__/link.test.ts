@@ -2,7 +2,7 @@
 import { Effect, Layer, Option, Schema } from 'effect'
 import { act } from 'react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { type ActionEvent, mount, type Mounted } from '@sleekstack/ui'
+import { type ActionEvent, hydrateMount, mount, type Mounted, renderToString } from '@sleekstack/ui'
 import { jsx as rawJsx } from '@sleekstack/ui/jsx-runtime'
 import { action, Link, type Loader, loader, Loaders, match, routeLayer, routes, useLoader } from '../index'
 
@@ -62,13 +62,57 @@ describe('Link', () => {
     expect(state.calls).toBe(1)
   })
 
-  it('prefetch={false} does nothing on hover or focus', async () => {
+  const attrs = { class: 'nav-link', 'aria-current': 'page', rel: 'noopener', 'data-x': '1' }
+  const anchorAttrs = (a: Element) => Object.fromEntries([...a.attributes].map((at) => [at.name, at.value]))
+
+  it('passes anchor attributes to the <a>, never its own props, and still prefetches on hover', async () => {
     const { state, l, code } = counted()
-    const { a } = await render(jsx(Link, { href: '/users/7', table, code, loaders: [l], prefetch: false }))
+    const { a } = await render(jsx(Link, { href: '/users/7', table, code, loaders: [l], ...attrs, children: 'Ada' }))
+    expect(anchorAttrs(a)).toEqual({ href: '/users/7', ...attrs })
+    a.dispatchEvent(new MouseEvent('mouseenter'))
+    await flush()
+    expect(state).toEqual({ calls: 1, imports: 1 })
+  })
+
+  it('server-renders and hydrates with the attributes; the hydrated link prefetches', async () => {
+    const { state, l } = counted()
+    const node = () => jsx(Link, { href: '/users/7', table, loaders: [l], ...attrs, children: 'Ada' })
+    const layer = Layer.succeed(Loaders, new Map())
+    const html = await renderToString(node() as never, { layer })
+    const container = document.createElement('div')
+    document.body.append(container)
+    container.innerHTML = html
+    const onError = vi.fn()
+    await act(async () => void handles.push(await hydrateMount(node() as never, { layer, container, onError })))
+    const a = container.querySelector('a')!
+    expect(anchorAttrs(a)).toEqual({ href: '/users/7', ...attrs })
+    a.dispatchEvent(new FocusEvent('focus'))
+    await flush()
+    expect(state.calls).toBe(1)
+    expect(onError).not.toHaveBeenCalled()
+  })
+
+  it('prefetch={false} keeps the attributes and does nothing on hover or focus', async () => {
+    const { state, l, code } = counted()
+    const { a } = await render(jsx(Link, { href: '/users/7', table, code, loaders: [l], prefetch: false, ...attrs }))
+    expect(anchorAttrs(a)).toEqual({ href: '/users/7', ...attrs })
     a.dispatchEvent(new MouseEvent('mouseenter'))
     a.dispatchEvent(new FocusEvent('focus'))
     await flush()
     expect(state).toEqual({ calls: 0, imports: 0 })
+  })
+
+  it.each([
+    ['cross-origin', 'https://elsewhere.example/users/7'],
+    ['unmatched', '/nowhere'],
+  ])('a %s href prefetches nothing and keeps the attributes', async (_, href) => {
+    const { state, l, code } = counted()
+    const { a, all } = await render(jsx(Link, { href, table, code, loaders: [l], ...attrs }))
+    expect(anchorAttrs(a)).toEqual({ href, ...attrs })
+    a.dispatchEvent(new MouseEvent('mouseenter'))
+    await flush()
+    expect(state).toEqual({ calls: 0, imports: 0 })
+    expect(all.size).toBe(0)
   })
 
   it('an unread prefetched result expires; the page then loads again', async () => {

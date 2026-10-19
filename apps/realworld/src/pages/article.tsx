@@ -1,54 +1,30 @@
 /** @jsxImportSource @sleekstack/ui */
 import { type DraftSpec, useDraft } from '@sleekstack/model'
-import { loader, notFound, Route, useLoader } from '@sleekstack/router'
+import { Link, useLoader } from '@sleekstack/router'
 import { useAction, useAtomValue, useFormStatus, useLocal, useSetAtom } from '@sleekstack/ui'
-import { Effect, Schema } from 'effect'
+import { Effect } from 'effect'
 import {
   Article,
   deleteArticleContract,
   FavoriteButton,
   favoriteContract,
   formatDate,
-  getArticleContract,
   markdown,
   type Toggle,
   unfavoriteContract,
 } from '../modules/articles'
-import {
-  addCommentContract,
-  Comment,
-  deleteCommentContract,
-  listCommentsContract,
-  NewComment,
-} from '../modules/comments'
+import { addCommentContract, Comment, deleteCommentContract, NewComment } from '../modules/comments'
 import type { Account } from '../modules/identity'
 import { ErrorList, errorsOf, toHome } from './form'
 import { ServerFunctions } from './functions'
 import { Layout, viewer } from './layout'
+import { article, authLoaders, comments, editLoaders, previewLinks, profileLoaders } from './loaders'
 import { FollowButton } from './profile'
 
+export { article, comments }
+import { table } from './routes'
+
 const profileHref = (username: string) => `/profile/${encodeURIComponent(username)}`
-
-// The article and editor routes both name the article `:slug`.
-const slug = Effect.map(Route, (m) => m.params['slug']!)
-
-/** The article the route names; an unknown slug is the 404 page. */
-export const article = loader(
-  'article',
-  Article,
-  Effect.flatMap(Effect.zip(ServerFunctions, slug), ([call, s]) => call(getArticleContract)({ slug: s })).pipe(
-    Effect.catchTag('NotFound', notFound),
-  ),
-)
-
-/** The article's comments, newest first. */
-export const comments = loader(
-  'comments',
-  Schema.Array(Comment),
-  Effect.flatMap(Effect.zip(ServerFunctions, slug), ([call, s]) => call(listCommentsContract)({ slug: s })).pipe(
-    Effect.catchTag('NotFound', notFound),
-  ),
-)
 
 /** The author's Edit and Delete buttons; a delete lands on `/`. */
 const OwnerActions = function* ({ slug }: { slug: string }) {
@@ -58,9 +34,15 @@ const OwnerActions = function* ({ slug }: { slug: string }) {
   const outcome = yield* useAtomValue(deleted)
   return (
     <>
-      <a class="btn btn-sm btn-outline-secondary" href={`/editor/${encodeURIComponent(slug)}`}>
+      {/* The editor's `editable` loader is not named: its module imports this one. */}
+      <Link
+        table={table}
+        loaders={editLoaders}
+        class="btn btn-sm btn-outline-secondary"
+        href={`/editor/${encodeURIComponent(slug)}`}
+      >
         <i class="ion-edit"></i> Edit Article
-      </a>{' '}
+      </Link>{' '}
       <form class="delete-article" style="display: inline" action={toHome(deleted, remove)}>
         <button class="btn btn-sm btn-outline-danger" type="submit" disabled={pending}>
           <i class="ion-trash-a"></i> Delete Article
@@ -80,11 +62,13 @@ const ArticleMeta = function* ({ article, me }: { article: Article; me: Account 
   const { author } = article
   return (
     <div class="article-meta">
-      <a href={profileHref(author.username)}>{author.image && <img src={author.image} alt="" />}</a>
+      <Link table={table} loaders={profileLoaders} href={profileHref(author.username)}>
+        {author.image && <img src={author.image} alt="" />}
+      </Link>
       <div class="info">
-        <a href={profileHref(author.username)} class="author">
+        <Link table={table} loaders={profileLoaders} href={profileHref(author.username)} class="author">
           {author.username}
-        </a>
+        </Link>
         <span class="date">{formatDate(article.createdAt)}</span>
       </div>
       {me?.username === author.username ? (
@@ -92,7 +76,7 @@ const ArticleMeta = function* ({ article, me }: { article: Article; me: Account 
       ) : (
         <>
           <FollowButton user={author} signedIn={me !== null} />
-          <FavoriteButton article={article} toggle={toggle} />
+          <FavoriteButton article={article} toggle={toggle} links={previewLinks} />
         </>
       )}
     </div>
@@ -182,12 +166,12 @@ const CommentCard = function* ({
         <p class="card-text">{comment.body}</p>
       </div>
       <div class="card-footer">
-        <a href={profileHref(author.username)} class="comment-author">
+        <Link table={table} loaders={profileLoaders} href={profileHref(author.username)} class="comment-author">
           {author.image && <img src={author.image} class="comment-author-img" alt="" />}
-        </a>{' '}
-        <a href={profileHref(author.username)} class="comment-author">
+        </Link>{' '}
+        <Link table={table} loaders={profileLoaders} href={profileHref(author.username)} class="comment-author">
           {author.username}
-        </a>
+        </Link>
         <span class="date-posted">{formatDate(comment.createdAt)}</span>
         {mine && (
           <form class="mod-options" action={remove}>
@@ -223,7 +207,14 @@ const Comments = function* ({ slug, me }: { slug: string; me: Account | null }) 
         <CommentForm slug={slug} me={me} onAdded={(c) => edit((l) => [c, ...l])} />
       ) : (
         <p>
-          <a href="/login">Sign in</a> or <a href="/register">sign up</a> to add comments on this article.
+          <Link table={table} loaders={authLoaders} href="/login">
+            Sign in
+          </Link>{' '}
+          or{' '}
+          <Link table={table} loaders={authLoaders} href="/register">
+            sign up
+          </Link>{' '}
+          to add comments on this article.
         </p>
       )}
       {list.map((c) => (

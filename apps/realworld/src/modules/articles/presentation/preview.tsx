@@ -1,11 +1,23 @@
 /** @jsxImportSource @sleekstack/ui */
 import { Result } from '@sleekstack/core'
+import { Link, type LinkProps, type RouteTable } from '@sleekstack/router'
 import { useAction, useAtomValue, useDerivedAtom, useFormStatus, useOptimistic } from '@sleekstack/ui'
 import { type Effect, Option } from 'effect'
 import type { Article } from '../domain/model'
 
 /** Favorites or unfavorites `article` on the server, and returns it as the viewer now sees it. */
 export type Toggle = (article: Article) => Effect.Effect<Article, unknown>
+
+// A target route's loaders. `any`: their services are the app's (the router provides them), unnamed in this module.
+type Loaders = LinkProps<any>['loaders']
+
+/** Where a preview links, from the page (this module knows no routes): the route table and each target route's loaders. */
+interface PreviewLinks {
+  readonly table: RouteTable
+  readonly article: Loaders
+  readonly profile: Loaders
+  readonly login: Loaders
+}
 
 const profileHref = (username: string) => `/profile/${encodeURIComponent(username)}`
 
@@ -23,7 +35,15 @@ const favorited = (a: Article, on: boolean): Article => ({
  * The heart button: the new count shows at once and rolls back when the server refuses. A signed-out viewer gets a link
  * to `/login` instead.
  */
-const Favorite = function* ({ article, toggle }: { article: Article; toggle: Toggle | null }) {
+const Favorite = function* ({
+  article,
+  toggle,
+  links,
+}: {
+  article: Article
+  toggle: Toggle | null
+  links: PreviewLinks
+}) {
   const [result, run] = yield* useAction((): Effect.Effect<Article, unknown> =>
     optimistic(!current.favorited, toggle!(current)),
   )
@@ -41,9 +61,9 @@ const Favorite = function* ({ article, toggle }: { article: Article; toggle: Tog
   )
   if (!toggle)
     return (
-      <a class={style} href="/login">
+      <Link table={links.table} loaders={links.login} class={style} href="/login">
         {label}
-      </a>
+      </Link>
     )
   return (
     <form class="favorite" action={run}>
@@ -54,24 +74,39 @@ const Favorite = function* ({ article, toggle }: { article: Article; toggle: Tog
   )
 }
 
-/** The heart button with its count; `toggle` is `null` for a signed-out viewer. */
-export const FavoriteButton = (props: { article: Article; toggle: Toggle | null }) => <Favorite {...props} />
+/** The heart button with its count; `toggle` is `null` for a signed-out viewer, who gets a link to `/login`. */
+export const FavoriteButton = (props: { article: Article; toggle: Toggle | null; links: PreviewLinks }) => (
+  <Favorite {...props} />
+)
 
-const ArticlePreview = ({ article, toggle }: { article: Article; toggle: Toggle | null }) => (
+const ArticlePreview = ({
+  article,
+  toggle,
+  links,
+}: {
+  article: Article
+  toggle: Toggle | null
+  links: PreviewLinks
+}) => (
   <div class="article-preview">
     <div class="article-meta">
-      <a href={profileHref(article.author.username)}>
+      <Link table={links.table} loaders={links.profile} href={profileHref(article.author.username)}>
         {article.author.image && <img src={article.author.image} alt="" />}
-      </a>
+      </Link>
       <div class="info">
-        <a href={profileHref(article.author.username)} class="author">
+        <Link table={links.table} loaders={links.profile} href={profileHref(article.author.username)} class="author">
           {article.author.username}
-        </a>
+        </Link>
         <span class="date">{formatDate(article.createdAt)}</span>
       </div>
-      <FavoriteButton article={article} toggle={toggle} />
+      <FavoriteButton article={article} toggle={toggle} links={links} />
     </div>
-    <a href={`/article/${encodeURIComponent(article.slug)}`} class="preview-link">
+    <Link
+      table={links.table}
+      loaders={links.article}
+      href={`/article/${encodeURIComponent(article.slug)}`}
+      class="preview-link"
+    >
       <h1>{article.title}</h1>
       <p>{article.description}</p>
       <span>Read more...</span>
@@ -82,18 +117,26 @@ const ArticlePreview = ({ article, toggle }: { article: Article; toggle: Toggle 
           </li>
         ))}
       </ul>
-    </a>
+    </Link>
   </div>
 )
 
-/** One page of previews, or the empty state. `toggle` is `null` for a signed-out viewer. */
-export const ArticlePreviews = ({ articles, toggle }: { articles: ReadonlyArray<Article>; toggle: Toggle | null }) =>
+/** One page of previews, or the empty state. `toggle` is `null` for a signed-out viewer; `links` are its link targets. */
+export const ArticlePreviews = ({
+  articles,
+  toggle,
+  links,
+}: {
+  articles: ReadonlyArray<Article>
+  toggle: Toggle | null
+  links: PreviewLinks
+}) =>
   articles.length === 0 ? (
     <div class="article-preview">No articles are here... yet.</div>
   ) : (
     <>
       {articles.map((a) => (
-        <ArticlePreview key={a.slug} article={a} toggle={toggle} />
+        <ArticlePreview key={a.slug} article={a} toggle={toggle} links={links} />
       ))}
     </>
   )

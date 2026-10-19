@@ -1,0 +1,267 @@
+{
+  "branch_name": "fn-62-router-link-takes-anchor-attributes-and",
+  "completion_review_status": "ship",
+  "completion_reviewed_at": "2026-10-19T07:48:28.788561Z",
+  "created_at": "2026-10-19T06:55:25.231433Z",
+  "default_impl": null,
+  "default_review": null,
+  "default_sync": null,
+  "depends_on_epics": [],
+  "id": "fn-62-router-link-takes-anchor-attributes-and",
+  "impl_review_rounds": {
+    "fn-62-router-link-takes-anchor-attributes-and.1": 0,
+    "fn-62-router-link-takes-anchor-attributes-and.2": 0
+  },
+  "next_task": 1,
+  "plan_review_rounds": 0,
+  "plan_review_status": "unknown",
+  "plan_reviewed_at": null,
+  "review_attempts": [
+    {
+      "artifact_sha256": "ac5d498b9289574daba3371066b790c97276efe6e6f93af90a6e8664bcb0cb50",
+      "backend": "codex",
+      "base_sha": "19763a07ae3716f6f2923631baefa241941d0834",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-4d1e45ce9f61061373182fd702c03f25",
+            "classification": "pre_existing",
+            "findingId": "finding-4d1e45ce9f61061373182fd702c03f25",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "854ec321724d9401fccf288f1c78eaca2c8ef950",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-6.1-sol",
+      "outcome": "verdict",
+      "output_bytes": 768,
+      "output_sha256": "d932ef7d83752f4bd6c88f2eb0c978de8bdf361978f79d0d936c351cd6aa8b95",
+      "reservation_id": "ebc00fd2bdc342c9a9f9a0ba4135a68e",
+      "round_consumed": true,
+      "scope": "impl:fn-62-router-link-takes-anchor-attributes-and.1",
+      "superseded_by": null,
+      "task": "fn-62-router-link-takes-anchor-attributes-and.1",
+      "timestamp": "2026-10-19T07:13:08.518949Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "f5ebc882d476e26084298d57eccab08739257ddf7bad4915505751941f5a964d",
+      "backend": "codex",
+      "base_sha": "19763a07ae3716f6f2923631baefa241941d0834",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 1,
+      "head_sha": "fdc4056fa71ca61ddb73925217175213e61efbeb",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-6.1-sol",
+      "outcome": "verdict",
+      "output_bytes": 158,
+      "output_sha256": "6ff70da3d83706800ca3cabc6ba62603ba0485fcf5259d27f1be54ce68686975",
+      "reservation_id": "b4fbf0423a884269964e83f7d074e2c6",
+      "round_consumed": true,
+      "scope": "impl:fn-62-router-link-takes-anchor-attributes-and.1",
+      "superseded_by": null,
+      "task": "fn-62-router-link-takes-anchor-attributes-and.1",
+      "timestamp": "2026-10-19T07:14:58.738495Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "0c67bea6e44bf9b7f6a61ac27b23543886a9c0b42b37020295f29d572af1f969",
+      "backend": "codex",
+      "base_sha": "b345edcca5901eb2001870f2e17c004799142f08",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-0df2fdd4a89403a23653747493fac280",
+            "classification": "introduced",
+            "findingId": "finding-0df2fdd4a89403a23653747493fac280",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-b4311006aa8ca65234af7a9bb753143a",
+            "classification": "introduced",
+            "findingId": "finding-b4311006aa8ca65234af7a9bb753143a",
+            "firstSeenThisRound": true,
+            "severity": "P3",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "57ccee0385935c44604457a964d15c020783d7a0",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-6.1-sol",
+      "outcome": "verdict",
+      "output_bytes": 1076,
+      "output_sha256": "22179831d327035d897c1b697c3ef030d5c710d8e42647137760116373b5136f",
+      "reservation_id": "d69e3b9411f54e958b43adb402d37171",
+      "round_consumed": true,
+      "scope": "impl:fn-62-router-link-takes-anchor-attributes-and.2",
+      "superseded_by": null,
+      "task": "fn-62-router-link-takes-anchor-attributes-and.2",
+      "timestamp": "2026-10-19T07:23:35.007407Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "8f77de7a60492bea2b2e3b75101fda773d5e1dfe3fd95080ee6a5efe2f83f812",
+      "backend": "codex",
+      "base_sha": "b345edcca5901eb2001870f2e17c004799142f08",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-0df2fdd4a89403a23653747493fac280",
+            "classification": "introduced",
+            "findingId": "finding-0df2fdd4a89403a23653747493fac280",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-b4311006aa8ca65234af7a9bb753143a",
+            "classification": "introduced",
+            "findingId": "finding-b4311006aa8ca65234af7a9bb753143a",
+            "firstSeenThisRound": false,
+            "severity": "P3",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "aaf72ae71defff7d89d1ae445802db144e5ea333",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-6.1-sol",
+      "outcome": "verdict",
+      "output_bytes": 918,
+      "output_sha256": "d45fa4a597e8c6f3f98da5631821b629418afbb9d6b152812d7d2ea2418ace03",
+      "reservation_id": "b712ae3fb6624240b1fc6cd2dfb3e86c",
+      "round_consumed": true,
+      "scope": "impl:fn-62-router-link-takes-anchor-attributes-and.2",
+      "superseded_by": null,
+      "task": "fn-62-router-link-takes-anchor-attributes-and.2",
+      "timestamp": "2026-10-19T07:27:14.304559Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "11bbc67c33723e5412123df86c5e89b3fd3189977e83c30ed6c1427de37d1b17",
+      "backend": "codex",
+      "base_sha": "50f76797934bec3bfd0647379fe1bfad7796e9ea",
+      "counter_kind": "plan",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "8bc6520efb77e77fc68feafdf7d2170e2ae8462f",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-6.1-sol",
+      "outcome": "verdict",
+      "output_bytes": 243172,
+      "output_sha256": "b38baafb7d9a8cfa89f16381a3f159f3af22d587488f77d9b750e867f94affdc",
+      "reservation_id": "ff9261b13fc64c9598de55b70f6230c8",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-10-19T07:48:28.784737Z",
+      "tool_calls": 14,
+      "verdict": "SHIP"
+    }
+  ],
+  "review_hash_epoch": {
+    "impl:fn-62-router-link-takes-anchor-attributes-and.1": 2,
+    "impl:fn-62-router-link-takes-anchor-attributes-and.2": 1,
+    "plan#completion": 1
+  },
+  "review_pending_rounds": {},
+  "review_reservations": {},
+  "review_transport_failures": {
+    "completion": 0,
+    "impl:fn-62-router-link-takes-anchor-attributes-and.1": 0,
+    "impl:fn-62-router-link-takes-anchor-attributes-and.2": 0
+  },
+  "spec_path": ".flow/specs/fn-62-router-link-takes-anchor-attributes-and.md",
+  "status": "done",
+  "title": "Router Link takes anchor attributes and passes sleekstack check",
+  "tracker": {
+    "baseHashFlow": null,
+    "baseHashTracker": null,
+    "depRelations": [],
+    "id": null,
+    "identifier": null,
+    "lastSyncedAt": null,
+    "mergeBaseFlow": null,
+    "mergeBaseTracker": null,
+    "url": null
+  },
+  "updated_at": "2026-10-19T07:48:44.850310Z"
+}

@@ -1,12 +1,15 @@
 /** @jsxImportSource @sleekstack/ui */
 import type { Atom } from '@sleekstack/core'
 import { type DraftSpec, useDraft } from '@sleekstack/model'
+import { Link } from '@sleekstack/router'
 import { type Child, useAction, useAtomValue, useFormStatus, useSetAtom } from '@sleekstack/ui'
 import { Effect } from 'effect'
 import { LoginUser, loginContract, NewUser, registerContract } from '../modules/identity'
 import { ErrorList, errorsOf, toHome } from './form'
 import { ServerFunctions } from './functions'
 import { Layout } from './layout'
+import { authLoaders } from './loaders'
+import { table } from './routes'
 
 /** A text input bound to a Draft field. */
 export const Field = function* ({
@@ -103,13 +106,27 @@ const RegisterForm = function* () {
 }
 
 export const LoginPage = () => (
-  <AuthPage title="Sign in" other={<a href="/register">Need an account?</a>}>
+  <AuthPage
+    title="Sign in"
+    other={
+      <Link table={table} loaders={authLoaders} href="/register">
+        Need an account?
+      </Link>
+    }
+  >
     <LoginForm />
   </AuthPage>
 )
 
 export const RegisterPage = () => (
-  <AuthPage title="Sign up" other={<a href="/login">Have an account?</a>}>
+  <AuthPage
+    title="Sign up"
+    other={
+      <Link table={table} loaders={authLoaders} href="/login">
+        Have an account?
+      </Link>
+    }
+  >
     <RegisterForm />
   </AuthPage>
 )

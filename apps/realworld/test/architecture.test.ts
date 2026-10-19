@@ -46,7 +46,7 @@ const ruleOf = (mod: string): Rule | undefined => {
     if (layer === 'presentation')
       return {
         local: ['domain/', 'application/', 'presentation/', 'errors'],
-        packages: ['effect', '@sleekstack/core', UI],
+        packages: ['effect', '@sleekstack/core', '@sleekstack/router', UI],
       }
     return undefined
   }

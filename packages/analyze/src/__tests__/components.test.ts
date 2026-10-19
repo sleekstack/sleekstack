@@ -42,6 +42,7 @@ describe('component pass', () => {
     'ui-lazy',
     'ui-portal',
     'ui-router-roots',
+    'ui-router-link',
   ])('%s: code and file:line', (name) => {
     const want = expected(name)
     expect(want.length).toBeGreaterThan(0)

@@ -1,11 +1,9 @@
 /** @jsxImportSource @sleekstack/ui */
 import { Atom } from '@sleekstack/core'
-import { type Loader, loader, params, Route, useLoader } from '@sleekstack/router'
+import { Link, loader, params, Route, useLoader } from '@sleekstack/router'
 import { useAtomValue, useSetAtom } from '@sleekstack/ui'
-import type { Stub } from '@sleekstack/start/client'
 import { Effect, Schema } from 'effect'
 import {
-  ArticleList,
   ArticlePreviews,
   favoriteContract,
   feedContract,
@@ -18,36 +16,15 @@ import {
   useStaleArticleLists,
 } from '../modules/articles'
 import { ServerFunctions } from './functions'
-import { Layout, viewer } from './layout'
+import { Layout, type RouteLoaders, signedIn, viewer } from './layout'
+import { type ArticleSource, articleSource, PAGE_SIZE, previewLinks } from './loaders'
 import { table } from './routes'
-
-const PAGE_SIZE = 10
-
-interface Paging {
-  readonly limit: number
-  readonly offset: number
-}
 
 /**
  * The page a list shows, for the path it was picked on: another path reads page 0, so the page resets when the route
  * changes. Client state only (loaders see the pathname, not a query string): the server always renders page 0.
  */
 const pageAtom = Atom.make({ path: '', page: 0 })
-
-/** How a list call fails: the list and feed functions share their errors. */
-type ListFailure = Effect.Effect.Error<ReturnType<Stub<typeof listArticlesContract>>>
-type Query = (paging: Paging) => Effect.Effect<ArticleList, ListFailure, ServerFunctions | Route>
-
-/** A list of articles: its first page as a loader (server-rendered), any page by `query`. */
-export interface ArticleSource {
-  readonly first: Loader<ArticleList, typeof ArticleList.Encoded, ListFailure, ServerFunctions | Route>
-  readonly query: Query
-}
-
-export const articleSource = (key: string, query: Query): ArticleSource => ({
-  first: loader(key, ArticleList, query({ limit: PAGE_SIZE, offset: 0 })),
-  query,
-})
 
 const LoadFailed = () => <div class="article-preview">Articles could not be loaded: try again.</div>
 
@@ -83,7 +60,7 @@ export const ArticleFeed = function* ({ source }: { source: ArticleSource }) {
       ) : list.isError ? (
         <LoadFailed />
       ) : (
-        <ArticlePreviews articles={list.data.articles} toggle={toggle} />
+        <ArticlePreviews articles={list.data.articles} toggle={toggle} links={previewLinks} />
       )}
       <Pagination
         count={first.right.articlesCount}
@@ -116,6 +93,11 @@ export const popularTags = loader(
 
 const tagHref = (tag: string) => `/tag/${encodeURIComponent(tag)}`
 
+// Each feed route's loaders, for its tab and tag links.
+const globalLoaders: RouteLoaders = [viewer, popularTags, globalArticles.first]
+const feedLoaders: RouteLoaders = [viewer, signedIn, popularTags, feedArticles.first]
+const tagLoaders: RouteLoaders = [viewer, popularTags, tagArticles.first]
+
 const Sidebar = function* () {
   const tags = yield* Effect.either(useLoader(popularTags))
   return (
@@ -126,9 +108,9 @@ const Sidebar = function* () {
       ) : (
         <div class="tag-list">
           {tags.right.map((t) => (
-            <a key={t} href={tagHref(t)} class="tag-pill tag-default">
+            <Link key={t} table={table} loaders={tagLoaders} href={tagHref(t)} class="tag-pill tag-default">
               {t}
-            </a>
+            </Link>
           ))}
         </div>
       )}
@@ -138,11 +120,21 @@ const Sidebar = function* () {
 
 type Tab = { readonly kind: 'feed' } | { readonly kind: 'global' } | { readonly kind: 'tag'; readonly tag: string }
 
-const TabLink = ({ href, active, children }: { href: string; active: boolean; children?: string }) => (
+const TabLink = ({
+  href,
+  loaders,
+  active,
+  children,
+}: {
+  href: string
+  loaders: RouteLoaders
+  active: boolean
+  children?: string
+}) => (
   <li class="nav-item">
-    <a class={active ? 'nav-link active' : 'nav-link'} href={href}>
+    <Link table={table} loaders={loaders} class={active ? 'nav-link active' : 'nav-link'} href={href}>
       {children}
-    </a>
+    </Link>
   </li>
 )
 
@@ -165,15 +157,15 @@ const Home = function* ({ tab, source }: { tab: Tab; source: ArticleSource }) {
             <div class="feed-toggle">
               <ul class="nav nav-pills outline-active">
                 {user && (
-                  <TabLink href="/feed" active={tab.kind === 'feed'}>
+                  <TabLink href="/feed" loaders={feedLoaders} active={tab.kind === 'feed'}>
                     Your Feed
                   </TabLink>
                 )}
-                <TabLink href="/" active={tab.kind === 'global'}>
+                <TabLink href="/" loaders={globalLoaders} active={tab.kind === 'global'}>
                   Global Feed
                 </TabLink>
                 {tab.kind === 'tag' && (
-                  <TabLink href={tagHref(tab.tag)} active>
+                  <TabLink href={tagHref(tab.tag)} loaders={tagLoaders} active>
                     {`#${tab.tag}`}
                   </TabLink>
                 )}

@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-19T06:59:25.057480Z",
+  "depends_on": [
+    "fn-62-router-link-takes-anchor-attributes-and.1"
+  ],
+  "id": "fn-62-router-link-takes-anchor-attributes-and.2",
+  "priority": null,
+  "spec": "fn-62-router-link-takes-anchor-attributes-and",
+  "spec_path": ".flow/tasks/fn-62-router-link-takes-anchor-attributes-and.2.md",
+  "status": "done",
+  "title": "Switch realworld in-app links to Link",
+  "updated_at": "2026-10-19T06:59:25.057480Z"
+}
