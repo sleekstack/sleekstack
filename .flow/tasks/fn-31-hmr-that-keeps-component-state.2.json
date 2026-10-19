@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-31-hmr-that-keeps-component-state",
   "spec_path": ".flow/tasks/fn-31-hmr-that-keeps-component-state.2.md",
-  "status": "todo",
+  "status": "done",
   "title": "Hot update remounts an instance on hook-count change",
   "updated_at": "2026-10-18T15:40:34.988255Z"
 }
