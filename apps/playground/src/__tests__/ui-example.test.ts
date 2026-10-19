@@ -1,9 +1,13 @@
 // @vitest-environment jsdom
 /**
- * The ui example (`ui/`) on `@sleekstack/ui-vite`: `vite build` yields a client and an SSR bundle; the server bundle
- * streams the page and the client bundle hydrates it (R4). The dev server renders through the server entry (R6).
+ * The ui example (`ui/`) on `@sleekstack/ui-vite`: `vite build` yields a client and an SSR bundle and prerenders each
+ * route through the server bundle; a plain static server answers the pages and the client bundle hydrates one (R4,
+ * fn-30 R2/R5). The dev server renders through the server entry (R6).
  */
 import { mkdtempSync, rmSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
+import { createServer as createHttpServer } from 'node:http'
+import type { AddressInfo } from 'node:net'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { afterEach, expect, it, vi } from 'vitest'
@@ -14,10 +18,27 @@ const root = path.resolve(import.meta.dirname, '../../ui')
 
 afterEach(() => {
   document.body.innerHTML = ''
+  vi.restoreAllMocks()
 })
 
+// A plain static file server over `dir`: a path without an extension answers `<path>/index.html`.
+const serveStatic = async (dir: string) => {
+  const server = createHttpServer((req, res) => {
+    const pathname = decodeURIComponent(new URL(req.url!, 'http://localhost').pathname)
+    const file = path.join(dir, pathname, path.extname(pathname) ? '' : 'index.html')
+    if (!file.startsWith(dir + path.sep)) return void res.writeHead(404).end()
+    readFile(file).then(
+      (body) => res.writeHead(200).end(body),
+      () => res.writeHead(404).end(),
+    )
+  })
+  await new Promise<void>((r) => server.listen(0, '127.0.0.1', r))
+  const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
+  return { url, close: () => new Promise<void>((r) => server.close(() => r())) }
+}
+
 it.each([true, false])(
-  'builds client and SSR bundles whose page renders on the server and hydrates in the browser, cssCodeSplit %s (R4)',
+  'builds and prerenders pages that a static server answers and the browser hydrates, cssCodeSplit %s (R4, R2, R5)',
   async (cssCodeSplit) => {
     // Inside the example, so the server bundle resolves its external dependencies from the app's node_modules.
     const out = mkdtempSync(path.join(root, 'dist-test-'))
@@ -32,18 +53,35 @@ it.each([true, false])(
       })
       await builder.buildApp()
 
-      const server = await import(pathToFileURL(path.join(out, 'server/server.js')).href)
-      const response: Response = await server.default(new Request('http://localhost/'))
-      expect(response.status).toBe(200)
-      const html = await response.text()
+      const site = await serveStatic(path.join(out, 'client'))
+      let html: string
+      try {
+        const page = async (p: string) => {
+          const response = await fetch(new URL(p, site.url))
+          expect(response.status).toBe(200)
+          return response.text()
+        }
+        html = await page('/')
+        // The dynamic route from its page's `prerender()`, with and without the trailing slash.
+        for (const p of ['/users/42', '/users/42/']) {
+          const user = await page(p)
+          expect(user).toContain('<head><meta charset="utf-8"><title>User 42</title>')
+          expect(user).toContain('<h1>User 42</h1>')
+        }
+        expect((await fetch(new URL('/users/7', site.url))).status).toBe(404)
+        const css = /<link rel="stylesheet" href="(\/assets\/[\w-]+\.css)">/.exec(html)?.[1]
+        expect(css).toBeDefined()
+        expect(await page(css!)).toMatch(/\S/)
+      } finally {
+        await site.close()
+      }
+      expect(html).toContain('<title>SleekStack ui example</title>')
       expect(html).toContain('<button>count 0</button>')
-      expect(html).toMatch(/<link rel="stylesheet" href="\/assets\/[\w-]+\.css">/)
       const src = /<script type="module" src="\/(assets\/entry-client-[\w-]+\.js)"><\/script>/.exec(html)?.[1]
       expect(src).toBeDefined()
 
       document.body.innerHTML = new DOMParser().parseFromString(html, 'text/html').body.innerHTML
-      // The stream's inline scripts (the boundary swap) run as they arrive, and a browser leaves them in the page.
-      for (const s of document.querySelectorAll('script:not([type])')) new Function(s.textContent!)()
+      const errors = vi.spyOn(console, 'error')
       const button = document.querySelector('button')!
       vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
       const client = await import(pathToFileURL(path.join(out, 'client', src!)).href)
@@ -52,6 +90,8 @@ it.each([true, false])(
       // Hydrated: the server's button got the listener; a fresh mount would have replaced it.
       await vi.waitFor(() => expect(button.textContent).toBe('count 1'))
       expect(document.querySelector('button')).toBe(button)
+      // No HydrationMismatch: the entry's `onError` is `console.error`.
+      expect(errors).not.toHaveBeenCalled()
     } finally {
       rmSync(out, { recursive: true, force: true })
     }

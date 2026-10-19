@@ -101,6 +101,49 @@ declare module 'virtual:sleekstack/client' {
 
 `vite build --watch` is not supported with `entries` and fails with a clear error.
 
+## Prerendering: `prerender`
+
+`sleekstack({ entries, prerender })` makes `vite build` write static HTML for router pages. It is a build mode over the SSR path: after the client and server builds, the plugin requests each path from the built server entry and writes the response to the client output.
+
+- `prerender: true` prerenders every static route. `prerender: ['/', '/about']` prerenders the listed paths. Off (the default) prerenders nothing.
+- A dynamic route (`/users/:id`) is prerendered from its page's `prerender()`, which returns one params object per page. The paths from the option and from every `prerender()` are merged as a union. A dynamic route that has no `prerender()` and no listed path is skipped with a warning.
+- Trailing slash: paths are normalized without one (`/docs/` is `/docs`, the root is `/`), and each page is written to `<path>/index.html`. A static file server therefore answers both `/docs` and `/docs/`.
+- A loader or render error, a response other than 200, or an error reported to `onError` fails the build, naming the route.
+
+```tsx
+// app.tsx
+export const app = router({
+  table,
+  pages: {
+    index: { render: () => <Home /> },
+    'users/[id]': { prerender: async () => [{ id: '42' }], render: () => <User /> },
+  },
+})
+```
+
+The server entry must export its router as `router` and take `(request, { onError })`, passing `onError` on to `handle`. For the page's `<Head>` tags to appear in the written head, render to a string (no `stream`) and give `document.before` a function of the head:
+
+```ts
+// entry-server.ts
+import type { Cause } from 'effect'
+import { handle } from '@sleekstack/router'
+import { scripts } from 'virtual:sleekstack/client'
+import { app } from './app'
+
+export const router = app
+
+const document = {
+  before: (head: string) =>
+    `<!doctype html><html><head><meta charset="utf-8">${head}${scripts}</head><body><div id="app">`,
+  after: '</div></body></html>',
+}
+
+export default (request: Request, context?: { onError: (cause: Cause.Cause<unknown>) => void }) =>
+  handle(app, request, { document, onError: context?.onError })
+```
+
+Loaders run at build time, and their data rides the hydration payload as it does in SSR, so the client entry's `startRouter` hydrates a prerendered page. `apps/playground/ui` prerenders with `prerender: true`; its test serves `dist/client` from a plain static file server and hydrates the home page.
+
 ## Content sites: `sleekContent`
 
 `sleekContent(options)` is a second, separate plugin for documentation-style sites built from a tree of `.md` / `.mdx` pages (ADR 0047). Use it beside `sleekstack()`; it does not replace it. MDX pages compile straight to JavaScript against `@sleekstack/ui/jsx-runtime`, so they need neither the pragma nor `include`.

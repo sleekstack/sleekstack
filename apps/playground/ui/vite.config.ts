@@ -6,6 +6,7 @@ export default defineConfig({
     sleekstack({
       include: 'src/**/*.tsx',
       entries: { client: 'src/entry-client.ts', server: 'src/entry-server.ts' },
+      prerender: true,
     }),
   ],
 })
