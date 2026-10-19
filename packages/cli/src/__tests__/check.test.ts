@@ -61,15 +61,6 @@ describe('sleekstack check', () => {
     expect(r.err).toMatch(/crashed/)
   })
 
-  it('kit app: valid JSON only on stdout, exit 0', () => {
-    const r = run(fixture('kit-app'), '--json', '--entry', 'runtime.ts')
-    expect(r.code).toBe(0)
-    const json = JSON.parse(r.out)
-    expect(json.ok).toBe(true)
-    // Kit action bodies pass no request layer of their own: no extra roots.
-    expect(json.roots.map((x: { kind: string }) => x.kind)).toEqual(['app'])
-  }, 30_000)
-
   it('Effect app: RequestLive and DemoLive are request/overrides roots over the app, exit 0', () => {
     const r = run(fixture('effect-app'), '--entry', 'runtime.ts')
     expect(r.code).toBe(0)

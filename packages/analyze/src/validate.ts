@@ -8,7 +8,7 @@
 
 import { isPrivate, resolve, type Seen } from './extract'
 import { analyzeError } from './errorCodes'
-import type { ActionDecl, AnalyzeCode, AnalyzeError, Lifetime, Location, ModuleDecl } from './model'
+import type { AnalyzeCode, AnalyzeError, Lifetime, Location, ModuleDecl } from './model'
 
 const allowed: Record<Lifetime, readonly Lifetime[]> = {
   app: ['app'],
@@ -112,35 +112,4 @@ export function validate(root: ModuleDecl): AnalyzeError[] {
   }
   for (const s of live) if (!state.has(s)) dfs(s, [])
   return errors
-}
-
-/**
- * An action's yielded Tags against one runtime root overlaid with its `opts.provide` (which Shadows the root):
- * each must be provided and visible, and the overlay's own layers must have their dependencies met.
- */
-export function validateAction(runtime: ModuleDecl, a: ActionDecl): AnalyzeError[] {
-  const root: ModuleDecl = { ...a.provide, imports: [...a.provide.imports, runtime] }
-  const { won } = resolve(root)
-  // The overlay's own errors: whatever validating it adds beyond the runtime's (its layers and provided modules).
-  const key = (e: AnalyzeError) => `${e.code}|${e.file}:${e.line}|${e.message}`
-  const base = new Set(validate(runtime).map(key))
-  const overlay =
-    a.provide.entries.length || a.provide.imports.length ? validate(root).filter((e) => !base.has(key(e))) : []
-  return [
-    ...overlay,
-    ...a.yields.flatMap(({ tag, loc }): AnalyzeError[] => {
-      const owner = won.get(tag)
-      if (!owner)
-        return [analyzeError('MissingDependency', `The action yields "${tag}", but no entry provides it`, loc)]
-      if (owner.module !== root && owner.module !== runtime && isPrivate(owner.module, tag))
-        return [
-          analyzeError(
-            'PrivateDependency',
-            `The action yields "${tag}", which is private to module "${owner.module.name}" (not in its exports)`,
-            loc,
-          ),
-        ]
-      return []
-    }),
-  ]
 }

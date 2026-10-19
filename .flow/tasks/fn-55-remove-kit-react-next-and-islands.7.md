@@ -26,9 +26,10 @@ Bring the remaining records in line with the removal. The docs-site rebuild (fn-
 - [ ] New ADR indexed; ADRs of removed packages marked superseded; CONTEXT and AGENTS.md match the remaining packages
 - [ ] A grep of `apps/docs` for the four package names finds nothing; `pnpm turbo run test typecheck --filter=docs` and the root `pnpm test` are green
 ## Done summary
-TBD
+Added ADR 0049 (removal of kit, react, next, islands) with README row; superseded/amended markers on 0004, 0009-0013, 0018, 0019; trimmed CONTEXT.md (Kit, React integration, Island terms) and AGENTS.md (kit/react rows, kit-app fixture, exportNames rule; added ui, query, devtools rows); history notes on the ADX brief and start proposal.
 
+stage: impl-review - skipped(config: standing user rule, no per-task review)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: ec43710224751b3ac7056d86046a094116eda760
+- Tests: pnpm format:check, pnpm turbo run test typecheck --filter=docs --filter=@sleekstack/analyze --filter=sleekstack
 - PRs:

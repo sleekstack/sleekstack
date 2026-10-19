@@ -9,6 +9,10 @@
       "types": "./src/index.ts",
       "default": "./src/index.ts"
     },
+    "./devtools": {
+      "types": "./src/devtools.ts",
+      "default": "./src/devtools.ts"
+    },
     "./internal": {
       "types": "./src/internal.ts",
       "default": "./src/internal.ts"
@@ -22,6 +26,7 @@
     "effect": "^3.15.0"
   },
   "devDependencies": {
+    "@types/node": "^22.20.1",
     "vitest": "^4.1.9"
   }
 }

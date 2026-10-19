@@ -90,7 +90,7 @@ const record = (
   }
 }
 
-/** @internal The devtools buffer, read by adapters' devtools handlers (e.g. `@sleekstack/next/devtools`). */
+/** @internal The devtools buffer, read by adapters' devtools handlers. */
 export const devEvents = (): readonly DevEvent[] => getSlot().events
 
 /** @internal Currently open request scopes and whether the app runtime is built. */
@@ -142,7 +142,7 @@ export const traceService = <A, E, R>(ids: readonly string[], layer: Layer.Layer
   )
 
 const getSlot = (): RuntimeSlot =>
-  globalValue('@sleekstack/next/runtime-slot/v3', (): RuntimeSlot => ({
+  globalValue('@sleekstack/runtime/runtime-slot/v3', (): RuntimeSlot => ({
     config: undefined,
     disposing: undefined,
     runtime: undefined,

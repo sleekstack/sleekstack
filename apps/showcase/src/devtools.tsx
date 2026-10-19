@@ -1,9 +1,11 @@
+/** @jsxImportSource @sleekstack/ui */
 import { UiPanel, type UiTrace } from '@sleekstack/devtools'
-import { createRoot } from 'react-dom/client'
+import { mount } from '@sleekstack/ui'
+import { Layer } from 'effect'
 
-/** Renders the ui devtools panel into its own React root below the demo, at `#devtools` (the Devtools page links it). */
+/** Mounts the ui devtools panel below the demo, at `#devtools` (the Devtools page links it). */
 export function openDevtools(trace: UiTrace) {
   const host = document.body.appendChild(document.createElement('div'))
   host.id = 'devtools'
-  createRoot(host).render(<UiPanel trace={trace} />)
+  return mount(<UiPanel trace={trace} />, { layer: Layer.empty, container: host })
 }

@@ -1,6 +1,6 @@
 # Queries use TanStack Query; `@sleekstack/query` is a thin bridge
 
-Status: Accepted. Supersedes ADR 0014.
+Status: Accepted. Supersedes ADR 0014. Amended by ADR 0049: `@tanstack/react-query` and the kit forms are gone; `@sleekstack/query/ui` is the binding.
 
 SleekStack no longer ships its own query engine. Queries and mutations are TanStack Query (`@tanstack/query-core`, and `@tanstack/react-query` in React). `@sleekstack/query` keeps only the bridge: `QueryClientTag`, a scoped `QueryClientLive` Layer whose client is unmounted and cleared with its scope, and `effectFn`, which lowers an Effect to a `queryFn` / `mutationFn` run with the services of the layer that built the client. React uses the official hooks under `QueryProvider`; `@sleekstack/next` prefetches with `prefetchQueries` and hands TanStack's dehydrated state to `HydrationBoundary`; `@sleekstack/kit` lowers `cachedQuery` / `mutation` to TanStack options; `@sleekstack/ui/query` bridges `QueryObserver` / `MutationObserver` to atoms.
 

@@ -1,3 +1,4 @@
+/** @jsxImportSource @sleekstack/ui */
 /**
  * packages/devtools/src/ui/uiPanel.tsx
  *
@@ -6,9 +7,8 @@
  * atoms with current values (slot labels matched against `store.inspect()`), re-run reasons and effect runs.
  * Built from observer events only, never from `data-sleek` markers in the DOM (guest markup can forge those).
  */
-import { useEffect, useState } from 'react'
 import type { AtomStore } from '@sleekstack/core'
-import type { RenderEvent, RenderObserver, RerunReason } from '@sleekstack/ui'
+import { type RenderEvent, type RenderObserver, type RerunReason, useEffect, useLocal } from '@sleekstack/ui'
 
 export interface UiInstance {
   readonly mount: number
@@ -131,6 +131,26 @@ const read = (trace: UiTrace) => {
   return { ...snap, values }
 }
 
+/** An instance and, nested below it, its children. */
+const Tree = ({ node, instances }: { readonly node: UiInstance; readonly instances: readonly UiInstance[] }) => {
+  const children = instances.filter((i) => i.mount === node.mount && i.parent === node.instance)
+  return (
+    <li>
+      {node.path}
+      {node.key === undefined ? '' : ` key=${node.key}`}
+      {node.adopted ? ' (adopted)' : ''}
+      {node.slots.length > 0 && ` slots: ${node.slots.join(', ')}`}
+      {children.length > 0 && (
+        <ul>
+          {children.map((i) => (
+            <Tree key={i.instance} node={i} instances={instances} />
+          ))}
+        </ul>
+      )}
+    </li>
+  )
+}
+
 export interface UiPanelProps {
   readonly trace: UiTrace
   /** Poll interval in ms; default 1000. */
@@ -138,28 +158,17 @@ export interface UiPanelProps {
 }
 
 /** The four ui views for every mount `trace` observes, re-read every `intervalMs`. */
-export function UiPanel({ trace, intervalMs = 1000 }: UiPanelProps) {
-  const [snap, setSnap] = useState(() => read(trace))
-  useEffect(() => {
-    setSnap(read(trace))
-    const timer = setInterval(() => setSnap(read(trace)), intervalMs)
+export const UiPanel = function* ({ trace, intervalMs = 1000 }: UiPanelProps) {
+  // Each tick re-runs the panel, which re-reads the trace.
+  const [, setTick] = yield* useLocal(0)
+  yield* useEffect(() => {
+    const timer = setInterval(() => setTick((n) => n + 1), intervalMs)
     return () => clearInterval(timer)
   }, [trace, intervalMs])
-  const { instances, reruns, effects, values } = snap
+  const { instances, reruns, effects, values } = read(trace)
   // Mount and instance ids keep equal paths (siblings' children, several mounts) apart.
   const name = (mount: number, instance: number) =>
     `mount ${mount} #${instance} ${instances.find((i) => i.mount === mount && i.instance === instance)?.path ?? (instance === 0 ? 'root' : '(disposed)')}`
-  const children = (mount: number, parent: number | undefined) =>
-    instances.filter((i) => i.mount === mount && i.parent === parent)
-  const tree = (i: UiInstance) => (
-    <li key={i.instance}>
-      {i.path}
-      {i.key === undefined ? '' : ` key=${i.key}`}
-      {i.adopted ? ' (adopted)' : ''}
-      {i.slots.length > 0 && ` slots: ${i.slots.join(', ')}`}
-      {children(i.mount, i.instance).length > 0 && <ul>{children(i.mount, i.instance).map(tree)}</ul>}
-    </li>
-  )
   const mounts = [...new Set(instances.map((i) => i.mount))]
   const roots = (mount: number) =>
     instances.filter(
@@ -178,7 +187,11 @@ export function UiPanel({ trace, intervalMs = 1000 }: UiPanelProps) {
           mounts.map((m) => (
             <div key={m}>
               mount {m}
-              <ul>{roots(m).map(tree)}</ul>
+              <ul>
+                {roots(m).map((i) => (
+                  <Tree key={i.instance} node={i} instances={instances} />
+                ))}
+              </ul>
             </div>
           ))
         )}

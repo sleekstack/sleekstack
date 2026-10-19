@@ -9,23 +9,19 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
-    "react": ">=19.0.0",
     "@sleekstack/ui": "workspace:*"
   },
   "dependencies": {
     "@sleekstack/core": "workspace:*",
     "@sleekstack/query": "workspace:*",
-    "@sleekstack/react": "workspace:*",
     "effect": "^3.15.0"
   },
   "devDependencies": {
+    "@sleekstack/testing": "workspace:*",
     "@sleekstack/ui": "workspace:*",
-    "@testing-library/react": "^16.3.2",
-    "@types/react": "^19.2.17",
-    "@types/react-dom": "^19.2.3",
+    "@testing-library/dom": "^10.4.1",
     "jsdom": "^29.1.1",
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6",
+    "vite": "^8.0.16",
     "vitest": "^4.1.9"
   }
 }

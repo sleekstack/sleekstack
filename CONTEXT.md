@@ -1,6 +1,6 @@
 # SleekStack
 
-A runtime architecture layer that adds structured dependency management, React-scoped service graphs, and request-scoped server environments on top of React, Next.js, and Effect TS.
+A runtime architecture layer that adds structured dependency management, component-scoped service graphs, and request-scoped server environments on top of Effect TS.
 
 ## Language
 
@@ -19,7 +19,7 @@ The resolved runtime value obtained by providing a Tag to `useService()`. Distin
 _Avoid_: Instance, dependency, singleton
 
 **Declared Layer**:
-The output of `declareLayer(layer, { lifetime? })` — a plain Effect Layer plus its Lifetime. What it provides and requires is read from the Layer's type by the Analyzer; the runtime keeps no such metadata. Core has no Effect-hiding builders: everything it accepts is a Layer. Only `@sleekstack/kit` hides Effect (`layer()`, `effect()`), and lowers to Declared Layers.
+The output of `declareLayer(layer, { lifetime? })` — a plain Effect Layer plus its Lifetime. What it provides and requires is read from the Layer's type by the Analyzer; the runtime keeps no such metadata. Core has no Effect-hiding builders: everything it accepts is a Layer.
 _Avoid_: Service Definition, `service()`, provider definition
 
 **Lifetime**:
@@ -38,28 +38,6 @@ _Avoid_: Dependency tree, container, registry
 A lifetime-safety violation where a longer-lived entry would depend on a shorter-lived one (e.g. `app` on `request`), which would otherwise capture a stale or already-finalized instance. Reported by the Analyzer per the lifetime matrix, naming both services and their lifetimes.
 _Avoid_: Lifetime leak, scope violation
 
-### Kit facade concepts
-
-**Kit**:
-`@sleekstack/kit`, the Effect-free facade over core, runtime, next and react. It lowers every call to the core API; no Effect type is reachable from its public entries.
-_Avoid_: Wrapper, lite, simple API
-
-**Kit Tag**:
-A service token created by `tag<T>(name)`, or an (abstract) class used directly as a Tag. Maps to a core Tag keyed by the name.
-_Avoid_: Token, key
-
-**Kit Layer**:
-The output of `layer(tag, impl, deps?, { lifetime }?)`: `impl` is a value, a class, or a (sync or async) factory whose parameters are the resolved services of the `deps` array, in order. Or `layer(tag, function* () { ... }, { lifetime }?)`: a generator factory whose `yield*`ed Tags are its requirements, resolved lazily and memoized per scope (ADR 0011). Returning `withCleanup(service, cleanup)` registers a finalizer. Lowers to a Service Definition.
-_Avoid_: Provider, factory, binding
-
-**Kit Effect**:
-The output of `effect(fn, deps?, { name, lifetime }?)` from `@sleekstack/kit`: a side effect with no service to expose. `fn(...deps)` runs when its scope opens; the function it returns runs when the scope closes. Graph rules (missing, captive, private) apply to its deps; it appears in the Graph as `effect:<name>`. Not to be confused with `runOperation(gen, opts?)` from `@sleekstack/kit/next`, which runs a Kit Operation inline (its old name `effect` is a deprecated alias, ADR 0019).
-_Avoid_: Hook, job, init
-
-**Kit Operation**:
-An action or query from `@sleekstack/kit/next`: `defineEffect(gen, opts?)` / `defineQuery(gen, opts?)`, or `runOperation(gen, opts?)` / `query(gen, opts?)` run inline. Its deps are the Tags the generator `yield*`s (followed through helper generators), resolved from the Request Scope on demand; there is no deps array. `opts.provide` shadows the Graph for one call; `opts.scope: [Tags]` builds Tags the body never yields (e.g. `RequestContext`) and counts them as edges.
-_Avoid_: Handler, deps array, `effect` (for the inline runner)
-
 **Analyzer**:
 `@sleekstack/analyze`, run as `sleekstack check [--project <tsconfig>] [--entry <file>...] [--json] [--lenient]`. Reads the declarations through the TypeScript checker without executing app code, builds each root's Graph and reports every violation with file:line (exit 0 ok, 1 violations, 2 crash or no roots). Fails closed: a declaration it cannot read is an error. `--entry` limits the roots to the given files. `--lenient` turns an unresolvable `runEffect` Layer into an opaque root (`kind: 'opaque'`) instead of an error; it never excuses a missing Tag or an unresolvable app Layer.
 In a project whose package.json lists `@sleekstack/ui`, `sleekstack check` also runs the component pass (`analyzeComponents`): one tree per `mount` call, reporting `MissingDependency`, `UnhandledError`, `EffectInsideReact`, `Unresolved`, `NonResumableHandler`, `ConditionalSlot` and `MissingKey` (`components` under `--json`). `resume` calls are tree roots too.
@@ -74,41 +52,23 @@ A Graph root made from the `overrides` Layer of a `runEffect({ overrides })` cal
 _Avoid_: Override graph, patch layer
 
 **Position Order**:
-Core's construction order for a scope: entries flattened deepest import first, then importers, then root entries; each builds over what was built before and a later one overrides an earlier one. Nothing is validated; a Layer that needs a Tag not built yet fails with `MissingDependency`. Kit sorts each `provide` list by its `deps` arrays first, so list order only matters for core Layers and kit generator Layers (their yields are not declared).
+Core's construction order for a scope: entries flattened deepest import first, then importers, then root entries; each builds over what was built before and a later one overrides an earlier one. Nothing is validated; a Layer that needs a Tag not built yet fails with `MissingDependency`.
 _Avoid_: Resolution Plan, Graph, snapshot
-
-**SleekStackError**:
-The one public error type of the kit: every core tagged error, kit check (`DuplicateTag`, `InvalidTag`) and thrown value is normalized to it, with a `code` and `details`.
-_Avoid_: KitError, GraphError
-
-### React integration concepts
-
-**LayerProvider**:
-A React component that creates a runtime scope and makes a set of Layers and Modules available to its subtree via the `provide` prop. Nested LayerProviders inherit from their parent scope, resolve Module imports (including thunks), and finalize before their parent. Acquisition suspends on first use and is StrictMode-safe via deferred dispose.
-_Avoid_: ServiceProvider, ScopeProvider, ContextProvider
-
-**Scope**:
-An Effect `Scope` managed internally by a LayerProvider. Finalizes all acquired resources when the LayerProvider unmounts. Never directly exposed to users.
-_Avoid_: Lifecycle, container, context
 
 **Shadowing**:
 The mechanism by which a Layer or Module in a `provide` array overrides a transitive dependency introduced by a Module's `imports`. No separate override API exists — shadowing is implicit when the same Tag is satisfied by multiple entries. It is per Tag: a local entry can shadow one output of a multi-Tag declared Layer, and the Analyzer reports `AmbiguousProvider` only when two providers have equal precedence. At run time the later entry in Position Order wins.
 _Avoid_: Overriding, mocking, replacing, substituting
 
-**Island**:
-A server-rendered React component that downloads its chunk and hydrates as its own React root only when its trigger fires (`load`, `idle`, `visible`, `interaction`). Named in a `defineIslands` registry and rendered as `<Island name props />`. Islands of one registry share one app scope outside React (per page on the client, per process on the server) and each has its own component scope (ADR 0010).
-_Avoid_: Widget, partial, lazy component
-
 **Atom**:
-A lazy, reactive value defined once at module level: plain writable state, a function of other atoms (read through `get`), an Effect, or a Stream. It holds no state itself; its state lives in an AtomStore. Kit atoms (`atom(value)`, `atom(fn, deps)`) resolve `deps` like a Kit Layer. Modeled on effect-atom (ADR 0008).
+A lazy, reactive value defined once at module level: plain writable state, a function of other atoms (read through `get`), an Effect, or a Stream. It holds no state itself; its state lives in an AtomStore. Modeled on effect-atom (ADR 0008).
 _Avoid_: Signal, observable, store
 
 **AtomStore**:
-The container of atom state and subscriptions owned by each LayerProvider and bound to its Scope: it resolves an atom's services through that scope and is disposed with it. It is effect-atom's Registry under a name that avoids "registry".
+The container of atom state and subscriptions owned by each `mount` and bound to its Scope: it resolves an atom's services through that scope and is disposed with it. It is effect-atom's Registry under a name that avoids "registry".
 _Avoid_: Registry, atom registry, atom context
 
 **Result**:
-The state of an Effect or Stream atom: `Initial`, `Success` or `Failure` (holding a Cause), each with a `waiting` flag while it reloads. Kit hooks never expose it: they suspend on `Initial` and throw a SleekStackError on `Failure`.
+The state of an Effect or Stream atom: `Initial`, `Success` or `Failure` (holding a Cause), each with a `waiting` flag while it reloads. Components read it through `useAtomValue`, `<Pending>` and `Catch`.
 _Avoid_: AsyncData, RemoteData, status
 
 **Serializable Atom**:
@@ -131,18 +91,18 @@ _Avoid_: Shell, root component
 
 **Guest**:
 A plain React component wrapped by `fromReact`, a `Component<P, never, never>` leaf. React renders it with its own `react-dom`; it receives no Effect context and its subtree is opaque. A Component under a Guest is an `EffectInsideReact` error.
-_Avoid_: Island, embedded React
+_Avoid_: embedded React
 
 **Handler** _(ui)_:
-A named Effect program run on a DOM event, declared at module top level as `const h = defineHandler('id', (event) => ...)` and attached with `on(node, { click: h })`. The server emits only its id; `resume` loads its chunk on first use. A handler the Analyzer cannot prove is such a reference is a `NonResumableHandler` error (ADR 0017). Used only for `resume`; client-rendered trees use event closures (a function `onXxx` prop run with the element's context). Not a Kit Operation.
+A named Effect program run on a DOM event, declared at module top level as `const h = defineHandler('id', (event) => ...)` and attached with `on(node, { click: h })`. The server emits only its id; `resume` loads its chunk on first use. A handler the Analyzer cannot prove is such a reference is a `NonResumableHandler` error (ADR 0017). Used only for `resume`; client-rendered trees use event closures (a function `onXxx` prop run with the element's context).
 _Avoid_: Event listener, callback, action
 
 **Form Action** _(ui)_:
-A host `<form>`'s `action` prop: a function, generator, Effect or `defineHandler` run on submit with an `ActionEvent` (`formData` built at dispatch); the browser submit is prevented (ADR 0033). `useAction` binds one to a `Result` atom. Distinct from an Action, the server operation.
+A host `<form>`'s `action` prop: a function, generator, Effect or `defineHandler` run on submit with an `ActionEvent` (`formData` built at dispatch); the browser submit is prevented (ADR 0033). `useAction` binds one to a `Result` atom. Distinct from a Server Function, the server operation.
 _Avoid_: Server action, submit handler
 
 **Resume**:
-`resume({ container, layer, handlers, atoms })`: makes server-rendered host HTML interactive without running any Component. It seeds its own store from the Manifest, keeps `bind` text in sync and runs Handlers through one queue with `layer`. Distinct from React hydration (Islands), which runs component code, and from atom-store `hydrate`, which only seeds a Snapshot (ADR 0017).
+`resume({ container, layer, handlers, atoms })`: makes server-rendered host HTML interactive without running any Component. It seeds its own store from the Manifest, keeps `bind` text in sync and runs Handlers through one queue with `layer`. Distinct from `hydrateMount`, which runs component code, and from atom-store `hydrate`, which only seeds a Snapshot (ADR 0017).
 _Avoid_: rehydrate, boot. Not Hydrate: `hydrateMount` runs components and adopts the server DOM (see Hydrate Mount).
 
 **Hydrate Mount**:
@@ -159,7 +119,7 @@ _Avoid_: Render root, hydrate
 
 **Provide**:
 `Provide(layer, children)`: provides a Layer to a subtree, removing its Tags from the subtree's `R`.
-_Avoid_: Context provider, LayerProvider
+_Avoid_: Context provider
 
 **Catch**:
 `Catch(tag, fallback, children)`: renders `fallback` for one tagged error and removes only that tag from `E`.
@@ -209,32 +169,24 @@ _Avoid_: Profiler, hook, listener
 A plain-data record the Render Observer receives: `create`, `adopt` (hydration; resume adopts no instances), `rerun` with its reasons, `dispose`, `slot` and `effect` (`start`, `restart`, `cleanup`). It carries the mount id and an instance id, never a live instance, so a disposed instance is not retained.
 _Avoid_: Trace entry, instance reference
 
-### Next.js integration concepts
+### Request and runtime concepts
 
 **Request Scope**:
-A server-side Scope created per `runEffect` call (`@sleekstack/runtime`, re-exported by `@sleekstack/next`) or per kit `defineEffect`/`defineQuery` call. Isolates services (auth, tracing, transactions) so no state leaks between requests.
+A server-side Scope created per `runEffect` call (`@sleekstack/runtime`) or per Server Function call. Isolates services (auth, tracing, transactions) so no state leaks between requests.
 _Avoid_: Request context, request environment, request runtime
 
-**Action**:
-A server-side operation (Next.js Server Action) declared with `defineEffect()` / `runOperation()` from `@sleekstack/kit/next`. Runs a generator in a Request Scope on the `@sleekstack/runtime` runtime, through the `@sleekstack/next` preset.
-_Avoid_: Mutation, procedure, RPC
-
 **Runtime Package**:
-`@sleekstack/runtime`, the framework-agnostic Effect app runtime: `configureRuntime`, `runEffect`, `getRuntime`, the `onError` sink and a pluggable `isControlFlow` classifier (default: nothing is control flow). `@sleekstack/next` is its Next preset, adding `isNextControlFlow` and the devtools route handler (ADR 0013). `@sleekstack/runtime/internal` is for sibling packages only.
-_Avoid_: Next runtime, server runtime
-
-**Query** _(server-side)_:
-A server-side read operation declared with `defineQuery()` / `query()` from `@sleekstack/kit/next`. Runs a generator in a Request Scope and caches nothing. Distinct from a Cached Query.
-_Avoid_: Fetch, loader, resolver
+`@sleekstack/runtime`, the framework-agnostic Effect app runtime: `configureRuntime`, `runEffect`, `getRuntime`, the `onError` sink and a pluggable `isControlFlow` classifier (default: nothing is control flow). `@sleekstack/runtime/devtools` is the framework-agnostic devtools feed handler (ADRs 0013, 0049). `@sleekstack/runtime/internal` is for sibling packages only.
+_Avoid_: server runtime
 
 **Devtools**:
-The dev-only introspection of a running app: a bounded event buffer in `@sleekstack/runtime` (per-service acquire/release, fiber id, owning scope) served by the route handler in `@sleekstack/next/devtools`, rendered by the `@sleekstack/devtools` panel (graph roots, live scopes, services, atoms of every open AtomStore, errors linked to their scope), and for `@sleekstack/ui` mounts `uiTrace()` with `<UiPanel>` (instance tree, atoms per instance, re-run reasons, effect runs) fed by a Render Observer. In production recording is off and the handler returns 404; the panel is excluded from production client chunks when mounted behind a dynamic import.
+The dev-only introspection of a running app: a bounded event buffer in `@sleekstack/runtime` (per-service acquire/release, fiber id, owning scope) served by `devtoolsHandler` from `@sleekstack/runtime/devtools`, rendered by the `@sleekstack/devtools` panel, a `@sleekstack/ui` component (`SleekStackDevtools`: graph roots, live scopes, services, atoms of every open AtomStore, errors linked to their scope, queries), and for `@sleekstack/ui` mounts `uiTrace()` with `<UiPanel>` (instance tree, atoms per instance, re-run reasons, effect runs) fed by a Render Observer. In production recording is off and the handler returns 404; the panel is excluded from production client chunks when mounted behind a dynamic import.
 _Avoid_: Inspector, debug panel
 
 ### Start concepts (`@sleekstack/start`)
 
 **Server Function**:
-A server operation for ui apps, declared with `serverFn(id, { input, success, error? })(function* ...)` and listed in `start({ functions })` (ADR 0039). It runs in a Request Scope, served at `POST /_sleek/fn/<id>`: input decoded before the body, output encoded with the success Schema, the declared error typed across the wire. The browser calls it through a `client(contract)` stub built from the same Schemas. Distinct from an Action (the Next Server Action) and a Form Action (the ui submit handler, which a stub can be).
+A server operation for ui apps, declared with `serverFn(id, { input, success, error? })(function* ...)` and listed in `start({ functions })` (ADR 0039). It runs in a Request Scope, served at `POST /_sleek/fn/<id>`: input decoded before the body, output encoded with the success Schema, the declared error typed across the wire. The browser calls it through a `client(contract)` stub built from the same Schemas. Distinct from a Form Action (the ui submit handler, which a stub can be).
 _Avoid_: Action, Server Action, RPC, procedure
 
 **Server Endpoint**:
@@ -250,7 +202,7 @@ _Avoid_: Fumadocs site, docs app
 ### Query cache concepts
 
 **Cached Query**:
-A keyed, cached async read: TanStack Query (ADR 0018). In Effect code it is a `queryOptions({ queryKey, queryFn: effectFn(effect) })` read with TanStack's hooks under `QueryProvider`. The kit form is `cachedQuery()` from `@sleekstack/kit`, read with `useQuery` from `@sleekstack/kit/react`; `@sleekstack/query/ui` has `useQuery` for ui components. Not the server-side Query of `@sleekstack/kit/next`.
+A keyed, cached async read: TanStack Query (ADR 0018). In Effect code it is a `queryOptions({ queryKey, queryFn: effectFn(effect) })` read with TanStack's hooks under `QueryProvider`. `@sleekstack/query/ui` has `useQuery` for ui components.
 _Avoid_: resource, loader
 
 **Query Client**:
@@ -258,11 +210,11 @@ The TanStack `QueryClient` behind `QueryClientTag`, built by the scoped `QueryCl
 _Avoid_: Query store
 
 **Mutation**:
-A write through TanStack's `useMutation` (or kit `mutation()` + `useMutation`, or `@sleekstack/query/ui`'s `useMutation`). Optimistic writes are TanStack's `onMutate` / `onError` / `onSettled`. Distinct from an Action, the server operation a mutation often calls.
+A write through TanStack's `useMutation` (or `@sleekstack/query/ui`'s `useMutation`). Optimistic writes are TanStack's `onMutate` / `onError` / `onSettled`. Distinct from a Server Function, the server operation a mutation often calls.
 _Avoid_: Command, action (for the client write)
 
 **Dehydrated State**:
-TanStack's `DehydratedState`, returned by `prefetchQueries` (`@sleekstack/next`) on the server and given to `HydrationBoundary` on the client.
+TanStack's `DehydratedState`, dehydrated from the server's Query Client and given to the client's.
 _Avoid_: Snapshot, serialized cache
 
 ### Model and Draft concepts

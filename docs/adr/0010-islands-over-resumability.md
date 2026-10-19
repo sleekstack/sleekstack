@@ -1,12 +1,14 @@
 # Islands over resumability
 
+> Superseded by [ADR 0049](0049-remove-kit-react-next-and-islands.md): the package is removed.
+
 `@sleekstack/islands` defers hydration per Island instead of making React resumable. Each Island is server-rendered in full, keeps its server DOM behind an empty `suppressHydrationWarning` container, and on its trigger downloads its chunk and calls `hydrateRoot` on that container as its own React root.
 
 ## Considered options
 
 - **Qwik-style resumability** (serialised closures, no hydration): rejected. It cannot run arbitrary React components or libraries, and React compatibility is the hard requirement.
 - **A compiler that extracts Islands automatically**: rejected as overkill. An explicit `defineIslands` registry is smaller and works today.
-- **Deferred hydration of per-Island roots** *(chosen)*: a hydrated Island still renders once, but an Island that is never triggered costs no download and no execution beyond the wrapper.
+- **Deferred hydration of per-Island roots** _(chosen)_: a hydrated Island still renders once, but an Island that is never triggered costs no download and no execution beyond the wrapper.
 
 ## Consequences
 

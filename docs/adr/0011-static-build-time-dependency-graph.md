@@ -1,5 +1,7 @@
 # The dependency graph is validated statically, at build time
 
+> Amended by [ADR 0049](0049-remove-kit-react-next-and-islands.md): kit graph extraction is removed; the analyzer reads core Layers, `declareLayer` and Modules.
+
 Supersedes [ADR 0004](0004-hybrid-service-definitions.md) (in part: metadata is still carried, but read statically), [ADR 0005](0005-dependency-arrays-over-inject.md) (for actions and queries), and the build-time half of [ADR 0006](0006-enforce-module-privacy.md).
 
 > **Amended 2026-10-01:** the runtime no longer keeps a Resolution Plan. Entries build in position order (deepest import first, root entries last; later wins), runtime privacy and shadowing metadata are gone, and `declareLayer()` carries only a lifetime.
@@ -16,7 +18,7 @@ ADR 0005 rejected parameter reflection through a compiler plugin because every t
 - **Manifest-only analyzer, `snapshot` as validator**: rejected. It keeps two graphs.
 - **Lazy resolution with no analyzer**: rejected. It loses undeclared-Tag isolation and any pre-flight guarantee.
 - **Type-level-only inference**: rejected. Erased at run time, and gives tests no list.
-- **Fully static analyzer as sole validator** *(chosen)*.
+- **Fully static analyzer as sole validator** _(chosen)_.
 
 ## Consequences
 

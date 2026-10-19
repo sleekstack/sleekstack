@@ -2,7 +2,7 @@
  * packages/cli/src/initAgents.ts
  *
  * `sleekstack init-agents [--file <path>]`: writes (or refreshes) a marked block in AGENTS.md pointing agents at
- * the `llms.md` bundled with `@sleekstack/kit`. Idempotent; the rest of the file is untouched. Exit codes as in check.ts.
+ * the `llms.md` bundled with this CLI (`sleekstack`). Idempotent; the rest of the file is untouched. Exit codes as in check.ts.
  */
 
 import * as fs from 'node:fs'
@@ -18,10 +18,10 @@ interface Io {
   readonly err: (s: string) => void
 }
 
-/** `node_modules/@sleekstack/kit/llms.md` as node resolution finds it from `dir` (symlinks kept, so the path is stable across versions). */
+/** `node_modules/sleekstack/llms.md` as node resolution finds it from `dir` (symlinks kept, so the path is stable across versions). */
 function findLlms(dir: string): string | undefined {
   for (let d = dir; ; d = path.dirname(d)) {
-    const f = path.join(d, 'node_modules', '@sleekstack', 'kit', 'llms.md')
+    const f = path.join(d, 'node_modules', 'sleekstack', 'llms.md')
     if (fs.existsSync(f)) return f
     if (path.dirname(d) === d) return undefined
   }
@@ -36,7 +36,8 @@ export function initAgents(argv: readonly string[], io: Io): number {
   file = path.resolve(io.cwd, file)
 
   const llms = findLlms(path.dirname(file))
-  if (!llms) return (io.err('Cannot find @sleekstack/kit/llms.md: install @sleekstack/kit first.'), 2)
+  if (!llms)
+    return (io.err('Cannot find sleekstack/llms.md: install sleekstack (the SleekStack CLI) in this project first.'), 2)
   const rel = path.relative(path.dirname(file), llms).split(path.sep).join('/')
 
   const old = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : ''

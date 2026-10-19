@@ -1,4 +1,4 @@
-// Ported core buildGraph tests (see .flow/notes/fn-9-build-time-error-port-list.md). One root module per case.
+// Ported core buildGraph and snapshot tests (see .flow/notes/fn-9-build-time-error-port-list.md). One root module per case.
 import { Context, Effect, Layer } from 'effect'
 import { declareLayer, module } from '@sleekstack/core'
 class A extends Context.Tag('A')<A, number>() {}
@@ -38,4 +38,15 @@ export const NewA = module({ name: 'A', imports: [B] })
 export const Data = module({ name: 'Data', entries: [
   Layer.succeed(Raw, 'raw'),
   declareLayer(Layer.effect(Repo, Effect.as(Raw, 'r' as never))), // @error MissingDependency
+] })
+
+// privacy.test: omitted exports = all public; an outside provider may shadow a private Tag.
+class Db extends Context.Tag('Db')<Db, string>() {}
+class Out extends Context.Tag('Out')<Out, string>() {}
+const Open = module({ name: 'Open', entries: [declareLayer(Layer.succeed(Db, 'db'))] })
+export const OpenApp = module({ name: 'OpenApp', imports: [Open], entries: [declareLayer(Layer.effect(Out, Db))] })
+const Private = module({ name: 'Private', entries: [declareLayer(Layer.succeed(Db, 'db'))], exports: [] })
+export const ShadowApp = module({ name: 'ShadowApp', imports: [Private], entries: [
+  declareLayer(Layer.succeed(Db, 'mine')),
+  declareLayer(Layer.effect(Out, Db)),
 ] })

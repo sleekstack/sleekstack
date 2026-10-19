@@ -15,8 +15,8 @@ const agents = () => path.join(dir, 'AGENTS.md')
 
 beforeEach(() => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ss-init-'))
-  fs.mkdirSync(path.join(dir, 'node_modules/@sleekstack/kit'), { recursive: true })
-  fs.writeFileSync(path.join(dir, 'node_modules/@sleekstack/kit/llms.md'), '# kit')
+  fs.mkdirSync(path.join(dir, 'node_modules/sleekstack'), { recursive: true })
+  fs.writeFileSync(path.join(dir, 'node_modules/sleekstack/llms.md'), '# sleekstack')
 })
 afterEach(() => {
   fs.chmodSync(dir, 0o755)
@@ -29,7 +29,7 @@ describe('sleekstack init-agents', () => {
     expect(run().code).toBe(0)
     const once = fs.readFileSync(agents(), 'utf8')
     expect(once).toMatch(
-      /^# Mine\n\nkeep me\n\n<!-- sleekstack:agents:start -->[\s\S]*node_modules\/@sleekstack\/kit\/llms\.md[\s\S]*<!-- sleekstack:agents:end -->\n$/,
+      /^# Mine\n\nkeep me\n\n<!-- sleekstack:agents:start -->[\s\S]*node_modules\/sleekstack\/llms\.md[\s\S]*<!-- sleekstack:agents:end -->\n$/,
     )
     expect(run().out).toMatch(/up to date/)
     fs.appendFileSync(agents(), 'after\n')
@@ -65,8 +65,10 @@ describe('sleekstack init-agents', () => {
     expect(r.err).toMatch(/permission denied/)
   })
 
-  it('fails when @sleekstack/kit is not installed', () => {
+  it('fails with exit 2 when sleekstack is not installed', () => {
     fs.rmSync(path.join(dir, 'node_modules'), { recursive: true })
-    expect(run().err).toMatch(/install @sleekstack\/kit/)
+    const r = run()
+    expect(r.code).toBe(2)
+    expect(r.err).toMatch(/install sleekstack/)
   })
 })

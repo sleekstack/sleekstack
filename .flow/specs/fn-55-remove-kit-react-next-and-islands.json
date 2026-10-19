@@ -1,13 +1,340 @@
 {
   "branch_name": "fn-55-remove-kit-react-next-and-islands",
+  "completion_review_status": "unknown",
+  "completion_reviewed_at": null,
   "created_at": "2026-10-17T11:45:46.395497Z",
+  "default_impl": null,
+  "default_review": null,
+  "default_sync": null,
   "depends_on_epics": [
     "fn-60-docs-site-on-ui-and-start"
   ],
   "id": "fn-55-remove-kit-react-next-and-islands",
+  "impl_review_rounds": {
+    "fn-55-remove-kit-react-next-and-islands.1": 0,
+    "fn-55-remove-kit-react-next-and-islands.2": 0,
+    "fn-55-remove-kit-react-next-and-islands.3": 0
+  },
   "next_task": 1,
+  "plan_review_rounds": 0,
   "plan_review_status": "unknown",
   "plan_reviewed_at": null,
+  "review_attempts": [
+    {
+      "artifact_sha256": "8b190af2c7a9cbf26dfa3c0ca4730165432af03507366964af38fb04e1dfc583",
+      "backend": "codex",
+      "base_sha": "832eed751c541500628227a65864c1227986246b",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-1ee55b1ea2938fdd6de3678adb675d38",
+            "classification": "introduced",
+            "findingId": "finding-1ee55b1ea2938fdd6de3678adb675d38",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-0a661729de70b2365648cb0a5fb6c02f",
+            "classification": "introduced",
+            "findingId": "finding-0a661729de70b2365648cb0a5fb6c02f",
+            "firstSeenThisRound": true,
+            "severity": "P3",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "2cfec5325593d1bd56d6070bf6390e36766b89f0",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1643,
+      "output_sha256": "052614c4ca9b37589673f87991b6e9b31d6878ba8d20bf2091f797609d4a58c4",
+      "reservation_id": "33aa30cde8254de88e8b0ab2daaf7b1e",
+      "round_consumed": true,
+      "scope": "impl:fn-55-remove-kit-react-next-and-islands.1",
+      "superseded_by": null,
+      "task": "fn-55-remove-kit-react-next-and-islands.1",
+      "timestamp": "2026-10-17T19:46:45.929288Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "fa9af751e7e85420eef7e0e68412c67c698d216c0ac8711b596dd11e94c63fb1",
+      "backend": "codex",
+      "base_sha": "832eed751c541500628227a65864c1227986246b",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-1ee55b1ea2938fdd6de3678adb675d38",
+            "classification": "introduced",
+            "findingId": "finding-1ee55b1ea2938fdd6de3678adb675d38",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "not_fixed"
+          },
+          {
+            "chainRoot": "finding-c02c7c768faddad8b335f2d5e3864b1c",
+            "classification": "introduced",
+            "findingId": "finding-c02c7c768faddad8b335f2d5e3864b1c",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-0a661729de70b2365648cb0a5fb6c02f",
+            "classification": "introduced",
+            "findingId": "finding-0a661729de70b2365648cb0a5fb6c02f",
+            "firstSeenThisRound": false,
+            "severity": "P3",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "8cd71d5ebb2b6b92e2d70da0444f8a6d1003b494",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1240,
+      "output_sha256": "c4e86657bd82d174a9ccc7116cb6d19b58edc89f578cd366a13b2fb9954447bc",
+      "reservation_id": "7b938eb118a8421dbe1d489cd282dd77",
+      "round_consumed": true,
+      "scope": "impl:fn-55-remove-kit-react-next-and-islands.1",
+      "superseded_by": null,
+      "task": "fn-55-remove-kit-react-next-and-islands.1",
+      "timestamp": "2026-10-17T19:49:13.322115Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "4a4d5455a4e22e7df2304463d6bf7b8769630c01351eb1d330c877cd83290850",
+      "backend": "codex",
+      "base_sha": "832eed751c541500628227a65864c1227986246b",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-1ee55b1ea2938fdd6de3678adb675d38",
+            "classification": "introduced",
+            "findingId": "finding-1ee55b1ea2938fdd6de3678adb675d38",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-c02c7c768faddad8b335f2d5e3864b1c",
+            "classification": "introduced",
+            "findingId": "finding-c02c7c768faddad8b335f2d5e3864b1c",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-0a661729de70b2365648cb0a5fb6c02f",
+            "classification": "introduced",
+            "findingId": "finding-0a661729de70b2365648cb0a5fb6c02f",
+            "firstSeenThisRound": false,
+            "severity": "P3",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "5474b55227e84c9ab34a5edbcd328d0e674a2dfd",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 820,
+      "output_sha256": "4b3eaf0fe6fdc2b5334a3c6f6a3088499791482cb4dc62bb9507a272d83cb151",
+      "reservation_id": "8e4a4717a3874a6e883d0f04b84cc890",
+      "round_consumed": true,
+      "scope": "impl:fn-55-remove-kit-react-next-and-islands.1",
+      "superseded_by": null,
+      "task": "fn-55-remove-kit-react-next-and-islands.1",
+      "timestamp": "2026-10-17T19:50:52.667940Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "9bea142f935ac2f24adda6c032cbc1c2816943bd49cc8e10fe6b4edc97eab157",
+      "backend": "codex",
+      "base_sha": "832eed751c541500628227a65864c1227986246b",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-a79b68736d321e3261b193683378eef9",
+            "classification": "introduced",
+            "findingId": "finding-a79b68736d321e3261b193683378eef9",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-663dc9c13c68931ff3d7b7d498b4d5cc",
+            "classification": "introduced",
+            "findingId": "finding-663dc9c13c68931ff3d7b7d498b4d5cc",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "afec0154f34690f4427a33740060c654118ea182",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 1642,
+      "output_sha256": "ebec304e9b637f1204b2d38f0bea8697ebdeed80da4e9da32559afab422c6101",
+      "reservation_id": "6e6ff4411e234863ba501abbb7da5070",
+      "round_consumed": true,
+      "scope": "impl:fn-55-remove-kit-react-next-and-islands.2",
+      "superseded_by": null,
+      "task": "fn-55-remove-kit-react-next-and-islands.2",
+      "timestamp": "2026-10-17T20:20:10.710928Z",
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "42e311b3277050bce23ad167fea4bd5603b0fbe2a59e5b9df490615635e31813",
+      "backend": "codex",
+      "base_sha": "832eed751c541500628227a65864c1227986246b",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-a79b68736d321e3261b193683378eef9",
+            "classification": "introduced",
+            "findingId": "finding-a79b68736d321e3261b193683378eef9",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-663dc9c13c68931ff3d7b7d498b4d5cc",
+            "classification": "introduced",
+            "findingId": "finding-663dc9c13c68931ff3d7b7d498b4d5cc",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "dc78f540722e5d36a9789315373e3ed0ed2ae212",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-5.6-sol",
+      "outcome": "verdict",
+      "output_bytes": 526,
+      "output_sha256": "4ec2adfd8692e49ff28bd8607879ac2650044800b2c051bb58a78050dbaa3566",
+      "reservation_id": "c7e32285b89d4610beb0f949e00c0122",
+      "round_consumed": true,
+      "scope": "impl:fn-55-remove-kit-react-next-and-islands.2",
+      "superseded_by": null,
+      "task": "fn-55-remove-kit-react-next-and-islands.2",
+      "timestamp": "2026-10-17T20:21:17.638852Z",
+      "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "dced2894b91259ece33c2d54c8d819290090a2cc52bd4b2c8650b172209c40c5",
+      "backend": "codex",
+      "base_sha": "832eed751c541500628227a65864c1227986246b",
+      "counter_kind": "impl",
+      "failure_class": "timeout",
+      "finalized": {
+        "digest": "not_applicable",
+        "receipt": "not_applicable",
+        "status": "not_applicable"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "ac430a0fdecc3c192a4cfbd988c7ed80bc2111d6",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "outcome": "transport_failure",
+      "output_bytes": 60,
+      "output_sha256": "8b330d2588ba9d7c914e3732d4f0db6ffd20cf59a72c491cce55d36587961959",
+      "reservation_id": "d003b1d8066b40598d4f3d9a79524ba3",
+      "round_consumed": false,
+      "scope": "impl:fn-55-remove-kit-react-next-and-islands.3",
+      "superseded_by": null,
+      "task": "fn-55-remove-kit-react-next-and-islands.3",
+      "timestamp": "2026-10-17T21:45:30.687599Z",
+      "verdict": null
+    }
+  ],
+  "review_hash_epoch": {
+    "impl:fn-55-remove-kit-react-next-and-islands.1": 1,
+    "impl:fn-55-remove-kit-react-next-and-islands.2": 1
+  },
+  "review_pending_rounds": {},
+  "review_reservations": {},
+  "review_transport_failures": {
+    "impl:fn-55-remove-kit-react-next-and-islands.1": 0,
+    "impl:fn-55-remove-kit-react-next-and-islands.2": 0,
+    "impl:fn-55-remove-kit-react-next-and-islands.3": 1
+  },
   "spec_path": ".flow/specs/fn-55-remove-kit-react-next-and-islands.md",
   "status": "open",
   "title": "Remove kit, react, next and islands; migrate dependents",

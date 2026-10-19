@@ -1,22 +1,21 @@
-import { effect, layer, module, tag } from '@sleekstack/kit'
-
+import { Context, Layer } from 'effect'
+import { declareLayer, module } from '@sleekstack/core'
 declare const name: string
-const Dynamic = tag<object>(name)
-const Clock = tag<object>('Clock')
-const makeLayers = (): any[] => [layer(Clock, {})]
+const Dynamic = Context.GenericTag<object>(name)
+class Clock extends Context.Tag('Clock')<Clock, object>() {}
+const makeLayers = (): any[] => [declareLayer(Layer.succeed(Clock, {}))]
 
 export const App = module({
   name: 'App',
-  provide: makeLayers(),
+  entries: makeLayers(),
   exports: [Dynamic],
 })
 
 declare function register(xs: unknown[]): void
-const escaped = [layer(Clock, {})]
+const escaped = [declareLayer(Layer.succeed(Clock, {}))]
 register(escaped)
-let swapped = [layer(Clock, {})]
+let swapped = [declareLayer(Layer.succeed(Clock, {}))]
 swapped = []
 
-export const Escaped = module({ name: 'Escaped', provide: escaped })
-export const Rebound = module({ name: 'Rebound', provide: swapped })
-export const Unnamed = module({ name: 'Unnamed', provide: [effect(() => {})] })
+export const Escaped = module({ name: 'Escaped', entries: escaped })
+export const Rebound = module({ name: 'Rebound', entries: swapped })

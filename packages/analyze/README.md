@@ -1,6 +1,6 @@
 # @sleekstack/analyze
 
-The static dependency-graph analyzer behind [`sleekstack check`](../cli). It reads a tsconfig project's kit and core declarations through the TypeScript checker and returns the graph and every violation with file:line. It never imports or runs app code (ADR 0010, ADR 0011).
+The static dependency-graph analyzer behind [`sleekstack check`](../cli). It reads a tsconfig project's core modules, plain Layers and runtime roots through the TypeScript checker and returns the graph and every violation with file:line. It never imports or runs app code (ADR 0010, ADR 0011).
 
 ```ts
 import { analyze } from '@sleekstack/analyze'
@@ -16,7 +16,7 @@ Roots are `configureRuntime` layers plus `runEffect` `request` and `overrides` L
 
 ## What it checks
 
-`MissingDependency`, `DependencyCycle`, `CaptiveDependency` (lifetime matrix), `PrivateDependency` (module `exports`), `AmbiguousProvider`, `ModuleCycle`, `DuplicateModule`, and action bodies' yielded Tags. For `declareLayer` and plain Layers, provided and required Tags are read from the Layer type (`ROut`, `RIn`); kit `layer()` deps come from its array or generator `yield*`s.
+`MissingDependency`, `DependencyCycle`, `CaptiveDependency` (lifetime matrix), `PrivateDependency` (module `exports`), `AmbiguousProvider`, `ModuleCycle` and `DuplicateModule`. For `declareLayer` and plain Layers, provided and required Tags are read from the Layer type (`ROut`, `RIn`).
 
 It fails closed: a declaration it cannot read (`any`, a widened array, a non-literal key) is an error, with no opt-out. `typescript` is a peer dependency.
 

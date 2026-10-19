@@ -1,14 +1,14 @@
 # @sleekstack/runtime
 
-The framework-agnostic Effect app runtime that [`@sleekstack/next`](../next) is a preset of. Use it directly to host an Effect app in any server framework.
+The framework-agnostic Effect app runtime Use it to host an Effect app in any server framework.
 
-| Export | What it does |
-| --- | --- |
-| `configureRuntime({ layer, onError, isControlFlow, id })` | One runtime per process. A config with the same `id` is a no-op (first wins); a different one interrupts in-flight fibers, disposes the old runtime, then builds the new one. |
-| `runEffect(effect, { request, overrides, isControlFlow })` | Runs an Effect on the runtime. `request` builds per call; `overrides` shadow both the effect and `request`. |
-| `isControlFlow` | Classifies framework control-flow throws (redirects and the like): rethrown untouched, never passed to `onError`. Default: nothing is control flow. |
-| `onError(cause, { phase })` | The single sink for defects, finalizer failures and failed builds. Default `console.error`. |
-| `getRuntime`, `reportFinalizerFailure`, `RuntimeNotConfigured` | Access and errors. |
+| Export                                                         | What it does                                                                                                                                                                  |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `configureRuntime({ layer, onError, isControlFlow, id })`      | One runtime per process. A config with the same `id` is a no-op (first wins); a different one interrupts in-flight fibers, disposes the old runtime, then builds the new one. |
+| `runEffect(effect, { request, overrides, isControlFlow })`     | Runs an Effect on the runtime. `request` builds per call; `overrides` shadow both the effect and `request`.                                                                   |
+| `isControlFlow`                                                | Classifies framework control-flow throws (redirects and the like): rethrown untouched, never passed to `onError`. Default: nothing is control flow.                           |
+| `onError(cause, { phase })`                                    | The single sink for defects, finalizer failures and failed builds. Default `console.error`.                                                                                   |
+| `getRuntime`, `reportFinalizerFailure`, `RuntimeNotConfigured` | Access and errors.                                                                                                                                                            |
 
 ```ts
 import { Effect } from 'effect'
@@ -17,6 +17,8 @@ import { configureRuntime, runEffect } from '@sleekstack/runtime'
 configureRuntime({ layer: AppLayer, isControlFlow: (v) => v instanceof Response })
 await runEffect(Effect.log('hello'), { request: RequestLayer })
 ```
+
+`@sleekstack/runtime/devtools` exports `devtoolsHandler()`, a dev-only `Request` to `Response` handler serving the runtime's scopes, errors and live state (and the analyzer graph when given) to the devtools panel: 404 in production, loopback only unless `allowRemote`: the server passes the peer's `remoteAddress` as the second argument, since a `Request` alone does not carry it. It is a separate entry, so a bundle importing only `@sleekstack/runtime` never contains it.
 
 `@sleekstack/runtime/internal` is for sibling packages (the devtools buffer) and is not public API.
 

@@ -12,7 +12,7 @@ import { graphOf } from './extract'
 import { validate } from './validate'
 import type { AnalyzeCode, AnalyzeError, Graph, Location, ModuleDecl, ProviderDecl, RootKind } from './model'
 
-export const RUNTIME_RUN_CALLS = new Set(['runtime/runtime#runEffect', 'next/runtime#runEffect'])
+export const RUNTIME_RUN_CALLS = new Set(['runtime/runtime#runEffect'])
 
 export interface ExtraRoot {
   readonly kind: Exclude<RootKind, 'app'>

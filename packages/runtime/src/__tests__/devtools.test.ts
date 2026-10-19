@@ -1,0 +1,223 @@
+import { readFileSync } from 'node:fs'
+import { describe, expect, it, vi } from 'vitest'
+import { Effect, Layer, Tracer } from 'effect'
+import { devEvents, traceService } from '../internal'
+import { configureRuntime, getRuntime, runEffect } from '../index'
+import { devtoolsHandler, devtoolsSnapshot } from '../devtools'
+
+const loopback = { remoteAddress: '127.0.0.1' }
+
+describe('devtools', () => {
+  it('records scopes and errors, bounded at 200, cleared on reconfigure', async () => {
+    configureRuntime({ layer: Layer.empty, onError: () => {} })
+    await runEffect(Effect.succeed(1))
+    await expect(runEffect(Effect.die('boom'))).rejects.toBeDefined()
+    let snap = devtoolsSnapshot()
+    expect(snap.scopes.map((e) => e.kind)).toEqual([
+      'acquire',
+      'scope-open',
+      'scope-close',
+      'scope-open',
+      'scope-close',
+    ])
+    expect(snap.errors).toHaveLength(1)
+    expect(snap.graph).toBeUndefined()
+
+    expect(snap.live).toEqual({ app: true, scopes: [] })
+    for (let i = 0; i < 150; i++) await runEffect(Effect.void)
+    snap = devtoolsSnapshot()
+    expect(snap.scopes.length + snap.errors.length).toBe(200)
+    expect(snap.live.app).toBe(true) // acquire was evicted from history, live state is not
+
+    configureRuntime({ layer: Layer.empty })
+    snap = devtoolsSnapshot()
+    expect(snap.scopes.length + snap.errors.length).toBe(0)
+  })
+
+  it('handler returns JSON with graph in dev; 404 and no recording in production', async () => {
+    configureRuntime({ layer: Layer.empty })
+    const body = await devtoolsHandler({ graph: () => ({ nodes: [] }) })(
+      new Request('http://localhost/'),
+      loopback,
+    ).json()
+    expect(body).toEqual({
+      disabled: false,
+      scopes: [],
+      errors: [],
+      live: { app: false, scopes: [] },
+      graph: { nodes: [] },
+    })
+
+    vi.stubEnv('NODE_ENV', 'production')
+    try {
+      expect(devtoolsHandler()(new Request('http://localhost/')).status).toBe(404)
+      await runEffect(Effect.void)
+      expect(devtoolsSnapshot().scopes).toEqual([])
+      expect(devtoolsSnapshot().disabled).toBe(true)
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+
+  it('late events from a replaced runtime never repopulate the cleared buffer; acquire follows a successful build', async () => {
+    // build failure: no acquire
+    configureRuntime({ layer: Layer.fail('nope') as unknown as Layer.Layer<never> })
+    await expect(runEffect(Effect.void)).rejects.toBeDefined()
+    expect(devtoolsSnapshot().scopes.map((e) => e.kind)).not.toContain('acquire')
+
+    // reconfigure while a call is in flight (with a failing finalizer): old events must not land in the new buffer
+    let resolveStarted!: () => void
+    const started = new Promise<void>((r) => (resolveStarted = r))
+    configureRuntime({ layer: Layer.empty, onError: () => {} })
+    const inflight = runEffect(
+      Effect.zipRight(
+        Effect.sync(() => resolveStarted()),
+        Effect.never,
+      ),
+      {
+        request: Layer.scopedDiscard(Effect.addFinalizer(() => Effect.die('finalizer'))) as unknown as Layer.Layer<
+          any,
+          any,
+          any
+        >,
+      },
+    )
+    inflight.catch(() => {})
+    await started
+    configureRuntime({ layer: Layer.empty })
+    await inflight.catch(() => {})
+    await new Promise((r) => setTimeout(r, 20))
+    const snap = devtoolsSnapshot()
+    expect(snap.scopes).toEqual([])
+    expect(snap.errors).toEqual([])
+  })
+
+  it('an open scope stays in live state after history eviction; getRuntime() builds are recorded', async () => {
+    configureRuntime({ layer: Layer.empty })
+    await getRuntime().runtimeEffect.pipe(Effect.runPromise)
+    expect(devtoolsSnapshot().live.app).toBe(true)
+    let resolveStarted!: () => void
+    const started = new Promise<void>((r) => (resolveStarted = r))
+    const long = runEffect(
+      Effect.zipRight(
+        Effect.sync(() => resolveStarted()),
+        Effect.never,
+      ),
+    )
+    long.catch(() => {})
+    await started
+    for (let i = 0; i < 250; i++) await runEffect(Effect.void)
+    const snap = devtoolsSnapshot()
+    expect(snap.scopes.some((e) => e.kind === 'scope-open' && e.label === snap.live.scopes[0])).toBe(false)
+    expect(snap.live.scopes).toHaveLength(1)
+    configureRuntime({ layer: Layer.empty })
+    await long.catch(() => {})
+  })
+
+  it('serves loopback requests only unless allowRemote', async () => {
+    configureRuntime({ layer: Layer.empty })
+    const local = new Request('http://localhost:3000/api/devtools')
+    const lan = new Request('http://192.168.1.5:3000/api/devtools')
+    expect(devtoolsHandler()(local, loopback).status).toBe(200)
+    expect(devtoolsHandler()(local, { remoteAddress: '::ffff:127.0.0.1' }).status).toBe(200)
+    expect(devtoolsHandler()(lan, { remoteAddress: '192.168.1.9' }).status).toBe(403)
+    // The Host header is client-supplied: an unknown peer or a spoofed loopback Host is refused.
+    expect(devtoolsHandler()(local).status).toBe(403)
+    expect(devtoolsHandler()(local, { remoteAddress: '192.168.1.9' }).status).toBe(403)
+    // A loopback peer with a foreign Host (DNS rebinding) is refused too.
+    expect(devtoolsHandler()(lan, loopback).status).toBe(403)
+    expect(devtoolsHandler({ allowRemote: true })(lan).status).toBe(200)
+  })
+
+  it('an error links to its request scope after the scope closes; traced services carry scope and fiber', async () => {
+    configureRuntime({ layer: Layer.empty, onError: () => {} })
+    await expect(
+      runEffect(Effect.die('boom'), {
+        request: traceService(['Svc', 'Repo'], Layer.empty) as unknown as Layer.Layer<any, any, any>,
+      }),
+    ).rejects.toBeDefined()
+    const snap = devtoolsSnapshot()
+    const scope = snap.scopes.find((e) => e.kind === 'scope-open')!.label
+    expect(snap.errors[0]?.scope).toBe(scope)
+    expect(snap.live.scopes).not.toContain(scope)
+    expect(snap.scopes.filter((e) => e.label === 'Svc').map((e) => [e.kind, e.scope, typeof e.fiber])).toEqual([
+      ['acquire', scope, 'string'],
+      ['release', scope, 'string'],
+    ])
+    // One wrapper over a multi-Tag layer emits one event per provided Tag key (the analyzer's node ids).
+    expect(snap.scopes.filter((e) => e.label === 'Repo').map((e) => e.kind)).toEqual(['acquire', 'release'])
+    // A plain request Layer gets whole-layer events in its scope.
+    expect(snap.scopes.filter((e) => e.label === 'request').map((e) => [e.kind, e.scope])).toEqual([
+      ['acquire', scope],
+      ['release', scope],
+    ])
+  })
+
+  it("a lazy app-layer build failure triggered by a call is linked to that call's request scope", async () => {
+    configureRuntime({ layer: Layer.fail('nope') as unknown as Layer.Layer<never>, onError: () => {} })
+    await expect(runEffect(Effect.void)).rejects.toBeDefined()
+    expect(devtoolsSnapshot().errors.map((e) => e.scope)).toEqual([expect.stringMatching(/^request#\d+$/)])
+  })
+
+  it('production wraps the request layer with nothing', async () => {
+    configureRuntime({ layer: Layer.empty })
+    vi.stubEnv('NODE_ENV', 'production')
+    try {
+      await runEffect(Effect.void, { request: Layer.empty as unknown as Layer.Layer<any, any, any> })
+      expect(devEvents()).toEqual([])
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+
+  it('a user Tracer is left intact and a throwing hook does not fail the request', async () => {
+    const spans: string[] = []
+    const native = Effect.runSync(Effect.tracer)
+    const user = Tracer.make({
+      span: (name, ...rest) => {
+        spans.push(name)
+        return native.span(name, ...rest)
+      },
+      context: native.context,
+    })
+    configureRuntime({ layer: Layer.setTracer(user) })
+    // Every record() now throws (buffer push), including the traced service hook.
+    Object.defineProperty(devEvents(), 'push', {
+      value: () => {
+        throw new Error('hook')
+      },
+    })
+    await expect(
+      runEffect(Effect.withSpan(Effect.succeed(1), 'mine'), {
+        request: traceService(['Svc'], Layer.empty) as unknown as Layer.Layer<any, any, any>,
+      }),
+    ).resolves.toBe(1)
+    expect(spans).toContain('mine')
+  })
+
+  it('a plain Request outside any framework gets the snapshot body', async () => {
+    configureRuntime({ layer: Layer.empty, onError: () => {} })
+    await runEffect(Effect.void)
+    const response = devtoolsHandler()(new Request('http://127.0.0.1:4000/__devtools'), loopback)
+    expect(response.status).toBe(200)
+    expect(response.headers.get('content-type')).toMatch(/^application\/json/)
+    const body = await response.json()
+    expect(Object.keys(body)).toEqual(['disabled', 'scopes', 'errors', 'live'])
+    expect(body.disabled).toBe(false)
+    expect(body.scopes.map((e: { kind: string }) => e.kind)).toEqual(['acquire', 'scope-open', 'scope-close'])
+  })
+
+  it('the main entry never imports the devtools entry', () => {
+    // Walk the relative import graph a bundler follows from src/index.ts.
+    const seen = new Set<string>()
+    const visit = (file: string) => {
+      if (seen.has(file)) return
+      seen.add(file)
+      const source = readFileSync(new URL(`../${file}.ts`, import.meta.url), 'utf8')
+      for (const [, spec] of source.matchAll(/\bfrom\s+'\.\/([^']+)'/g)) visit(spec!)
+    }
+    visit('index')
+    expect([...seen]).toContain('runtime')
+    expect(seen.has('devtools')).toBe(false)
+  })
+})

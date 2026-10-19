@@ -16,11 +16,9 @@ export type AnalyzeCode =
   | 'DuplicateModule'
   | 'CaptiveDependency'
   | 'PrivateDependency'
-  | 'UnownedAction'
   | 'EmittedSibling'
   | 'Unresolvable'
   | 'Computed'
-  | 'UnnamedEffect'
   | 'NonLiteralOptions'
   | 'Unresolved'
   | 'UnhandledError'
@@ -44,7 +42,7 @@ const UI = '/docs/errors#component-errors'
 
 export const ERROR_CODES: Readonly<Record<AnalyzeCode, ErrorHelp>> = {
   MissingDependency: {
-    rule: 'Every Tag a service, action or component requires is provided by an entry in scope.',
+    rule: 'Every Tag a service or component requires is provided by an entry in scope.',
     fix: [
       'Provide the Tag in this module or one it imports',
       'Wrap the component in a Provide (or the mount layer) that supplies it',
@@ -81,11 +79,6 @@ export const ERROR_CODES: Readonly<Record<AnalyzeCode, ErrorHelp>> = {
     fix: ['Add the Tag to the module exports', 'Depend on an exported service instead'],
     docs: GRAPH,
   },
-  UnownedAction: {
-    rule: 'With several runtimes, each action is imported by exactly one configureRuntime file.',
-    fix: ['Pass --entry to pick the runtime', 'Import the action from the file that calls configureRuntime'],
-    docs: READ,
-  },
   EmittedSibling: {
     rule: 'Emitted .js/.d.ts output does not sit next to its .ts source.',
     fix: ['Delete the emitted file', 'Set outDir (or noEmit) in tsconfig'],
@@ -99,11 +92,6 @@ export const ERROR_CODES: Readonly<Record<AnalyzeCode, ErrorHelp>> = {
   Computed: {
     rule: 'Provide lists, imports and names are statically evaluable (literals, local consts, loops over literal lists).',
     fix: ['Replace the computed expression with a literal list or a local const'],
-    docs: READ,
-  },
-  UnnamedEffect: {
-    rule: 'effect() in a module has a literal name, so its graph identity is static.',
-    fix: ['Pass a string literal `name` to effect()'],
     docs: READ,
   },
   NonLiteralOptions: {

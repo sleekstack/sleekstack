@@ -82,6 +82,6 @@ describe('component pass', () => {
   })
 
   it('non-ui projects have no trees', () => {
-    expect(run('kit-app')).toEqual({ trees: [], errors: [] })
+    expect(run('core-app')).toEqual({ trees: [], errors: [] })
   })
 })
