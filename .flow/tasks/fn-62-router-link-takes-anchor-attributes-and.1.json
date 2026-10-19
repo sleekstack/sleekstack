@@ -8,7 +8,7 @@
   "priority": null,
   "spec": "fn-62-router-link-takes-anchor-attributes-and",
   "spec_path": ".flow/tasks/fn-62-router-link-takes-anchor-attributes-and.1.md",
-  "status": "todo",
+  "status": "done",
   "title": "Link takes anchor attributes; analyzer regression fixture; docs",
   "updated_at": "2026-10-19T06:59:25.057322Z"
 }

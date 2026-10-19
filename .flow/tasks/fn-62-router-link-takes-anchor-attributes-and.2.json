@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-62-router-link-takes-anchor-attributes-and",
   "spec_path": ".flow/tasks/fn-62-router-link-takes-anchor-attributes-and.2.md",
-  "status": "todo",
+  "status": "done",
   "title": "Switch realworld in-app links to Link",
   "updated_at": "2026-10-19T06:59:25.057480Z"
 }
