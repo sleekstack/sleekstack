@@ -1,3 +1,5 @@
+import { router } from '@sleekstack/router'
+import { Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
 import { enumerate, type PrerenderRoutes } from '../enumerate.js'
 
@@ -39,8 +41,25 @@ describe('enumerate', () => {
     expect((await enumerate(routes, ['/tags/a'])).warnings).toEqual([])
   })
 
-  it('fails naming the route when prerender() omits a param', async () => {
-    const bad = { table: { user: '/users/:id' }, pages: { user: { prerender: async () => [{}] } } }
-    await expect(enumerate(bad, true)).rejects.toThrow("route 'user' (/users/:id): prerender() gave no 'id'")
+  it.each([
+    [{}, "gave no 'toString'"],
+    [{ toString: '' }, "gave no 'toString'"],
+    [{ toString: '..' }, "gave '..' for 'toString'"],
+    [{ toString: '.' }, "gave '.' for 'toString'"],
+  ])('fails naming the route when prerender() gives %o', async (params, why) => {
+    const bad = { table: { item: '/items/:toString' }, pages: { item: { prerender: async () => [params] } } }
+    await expect(enumerate(bad, true)).rejects.toThrow(`route 'item' (/items/:toString): prerender() ${why}`)
+  })
+
+  it('accepts a router whose pages render and some declare prerender()', async () => {
+    const app = router({
+      table: { home: '/', user: '/users/:id' },
+      pages: {
+        home: { render: () => Effect.succeed(null) },
+        user: { render: () => Effect.succeed(null), prerender: async () => [{ id: '7' }] },
+      },
+      notFound: () => Effect.succeed(null),
+    })
+    expect((await enumerate(app, true)).paths).toEqual(['/', '/users/7'])
   })
 })

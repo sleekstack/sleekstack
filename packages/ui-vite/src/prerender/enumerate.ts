@@ -13,7 +13,7 @@ export type PrerenderParams = () => Promise<ReadonlyArray<Readonly<Record<string
 /** The router's `{ table, pages }`; a page may declare `prerender()` to expand its route's `:param` segments. */
 export interface PrerenderRoutes {
   readonly table: { readonly [name: string]: string }
-  readonly pages: { readonly [name: string]: { readonly prerender?: PrerenderParams } }
+  readonly pages: { readonly [name: string]: object & { readonly prerender?: PrerenderParams } }
 }
 
 /** The paths to prerender, deduplicated in discovery order, and a warning per dynamic route that was skipped. */
@@ -36,14 +36,20 @@ const fills = (pattern: string, path: string) => {
   return p.length === a.length && p.every((s, i) => (s.startsWith(':') ? a[i] !== '' : s === a[i]))
 }
 
-/** Fills each `:param` of `path` from `params`, percent-encoded; throws naming the route when one is missing. */
+/**
+ * Fills each `:param` of `path` from `params`, percent-encoded. Throws naming the route when a param is missing (not an
+ * own non-empty string) or is `.` / `..`, which URL parsing would resolve to another path.
+ */
 const fill = (name: string, path: string, params: Readonly<Record<string, string>>) =>
   normalizePath(
     segments(path)
       .map((s) => {
         if (!s.startsWith(':')) return s
-        const value = params[s.slice(1)]
-        if (!value) throw new Error(`prerender: route '${name}' (${path}): prerender() gave no '${s.slice(1)}'`)
+        const key = s.slice(1)
+        const value: unknown = Object.hasOwn(params, key) ? params[key] : undefined
+        const fail = (why: string) => new Error(`prerender: route '${name}' (${path}): prerender() ${why} '${key}'`)
+        if (typeof value !== 'string' || value === '') throw fail('gave no')
+        if (value === '.' || value === '..') throw fail(`gave '${value}' for`)
         return encodeURIComponent(value)
       })
       .join('/'),

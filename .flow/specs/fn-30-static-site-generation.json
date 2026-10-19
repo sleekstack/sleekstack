@@ -1,15 +1,92 @@
 {
   "branch_name": "fn-30-static-site-generation",
+  "completion_review_status": "unknown",
+  "completion_reviewed_at": null,
   "created_at": "2026-10-04T09:15:12.818109Z",
+  "default_impl": null,
+  "default_review": null,
+  "default_sync": null,
   "depends_on_epics": [
     "fn-29-sleekstack-vite-plugin",
     "fn-33-head-management-for-ui",
     "fn-50-sleekstackrouter"
   ],
   "id": "fn-30-static-site-generation",
+  "impl_review_rounds": {
+    "fn-30-static-site-generation.1": 1
+  },
   "next_task": 1,
+  "plan_review_rounds": 0,
   "plan_review_status": "unknown",
   "plan_reviewed_at": null,
+  "review_attempts": [
+    {
+      "artifact_sha256": "ff75b951f2809901a4ab06c53ba926aa64ff6cb9a09abbe94e48eeee95494021",
+      "backend": "codex",
+      "base_sha": "f152cef5dc5e32bb9e1c23d023f00b32407f89ac",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-39d73d433244d9416536a554d605875b",
+            "classification": "introduced",
+            "findingId": "finding-39d73d433244d9416536a554d605875b",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-53e342b8db3e2eb9d85f8464ec0d8f97",
+            "classification": "introduced",
+            "findingId": "finding-53e342b8db3e2eb9d85f8464ec0d8f97",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-c3b62cdbaba00b2bce1f565322230c0a",
+            "classification": "introduced",
+            "findingId": "finding-c3b62cdbaba00b2bce1f565322230c0a",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "62a32a3af199f616f877b5cbe7dbe0062a6dd3c4",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-6.1-sol",
+      "outcome": "verdict",
+      "output_bytes": 2216,
+      "output_sha256": "71337880a14382df303d82df6fa081ea0a85c795f544486d2ee0d0bf5376ee25",
+      "reservation_id": "e7130740cd074ca7b5d6c8c7bff3657e",
+      "round_consumed": true,
+      "scope": "impl:fn-30-static-site-generation.1",
+      "superseded_by": null,
+      "task": "fn-30-static-site-generation.1",
+      "timestamp": "2026-10-19T09:37:11.045758Z",
+      "verdict": "NEEDS_WORK"
+    }
+  ],
+  "review_hash_epoch": {},
+  "review_pending_rounds": {},
+  "review_reservations": {},
+  "review_transport_failures": {
+    "impl:fn-30-static-site-generation.1": 0
+  },
   "spec_path": ".flow/specs/fn-30-static-site-generation.md",
   "status": "open",
   "title": "Static site generation",
@@ -24,5 +101,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-10T05:14:28.389094Z"
+  "updated_at": "2026-10-19T09:37:11.048070Z"
 }
