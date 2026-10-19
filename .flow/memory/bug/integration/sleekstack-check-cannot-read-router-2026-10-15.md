@@ -9,6 +9,10 @@ problem_type: integration
 symptoms: sleekstack check reports Unresolved for <Link> from @sleekstack/router
 root_cause: analyzer libId omits @sleekstack/router; Link is a declare const in .d.ts
 resolution_type: fix
+status: hardened
+hardened_into: packages/analyze/src/__tests__/fixtures/ui-router-link/app.tsx -- router Link is analyzed by declaration (libId includes router); the fixture pins attributes clean and a local Link app-checked
+last_audited: "2026-10-19"
+audit_notes: "hardened into packages/analyze/src/__tests__/fixtures/ui-router-link/app.tsx -- router Link is analyzed by declaration (libId includes router); the fixture pins attributes clean and a local Link app-checked (audited-by: fn-62.1)"
 related_to: [bug/integration/new-ui-component-factory-needs-analyzer-2026-10-09]
 ---
 
@@ -22,4 +26,7 @@ Writing out the anchor `Link` renders (`<a onMouseEnter={prefetchLoader(...)}>`)
 Run the routed pages as a real router app: `router({ table, pages, notFound })` started with `startRouter` in a `useEffect` (`Effect.acquireRelease` around `startRouter`, `nav.dispose()` as release) on a `useRef` div (`apps/showcase/src/pages/router.tsx`). `startRouter` is not an analyzer root, so the routed pages (with `Link`) sit outside the component pass, and the check stays clean with no package change. Test with `handle(router, request)` for SSR and `startRouter` on that HTML for hydration; stub `window.scrollTo` in jsdom.
 
 ## Prevention
-Before demoing a package component under `sleekstack check`, confirm the analyzer reads it (`libId` in packages/analyze/src/extract.ts). Router pages are not analyzed at all; analyzer support for `@sleekstack/router` is a separate package change.
+Before demoing a package component under `sleekstack check`, confirm the analyzer reads it (`libId` in packages/analyze/src/extract.ts). 
+
+## Now (2026-10-19, fn-62)
+This is fixed: `libId` includes `router`, so `sleekstack check` resolves router `Link` by declaration, and `Link` takes anchor attributes (`class`, `aria-*`, `data-*`, ...). Use `Link` directly in analyzed trees; the `ui-router-link` analyzer fixture pins it (attributes clean, a local component named `Link` stays app-checked).

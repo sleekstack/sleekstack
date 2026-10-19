@@ -14,7 +14,7 @@ Typed routes for apps on the `@sleekstack/ui` host (ADR 0036). A route table is 
 | `useLoader(loader)` | The loader's result for the matched route: held data returns at once, a load in flight is shared, else the loader runs (under the `Pending` the router wraps around the page, showing its `fallback`). Its typed error reaches the nearest `Boundary`. |
 | `LoaderTransferLive` | Holds loader results per render or app and sends them through the ui `Transfer`, so a hydrating client reads them without reloading. |
 | `prefetchLoader(loader, match)` | Starts a loader for a route ahead of the page; its result is held 30 seconds unread, and a failure is silent. |
-| `Link` | An `<a href>` that prefetches its route's `code` (the `lazy` import) and `loaders` on hover or focus; `prefetch={false}` opts out. |
+| `Link` | An `<a href>` that prefetches its route's `code` (the `lazy` import) and `loaders` on hover or focus; `prefetch={false}` opts out. Other anchor attributes (`class`, `id`, `aria-*`, `data-*`, `rel`, `target`, ...) pass to the `<a>`; event handlers are not accepted. A `target` or `download` link still prefetches, as a warm-up only. |
 | `redirect(to)` / `notFound()` | Raised by a loader or action: control flow, not a failure. The server answers 302 / 404; the browser navigates or shows the not-found page. |
 | `router({ table, pages, notFound })` | A page per route (`render`, `loaders`) plus the not-found page. |
 | `handle(router, request, opts)` | Server entry: answers with the rendered page, a 302, a 404, or the loader error's `status` (else 500); `stream: true` sends the shell before undeclared loaders settle. More than `MAX_REDIRECTS` (10) redirects is a 500 with `RedirectLoop`. |
@@ -50,7 +50,7 @@ await renderToStream(app, { layer }) // shell with the fallback first, then the 
 A link that warms the next page, and the page's form action:
 
 ```tsx
-<Link href="/users/7" table={table} code={() => import('./UserPage')} loaders={[user]}>Ada</Link>
+<Link href="/users/7" table={table} code={() => import('./UserPage')} loaders={[user]} class="user-link">Ada</Link>
 
 const save = action(function* (e: ActionEvent) { yield* saveUser(e.formData) })
 const EditPage = () => <form action={save}>...</form>
