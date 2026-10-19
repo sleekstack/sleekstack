@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-30-static-site-generation",
   "spec_path": ".flow/tasks/fn-30-static-site-generation.2.md",
-  "status": "todo",
+  "status": "done",
   "title": "Build-time render and write HTML per route",
   "updated_at": "2026-10-18T15:40:35.528651Z"
 }

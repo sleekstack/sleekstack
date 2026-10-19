@@ -8,7 +8,7 @@
   "priority": null,
   "spec": "fn-29-sleekstack-vite-plugin",
   "spec_path": ".flow/tasks/fn-29-sleekstack-vite-plugin.1.md",
-  "status": "todo",
+  "status": "done",
   "title": "Scaffold packages/ui-vite with pragma-aware JSX plugin",
   "updated_at": "2026-10-18T15:40:26.395897Z"
 }

@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-29-sleekstack-vite-plugin",
   "spec_path": ".flow/tasks/fn-29-sleekstack-vite-plugin.4.md",
-  "status": "todo",
+  "status": "done",
   "title": "File-based routes to @sleekstack/router table",
   "updated_at": "2026-10-18T15:40:26.396334Z"
 }

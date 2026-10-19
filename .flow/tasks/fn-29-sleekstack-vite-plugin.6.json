@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-29-sleekstack-vite-plugin",
   "spec_path": ".flow/tasks/fn-29-sleekstack-vite-plugin.6.md",
-  "status": "todo",
+  "status": "done",
   "title": "Docs, README and ADR note for ui-vite",
   "updated_at": "2026-10-18T15:40:26.396379Z"
 }

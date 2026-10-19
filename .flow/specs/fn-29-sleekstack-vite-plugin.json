@@ -927,7 +927,7 @@
     "impl:fn-29-sleekstack-vite-plugin.6": 0
   },
   "spec_path": ".flow/specs/fn-29-sleekstack-vite-plugin.md",
-  "status": "open",
+  "status": "done",
   "title": "SleekStack Vite plugin",
   "tracker": {
     "baseHashFlow": null,
@@ -940,5 +940,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-19T09:36:06.307640Z"
+  "updated_at": "2026-10-19T11:54:55.524277Z"
 }

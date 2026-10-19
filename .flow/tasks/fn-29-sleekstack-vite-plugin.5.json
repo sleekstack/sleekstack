@@ -12,7 +12,7 @@
   "priority": null,
   "spec": "fn-29-sleekstack-vite-plugin",
   "spec_path": ".flow/tasks/fn-29-sleekstack-vite-plugin.5.md",
-  "status": "todo",
+  "status": "done",
   "title": "Client and SSR builds with example app on the plugin",
   "updated_at": "2026-10-18T15:40:26.396356Z"
 }

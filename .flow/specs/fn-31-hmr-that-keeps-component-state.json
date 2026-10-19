@@ -517,7 +517,7 @@
     "impl:fn-31-hmr-that-keeps-component-state.3": 0
   },
   "spec_path": ".flow/specs/fn-31-hmr-that-keeps-component-state.md",
-  "status": "open",
+  "status": "done",
   "title": "HMR that keeps component state",
   "tracker": {
     "baseHashFlow": null,
@@ -530,5 +530,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-19T09:48:03.798036Z"
+  "updated_at": "2026-10-19T11:54:56.410158Z"
 }

@@ -360,7 +360,7 @@
     "impl:fn-30-static-site-generation.3": 0
   },
   "spec_path": ".flow/specs/fn-30-static-site-generation.md",
-  "status": "open",
+  "status": "done",
   "title": "Static site generation",
   "tracker": {
     "baseHashFlow": null,
@@ -373,5 +373,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-19T10:15:51.610123Z"
+  "updated_at": "2026-10-19T11:54:55.976676Z"
 }
