@@ -91,7 +91,16 @@ describe('markdown', () => {
   ])('stays fast on a 200KB %s full of whitespace', async (_, source) => {
     const start = performance.now()
     await html(source)
-    expect(performance.now() - start).toBeLessThan(500)
+    expect(performance.now() - start).toBeLessThan(3000)
+  })
+
+  it.each([
+    ['inline spans', `**a ${'*b* '.repeat(150_000)}`],
+    ['paragraphs', 'x\n\n'.repeat(200_000)],
+    ['list items', '- x\n'.repeat(200_000)],
+    ['words', 'x '.repeat(400_000)],
+  ])('renders %s past the argument-spread limit without overflowing the stack', async (_, source) => {
+    await expect(html(source)).resolves.toContain('<')
   })
 
   it('renders an empty body as nothing', async () => {

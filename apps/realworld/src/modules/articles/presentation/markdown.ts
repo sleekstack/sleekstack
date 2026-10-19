@@ -6,6 +6,16 @@ import { Effect } from 'effect'
 
 type Inline = Node | string
 
+// `el` and `fragment` take their children as arguments, and spreading ~100k of them overflows the stack: a long list goes
+// under nested fragments of at most SPREAD_MAX, which add no element.
+const SPREAD_MAX = 5_000
+const group = (items: Array<Inline>): Array<Inline> => {
+  if (items.length <= SPREAD_MAX) return items
+  const groups: Array<Inline> = []
+  for (let i = 0; i < items.length; i += SPREAD_MAX) groups.push(fragment(...items.slice(i, i + SPREAD_MAX)))
+  return group(groups)
+}
+
 /** A link target the browser may follow: relative, or `http:`, `https:` or `mailto:`. */
 const safeHref = (url: string) => {
   const scheme = /^([^/?#]*?):/.exec(url)?.[1]
@@ -40,9 +50,11 @@ const inline = (source: string): Array<Inline> => {
     if ((m = CODE.exec(rest))) push(el('code', {}, m[1]!))
     else if ((m = LINK.exec(rest)))
       // An unsafe target (`javascript:`) keeps its label as text and loses the link.
-      safeHref(m[2]!) ? push(el('a', { href: m[2]! }, ...inline(m[1]!))) : push(fragment(...inline(m[1]!)))
-    else if (d && (m = d.strong.exec(rest))) push(el('strong', {}, ...inline(m[1]!)))
-    else if (d && (m = d.em.exec(rest))) push(el('em', {}, ...inline(m[1]!)))
+      safeHref(m[2]!)
+        ? push(el('a', { href: m[2]! }, ...group(inline(m[1]!))))
+        : push(fragment(...group(inline(m[1]!))))
+    else if (d && (m = d.strong.exec(rest))) push(el('strong', {}, ...group(inline(m[1]!))))
+    else if (d && (m = d.em.exec(rest))) push(el('em', {}, ...group(inline(m[1]!))))
     else {
       text += source[i]
       i++
@@ -84,22 +96,22 @@ const blocks = (source: string): Array<Node> => {
       out.push(el('pre', {}, el('code', {}, code.join('\n'))))
     } else if (HEADING.test(line)) {
       const { level, text } = heading(line)
-      out.push(el(`h${level}`, {}, ...inline(text)))
+      out.push(el(`h${level}`, {}, ...group(inline(text))))
       i++
     } else if (ITEM.test(line)) {
       const ordered = ORDERED.test(line)
       const items: Array<Node> = []
       for (; i < lines.length && ITEM.test(lines[i]!) && ORDERED.test(lines[i]!) === ordered; i++)
-        items.push(el('li', {}, ...inline(lines[i]!.replace(ITEM, ''))))
-      out.push(el(ordered ? 'ol' : 'ul', {}, ...items))
+        items.push(el('li', {}, ...group(inline(lines[i]!.replace(ITEM, '')))))
+      out.push(el(ordered ? 'ol' : 'ul', {}, ...group(items)))
     } else {
       const para: Array<string> = []
       for (; i < lines.length && lines[i]!.trim() && !startsBlock(lines[i]!); i++) para.push(lines[i]!.trim())
-      out.push(el('p', {}, ...inline(para.join('\n'))))
+      out.push(el('p', {}, ...group(inline(para.join('\n')))))
     }
   }
   return out
 }
 
 /** The body as ui nodes, ready to place as a JSX child. */
-export const markdown = (source: string): Effect.Effect<Node> => Effect.succeed(fragment(...blocks(source)))
+export const markdown = (source: string): Effect.Effect<Node> => Effect.succeed(fragment(...group(blocks(source))))
