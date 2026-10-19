@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-55-remove-kit-react-next-and-islands",
   "spec_path": ".flow/tasks/fn-55-remove-kit-react-next-and-islands.2.md",
-  "status": "todo",
+  "status": "done",
   "title": "devtools: UiPanel and uiTrace as ui components, no React",
   "updated_at": "2026-10-17T12:18:13.697403Z"
 }
