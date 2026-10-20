@@ -1,11 +1,65 @@
 {
   "branch_name": "fn-65-file-routes-page-config-layouts-routing",
+  "completion_review_status": "unknown",
+  "completion_reviewed_at": null,
   "created_at": "2026-10-20T19:22:39.862980Z",
+  "default_impl": null,
+  "default_review": null,
+  "default_sync": null,
   "depends_on_epics": [],
   "id": "fn-65-file-routes-page-config-layouts-routing",
+  "impl_review_rounds": {
+    "fn-65-file-routes-page-config-layouts-routing.1": 0
+  },
   "next_task": 1,
+  "plan_review_rounds": 0,
   "plan_review_status": "unknown",
   "plan_reviewed_at": null,
+  "review_attempts": [
+    {
+      "artifact_sha256": "0ff8714e1c81b7ad7356f0e2cd6d0154c40846d5eed1a31e72aeebf114bc9999",
+      "backend": "codex",
+      "base_sha": "96cfaef64bbd74d87dcb1f887af236a4966c34fa",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "2a2e5ad2a39c5f24ae0def559ed1d0bbecbbb5f7",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-6.1-sol",
+      "outcome": "verdict",
+      "output_bytes": 158,
+      "output_sha256": "6ff70da3d83706800ca3cabc6ba62603ba0485fcf5259d27f1be54ce68686975",
+      "reservation_id": "772a9104608a475fa53649681fc1b16a",
+      "round_consumed": true,
+      "scope": "impl:fn-65-file-routes-page-config-layouts-routing.1",
+      "superseded_by": null,
+      "task": "fn-65-file-routes-page-config-layouts-routing.1",
+      "timestamp": "2026-10-20T19:33:52.611862Z",
+      "verdict": "SHIP"
+    }
+  ],
+  "review_hash_epoch": {
+    "impl:fn-65-file-routes-page-config-layouts-routing.1": 1
+  },
+  "review_pending_rounds": {},
+  "review_reservations": {},
+  "review_transport_failures": {
+    "impl:fn-65-file-routes-page-config-layouts-routing.1": 0
+  },
   "spec_path": ".flow/specs/fn-65-file-routes-page-config-layouts-routing.md",
   "status": "open",
   "title": "File routes: page config, layouts, routing syntax and lazy pages",
@@ -20,5 +74,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-20T19:22:39.865217Z"
+  "updated_at": "2026-10-20T19:33:52.613288Z"
 }

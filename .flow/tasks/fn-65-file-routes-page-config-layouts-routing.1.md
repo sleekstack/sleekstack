@@ -35,9 +35,13 @@ Teach `match` and `Params` the last-segment patterns `:name?` (optional) and `*n
 - [ ] TBD
 
 ## Done summary
-TBD
+`match` and `Params` now accept `:name?` (optional, last segment; param absent when missing) and `*name` (splat, last segment; one or more non-empty segments, decoded per segment, joined with `/`); either one mid-path never matches, and a malformed escape still matches nothing. Root path segments became `[]` so `/:id?` matches `/`. Tests: `router.test.ts` match tables (optional, splat, zero-segment splat, empty-segment splat, malformed escape in a splat, mid-path optional/splat) and `params.test-d.ts` (`:id?`, `*path`, mixed, `string` record). README and routing.mdx document both patterns.
 
+Note: an unrelated `pnpm-lock.yaml` change (an `apps/sleek-codes` importer) appeared in the worktree during the run; it is not from this task and was left uncommitted.
+
+Tier: implementer (project routing block: opus at medium)
+stage: impl-review - ran (codex fan-out, 3 draws SHIP, rid 772a9104608a475fa53649681fc1b16a)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 2a2e5ad2a39c5f24ae0def559ed1d0bbecbbb5f7
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/router... --filter=@sleekstack/ui-vite... --filter=@sleekstack/analyze --filter=sleekstack --filter=realworld
 - PRs:
