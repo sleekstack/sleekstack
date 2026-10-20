@@ -811,16 +811,36 @@ export function analyzeComponents(opts: { readonly project: string }): Component
           `"${text(p)}" is imported from ${ROUTES_MODULE}, which has no routes.gen.d.ts declaration; run vite to write it`,
         )
   }
-  /** The route files under `dir` that ui-vite makes routes: not `.d.ts`, no `_`-prefixed segment (ADR 0050). */
-  const routeFiles = (dir: string) =>
-    fs
+  /**
+   * The files under `dir` that ui-vite reads for pages (ADR 0050): route files (not `.d.ts`, no `_`-prefixed segment)
+   * and the `_layout` files outside `_` directories with a route file below them.
+   */
+  const routeFiles = (dir: string) => {
+    const all = fs
       .readdirSync(dir, { recursive: true, encoding: 'utf8' })
-      .filter((f) => ROUTE_FILE.test(f) && !f.endsWith('.d.ts') && !f.split(path.sep).some((s) => s.startsWith('_')))
-      .map((f) => path.join(dir, f).split(path.sep).join('/'))
+      .map((f) => f.split(path.sep).join('/'))
+      .filter((f) => ROUTE_FILE.test(f) && !f.endsWith('.d.ts'))
+    const underscored = (f: string) => f.split('/').some((s) => s.startsWith('_'))
+    const routes = all.filter((f) => !underscored(f))
+    const layouts = all.filter((f) => {
+      const at = path.posix.dirname(f)
+      return (
+        path.posix.basename(f).replace(ROUTE_FILE, '') === '_layout' &&
+        !underscored(at) &&
+        routes.some((r) => at === '.' || r.startsWith(`${at}/`))
+      )
+    })
+    return [...routes, ...layouts].map((f) => `${dir.split(path.sep).join('/')}/${f}`)
+  }
   /** The `typeof import('./x')` of a `Page<typeof import('./x')>` type in `routes.gen.d.ts`. */
   const pageImport = (t: ts.TypeNode | undefined) => {
     const arg = t && ts.isTypeReferenceNode(t) ? t.typeArguments?.[0] : undefined
     return arg && ts.isImportTypeNode(arg) ? arg : undefined
+  }
+  /** The layout imports of a `Page<typeof import('./x'), [typeof import('./_layout'), ...]>`, outer first. */
+  const layoutImports = (t: ts.TypeNode | undefined): ts.TypeNode[] => {
+    const arg = t && ts.isTypeReferenceNode(t) ? t.typeArguments?.[1] : undefined
+    return arg && ts.isTupleTypeNode(arg) ? [...arg.elements] : []
   }
   /** The route module an import type names; undefined when its file is gone. */
   const routeModule = (arg: ts.ImportTypeNode) => {
@@ -828,8 +848,9 @@ export function analyzeComponents(opts: { readonly project: string }): Component
     return module?.valueDeclaration && ts.isSourceFile(module.valueDeclaration) ? module : undefined
   }
   /**
-   * The route modules `routes.gen.d.ts` types `pages` from (`Page<typeof import('./x')>`), checked against the route
-   * files beside it: a declaration that names a missing file or misses a route file fails, naming both.
+   * The route modules `routes.gen.d.ts` types `pages` from (`Page<typeof import('./x')>`, plus its layout modules in
+   * `Page<..., [typeof import('./_layout')]>`), checked against the files beside it: a declaration that names a missing
+   * file or misses a route or layout file fails, naming both.
    */
   const filePages = (p: ts.Node, sym: ts.Symbol) => {
     const d = declared(p, sym)
@@ -838,18 +859,32 @@ export function analyzeComponents(opts: { readonly project: string }): Component
       d.type && ts.isTypeLiteralNode(d.type) ? d.type.members : fail(d, `${file} types pages as no object of routes`)
     const missing: string[] = []
     const pages = members.flatMap((m) => {
-      const arg = pageImport(ts.isPropertySignature(m) ? m.type : undefined)
+      const type = ts.isPropertySignature(m) ? m.type : undefined
+      const arg = pageImport(type)
       if (!arg || !m.name) return fail(m, `${file} types page "${text(m)}" as no Page<typeof import('./route-file')>`)
-      const module = routeModule(arg)
-      if (!module) {
-        missing.push(arg.argument.getText())
+      const layouts = layoutImports(type).map((l) =>
+        ts.isImportTypeNode(l) ? l : fail(l, `${file} types a layout of "${text(m)}" as no typeof import('./_layout')`),
+      )
+      const modules = [arg, ...layouts].map((x) => [x, routeModule(x)] as const)
+      const gone = modules.filter(([, mod]) => !mod).map(([x]) => x.argument.getText())
+      if (gone.length) {
+        missing.push(...gone)
         return []
       }
+      const [module, ...layoutModules] = modules.map(([, mod]) => mod!)
       return [
-        { name: `page ${m.name.getText()}`, module, file: module.valueDeclaration!.getSourceFile().fileName, at: m },
+        {
+          name: `page ${m.name.getText()}`,
+          module: module!,
+          layouts: layoutModules.map((l, i) => ({ name: `layout ${layouts[i]!.argument.getText()}`, module: l })),
+          file: module!.valueDeclaration!.getSourceFile().fileName,
+          at: m,
+        },
       ]
     })
-    const listed = new Set(pages.map((x) => x.file))
+    const listed = new Set(
+      pages.flatMap((x) => [x.file, ...x.layouts.map((l) => l.module.valueDeclaration!.getSourceFile().fileName)]),
+    )
     const unlisted = routeFiles(path.dirname(d.getSourceFile().fileName)).filter((f) => !listed.has(f))
     if (missing.length || unlisted.length)
       fail(
@@ -922,7 +957,10 @@ export function analyzeComponents(opts: { readonly project: string }): Component
         ...loc(at),
       })
       const pages = fromFiles
-        ? filePages(pp!, fromFiles).map(({ name, module, at }) => route(at, filePage(name, module, at)))
+        ? filePages(pp!, fromFiles).map(({ name, module, layouts, at }) =>
+            // Layouts (outer first) beside the page, under the same `Route` provide; a layout's loaders run with the page's.
+            route(at, [...layouts.flatMap((l) => filePage(l.name, l.module, at)), ...filePage(name, module, at)]),
+          )
         : (objectOf(pp) ?? fail(def, 'Router pages are not a readable object literal')).properties.flatMap((p) => {
             const name = `page ${p.name?.getText() ?? text(p)}`
             const page = objectOf(p)

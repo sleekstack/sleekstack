@@ -216,9 +216,105 @@ export const needs: Needs<typeof app> = null as unknown as Db
     expect(declaration).toContain('export const notFound: Page<typeof import("./_notFound.ts")>["render"]')
   })
 
+  /** A layout: its default export wraps `children` in `<tag>`, plus `extra` source lines. */
+  const layout = (tag: string, extra = '') =>
+    `import { jsx, type Child } from '@sleekstack/ui/jsx-runtime'\n${extra}export default ({ children }: { children: Child }) => jsx(${JSON.stringify(tag)}, { children })\n`
+  const shared = `import { shared } from '../_shared.ts'\nexport const loaders = [shared]\n`
+
+  it('wraps each page in its directory chain of layouts, outer first, merging their loaders once each', async () => {
+    const { server, load } = await serve(
+      ['_shared.ts', '_layout.ts', '(g)/_layout.ts', '(g)/a.ts', 'b.ts', 'admin/_layout.ts', 'admin/x.ts'],
+      {
+        contents: {
+          '_shared.ts': `import { loader, redirect } from '@sleekstack/router'
+import { Effect, Schema } from 'effect'
+export const shared = loader('shared', Schema.String, Effect.succeed('s'))
+export const guard = loader('guard', Schema.String, redirect('/b'))
+`,
+          '_layout.ts': layout('main', `import { shared } from './_shared.ts'\nexport const loaders = [shared]\n`),
+          '(g)/_layout.ts': layout('section'),
+          '(g)/a.ts': `${component('a')}${shared}`,
+          'b.ts': component('b'),
+          'admin/_layout.ts': layout('nav', `import { guard } from '../_shared.ts'\nexport const loaders = [guard]\n`),
+          'admin/x.ts': component('x'),
+        },
+      },
+    )
+    const { table, pages } = await load()
+    // The router the route files import, so its Redirect is the one `handle` answers.
+    const { handle, router } = await server.ssrLoadModule('@sleekstack/router')
+    const app = router({ table, pages, notFound: () => component('nope') as never })
+    const get = async (p: string) => {
+      const res = await handle(app, new Request(`http://x.test${p}`))
+      return { status: res.status, location: res.headers.get('location'), body: await res.text() }
+    }
+    expect(await get('/a')).toMatchObject({
+      status: 200,
+      body: expect.stringContaining('<main><section><h1>a</h1></section></main>'),
+    })
+    expect(await get('/b')).toMatchObject({ status: 200, body: expect.stringContaining('<main><h1>b</h1></main>') })
+    expect(pages['(g)/a'].loaders.map((l: { key: string }) => l.key)).toEqual(['shared'])
+    expect(pages['admin/x'].loaders.map((l: { key: string }) => l.key)).toEqual(['shared', 'guard'])
+    expect(Object.keys(pages.b)).toEqual(['render', 'loaders'])
+    // A layout guard redirects every page below it.
+    expect(await get('/admin/x')).toMatchObject({ status: 302, location: '/b' })
+  })
+
+  it('leaves notFound unwrapped and ignores a layout under a _ directory', async () => {
+    const { dir, load } = await serve(['_layout.ts', 'index.ts', '_notFound.ts', '_lib/_layout.ts'], {
+      contents: {
+        '_layout.ts': layout('main'),
+        'index.ts': component('home'),
+        '_notFound.ts': component('nope'),
+        '_lib/_layout.ts': 'export {}\n',
+      },
+    })
+    const { pages, notFound } = await load()
+    expect(await render(pages.index.render)).toContain('<main><h1>home</h1></main>')
+    const missing = await render(notFound)
+    expect(missing).toContain('<h1>nope</h1>')
+    expect(missing).not.toContain('<main>')
+    expect(fs.readFileSync(path.join(dir, 'routes.gen.d.ts'), 'utf8')).not.toContain('_lib')
+  })
+
+  it("types each page with its layouts' loaders, so router() infers what they need", async () => {
+    const { dir } = await serve(['_layout.ts', 'users/[id].ts', 'about.ts'], {
+      contents: {
+        '_layout.ts': `import { loader } from '@sleekstack/router'
+import { Context, Effect, Schema } from 'effect'
+export class Db extends Context.Tag('Db')<Db, { readonly name: string }>() {}
+export const loaders = [loader('user', Schema.String, Db.pipe(Effect.map((db) => db.name)))]
+${layout('main')}`,
+        'users/[id].ts': `import { loader } from '@sleekstack/router'
+import { Context, Effect, Schema } from 'effect'
+export class Clock extends Context.Tag('Clock')<Clock, number>() {}
+export const loaders = [loader('now', Schema.Number, Clock)]
+${component('user')}`,
+        'about.ts': component('about'),
+      },
+    })
+    const code = `import { router, type Router } from '@sleekstack/router'
+import { jsx } from '@sleekstack/ui/jsx-runtime'
+import { pages, table } from 'virtual:sleekstack/routes'
+import type { Db } from './routes/_layout.ts'
+import type { Clock } from './routes/users/[id].ts'
+
+type Needs<T> = T extends Router<any, infer R> ? R : never
+const app = router({ table, pages, notFound: () => jsx('p', {}) })
+export const needs: Needs<typeof app> = null as unknown as Db | Clock
+export const exact: Db | Clock = null as unknown as Needs<typeof app>
+export const about = pages.about.loaders
+`
+    expect(typeErrors(dir, code)).toEqual([])
+    expect(fs.readFileSync(path.join(dir, 'routes.gen.d.ts'), 'utf8')).toContain(
+      'readonly "users/[id]": Page<typeof import("./users/[id].ts"), [typeof import("./_layout.ts")]>',
+    )
+  })
+
   it.each([
     ['a route file with no default export', 'about.ts', 'export const loaders = []'],
     ['a _notFound with no default export', '_notFound.ts', 'export {}'],
+    ['a _layout with no default export', 'users/_layout.ts', 'export {}'],
     ['a route file with a type-only default interface', 'about.ts', 'export default interface About {}'],
     [
       'a route file with a type-only default export',

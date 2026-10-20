@@ -19,11 +19,12 @@ const OPTIONAL = /^\[\[(\w+)\]\]$/
 const SPLAT = /^\[\.\.\.(\w+)\]$/
 const GROUP = /^\([\w.~-]+\)$/
 
-/** A route file: its table name (file path without extension) and path string. */
+/** A route file: its table name (file path without extension), path string, and layouts (outer first). */
 interface Route {
   readonly file: string
   readonly name: string
   readonly path: string
+  readonly layouts: readonly string[]
 }
 
 /** One file segment as a path segment: a name, `:param`, `:param?`, `*splat`, or nothing for a `(group)`. */
@@ -45,14 +46,16 @@ const toSegment = (file: string, segment: string): string => {
  * `users/[id].tsx` is `/users/:id`, `[[id]]` is `:id?`, `[...rest]` is `*rest`, a `(group)` directory adds no
  * segment, and an `index` file is its directory's path. Throws naming the file when invalid.
  */
-const toRoute = (dir: string, file: string): Route => {
+const toRoute = (dir: string, file: string, layouts: ReadonlyMap<string, string>): Route => {
   const name = path.posix.relative(dir, file).replace(ROUTE_FILE, '')
   const segments = name.split('/')
   if (segments.at(-1) === 'index') segments.pop()
   const parts = segments.map((s) => toSegment(file, s)).filter((s) => s !== '')
   if (parts.slice(0, -1).some((s) => s.endsWith('?') || s.startsWith('*')))
     throw new Error(`sleekstack: invalid route file ${file}: an optional or splat segment must be the last one`)
-  return { file, name, path: `/${parts.join('/')}` }
+  const dirs = name.split('/').slice(0, -1)
+  const chain = ['', ...dirs.map((_, i) => dirs.slice(0, i + 1).join('/'))].flatMap((d) => layouts.get(d) ?? [])
+  return { file, name, path: `/${parts.join('/')}`, layouts: chain }
 }
 
 /** Ranks a path segment at one position: static, then `:param`, then `:param?`, then `*splat`. */
@@ -89,9 +92,27 @@ const hasDefault = (file: string) => {
   )
 }
 
-/** Throws naming `file` when it has no default export, the page or not-found component. */
+/** Throws naming `file` when it has no default export, the page, layout or not-found component. */
 const needDefault = (file: string) => {
   if (!hasDefault(file)) throw new Error(`sleekstack: route file ${file} has no default export`)
+}
+
+/**
+ * The `_layout` files under `dir` by their directory (`''` at the root); one under a `_` directory is ignored with its
+ * subtree. Throws naming both files when a directory has two.
+ */
+const layoutsOf = (dir: string, files: readonly string[]): Map<string, string> => {
+  const layouts = new Map<string, string>()
+  for (const f of files) {
+    const rel = path.posix.relative(dir, f)
+    if (!ROUTE_FILE.test(f) || path.posix.basename(rel).replace(ROUTE_FILE, '') !== '_layout') continue
+    const at = path.posix.dirname(rel) === '.' ? '' : path.posix.dirname(rel)
+    if (at.split('/').some((s) => s.startsWith('_'))) continue
+    const other = layouts.get(at)
+    if (other) throw new Error(`sleekstack: layout files ${other} and ${f} are in one directory`)
+    layouts.set(at, f)
+  }
+  return layouts
 }
 
 /** What `routesDir` gives: its routes and its root `_notFound` file, if any. */
@@ -111,9 +132,10 @@ const scan = (dir: string): Scanned => {
   const notFound = files.find(
     (f) => ROUTE_FILE.test(f) && path.posix.relative(dir, f).replace(ROUTE_FILE, '') === '_notFound',
   )
+  const layouts = layoutsOf(dir, files)
   const found = files
     .filter((f) => ROUTE_FILE.test(f) && !f.endsWith('.d.ts') && !ignored(dir, f))
-    .map((f) => toRoute(dir, f))
+    .map((f) => toRoute(dir, f, layouts))
     .sort((a, b) => (sortKey(a) < sortKey(b) ? -1 : sortKey(a) > sortKey(b) ? 1 : 0))
   const byPath = new Map<string, string>()
   for (const r of found) {
@@ -121,7 +143,7 @@ const scan = (dir: string): Scanned => {
     if (other) throw new Error(`sleekstack: route files ${other} and ${r.file} both give path ${r.path}`)
     byPath.set(sortKey(r), r.file)
   }
-  for (const f of [...found.map((r) => r.file), ...(notFound ? [notFound] : [])]) needDefault(f)
+  for (const f of [...found.map((r) => r.file), ...layouts.values(), ...(notFound ? [notFound] : [])]) needDefault(f)
   return { found, notFound }
 }
 
@@ -129,18 +151,26 @@ const scan = (dir: string): Scanned => {
 const PAGE_EXPORTS = ['loaders', 'fallback', 'prerender']
 
 /**
- * The module's code: each page renders its file's default export and carries the file's `PAGE_EXPORTS` it has (no
- * `undefined` keys); computed keys keep every route name an own property.
+ * The module's code: each page renders its file's default export inside its layouts (outer first) and carries the
+ * file's `PAGE_EXPORTS` it has (no `undefined` keys), its `loaders` led by its layouts' loaders, each loader once.
+ * Computed keys keep every route name an own property. `notFound` gets no layout: the router runs no loaders for it,
+ * so a layout's loaders would never have run. Layouts remount on every navigation, as the router swaps the whole view.
  */
 const moduleCode = ({ found, notFound }: Scanned): string => {
   const key = (r: Route) => `[${JSON.stringify(r.name)}]`
-  const imports = found.map((r, i) => `import * as p${i} from ${JSON.stringify(r.file)}\n`).join('')
+  const layouts = [...new Set(found.flatMap((r) => r.layouts))]
+  const imports = [
+    ...found.map((r, i) => `import * as p${i} from ${JSON.stringify(r.file)}\n`),
+    ...layouts.map((f, i) => `import * as l${i} from ${JSON.stringify(f)}\n`),
+  ].join('')
   const table = found.map((r) => `${key(r)}: ${JSON.stringify(r.path)}`).join(', ')
-  const pages = found.map((r, i) => `${key(r)}: page(p${i})`).join(', ')
+  const chain = (r: Route) => r.layouts.map((f) => `l${layouts.indexOf(f)}`).join(', ')
+  const pages = found.map((r, i) => `${key(r)}: page(p${i}, [${chain(r)}])`).join(', ')
   return `import { jsx } from '@sleekstack/ui/jsx-runtime'
-${imports}${notFound ? `import NotFound from ${JSON.stringify(notFound)}\n` : ''}const page = (m) => {
-  const p = { render: () => jsx(m.default, {}) }
+${imports}${notFound ? `import NotFound from ${JSON.stringify(notFound)}\n` : ''}const page = (m, layouts) => {
+  const p = { render: () => layouts.reduceRight((children, l) => jsx(l.default, { children }), jsx(m.default, {})) }
   for (const k of ${JSON.stringify(PAGE_EXPORTS)}) if (k in m) p[k] = m[k]
+  if (layouts.some((l) => 'loaders' in l)) p.loaders = [...new Set([...layouts, m].flatMap((x) => x.loaders ?? []))]
   return p
 }
 export const table = { ${table} }
@@ -150,20 +180,32 @@ ${notFound ? 'export const notFound = () => jsx(NotFound, {})\n' : ''}`
 
 /**
  * The module's types: literal paths, so `Params` reads them as from a hand-written table, and each page typed from its
- * route module (`PAGE_EXPORTS` it has, and a JSX `render`), so `router()` infers its requirements as for a literal.
+ * route module (`PAGE_EXPORTS` it has, and a JSX `render`) and its layout modules (outer first, their `loaders` joining
+ * the page's), so `router()` infers its requirements as for a literal.
  */
 const declaration = (dir: string, { found, notFound }: Scanned): string => {
   const entries = (value: (r: Route) => string) =>
     found.map((r) => `\n    readonly ${JSON.stringify(r.name)}: ${value(r)}`).join('')
   const module = (file: string) => `typeof import(${JSON.stringify(`./${path.posix.relative(dir, file)}`)})`
+  const page = (r: Route) =>
+    r.layouts.length ? `Page<${module(r.file)}, [${r.layouts.map(module).join(', ')}]>` : `Page<${module(r.file)}>`
   const keys = PAGE_EXPORTS.map((k) => JSON.stringify(k)).join(' | ')
   return `// Written by @sleekstack/ui-vite from the route files in this directory; do not edit.
 declare module '${ROUTES_MODULE}' {
   type Render = () => import('@sleekstack/ui/jsx-runtime').JSX.Element
-  type Page<M> = { readonly render: Render } & Pick<M, Extract<keyof M, ${keys}>>
+  type LoadersOf<M> = M extends { readonly loaders: ReadonlyArray<infer L> } ? L : never
+  type WithLayouts<M, L extends readonly unknown[]> = [L[number]] extends [never]
+    ? M
+    : [LoadersOf<M | L[number]>] extends [never]
+      ? M
+      : Omit<M, "loaders"> & { readonly loaders: ReadonlyArray<LoadersOf<M | L[number]>> }
+  type Page<M, L extends readonly unknown[] = []> = { readonly render: Render } & Pick<
+    WithLayouts<M, L>,
+    Extract<keyof WithLayouts<M, L>, ${keys}>
+  >
   export const table: {${entries((r) => JSON.stringify(r.path))}
   }
-  export const pages: {${entries((r) => `Page<${module(r.file)}>`)}
+  export const pages: {${entries(page)}
   }
 ${notFound ? `  export const notFound: Page<${module(notFound)}>["render"]\n` : ''}}
 `

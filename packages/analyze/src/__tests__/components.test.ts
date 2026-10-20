@@ -65,6 +65,22 @@ describe('component pass', () => {
     expect(notFound).toEqual(['routes/_notFound.tsx:3', 'routes/_notFound.tsx:3'])
   })
 
+  it('ui-router-file-routes: a layout file the declaration misses is reported, not skipped', () => {
+    const extra = path.join(dir('ui-router-file-routes'), 'routes', '(extra)')
+    fs.mkdirSync(extra)
+    try {
+      fs.writeFileSync(
+        path.join(extra, '_layout.tsx'),
+        'export default ({ children }: { children: never }) => children\n',
+      )
+      fs.writeFileSync(path.join(extra, 'x.tsx'), 'export default () => <p>x</p>\n')
+      const messages = run('ui-router-file-routes').errors.map((e) => e.message)
+      expect(messages).toContainEqual(expect.stringMatching(/disagrees with the route files.*\(extra\)\/_layout\.tsx/))
+    } finally {
+      fs.rmSync(extra, { recursive: true, force: true })
+    }
+  })
+
   it('clean fixture: one tree per mount, nothing reported', () => {
     const r = run('ui-clean')
     expect(r.errors).toEqual([])
