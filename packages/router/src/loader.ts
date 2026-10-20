@@ -27,6 +27,8 @@ export interface Held {
   failure?: Cause.Cause<unknown>
   // Set while a prefetch is unread: past it the load is stopped and the result dropped. A page read keeps it for good.
   expires?: number
+  // While a navigation loads this entry fresh: the stale result it replaces, which the page shown keeps reading.
+  prior?: Held
 }
 
 /** How long a prefetched loader result waits for a page to read it (R13). */
@@ -38,28 +40,29 @@ const evict = (all: Map<string, Held>, key: string, h: Held): Effect.Effect<void
   return h.load ? Effect.asVoid(Fiber.interrupt(h.load)) : Effect.void
 }
 
-// Forks `l`'s load into a new entry under `key`, held at once unless a stale result holds the key: then it replaces
-// that result once loaded. A failed or interrupted load removes its entry.
+// Holds `e` under `key` and forks the load into it. A failed or interrupted load puts back `e.prior`, or removes `e`.
 const start = <A, I, E, R>(
   all: Map<string, Held>,
   key: string,
   load: Effect.Effect<A, E, R>,
   schema: Schema.Schema<A, I>,
-  ttl?: number,
+  e: Held,
 ) =>
   Effect.gen(function* () {
-    const e: Held = ttl === undefined ? { readers: 0 } : { readers: 0, expires: Date.now() + ttl }
-    if (!all.has(key)) all.set(key, e)
+    all.set(key, e)
     e.load = yield* Effect.forkDaemon(
       Effect.flatMap(load, (value) =>
         Effect.map(Effect.orDie(Schema.encode(schema)(value)), (encoded) => {
-          Object.assign(e, { value, encoded, load: undefined })
-          all.set(key, e)
+          Object.assign(e, { value, encoded, load: undefined, prior: undefined })
           return value
         }),
       ).pipe(
         Effect.onExit((exit) =>
-          Effect.sync(() => void (Exit.isSuccess(exit) || all.get(key) !== e || all.delete(key))),
+          Effect.sync(() => {
+            if (Exit.isSuccess(exit) || all.get(key) !== e) return
+            if (e.prior) all.set(key, e.prior)
+            else all.delete(key)
+          }),
         ),
       ),
     )
@@ -82,10 +85,12 @@ export const isFor = (key: string, pathname: string): boolean => JSON.parse(key)
 export class Loaders extends Context.Tag('@sleekstack/router/Loaders')<Loaders, Map<string, Held>>() {}
 
 /**
- * Results a navigation holds stale: its loader reads see them as a miss and load fresh, replacing each once loaded.
- * The router gives it to the navigation's loaders only, so the page still shown keeps reading the stale results.
+ * Given by the router to a navigation's loaders and the page it shows. While `stale` is set, their reads see a stale
+ * result as a miss: they load it fresh into an entry that keeps the stale result as `prior` for the page being left,
+ * and replaces it once loaded. Other reads (the page being left, and the shown page once the navigation commits) read
+ * the `prior` of an entry loading fresh.
  */
-export class Stale extends Context.Tag('@sleekstack/router/Stale')<Stale, ReadonlySet<Held>>() {}
+export class Navigating extends Context.Tag('@sleekstack/router/Navigating')<Navigating, { stale?: Set<Held> }>() {}
 
 /**
  * The loader's result for the matched route: a held result (sent by the server, or loaded earlier) returns at once,
@@ -98,9 +103,12 @@ export const useLoader = <A, I, E, R>(l: Loader<A, I, E, R>): Effect.Effect<A, E
     const { pathname } = yield* Route
     const all = yield* Loaders
     const key = keyOf(l, pathname)
-    const stale = yield* Effect.serviceOption(Stale)
+    const stale = Option.getOrUndefined(yield* Effect.serviceOption(Navigating))?.stale
     let held = all.get(key)
-    if (held && Option.isSome(stale) && stale.value.has(held)) held = undefined
+    if (held && stale?.has(held)) {
+      const prior = held.failure ? undefined : held
+      held = yield* start(all, key, l.load, l.schema, { readers: 0, prior })
+    } else if (!stale && held?.prior) held = held.prior
     if (held?.failure) {
       all.delete(key)
       return yield* Effect.failCause(held.failure as Cause.Cause<E>)
@@ -113,14 +121,12 @@ export const useLoader = <A, I, E, R>(l: Loader<A, I, E, R>): Effect.Effect<A, E
       if (!('value' in held)) held.value = yield* Effect.orDie(Schema.decodeUnknown(l.schema)(held.encoded))
       return held.value as A
     }
-    held ??= yield* start(all, key, l.load, l.schema)
+    held ??= yield* start(all, key, l.load, l.schema, { readers: 0 })
     const e = held
     e.readers++
     return yield* (Fiber.join(e.load!) as Effect.Effect<A, E>).pipe(
       Effect.ensuring(Effect.sync(() => e.readers--)),
-      Effect.onInterrupt(() =>
-        e.readers > 0 || !e.load ? Effect.void : (all.get(key) === e && all.delete(key), Fiber.interrupt(e.load)),
-      ),
+      Effect.onInterrupt(() => (e.readers > 0 || !e.load ? Effect.void : Fiber.interrupt(e.load))),
     )
   })
 
@@ -136,7 +142,10 @@ export const prefetchLoader = <A, I, E, R>(
     const all = yield* Loaders
     const key = keyOf(l, m.pathname)
     if (all.has(key)) return
-    const e = yield* start(all, key, Effect.provide(l.load, routeLayer(m)), l.schema, PREFETCH_TTL)
+    const e = yield* start(all, key, Effect.provide(l.load, routeLayer(m)), l.schema, {
+      readers: 0,
+      expires: Date.now() + PREFETCH_TTL,
+    })
     yield* Effect.forkDaemon(
       Effect.sleep(PREFETCH_TTL).pipe(
         Effect.zipRight(

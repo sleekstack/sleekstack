@@ -289,6 +289,12 @@ describe('startRouter', () => {
       Schema.String,
       Effect.promise(() => gate.then(() => `v${++fresh}`)),
     )
+    // Reads `gated` too, as a guard reads the loader it checks.
+    const derived = loader(
+      'derived',
+      Schema.String,
+      Effect.map(useLoader(gated), (s) => `${s}!`),
+    )
     const away = loader('away', Schema.String, Effect.zipRight(Effect.yieldNow(), redirect('/users/1')))
     const watch = (l: Loader<string, string, any, any>) => () =>
       jsx(
@@ -310,12 +316,22 @@ describe('startRouter', () => {
       })
     const watching = router({
       ...app,
-      table: routes({ ...table, guarded: '/guarded', same: '/same', hop: '/hop', links: '/links' }),
+      table: routes({
+        ...table,
+        guarded: '/guarded',
+        same: '/same',
+        pair: '/pair',
+        peek: '/peek',
+        hop: '/hop',
+        links: '/links',
+      }),
       pages: {
         ...app.pages,
         user: { render: watch(user), loaders: [user] },
         guarded: { render: watch(guard), loaders: [guard] },
         same: { render: watch(gated), loaders: [gated] },
+        pair: { render: watch(derived), loaders: [gated, derived] },
+        peek: { render: watch(gated) },
         hop: hop as never,
         links: { render: links },
       },
@@ -361,6 +377,21 @@ describe('startRouter', () => {
       await flush()
       expect([location.search, container().textContent, fresh]).toEqual(['', 'v3 0', 3])
     })
+
+    it.each([
+      ['/pair', 'v2! 0'],
+      ['/peek', 'v2 0'],
+    ])(
+      '%s loads each loader once more on a navigation to its pathname, shared and undeclared reads included',
+      async (path, text) => {
+        fresh = 0
+        gate = Promise.resolve()
+        await start(path, '', watching)
+        expect(fresh).toBe(1)
+        await act(() => nav!.navigate(`${path}?tab=2`))
+        expect([container().textContent, fresh]).toEqual([text, 2])
+      },
+    )
 
     it("after a redirect, an intermediate hop's results are dropped: an undeclared read there loads again", async () => {
       out = false

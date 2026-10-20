@@ -1,7 +1,7 @@
 import { hydrateMount, type Mounted, mount, type Node } from '@sleekstack/ui'
 import { Cause, Effect, Exit, Fiber, Layer, Option } from 'effect'
 import { match, routeLayer, type RouteTable } from './index'
-import { type Held, isFor, Loaders, Stale, withLoaders } from './loader'
+import { type Held, isFor, Loaders, Navigating, withLoaders } from './loader'
 import { type AppLayer, controlOf, NotFound, Redirect, resolve, type Router, view } from './resolve'
 
 /** `layer` is the app services for loaders and pages: required when the router's pages need any (`AppLayer`). */
@@ -46,7 +46,8 @@ export const startRouter = async <T extends RouteTable, R>(
   // The pathname and search of the page shown; a history step within it (a fragment) is not a navigation.
   let shown = here(location)
   let nav: Fiber.RuntimeFiber<void, unknown> | undefined
-  let navs = 0
+  // The latest navigation's record, which its loaders and the page it shows read through `Navigating`.
+  let current: Navigating['Type'] | undefined
   let mounted: Mounted | undefined
 
   const onError = (cause: Cause.Cause<unknown>) => {
@@ -55,8 +56,9 @@ export const startRouter = async <T extends RouteTable, R>(
     else if (c instanceof NotFound) void show(r.notFound())
     else opts.onError?.(cause)
   }
-  const show = async (app: Effect.Effect<Node, any, any>, route?: Layer.Layer<any>) => {
-    mounted = await mount(app, { container, layer: route ? Layer.merge(loaders, route) : loaders, onError })
+  const show = async (app: Effect.Effect<Node, any, any>, route?: Layer.Layer<any>, navigating = {}) => {
+    const layer = Layer.merge(loaders, Layer.succeed(Navigating, navigating))
+    mounted = await mount(app, { container, layer: route ? Layer.merge(layer, route) : layer, onError })
   }
   const page = (pathname: string) => {
     const m = match(r.table, pathname)
@@ -69,16 +71,17 @@ export const startRouter = async <T extends RouteTable, R>(
     scrolls.set(key, scrollY)
     if (mode === 'pop') key = history.state?.key ?? newKey()
     if (nav) Effect.runFork(Fiber.interrupt(nav))
-    const n = ++navs
     // Each navigation loads again (R11): its loaders read the settled results as stale and replace them once loaded,
     // while the page being left keeps reading them. Loads in flight and unread prefetches are not stale.
     const settled = (h: Held) => !h.load && h.expires === undefined
     const stale = new Set([...all.values()].filter(settled))
+    if (current) delete current.stale
+    const rec: Navigating['Type'] = (current = { stale })
     const run = Effect.gen(function* () {
       const exit = yield* Effect.exit(
         Effect.provide(
           resolve(r, href, location.origin),
-          Layer.mergeAll(Layer.succeed(Loaders, all), Layer.succeed(Stale, stale), base),
+          Layer.mergeAll(Layer.succeed(Loaders, all), Layer.succeed(Navigating, rec), base),
         ),
       )
       // A `RedirectLoop` or defect; a loader's error still shows the page, whose `Boundary` gets it.
@@ -90,10 +93,15 @@ export const startRouter = async <T extends RouteTable, R>(
       const { pathname } = new URL(res.href, location.href)
       const [app, route] = res._tag === 'NotFound' ? [r.notFound(), undefined] : page(pathname)
       shown = here(new URL(res.href, location.href))
-      yield* Effect.promise(() => show(app, route))
-      // Shown: drop the stale results nothing replaced and those of other pathnames (redirect hops, the page left),
-      // unless a newer navigation has started and owns the map.
-      if (n === navs) for (const [k, h] of all) if (stale.has(h) || (settled(h) && !isFor(k, pathname))) all.delete(k)
+      yield* Effect.promise(() => show(app, route, rec))
+      // Shown, unless a newer navigation has started and owns the map: drop the stale results nothing replaced and those
+      // of other pathnames (redirect hops, the page left); results still loading fresh are read as they are from now.
+      if (current === rec) {
+        delete rec.stale
+        for (const [k, h] of all)
+          if (stale.has(h) || (settled(h) && !isFor(k, pathname))) all.delete(k)
+          else delete h.prior
+      }
       scrollTo(0, mode === 'pop' ? (scrolls.get(key) ?? 0) : 0)
     })
     const fiber = (nav = Effect.runFork(run))

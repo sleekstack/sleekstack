@@ -1,11 +1,80 @@
 {
   "branch_name": "fn-64-router-keeps-the-outgoing-pages-loader",
+  "completion_review_status": "unknown",
+  "completion_reviewed_at": null,
   "created_at": "2026-10-19T12:01:24.809201Z",
+  "default_impl": null,
+  "default_review": null,
+  "default_sync": null,
   "depends_on_epics": [],
   "id": "fn-64-router-keeps-the-outgoing-pages-loader",
+  "impl_review_rounds": {
+    "fn-64-router-keeps-the-outgoing-pages-loader.1": 1
+  },
   "next_task": 1,
+  "plan_review_rounds": 0,
   "plan_review_status": "unknown",
   "plan_reviewed_at": null,
+  "review_attempts": [
+    {
+      "artifact_sha256": "fdc19ad90a567405d39634e66ba9aea9699bae05f80e6a38d8ba72e5b4318fe5",
+      "backend": "codex",
+      "base_sha": "36625fe3ad63bc116fea8336a4642683e3d657e0",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-26cea5505e796774f73ae1a08348bf1c",
+            "classification": "introduced",
+            "findingId": "finding-26cea5505e796774f73ae1a08348bf1c",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-7d4dbc1e47ae9c077668e5e7d1e3c452",
+            "classification": "introduced",
+            "findingId": "finding-7d4dbc1e47ae9c077668e5e7d1e3c452",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "a3e52f2de4ad60628ef02704ef97c241575ed5c8",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-6.1-sol",
+      "outcome": "verdict",
+      "output_bytes": 1732,
+      "output_sha256": "1cf80800e89df3c840f2eac0168d5f9bc33801f72433d4e36578cc69699d6248",
+      "reservation_id": "65338691afcb497d94b778d5ca732872",
+      "round_consumed": true,
+      "scope": "impl:fn-64-router-keeps-the-outgoing-pages-loader.1",
+      "superseded_by": null,
+      "task": "fn-64-router-keeps-the-outgoing-pages-loader.1",
+      "timestamp": "2026-10-20T08:08:33.838027Z",
+      "verdict": "NEEDS_WORK"
+    }
+  ],
+  "review_hash_epoch": {},
+  "review_pending_rounds": {},
+  "review_reservations": {},
+  "review_transport_failures": {
+    "impl:fn-64-router-keeps-the-outgoing-pages-loader.1": 0
+  },
   "spec_path": ".flow/specs/fn-64-router-keeps-the-outgoing-pages-loader.md",
   "status": "open",
   "title": "Router keeps the outgoing page's loader results during navigation",
@@ -20,5 +89,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-20T05:14:22.220585Z"
+  "updated_at": "2026-10-20T08:08:33.839682Z"
 }
