@@ -48,7 +48,7 @@ The plugin runs `@sleekstack/analyze` (the `sleekstack check` passes) over the V
 
 The analyzer is loaded through jiti on first use, and a run is synchronous whole-program TypeScript, so the dev server stops answering requests while a run lasts.
 
-The analyzer reads router `pages` only as an object literal written in place. Write the pages out in the `router({ ... })` call, as the example's `app.tsx` does. Passing `pages` from `virtual:sleekstack/routes` hides them from the analyzer.
+The analyzer reads router `pages` written as an object literal, or imported from `virtual:sleekstack/routes`. For the module's `pages` it reads `routes.gen.d.ts` to find each route file, then checks the file's default export and `loaders` like a page written in place, and reports a missing service at the route file's `file:line`. The module's `notFound` is read from the root `_notFound` file. A declaration that names a missing file or misses a route file is reported, never guessed: run `vite` to rewrite it.
 
 ## Stable component ids
 

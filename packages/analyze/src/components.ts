@@ -7,6 +7,7 @@
  * branch of a conditional, `&&` or `.map` counts as rendered. Anything that cannot be read is `Unresolved`.
  */
 
+import * as fs from 'node:fs'
 import * as path from 'node:path'
 import ts from 'typescript'
 import { bodyReturns, libId, programOf, TEST_FILE, unwrap, Unreadable } from './extract'
@@ -33,6 +34,9 @@ const ROUTER_CONTROL: Record<string, string> = {
   Redirect: 'router/resolve#Redirect',
   NotFound: 'router/resolve#NotFound',
 }
+/** `@sleekstack/ui-vite`'s file-route module, typed by the `routes.gen.d.ts` it writes in `routesDir` (ADR 0045). */
+const ROUTES_MODULE = 'virtual:sleekstack/routes'
+const ROUTE_FILE = /\.[jt]sx?$/
 
 export function analyzeComponents(opts: { readonly project: string }): ComponentReport {
   const { root, program, checker } = programOf(opts.project)
@@ -157,6 +161,21 @@ export function analyzeComponents(opts: { readonly project: string }): Component
       const own = Object.hasOwn(ROUTER_CONTROL, tt.value) && ROUTER_CONTROL[tt.value] === libId(m.getSymbol(), checker)
       return own ? ROUTER_ERROR + tt.value : tt.value
     })
+  /** Module `mod`'s default export function, or a failure at `at` saying `why`. */
+  const defaultOf = (mod: ts.Symbol | undefined, at: ts.Node, why: string): ts.FunctionLikeDeclaration => {
+    const def = mod && checker.getExportsOfModule(mod).find((x) => x.escapedName === 'default')
+    const d = aliased(def)
+    if (d && ts.isFunctionDeclaration(d) && d.body) return d
+    // `export default X` of a const resolves to X's declaration.
+    const t =
+      d && ts.isExportAssignment(d)
+        ? calleeTarget(d.expression)
+        : d && ts.isVariableDeclaration(d) && d.initializer && ts.getCombinedNodeFlags(d) & ts.NodeFlags.Const
+          ? calleeTarget(d.initializer)
+          : undefined
+    if (t && !ts.isCallExpression(t)) return t
+    return fail(at, why)
+  }
   /** The default export a `lazy(() => import('./x'))` call loads. */
   const lazyTarget = (tag: ts.Node, call: ts.CallExpression): ts.FunctionLikeDeclaration => {
     const load = call.arguments[0] && unwrap(call.arguments[0])
@@ -166,13 +185,11 @@ export function analyzeComponents(opts: { readonly project: string }): Component
       imp && ts.isCallExpression(imp) && imp.expression.kind === ts.SyntaxKind.ImportKeyword
         ? imp.arguments[0]
         : undefined
-    const mod = spec && checker.getSymbolAtLocation(spec)
-    const def = mod && checker.getExportsOfModule(mod).find((x) => x.escapedName === 'default')
-    const d = aliased(def)
-    if (d && ts.isFunctionDeclaration(d) && d.body) return d
-    const t = d && ts.isExportAssignment(d) ? calleeTarget(d.expression) : undefined
-    if (t && !ts.isCallExpression(t)) return t
-    return fail(tag, `"${text(tag)}" is a lazy component whose \`() => import('…')\` default export cannot be read`)
+    return defaultOf(
+      spec && checker.getSymbolAtLocation(spec),
+      tag,
+      `"${text(tag)}" is a lazy component whose \`() => import('…')\` default export cannot be read`,
+    )
   }
   /** The Tags a Layer-typed expression provides (`ROut`) and requires (`RIn`). */
   const layerTags = (at: ts.Node, t: ts.Type) => {
@@ -751,13 +768,16 @@ export function analyzeComponents(opts: { readonly project: string }): Component
             ? calleeTarget(value.initializer)
             : fail(p, `"${text(p)}" is not a readable render function`)
     if (ts.isCallExpression(fn)) return fail(fn, `"${text(fn)}" is a computed render function; its tree cannot be read`)
-    const sig = checker.getSignatureFromDeclaration(fn)
-    if (!sig) return fail(p, `"${text(p)}" has no readable signature`)
-    return component(p, name, () => rendered(fn), checker.getReturnTypeOfSignature(sig))
+    return renderOf(p, fn, name)
   }
-  /** A page's `loaders`: one node carrying the `R` of every loader's `load`. */
-  const loadersNode = (p: ts.ObjectLiteralElementLike, name: string): UiNode => {
-    const t = propType(p)
+  /** A component node at `at` for render function `fn`, over what it renders. */
+  const renderOf = (at: ts.Node, fn: ts.FunctionLikeDeclaration, name: string): UiNode[] => {
+    const sig = checker.getSignatureFromDeclaration(fn)
+    if (!sig) return fail(at, `"${text(at)}" has no readable signature`)
+    return component(at, name, () => rendered(fn), checker.getReturnTypeOfSignature(sig))
+  }
+  /** A page's `loaders` (typed `t`, written at `p`): one node carrying the `R` of every loader's `load`. */
+  const loadersNode = (p: ts.Node, t: ts.Type, name: string): UiNode => {
     const items =
       checker.isArrayType(t) || checker.isTupleType(t) ? checker.getTypeArguments(t as ts.TypeReference) : []
     const requires = items.flatMap(members).flatMap((m) => {
@@ -766,6 +786,94 @@ export function analyzeComponents(opts: { readonly project: string }): Component
       return args ? tagNames(p, args[2], 'requires') : fail(p, `Loaders "${text(p)}" have no readable load Effect`)
     })
     return { kind: 'component', name: `${name} loaders`, guest: false, requires, errors: [], children: [], ...loc(p) }
+  }
+  /** The symbol router property `p` names when it is an import from `virtual:sleekstack/routes`. */
+  const routesImport = (p: ts.ObjectLiteralElementLike | undefined): ts.Symbol | undefined => {
+    const init = p && ts.isPropertyAssignment(p) ? unwrap(p.initializer) : undefined
+    const sym =
+      p && ts.isShorthandPropertyAssignment(p)
+        ? checker.getShorthandAssignmentValueSymbol(p)
+        : init && ts.isIdentifier(init)
+          ? checker.getSymbolAtLocation(init)
+          : undefined
+    const d = sym?.declarations?.[0]
+    return d &&
+      ts.isImportSpecifier(d) &&
+      (d.parent.parent.parent.moduleSpecifier as ts.StringLiteral).text === ROUTES_MODULE
+      ? sym
+      : undefined
+  }
+  /** The `routes.gen.d.ts` declaration of a `virtual:sleekstack/routes` import; without one nothing is guessed. */
+  const declared = (p: ts.Node, sym: ts.Symbol): ts.VariableDeclaration => {
+    const d = aliased(sym)
+    return d && ts.isVariableDeclaration(d) && d.getSourceFile().isDeclarationFile
+      ? d
+      : fail(
+          p,
+          `"${text(p)}" is imported from ${ROUTES_MODULE}, which has no routes.gen.d.ts declaration; run vite to write it`,
+        )
+  }
+  /** The route files under `dir` that ui-vite makes routes: not `.d.ts`, no `_`-prefixed segment (ADR 0050). */
+  const routeFiles = (dir: string) =>
+    fs
+      .readdirSync(dir, { recursive: true, encoding: 'utf8' })
+      .filter((f) => ROUTE_FILE.test(f) && !f.endsWith('.d.ts') && !f.split(path.sep).some((s) => s.startsWith('_')))
+      .map((f) => path.join(dir, f).split(path.sep).join('/'))
+  /**
+   * The route modules `routes.gen.d.ts` types `pages` from (`Page<typeof import('./x')>`), checked against the route
+   * files beside it: a declaration that names a missing file or misses a route file fails, naming both.
+   */
+  const filePages = (p: ts.Node, sym: ts.Symbol) => {
+    const d = declared(p, sym)
+    const file = path.basename(d.getSourceFile().fileName)
+    const members =
+      d.type && ts.isTypeLiteralNode(d.type) ? d.type.members : fail(d, `${file} types pages as no object of routes`)
+    const missing: string[] = []
+    const pages = members.flatMap((m) => {
+      const t = ts.isPropertySignature(m) ? m.type : undefined
+      const arg = t && ts.isTypeReferenceNode(t) ? t.typeArguments?.[0] : undefined
+      if (!arg || !ts.isImportTypeNode(arg) || !m.name)
+        return fail(m, `${file} types page "${text(m)}" as no Page<typeof import('./route-file')>`)
+      const module = checker.getTypeFromTypeNode(arg).getSymbol()
+      const source = module?.valueDeclaration
+      if (!module || !source || !ts.isSourceFile(source)) {
+        missing.push(arg.argument.getText())
+        return []
+      }
+      return [{ name: `page ${m.name.getText()}`, module, file: source.fileName, at: m }]
+    })
+    const listed = new Set(pages.map((x) => x.file))
+    const unlisted = routeFiles(path.dirname(d.getSourceFile().fileName)).filter((f) => !listed.has(f))
+    if (missing.length || unlisted.length)
+      fail(
+        d,
+        `${file} disagrees with the route files${missing.length ? `; it names missing ${missing.join(', ')}` : ''}${
+          unlisted.length ? `; it misses ${unlisted.map((f) => path.relative(root, f)).join(', ')}` : ''
+        }; run vite to rewrite it`,
+      )
+    return pages
+  }
+  /** A route module's nodes: its default export as the page's render, and its `loaders` export. */
+  const filePage = (name: string, module: ts.Symbol, at: ts.Node): UiNode[] => {
+    const loaders = aliased(checker.getExportsOfModule(module).find((x) => x.escapedName === 'loaders'))
+    return [
+      ...guarded(() => {
+        const fn = defaultOf(module, at, `The route module of "${text(at)}" has no readable default export component`)
+        return renderOf(fn.name ?? fn, fn, name)
+      }),
+      ...(loaders ? guarded(() => [loadersNode(loaders, checker.getTypeAtLocation(loaders), name)]) : []),
+    ]
+  }
+  /** `notFound` imported from `virtual:sleekstack/routes`: the root `_notFound` file beside its declaration. */
+  const fileNotFound = (p: ts.ObjectLiteralElementLike, sym: ts.Symbol): UiNode[] => {
+    const dir = path.dirname(declared(p, sym).getSourceFile().fileName)
+    const sf = program
+      .getSourceFiles()
+      .find((f) => path.dirname(f.fileName) === dir && /^_notFound\.[jt]sx?$/.test(path.basename(f.fileName)))
+    const module = sf && checker.getSymbolAtLocation(sf)
+    if (!module) return fail(p, `"${text(p)}" is declared in routes.gen.d.ts but ${dir} has no _notFound file`)
+    const fn = defaultOf(module, p, `${sf!.fileName} has no readable default export component`)
+    return renderOf(fn.name ?? fn, fn, 'notFound')
   }
   /**
    * A `startRouter(router, { layer })` / `handle(router, request, { layer })` root: one child per page (its render and
@@ -779,22 +887,33 @@ export function analyzeComponents(opts: { readonly project: string }): Component
       // `Route` is provided around matched pages only, never around `notFound`.
       const provides = [...(layer ? layerTags(opts!, layer).provides : []), 'Loaders', 'Transfer']
       const def = routerOf(n.arguments[0] ?? fail(n, `"${text(n)}" has no router`))
-      const pages = objectOf(prop(def, 'pages')) ?? fail(def, 'Router pages are not a readable object literal')
+      const pp = prop(def, 'pages')
+      const fromFiles = routesImport(pp)
       const nf = prop(def, 'notFound') ?? fail(def, 'Router has no notFound page')
+      const nfFromFiles = routesImport(nf)
+      const route = (at: ts.Node, nodes: UiNode[]): UiNode => ({
+        kind: 'provide',
+        provides: ['Route'],
+        requires: [],
+        children: nodes,
+        ...loc(at),
+      })
+      const pages = fromFiles
+        ? filePages(pp!, fromFiles).map(({ name, module, at }) => route(at, filePage(name, module, at)))
+        : (objectOf(pp) ?? fail(def, 'Router pages are not a readable object literal')).properties.flatMap((p) => {
+            const name = `page ${p.name?.getText() ?? text(p)}`
+            const page = objectOf(p)
+            if (!page) return guarded(() => fail(p, `Page "${text(p)}" is not a readable object literal`))
+            const render = prop(page, 'render')
+            const loaders = prop(page, 'loaders')
+            return route(p, [
+              ...guarded(() => (render ? renderNode(render, name) : fail(p, `"${text(p)}" has no render`))),
+              ...(loaders ? guarded(() => [loadersNode(loaders, propType(loaders), name)]) : []),
+            ])
+          })
       const children: UiNode[] = [
-        ...pages.properties.flatMap((p) => {
-          const name = `page ${p.name?.getText() ?? text(p)}`
-          const page = objectOf(p)
-          if (!page) return guarded(() => fail(p, `Page "${text(p)}" is not a readable object literal`))
-          const render = prop(page, 'render')
-          const loaders = prop(page, 'loaders')
-          const nodes = [
-            ...guarded(() => (render ? renderNode(render, name) : fail(p, `"${text(p)}" has no render`))),
-            ...(loaders ? guarded(() => [loadersNode(loaders, name)]) : []),
-          ]
-          return [{ kind: 'provide', provides: ['Route'], requires: [], children: nodes, ...loc(p) } satisfies UiNode]
-        }),
-        ...guarded(() => renderNode(nf, 'notFound')),
+        ...pages,
+        ...guarded(() => (nfFromFiles ? fileNotFound(nf, nfFromFiles) : renderNode(nf, 'notFound'))),
       ]
       const root: UiNode = Object.keys(ROUTER_CONTROL).reduce<UiNode>(
         (inner, tag) => ({ kind: 'catch', tag: ROUTER_ERROR + tag, children: [inner], ...loc(n) }),

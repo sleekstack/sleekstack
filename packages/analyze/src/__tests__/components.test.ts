@@ -6,10 +6,10 @@ import { analyzeComponents, type UiNode } from '../index'
 const dir = (name: string) => path.join(__dirname, 'fixtures', name)
 const run = (name: string) => analyzeComponents({ project: path.join(dir(name), 'tsconfig.json') })
 const located = (name: string) => run(name).errors.map(({ code, file, line }) => ({ code, file, line }))
-/** Every `// @error Code` marker in a fixture's .ts / .tsx files. */
+/** Every `// @error Code` marker in a fixture's .ts / .tsx files, subdirectories included. */
 const expected = (name: string) =>
   fs
-    .readdirSync(dir(name))
+    .readdirSync(dir(name), { recursive: true, encoding: 'utf8' })
     .filter((f) => /\.tsx?$/.test(f))
     .sort()
     .flatMap((file) =>
@@ -18,7 +18,7 @@ const expected = (name: string) =>
         .split('\n')
         .flatMap((l, i) => {
           const m = /\/\/ @error (\w+)/.exec(l)
-          return m ? [{ code: m[1]!, file, line: i + 1 }] : []
+          return m ? [{ code: m[1]!, file: file.split(path.sep).join('/'), line: i + 1 }] : []
         }),
     )
 const sorted = <T extends { file: string; line: number }>(xs: T[]) =>
@@ -43,6 +43,8 @@ describe('component pass', () => {
     'ui-portal',
     'ui-router-roots',
     'ui-router-link',
+    'ui-router-file-routes',
+    'ui-router-file-routes-stale',
   ])('%s: code and file:line', (name) => {
     const want = expected(name)
     expect(want.length).toBeGreaterThan(0)
