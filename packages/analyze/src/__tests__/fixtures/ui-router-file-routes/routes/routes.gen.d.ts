@@ -6,11 +6,15 @@ declare module 'virtual:sleekstack/routes' {
     readonly "index": "/"
     readonly "about": "/about"
     readonly "data": "/data"
+    readonly "guest": "/guest"
+    readonly "later": "/later"
   }
   export const pages: {
     readonly "index": Page<typeof import("./index.tsx")>
     readonly "about": Page<typeof import("./about.tsx")>
     readonly "data": Page<typeof import("./data.tsx")>
+    readonly "guest": Page<typeof import("./guest.tsx")>
+    readonly "later": Page<typeof import("./later.tsx")>
   }
   export const notFound: Render
 }

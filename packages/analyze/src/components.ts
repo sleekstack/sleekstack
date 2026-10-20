@@ -161,21 +161,6 @@ export function analyzeComponents(opts: { readonly project: string }): Component
       const own = Object.hasOwn(ROUTER_CONTROL, tt.value) && ROUTER_CONTROL[tt.value] === libId(m.getSymbol(), checker)
       return own ? ROUTER_ERROR + tt.value : tt.value
     })
-  /** Module `mod`'s default export function, or a failure at `at` saying `why`. */
-  const defaultOf = (mod: ts.Symbol | undefined, at: ts.Node, why: string): ts.FunctionLikeDeclaration => {
-    const def = mod && checker.getExportsOfModule(mod).find((x) => x.escapedName === 'default')
-    const d = aliased(def)
-    if (d && ts.isFunctionDeclaration(d) && d.body) return d
-    // `export default X` of a const resolves to X's declaration.
-    const t =
-      d && ts.isExportAssignment(d)
-        ? calleeTarget(d.expression)
-        : d && ts.isVariableDeclaration(d) && d.initializer && ts.getCombinedNodeFlags(d) & ts.NodeFlags.Const
-          ? calleeTarget(d.initializer)
-          : undefined
-    if (t && !ts.isCallExpression(t)) return t
-    return fail(at, why)
-  }
   /** The default export a `lazy(() => import('./x'))` call loads. */
   const lazyTarget = (tag: ts.Node, call: ts.CallExpression): ts.FunctionLikeDeclaration => {
     const load = call.arguments[0] && unwrap(call.arguments[0])
@@ -185,11 +170,13 @@ export function analyzeComponents(opts: { readonly project: string }): Component
       imp && ts.isCallExpression(imp) && imp.expression.kind === ts.SyntaxKind.ImportKeyword
         ? imp.arguments[0]
         : undefined
-    return defaultOf(
-      spec && checker.getSymbolAtLocation(spec),
-      tag,
-      `"${text(tag)}" is a lazy component whose \`() => import('…')\` default export cannot be read`,
-    )
+    const mod = spec && checker.getSymbolAtLocation(spec)
+    const def = mod && checker.getExportsOfModule(mod).find((x) => x.escapedName === 'default')
+    const d = aliased(def)
+    if (d && ts.isFunctionDeclaration(d) && d.body) return d
+    const t = d && ts.isExportAssignment(d) ? calleeTarget(d.expression) : undefined
+    if (t && !ts.isCallExpression(t)) return t
+    return fail(tag, `"${text(tag)}" is a lazy component whose \`() => import('…')\` default export cannot be read`)
   }
   /** The Tags a Layer-typed expression provides (`ROut`) and requires (`RIn`). */
   const layerTags = (at: ts.Node, t: ts.Type) => {
@@ -384,33 +371,44 @@ export function analyzeComponents(opts: { readonly project: string }): Component
       ]
     }
     if (ts.isJsxNamespacedName(tag)) return fail(tag, `"${text(tag)}" is not a component`)
-    // A library component (the router's `Link`, say) holds no app code: its type gives its E / R.
-    const library = !!id || external(declOf(tag))
-    const target = library ? undefined : calleeTarget(tag)
-    const sig = checker.getTypeAtLocation(tag).getCallSignatures()[0]
-    if (!sig) return fail(tag, `"${text(tag)}" is not a component`)
-    const type = checker.getReturnTypeOfSignature(sig)
-    if (!target) return component(e, text(tag), () => kids, type)
-    if (ts.isCallExpression(target) && calleeOf(target) === 'ui/lazy#lazy') {
-      // The loaded component's tree gives its E / R; the type adds `LazyLoadError`, and its `any` members are that tree's.
-      const loaded = lazyTarget(tag, target)
-      return component(e, text(tag), () => [...rendered(loaded), ...kids], type).slice(0, 1)
-    }
-    if (ts.isCallExpression(target)) {
-      if (calleeOf(target) !== 'ui/component#fromReact' || !target.arguments[0])
-        return fail(tag, `"${text(tag)}" is a dynamic component; its declaration cannot be read`)
-      const given = open.attributes.properties.flatMap((p) => {
+    return element(e, tag, text(tag), kids, () =>
+      open.attributes.properties.flatMap((p) => {
         const v = ts.isJsxSpreadAttribute(p)
           ? p.expression
           : p.initializer && (ts.isJsxExpression(p.initializer) ? p.initializer.expression : p.initializer)
         return v ? [[p, checker.getTypeAtLocation(v)] as const] : []
-      })
-      return [guest(e, text(tag), target.arguments[0], given)]
+      }),
+    )
+  }
+  /** Component `tag` rendered at `e` with children `kids` and props `given`: a library, lazy, guest or app component. */
+  const element = (
+    e: ts.Node,
+    tag: ts.Expression,
+    name: string,
+    kids: UiNode[],
+    given: () => ReadonlyArray<readonly [ts.Node, ts.Type]>,
+  ): UiNode[] => {
+    // A library component (the router's `Link`, say) holds no app code: its type gives its E / R.
+    const library = !!libId(checker.getSymbolAtLocation(tag), checker) || external(declOf(tag))
+    const target = library ? undefined : calleeTarget(tag)
+    const sig = checker.getTypeAtLocation(tag).getCallSignatures()[0]
+    if (!sig) return fail(tag, `"${text(tag)}" is not a component`)
+    const type = checker.getReturnTypeOfSignature(sig)
+    if (!target) return component(e, name, () => kids, type)
+    if (ts.isCallExpression(target) && calleeOf(target) === 'ui/lazy#lazy') {
+      // The loaded component's tree gives its E / R; the type adds `LazyLoadError`, and its `any` members are that tree's.
+      const loaded = lazyTarget(tag, target)
+      return component(e, name, () => [...rendered(loaded), ...kids], type).slice(0, 1)
     }
-    if (stack.has(target)) return component(e, text(tag), () => kids, type)
+    if (ts.isCallExpression(target)) {
+      if (calleeOf(target) !== 'ui/component#fromReact' || !target.arguments[0])
+        return fail(tag, `"${text(tag)}" is a dynamic component; its declaration cannot be read`)
+      return [guest(e, name, target.arguments[0], given())]
+    }
+    if (stack.has(target)) return component(e, name, () => kids, type)
     stack.add(target)
     try {
-      return component(e, text(tag), () => [...rendered(target), ...kids], type)
+      return component(e, name, () => [...rendered(target), ...kids], type)
     } finally {
       stack.delete(target)
     }
@@ -857,12 +855,24 @@ export function analyzeComponents(opts: { readonly project: string }): Component
   const filePage = (name: string, module: ts.Symbol, at: ts.Node): UiNode[] => {
     const loaders = aliased(checker.getExportsOfModule(module).find((x) => x.escapedName === 'loaders'))
     return [
-      ...guarded(() => {
-        const fn = defaultOf(module, at, `The route module of "${text(at)}" has no readable default export component`)
-        return renderOf(fn.name ?? fn, fn, name)
-      }),
+      ...guarded(() => defaultElement(module, at, name)),
       ...(loaders ? guarded(() => [loadersNode(loaders, checker.getTypeAtLocation(loaders), name)]) : []),
     ]
+  }
+  /** What the generated `render: () => jsx(Default, {})` renders: module `mod`'s default export as an element. */
+  const defaultElement = (mod: ts.Symbol, at: ts.Node, name: string): UiNode[] => {
+    const d = checker.getExportsOfModule(mod).find((x) => x.escapedName === 'default')?.declarations?.[0]
+    if (d && ts.isFunctionDeclaration(d) && d.body)
+      return d.name ? element(d.name, d.name, name, [], () => []) : renderOf(d, d, name)
+    const tag =
+      d && ts.isExportAssignment(d)
+        ? d.expression
+        : d && ts.isExportSpecifier(d)
+          ? (d.propertyName ?? d.name)
+          : undefined
+    return tag && ts.isExpression(tag)
+      ? element(tag, tag, name, [], () => [])
+      : fail(at, `The route module of "${text(at)}" has no readable default export component`)
   }
   /** `notFound` imported from `virtual:sleekstack/routes`: the root `_notFound` file beside its declaration. */
   const fileNotFound = (p: ts.ObjectLiteralElementLike, sym: ts.Symbol): UiNode[] => {
@@ -871,9 +881,14 @@ export function analyzeComponents(opts: { readonly project: string }): Component
       .getSourceFiles()
       .find((f) => path.dirname(f.fileName) === dir && /^_notFound\.[jt]sx?$/.test(path.basename(f.fileName)))
     const module = sf && checker.getSymbolAtLocation(sf)
-    if (!module) return fail(p, `"${text(p)}" is declared in routes.gen.d.ts but ${dir} has no _notFound file`)
-    const fn = defaultOf(module, p, `${sf!.fileName} has no readable default export component`)
-    return renderOf(fn.name ?? fn, fn, 'notFound')
+    if (module) return defaultElement(module, p, 'notFound')
+    const onDisk = fs.readdirSync(dir).find((f) => /^_notFound\.[jt]sx?$/.test(f))
+    return fail(
+      p,
+      onDisk
+        ? `"${text(p)}" reads ${path.relative(root, path.join(dir, onDisk))}, which is not in the tsconfig's program; include it`
+        : `"${text(p)}" is declared in routes.gen.d.ts but ${path.relative(root, dir)} has no _notFound file`,
+    )
   }
   /**
    * A `startRouter(router, { layer })` / `handle(router, request, { layer })` root: one child per page (its render and

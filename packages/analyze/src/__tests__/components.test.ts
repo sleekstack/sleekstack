@@ -51,6 +51,13 @@ describe('component pass', () => {
     expect(sorted(located(name))).toEqual(want)
   })
 
+  it('ui-router-file-routes: a _notFound outside the program is reported as such, not as missing', () => {
+    const r = analyzeComponents({ project: path.join(dir('ui-router-file-routes'), 'tsconfig.files.json') })
+    expect(r.errors.filter((e) => e.code === 'Unresolved').map((e) => e.message)).toEqual([
+      expect.stringContaining("routes/_notFound.tsx, which is not in the tsconfig's program"),
+    ])
+  })
+
   it('clean fixture: one tree per mount, nothing reported', () => {
     const r = run('ui-clean')
     expect(r.errors).toEqual([])
