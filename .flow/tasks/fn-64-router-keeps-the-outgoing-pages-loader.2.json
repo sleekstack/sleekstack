@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-64-router-keeps-the-outgoing-pages-loader",
   "spec_path": ".flow/tasks/fn-64-router-keeps-the-outgoing-pages-loader.2.md",
-  "status": "todo",
+  "status": "done",
   "title": "realworld settings uses the signedIn guard again",
   "updated_at": "2026-10-20T05:14:21.229049Z"
 }

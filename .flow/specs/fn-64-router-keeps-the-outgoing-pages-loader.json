@@ -206,7 +206,7 @@
     "impl:fn-64-router-keeps-the-outgoing-pages-loader.2": 0
   },
   "spec_path": ".flow/specs/fn-64-router-keeps-the-outgoing-pages-loader.md",
-  "status": "open",
+  "status": "done",
   "title": "Router keeps the outgoing page's loader results during navigation",
   "tracker": {
     "baseHashFlow": null,
@@ -219,5 +219,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-20T08:19:34.024601Z"
+  "updated_at": "2026-10-20T08:19:46.990557Z"
 }

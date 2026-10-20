@@ -8,7 +8,7 @@
   "priority": null,
   "spec": "fn-64-router-keeps-the-outgoing-pages-loader",
   "spec_path": ".flow/tasks/fn-64-router-keeps-the-outgoing-pages-loader.1.md",
-  "status": "todo",
+  "status": "done",
   "title": "Router: stale results are replaced on settle and deleted at commit",
   "updated_at": "2026-10-20T05:14:21.228905Z"
 }
