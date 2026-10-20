@@ -1,0 +1,17 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-20T19:24:00.668578Z",
+  "depends_on": [
+    "fn-65-file-routes-page-config-layouts-routing.3",
+    "fn-65-file-routes-page-config-layouts-routing.4"
+  ],
+  "id": "fn-65-file-routes-page-config-layouts-routing.5",
+  "priority": null,
+  "spec": "fn-65-file-routes-page-config-layouts-routing",
+  "spec_path": ".flow/tasks/fn-65-file-routes-page-config-layouts-routing.5.md",
+  "status": "todo",
+  "title": "ui-vite and analyze: _layout.tsx layouts composed at generation",
+  "updated_at": "2026-10-20T19:24:00.668578Z"
+}
