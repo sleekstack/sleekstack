@@ -58,25 +58,63 @@ const typeErrors = (dir: string, code: string) => {
 
 describe('routes()', () => {
   it('builds a route table the router matches, with a page per route', async () => {
-    const { load } = await serve(['index.ts', 'users/index.ts', 'users/[id].ts', 'users/new.tsx', '__proto__.ts'])
+    const { load } = await serve(['index.ts', 'users/index.ts', 'users/[id].ts', 'users/new.tsx', 'constructor.ts'])
     const { table, pages } = await load()
     expect(table).toEqual({
       index: '/',
-      ['__proto__']: '/__proto__',
+      constructor: '/constructor',
       'users/index': '/users',
       'users/new': '/users/new',
       'users/[id]': '/users/:id',
     })
-    expect(pages.__proto__).toBe('__proto__.ts')
+    expect(Object.hasOwn(pages, 'constructor')).toBe(true)
     expect(pages['users/[id]']).toBe('users/[id].ts')
     expect(match(table, '/users/42')).toMatchObject({ value: { name: 'users/[id]', params: { id: '42' } } })
     expect(match(table, '/users/new')).toMatchObject({ value: { name: 'users/new' } })
   })
 
+  it('reads optional, splat and group segments, in static, param, optional, splat order', async () => {
+    const { load } = await serve([
+      'files/[...path].ts',
+      'files/[[name]].ts',
+      'users/[[id]].ts',
+      'users/[id].ts',
+      'users/index.ts',
+      'users/new.ts',
+      '(auth)/login.ts',
+      '(auth)/(inner)/index.ts',
+    ])
+    const { table } = await load()
+    expect(Object.entries(table)).toEqual([
+      ['(auth)/(inner)/index', '/'],
+      ['files/[[name]]', '/files/:name?'],
+      ['files/[...path]', '/files/*path'],
+      ['(auth)/login', '/login'],
+      ['users/index', '/users'],
+      ['users/new', '/users/new'],
+      ['users/[id]', '/users/:id'],
+      ['users/[[id]]', '/users/:id?'],
+    ])
+    expect(match(table, '/users')).toMatchObject({ value: { name: 'users/index' } })
+    expect(match(table, '/users/7')).toMatchObject({ value: { name: 'users/[id]' } })
+    expect(match(table, '/files/a/b')).toMatchObject({ value: { name: 'files/[...path]', params: { path: 'a/b' } } })
+    expect(match(table, '/login')).toMatchObject({ value: { name: '(auth)/login' } })
+  })
+
+  it('leaves out files and directories starting with _', async () => {
+    const { dir, load } = await serve(['index.ts', '_helper.ts', '_lib/x.ts', 'users/_row.tsx', 'users/_parts/[id].ts'])
+    const { table, pages } = await load()
+    expect(table).toEqual({ index: '/' })
+    expect(Object.keys(pages)).toEqual(['index'])
+    expect(fs.readFileSync(path.join(dir, 'routes.gen.d.ts'), 'utf8')).not.toMatch(/_helper|_lib|_row|_parts/)
+  })
+
   it('types the module with literal paths and each page', async () => {
-    const { dir } = await serve(['index.ts', 'users/[id].ts'])
+    const { dir } = await serve(['index.ts', 'users/[id].ts', 'u/[[id]].ts', 'files/[...path].ts'])
     const code = `import { pages, table } from 'virtual:sleekstack/routes'
 export const path: '/users/:id' = table['users/[id]']
+export const optional: '/u/:id?' = table['u/[[id]]']
+export const splat: '/files/*path' = table['files/[...path]']
 export const page: 'users/[id].ts' = pages['users/[id]']
 // @ts-expect-error no such route
 table['users']
@@ -96,10 +134,17 @@ table['users']
   })
 
   it.each([
-    ['an invalid segment', ['users/{id}.ts'], 'users/{id}.ts'],
-    ['two files with one path', ['users.ts', 'users/index.ts'], 'users/index.ts'],
-  ])('reports %s naming the route file', async (_, files, bad) => {
+    ['an invalid segment', ['users/{id}.ts'], ['users/{id}.ts']],
+    ['a misplaced optional', ['users/[[id]]/edit.ts'], ['users/[[id]]/edit.ts']],
+    ['a misplaced splat', ['files/[...path]/raw.ts'], ['files/[...path]/raw.ts']],
+    ['two files with one path', ['users.ts', 'users/index.ts'], ['users.ts', 'users/index.ts']],
+    ['two files with one path through groups', ['(a)/x.ts', '(b)/x.ts'], ['(a)/x.ts', '(b)/x.ts']],
+  ])('reports %s naming the route files', async (_, files, bad) => {
     const { dir, load } = await serve(files)
-    await expect(load()).rejects.toThrow(path.join(dir, bad))
+    const error: Error = await load().then(
+      () => new Error('loaded'),
+      (e: Error) => e,
+    )
+    for (const file of bad) expect(error.message).toContain(path.join(dir, file))
   })
 })

@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted. Amends ADR 0036's "there is no code generation" for apps that use file-based routes through `@sleekstack/ui-vite`. Built in spec fn-29.
+Accepted. Amends ADR 0036's "there is no code generation" for apps that use file-based routes through `@sleekstack/ui-vite`. Built in spec fn-29. Amended by ADR 0050: `_` files are not routes, and the declaration types each page from its route module.
 
 ## Context
 

@@ -14,6 +14,9 @@ const RESOLVED = `\0${ROUTES_MODULE}`
 const ROUTE_FILE = /\.[jt]sx?$/
 const STATIC = /^[\w.~-]+$/
 const PARAM = /^\[(\w+)\]$/
+const OPTIONAL = /^\[\[(\w+)\]\]$/
+const SPLAT = /^\[\.\.\.(\w+)\]$/
+const GROUP = /^\([\w.~-]+\)$/
 
 /** A route file: its table name (file path without extension) and path string. */
 interface Route {
@@ -22,29 +25,55 @@ interface Route {
   readonly path: string
 }
 
-/** `users/[id].tsx` is `/users/:id`; an `index` file is its directory's path. Throws naming the file when invalid. */
+/** One file segment as a path segment: a name, `:param`, `:param?`, `*splat`, or nothing for a `(group)`. */
+const toSegment = (file: string, segment: string): string => {
+  const [, param] = PARAM.exec(segment) ?? []
+  if (param) return `:${param}`
+  const [, optional] = OPTIONAL.exec(segment) ?? []
+  if (optional) return `:${optional}?`
+  const [, splat] = SPLAT.exec(segment) ?? []
+  if (splat) return `*${splat}`
+  if (GROUP.test(segment)) return ''
+  if (STATIC.test(segment)) return segment
+  throw new Error(
+    `sleekstack: invalid route file ${file}: segment "${segment}" is neither a name, a [param], a [[param]], a [...splat] nor a (group)`,
+  )
+}
+
+/**
+ * `users/[id].tsx` is `/users/:id`, `[[id]]` is `:id?`, `[...rest]` is `*rest`, a `(group)` directory adds no
+ * segment, and an `index` file is its directory's path. Throws naming the file when invalid.
+ */
 const toRoute = (dir: string, file: string): Route => {
   const name = path.posix.relative(dir, file).replace(ROUTE_FILE, '')
   const segments = name.split('/')
   if (segments.at(-1) === 'index') segments.pop()
-  const parts = segments.map((s) => {
-    const param = PARAM.exec(s)
-    if (param) return `:${param[1]}`
-    if (STATIC.test(s)) return s
-    throw new Error(`sleekstack: invalid route file ${file}: segment "${s}" is neither a name nor a [param]`)
-  })
+  const parts = segments.map((s) => toSegment(file, s)).filter((s) => s !== '')
+  if (parts.slice(0, -1).some((s) => s.endsWith('?') || s.startsWith('*')))
+    throw new Error(`sleekstack: invalid route file ${file}: an optional or splat segment must be the last one`)
   return { file, name, path: `/${parts.join('/')}` }
 }
 
-/** Sorts so a static segment matches before a param at the same position (`/users/new` before `/users/:id`). */
-const sortKey = (route: Route) => route.path.replace(/:\w+/g, '￿')
+/** Ranks a path segment at one position: static, then `:param`, then `:param?`, then `*splat`. */
+const rank = (segment: string) =>
+  segment.startsWith('*') ? '\uffff' : segment.endsWith('?') ? '\ufffe' : segment.startsWith(':') ? '\ufffd' : segment
+
+/** Sorts routes into match order; param names are ignored, so it is also the collision key. */
+const sortKey = (route: Route) => route.path.split('/').map(rank).join('/')
+
+/** A file or directory starting with `_` is not a route (helpers, components, tests beside the routes). */
+const ignored = (dir: string, file: string) =>
+  path.posix
+    .relative(dir, file)
+    .split('/')
+    .some((s) => s.startsWith('_'))
 
 /** The route files under `dir`, in match order; throws naming the files when two give the same path. */
 const scan = (dir: string): Route[] => {
   const files = fs.existsSync(dir) ? fs.readdirSync(dir, { recursive: true, encoding: 'utf8' }) : []
   const found = files
     .map((f) => normalizePath(path.join(dir, f)))
-    .filter((f) => ROUTE_FILE.test(f) && !f.endsWith('.d.ts'))
+    .filter((f) => ROUTE_FILE.test(f) && !f.endsWith('.d.ts') && !ignored(dir, f))
     .map((f) => toRoute(dir, f))
     .sort((a, b) => (sortKey(a) < sortKey(b) ? -1 : sortKey(a) > sortKey(b) ? 1 : 0))
   const byPath = new Map<string, string>()
@@ -56,7 +85,7 @@ const scan = (dir: string): Route[] => {
   return found
 }
 
-/** The module's code; computed keys keep a route named `__proto__` an own property. */
+/** The module's code; computed keys keep every route name an own property. */
 const moduleCode = (found: readonly Route[]): string => {
   const key = (r: Route) => `[${JSON.stringify(r.name)}]`
   const imports = found.map((r, i) => `import p${i} from ${JSON.stringify(r.file)}\n`).join('')
