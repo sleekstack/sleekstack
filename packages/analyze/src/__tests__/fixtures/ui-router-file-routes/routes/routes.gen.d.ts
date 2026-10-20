@@ -16,5 +16,5 @@ declare module 'virtual:sleekstack/routes' {
     readonly "guest": Page<typeof import("./guest.tsx")>
     readonly "later": Page<typeof import("./later.tsx")>
   }
-  export const notFound: Render
+  export const notFound: Page<typeof import("./_notFound.tsx")>["render"]
 }

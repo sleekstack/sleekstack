@@ -165,7 +165,7 @@ declare module '${ROUTES_MODULE}' {
   }
   export const pages: {${entries((r) => `Page<${module(r.file)}>`)}
   }
-${notFound ? '  export const notFound: Render\n' : ''}}
+${notFound ? `  export const notFound: Page<${module(notFound)}>["render"]\n` : ''}}
 `
 }
 

@@ -210,7 +210,10 @@ export const db: Db = null as unknown as Needs<typeof app>
 export const needs: Needs<typeof app> = null as unknown as Db
 `
     expect(typeErrors(dir, code)).toEqual([])
-    expect(fs.readFileSync(path.join(dir, 'routes.gen.d.ts'), 'utf8')).not.toMatch(/^\s*(import|export) .*from/m)
+    const declaration = fs.readFileSync(path.join(dir, 'routes.gen.d.ts'), 'utf8')
+    expect(declaration).not.toMatch(/^\s*(import|export) .*from/m)
+    // notFound names its module, as pages do, so `sleekstack check` reads _notFound through the declaration.
+    expect(declaration).toContain('export const notFound: Page<typeof import("./_notFound.ts")>["render"]')
   })
 
   it.each([

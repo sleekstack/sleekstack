@@ -817,6 +817,16 @@ export function analyzeComponents(opts: { readonly project: string }): Component
       .readdirSync(dir, { recursive: true, encoding: 'utf8' })
       .filter((f) => ROUTE_FILE.test(f) && !f.endsWith('.d.ts') && !f.split(path.sep).some((s) => s.startsWith('_')))
       .map((f) => path.join(dir, f).split(path.sep).join('/'))
+  /** The `typeof import('./x')` of a `Page<typeof import('./x')>` type in `routes.gen.d.ts`. */
+  const pageImport = (t: ts.TypeNode | undefined) => {
+    const arg = t && ts.isTypeReferenceNode(t) ? t.typeArguments?.[0] : undefined
+    return arg && ts.isImportTypeNode(arg) ? arg : undefined
+  }
+  /** The route module an import type names; undefined when its file is gone. */
+  const routeModule = (arg: ts.ImportTypeNode) => {
+    const module = checker.getTypeFromTypeNode(arg).getSymbol()
+    return module?.valueDeclaration && ts.isSourceFile(module.valueDeclaration) ? module : undefined
+  }
   /**
    * The route modules `routes.gen.d.ts` types `pages` from (`Page<typeof import('./x')>`), checked against the route
    * files beside it: a declaration that names a missing file or misses a route file fails, naming both.
@@ -828,17 +838,16 @@ export function analyzeComponents(opts: { readonly project: string }): Component
       d.type && ts.isTypeLiteralNode(d.type) ? d.type.members : fail(d, `${file} types pages as no object of routes`)
     const missing: string[] = []
     const pages = members.flatMap((m) => {
-      const t = ts.isPropertySignature(m) ? m.type : undefined
-      const arg = t && ts.isTypeReferenceNode(t) ? t.typeArguments?.[0] : undefined
-      if (!arg || !ts.isImportTypeNode(arg) || !m.name)
-        return fail(m, `${file} types page "${text(m)}" as no Page<typeof import('./route-file')>`)
-      const module = checker.getTypeFromTypeNode(arg).getSymbol()
-      const source = module?.valueDeclaration
-      if (!module || !source || !ts.isSourceFile(source)) {
+      const arg = pageImport(ts.isPropertySignature(m) ? m.type : undefined)
+      if (!arg || !m.name) return fail(m, `${file} types page "${text(m)}" as no Page<typeof import('./route-file')>`)
+      const module = routeModule(arg)
+      if (!module) {
         missing.push(arg.argument.getText())
         return []
       }
-      return [{ name: `page ${m.name.getText()}`, module, file: source.fileName, at: m }]
+      return [
+        { name: `page ${m.name.getText()}`, module, file: module.valueDeclaration!.getSourceFile().fileName, at: m },
+      ]
     })
     const listed = new Set(pages.map((x) => x.file))
     const unlisted = routeFiles(path.dirname(d.getSourceFile().fileName)).filter((f) => !listed.has(f))
@@ -874,21 +883,20 @@ export function analyzeComponents(opts: { readonly project: string }): Component
       ? element(tag, tag, name, [], () => [])
       : fail(at, `The route module of "${text(at)}" has no readable default export component`)
   }
-  /** `notFound` imported from `virtual:sleekstack/routes`: the root `_notFound` file beside its declaration. */
+  /** `notFound` imported from `virtual:sleekstack/routes`: the `_notFound` module its declaration names. */
   const fileNotFound = (p: ts.ObjectLiteralElementLike, sym: ts.Symbol): UiNode[] => {
-    const dir = path.dirname(declared(p, sym).getSourceFile().fileName)
-    const sf = program
-      .getSourceFiles()
-      .find((f) => path.dirname(f.fileName) === dir && /^_notFound\.[jt]sx?$/.test(path.basename(f.fileName)))
-    const module = sf && checker.getSymbolAtLocation(sf)
-    if (module) return defaultElement(module, p, 'notFound')
-    const onDisk = fs.readdirSync(dir).find((f) => /^_notFound\.[jt]sx?$/.test(f))
-    return fail(
-      p,
-      onDisk
-        ? `"${text(p)}" reads ${path.relative(root, path.join(dir, onDisk))}, which is not in the tsconfig's program; include it`
-        : `"${text(p)}" is declared in routes.gen.d.ts but ${path.relative(root, dir)} has no _notFound file`,
-    )
+    const d = declared(p, sym)
+    const file = path.basename(d.getSourceFile().fileName)
+    const arg =
+      pageImport(d.type && ts.isIndexedAccessTypeNode(d.type) ? d.type.objectType : undefined) ??
+      fail(d, `${file} types notFound as no Page<typeof import('./_notFound')>["render"]; run vite to rewrite it`)
+    const module =
+      routeModule(arg) ??
+      fail(
+        d,
+        `${file} disagrees with the route files; it names missing ${arg.argument.getText()}; run vite to rewrite it`,
+      )
+    return defaultElement(module, d, 'notFound')
   }
   /**
    * A `startRouter(router, { layer })` / `handle(router, request, { layer })` root: one child per page (its render and
