@@ -1,7 +1,7 @@
 {
   "branch_name": "fn-64-router-keeps-the-outgoing-pages-loader",
-  "completion_review_status": "unknown",
-  "completion_reviewed_at": null,
+  "completion_review_status": "ship",
+  "completion_reviewed_at": "2026-10-20T08:19:34.023255Z",
   "created_at": "2026-10-19T12:01:24.809201Z",
   "default_impl": null,
   "default_review": null,
@@ -155,15 +155,53 @@
       "task": "fn-64-router-keeps-the-outgoing-pages-loader.2",
       "timestamp": "2026-10-20T08:16:00.916487Z",
       "verdict": "SHIP"
+    },
+    {
+      "artifact_sha256": "04ed1be4a495b3bc08f0f78c79578b9db5fc0a9b832c1fb832d2d3c20f47c499",
+      "backend": "codex",
+      "base_sha": "f49e8311cfaa368b4a6ba3571331d2c23055db47",
+      "counter_kind": "plan",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "61e87ced6c81ade1bc433e8d5d89491471903bef",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-6.1-sol",
+      "outcome": "verdict",
+      "output_bytes": 163330,
+      "output_sha256": "0e0ea06796667b0248f077adff60b456a31d82bfb8d55bbda80fe6d08980b81a",
+      "reservation_id": "71f7154c47b844b4acc7b7bbca948b2f",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-10-20T08:19:34.017855Z",
+      "tool_calls": 13,
+      "verdict": "SHIP"
     }
   ],
   "review_hash_epoch": {
     "impl:fn-64-router-keeps-the-outgoing-pages-loader.1": 1,
-    "impl:fn-64-router-keeps-the-outgoing-pages-loader.2": 1
+    "impl:fn-64-router-keeps-the-outgoing-pages-loader.2": 1,
+    "plan#completion": 1
   },
   "review_pending_rounds": {},
   "review_reservations": {},
   "review_transport_failures": {
+    "completion": 0,
     "impl:fn-64-router-keeps-the-outgoing-pages-loader.1": 0,
     "impl:fn-64-router-keeps-the-outgoing-pages-loader.2": 0
   },
@@ -181,5 +219,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-20T08:16:00.918110Z"
+  "updated_at": "2026-10-20T08:19:34.024601Z"
 }
