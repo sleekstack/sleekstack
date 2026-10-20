@@ -36,9 +36,22 @@ Write the failing repro first, then change the router so a navigation records th
 - [ ] TBD
 
 ## Done summary
-TBD
+A navigation now records the settled loader results as stale instead of dropping them. Its loaders and the page it shows load a stale key fresh into an entry that keeps the stale result as `prior`. The page being left keeps reading that `prior`, so it runs no loader and no redirect. Dependent loaders share the fresh load. After `show`, and only while the navigation is still current, the stale entries that were not replaced and the settled results for other pathnames are deleted.
 
+Tests are in packages/router/src/__tests__/navigation.test.ts, under "the page being left":
+- R1: the outgoing re-render runs neither the loader nor the guard's redirect.
+- R2: same-pathname navigation and back; dependent and undeclared reads load once.
+- R3: an intermediate redirect hop is dropped; an unread prefetch survives; a held failure is replayed once; hydrate then navigate loads fresh.
+
+The repro tests were committed first and failed on the unchanged code (18afbfc7). The README states the new drop rule. routing.mdx and the ADRs do not state the rule, so they are unchanged.
+
+Known limit: the guard that stops an older navigation's commit from running when a newer one has started cannot be reached in a test, because an interrupted fiber never resumes after `show`.
+
+baseline: green (pnpm turbo run test typecheck --filter=@sleekstack/router... --filter=realworld)
+Tier: session (jev-unavailable(no_key))
+
+stage: impl-review - ran (codex fan-out NEEDS_WORK: 2 findings fixed; re-review SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 18afbfc778fb53ea4c7285476cf2d332424a3f5e, a3e52f2de4ad60628ef02704ef97c241575ed5c8, 4c040cb2b9d9d346347a9794de3f28c1c8460f50, 8e3844f353dc25386b5f8ed520a5c5fd6c072962
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/router... --filter=realworld
 - PRs:
