@@ -2,12 +2,12 @@
 import { type DraftSpec, useDraft } from '@sleekstack/model'
 import { useLoader } from '@sleekstack/router'
 import { useAction, useAtomValue, useFormStatus, useSetAtom } from '@sleekstack/ui'
-import { Effect, Either, Schema } from 'effect'
+import { Effect, Schema } from 'effect'
 import { type Account, logoutContract, type UpdateUser, updateUserContract } from '../modules/identity'
 import { Field } from './auth'
 import { ErrorList, errorsOf, toHome } from './form'
 import { ServerFunctions } from './functions'
-import { Layout, viewer } from './layout'
+import { Layout, signedIn } from './layout'
 
 const SettingsForm = Schema.Struct({
   image: Schema.String,
@@ -80,12 +80,11 @@ const Settings = function* ({ user }: { user: Account }) {
   )
 }
 
-// The route's `signedIn` loader keeps anonymous visitors out. The page reads `viewer`, not `signedIn`: after logout this
-// page re-runs while the router leaves it, and a `signedIn` read then would redirect that navigation to `/login`.
 const SignedInSettings = function* () {
-  const user = yield* Effect.either(useLoader(viewer))
-  if (Either.isLeft(user)) return <ErrorList errors={['Your settings could not be loaded: try again']} />
-  return user.right ? <Settings user={user.right} /> : <></>
+  return yield* Effect.match(useLoader(signedIn), {
+    onFailure: () => <ErrorList errors={['Your settings could not be loaded: try again']} />,
+    onSuccess: (user) => <Settings user={user} />,
+  })
 }
 
 export const SettingsPage = () => (

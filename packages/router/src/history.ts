@@ -1,7 +1,7 @@
 import { hydrateMount, type Mounted, mount, type Node } from '@sleekstack/ui'
 import { Cause, Effect, Exit, Fiber, Layer, Option } from 'effect'
 import { match, routeLayer, type RouteTable } from './index'
-import { type Held, Loaders, withLoaders } from './loader'
+import { type Held, isFor, Loaders, Navigating, withLoaders } from './loader'
 import { type AppLayer, controlOf, NotFound, Redirect, resolve, type Router, view } from './resolve'
 
 /** `layer` is the app services for loaders and pages: required when the router's pages need any (`AppLayer`). */
@@ -22,9 +22,10 @@ type Mode = 'push' | 'replace' | 'pop'
 
 /**
  * Runs `r` in the browser (R11): hydrates or mounts the current page, then handles same-origin link clicks,
- * back / forward and scroll restoration. A navigation runs the next page's loaders before it shows; a newer one
- * interrupts it, stopping its loads. A loader's or action's `redirect` navigates and its `notFound` shows the router's
- * not-found page.
+ * back / forward and scroll restoration. A navigation runs the next page's loaders fresh before it shows, while the page
+ * being left keeps reading the results it holds; once the next page shows, the results it does not use are dropped. A
+ * newer navigation interrupts it, stopping its loads. A loader's or action's `redirect` navigates and its `notFound`
+ * shows the router's not-found page.
  */
 export const startRouter = async <T extends RouteTable, R>(
   router: Router<T, R>,
@@ -45,6 +46,8 @@ export const startRouter = async <T extends RouteTable, R>(
   // The pathname and search of the page shown; a history step within it (a fragment) is not a navigation.
   let shown = here(location)
   let nav: Fiber.RuntimeFiber<void, unknown> | undefined
+  // The latest navigation's record, which its loaders and the page it shows read through `Navigating`.
+  let current: Navigating['Type'] | undefined
   let mounted: Mounted | undefined
 
   const onError = (cause: Cause.Cause<unknown>) => {
@@ -53,8 +56,9 @@ export const startRouter = async <T extends RouteTable, R>(
     else if (c instanceof NotFound) void show(r.notFound())
     else opts.onError?.(cause)
   }
-  const show = async (app: Effect.Effect<Node, any, any>, route?: Layer.Layer<any>) => {
-    mounted = await mount(app, { container, layer: route ? Layer.merge(loaders, route) : loaders, onError })
+  const show = async (app: Effect.Effect<Node, any, any>, route?: Layer.Layer<any>, navigating = {}) => {
+    const layer = Layer.merge(loaders, Layer.succeed(Navigating, navigating))
+    mounted = await mount(app, { container, layer: route ? Layer.merge(layer, route) : layer, onError })
   }
   const page = (pathname: string) => {
     const m = match(r.table, pathname)
@@ -67,11 +71,18 @@ export const startRouter = async <T extends RouteTable, R>(
     scrolls.set(key, scrollY)
     if (mode === 'pop') key = history.state?.key ?? newKey()
     if (nav) Effect.runFork(Fiber.interrupt(nav))
-    // Each navigation loads again (R11): drop settled results, keeping loads in flight and unread prefetches.
-    for (const [k, h] of all) if (!h.load && h.expires === undefined) all.delete(k)
+    // Each navigation loads again (R11): its loaders read the settled results as stale and replace them once loaded,
+    // while the page being left keeps reading them. Loads in flight and unread prefetches are not stale.
+    const settled = (h: Held) => !h.load && h.expires === undefined
+    const stale = new Set([...all.values()].filter(settled))
+    if (current) delete current.stale
+    const rec: Navigating['Type'] = (current = { stale })
     const run = Effect.gen(function* () {
       const exit = yield* Effect.exit(
-        Effect.provide(resolve(r, href, location.origin), Layer.merge(Layer.succeed(Loaders, all), base)),
+        Effect.provide(
+          resolve(r, href, location.origin),
+          Layer.mergeAll(Layer.succeed(Loaders, all), Layer.succeed(Navigating, rec), base),
+        ),
       )
       // A `RedirectLoop` or defect; a loader's error still shows the page, whose `Boundary` gets it.
       if (Exit.isFailure(exit)) return opts.onError?.(exit.cause)
@@ -79,10 +90,18 @@ export const startRouter = async <T extends RouteTable, R>(
       if (res._tag === 'External') return location.assign(res.href)
       if (mode === 'push') history.pushState({ key: (key = newKey()) }, '', res.href)
       else if (mode === 'replace' || res.href !== href) history.replaceState({ key }, '', res.href)
-      const [app, route] =
-        res._tag === 'NotFound' ? [r.notFound(), undefined] : page(new URL(res.href, location.href).pathname)
+      const { pathname } = new URL(res.href, location.href)
+      const [app, route] = res._tag === 'NotFound' ? [r.notFound(), undefined] : page(pathname)
       shown = here(new URL(res.href, location.href))
-      yield* Effect.promise(() => show(app, route))
+      yield* Effect.promise(() => show(app, route, rec))
+      // Shown, unless a newer navigation has started and owns the map: drop the stale results nothing replaced and those
+      // of other pathnames (redirect hops, the page left); results still loading fresh are read as they are from now.
+      if (current === rec) {
+        delete rec.stale
+        for (const [k, h] of all)
+          if (stale.has(h) || (settled(h) && !isFor(k, pathname))) all.delete(k)
+          else delete h.prior
+      }
       scrollTo(0, mode === 'pop' ? (scrolls.get(key) ?? 0) : 0)
     })
     const fiber = (nav = Effect.runFork(run))

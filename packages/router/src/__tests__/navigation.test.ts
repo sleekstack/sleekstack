@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
+import { Atom } from '@sleekstack/core'
 import { Cause, Data, Effect, Schema } from 'effect'
 import { act } from 'react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { Boundary, el, Head } from '@sleekstack/ui'
+import { Boundary, el, Head, useAtomValue, useSetAtom } from '@sleekstack/ui'
 import { jsx as rawJsx } from '@sleekstack/ui/jsx-runtime'
 import {
   handle,
+  Link,
   loader,
   type Loader,
   type Navigation,
@@ -14,6 +16,7 @@ import {
   redirect,
   RedirectLoop,
   router,
+  type Router,
   routes,
   startRouter,
   useLoader,
@@ -189,10 +192,10 @@ describe('startRouter', () => {
     nav = undefined
     stopped = 0
   })
-  const start = async (path: string, html = '') => {
+  const start = async (path: string, html = '', r: Router<any, any> = app) => {
     history.replaceState(null, '', path)
     document.body.innerHTML = `<div>${html}</div>`
-    await act(async () => void (nav = await startRouter(app, { container: container() })))
+    await act(async () => void (nav = await startRouter(r, { container: container() })))
   }
 
   it('hydrates server HTML, follows link clicks, and restores scroll on back', async () => {
@@ -218,6 +221,8 @@ describe('startRouter', () => {
     const res = await get('/users/9')
     await start('/users/9/', await res.text())
     expect([container().textContent, calls - before]).toEqual(['user 9', 1])
+    await act(() => nav!.navigate('/users/9'))
+    expect([container().textContent, calls - before]).toEqual(['user 9', 2]) // the hydrated result is not reused
   })
 
   it('leaves a fragment link of the shown page to the browser', async () => {
@@ -264,5 +269,157 @@ describe('startRouter', () => {
     await act(async () => void container().querySelector('button')!.click())
     await flush()
     expect([location.pathname, container().textContent]).toEqual(['/users/9', 'user 9'])
+  })
+
+  describe('the page being left', () => {
+    // Pages that re-render on an atom write and read one loader; `bump` writes the atom of the page last rendered.
+    const tick = Atom.make(0)
+    let bump: (n: number) => void = () => {}
+    let guards = 0
+    let out = false
+    const guard = loader(
+      'guard',
+      Schema.String,
+      Effect.suspend(() => (guards++, out ? redirect('/') : Effect.succeed('in'))),
+    )
+    let fresh = 0
+    let gate = Promise.resolve()
+    const gated = loader(
+      'gated',
+      Schema.String,
+      Effect.promise(() => gate.then(() => `v${++fresh}`)),
+    )
+    // Reads `gated` too, as a guard reads the loader it checks.
+    const derived = loader(
+      'derived',
+      Schema.String,
+      Effect.map(useLoader(gated), (s) => `${s}!`),
+    )
+    const away = loader('away', Schema.String, Effect.zipRight(Effect.yieldNow(), redirect('/users/1')))
+    const watch = (l: Loader<string, string, any, any>) => () =>
+      jsx(
+        () =>
+          Effect.gen(function* () {
+            const n = yield* useAtomValue(tick)
+            bump = yield* useSetAtom(tick)
+            return el('h1', {}, `${yield* useLoader(l)} ${n}`)
+          }),
+        {},
+      )
+    const hop: { render: () => unknown; loaders?: ReadonlyArray<Loader<any, any, any, any>> } = {
+      render: read(guard),
+      loaders: [guard, away],
+    }
+    const links = () =>
+      jsx('nav', {
+        children: ['/users/7', '/users/8'].map((href) => jsx(Link, { href, table, loaders: [user], children: href })),
+      })
+    const watching = router({
+      ...app,
+      table: routes({
+        ...table,
+        guarded: '/guarded',
+        same: '/same',
+        pair: '/pair',
+        peek: '/peek',
+        hop: '/hop',
+        links: '/links',
+      }),
+      pages: {
+        ...app.pages,
+        user: { render: watch(user), loaders: [user] },
+        guarded: { render: watch(guard), loaders: [guard] },
+        same: { render: watch(gated), loaders: [gated] },
+        pair: { render: watch(derived), loaders: [gated, derived] },
+        peek: { render: watch(gated) },
+        hop: hop as never,
+        links: { render: links },
+      },
+    })
+
+    it.each([
+      ['/users/1', () => calls],
+      ['/guarded', () => guards],
+    ])(
+      're-renders at %s from its held results while the next page loads: no loader, no redirect',
+      async (path, count) => {
+        out = false
+        await start(path, '', watching)
+        const before = count()
+        out = true
+        await act(async () => void nav!.navigate('/slow'))
+        await act(async () => bump(1))
+        await flush()
+        expect([count() - before, location.pathname, container().textContent]).toEqual([
+          0,
+          path,
+          expect.stringMatching(/ 1$/),
+        ])
+      },
+    )
+
+    it('a navigation to the shown pathname loads it fresh; the page being left keeps its value until the swap', async () => {
+      fresh = 0
+      gate = Promise.resolve()
+      await start('/same', '', watching)
+      let open!: () => void
+      gate = new Promise((r) => (open = r))
+      let done!: Promise<void>
+      await act(async () => void (done = nav!.navigate('/same?tab=2')))
+      await act(async () => bump(1))
+      await flush()
+      expect(container().textContent).toBe('v1 1')
+      open()
+      await act(() => done)
+      expect([location.search, container().textContent, fresh]).toEqual(['?tab=2', 'v2 0', 2])
+      await act(async () => history.back())
+      await flush()
+      await flush()
+      expect([location.search, container().textContent, fresh]).toEqual(['', 'v3 0', 3])
+    })
+
+    it.each([
+      ['/pair', 'v2! 0'],
+      ['/peek', 'v2 0'],
+    ])(
+      '%s loads each loader once more on a navigation to its pathname, shared and undeclared reads included',
+      async (path, text) => {
+        fresh = 0
+        gate = Promise.resolve()
+        await start(path, '', watching)
+        expect(fresh).toBe(1)
+        await act(() => nav!.navigate(`${path}?tab=2`))
+        expect([container().textContent, fresh]).toEqual([text, 2])
+      },
+    )
+
+    it("after a redirect, an intermediate hop's results are dropped: an undeclared read there loads again", async () => {
+      out = false
+      guards = 0
+      hop.loaders = [guard, away]
+      await start('/', '', watching)
+      await act(() => nav!.navigate('/hop'))
+      expect([location.pathname, guards]).toEqual(['/users/1', 1])
+      hop.loaders = []
+      await act(() => nav!.navigate('/hop'))
+      expect([location.pathname, container().textContent, guards]).toEqual(['/hop', 'in', 2])
+    })
+
+    it('a prefetch of the next page serves it; an unread prefetch survives other navigations', async () => {
+      await start('/links', '', watching)
+      const before = calls
+      for (const a of container().querySelectorAll('a')) a.dispatchEvent(new MouseEvent('mouseenter'))
+      await flush()
+      await act(() => nav!.navigate('/users/7'))
+      await act(() => nav!.navigate('/users/8'))
+      expect([container().textContent, calls - before]).toEqual(['user 8 0', 2])
+    })
+
+    it("a failed loader of the shown page is replayed once to the page's Boundary", async () => {
+      await start('/')
+      const before = failures
+      await act(() => nav!.navigate('/broken'))
+      expect([container().textContent, failures - before]).toEqual(['error', 1])
+    })
   })
 })
