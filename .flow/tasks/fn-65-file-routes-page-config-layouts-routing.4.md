@@ -34,9 +34,27 @@ Early proof point. Make `routerOf` / `routerRoot` read a router whose `pages` an
 - [ ] TBD
 
 ## Done summary
-TBD
+`sleekstack check` now reads a router whose `pages` and `notFound` come from `virtual:sleekstack/routes`. It reads them through `routes.gen.d.ts`: each `Page<typeof import('./x')>` resolves to its route module. The default export is checked as `<Default />` through the shared JSX element path, so `fromReact` and `lazy` defaults match a literal router. The `loaders` export is checked as a page's loaders, under the same `Route` provide node. A missing service is reported at the route file's `file:line`. A hand-written literal router checks as before.
 
+Following the conductor's decision to widen Touches (the spec's "larger declaration" fallback), ui-vite's `declaration()` now types `notFound` from its module: `Page<typeof import("./_notFound.tsx")>["render"]`. It is still types-only (ADR 0045). The analyzer therefore finds `_notFound` through the declaration under any tsconfig, including a `files` list.
+
+A declaration that disagrees with the route files produces one `Unresolved` naming the mismatch, and nothing is guessed. That covers a declared file that is missing, a route file the declaration leaves out, and an old bare-`Render` `notFound`. The ui-vite README note telling users to write pages out is replaced.
+
+Tests in packages/analyze/src/__tests__/components.test.ts:
+- Fixture `ui-router-file-routes`: render missing Db, loaders missing Db, a lazy route's LazyLoadError, a clean fromReact route, a clean fully provided `handle` root, and an ignored `_Helper.tsx`.
+- Fixture `ui-router-file-routes-stale`: a missing file and an unlisted file.
+- A `tsconfig.files.json` case: same diagnostics, with `notFound` nodes at `routes/_notFound.tsx:3`.
+- `expected()` now reads markers in subdirectories.
+- The ui-vite declaration pin is in packages/ui-vite/src/__tests__/routes.test.ts.
+
+Playground: it checks clean with `router({ table, pages, notFound })`, verified with a temporary edit that was reverted. `app.tsx` still has its hand-written pages, which task 8 can switch. Its committed `routes.gen.d.ts` has no `_notFound`, so it is unaffected.
+
+baseline: green (pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack --filter=@sleekstack/ui-vite...)
+Fixture graph check: output unchanged.
+
+Tier: implementer (project routing block: opus at medium)
+stage: impl-review - ran (codex fan-out rid 1a57f4e005474ac992ab4c4a34e0bc00 NEEDS_WORK x2 findings; round 2 NEEDS_WORK on _notFound; round 3 SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: f25c2d8d07b17e8e19f48e0ec35e1117740a603d, e1c8a8424adcf7883f6e0bf97286d1d7c123164b, 8f1f23522f1b660eab86024e38f8ecaf2e48c9a2
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack --filter=@sleekstack/ui-vite..., fixture graph check (packages/cli effect-app): output unchanged
 - PRs:
