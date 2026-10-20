@@ -324,20 +324,23 @@ describe('startRouter', () => {
     it.each([
       ['/users/1', () => calls],
       ['/guarded', () => guards],
-    ])('re-renders at %s from its held results while the next page loads: no loader, no redirect', async (path, count) => {
-      out = false
-      await start(path, '', watching)
-      const before = count()
-      out = true
-      await act(async () => void nav!.navigate('/slow'))
-      await act(async () => bump(1))
-      await flush()
-      expect([count() - before, location.pathname, container().textContent]).toEqual([
-        0,
-        path,
-        expect.stringMatching(/ 1$/),
-      ])
-    })
+    ])(
+      're-renders at %s from its held results while the next page loads: no loader, no redirect',
+      async (path, count) => {
+        out = false
+        await start(path, '', watching)
+        const before = count()
+        out = true
+        await act(async () => void nav!.navigate('/slow'))
+        await act(async () => bump(1))
+        await flush()
+        expect([count() - before, location.pathname, container().textContent]).toEqual([
+          0,
+          path,
+          expect.stringMatching(/ 1$/),
+        ])
+      },
+    )
 
     it('a navigation to the shown pathname loads it fresh; the page being left keeps its value until the swap', async () => {
       fresh = 0

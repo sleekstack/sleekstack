@@ -38,7 +38,8 @@ const evict = (all: Map<string, Held>, key: string, h: Held): Effect.Effect<void
   return h.load ? Effect.asVoid(Fiber.interrupt(h.load)) : Effect.void
 }
 
-// Forks `l`'s load into a new entry under `key`; a failed or interrupted load removes it.
+// Forks `l`'s load into a new entry under `key`, held at once unless a stale result holds the key: then it replaces
+// that result once loaded. A failed or interrupted load removes its entry.
 const start = <A, I, E, R>(
   all: Map<string, Held>,
   key: string,
@@ -48,11 +49,12 @@ const start = <A, I, E, R>(
 ) =>
   Effect.gen(function* () {
     const e: Held = ttl === undefined ? { readers: 0 } : { readers: 0, expires: Date.now() + ttl }
-    all.set(key, e)
+    if (!all.has(key)) all.set(key, e)
     e.load = yield* Effect.forkDaemon(
       Effect.flatMap(load, (value) =>
         Effect.map(Effect.orDie(Schema.encode(schema)(value)), (encoded) => {
           Object.assign(e, { value, encoded, load: undefined })
+          all.set(key, e)
           return value
         }),
       ).pipe(
@@ -64,15 +66,26 @@ const start = <A, I, E, R>(
     return e
   })
 
+const trimSlash = (pathname: string) => pathname.replace(/(.)\/+$/, '$1')
+
 /**
  * Where `l`'s result for `pathname` is held in `Loaders`. A trailing slash is dropped, so a page rendered at `/a` (as
  * prerendering does) hydrates from its results when a static server answers it at `/a/`.
  */
 export const keyOf = (l: Loader<any, any, any, any>, pathname: string): string =>
-  JSON.stringify([l.key, pathname.replace(/(.)\/+$/, '$1')])
+  JSON.stringify([l.key, trimSlash(pathname)])
+
+/** Whether the `Loaders` key `key` holds a result for `pathname`. */
+export const isFor = (key: string, pathname: string): boolean => JSON.parse(key)[1] === trimSlash(pathname)
 
 /** Loader results of one render (server) or app (client), keyed by loader key and pathname. */
 export class Loaders extends Context.Tag('@sleekstack/router/Loaders')<Loaders, Map<string, Held>>() {}
+
+/**
+ * Results a navigation holds stale: its loader reads see them as a miss and load fresh, replacing each once loaded.
+ * The router gives it to the navigation's loaders only, so the page still shown keeps reading the stale results.
+ */
+export class Stale extends Context.Tag('@sleekstack/router/Stale')<Stale, ReadonlySet<Held>>() {}
 
 /**
  * The loader's result for the matched route: a held result (sent by the server, or loaded earlier) returns at once,
@@ -85,7 +98,9 @@ export const useLoader = <A, I, E, R>(l: Loader<A, I, E, R>): Effect.Effect<A, E
     const { pathname } = yield* Route
     const all = yield* Loaders
     const key = keyOf(l, pathname)
+    const stale = yield* Effect.serviceOption(Stale)
     let held = all.get(key)
+    if (held && Option.isSome(stale) && stale.value.has(held)) held = undefined
     if (held?.failure) {
       all.delete(key)
       return yield* Effect.failCause(held.failure as Cause.Cause<E>)
@@ -103,7 +118,9 @@ export const useLoader = <A, I, E, R>(l: Loader<A, I, E, R>): Effect.Effect<A, E
     e.readers++
     return yield* (Fiber.join(e.load!) as Effect.Effect<A, E>).pipe(
       Effect.ensuring(Effect.sync(() => e.readers--)),
-      Effect.onInterrupt(() => (e.readers > 0 || !e.load ? Effect.void : (all.delete(key), Fiber.interrupt(e.load)))),
+      Effect.onInterrupt(() =>
+        e.readers > 0 || !e.load ? Effect.void : (all.get(key) === e && all.delete(key), Fiber.interrupt(e.load)),
+      ),
     )
   })
 
