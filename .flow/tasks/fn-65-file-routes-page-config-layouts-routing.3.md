@@ -38,9 +38,24 @@ Make a route file a whole page. Its default export stays the component; named ex
 - [ ] TBD
 
 ## Done summary
-TBD
+`virtual:sleekstack/routes` now gives a `Page` per route file: `render` draws the default export, and the file's `loaders`, `fallback` and `prerender` exports are copied over when the file has them, so a page never carries an `undefined` key. A root `_notFound` file becomes the `notFound` export; without one there is no export and importing it is a type error. `routes.gen.d.ts` stays types-only and types each page from its route module (`Page<typeof import('./x')>`, an inline Pick of those three exports plus a JSX render), so `router({ table, pages, notFound })` infers the same requirements as a hand-written router. A route or `_notFound` file with no runtime default export fails at module load, naming the file. Type-only defaults count as missing: those are default interfaces, `export type { X as default }` and `export { type X as default }`.
 
+Tests in `packages/ui-vite/src/__tests__/routes.test.ts`:
+- the page shape and rendering, plus `notFound`
+- prerender enumeration run on the generated pages
+- the absent-`notFound` type error
+- a TS consumer showing that `router()` from the module and a hand-written router infer the same requirements (`Db`)
+- the no-default cases, the three type-only forms among them
+
+The test server now symlinks the package's `node_modules` into its temp root, so the generated `@sleekstack/ui/jsx-runtime` import and the TS consumer resolve.
+
+Playground: the routes module's `pages` and `notFound` cannot go straight into `router()` yet. `sleekstack check` (the analyze plugin) fails the build with "Router pages are not a readable object literal" until task 4. So `app.tsx` keeps its render literal and takes only `prerender` from `users/[id].tsx`'s new export. `routes.gen.d.ts` was regenerated. No `_notFound.tsx` was added, since the analyzer also rejects a module-imported `notFound`.
+
+baseline: green (`pnpm turbo run test typecheck --filter=@sleekstack/ui-vite... --filter=sleekstack-playground`)
+
+Tier: implementer (project routing block: opus at medium)
+stage: impl-review - ran (codex fan-out rid a20f0a82f41d451cbb1dbb9f40263a3b: 1 NEEDS_WORK on type-only defaults, fixed; re-review SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 1c7913dd1049e2bb28f40a7e63119ae5c1c45e12, 235a9bc86e833ddebec57172562f7b6645e9a90b
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/router... --filter=@sleekstack/ui-vite... --filter=@sleekstack/analyze --filter=sleekstack --filter=realworld --filter=sleekstack-playground, npx prettier --check (changed files)
 - PRs:
