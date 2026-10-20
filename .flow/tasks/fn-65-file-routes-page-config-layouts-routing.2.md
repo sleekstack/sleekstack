@@ -34,9 +34,13 @@ Extend the file scanner: `[[id]]` is `:id?`, `[...rest]` is `*rest`, `(group)` d
 - [ ] TBD
 
 ## Done summary
-TBD
+Route files now support `[[id]]` (`:id?`), `[...rest]` (`*rest`), `(group)` directories (no path segment, kept in the route name) and ignore any file or directory starting with `_`; optional and splat must be the last segment or the file fails with its path. Routes sort static, `:param`, `:param?`, `*splat` at each position, and collisions (including through groups) name both files. ADR 0050 records the spec's whole decision set; the ADR index lists it and 0036/0045 status lines point at it.
 
+Tests (`packages/ui-vite/src/__tests__/routes.test.ts`): conventions + order + match, `_` ignore (table, pages, declaration), literal `?`/`*` path types in the declaration, and errors naming files (invalid segment, misplaced optional, misplaced splat, collision, collision through groups). The old `__proto__.ts` route case became `constructor.ts`, since `_` files are no longer routes (declared change, ADR 0050). `scan` simply drops every `_` path; tasks 3 and 5 read `_layout` / `_notFound` themselves.
+
+Tier: implementer (project routing block: opus at medium)
+stage: impl-review - ran (codex fan-out, 3 draws SHIP, rid 5bb1426f68e44f8ea0d144f13a03421d)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: d9226182e59065c57b9e0e08b216098d98f71b2f
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/router... --filter=@sleekstack/ui-vite... --filter=@sleekstack/analyze --filter=sleekstack --filter=realworld
 - PRs:
