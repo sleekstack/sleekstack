@@ -30,9 +30,14 @@ Remove the workaround in the settings page: read `signedIn` (the non-null accoun
 - [ ] TBD
 
 ## Done summary
-TBD
+The settings page reads the `signedIn` guard again through `Effect.match`: it shows the settings form on success and the existing "could not be loaded" message on failure. The `viewer` read, its `Either`/empty-fragment branches and the workaround comment are gone (apps/realworld/src/pages/settings.tsx). The existing auth.test.ts logout case passes unchanged: logout from settings lands on `/`.
 
+Gates: `pnpm turbo run test typecheck --filter=@sleekstack/router... --filter=realworld` green, `pnpm --filter realworld check` green, `pnpm format:check` clean.
+baseline: green via handoff (fn-64-router-keeps-the-outgoing-pages-loader.1: pnpm turbo run test typecheck --filter=@sleekstack/router... --filter=realworld)
+Tier: session (jev-unavailable(no_key))
+
+stage: impl-review - ran (codex fan-out, 3 draws SHIP, 0 findings)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 84afd4a3955a23064605fa3a4430c70b57d514f0
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/router... --filter=realworld, pnpm --filter realworld check, pnpm format:check
 - PRs:
