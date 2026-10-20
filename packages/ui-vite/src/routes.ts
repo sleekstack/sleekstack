@@ -1,5 +1,6 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import ts from 'typescript'
 import { normalizePath, type Plugin } from 'vite'
 
 /** Where route files live. */
@@ -68,11 +69,43 @@ const ignored = (dir: string, file: string) =>
     .split('/')
     .some((s) => s.startsWith('_'))
 
-/** The route files under `dir`, in match order; throws naming the files when two give the same path. */
-const scan = (dir: string): Route[] => {
-  const files = fs.existsSync(dir) ? fs.readdirSync(dir, { recursive: true, encoding: 'utf8' }) : []
+/** Whether `file` has a default export (`export default`, or `default` in an `export { }` list). */
+const hasDefault = (file: string) => {
+  const source = ts.createSourceFile(file, fs.readFileSync(file, 'utf8'), ts.ScriptTarget.Latest)
+  return source.statements.some(
+    (s) =>
+      ts.isExportAssignment(s) ||
+      (ts.canHaveModifiers(s) && ts.getModifiers(s)?.some((m) => m.kind === ts.SyntaxKind.DefaultKeyword)) ||
+      (ts.isExportDeclaration(s) &&
+        s.exportClause !== undefined &&
+        ts.isNamedExports(s.exportClause) &&
+        s.exportClause.elements.some((e) => e.name.text === 'default')),
+  )
+}
+
+/** Throws naming `file` when it has no default export, the page or not-found component. */
+const needDefault = (file: string) => {
+  if (!hasDefault(file)) throw new Error(`sleekstack: route file ${file} has no default export`)
+}
+
+/** What `routesDir` gives: its routes and its root `_notFound` file, if any. */
+interface Scanned {
+  readonly found: readonly Route[]
+  readonly notFound: string | undefined
+}
+
+/**
+ * The route files under `dir`, in match order, and the root `_notFound`; throws naming the files when two give the
+ * same path or one has no default export.
+ */
+const scan = (dir: string): Scanned => {
+  const files = (fs.existsSync(dir) ? fs.readdirSync(dir, { recursive: true, encoding: 'utf8' }) : []).map((f) =>
+    normalizePath(path.join(dir, f)),
+  )
+  const notFound = files.find(
+    (f) => ROUTE_FILE.test(f) && path.posix.relative(dir, f).replace(ROUTE_FILE, '') === '_notFound',
+  )
   const found = files
-    .map((f) => normalizePath(path.join(dir, f)))
     .filter((f) => ROUTE_FILE.test(f) && !f.endsWith('.d.ts') && !ignored(dir, f))
     .map((f) => toRoute(dir, f))
     .sort((a, b) => (sortKey(a) < sortKey(b) ? -1 : sortKey(a) > sortKey(b) ? 1 : 0))
@@ -82,30 +115,51 @@ const scan = (dir: string): Route[] => {
     if (other) throw new Error(`sleekstack: route files ${other} and ${r.file} both give path ${r.path}`)
     byPath.set(sortKey(r), r.file)
   }
-  return found
+  for (const f of [...found.map((r) => r.file), ...(notFound ? [notFound] : [])]) needDefault(f)
+  return { found, notFound }
 }
 
-/** The module's code; computed keys keep every route name an own property. */
-const moduleCode = (found: readonly Route[]): string => {
+/** A route file's exports, beside its default component, that are the rest of its `Page`. */
+const PAGE_EXPORTS = ['loaders', 'fallback', 'prerender']
+
+/**
+ * The module's code: each page renders its file's default export and carries the file's `PAGE_EXPORTS` it has (no
+ * `undefined` keys); computed keys keep every route name an own property.
+ */
+const moduleCode = ({ found, notFound }: Scanned): string => {
   const key = (r: Route) => `[${JSON.stringify(r.name)}]`
-  const imports = found.map((r, i) => `import p${i} from ${JSON.stringify(r.file)}\n`).join('')
+  const imports = found.map((r, i) => `import * as p${i} from ${JSON.stringify(r.file)}\n`).join('')
   const table = found.map((r) => `${key(r)}: ${JSON.stringify(r.path)}`).join(', ')
-  const pages = found.map((r, i) => `${key(r)}: p${i}`).join(', ')
-  return `${imports}export const table = { ${table} }\nexport const pages = { ${pages} }\n`
+  const pages = found.map((r, i) => `${key(r)}: page(p${i})`).join(', ')
+  return `import { jsx } from '@sleekstack/ui/jsx-runtime'
+${imports}${notFound ? `import NotFound from ${JSON.stringify(notFound)}\n` : ''}const page = (m) => {
+  const p = { render: () => jsx(m.default, {}) }
+  for (const k of ${JSON.stringify(PAGE_EXPORTS)}) if (k in m) p[k] = m[k]
+  return p
+}
+export const table = { ${table} }
+export const pages = { ${pages} }
+${notFound ? 'export const notFound = () => jsx(NotFound, {})\n' : ''}`
 }
 
-/** The module's types: literal paths, so `Params` reads them as from a hand-written table, and each page's type. */
-const declaration = (dir: string, found: readonly Route[]): string => {
+/**
+ * The module's types: literal paths, so `Params` reads them as from a hand-written table, and each page typed from its
+ * route module (`PAGE_EXPORTS` it has, and a JSX `render`), so `router()` infers its requirements as for a literal.
+ */
+const declaration = (dir: string, { found, notFound }: Scanned): string => {
   const entries = (value: (r: Route) => string) =>
     found.map((r) => `\n    readonly ${JSON.stringify(r.name)}: ${value(r)}`).join('')
-  const page = (r: Route) => `typeof import(${JSON.stringify(`./${path.posix.relative(dir, r.file)}`)}).default`
+  const module = (file: string) => `typeof import(${JSON.stringify(`./${path.posix.relative(dir, file)}`)})`
+  const keys = PAGE_EXPORTS.map((k) => JSON.stringify(k)).join(' | ')
   return `// Written by @sleekstack/ui-vite from the route files in this directory; do not edit.
 declare module '${ROUTES_MODULE}' {
+  type Render = () => import('@sleekstack/ui/jsx-runtime').JSX.Element
+  type Page<M> = { readonly render: Render } & Pick<M, Extract<keyof M, ${keys}>>
   export const table: {${entries((r) => JSON.stringify(r.path))}
   }
-  export const pages: {${entries(page)}
+  export const pages: {${entries((r) => `Page<${module(r.file)}>`)}
   }
-}
+${notFound ? '  export const notFound: Render\n' : ''}}
 `
 }
 
@@ -115,22 +169,23 @@ const DECLARATION = 'routes.gen.d.ts'
 /** Writes the declaration when it changed; an invalid route file leaves it as it was (the module load reports it). */
 const writeDeclaration = (dir: string) => {
   if (!fs.existsSync(dir)) return
-  let found: Route[]
+  let scanned: Scanned
   try {
-    found = scan(dir)
+    scanned = scan(dir)
   } catch {
     return
   }
   const file = path.join(dir, DECLARATION)
-  const text = declaration(dir, found)
+  const text = declaration(dir, scanned)
   if (!fs.existsSync(file) || fs.readFileSync(file, 'utf8') !== text) fs.writeFileSync(file, text)
 }
 
 /**
  * Serves `virtual:sleekstack/routes`: `table`, a `@sleekstack/router` route table built from the files under
- * `routesDir` (params stay in the path strings, ADR 0036), and `pages`, each route file's default export by route name.
- * Its types are kept in `routes.gen.d.ts` inside `routesDir`. In dev, adding or removing a route file rebuilds the
- * module and its types and reloads the page.
+ * `routesDir` (params stay in the path strings, ADR 0036); `pages`, a `Page` per route name rendering its file's default
+ * export, with the file's `loaders`, `fallback` and `prerender` exports; and `notFound`, rendering the default export of
+ * a root `_notFound` file, only when there is one. Its types are kept in `routes.gen.d.ts` inside `routesDir`. In dev,
+ * adding or removing a route file rebuilds the module and its types and reloads the page.
  */
 export const routes = (options: RoutesOptions = {}): Plugin => {
   let dir = ''

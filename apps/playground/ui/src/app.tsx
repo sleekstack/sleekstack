@@ -1,14 +1,14 @@
 import { router } from '@sleekstack/router'
-import { table } from 'virtual:sleekstack/routes'
+import { pages, table } from 'virtual:sleekstack/routes'
 import Home from './routes/index'
 import User from './routes/users/[id]'
 
-// Pages written out, not taken from the routes module's `pages`: `sleekstack check` reads only an object literal here.
+// Renders written out, not the routes module's `pages`: `sleekstack check` reads only an object literal here.
 export const app = router({
   table,
   pages: {
     index: { render: () => <Home /> },
-    'users/[id]': { prerender: async () => [{ id: '42' }], render: () => <User /> },
+    'users/[id]': { prerender: pages['users/[id]'].prerender, render: () => <User /> },
   },
   notFound: () => <h1>Not found</h1>,
 })
