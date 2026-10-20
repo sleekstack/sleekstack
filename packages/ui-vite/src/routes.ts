@@ -69,17 +69,23 @@ const ignored = (dir: string, file: string) =>
     .split('/')
     .some((s) => s.startsWith('_'))
 
-/** Whether `file` has a default export (`export default`, or `default` in an `export { }` list). */
+/**
+ * Whether `file` has a runtime default export (`export default`, or `default` in an `export { }` list); a type-only
+ * one (`export default interface`, `export type { X as default }`) is erased, so it does not count.
+ */
 const hasDefault = (file: string) => {
   const source = ts.createSourceFile(file, fs.readFileSync(file, 'utf8'), ts.ScriptTarget.Latest)
   return source.statements.some(
     (s) =>
       ts.isExportAssignment(s) ||
-      (ts.canHaveModifiers(s) && ts.getModifiers(s)?.some((m) => m.kind === ts.SyntaxKind.DefaultKeyword)) ||
+      (!ts.isInterfaceDeclaration(s) &&
+        ts.canHaveModifiers(s) &&
+        ts.getModifiers(s)?.some((m) => m.kind === ts.SyntaxKind.DefaultKeyword)) ||
       (ts.isExportDeclaration(s) &&
+        !s.isTypeOnly &&
         s.exportClause !== undefined &&
         ts.isNamedExports(s.exportClause) &&
-        s.exportClause.elements.some((e) => e.name.text === 'default')),
+        s.exportClause.elements.some((e) => !e.isTypeOnly && e.name.text === 'default')),
   )
 }
 

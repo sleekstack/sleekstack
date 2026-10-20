@@ -214,20 +214,26 @@ export const needs: Needs<typeof app> = null as unknown as Db
   })
 
   it.each([
-    ['a route file with no default export', ['index.ts'], ['index.ts'], { 'index.ts': 'export const loaders = []\n' }],
+    ['a route file with no default export', 'about.ts', 'export const loaders = []'],
+    ['a _notFound with no default export', '_notFound.ts', 'export {}'],
+    ['a route file with a type-only default interface', 'about.ts', 'export default interface About {}'],
     [
-      'a _notFound with no default export',
-      ['index.ts', '_notFound.ts'],
-      ['_notFound.ts'],
-      { '_notFound.ts': 'export {}\n' },
+      'a route file with a type-only default export',
+      'about.ts',
+      'interface About {}\nexport type { About as default }',
     ],
-  ])('reports %s naming the file', async (_, files, bad, contents) => {
-    const { dir, load } = await serve(files, { contents })
+    [
+      'a route file with a type-only default specifier',
+      'about.ts',
+      'interface About {}\nexport { type About as default }',
+    ],
+  ])('reports %s naming the file', async (_, file, code) => {
+    const { dir, load } = await serve(['index.ts', file], { contents: { [file]: `${code}\n` } })
     const error: Error = await load().then(
       () => new Error('loaded'),
       (e: Error) => e,
     )
-    for (const file of bad) expect(error.message).toContain(path.join(dir, file))
+    expect(error.message).toContain(`${path.join(dir, file)} has no default export`)
   })
 
   it.each([
