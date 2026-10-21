@@ -62,7 +62,7 @@ export const taggedError = <A extends { readonly _tag: string }, Fields extends 
   const tag: string = Class.prototype.name
   return Schema.transform(Schema.Struct({ _tag: Schema.Literal(tag), ...fields }), Schema.instanceOf(Class), {
     strict: false,
-    decode: (args) => new Class(args),
+    decode: (args) => new Class(Object.fromEntries(Object.entries(args).filter(([key]) => key !== '_tag'))),
     encode: (error) => ({ ...error }),
   }) as never
 }
