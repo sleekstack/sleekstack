@@ -37,9 +37,14 @@ The analyzer learns to find ServerService contracts through the checker and to e
 - [ ] `pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack --filter=@sleekstack/ui-vite` passes.
 
 ## Done summary
-TBD
+Added `analyzeServerServices({ project })` (packages/analyze/src/serverServices.ts, exported from `@sleekstack/analyze`). It finds every `class X extends ServerService('Id')<X, Shape>() {}`, resolving the callee through the checker to `start/service#ServerService`, so imports from `@sleekstack/start`, `@sleekstack/start/client` or a local barrel all count. It returns `{ services, errors, checker }`. Each service carries its Tag id, class name, location and methods, and each method carries its raw `input`, `success` and `error` ts.Types for task 4. Two new codes have ERROR_CODES rows and an errors.mdx "Server Service errors" section: `ServerServiceFileShape` (a value in a contract file, a contract in a `*.server.ts`, a contract importing a `*.server.ts`, or a Tag id declared by two classes, reported once and naming both files) and `ServerServiceMethodShape` (more than one parameter, no explicit function type, a non-Effect return, R not `never`, or `any`). A non-literal Tag id, an anonymous class or a class declared below the top level is `Unresolvable`. `sleekstackAnalyzer` in ui-vite now reports this pass too.
 
+Notes for later tasks: `libId` now also maps `packages/start` and `effect/Data`. `sleekstack check --json` output on showcase and realworld is identical with and without that change. packages/cli/llms.md is outside the declared Touches; it was regenerated with `UPDATE_LLMS=1` because cli's llms.test generates it from ERROR_CODES. The CLI `check` command does not run the new pass yet, since packages/cli was not in Touches. Tests: packages/analyze/src/__tests__/serverServices.test.ts covers the valid contract, the barrel and all 8 error fixtures, plus the duplicate-id message.
+
+Tier: session (jev-unavailable(no_key)); project routing block pins implementer opus at medium (actual_model: claude-opus-5-5)
+
+stage: impl-review - skipped(config: REVIEW_MODE=none)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 6f1951123443cef70e56ce4b0c2bfdc80da307b5
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack --filter=@sleekstack/ui-vite
 - PRs:
