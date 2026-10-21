@@ -39,9 +39,18 @@ The first migration and the wiring every later one reuses: the standalone plugin
 - [ ] The fixture graph check output is identical before and after (AGENTS.md).
 
 ## Done summary
-TBD
+Realworld's identity is now the `IdentityApi` Server Service. The Tag is in `src/modules/identity/application/contracts.ts`, with 8 methods: register, login, logout, current, update, profile, follow and unfollow. The 8 identity contracts and their `functions` entries are gone. `Account` moved to `domain/model.ts`, because a ServerService file may hold no values. `server/identity-api.server.ts` builds `IdentityApiLive` with `implement`. It takes `Db | TokenSecret` once, when the Layer is built, and reads the session cookie through `Cookies` on every call. `asViewer` and `SESSION` moved there as well; `app.ts` imports `asViewer` for the article and comment functions, which still exist, and re-exports `SESSION`.
 
+Wiring: `serverServices()` is in `vite.config.ts`. The browser entry adds `virtual:sleek/server`. The server entry adds `services` (the registry) and `IdentityApiLive.pipe(Layer.provideMerge(<old layer>))`. The `viewer` and `profile` loaders, `_auth.tsx`, `settings.tsx` and `_profile.tsx` all call `yield* IdentityApi`. The tests use the `IdentityApi.*` wire ids and merge the generated browser Layer next to `ServerFunctions`. Their assertions are unchanged.
+
+`test/architecture.test.ts` changed in three places. The application layer may import `@sleekstack/start/client`, and `main` may import `virtual:sleek/server`. The scan skips `.d.ts` files, since the generated `src/server.gen.d.ts` is one. The client-chunk build test now runs `serverServices()`, so a reachable `*.server.ts` fails it. `sleekstack check` reports MissingDependency when `IdentityApiLive` is left out of the layer (checked by hand, then restored). The effect-app fixture graph output matches /tmp/fixture-before-fn67.json exactly. `pnpm --filter realworld build` passes, and the bundle contains no server code.
+
+baseline: green (pnpm turbo run test typecheck --filter=realworld && pnpm --filter realworld check, pre-edit)
+
+Tier: session (jev-unavailable(no_key)); project routing block pins implementer opus at medium
+
+stage: impl-review - skipped(config: REVIEW_MODE=none)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 570084df4d12f4af558870028c7222e01fe0bd85
+- Tests: pnpm turbo run test typecheck --filter=realworld && pnpm --filter realworld check, effect-app fixture graph check (identical), pnpm --filter realworld build
 - PRs:
