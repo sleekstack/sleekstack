@@ -5,6 +5,8 @@ import type { ErrorOf, ServerFn } from './serverFn'
 import { DecodeError, decodeResult, prefix } from './wire'
 
 export { DecodeError } from './wire'
+export { ServerService, taggedError } from './service'
+export type { ServerServiceEntry, ServerServiceMethodSchemas, ServerServiceShape } from './service'
 
 type AnySchema = Schema.Schema<any, any, never>
 
