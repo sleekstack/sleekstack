@@ -34,9 +34,23 @@ Touches: packages/router/src/resolve.ts, packages/router/src/history.ts, package
 - [ ] TBD
 
 ## Done summary
-TBD
+`Page` is now `PageCode | { load }`. The router loads a page's code once before its loaders run or it renders: in `resolve` (and through it `handle` and each navigation) and, in `startRouter`, before it hydrates the first page. The promise is cached per page in a WeakMap and shared by concurrent navigations and requests. Interrupting a navigation stops only its wait, not the load. A rejected load, a synchronous throw from `load`, or a module with no `render` is not cached: that page renders a `LazyLoadError` (from `@sleekstack/ui`) to the nearest `Boundary`, or to `onError` when no Boundary exists, and the next navigation loads again. `Resolved` now carries the loaded `code` for history and server to render. `PageNeeds` also infers requirements through `load`'s return. `startRouter` registers its click and popstate listeners only after the first page's code has loaded, so a click before hydration goes to the browser. `Link` is unchanged. The README documents `Page.load` and `code={pages.<name>.load}`.
 
+Tests in `packages/router/src/__tests__/navigation.test.ts` ("a page with load"):
+- `handle` awaits the code, and concurrent requests share one load
+- a navigation loads the code once before its loaders
+- an interrupted navigation keeps the shared load running
+- an async or sync rejection reports `LazyLoadError`, then a retry succeeds
+- the first page loads before hydration
+- a click during the first load goes to the browser and hydration completes
+
+The existing navigation tests are unchanged and pass.
+
+baseline: green (`pnpm turbo run test typecheck --filter=@sleekstack/router...`)
+
+Tier: implementer (project routing block: opus at medium)
+stage: impl-review - ran (codex fan-out rid b0ecfb7249034cfe9544f49dfd277d93: NEEDS_WORK on two findings, the hydration/navigation race and a sync load() throw; both fixed in dbe1bfcd; re-review SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 0af2a9def5a98904cb38023aceee4d6724e172ca, dbe1bfcd5edddeb4384e20728073059beefd54b4
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/router... --filter=@sleekstack/ui-vite... --filter=@sleekstack/analyze --filter=sleekstack --filter=realworld
 - PRs:
