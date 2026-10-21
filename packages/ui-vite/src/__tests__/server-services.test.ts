@@ -267,4 +267,13 @@ describe('server boundary', () => {
     )
     await expect(server.environments.ssr.transformRequest('/src/profiles.server.ts')).resolves.toBeTruthy()
   })
+
+  it('lets a test import a server file in the client environment (vitest runs jsdom tests there)', async () => {
+    const { server } = await serve({
+      'page.test.ts': `import { ProfilesLive } from './profiles.server'\nconsole.log(ProfilesLive)\n`,
+    })
+    const env = server.environments.client
+    await env.transformRequest('/src/page.test.ts')
+    await expect(env.transformRequest('/src/profiles.server.ts')).resolves.toBeTruthy()
+  })
 })

@@ -17,6 +17,7 @@
     "tanstack-query",
     "routing",
     "vite",
+    "server-services",
     "side-effects",
     "ui-devtools",
     "errors",

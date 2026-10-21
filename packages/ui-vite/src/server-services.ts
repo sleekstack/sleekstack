@@ -16,6 +16,8 @@ const MODULES = [CLIENT, REGISTRY]
 const START_CLIENT = '@sleekstack/start/client'
 const SOURCE = /\.[cm]?[jt]sx?$/
 const SERVER_FILE = /\.server\.[cm]?[jt]sx?$/
+/** `@sleekstack/analyze`'s `TEST_FILE`: a chain rooted in a test is not the browser's (vitest loads jsdom tests as client). */
+const TEST_FILE = /(^|[\\/])__tests__[\\/]|\.(test|spec)\.[cm]?[jt]sx?$/
 
 /** A Server Service as the generator needs it; files relative to the tsconfig directory. */
 interface Contract {
@@ -235,9 +237,11 @@ export const serverServices = (options: ServerServicesOptions = {}): Plugin => {
       filter: { id: [new RegExp(`^\0(${MODULES.join('|')})$`), SERVER_FILE] },
       async handler(id) {
         if (SERVER_FILE.test(id)) {
-          if (this.environment.config.consumer === 'client')
+          if (this.environment.config.consumer !== 'client') return null
+          const chain = chainOf(this.environment, id).map(rel)
+          if (!TEST_FILE.test(chain[0]!))
             this.error(
-              `sleekstack: the server-only "${rel(id)}" is in the browser build: ${chainOf(this.environment, id).map(rel).join(' -> ')}. Import its contract instead, or use \`import type\`.`,
+              `sleekstack: the server-only "${rel(id)}" is in the browser build: ${chain.join(' -> ')}. Import its contract instead, or use \`import type\`.`,
             )
           return null
         }
