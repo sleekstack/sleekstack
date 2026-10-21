@@ -34,9 +34,16 @@ A TS type cannot say `NonEmptyString` or a length, so the generated Schema is ex
 - [ ] `pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack --filter=@sleekstack/ui-vite` passes.
 
 ## Done summary
-TBD
+Added `methodSchema` in packages/analyze/src/typeSchema.ts. It turns a method's input, success and error types into a closed, JSON-serializable `MethodSchema`. The supported kinds are string, number, boolean, null, undefined, void, literal, union, array (with a readonly flag) and object (each property carries an optional flag). Errors become a `TaggedErrorSchema[]` holding the class name, the declaring file relative to the tsconfig directory, and the fields read from the `Data.TaggedError('X')<Fields>` type argument. `Redirect` and `NotFound` in E are dropped, because the wire's control path carries them. `analyzeServerServices` now attaches `schema` to each method. A method outside the subset reports `ServerServiceTypeNotSerializable` at the method line, naming the member path (for example `input.children[]`) and the type text, and it is left out of `methods`. The reported cases are Date, Map, Set and other lib objects, class instances, a tagged error outside the error position, functions, bigint, symbol, unknown, any, tuples, index signatures, intersections with a non-object, recursive types (caught by a path stack) and non-tagged errors. The `TypeSchema`, `PropertySchema`, `TaggedErrorSchema` and `MethodSchema` types are exported from `@sleekstack/analyze`.
 
+The code has an ERROR_CODES row and an errors.mdx row. packages/cli/llms.md was regenerated with `UPDATE_LLMS=1` (now 7134 bytes). Tests are in packages/analyze/src/__tests__/typeSchema.test.ts, with the fixtures server-service-types and server-service-not-serializable. There is one table row per supported kind, and one per unsupported kind with file:line and member path. Union members are listed in the checker's order. `taggedErrorBase` is shared with serverServices.ts's file-shape check.
+
+Tier: session (jev-unavailable(no_key)); project routing block pins implementer opus at medium (actual_model: claude-opus-5-5)
+
+baseline: green
+
+stage: impl-review - skipped(config: REVIEW_MODE=none)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: c79e82d21f620565d2545c5bcbf39ed98fff2690
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack --filter=@sleekstack/ui-vite
 - PRs:
