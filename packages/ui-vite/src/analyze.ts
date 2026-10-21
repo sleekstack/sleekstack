@@ -9,19 +9,20 @@ const DEBOUNCE_MS = 200
 const SOURCE = /\.[cm]?[jt]sx?$/
 
 /**
- * `@sleekstack/analyze` (graph and component passes), loaded on first use through jiti: the analyzer ships as
- * TypeScript source, which Node cannot import from this package's compiled output.
+ * `@sleekstack/analyze` (graph, component and Server Service passes), loaded on first use through jiti: the analyzer
+ * ships as TypeScript source, which Node cannot import from this package's compiled output.
  */
 const sleekstackAnalyzer: Analyzer = async (project) => {
   const { createJiti } = await import('jiti')
-  const { analyze, analyzeComponents } = await createJiti(import.meta.url).import<typeof import('@sleekstack/analyze')>(
-    '@sleekstack/analyze',
-  )
+  const { analyze, analyzeComponents, analyzeServerServices } = await createJiti(import.meta.url).import<
+    typeof import('@sleekstack/analyze')
+  >('@sleekstack/analyze')
   const report = analyze({ project })
   const all = [
     ...report.extraction,
     ...report.runtimes.flatMap((r) => r.errors),
     ...analyzeComponents({ project }).errors,
+    ...analyzeServerServices({ project }).errors,
   ]
   // Roots sharing a module repeat its errors.
   return [...new Map(all.map((e) => [`${e.file}:${e.line}:${e.code}:${e.message}`, e])).values()]

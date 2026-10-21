@@ -69,6 +69,15 @@ Raised by `@sleekstack/ui` at render or `resume` time as tagged errors (`Data.Ta
 | `PortalContainerMissing`                                  | A `Portal`'s `container` is missing or not attached to the document. The mount fails with it (a re-run reports it to `onError`).                                                                                                  |
 | `UnknownHandler`, `HandlerIdMismatch`, `UnsupportedEvent` | A handler id is missing from the `handlers` map, differs from its chunk's declared id, or names a non-bubbling event.                                                                                                             |
 
+## Server Service errors
+
+Reported by `sleekstack check` and the `sleekstack()` Vite plugin (with file:line) for a `ServerService` contract ([ADR 0051](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0051-server-services.md)).
+
+| Code                       | Triggered when                                                                                                                                                                                        |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ServerServiceFileShape`   | A file declaring a `ServerService` holds a value other than `Data.TaggedError` and `ServerService` classes, is a `*.server.ts` file, or imports one; or two `ServerService` classes share one Tag id. |
+| `ServerServiceMethodShape` | A contract method takes more than one parameter, is not written out as a function type, does not return an `Effect.Effect<A, E>`, requires services (`R` is not `never`), or is typed with `any`.     |
+
 ## Runtime
 
 - `@sleekstack/runtime`: `runEffect` called before `configureRuntime` rejects with `RuntimeNotConfigured`. A failure or defect rejects as `Effect.runPromise` does; defects, finalizer failures and failed layer builds reach `onError(cause, { phase })`. Values your `isControlFlow` classifies are rethrown untouched and never reported, including when thrown while the app Layer builds.

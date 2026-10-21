@@ -1,0 +1,70 @@
+import * as fs from 'node:fs'
+import * as path from 'node:path'
+import { describe, expect, it } from 'vitest'
+import { analyzeServerServices, ERROR_CODES } from '../index'
+
+const dir = (name: string) => path.join(__dirname, 'fixtures', name)
+const run = (name: string) => analyzeServerServices({ project: path.join(dir(name), 'tsconfig.json') })
+/** Every `// @error Code` marker in a fixture, as the error the pass must report on that line. */
+const expected = (name: string) =>
+  fs
+    .readdirSync(dir(name))
+    .filter((f) => f.endsWith('.ts'))
+    .sort()
+    .flatMap((file) =>
+      fs
+        .readFileSync(path.join(dir(name), file), 'utf8')
+        .split('\n')
+        .flatMap((l, i) => {
+          const m = /\/\/ @error (\w+)/.exec(l)
+          return m ? [{ code: m[1]!, file, line: i + 1 }] : []
+        }),
+    )
+
+describe('analyzeServerServices', () => {
+  it('reads a valid contract: Tag id, class, methods and their raw types', () => {
+    const r = run('server-service-valid')
+    expect(r.errors).toEqual([])
+    expect(r.services.map((s) => [s.id, s.name, s.location.file])).toEqual([['Profiles', 'Profiles', 'contract.ts']])
+    const types = r.services[0]!.methods.map((m) => [
+      m.name,
+      m.input && r.checker.typeToString(m.input),
+      r.checker.typeToString(m.success),
+      r.checker.typeToString(m.error),
+    ])
+    expect(types).toEqual([
+      ['rename', '{ readonly name: string; }', '{ readonly name: string; }', 'NameTaken'],
+      ['list', undefined, 'readonly Profile[]', 'never'],
+      ['get', 'Ids', 'Profile', 'NameTaken'],
+    ])
+  })
+
+  it('finds a contract whose ServerService import and export go through barrels', () => {
+    const r = run('server-service-barrel')
+    expect(r.errors).toEqual([])
+    expect(r.services.map((s) => [s.id, s.location.file, s.methods.map((m) => m.name)])).toEqual([
+      ['Accounts', 'contract.ts', ['count']],
+    ])
+  })
+
+  it.each([
+    'server-service-in-server-file',
+    'server-service-value-export',
+    'server-service-imports-server',
+    'server-service-two-params',
+    'server-service-non-effect',
+    'server-service-requires',
+    'server-service-any',
+    'server-service-duplicate-id',
+  ])('%s: code and file:line', (name) => {
+    const errors = run(name).errors
+    expect(errors.map(({ code, file, line }) => ({ code, file, line }))).toEqual(expected(name))
+    for (const e of errors) expect(e.docs).toBe(ERROR_CODES[e.code].docs)
+  })
+
+  it('names both files of a duplicated Tag id', () => {
+    expect(run('server-service-duplicate-id').errors[0]!.message).toBe(
+      'Server Service Tag id "Profiles" is declared by several classes: A (a.ts:4), B (b.ts:4)',
+    )
+  })
+})

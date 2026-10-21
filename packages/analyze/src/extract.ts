@@ -35,11 +35,11 @@ export function libId(sym: ts.Symbol | undefined, checker: ts.TypeChecker): stri
   if (sym.flags & ts.SymbolFlags.Alias) sym = checker.getAliasedSymbol(sym)
   const file = sym.declarations?.[0]?.getSourceFile().fileName.replace(/\\/g, '/')
   if (!file) return undefined
-  const own = /\/(?:packages|@sleekstack)\/(core|runtime|query|ui|router)\/(?:src|dist)\/(.+?)(?:\.d)?\.tsx?$/.exec(
-    file,
-  )
+  const own =
+    /\/(?:packages|@sleekstack)\/(core|runtime|query|ui|router|start)\/(?:src|dist)\/(.+?)(?:\.d)?\.tsx?$/.exec(file)
   if (own) return `${own[1]}/${own[2]}#${sym.name}`
   if (/\/effect\/dist\/dts\/Context\.d\.ts$/.test(file)) return `effect/Context#${sym.name}`
+  if (/\/effect\/dist\/dts\/Data\.d\.ts$/.test(file)) return `effect/Data#${sym.name}`
   if (/\/effect\/dist\/dts\/Effect\.d\.ts$/.test(file)) return `effect/Effect#${sym.name}`
   if (/\/effect\/dist\/dts\/Layer\.d\.ts$/.test(file)) return `effect/Layer#${sym.name}`
   if (/\/effect\/dist\/dts\/Stream\.d\.ts$/.test(file)) return `effect/Stream#${sym.name}`
