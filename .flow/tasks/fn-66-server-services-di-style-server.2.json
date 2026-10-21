@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-21T14:11:43.688169Z",
+  "depends_on": [
+    "fn-66-server-services-di-style-server.1"
+  ],
+  "id": "fn-66-server-services-di-style-server.2",
+  "priority": null,
+  "spec": "fn-66-server-services-di-style-server",
+  "spec_path": ".flow/tasks/fn-66-server-services-di-style-server.2.md",
+  "status": "todo",
+  "title": "start/client: `serverClient` Layers for the browser",
+  "updated_at": "2026-10-21T14:11:43.688169Z"
+}
