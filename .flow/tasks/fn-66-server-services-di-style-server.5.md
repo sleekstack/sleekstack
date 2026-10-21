@@ -38,9 +38,22 @@ The transformer. A Vite plugin reads contracts through the analyzer (tasks 3 and
 - [ ] `pnpm turbo run test typecheck --filter=@sleekstack/ui-vite...` passes.
 
 ## Done summary
-TBD
+Added the `serverServices()` Vite plugin (packages/ui-vite/src/server-services.ts). It reads Server Service contracts through the analyzer (loaded with jiti, as analyze.ts does) and serves `virtual:sleek/server`, whose default export is `serverClients(entries)`, and `virtual:sleek/server-registry`, whose default export is the entries for `start({ services })`. Both import each Tag and error class from its contract file. The plugin is in the `sleekstack()` array and is also exported on its own.
 
+- `printSchema` prints a description to Schema source. A mutable array becomes `Schema.mutable(Schema.Array(..))`. A method with no errors gets no `error` key, one error gets a single `taggedError`, and several get a `Schema.Union`.
+- The declaration goes to `src/server.gen.d.ts` (option `serverDeclaration`, relative to the Vite root). It is rewritten only when its text changes. An app with no contracts gets no file, so adding the plugin to `sleekstack()` writes nothing into existing apps.
+- Errors: an analyzer error, or an analyzer crash, fails the load with `<abs file>:<line> <code>: <message>`. No partial client is emitted.
+- Dev: a `*.server.ts` change is ignored. Any other source change re-runs the analysis. Both modules are invalidated in every environment, plus a full reload, only when the generated output changes. A comment-only contract edit does nothing.
+- Tests: packages/ui-vite/src/__tests__/server-services.test.ts covers printSchema kind by kind, fixture load (inline snapshot, no `.server.` import, the generated Schemas decode into the contract's classes), declaration typing (tsc), a `Date` method failing with `dated.ts:4 ServerServiceTypeNotSerializable`, HMR, and the plugin array. The fixture is in src/__tests__/fixtures/server-services/.
+- Deviation: the analysis builds its own TypeScript program. It does not share the analyze plugin's program, because that would need analyze.ts changes, which are outside Touches. There is a ponytail note on the per-change rerun cost.
+- Test note: the HMR test uses `optimizeDeps.noDiscovery`. Without it, the client dep optimizer held `server.close` past the hook timeout.
+- The commit trailer is Claude Opus 5.5, per the session attribution rule, not the Sonnet line in the conductor note.
+
+baseline: green
+Tier: session (jev-unavailable(no_key)); project routing block pins implementer opus at medium (actual_model: claude-opus-5-5)
+
+stage: impl-review - skipped(config: REVIEW_MODE=none)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: e99192d32021621b42cbad355eadfb2f7453cf49
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/ui-vite...
 - PRs:
