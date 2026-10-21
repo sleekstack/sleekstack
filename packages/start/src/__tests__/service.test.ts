@@ -124,8 +124,10 @@ describe('ids', () => {
   })
 
   it.each([
-    ['a Tag id', ServerService('.Bad')<never, { readonly go: () => Effect.Effect<void> }>(), 'go', '.Bad.go'],
-    ['a method name', Profiles, 'a b', 'Profiles.a b'],
+    ['a Tag id', ServerService('.Bad')<never, { readonly go: () => Effect.Effect<void> }>(), 'go', '.Bad'],
+    ['a method name', Profiles, 'a b', 'a b'],
+    ['a method name with leading punctuation', Profiles, '.bad', '.bad'],
+    ['a method name with a leading dash', Profiles, '-bad', '-bad'],
   ])('%s outside the grammar fails start with InvalidServerFnId', (_, tag, method, id) => {
     const bad = { tag, methods: { [method]: { input: Schema.Void, success: Schema.Void } } } as ServerServiceEntry
     const e = thrown(() => start({ router: app, layer: Layer.empty, services: [bad] } as never))

@@ -16,6 +16,8 @@ import { type MethodSchema, methodSchema, NotSerializable, taggedErrorBase } fro
 
 const SERVER_SERVICE = 'start/service#ServerService'
 const EFFECT = 'effect/Effect#Effect'
+const START = 'start/start#start'
+const LAYER = 'effect/Layer#Layer'
 const CLIENT_MODULE = 'virtual:sleek/server'
 const SERVER_FILE = /\.server\.[cm]?[jt]sx?$/
 
@@ -73,6 +75,21 @@ export function analyzeServerServices(opts: { readonly project: string }): Serve
     const ext = extendsOf(c)
     const inner = ext && ts.isCallExpression(ext) && ts.isCallExpression(ext.expression) ? ext.expression : undefined
     return inner && callee(inner) === SERVER_SERVICE ? inner : undefined
+  }
+  /** The `ServerService('...')` call heading `extends ServerService('...')<X, Shape>()`, the one form the reader follows. */
+  const isServiceCallOfClass = (c: ts.CallExpression): boolean => {
+    const outer = c.parent
+    const heritage = outer?.parent
+    return (
+      !!outer &&
+      ts.isCallExpression(outer) &&
+      outer.expression === c &&
+      !!heritage &&
+      ts.isExpressionWithTypeArguments(heritage) &&
+      heritage.expression === outer &&
+      ts.isHeritageClause(heritage.parent) &&
+      heritage.parent.token === ts.SyntaxKind.ExtendsKeyword
+    )
   }
   const isTaggedError = (c: ts.ClassLikeDeclaration) => !!taggedErrorBase(c, checker)
 
@@ -169,14 +186,72 @@ export function analyzeServerServices(opts: { readonly project: string }): Serve
     )
   for (const sf of sources) {
     const found: ts.ClassLikeDeclaration[] = []
+    const stray: ts.CallExpression[] = []
     const walk = (n: ts.Node): void => {
       if ((ts.isClassDeclaration(n) || ts.isClassExpression(n)) && serviceCall(n)) found.push(n)
+      else if (ts.isCallExpression(n) && callee(n) === SERVER_SERVICE && !isServiceCallOfClass(n)) stray.push(n)
       ts.forEachChild(n, walk)
     }
     walk(sf)
+    // A `ServerService(...)` the reader cannot follow would otherwise vanish and leave an empty client.
+    for (const call of stray)
+      report(
+        'Unresolvable',
+        call,
+        "A ServerService must be declared as `class X extends ServerService('Id')<X, Shape>() {}`; this construction cannot be read",
+      )
     if (!found.length) continue
     checkFile(sf, found[0]!)
     found.forEach(serviceOf)
+  }
+
+  /** `start({ services, layer })`: each registered Tag needs an implementation in `layer`, as `start`'s own types require. */
+  const checkStart = (call: ts.CallExpression, options: ts.ObjectLiteralExpression) => {
+    const valueOf = (name: string) => {
+      const p = options.properties.find((x) => x.name !== undefined && ts.isIdentifier(x.name) && x.name.text === name)
+      return p && ts.isPropertyAssignment(p)
+        ? p.initializer
+        : p && ts.isShorthandPropertyAssignment(p)
+          ? p.name
+          : undefined
+    }
+    const services = valueOf('services')
+    if (!services) return
+    const entries = checker.getIndexTypeOfType(checker.getTypeAtLocation(services), ts.IndexKind.Number)
+    if (!entries) return
+    const tagsOf = (t: ts.Type) =>
+      (t.isUnion() ? t.types : [t]).flatMap((m) => (m.flags & ts.TypeFlags.Object ? [m] : []))
+    const required = tagsOf(entries).flatMap((entry) => {
+      const id = checker.getTypeArguments(entry as ts.TypeReference)[0]
+      return id && !(id.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown)) ? tagsOf(id) : []
+    })
+    const layer = valueOf('layer')
+    const provided: ts.Type[] = []
+    if (layer) {
+      const type = checker.getTypeAtLocation(layer)
+      if (libId(type.aliasSymbol ?? type.getSymbol(), checker) !== LAYER) return // a Layer it cannot read: leave it to `tsc`
+      const out = checker.getTypeArguments(type as ts.TypeReference)[0]
+      if (!out || out.flags & ts.TypeFlags.Any) return
+      if (!(out.flags & ts.TypeFlags.Never)) provided.push(...(out.isUnion() ? out.types : [out]))
+    }
+    const have = new Set(provided.map((t) => t.getSymbol()))
+    for (const tag of required)
+      if (!have.has(tag.getSymbol()))
+        report(
+          'MissingDependency',
+          call,
+          `Server Service "${tag.getSymbol()?.getName() ?? checker.typeToString(tag)}" is registered in start({ services }) but start's layer does not provide it`,
+        )
+  }
+  for (const sf of sources) {
+    const visitStart = (n: ts.Node): void => {
+      if (ts.isCallExpression(n) && callee(n) === START) {
+        const options = n.arguments[0]
+        if (options && ts.isObjectLiteralExpression(options)) checkStart(n, options)
+      }
+      ts.forEachChild(n, visitStart)
+    }
+    visitStart(sf)
   }
 
   serverFilesInClientGraph(program, sources, (n, message) => report('ServerFileInClientGraph', n, message), root)

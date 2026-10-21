@@ -56,11 +56,23 @@ describe('analyzeServerServices', () => {
     'server-service-requires',
     'server-service-any',
     'server-service-duplicate-id',
+    'server-service-indirect',
+    'server-service-start-missing',
     'server-boundary',
   ])('%s: code and file:line', (name) => {
     const errors = run(name).errors
     expect(errors.map(({ code, file, line }) => ({ code, file, line }))).toEqual(expected(name))
     for (const e of errors) expect(e.docs).toBe(ERROR_CODES[e.code].docs)
+  })
+
+  it("is silent when start's layer provides every registered Tag", () => {
+    expect(run('server-service-start-ok').errors).toEqual([])
+  })
+
+  it('names the Tag a start({ services }) layer does not provide', () => {
+    expect(run('server-service-start-missing').errors.map((e) => e.message)).toEqual([
+      'Server Service "Accounts" is registered in start({ services }) but start\'s layer does not provide it',
+    ])
   })
 
   it('names the import chain of a server file reachable from the browser', () => {

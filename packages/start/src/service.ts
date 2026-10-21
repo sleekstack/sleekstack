@@ -50,6 +50,10 @@ export interface ServerServiceEntry<Id = any, Service = any> {
   readonly methods: { readonly [K in keyof Service]: ServerServiceMethodSchemas }
 }
 
+/** The registry entry of each Tag class in `Tags`, typed with that Tag's own methods (what the generated registry holds). */
+export type ServerServiceEntryOf<Tags> =
+  Tags extends Context.Tag<infer Id, infer Service> ? ServerServiceEntry<Id, Service> : never
+
 /**
  * A Schema for a `Data.TaggedError` subclass: on the wire `_tag` plus `fields`, decoded back into the class. `Schema.is`
  * is an instance check, so a plain object with the same `_tag` is not the error.

@@ -1,5 +1,13 @@
 import { NotFound, Redirect, redirect } from '@sleekstack/router'
-import { Cookies, DecodeError, serverFn, ServerService, type ServerServiceEntry, taggedError } from '@sleekstack/start'
+import {
+  Cookies,
+  DecodeError,
+  serverFn,
+  ServerService,
+  type ServerServiceEntry,
+  type ServerServiceEntryOf,
+  taggedError,
+} from '@sleekstack/start'
 import { Cause, Context, Data, Effect, Exit, Layer, Option, Schema } from 'effect'
 import { describe, expect, it } from 'vitest'
 import { callHandler, callServerFn, callService } from '../index'
@@ -75,6 +83,11 @@ const profilesLayer = Layer.succeed(Profiles, {
 
 // @ts-expect-error an unknown method name is a type error
 void (() => callService(profiles, 'remove', { name: 'x' }, { layer: profilesLayer }))
+
+// The generated registry types each entry with its Tag's methods, so an entry picked from it rejects unknown names too.
+declare const generated: ReadonlyArray<ServerServiceEntryOf<typeof Profiles>>
+// @ts-expect-error an unknown method name is a type error on a generated entry
+void (() => callService(generated[0]!, 'remove', { name: 'x' }, { layer: profilesLayer }))
 
 describe('callService', () => {
   it('success and a declared error decoded back into its class', async () => {

@@ -92,12 +92,14 @@ export const registry = (functions: ReadonlyArray<ServerFn>): ReadonlyMap<string
 /** Each Server Service method as a server function `<Tag id>.<method>` that calls the Tag from the Request Scope. */
 export const serviceFunctions = (entries: ReadonlyArray<ServerServiceEntry>): ReadonlyArray<ServerFn> =>
   entries.flatMap(({ tag, methods }) =>
-    Object.entries(methods).map(([name, schemas]) =>
-      Object.assign((input: unknown) => Effect.flatMap(tag, (service) => service[name](input)), {
+    Object.entries(methods).map(([name, schemas]) => {
+      // Each part must be a valid id on its own: `.bad` after `Demo.` would pass as the joined `Demo..bad`.
+      for (const part of [tag.key, name]) if (!ID.test(part)) throw new InvalidServerFnId({ id: part })
+      return Object.assign((input: unknown) => Effect.flatMap(tag, (service) => service[name](input)), {
         id: `${tag.key}.${name}`,
         input: schemas.input,
         success: schemas.success,
         error: schemas.error,
-      }),
-    ),
+      })
+    }),
   )

@@ -45,12 +45,16 @@ const PRIMITIVE = {
   void: 'Void',
 }
 
+/** JSON drops an `undefined` property, so a property that may be `undefined` may also be absent on the wire. */
+const mayBeUndefined = (t: TypeSchema): boolean =>
+  t.kind === 'undefined' || (t.kind === 'union' && t.members.some(mayBeUndefined))
+
 const fields = (props: readonly PropertySchema[], alias: Alias): string =>
   props.length
     ? `{ ${props
         .map((p) => {
           const type = printSchema(p.type, alias)
-          return `${JSON.stringify(p.name)}: ${p.optional ? `Schema.optional(${type})` : type}`
+          return `${JSON.stringify(p.name)}: ${p.optional || mayBeUndefined(p.type) ? `Schema.optional(${type})` : type}`
         })
         .join(', ')} }`
     : '{}'
@@ -113,13 +117,14 @@ const declarationOf = (contracts: readonly Contract[], root: string, dir: string
     return `import(${JSON.stringify(rel.startsWith('.') ? rel : `./${rel}`)}).${c.name}`
   }
   const tags = contracts.map(tag).join(' | ') || 'never'
+  const classes = contracts.map((c) => `typeof ${tag(c)}`).join(' | ') || 'never'
   return `// Written by @sleekstack/ui-vite from the Server Service contracts; do not edit.
 declare module '${CLIENT}' {
   const layer: import('effect').Layer.Layer<${tags}>
   export default layer
 }
 declare module '${REGISTRY}' {
-  const services: ReadonlyArray<import('${START_CLIENT}').ServerServiceEntry<${tags}>>
+  const services: ReadonlyArray<import('${START_CLIENT}').ServerServiceEntryOf<${classes}>>
   export default services
 }
 `

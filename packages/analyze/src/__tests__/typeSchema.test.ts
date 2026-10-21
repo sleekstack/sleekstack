@@ -112,6 +112,7 @@ describe('ServerServiceTypeNotSerializable', () => {
     ['recursive', 'input.children[]', 'Tree'],
     ['plainError', 'error', 'Plain'],
     ['taggedSuccess', 'success', 'Oops'],
+    ['holes', 'input', 'readonly (string | undefined)[]'],
     ['brand', 'input', 'string & { readonly brand: "Id"; }'],
   ])('%s: file:line and the member path', (method, member, text) => {
     const e = r.errors.find((x) => x.message.startsWith(`Server Service method "Bad.${method}":`))
@@ -121,5 +122,5 @@ describe('ServerServiceTypeNotSerializable', () => {
   })
 
   it('reports one error per method and nothing else', () =>
-    expect(r.errors.map((e) => e.code)).toEqual(Array(13).fill('ServerServiceTypeNotSerializable')))
+    expect(r.errors.map((e) => e.code)).toEqual(Array(14).fill('ServerServiceTypeNotSerializable')))
 })

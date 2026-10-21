@@ -21,6 +21,7 @@ export class Bad extends ServerService('Bad')<
     readonly recursive: (input: Tree) => Effect.Effect<void>
     readonly plainError: () => Effect.Effect<void, Plain>
     readonly taggedSuccess: () => Effect.Effect<Oops>
+    readonly holes: (input: ReadonlyArray<string | undefined>) => Effect.Effect<void>
     readonly brand: (input: string & { readonly brand: 'Id' }) => Effect.Effect<void>
   }
 >() {}

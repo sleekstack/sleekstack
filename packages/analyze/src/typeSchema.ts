@@ -75,6 +75,9 @@ export const methodSchema = (
     throw new NotSerializable(at, checker.typeToString(t), why)
   }
 
+  const hasUndefined = (t: TypeSchema): boolean =>
+    t.kind === 'undefined' || (t.kind === 'union' && t.members.some(hasUndefined))
+
   const convert = (t: ts.Type, at: string): TypeSchema => {
     if (t.flags & F.Any) return bad(at, t, '`any` has no Schema')
     if (t.flags & F.Unknown) return bad(at, t, '`unknown` has no Schema')
@@ -113,6 +116,9 @@ export const methodSchema = (
         if (checker.isTupleType(t)) return bad(at, t, 'tuples are outside the Server Service type subset')
         if (checker.isArrayType(t)) {
           const element = convert(checker.getTypeArguments(t as ts.TypeReference)[0]!, `${at}[]`)
+          // JSON writes an `undefined` element as `null`, which does not decode back.
+          if (hasUndefined(element))
+            return bad(at, t, 'an array element that may be `undefined` becomes `null` in JSON')
           return { kind: 'array', readonly: t.getSymbol()?.getName() === 'ReadonlyArray', element }
         }
         if (t.getCallSignatures().length || t.getConstructSignatures().length) return bad(at, t, 'a function')

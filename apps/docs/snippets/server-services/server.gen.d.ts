@@ -4,6 +4,6 @@ declare module 'virtual:sleek/server' {
   export default layer
 }
 declare module 'virtual:sleek/server-registry' {
-  const services: ReadonlyArray<import('@sleekstack/start/client').ServerServiceEntry<import('./profiles').Profiles>>
+  const services: ReadonlyArray<import('@sleekstack/start/client').ServerServiceEntryOf<typeof import('./profiles').Profiles>>
   export default services
 }

@@ -2,6 +2,7 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import type { TaggedErrorSchema, TypeSchema } from '@sleekstack/analyze'
+import { Schema } from 'effect'
 import ts from 'typescript'
 import { build, createServer, type InlineConfig, type ViteDevServer } from 'vite'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -12,6 +13,52 @@ const FIXTURE = path.join(import.meta.dirname, 'fixtures/server-services')
 const START_CLIENT = path.resolve(import.meta.dirname, '../../../start/src/client.ts')
 const CLIENT = 'virtual:sleek/server'
 const REGISTRY = 'virtual:sleek/server-registry'
+
+describe('the printed Schemas over the wire', () => {
+  const str = { kind: 'string' } as const
+  const num = { kind: 'number' } as const
+  const none = { kind: 'undefined' } as const
+  const alias = (_file: string, name: string) => name
+  // Each value goes through the Schema's encode, JSON text and decode, as a call does.
+  const roundTrip = (description: TypeSchema, value: unknown) => {
+    const schema = new Function('Schema', `return ${printSchema(description, alias)}`)(Schema) as Schema.Schema<
+      any,
+      any
+    >
+    const text = JSON.stringify(Schema.encodeSync(schema)(value))
+    return Schema.decodeUnknownSync(schema)(text === undefined ? undefined : JSON.parse(text))
+  }
+
+  it.each<[string, TypeSchema, unknown]>([
+    ['string', str, 'a'],
+    ['number', num, 1.5],
+    ['boolean', { kind: 'boolean' }, false],
+    ['null', { kind: 'null' }, null],
+    ['literal', { kind: 'literal', value: 'a' }, 'a'],
+    ['union', { kind: 'union', members: [str, num, { kind: 'null' }] }, null],
+    ['readonly array', { kind: 'array', readonly: true, element: num }, [1, 2]],
+    ['mutable array', { kind: 'array', readonly: false, element: str }, ['a']],
+    [
+      'object with an optional property left out',
+      { kind: 'object', properties: [{ name: 'a', optional: true, type: str }] },
+      {},
+    ],
+    [
+      'object with a property that may be undefined and is',
+      { kind: 'object', properties: [{ name: 'a', optional: false, type: { kind: 'union', members: [str, none] } }] },
+      { a: undefined },
+    ],
+    [
+      'nested objects in arrays',
+      {
+        kind: 'array',
+        readonly: true,
+        element: { kind: 'object', properties: [{ name: 'n', optional: false, type: num }] },
+      },
+      [{ n: 1 }],
+    ],
+  ])('%s', (_, description, value) => expect(roundTrip(description, value)).toEqual(value))
+})
 
 describe('printSchema', () => {
   const str = { kind: 'string' } as const
@@ -39,6 +86,16 @@ describe('printSchema', () => {
         ],
       },
       'Schema.Struct({ "name": Schema.String, "a-b": Schema.optional(Schema.Struct({})) })',
+    ],
+    [
+      {
+        kind: 'object',
+        properties: [
+          { name: 'a', optional: false, type: { kind: 'undefined' } },
+          { name: 'b', optional: false, type: { kind: 'union', members: [str, { kind: 'undefined' }] } },
+        ],
+      },
+      'Schema.Struct({ "a": Schema.optional(Schema.Undefined), "b": Schema.optional(Schema.Union(Schema.String, Schema.Undefined)) })',
     ],
     [
       { kind: 'taggedError', name: 'Missing', file: 'src/errors.ts', fields: [] },
