@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-65-file-routes-page-config-layouts-routing",
   "spec_path": ".flow/tasks/fn-65-file-routes-page-config-layouts-routing.9.md",
-  "status": "todo",
+  "status": "done",
   "title": "realworld moves to src/routes",
   "updated_at": "2026-10-20T19:24:00.668657Z"
 }

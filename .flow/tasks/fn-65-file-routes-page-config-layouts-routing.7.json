@@ -11,7 +11,7 @@
   "priority": null,
   "spec": "fn-65-file-routes-page-config-layouts-routing",
   "spec_path": ".flow/tasks/fn-65-file-routes-page-config-layouts-routing.7.md",
-  "status": "todo",
+  "status": "done",
   "title": "ui-vite: lazy page chunks in the client build, eager in SSR",
   "updated_at": "2026-10-20T19:24:00.668617Z"
 }

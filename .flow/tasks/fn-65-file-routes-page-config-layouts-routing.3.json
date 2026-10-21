@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-65-file-routes-page-config-layouts-routing",
   "spec_path": ".flow/tasks/fn-65-file-routes-page-config-layouts-routing.3.md",
-  "status": "todo",
+  "status": "done",
   "title": "ui-vite: page config exports, _notFound and Page-shaped pages",
   "updated_at": "2026-10-20T19:24:00.668532Z"
 }

@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-65-file-routes-page-config-layouts-routing",
   "spec_path": ".flow/tasks/fn-65-file-routes-page-config-layouts-routing.8.md",
-  "status": "todo",
+  "status": "done",
   "title": "playground, docs and ADR 0050 on the new conventions",
   "updated_at": "2026-10-20T19:24:00.668636Z"
 }

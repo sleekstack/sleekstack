@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-65-file-routes-page-config-layouts-routing",
   "spec_path": ".flow/tasks/fn-65-file-routes-page-config-layouts-routing.4.md",
-  "status": "todo",
+  "status": "done",
   "title": "analyze: sleekstack check reads routers built from virtual:sleekstack/routes",
   "updated_at": "2026-10-20T19:24:00.668557Z"
 }

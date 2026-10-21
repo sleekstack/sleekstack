@@ -864,7 +864,7 @@
     "impl:fn-65-file-routes-page-config-layouts-routing.9": 0
   },
   "spec_path": ".flow/specs/fn-65-file-routes-page-config-layouts-routing.md",
-  "status": "open",
+  "status": "done",
   "title": "File routes: page config, layouts, routing syntax and lazy pages",
   "tracker": {
     "baseHashFlow": null,
@@ -877,5 +877,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-21T08:42:45.046465Z"
+  "updated_at": "2026-10-21T11:34:37.221692Z"
 }

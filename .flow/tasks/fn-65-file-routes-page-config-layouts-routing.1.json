@@ -8,7 +8,7 @@
   "priority": null,
   "spec": "fn-65-file-routes-page-config-layouts-routing",
   "spec_path": ".flow/tasks/fn-65-file-routes-page-config-layouts-routing.1.md",
-  "status": "todo",
+  "status": "done",
   "title": "Router: optional and splat segments in match and Params",
   "updated_at": "2026-10-20T19:24:00.668315Z"
 }
