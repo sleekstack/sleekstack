@@ -27,7 +27,6 @@ Accepted. Amends ADR 0036 (`:name?` and `*name` path segments; `Page` gains `loa
 - The first visit to a lazy page loads its code, then its data. `Link`'s `code` prefetch with `pages.<name>.load` hides the waterfall.
 - The router's `resolve` and the stale-loader rule (fn-64) are unchanged: layouts are part of one page view per navigation.
 - `sleekstack check` depends on `routes.gen.d.ts` matching the files; a stale declaration fails the check naming what differs, and `vite` (dev) rewrites it.
-- Prerendering expands `prerender()` into `:param` routes only; apps list the paths of `:name?` and `*name` routes in the `prerender` option.
 
 ## Rejected
 

@@ -64,5 +64,4 @@ With `entries`, `vite build` builds the client bundle and then the server bundle
 ## Known limitations
 
 - With `entries`, use an absolute `base` (the default `/`, or a path such as `/app/`). A relative base such as `./` is rejected, because a nested route like `/users/42` would request its scripts and CSS from the wrong path.
-- `prerender()` and `prerender: true` expand only `:param` routes. List the paths of optional and splat routes in `prerender`.
 - No deploy adapters yet.

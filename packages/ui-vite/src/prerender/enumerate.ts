@@ -7,10 +7,13 @@
  */
 export type PrerenderOption = true | readonly string[]
 
-/** A route's param values to prerender, one object per page: `{ id: '1' }` for `/users/:id`. */
+/**
+ * A route's param values to prerender, one object per page: `{ id: '1' }` for `/users/:id`. An optional `:page?` left
+ * out gives the path without it; a splat `*slug` takes a `/`-joined value (`'a/b'`).
+ */
 export type PrerenderParams = () => Promise<ReadonlyArray<Readonly<Record<string, string>>>>
 
-/** The router's `{ table, pages }`; a page may declare `prerender()` to expand its route's `:param` segments. */
+/** The router's `{ table, pages }`; a page may declare `prerender()` to expand its route's `:param`, `:param?` and `*splat` segments. */
 export interface PrerenderRoutes {
   readonly table: { readonly [name: string]: string }
   readonly pages: { readonly [name: string]: object & { readonly prerender?: PrerenderParams } }
@@ -27,30 +30,51 @@ const segments = (path: string) => path.replace(/^\/|\/$/g, '').split('/')
 /** `/a/b/` and `a/b` are `/a/b`; `''` and `/` are `/`. */
 export const normalizePath = (path: string) => `/${path.replace(/^\/+|\/+$/g, '')}`
 
-const isDynamic = (path: string) => segments(path).some((s) => s.startsWith(':'))
+const isParam = (s: string) => s.startsWith(':') || s.startsWith('*')
 
-/** Whether a concrete `path` fills route `pattern` (same segment count, statics equal, params non-empty). */
+const isDynamic = (path: string) => segments(path).some(isParam)
+
+/**
+ * Whether a concrete `path` fills route `pattern`: statics equal, `:param` one non-empty segment, a last `:param?` one
+ * segment or none, a last `*splat` one or more.
+ */
 const fills = (pattern: string, path: string) => {
   const p = segments(pattern)
   const a = segments(path)
-  return p.length === a.length && p.every((s, i) => (s.startsWith(':') ? a[i] !== '' : s === a[i]))
+  const last = p.at(-1)!
+  if (last.startsWith('*'))
+    return a.length >= p.length && a.slice(p.length - 1).every((x) => x !== '') && fitsHead(p.slice(0, -1), a)
+  if (last.endsWith('?') && last.startsWith(':') && a.length === p.length - 1) return fitsHead(p.slice(0, -1), a)
+  return a.length === p.length && fitsHead(p, a)
 }
 
+const fitsHead = (p: readonly string[], a: readonly string[]) =>
+  p.every((s, i) => (s.startsWith(':') ? a[i] !== '' : s === a[i]))
+
 /**
- * Fills each `:param` of `path` from `params`, percent-encoded. Throws naming the route when a param is missing (not an
- * own non-empty string) or is `.` / `..`, which URL parsing would resolve to another path.
+ * Fills each `:param` and `*splat` of `path` from `params`, percent-encoded per segment. Throws naming the route when a
+ * param is missing (not an own non-empty string) or is `.` / `..`, which URL parsing would resolve to another path; a
+ * missing `:param?` drops its segment.
  */
 const fill = (name: string, path: string, params: Readonly<Record<string, string>>) =>
   normalizePath(
     segments(path)
-      .map((s) => {
-        if (!s.startsWith(':')) return s
-        const key = s.slice(1)
+      .flatMap((s) => {
+        if (!isParam(s)) return [s]
+        const optional = s.startsWith(':') && s.endsWith('?')
+        const key = s.slice(1, optional ? -1 : undefined)
         const value: unknown = Object.hasOwn(params, key) ? params[key] : undefined
         const fail = (why: string) => new Error(`prerender: route '${name}' (${path}): prerender() ${why} '${key}'`)
-        if (typeof value !== 'string' || value === '') throw fail('gave no')
-        if (value === '.' || value === '..') throw fail(`gave '${value}' for`)
-        return encodeURIComponent(value)
+        if (typeof value !== 'string' || value === '') {
+          if (optional) return []
+          throw fail('gave no')
+        }
+        const parts = s.startsWith('*') ? value.split('/') : [value]
+        return parts.map((v) => {
+          if (v === '') throw fail('gave an empty segment for')
+          if (v === '.' || v === '..') throw fail(`gave '${v}' for`)
+          return encodeURIComponent(v)
+        })
       })
       .join('/'),
   )

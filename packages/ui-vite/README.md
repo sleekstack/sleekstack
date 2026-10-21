@@ -149,7 +149,7 @@ declare module 'virtual:sleekstack/client' {
 `sleekstack({ entries, prerender })` makes `vite build` write static HTML for router pages. It is a build mode over the SSR path: after the client and server builds, the plugin requests each path from the built server entry and writes the response to the client output.
 
 - `prerender: true` prerenders every static route. `prerender: ['/', '/about']` prerenders the listed paths. Off (the default) prerenders nothing.
-- A dynamic route (`/users/:id`) is prerendered from its page's `prerender()`, which returns one params object per page. The paths from the option and from every `prerender()` are merged as a union. A dynamic route that has no `prerender()` and no listed path is skipped with a warning.
+- A dynamic route (`/users/:id`, `/posts/:page?`, `/guide/*slug`) is prerendered from its page's `prerender()`, which returns one params object per page: an optional param left out gives the path without it, and a splat takes a `/`-joined value (`{ slug: 'a/b' }`). The paths from the option and from every `prerender()` are merged as a union. A dynamic route that has no `prerender()` and no listed path is skipped with a warning.
 - Trailing slash: paths are normalized without one (`/docs/` is `/docs`, the root is `/`), and each page is written to `<path>/index.html`. A static file server therefore answers both `/docs` and `/docs/`.
 - A loader or render error, a response other than 200, or an error reported to `onError` fails the build, naming the route.
 
@@ -243,7 +243,6 @@ The tags come from the page's own `<Head>`: `@sleekstack/ui-vite/og-meta` (no No
 
 ## Known limitations
 
-- **Prerendering optional and splat routes:** `prerender()` and `prerender: true` expand only `:param` segments. List the paths of `:name?` and `*name` routes instead (`prerender: ['/', '/posts', '/guide/intro']`); with `prerender: true` a splat route is taken for a static one and written at its literal pattern.
 - **Relative `base` with `entries`:** a relative `base` such as `./` is rejected, because a page at `/users/42` would request its client chunk from `/users/assets/...`. Use an absolute `base` (the default `/`, or a path such as `/app/`).
 - No deploy adapters. HMR state preservation (the `hmr` option, see the Vite guide) and static site generation (`prerender`) are covered above. `sleekContent` prerenders content trees only.
 
