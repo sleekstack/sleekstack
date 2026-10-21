@@ -34,9 +34,16 @@ Same migration for `ArticlesApi`: list, feed, get, create, update, delete, favor
 - [ ] `pnpm turbo run test typecheck --filter=realworld` and `pnpm --filter realworld check` pass; the client bundle holds no `*.server.ts`.
 
 ## Done summary
-TBD
+Realworld's articles are now the `ArticlesApi` Server Service. The Tag is in `src/modules/articles/application/contracts.ts`, with 9 methods: list, feed, get, create, update, delete, favorite, unfavorite and tags. The 9 contracts and their `functions` entries are gone. `server/articles-api.server.ts` builds `ArticlesApiLive` with `implement`, which takes `Db | TokenSecret` once and runs each call through `asViewer`. `create` turns the domain function's `NotFound` (from re-reading the article it just wrote) into a defect, because the contract never declared it. The server layer merges `IdentityApiLive` and `ArticlesApiLive` over the old base layer. The loaders, `_home.tsx`, `article/[slug].tsx` and the editor call `yield* ArticlesApi`. `ListFailure` in `loaders.ts` is now `Effect.Error<ReturnType<Context.Tag.Service<ArticlesApi>['list']>>`. `tag/[tag].tsx` needed no change. In the feed, article and server tests, the only change is the wire ids (`ArticlesApi.*`, and `tags.list` became `ArticlesApi.tags`). Their layers already merged the generated browser Layer.
 
+Follow-up (packages/start, outside this task's Touches): `start({ services })` types `services` as `ReadonlyArray<ServerServiceEntry<RS>>`. `Context.Tag` is invariant in its id, so a registry with two Tags fails to typecheck: TS infers only the first Tag. `server/app.ts` works around this with a cast that keeps the Tags precise, `services as unknown as ReadonlyArray<ServerServiceEntry<IdentityApi | ArticlesApi>>`, marked with a `ponytail:` comment. `start` should infer RS from the registry's own entry type; the cast can then be dropped. Task .5 needs `CommentsApi` added to the cast, or this fix.
+
+baseline: green (pnpm turbo run test typecheck --filter=realworld && pnpm --filter realworld check, pre-edit)
+
+Tier: session (jev-unavailable(no_key)); project routing block pins implementer opus at medium
+
+stage: impl-review - skipped(config: REVIEW_MODE=none)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 302e346f82579282e3b7027b618a31a0a6564947
+- Tests: pnpm turbo run test typecheck --filter=realworld, pnpm --filter realworld check, pnpm --filter realworld build
 - PRs:
