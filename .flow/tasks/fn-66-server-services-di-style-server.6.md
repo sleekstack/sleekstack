@@ -33,9 +33,20 @@ Realworld and the showcase wire only parts of `sleekstack()`; the boundary hook 
 - [ ] `pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=@sleekstack/ui-vite... --filter=sleekstack` passes.
 
 ## Done summary
-TBD
+The `*.server.ts` boundary now holds in two places. In a client environment, the standalone `serverServices()` plugin fails the load of any `*.server.ts` with the import chain (`index.html -> src/main.ts -> src/page.ts -> src/profiles.server.ts`). In build it tracks each module's first importer through `moduleParsed`, because Rolldown fills `importers` only at the end. In dev it reads the client module graph. SSR loads it normally. `analyzeServerServices` also reports `ServerFileInClientGraph` for every `*.server.ts` reachable through value imports (static, dynamic, re-export) from a module importing `virtual:sleek/server`. It reports at the importing statement with the shortest chain and does not walk into server files. `import type` and all-type named imports are skipped, and test files are never entries.
 
+- `sleekstack check` (packages/cli/src/check.ts, a scope widening) always runs the Server Service pass, so every ServerService* code and `ServerFileInClientGraph` fail it. Text mode prints them as error lines; `--json` gets `serverServiceErrors` only when there are any. The fixture graph check output (effect-app, showcase, realworld) is byte-identical before and after.
+- The generator in `serverServices()` filters `ServerFileInClientGraph` out of the errors that fail its virtual-module loads, so the SSR build of a violating app still succeeds and the client build fails through the hook.
+- Table row, errors.mdx row and llms.md (regenerated with UPDATE_LLMS=1, now 7337 bytes) are in.
+- Tests: the ui-vite server-services.test.ts "server boundary" block covers a client build failing with the chain while SSR succeeds, a type-only import passing, and a dev client load failing while the ssr load passes. analyze serverServices.test.ts covers the server-boundary fixture (direct, transitive and dynamic with file:line, plus the chain messages) and the server-boundary-clean fixture (silent). cli check.test.ts covers text and --json. Both new behaviors were confirmed red with the hook or walk disabled.
+- The `sleekstackAnalyzer` in ui-vite analyze.ts already calls `analyzeServerServices`, so it reports the new code with no change.
+- The commit trailer is Claude Opus 5.5 per the session attribution rule, not the Sonnet line in the conductor note.
+
+baseline: green (turbo cache)
+Tier: session (jev-unavailable(no_key)); project routing block pins implementer opus at medium (actual_model: claude-opus-5-5)
+
+stage: impl-review - skipped(config: REVIEW_MODE=none)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: fb78967c0f9926dd4f55b2667a9bfc8dc0f08763
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=@sleekstack/ui-vite... --filter=sleekstack, pnpm turbo run test typecheck --filter=showcase, fixture graph check (effect-app, showcase, realworld): identical
 - PRs:
