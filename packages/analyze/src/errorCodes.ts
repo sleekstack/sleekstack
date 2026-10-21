@@ -28,6 +28,7 @@ export type AnalyzeCode =
   | 'MissingKey'
   | 'ServerServiceFileShape'
   | 'ServerServiceMethodShape'
+  | 'ServerServiceTypeNotSerializable'
 
 export interface ErrorHelp {
   /** What the analyzer checks. */
@@ -153,6 +154,11 @@ export const ERROR_CODES: Readonly<Record<AnalyzeCode, ErrorHelp>> = {
       'Provide services in the implementation Layer',
       'Replace `any` with the type',
     ],
+    docs: SERVER,
+  },
+  ServerServiceTypeNotSerializable: {
+    rule: 'ServerService method types are JSON-shaped: primitives, literals, unions, arrays, plain objects; errors are Data.TaggedError classes.',
+    fix: ['Use a JSON-shaped type (a string for a Date, an array for a Set)', 'Use a serverFn with an explicit Schema'],
     docs: SERVER,
   },
 }

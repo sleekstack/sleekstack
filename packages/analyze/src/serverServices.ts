@@ -11,9 +11,9 @@ import ts from 'typescript'
 import { analyzeError } from './errorCodes'
 import { libId, programOf, TEST_FILE } from './extract'
 import type { AnalyzeCode, AnalyzeError, Location } from './model'
+import { type MethodSchema, methodSchema, NotSerializable, taggedErrorBase } from './typeSchema'
 
 const SERVER_SERVICE = 'start/service#ServerService'
-const TAGGED_ERROR = 'effect/Data#TaggedError'
 const EFFECT = 'effect/Effect#Effect'
 const SERVER_FILE = /\.server\.[cm]?[jt]sx?$/
 
@@ -25,6 +25,8 @@ export interface ServerServiceMethod {
   /** `A`, `E` of the method's `Effect.Effect<A, E, never>`. */
   readonly success: ts.Type
   readonly error: ts.Type
+  /** The three types as the generator's Schema description. */
+  readonly schema: MethodSchema
 }
 
 export interface ServerServiceDecl {
@@ -70,11 +72,7 @@ export function analyzeServerServices(opts: { readonly project: string }): Serve
     const inner = ext && ts.isCallExpression(ext) && ts.isCallExpression(ext.expression) ? ext.expression : undefined
     return inner && callee(inner) === SERVER_SERVICE ? inner : undefined
   }
-  /** `class X extends Data.TaggedError('X')<{ ... }> {}` */
-  const isTaggedError = (c: ts.ClassLikeDeclaration) => {
-    const ext = extendsOf(c)
-    return !!ext && ts.isCallExpression(ext) && callee(ext) === TAGGED_ERROR
-  }
+  const isTaggedError = (c: ts.ClassLikeDeclaration) => !!taggedErrorBase(c, checker)
 
   const hasAny = (n: ts.Node): boolean => n.kind === ts.SyntaxKind.AnyKeyword || !!ts.forEachChild(n, hasAny)
   const isAny = (t: ts.Type) => !!(t.flags & ts.TypeFlags.Any)
@@ -104,7 +102,14 @@ export function analyzeServerServices(opts: { readonly project: string }): Serve
       return bad(sig, 'is typed with `any`; write out the types')
     if (!(requires.flags & ts.TypeFlags.Never))
       return bad(sig.type, `requires "${checker.typeToString(requires)}"; a Server Service method needs no services`)
-    return { name: prop.getName(), location: loc(at), input, success, error }
+    const schema = methodSchema({ program, checker, root }, { input, success, error })
+    if (schema instanceof NotSerializable)
+      return void report(
+        'ServerServiceTypeNotSerializable',
+        at,
+        `Server Service method "${name}": ${schema.path} has type "${schema.text}", which is not serializable (${schema.why})`,
+      )
+    return { name: prop.getName(), location: loc(at), input, success, error, schema }
   }
 
   const serviceOf = (c: ts.ClassLikeDeclaration): void => {
