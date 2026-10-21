@@ -42,6 +42,7 @@ export function libId(sym: ts.Symbol | undefined, checker: ts.TypeChecker): stri
   if (/\/effect\/dist\/dts\/Data\.d\.ts$/.test(file)) return `effect/Data#${sym.name}`
   if (/\/effect\/dist\/dts\/Effect\.d\.ts$/.test(file)) return `effect/Effect#${sym.name}`
   if (/\/effect\/dist\/dts\/Layer\.d\.ts$/.test(file)) return `effect/Layer#${sym.name}`
+  if (/\/effect\/dist\/dts\/Schema\.d\.ts$/.test(file)) return `effect/Schema#${sym.name}`
   if (/\/effect\/dist\/dts\/Stream\.d\.ts$/.test(file)) return `effect/Stream#${sym.name}`
   return undefined
 }

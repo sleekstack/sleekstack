@@ -59,7 +59,7 @@ const fields = (props: readonly PropertySchema[], alias: Alias): string =>
         .join(', ')} }`
     : '{}'
 
-/** The Schema source of a Type to Schema description; a tagged error is its class, named through `alias`. */
+/** The Schema source of a Type to Schema description; a tagged error names its class through `alias`. */
 export const printSchema = (t: TypeSchema | TaggedErrorSchema, alias: Alias): string => {
   switch (t.kind) {
     case 'literal':
@@ -70,10 +70,14 @@ export const printSchema = (t: TypeSchema | TaggedErrorSchema, alias: Alias): st
       const array = `Schema.Array(${printSchema(t.element, alias)})`
       return t.readonly ? array : `Schema.mutable(${array})`
     }
+    case 'record': {
+      const record = `Schema.Record({ key: Schema.String, value: ${printSchema(t.value, alias)} })`
+      return t.readonly ? record : `Schema.mutable(${record})`
+    }
     case 'object':
       return `Schema.Struct(${fields(t.properties, alias)})`
     case 'taggedError':
-      return `taggedError(${alias(t.file, t.name)}, ${fields(t.fields, alias)})`
+      return t.schema ? alias(t.file, t.name) : `taggedError(${alias(t.file, t.name)}, ${fields(t.fields, alias)})`
     default:
       return `Schema.${PRIMITIVE[t.kind]}`
   }

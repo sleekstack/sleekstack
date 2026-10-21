@@ -19,12 +19,15 @@ describe('the printed Schemas over the wire', () => {
   const num = { kind: 'number' } as const
   const none = { kind: 'undefined' } as const
   const alias = (_file: string, name: string) => name
+  class Invalid extends Schema.TaggedError<Invalid>()('Invalid', {
+    errors: Schema.Record({ key: Schema.String, value: Schema.Array(Schema.String) }),
+  }) {}
   // Each value goes through the Schema's encode, JSON text and decode, as a call does.
-  const roundTrip = (description: TypeSchema, value: unknown) => {
-    const schema = new Function('Schema', `return ${printSchema(description, alias)}`)(Schema) as Schema.Schema<
-      any,
-      any
-    >
+  const roundTrip = (description: TypeSchema | TaggedErrorSchema, value: unknown) => {
+    const schema = new Function('Schema', 'Invalid', `return ${printSchema(description, alias)}`)(
+      Schema,
+      Invalid,
+    ) as Schema.Schema<any, any>
     const text = JSON.stringify(Schema.encodeSync(schema)(value))
     return Schema.decodeUnknownSync(schema)(text === undefined ? undefined : JSON.parse(text))
   }
@@ -57,7 +60,21 @@ describe('the printed Schemas over the wire', () => {
       },
       [{ n: 1 }],
     ],
+    [
+      'string-keyed record',
+      { kind: 'record', readonly: true, value: { kind: 'array', readonly: true, element: str } },
+      { a: ['x'], b: [] },
+    ],
   ])('%s', (_, description, value) => expect(roundTrip(description, value)).toEqual(value))
+
+  it('decodes a Schema.TaggedError back into its class', () => {
+    const decoded = roundTrip(
+      { kind: 'taggedError', name: 'Invalid', file: 'errors.ts', fields: [], schema: true },
+      new Invalid({ errors: { email: ['is taken'] } }),
+    )
+    expect(decoded).toBeInstanceOf(Invalid)
+    expect(decoded).toMatchObject({ _tag: 'Invalid', errors: { email: ['is taken'] } })
+  })
 })
 
 describe('printSchema', () => {
@@ -104,6 +121,12 @@ describe('printSchema', () => {
     [
       { kind: 'taggedError', name: 'NameTaken', file: 'a.ts', fields: [{ name: 'name', optional: false, type: str }] },
       'taggedError(NameTaken@a.ts, { "name": Schema.String })',
+    ],
+    [{ kind: 'taggedError', name: 'Invalid', file: 'e.ts', fields: [], schema: true }, 'Invalid@e.ts'],
+    [{ kind: 'record', readonly: true, value: str }, 'Schema.Record({ key: Schema.String, value: Schema.String })'],
+    [
+      { kind: 'record', readonly: false, value: str },
+      'Schema.mutable(Schema.Record({ key: Schema.String, value: Schema.String }))',
     ],
   ])('%j prints %s', (description, expected) => expect(printSchema(description, alias)).toBe(expected))
 })
