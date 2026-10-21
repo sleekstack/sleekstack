@@ -34,9 +34,14 @@ The two shapes realworld's contracts use that the subset rejects today: errors b
 - [ ] `pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack --filter=@sleekstack/ui-vite` passes.
 
 ## Done summary
-TBD
+The type subset accepts `Schema.TaggedError` errors, described with `schema: true` and printed as the class itself, and string-keyed records, a new `record` kind printed as `Schema.Record`. The analyzer tests (`typeSchema.test.ts`, with the `schemaErrors`, `records`, `numberKey`, `templateKey`, `twoIndexes` and `recordValue` cases) and the ui-vite round-trip tests (a record, and a `Schema.TaggedError` decoding back into its class) cover both shapes. A number key, a template-literal key, several index signatures, properties beside an index signature, and a record value outside the subset each report `ServerServiceTypeNotSerializable`.
 
+Follow-up: the `ServerServiceFileShape` and `ServerServiceTypeNotSerializable` rule text in `packages/analyze/src/errorCodes.ts`, and the `packages/cli/llms.md` generated from it, still name only `Data.TaggedError` and leave out records. I did not change them because `llms.md` is outside this task's Touches. Fit it into task .5 (docs).
+Baseline: none run pre-edit; the commit before this task is task .1's receipt, which passed the same gates.
+
+stage: impl-review - skipped(config: REVIEW_MODE=none)
+Tier: session (jev-unavailable(no_key)); project routing block pins implementer opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 274f6bb48a8280277a87f5fcf0546de64d0aa1cd
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack --filter=@sleekstack/ui-vite, pnpm exec prettier --check <touched files>
 - PRs:
