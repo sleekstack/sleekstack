@@ -123,6 +123,3 @@ export const favoritesLoaders: RouteLoaders = [viewer, profile, favoritedArticle
 export const editLoaders: RouteLoaders = [viewer, signedIn, article, editable]
 /** `/login` and `/register` both declare only `viewer`. */
 export const authLoaders: RouteLoaders = [viewer]
-
-/** The loaders of the link targets an article preview (and its signed-out favorite button) renders; with the route table, its `links`. */
-export const previewLoaders = { article: articleLoaders, profile: profileLoaders, login: authLoaders }

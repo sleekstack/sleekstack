@@ -18,15 +18,8 @@ import { addCommentContract, Comment, deleteCommentContract, NewComment } from '
 import type { Account } from '../../modules/identity'
 import { ErrorList, errorsOf, toHome } from '../../pages/form'
 import { ServerFunctions } from '../../pages/functions'
-import {
-  article,
-  authLoaders,
-  comments,
-  editLoaders,
-  previewLoaders,
-  profileLoaders,
-  viewer,
-} from '../../pages/loaders'
+import { article, authLoaders, comments, editLoaders, profileLoaders, viewer } from '../../pages/loaders'
+import { code, previewTargets } from '../_links'
 import { FollowButton } from '../profile/_profile'
 
 const profileHref = (username: string) => `/profile/${encodeURIComponent(username)}`
@@ -42,6 +35,7 @@ const OwnerActions = function* ({ slug }: { slug: string }) {
       <Link
         table={table}
         loaders={editLoaders}
+        code={code('(guarded)/editor/[slug]')}
         class="btn btn-sm btn-outline-secondary"
         href={`/editor/${encodeURIComponent(slug)}`}
       >
@@ -66,11 +60,22 @@ const ArticleMeta = function* ({ article, me }: { article: Article; me: Account 
   const { author } = article
   return (
     <div class="article-meta">
-      <Link table={table} loaders={profileLoaders} href={profileHref(author.username)}>
+      <Link
+        table={table}
+        loaders={profileLoaders}
+        code={code('profile/[username]/index')}
+        href={profileHref(author.username)}
+      >
         {author.image && <img src={author.image} alt="" />}
       </Link>
       <div class="info">
-        <Link table={table} loaders={profileLoaders} href={profileHref(author.username)} class="author">
+        <Link
+          table={table}
+          loaders={profileLoaders}
+          code={code('profile/[username]/index')}
+          href={profileHref(author.username)}
+          class="author"
+        >
           {author.username}
         </Link>
         <span class="date">{formatDate(article.createdAt)}</span>
@@ -80,7 +85,7 @@ const ArticleMeta = function* ({ article, me }: { article: Article; me: Account 
       ) : (
         <>
           <FollowButton user={author} signedIn={me !== null} />
-          <FavoriteButton article={article} toggle={toggle} links={{ table, ...previewLoaders }} />
+          <FavoriteButton article={article} toggle={toggle} links={{ table, ...previewTargets }} />
         </>
       )}
     </div>
@@ -170,10 +175,22 @@ const CommentCard = function* ({
         <p class="card-text">{comment.body}</p>
       </div>
       <div class="card-footer">
-        <Link table={table} loaders={profileLoaders} href={profileHref(author.username)} class="comment-author">
+        <Link
+          table={table}
+          loaders={profileLoaders}
+          code={code('profile/[username]/index')}
+          href={profileHref(author.username)}
+          class="comment-author"
+        >
           {author.image && <img src={author.image} class="comment-author-img" alt="" />}
         </Link>{' '}
-        <Link table={table} loaders={profileLoaders} href={profileHref(author.username)} class="comment-author">
+        <Link
+          table={table}
+          loaders={profileLoaders}
+          code={code('profile/[username]/index')}
+          href={profileHref(author.username)}
+          class="comment-author"
+        >
           {author.username}
         </Link>
         <span class="date-posted">{formatDate(comment.createdAt)}</span>
@@ -211,11 +228,11 @@ const Comments = function* ({ slug, me }: { slug: string; me: Account | null }) 
         <CommentForm slug={slug} me={me} onAdded={(c) => edit((l) => [c, ...l])} />
       ) : (
         <p>
-          <Link table={table} loaders={authLoaders} href="/login">
+          <Link table={table} loaders={authLoaders} code={code('login')} href="/login">
             Sign in
           </Link>{' '}
           or{' '}
-          <Link table={table} loaders={authLoaders} href="/register">
+          <Link table={table} loaders={authLoaders} code={code('register')} href="/register">
             sign up
           </Link>{' '}
           to add comments on this article.

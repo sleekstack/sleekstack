@@ -9,6 +9,7 @@ import { Field } from '../pages/field'
 import { ErrorList, errorsOf, toHome } from '../pages/form'
 import { ServerFunctions } from '../pages/functions'
 import { authLoaders } from '../pages/loaders'
+import { code } from './_links'
 
 const AuthPage = ({ title, other, children }: { title: string; other: Child; children?: Child }) => (
   <div class="auth-page">
@@ -82,7 +83,7 @@ export const LoginPage = () => (
   <AuthPage
     title="Sign in"
     other={
-      <Link table={table} loaders={authLoaders} href="/register">
+      <Link table={table} loaders={authLoaders} code={code('register')} href="/register">
         Need an account?
       </Link>
     }
@@ -95,7 +96,7 @@ export const RegisterPage = () => (
   <AuthPage
     title="Sign up"
     other={
-      <Link table={table} loaders={authLoaders} href="/login">
+      <Link table={table} loaders={authLoaders} code={code('login')} href="/login">
         Have an account?
       </Link>
     }

@@ -17,15 +17,8 @@ import {
 } from '../modules/articles'
 import { table } from 'virtual:sleekstack/routes'
 import { ServerFunctions } from '../pages/functions'
-import {
-  type ArticleSource,
-  articleSource,
-  PAGE_SIZE,
-  previewLoaders,
-  type RouteLoaders,
-  signedIn,
-  viewer,
-} from '../pages/loaders'
+import { type ArticleSource, articleSource, PAGE_SIZE, type RouteLoaders, signedIn, viewer } from '../pages/loaders'
+import { code, previewTargets } from './_links'
 
 /**
  * The page a list shows, for the path it was picked on: another path reads page 0, so the page resets when the route
@@ -67,7 +60,7 @@ export const ArticleFeed = function* ({ source }: { source: ArticleSource }) {
       ) : list.isError ? (
         <LoadFailed />
       ) : (
-        <ArticlePreviews articles={list.data.articles} toggle={toggle} links={{ table, ...previewLoaders }} />
+        <ArticlePreviews articles={list.data.articles} toggle={toggle} links={{ table, ...previewTargets }} />
       )}
       <Pagination
         count={first.right.articlesCount}
@@ -101,10 +94,18 @@ export const popularTags = loader(
 
 const tagHref = (tag: string) => `/tag/${encodeURIComponent(tag)}`
 
-// Each feed route's loaders, for its tab and tag links.
-const globalLoaders: RouteLoaders = [viewer, popularTags, globalArticles.first]
-const feedLoaders: RouteLoaders = [viewer, signedIn, popularTags, feedArticles.first]
-const tagLoaders: RouteLoaders = [viewer, popularTags, tagArticles.first]
+/** A feed route's loaders and page code, for its tab and tag links. */
+interface FeedRoute {
+  readonly loaders: RouteLoaders
+  readonly code: () => Promise<unknown>
+}
+
+const globalRoute: FeedRoute = { loaders: [viewer, popularTags, globalArticles.first], code: code('index') }
+const feedRoute: FeedRoute = {
+  loaders: [viewer, signedIn, popularTags, feedArticles.first],
+  code: code('(guarded)/feed'),
+}
+const tagRoute: FeedRoute = { loaders: [viewer, popularTags, tagArticles.first], code: code('tag/[tag]') }
 
 const Sidebar = function* () {
   const tags = yield* Effect.either(useLoader(popularTags))
@@ -116,7 +117,7 @@ const Sidebar = function* () {
       ) : (
         <div class="tag-list">
           {tags.right.map((t) => (
-            <Link key={t} table={table} loaders={tagLoaders} href={tagHref(t)} class="tag-pill tag-default">
+            <Link key={t} table={table} {...tagRoute} href={tagHref(t)} class="tag-pill tag-default">
               {t}
             </Link>
           ))}
@@ -130,17 +131,17 @@ type Tab = { readonly kind: 'feed' } | { readonly kind: 'global' } | { readonly 
 
 const TabLink = ({
   href,
-  loaders,
+  to,
   active,
   children,
 }: {
   href: string
-  loaders: RouteLoaders
+  to: FeedRoute
   active: boolean
   children?: string
 }) => (
   <li class="nav-item">
-    <Link table={table} loaders={loaders} class={active ? 'nav-link active' : 'nav-link'} href={href}>
+    <Link table={table} {...to} class={active ? 'nav-link active' : 'nav-link'} href={href}>
       {children}
     </Link>
   </li>
@@ -165,15 +166,15 @@ const Home = function* ({ tab, source }: { tab: Tab; source: ArticleSource }) {
             <div class="feed-toggle">
               <ul class="nav nav-pills outline-active">
                 {user && (
-                  <TabLink href="/feed" loaders={feedLoaders} active={tab.kind === 'feed'}>
+                  <TabLink href="/feed" to={feedRoute} active={tab.kind === 'feed'}>
                     Your Feed
                   </TabLink>
                 )}
-                <TabLink href="/" loaders={globalLoaders} active={tab.kind === 'global'}>
+                <TabLink href="/" to={globalRoute} active={tab.kind === 'global'}>
                   Global Feed
                 </TabLink>
                 {tab.kind === 'tag' && (
-                  <TabLink href={tagHref(tab.tag)} loaders={tagLoaders} active>
+                  <TabLink href={tagHref(tab.tag)} to={tagRoute} active>
                     {`#${tab.tag}`}
                   </TabLink>
                 )}

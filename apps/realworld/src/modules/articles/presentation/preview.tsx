@@ -11,12 +11,18 @@ export type Toggle = (article: Article) => Effect.Effect<Article, unknown>
 // A target route's loaders. `any`: their services are the app's (the router provides them), unnamed in this module.
 type Loaders = LinkProps<any>['loaders']
 
-/** Where a preview links, from the page (this module knows no routes): the route table and each target route's loaders. */
+/** A target route's loaders and, optionally, its page code, both prefetched on hover and focus. */
+interface Target {
+  readonly loaders: Loaders
+  readonly code?: () => Promise<unknown>
+}
+
+/** Where a preview links, from the page (this module knows no routes): the route table and each target route. */
 interface PreviewLinks {
   readonly table: RouteTable
-  readonly article: Loaders
-  readonly profile: Loaders
-  readonly login: Loaders
+  readonly article: Target
+  readonly profile: Target
+  readonly login: Target
 }
 
 const profileHref = (username: string) => `/profile/${encodeURIComponent(username)}`
@@ -61,7 +67,7 @@ const Favorite = function* ({
   )
   if (!toggle)
     return (
-      <Link table={links.table} loaders={links.login} class={style} href="/login">
+      <Link table={links.table} {...links.login} class={style} href="/login">
         {label}
       </Link>
     )
@@ -90,11 +96,11 @@ const ArticlePreview = ({
 }) => (
   <div class="article-preview">
     <div class="article-meta">
-      <Link table={links.table} loaders={links.profile} href={profileHref(article.author.username)}>
+      <Link table={links.table} {...links.profile} href={profileHref(article.author.username)}>
         {article.author.image && <img src={article.author.image} alt="" />}
       </Link>
       <div class="info">
-        <Link table={links.table} loaders={links.profile} href={profileHref(article.author.username)} class="author">
+        <Link table={links.table} {...links.profile} href={profileHref(article.author.username)} class="author">
           {article.author.username}
         </Link>
         <span class="date">{formatDate(article.createdAt)}</span>
@@ -103,7 +109,7 @@ const ArticlePreview = ({
     </div>
     <Link
       table={links.table}
-      loaders={links.article}
+      {...links.article}
       href={`/article/${encodeURIComponent(article.slug)}`}
       class="preview-link"
     >

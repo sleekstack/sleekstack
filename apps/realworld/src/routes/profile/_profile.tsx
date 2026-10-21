@@ -18,6 +18,7 @@ import {
   viewer,
 } from '../../pages/loaders'
 import { ArticleFeed } from '../_home'
+import { code } from '../_links'
 
 const profileHref = (username: string) => `/profile/${encodeURIComponent(username)}`
 
@@ -38,7 +39,7 @@ const Follow = function* ({ user, signedIn }: { user: Profile; signedIn: boolean
   )
   if (!signedIn)
     return (
-      <Link table={table} loaders={authLoaders} class={style} href="/login">
+      <Link table={table} loaders={authLoaders} code={code('login')} class={style} href="/login">
         {label}
       </Link>
     )
@@ -73,6 +74,7 @@ const ProfileView = function* ({ favorites }: { favorites: boolean }) {
                 <Link
                   table={table}
                   loaders={[viewer, signedIn]}
+                  code={code('(guarded)/settings')}
                   class="btn btn-sm btn-outline-secondary action-btn"
                   href="/settings"
                 >
@@ -94,6 +96,7 @@ const ProfileView = function* ({ favorites }: { favorites: boolean }) {
                   <Link
                     table={table}
                     loaders={profileLoaders}
+                    code={code('profile/[username]/index')}
                     class={favorites ? 'nav-link' : 'nav-link active'}
                     href={profileHref(user.username)}
                   >
@@ -104,6 +107,7 @@ const ProfileView = function* ({ favorites }: { favorites: boolean }) {
                   <Link
                     table={table}
                     loaders={favoritesLoaders}
+                    code={code('profile/[username]/favorites')}
                     class={favorites ? 'nav-link active' : 'nav-link'}
                     href={`${profileHref(user.username)}/favorites`}
                   >
