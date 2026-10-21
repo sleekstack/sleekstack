@@ -155,17 +155,28 @@ const PAGE_EXPORTS = ['loaders', 'fallback', 'prerender']
  * file's `PAGE_EXPORTS` it has (no `undefined` keys), its `loaders` led by its layouts' loaders, each loader once.
  * Computed keys keep every route name an own property. `notFound` gets no layout: the router runs no loaders for it,
  * so a layout's loaders would never have run. Layouts remount on every navigation, as the router swaps the whole view.
+ * When `lazy` (the client), a page is only `{ load }`, importing its file and layouts on first use, so each route is
+ * its own chunk; otherwise (SSR and so prerender) every file is imported up front.
  */
-const moduleCode = ({ found, notFound }: Scanned): string => {
+const moduleCode = ({ found, notFound }: Scanned, lazy: boolean): string => {
   const key = (r: Route) => `[${JSON.stringify(r.name)}]`
   const layouts = [...new Set(found.flatMap((r) => r.layouts))]
-  const imports = [
-    ...found.map((r, i) => `import * as p${i} from ${JSON.stringify(r.file)}\n`),
-    ...layouts.map((f, i) => `import * as l${i} from ${JSON.stringify(f)}\n`),
-  ].join('')
+  const imports = lazy
+    ? ''
+    : [
+        ...found.map((r, i) => `import * as p${i} from ${JSON.stringify(r.file)}\n`),
+        ...layouts.map((f, i) => `import * as l${i} from ${JSON.stringify(f)}\n`),
+      ].join('')
   const table = found.map((r) => `${key(r)}: ${JSON.stringify(r.path)}`).join(', ')
   const chain = (r: Route) => r.layouts.map((f) => `l${layouts.indexOf(f)}`).join(', ')
-  const pages = found.map((r, i) => `${key(r)}: page(p${i}, [${chain(r)}])`).join(', ')
+  const dynamic = (f: string) => `import(${JSON.stringify(f)})`
+  const pages = found
+    .map((r, i) =>
+      lazy
+        ? `${key(r)}: { load: () => Promise.all([${[r.file, ...r.layouts].map(dynamic).join(', ')}]).then(([m, ...ls]) => page(m, ls)) }`
+        : `${key(r)}: page(p${i}, [${chain(r)}])`,
+    )
+    .join(', ')
   return `import { jsx } from '@sleekstack/ui/jsx-runtime'
 ${imports}${notFound ? `import NotFound from ${JSON.stringify(notFound)}\n` : ''}const page = (m, layouts) => {
   const p = { render: () => layouts.reduceRight((children, l) => jsx(l.default, { children }), jsx(m.default, {})) }
@@ -199,7 +210,7 @@ declare module '${ROUTES_MODULE}' {
     : [LoadersOf<M | L[number]>] extends [never]
       ? M
       : Omit<M, "loaders"> & { readonly loaders: ReadonlyArray<LoadersOf<M | L[number]>> }
-  type Page<M, L extends readonly unknown[] = []> = { readonly render: Render } & Pick<
+  type Page<M, L extends readonly unknown[] = []> = { readonly render: Render; readonly load?: () => Promise<unknown> } & Pick<
     WithLayouts<M, L>,
     Extract<keyof WithLayouts<M, L>, ${keys}>
   >
@@ -231,7 +242,8 @@ const writeDeclaration = (dir: string) => {
 /**
  * Serves `virtual:sleekstack/routes`: `table`, a `@sleekstack/router` route table built from the files under
  * `routesDir` (params stay in the path strings, ADR 0036); `pages`, a `Page` per route name rendering its file's default
- * export, with the file's `loaders`, `fallback` and `prerender` exports; and `notFound`, rendering the default export of
+ * export, with the file's `loaders`, `fallback` and `prerender` exports (in the client, only a `load` giving that page,
+ * so each route is its own chunk; the types describe the loaded page); and `notFound`, rendering the default export of
  * a root `_notFound` file, only when there is one. Its types are kept in `routes.gen.d.ts` inside `routesDir`. In dev,
  * adding or removing a route file rebuilds the module and its types and reloads the page.
  */
@@ -253,7 +265,7 @@ export const routes = (options: RoutesOptions = {}): Plugin => {
       filter: { id: new RegExp(`^\0${ROUTES_MODULE}$`) },
       handler() {
         try {
-          return moduleCode(scan(dir))
+          return moduleCode(scan(dir), this.environment.config.consumer === 'client')
         } catch (e) {
           this.error((e as Error).message)
         }

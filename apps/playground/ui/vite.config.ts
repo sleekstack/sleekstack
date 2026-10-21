@@ -9,4 +9,6 @@ export default defineConfig({
       prerender: true,
     }),
   ],
+  // The client entry keeps its `started` export, so a test can await hydration.
+  environments: { client: { build: { rollupOptions: { preserveEntrySignatures: 'exports-only' } } } },
 })

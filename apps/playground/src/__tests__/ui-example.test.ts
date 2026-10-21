@@ -4,13 +4,13 @@
  * route through the server bundle; a plain static server answers the pages and the client bundle hydrates one (R4,
  * fn-30 R2/R5). The dev server renders through the server entry (R6).
  */
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { createServer as createHttpServer } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { afterEach, expect, it, vi } from 'vitest'
+import { afterEach, expect, it, onTestFinished, vi } from 'vitest'
 import { createBuilder, createServer } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -18,6 +18,7 @@ const root = path.resolve(import.meta.dirname, '../../ui')
 
 afterEach(() => {
   document.body.innerHTML = ''
+  history.replaceState(null, '', '/')
   vi.restoreAllMocks()
 })
 
@@ -85,12 +86,26 @@ it.each([true, false])(
       const button = document.querySelector('button')!
       vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
       const client = await import(pathToFileURL(path.join(out, 'client', src!)).href)
-      await client.started
+      const started = await client.started
+      onTestFinished(() => started.dispose())
       button.click()
       // Hydrated: the server's button got the listener; a fresh mount would have replaced it.
       await vi.waitFor(() => expect(button.textContent).toBe('count 1'))
       expect(document.querySelector('button')).toBe(button)
       // No HydrationMismatch: the entry's `onError` is `console.error`.
+      expect(errors).not.toHaveBeenCalled()
+
+      // Each page is its own chunk, outside the entry, loaded on first navigation (fn-65 R6).
+      const assets = path.join(out, 'client', 'assets')
+      const js = readdirSync(assets).filter((f) => f.endsWith('.js'))
+      const chunkOf = (text: string) => js.filter((f) => readFileSync(path.join(assets, f), 'utf8').includes(text))
+      const [home, user] = [chunkOf('count '), chunkOf('`User ${')]
+      expect(home).toHaveLength(1)
+      expect(user).toHaveLength(1)
+      expect(new Set([src!.slice('assets/'.length), home[0], user[0]]).size).toBe(3)
+      document.querySelector<HTMLAnchorElement>('a[href="/users/42"]')!.click()
+      await vi.waitFor(() => expect(document.querySelector('h1')?.textContent).toBe('User 42'))
+      expect(location.pathname).toBe('/users/42')
       expect(errors).not.toHaveBeenCalled()
     } finally {
       rmSync(out, { recursive: true, force: true })

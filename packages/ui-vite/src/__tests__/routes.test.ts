@@ -125,6 +125,8 @@ export const path: '/users/:id' = table['users/[id]']
 export const optional: '/u/:id?' = table['u/[[id]]']
 export const splat: '/files/*path' = table['files/[...path]']
 export const page: { readonly render: () => unknown } = pages['users/[id]']
+// For Link's code prefetch: present in the client, absent in SSR.
+export const code: (() => Promise<unknown>) | undefined = pages['users/[id]'].load
 // @ts-expect-error a file without the export gives no key
 pages['users/[id]'].loaders
 // @ts-expect-error no such route
@@ -258,6 +260,33 @@ export const guard = loader('guard', Schema.String, redirect('/b'))
     expect(Object.keys(pages.b)).toEqual(['render', 'loaders'])
     // A layout guard redirects every page below it.
     expect(await get('/admin/x')).toMatchObject({ status: 302, location: '/b' })
+  })
+
+  it('gives each client page only a load that imports its file and layouts; SSR imports them eagerly', async () => {
+    const { server, dir, load } = await serve(['_layout.ts', 'index.ts', 'users/[id].ts', '_notFound.ts'], {
+      contents: {
+        '_layout.ts': layout('main'),
+        'index.ts': component('home'),
+        'users/[id].ts': `${component('user')}export const loaders = []\nexport const fallback = 'wait'\n`,
+        '_notFound.ts': component('nope'),
+      },
+    })
+    const result = await server.environments.client.pluginContainer.load('\0virtual:sleekstack/routes')
+    const code = typeof result === 'string' ? result : result!.code
+    expect(code).not.toMatch(/^import .*(index|\[id\]|_layout)\.ts/m)
+    for (const f of ['index.ts', 'users/[id].ts', '_layout.ts'])
+      expect(code).toContain(`import(${JSON.stringify(path.join(dir, f))})`)
+    // The client module run as it is: each page is `{ load }` until loaded, then the same Page as in SSR.
+    fs.writeFileSync(path.join(dir, '..', 'client-routes.js'), code)
+    const client = await server.ssrLoadModule(path.join(dir, '..', 'client-routes.js'))
+    expect(Object.keys(client.pages.index)).toEqual(['load'])
+    const user = await client.pages['users/[id]'].load()
+    expect(Object.keys(user)).toEqual(['render', 'loaders', 'fallback'])
+    expect(await render(user.render)).toContain('<main><h1>user</h1></main>')
+    expect(await render(client.notFound)).toContain('<h1>nope</h1>')
+    const { pages } = await load()
+    expect(Object.keys(pages.index)).toEqual(['render'])
+    expect(await render(pages.index.render)).toContain('<main><h1>home</h1></main>')
   })
 
   it('leaves notFound unwrapped and ignores a layout under a _ directory', async () => {
