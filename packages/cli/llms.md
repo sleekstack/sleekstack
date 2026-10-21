@@ -81,4 +81,5 @@ Anything else is a `CaptiveDependency`. `request` and `component` never nest.
 - `ServerServiceFileShape`: A ServerService file holds only imports, types, Data.TaggedError and ServerService classes, is not and imports no *.server.ts, and each Tag id has one class. Fix: Move values and implementation code into a *.server.ts file; Give each ServerService its own Tag id.
 - `ServerServiceMethodShape`: Every ServerService method is written out as `(input?) => Effect.Effect<A, E>`: one parameter at most, R = never, no `any`. Fix: Pass several inputs as one object; Provide services in the implementation Layer; Replace `any` with the type.
 - `ServerServiceTypeNotSerializable`: ServerService method types are JSON-shaped: primitives, literals, unions, arrays, plain objects; errors are Data.TaggedError classes. Fix: Use a JSON-shaped type (a string for a Date, an array for a Set); Use a serverFn with an explicit Schema.
+- `ServerFileInClientGraph`: No *.server.ts is value-imported, directly or not, by a module importing virtual:sleek/server. Fix: Import the contract, not the implementation; Use `import type` for types.
 <!-- generated:errors:end -->

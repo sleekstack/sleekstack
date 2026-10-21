@@ -3,7 +3,8 @@
  *
  * The Server Service pass (ADR 0051): every `class X extends ServerService('Id')<X, Shape>() {}`, found by the
  * declaration its base call resolves to (so imports through re-exports and barrels work), with its file and method
- * shape checked. The declarations carry the raw method types for the Type-to-Schema step.
+ * shape checked. The declarations carry the raw method types for the Type-to-Schema step. Also reports each `*.server.ts`
+ * reachable from a browser entry (`ServerFileInClientGraph`).
  */
 
 import * as path from 'node:path'
@@ -15,6 +16,7 @@ import { type MethodSchema, methodSchema, NotSerializable, taggedErrorBase } fro
 
 const SERVER_SERVICE = 'start/service#ServerService'
 const EFFECT = 'effect/Effect#Effect'
+const CLIENT_MODULE = 'virtual:sleek/server'
 const SERVER_FILE = /\.server\.[cm]?[jt]sx?$/
 
 export interface ServerServiceMethod {
@@ -156,14 +158,16 @@ export function analyzeServerServices(opts: { readonly project: string }): Serve
     ts.isEmptyStatement(s) ||
     (ts.isExportDeclaration(s) && (s.isTypeOnly || !s.moduleSpecifier))
 
-  for (const sf of program.getSourceFiles()) {
-    if (
-      sf.isDeclarationFile ||
-      /[\\/]node_modules[\\/]/.test(sf.fileName) ||
-      !program.getRootFileNames().includes(sf.fileName) ||
-      TEST_FILE.test(path.relative(root, sf.fileName))
+  const sources = program
+    .getSourceFiles()
+    .filter(
+      (sf) =>
+        !sf.isDeclarationFile &&
+        !/[\\/]node_modules[\\/]/.test(sf.fileName) &&
+        program.getRootFileNames().includes(sf.fileName) &&
+        !TEST_FILE.test(path.relative(root, sf.fileName)),
     )
-      continue
+  for (const sf of sources) {
     const found: ts.ClassLikeDeclaration[] = []
     const walk = (n: ts.Node): void => {
       if ((ts.isClassDeclaration(n) || ts.isClassExpression(n)) && serviceCall(n)) found.push(n)
@@ -174,6 +178,8 @@ export function analyzeServerServices(opts: { readonly project: string }): Serve
     checkFile(sf, found[0]!)
     found.forEach(serviceOf)
   }
+
+  serverFilesInClientGraph(program, sources, (n, message) => report('ServerFileInClientGraph', n, message), root)
 
   const byId = new Map<string, ServerServiceDecl[]>()
   for (const s of services) byId.set(s.id, [...(byId.get(s.id) ?? []), s])
@@ -187,4 +193,67 @@ export function analyzeServerServices(opts: { readonly project: string }): Serve
         ),
       )
   return { services, errors, checker }
+}
+
+/** The specifiers `sf` imports values from (statically or dynamically), each with its statement; `import type` and imports of only types are erased, so left out. */
+const valueImports = (sf: ts.SourceFile): Array<{ readonly spec: string; readonly at: ts.Node }> => {
+  const out: Array<{ spec: string; at: ts.Node }> = []
+  const typesOnly = (b: ts.NamedImportBindings | ts.NamedExportBindings | undefined) =>
+    !!b &&
+    (ts.isNamedImports(b) || ts.isNamedExports(b)) &&
+    b.elements.length > 0 &&
+    b.elements.every((e) => e.isTypeOnly)
+  const visit = (n: ts.Node): void => {
+    if (ts.isImportDeclaration(n)) {
+      const c = n.importClause
+      if (!(c && (c.isTypeOnly || (!c.name && typesOnly(c.namedBindings)))) && ts.isStringLiteral(n.moduleSpecifier))
+        out.push({ spec: n.moduleSpecifier.text, at: n })
+    } else if (ts.isExportDeclaration(n)) {
+      if (n.moduleSpecifier && ts.isStringLiteral(n.moduleSpecifier) && !n.isTypeOnly && !typesOnly(n.exportClause))
+        out.push({ spec: n.moduleSpecifier.text, at: n })
+    } else {
+      if (ts.isCallExpression(n) && n.expression.kind === ts.SyntaxKind.ImportKeyword) {
+        const arg = n.arguments[0]
+        if (arg && ts.isStringLiteralLike(arg)) out.push({ spec: arg.text, at: n })
+      }
+      ts.forEachChild(n, visit)
+    }
+  }
+  visit(sf)
+  return out
+}
+
+/**
+ * `ServerFileInClientGraph`: from every module importing `virtual:sleek/server` (a browser entry), walks the value
+ * imports and reports each `*.server.ts` reached, once, at the importing statement with the shortest chain.
+ */
+const serverFilesInClientGraph = (
+  program: ts.Program,
+  sources: readonly ts.SourceFile[],
+  report: (at: ts.Node, message: string) => void,
+  root: string,
+) => {
+  const resolve = (spec: string, from: ts.SourceFile) => {
+    const file = ts.resolveModuleName(spec, from.fileName, program.getCompilerOptions(), ts.sys).resolvedModule
+      ?.resolvedFileName
+    const sf = file && program.getSourceFile(file)
+    return sf && !sf.isDeclarationFile && !/[\\/]node_modules[\\/]/.test(sf.fileName) ? sf : undefined
+  }
+  const rel = (sf: ts.SourceFile) => path.relative(root, sf.fileName)
+  const queue = sources.filter((sf) => valueImports(sf).some((i) => i.spec === CLIENT_MODULE))
+  /** Each reached module's chain from its browser entry. */
+  const chains = new Map(queue.map((sf) => [sf, [rel(sf)]]))
+  for (let i = 0; i < queue.length; i++) {
+    const from = queue[i]!
+    for (const { spec, at } of valueImports(from)) {
+      const to = resolve(spec, from)
+      if (!to || chains.has(to)) continue
+      const chain = [...chains.get(from)!, rel(to)]
+      chains.set(to, chain)
+      // Not walked further: what a server file imports is server code.
+      if (SERVER_FILE.test(to.fileName))
+        report(at, `The server-only "${rel(to)}" is reachable from the browser: ${chain.join(' -> ')}`)
+      else queue.push(to)
+    }
+  }
 }

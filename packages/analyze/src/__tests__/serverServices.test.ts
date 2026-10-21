@@ -56,10 +56,23 @@ describe('analyzeServerServices', () => {
     'server-service-requires',
     'server-service-any',
     'server-service-duplicate-id',
+    'server-boundary',
   ])('%s: code and file:line', (name) => {
     const errors = run(name).errors
     expect(errors.map(({ code, file, line }) => ({ code, file, line }))).toEqual(expected(name))
     for (const e of errors) expect(e.docs).toBe(ERROR_CODES[e.code].docs)
+  })
+
+  it('names the import chain of a server file reachable from the browser', () => {
+    expect(run('server-boundary').errors.map((e) => e.message)).toEqual([
+      'The server-only "direct.server.ts" is reachable from the browser: main.ts -> direct.server.ts',
+      'The server-only "deep.server.ts" is reachable from the browser: main.ts -> page.ts -> deep.server.ts',
+      'The server-only "lazy.server.ts" is reachable from the browser: main.ts -> page.ts -> lazy.server.ts',
+    ])
+  })
+
+  it('is silent for type-only imports and server files only server code imports', () => {
+    expect(run('server-boundary-clean').errors).toEqual([])
   })
 
   it('names both files of a duplicated Tag id', () => {

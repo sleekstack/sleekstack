@@ -1,7 +1,7 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import type { AnalyzeError, PropertySchema, TaggedErrorSchema, TypeSchema } from '@sleekstack/analyze'
-import { normalizePath, type Plugin } from 'vite'
+import { type Environment, normalizePath, type Plugin } from 'vite'
 
 /** Where the Server Service modules' types go. */
 export interface ServerServicesOptions {
@@ -136,7 +136,8 @@ const readContracts = async (project: string): Promise<{ contracts: Contract[]; 
   )
   const { services, errors } = analyzeServerServices({ project })
   return {
-    errors,
+    // The client build reports that one itself, with the chain it loaded; the server build is not bound by it.
+    errors: errors.filter((e) => e.code !== 'ServerFileInClientGraph'),
     contracts: services.map((s) => ({
       name: s.name,
       file: s.location.file,
@@ -153,7 +154,8 @@ const readContracts = async (project: string): Promise<{ contracts: Contract[]; 
  * Their types are kept in `serverDeclaration`, rewritten only when its text changes (and not created while there are
  * no contracts). In dev, a source change that
  * changes the generated code invalidates both modules in every environment and reloads the page; a `*.server.ts`
- * (implementation) change is ignored.
+ * (implementation) change is ignored. The boundary: a `*.server.ts` loaded in a client environment fails the build or
+ * the dev load, naming the import chain (type-only imports are erased before they get here).
  */
 export const serverServices = (options: ServerServicesOptions = {}): Plugin => {
   let project = ''
@@ -183,6 +185,21 @@ export const serverServices = (options: ServerServicesOptions = {}): Plugin => {
     }
   }
   const current = () => (generated ??= generate())
+  /** Build only: each module's first importer, per environment (Rolldown fills `importers` only at the end). */
+  const parents = new WeakMap<Environment, Map<string, string>>()
+  const parentsOf = (env: Environment) => parents.get(env) ?? parents.set(env, new Map()).get(env)!
+  const importerOf = (env: Environment, id: string): string | undefined => {
+    if (env.mode !== 'dev') return parentsOf(env).get(id)
+    const importer = env.moduleGraph.getModuleById(id)?.importers.values().next().value
+    return importer?.id ?? importer?.url
+  }
+  /** `id` and its importers up to an entry. */
+  const chainOf = (env: Environment, id: string) => {
+    const chain = [id]
+    for (let at = importerOf(env, id); at && !chain.includes(at); at = importerOf(env, at)) chain.unshift(at)
+    return chain
+  }
+  const rel = (id: string) => normalizePath(path.relative(root, id.replace(/^\0/, '')))
   const writeDeclaration = (g: Generated) => {
     if ('error' in g) return
     // An app with no contracts gets no file.
@@ -209,9 +226,21 @@ export const serverServices = (options: ServerServicesOptions = {}): Plugin => {
       filter: { id: new RegExp(`^(${MODULES.join('|')})$`) },
       handler: (id) => `\0${id}`,
     },
+    moduleParsed(info) {
+      const parents = parentsOf(this.environment)
+      for (const child of [...info.importedIds, ...info.dynamicallyImportedIds])
+        if (!parents.has(child)) parents.set(child, info.id)
+    },
     load: {
-      filter: { id: new RegExp(`^\0(${MODULES.join('|')})$`) },
+      filter: { id: [new RegExp(`^\0(${MODULES.join('|')})$`), SERVER_FILE] },
       async handler(id) {
+        if (SERVER_FILE.test(id)) {
+          if (this.environment.config.consumer === 'client')
+            this.error(
+              `sleekstack: the server-only "${rel(id)}" is in the browser build: ${chainOf(this.environment, id).map(rel).join(' -> ')}. Import its contract instead, or use \`import type\`.`,
+            )
+          return null
+        }
         const g = await current()
         if ('error' in g) return this.error(g.error)
         return id === `\0${CLIENT}` ? g.client : g.registry

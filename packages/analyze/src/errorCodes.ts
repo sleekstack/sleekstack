@@ -29,6 +29,7 @@ export type AnalyzeCode =
   | 'ServerServiceFileShape'
   | 'ServerServiceMethodShape'
   | 'ServerServiceTypeNotSerializable'
+  | 'ServerFileInClientGraph'
 
 export interface ErrorHelp {
   /** What the analyzer checks. */
@@ -159,6 +160,11 @@ export const ERROR_CODES: Readonly<Record<AnalyzeCode, ErrorHelp>> = {
   ServerServiceTypeNotSerializable: {
     rule: 'ServerService method types are JSON-shaped: primitives, literals, unions, arrays, plain objects; errors are Data.TaggedError classes.',
     fix: ['Use a JSON-shaped type (a string for a Date, an array for a Set)', 'Use a serverFn with an explicit Schema'],
+    docs: SERVER,
+  },
+  ServerFileInClientGraph: {
+    rule: 'No *.server.ts is value-imported, directly or not, by a module importing virtual:sleek/server.',
+    fix: ['Import the contract, not the implementation', 'Use `import type` for types'],
     docs: SERVER,
   },
 }

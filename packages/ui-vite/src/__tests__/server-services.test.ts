@@ -3,7 +3,7 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import type { TaggedErrorSchema, TypeSchema } from '@sleekstack/analyze'
 import ts from 'typescript'
-import { createServer, type ViteDevServer } from 'vite'
+import { build, createServer, type InlineConfig, type ViteDevServer } from 'vite'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { sleekstack } from '../index.js'
 import { printSchema, serverServices } from '../server-services.js'
@@ -59,11 +59,8 @@ afterEach(async () => {
   fs.rmSync(base, { recursive: true, force: true })
 })
 
-/**
- * A dev server (no file watching: tests emit watcher events) over a copy of the fixture in `src`, plus `extra` files,
- * with a tsconfig the analyzer reads. `@sleekstack/start/client` is its source, so the generated code runs.
- */
-const serve = async (extra: Record<string, string> = {}) => {
+/** A copy of the fixture in `src`, plus `extra` files, with a tsconfig the analyzer reads. */
+const scaffold = (extra: Record<string, string> = {}) => {
   base = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'ui-vite-server-services-')))
   fs.symlinkSync(path.resolve(import.meta.dirname, '../../node_modules'), path.join(base, 'node_modules'))
   const root = path.join(base, 'app')
@@ -85,12 +82,22 @@ const serve = async (extra: Record<string, string> = {}) => {
       include: ['src'],
     }),
   )
+  return { root, src }
+}
+/** `@sleekstack/start/client` is its source, so the generated code runs. */
+const config = (root: string): InlineConfig => ({
+  root,
+  configFile: false,
+  logLevel: 'silent',
+  plugins: [serverServices()],
+  resolve: { alias: { '@sleekstack/start/client': START_CLIENT } },
+})
+
+/** A dev server (no file watching: tests emit watcher events) over `scaffold(extra)`. */
+const serve = async (extra: Record<string, string> = {}) => {
+  const { root, src } = scaffold(extra)
   server = await createServer({
-    root,
-    configFile: false,
-    logLevel: 'silent',
-    plugins: [serverServices()],
-    resolve: { alias: { '@sleekstack/start/client': START_CLIENT } },
+    ...config(root),
     // The client environment's dependency optimizer would hold `close` for its run.
     optimizeDeps: { noDiscovery: true },
     server: { middlewareMode: true, hmr: false, watch: null },
@@ -216,5 +223,48 @@ export class Dated extends ServerService('Dated')<Dated, { readonly at: () => Ef
   it('is in the sleekstack() plugins and exported on its own', () => {
     expect(sleekstack().map((p) => p.name)).toContain('sleekstack:server-services')
     expect(serverServices().name).toBe('sleekstack:server-services')
+  })
+})
+
+describe('server boundary', () => {
+  /** A browser entry reaching `page.ts`, which imports from the implementation as `page`. */
+  const app = (page: string) => {
+    const { root } = scaffold({
+      'main.ts': `import layer from '${CLIENT}'\nimport { page } from './page'\nconsole.log(layer, page)\n`,
+      'page.ts': page,
+    })
+    fs.writeFileSync(path.join(root, 'index.html'), '<script type="module" src="/src/main.ts"></script>')
+    return root
+  }
+  const client = (root: string) => build({ ...config(root), build: { write: false } })
+  const ssr = (root: string) => build({ ...config(root), build: { write: false, ssr: 'src/main.ts' } })
+
+  it('fails the client build naming the import chain; the SSR build of the same app succeeds', async () => {
+    const root = app(`import { ProfilesLive } from './profiles.server'\nexport const page = ProfilesLive\n`)
+    await expect(client(root)).rejects.toThrow(
+      'the server-only "src/profiles.server.ts" is in the browser build: index.html -> src/main.ts -> src/page.ts -> src/profiles.server.ts',
+    )
+    await expect(ssr(root)).resolves.toBeDefined()
+  })
+
+  it('lets a type-only import of a server file through', async () => {
+    const root = app(
+      `import type { ProfilesLive } from './profiles.server'\nexport const page: typeof ProfilesLive | 1 = 1\n`,
+    )
+    await expect(client(root)).resolves.toBeDefined()
+  })
+
+  it('fails the dev client load naming the import chain', async () => {
+    const { server } = await serve({
+      'main.ts': `import { page } from './page'\nconsole.log(page)\n`,
+      'page.ts': `import { ProfilesLive } from './profiles.server'\nexport const page = ProfilesLive\n`,
+    })
+    const env = server.environments.client
+    await env.transformRequest('/src/main.ts')
+    await env.transformRequest('/src/page.ts')
+    await expect(env.transformRequest('/src/profiles.server.ts')).rejects.toThrow(
+      'src/main.ts -> src/page.ts -> src/profiles.server.ts',
+    )
+    await expect(server.environments.ssr.transformRequest('/src/profiles.server.ts')).resolves.toBeTruthy()
   })
 })
