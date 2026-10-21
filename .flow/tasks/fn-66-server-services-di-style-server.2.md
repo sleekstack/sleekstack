@@ -31,9 +31,15 @@ Nothing server-side may be imported here; the existing `client` test asserts wha
 - [ ] `pnpm turbo run test typecheck --filter=@sleekstack/start...` passes.
 
 ## Done summary
-TBD
+Added `serverClient(entry)` and `serverClients(entries)` to `@sleekstack/start/client` (packages/start/src/client.ts). `serverClient(entry)` is a `Layer.succeed(entry.tag, ...)` with one `client` stub per method at `<Tag id>.<method>`, so the wire is the one serverFn uses. `serverClients(entries)` merges those into one `Layer<Tags>`, folding from `Layer.empty` so an empty list is valid.
 
+- Tests: packages/start/src/__tests__/client.test.ts `serverClient` (posts the encoded input to /_sleek/fn/Profiles.rename, a zero-argument method sends an empty body, a Failure envelope becomes a NameTaken instance, a rejected fetch is NetworkError, a bad success body is DecodeError). packages/start/src/__tests__/client.test-d.ts (`serverClients` gives exactly `Layer<Profiles | Items>`; a Layer missing a Tag is a type error).
+- Note for task .1 owners: `taggedError` decode passes `_tag` into the constructor, so the decoded instance's key order differs from `new NameTaken(...)` and `toEqual` fails. The test uses `toMatchObject` plus `instanceof`. Fixing it means stripping `_tag` before `new Class(...)` in service.ts, which is outside this task's Touches.
+- The stubs' `Redirect | NotFound` error is cast into the Tag's type. At runtime they still arrive if the server sends them.
+
+stage: impl-review - skipped(config: REVIEW_MODE=none)
+Tier: session (jev-unavailable(no_key)); project routing block pins implementer opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: fd13d17e311c048b639678aa1c5f40e7a2cc5c19
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/start..., baseline: none (not run pre-edit; post-change gate green)
 - PRs:
