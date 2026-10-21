@@ -229,8 +229,36 @@ export function analyzeComponents(opts: { readonly project: string }): Component
       return [{ kind: 'unresolved', message: err.message, ...loc(err.node) }]
     }
   }
+  /**
+   * While a file-route layout renders: what its `children` prop stands for (the page, or the next layout in), by the
+   * symbols naming it (a destructured `children`, or the props parameter of `props.children`), and whether it rendered.
+   */
+  let slot:
+    | {
+        readonly names: ReadonlySet<ts.Symbol>
+        readonly props: ReadonlySet<ts.Symbol>
+        readonly nodes: UiNode[]
+        used: boolean
+      }
+    | undefined
+  /** The slot's nodes when `e` is the rendering layout's `children`, else undefined. */
+  const slotted = (e: ts.Expression): UiNode[] | undefined => {
+    if (!slot) return undefined
+    const sym = (x: ts.Expression) => checker.getSymbolAtLocation(x)
+    const hit = ts.isIdentifier(e)
+      ? slot.names.has(sym(e)!)
+      : ts.isPropertyAccessExpression(e) &&
+        e.name.text === 'children' &&
+        ts.isIdentifier(e.expression) &&
+        slot.props.has(sym(e.expression)!)
+    if (!hit) return undefined
+    slot.used = true
+    return slot.nodes
+  }
   const read = (expr: ts.Expression): UiNode[] => {
     const e = unwrap(expr)
+    const inSlot = slotted(e)
+    if (inSlot) return inSlot
     if (ts.isConditionalExpression(e)) return [...build(e.whenTrue), ...build(e.whenFalse)]
     if (
       ts.isBinaryExpression(e) &&
@@ -316,6 +344,8 @@ export function analyzeComponents(opts: { readonly project: string }): Component
   /** What a `{expr}` between JSX tags renders: Effect components through branches and `.map`; plain values render nothing to analyze. */
   const embedded = (x: ts.Expression): UiNode[] => {
     const e = unwrap(x)
+    const inSlot = slotted(e)
+    if (inSlot) return inSlot
     if (ts.isConditionalExpression(e)) return [...embedded(e.whenTrue), ...embedded(e.whenFalse)]
     if (
       ts.isBinaryExpression(e) &&
@@ -812,25 +842,28 @@ export function analyzeComponents(opts: { readonly project: string }): Component
         )
   }
   /**
-   * The files under `dir` that ui-vite reads for pages (ADR 0050): route files (not `.d.ts`, no `_`-prefixed segment)
-   * and the `_layout` files outside `_` directories with a route file below them.
+   * The files under `dir` that ui-vite reads for pages (ADR 0050): route files (not `.d.ts`, no `_`-prefixed segment),
+   * and each route file's chain of `_layout` files outside `_` directories, outer first.
    */
   const routeFiles = (dir: string) => {
+    const base = dir.split(path.sep).join('/')
     const all = fs
       .readdirSync(dir, { recursive: true, encoding: 'utf8' })
       .map((f) => f.split(path.sep).join('/'))
       .filter((f) => ROUTE_FILE.test(f) && !f.endsWith('.d.ts'))
     const underscored = (f: string) => f.split('/').some((s) => s.startsWith('_'))
-    const routes = all.filter((f) => !underscored(f))
-    const layouts = all.filter((f) => {
-      const at = path.posix.dirname(f)
-      return (
-        path.posix.basename(f).replace(ROUTE_FILE, '') === '_layout' &&
-        !underscored(at) &&
-        routes.some((r) => at === '.' || r.startsWith(`${at}/`))
-      )
-    })
-    return [...routes, ...layouts].map((f) => `${dir.split(path.sep).join('/')}/${f}`)
+    const layouts = new Map(
+      all
+        .filter(
+          (f) => path.posix.basename(f).replace(ROUTE_FILE, '') === '_layout' && !underscored(path.posix.dirname(f)),
+        )
+        .map((f) => [path.posix.dirname(f), `${base}/${f}`]),
+    )
+    const chain = (f: string) => {
+      const dirs = f.split('/').slice(0, -1)
+      return ['.', ...dirs.map((_, i) => dirs.slice(0, i + 1).join('/'))].flatMap((d) => layouts.get(d) ?? [])
+    }
+    return new Map(all.filter((f) => !underscored(f)).map((f) => [`${base}/${f}`, chain(f)]))
   }
   /** The `typeof import('./x')` of a `Page<typeof import('./x')>` type in `routes.gen.d.ts`. */
   const pageImport = (t: ts.TypeNode | undefined) => {
@@ -872,36 +905,101 @@ export function analyzeComponents(opts: { readonly project: string }): Component
         return []
       }
       const [module, ...layoutModules] = modules.map(([, mod]) => mod!)
+      const fileOf = (x: ts.Symbol) => x.valueDeclaration!.getSourceFile().fileName
       return [
         {
           name: `page ${m.name.getText()}`,
           module: module!,
-          layouts: layoutModules.map((l, i) => ({ name: `layout ${layouts[i]!.argument.getText()}`, module: l })),
-          file: module!.valueDeclaration!.getSourceFile().fileName,
+          layouts: layoutModules.map((l, i) => ({
+            name: `layout ${layouts[i]!.argument.getText()}`,
+            module: l,
+            file: fileOf(l),
+          })),
+          file: fileOf(module!),
           at: m,
         },
       ]
     })
-    const listed = new Set(
-      pages.flatMap((x) => [x.file, ...x.layouts.map((l) => l.module.valueDeclaration!.getSourceFile().fileName)]),
-    )
-    const unlisted = routeFiles(path.dirname(d.getSourceFile().fileName)).filter((f) => !listed.has(f))
-    if (missing.length || unlisted.length)
+    const files = routeFiles(path.dirname(d.getSourceFile().fileName))
+    const rel = (f: string) => path.relative(root, f)
+    const listed = new Set(pages.map((x) => x.file))
+    const unlisted = [...files.keys()].filter((f) => !listed.has(f))
+    // Each page's layouts, in order, must be its directory chain's: a stale chain would check the wrong layouts.
+    const chains = pages.flatMap(({ file: f, layouts }) => {
+      const want = files.get(f) ?? []
+      const have = layouts.map((l) => l.file)
+      return want.join() === have.join()
+        ? []
+        : [`${rel(f)} has layouts [${have.map(rel).join(', ')}] where the files give [${want.map(rel).join(', ')}]`]
+    })
+    if (missing.length || unlisted.length || chains.length)
       fail(
         d,
         `${file} disagrees with the route files${missing.length ? `; it names missing ${missing.join(', ')}` : ''}${
-          unlisted.length ? `; it misses ${unlisted.map((f) => path.relative(root, f)).join(', ')}` : ''
-        }; run vite to rewrite it`,
+          unlisted.length ? `; it misses ${unlisted.map(rel).join(', ')}` : ''
+        }${chains.length ? `; ${chains.join('; ')}` : ''}; run vite to rewrite it`,
       )
     return pages
   }
-  /** A route module's nodes: its default export as the page's render, and its `loaders` export. */
-  const filePage = (name: string, module: ts.Symbol, at: ts.Node): UiNode[] => {
+  /** A route or layout module's `loaders` export as one node, when it has one. */
+  const fileLoaders = (name: string, module: ts.Symbol): UiNode[] => {
     const loaders = aliased(checker.getExportsOfModule(module).find((x) => x.escapedName === 'loaders'))
-    return [
-      ...guarded(() => defaultElement(module, at, name)),
-      ...(loaders ? guarded(() => [loadersNode(loaders, checker.getTypeAtLocation(loaders), name)]) : []),
-    ]
+    return loaders ? guarded(() => [loadersNode(loaders, checker.getTypeAtLocation(loaders), name)]) : []
+  }
+  /**
+   * A file page's nodes as the generated module runs it: the loaders of its layouts (outer first) and its own, beside
+   * its render, which is the page's default export inside each layout's `children`, so a layout's `Provider` or
+   * `Boundary` covers the page as at runtime.
+   */
+  const filePage = (
+    page: { readonly name: string; readonly module: ts.Symbol },
+    layouts: ReadonlyArray<{ readonly name: string; readonly module: ts.Symbol }>,
+    at: ts.Node,
+  ): UiNode[] => [
+    ...[...layouts, page].flatMap((x) => fileLoaders(x.name, x.module)),
+    ...layouts.reduceRight(
+      (inner, l) => guarded(() => layoutElement(l.module, at, l.name, inner)),
+      guarded(() => defaultElement(page.module, at, page.name)),
+    ),
+  ]
+  /** Layout module `mod`'s default export rendered with `inner` at its `children`; beside it when it never renders them. */
+  const layoutElement = (mod: ts.Symbol, at: ts.Node, name: string, inner: UiNode[]): UiNode[] => {
+    const d = checker.getExportsOfModule(mod).find((x) => x.escapedName === 'default')?.declarations?.[0]
+    const tag =
+      d && ts.isExportAssignment(d)
+        ? d.expression
+        : d && ts.isExportSpecifier(d)
+          ? (d.propertyName ?? d.name)
+          : undefined
+    const fn = d && ts.isFunctionDeclaration(d) ? d : tag && ts.isExpression(tag) ? guardedTarget(tag) : undefined
+    const param = fn && !ts.isCallExpression(fn) ? fn.parameters[0]?.name : undefined
+    const names = new Set<ts.Symbol>()
+    const props = new Set<ts.Symbol>()
+    if (param && ts.isObjectBindingPattern(param))
+      for (const el of param.elements) {
+        const sym = ts.isIdentifier(el.name) ? checker.getSymbolAtLocation(el.name) : undefined
+        if (sym && (el.propertyName ?? el.name).getText() === 'children') names.add(sym)
+      }
+    const propsSym = param && ts.isIdentifier(param) ? checker.getSymbolAtLocation(param) : undefined
+    if (propsSym) props.add(propsSym)
+    const outer = slot
+    const mine = { names, props, nodes: inner, used: false }
+    slot = mine
+    try {
+      const nodes = defaultElement(mod, at, name)
+      return mine.used ? nodes : [...nodes, ...inner]
+    } finally {
+      slot = outer
+    }
+  }
+  /** `calleeTarget`, or undefined where it cannot read the callee (the element read reports that itself). */
+  const guardedTarget = (tag: ts.Expression) => {
+    try {
+      return calleeTarget(tag)
+    } catch (err) {
+      if (!(err instanceof Unreadable)) throw err
+      return undefined
+    }
   }
   /** What the generated `render: () => jsx(Default, {})` renders: module `mod`'s default export as an element. */
   const defaultElement = (mod: ts.Symbol, at: ts.Node, name: string): UiNode[] => {
@@ -958,8 +1056,7 @@ export function analyzeComponents(opts: { readonly project: string }): Component
       })
       const pages = fromFiles
         ? filePages(pp!, fromFiles).map(({ name, module, layouts, at }) =>
-            // Layouts (outer first) beside the page, under the same `Route` provide; a layout's loaders run with the page's.
-            route(at, [...layouts.flatMap((l) => filePage(l.name, l.module, at)), ...filePage(name, module, at)]),
+            route(at, filePage({ name, module }, layouts, at)),
           )
         : (objectOf(pp) ?? fail(def, 'Router pages are not a readable object literal')).properties.flatMap((p) => {
             const name = `page ${p.name?.getText() ?? text(p)}`

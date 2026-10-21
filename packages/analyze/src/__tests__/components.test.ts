@@ -65,19 +65,22 @@ describe('component pass', () => {
     expect(notFound).toEqual(['routes/_notFound.tsx:3', 'routes/_notFound.tsx:3'])
   })
 
-  it('ui-router-file-routes: a layout file the declaration misses is reported, not skipped', () => {
-    const extra = path.join(dir('ui-router-file-routes'), 'routes', '(extra)')
-    fs.mkdirSync(extra)
+  it("ui-router-file-routes: a page's layout chain the declaration gets wrong is reported, not skipped", () => {
+    const file = path.join(dir('ui-router-file-routes'), 'routes', 'routes.gen.d.ts')
+    const written = fs.readFileSync(file, 'utf8')
+    const stale = written.replace(
+      'Page<typeof import("./about.tsx"), [typeof import("./_layout.tsx")]>',
+      'Page<typeof import("./about.tsx")>',
+    )
+    expect(stale).not.toBe(written)
+    fs.writeFileSync(file, stale)
     try {
-      fs.writeFileSync(
-        path.join(extra, '_layout.tsx'),
-        'export default ({ children }: { children: never }) => children\n',
-      )
-      fs.writeFileSync(path.join(extra, 'x.tsx'), 'export default () => <p>x</p>\n')
       const messages = run('ui-router-file-routes').errors.map((e) => e.message)
-      expect(messages).toContainEqual(expect.stringMatching(/disagrees with the route files.*\(extra\)\/_layout\.tsx/))
+      expect(messages).toContainEqual(
+        expect.stringContaining('routes/about.tsx has layouts [] where the files give [routes/_layout.tsx]'),
+      )
     } finally {
-      fs.rmSync(extra, { recursive: true, force: true })
+      fs.writeFileSync(file, written)
     }
   })
 
