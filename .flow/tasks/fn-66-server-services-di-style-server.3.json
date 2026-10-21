@@ -8,7 +8,7 @@
   "priority": null,
   "spec": "fn-66-server-services-di-style-server",
   "spec_path": ".flow/tasks/fn-66-server-services-di-style-server.3.md",
-  "status": "todo",
+  "status": "done",
   "title": "analyze: read ServerService declarations, shape rules, duplicate Tag ids",
   "updated_at": "2026-10-21T14:11:43.688201Z"
 }

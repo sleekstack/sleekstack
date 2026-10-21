@@ -11,7 +11,7 @@
   "priority": null,
   "spec": "fn-66-server-services-di-style-server",
   "spec_path": ".flow/tasks/fn-66-server-services-di-style-server.7.md",
-  "status": "todo",
+  "status": "done",
   "title": "showcase Server Service example, client bundle test, docs guide and README",
   "updated_at": "2026-10-21T14:11:43.688280Z"
 }

@@ -11,7 +11,7 @@
   "priority": null,
   "spec": "fn-66-server-services-di-style-server",
   "spec_path": ".flow/tasks/fn-66-server-services-di-style-server.6.md",
-  "status": "todo",
+  "status": "done",
   "title": "boundary: `*.server.ts` in the client graph fails the build and `sleekstack check`",
   "updated_at": "2026-10-21T14:11:43.688263Z"
 }

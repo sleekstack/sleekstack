@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-66-server-services-di-style-server",
   "spec_path": ".flow/tasks/fn-66-server-services-di-style-server.4.md",
-  "status": "todo",
+  "status": "done",
   "title": "analyze: method types to a Schema description, `ServerServiceTypeNotSerializable`",
   "updated_at": "2026-10-21T14:11:43.688222Z"
 }
