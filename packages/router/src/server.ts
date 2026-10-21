@@ -131,7 +131,7 @@ export const handle = async <T extends RouteTable, R>(
   }
   if (res._tag !== 'Page') return notFoundPage()
   const status = 'error' in res ? statusOf(res.error) : 200
-  return render(view(r.pages[res.match.name]!), Layer.merge(loaders, routeLayer(res.match)), status)
+  return render(view(res.code), Layer.merge(loaders, routeLayer(res.match)), status)
 }
 
 // Shell first (R15): the declared loaders have settled the status; loaders the page reads without declaring them run

@@ -1,4 +1,4 @@
-import { type Child, type Node, Pending, type Store, type Transfer } from '@sleekstack/ui'
+import { type Child, LazyLoadError, type Node, Pending, type Store, type Transfer } from '@sleekstack/ui'
 import { jsx } from '@sleekstack/ui/jsx-runtime'
 import { Cause, Data, Effect, type Layer, Option } from 'effect'
 import { match, type Route, routeLayer, type Match, type RouteTable } from './index'
@@ -18,19 +18,57 @@ export const notFound = (): Effect.Effect<never, NotFound> => Effect.fail(new No
 export const MAX_REDIRECTS = 10
 
 /**
- * A page: renders the route's view; `loaders` run (and settle redirect / not-found) before it shows. `R` is what its
- * render and loaders need; `startRouter` and `handle` take a layer providing it. A JSX render adds nothing to `R`:
- * ui types JSX as requirement-free, so a component's services are checked by `sleekstack check`, not here.
+ * A page's code: renders the route's view; `loaders` run (and settle redirect / not-found) before it shows. `R` is
+ * what its render and loaders need; `startRouter` and `handle` take a layer providing it. A JSX render adds nothing to
+ * `R`: ui types JSX as requirement-free, so a component's services are checked by `sleekstack check`, not here.
  */
-export interface Page<R = any> {
+export interface PageCode<R = any> {
   readonly render: () => Effect.Effect<Node, any, R>
   readonly loaders?: ReadonlyArray<Loader<any, any, any, R>>
   /** Shown while a loader the page reads is still loading; the router wraps the page in `Pending` with it. */
   readonly fallback?: Child
 }
 
+/**
+ * A page: its code, or a `load` that imports it. The router loads a page with `load` and no `render` once, before
+ * its loaders run or it renders; concurrent navigations share the load, and a rejected one is tried again next time.
+ */
+export type Page<R = any> = PageCode<R> | { readonly load: () => Promise<PageCode<R>> }
+
+const loaded = new WeakMap<Page, PageCode>()
+const loading = new WeakMap<Page, Promise<PageCode>>()
+
+/** `page`'s code, loading it once; a rejected load (or one without `render`) fails with `LazyLoadError`, uncached. */
+const codeOf = (page: Page): Effect.Effect<PageCode, LazyLoadError> =>
+  Effect.suspend(() => {
+    if ('render' in page) return Effect.succeed(page)
+    const done = loaded.get(page)
+    if (done) return Effect.succeed(done)
+    let p = loading.get(page)
+    if (!p) {
+      p = page
+        .load()
+        .then((c) => {
+          if (typeof c?.render !== 'function') throw new TypeError('@sleekstack/router: loaded page has no render')
+          loaded.set(page, c)
+          return c
+        })
+        .finally(() => loading.delete(page))
+      loading.set(page, p)
+    }
+    // Not tied to this fiber: an interrupted navigation stops waiting, the load goes on for the others sharing it.
+    const shared = p
+    return Effect.tryPromise({ try: () => shared, catch: (cause) => new LazyLoadError({ cause }) })
+  })
+
+const failed = (e: LazyLoadError): PageCode => ({ render: () => Effect.fail(e) })
+
+/** `page`'s code, or one whose render fails with the load's `LazyLoadError`, which reaches the nearest `Boundary`. */
+export const loadPage = (page: Page): Effect.Effect<PageCode> =>
+  Effect.catchAll(codeOf(page), (e) => Effect.succeed(failed(e)))
+
 /** The routed page under its `Pending`: a loader read suspends to `fallback`, its error reaches the nearest `Boundary`. */
-export const view = (page: Page): Effect.Effect<Node, never, never> =>
+export const view = (page: PageCode): Effect.Effect<Node, never, never> =>
   jsx(Pending, { fallback: page.fallback, children: page.render() })
 
 /**
@@ -44,9 +82,11 @@ export interface Router<T extends RouteTable = RouteTable, R = any> {
 }
 
 // `Route` is provided around matched pages only, so it is dropped here and kept in what `notFound` needs.
-type PageNeeds<P> = Exclude<
+type CodeNeeds<P> =
   | (P extends { readonly render: () => Effect.Effect<any, any, infer R> } ? R : never)
-  | (P extends { readonly loaders: ReadonlyArray<Loader<any, any, any, infer R>> } ? R : never),
+  | (P extends { readonly loaders: ReadonlyArray<Loader<any, any, any, infer R>> } ? R : never)
+type PageNeeds<P> = Exclude<
+  CodeNeeds<P> | (P extends { readonly load: () => Promise<infer C> } ? CodeNeeds<C> : never),
   Route
 >
 
@@ -74,7 +114,14 @@ export const router = <const T extends RouteTable, P extends { readonly [K in ke
 }): Router<T, PageNeeds<P[keyof P]> | N> => r as Router<T, PageNeeds<P[keyof P]> | N>
 
 export type Resolved =
-  | { readonly _tag: 'Page'; readonly match: Match; readonly href: string; readonly error?: unknown }
+  | {
+      readonly _tag: 'Page'
+      readonly match: Match
+      readonly href: string
+      /** The page's loaded code; its render fails with the `LazyLoadError` when its load was rejected. */
+      readonly code: PageCode
+      readonly error?: unknown
+    }
   | { readonly _tag: 'NotFound'; readonly href: string }
   | { readonly _tag: 'External'; readonly href: string }
 
@@ -104,8 +151,9 @@ const run = (l: Loader<any, any, any, any>, pathname: string) =>
   })
 
 /**
- * Matches `href` and runs its page's loaders into `Loaders`, following redirects. A loader's error is the page's
- * `error`; fails only with `RedirectLoop` past `MAX_REDIRECTS`. Interrupting it interrupts the loads it started.
+ * Matches `href`, loads its page's code and runs its loaders into `Loaders`, following redirects. A rejected code load
+ * or a loader's error is the page's `error`; fails only with `RedirectLoop` past `MAX_REDIRECTS`. Interrupting it
+ * interrupts the loaders it started; a code load goes on for others sharing it.
  */
 export const resolve = (r: Router, href: string, origin: string): Effect.Effect<Resolved, unknown, Loaders> =>
   Effect.gen(function* () {
@@ -114,13 +162,20 @@ export const resolve = (r: Router, href: string, origin: string): Effect.Effect<
       if (url.origin !== origin) return { _tag: 'External', href } as const
       const m = match(r.table, url.pathname)
       if (Option.isNone(m)) return { _tag: 'NotFound', href } as const
-      const loads = Effect.forEach(r.pages[m.value.name]!.loaders ?? [], (l) => run(l, url.pathname), {
-        concurrency: 'unbounded',
-      })
+      const code = yield* Effect.either(codeOf(r.pages[m.value.name]!))
+      if (code._tag === 'Left')
+        return { _tag: 'Page', match: m.value, href, code: failed(code.left), error: code.left } as const
+      const loads = Effect.forEach(code.right.loaders ?? [], (l) => run(l, url.pathname), { concurrency: 'unbounded' })
       const step = yield* loads.pipe(Effect.provide(routeLayer(m.value)), Effect.either)
       if (step._tag === 'Right') {
-        const failed = step.right.find(Option.isSome)
-        return { _tag: 'Page', match: m.value, href, ...(failed ? { error: failed.value } : {}) } as const
+        const error = step.right.find(Option.isSome)
+        return {
+          _tag: 'Page',
+          match: m.value,
+          href,
+          code: code.right,
+          ...(error ? { error: error.value } : {}),
+        } as const
       }
       const ctl = step.left as Redirect | NotFound
       if (ctl._tag === 'NotFound') return { _tag: 'NotFound', href } as const

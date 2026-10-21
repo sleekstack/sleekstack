@@ -422,4 +422,92 @@ describe('startRouter', () => {
       expect([container().textContent, failures - before]).toEqual(['error', 1])
     })
   })
+
+  describe('a page with load', () => {
+    // A fresh router per test: a page's loaded code is cached on the page.
+    let loads = 0
+    let ran = 0
+    let reject = false
+    let gate = Promise.resolve()
+    const counted = loader(
+      'counted',
+      Schema.String,
+      Effect.sync(() => `ran ${++ran}`),
+    )
+    const lazyApp = () =>
+      router({
+        table: routes({ home: '/', code: '/code', other: '/other' }),
+        pages: {
+          home: { render: () => Effect.succeed(el('p', {}, 'home')) },
+          other: { render: () => Effect.succeed(el('p', {}, 'other')) },
+          code: {
+            load: () => (
+              loads++,
+              gate.then(() => {
+                if (reject) throw new Error('chunk failed')
+                return { render: read(counted), loaders: [counted] }
+              })
+            ),
+          },
+        },
+        notFound: () => Effect.succeed(el('h1', {}, 'not found')),
+      })
+    afterEach(() => void ((loads = 0), (ran = 0), (reject = false), (gate = Promise.resolve())))
+
+    it('handle answers it after awaiting its code; concurrent requests share one load', async () => {
+      const r = lazyApp()
+      const texts = await Promise.all(
+        ['/code', '/code'].map(async (p) => (await handle(r, new Request(`http://x.test${p}`))).text()),
+      )
+      expect([texts, loads]).toEqual([[expect.stringContaining('ran'), expect.stringContaining('ran')], 1])
+    })
+
+    it('a navigation loads its code once, before its loaders run', async () => {
+      await start('/', '', lazyApp())
+      let open!: () => void
+      gate = new Promise((r) => (open = r))
+      let done!: Promise<void>
+      await act(async () => void (done = nav!.navigate('/code')))
+      await flush()
+      expect([loads, ran, location.pathname]).toEqual([1, 0, '/'])
+      open()
+      await act(() => done)
+      await act(() => nav!.navigate('/other'))
+      await act(() => nav!.navigate('/code'))
+      expect([container().textContent, loads, ran]).toEqual(['ran 2', 1, 2])
+    })
+
+    it('an interrupted navigation leaves the load running for the next one to share', async () => {
+      await start('/', '', lazyApp())
+      let open!: () => void
+      gate = new Promise((r) => (open = r))
+      await act(async () => void nav!.navigate('/code'))
+      await act(() => nav!.navigate('/other'))
+      let done!: Promise<void>
+      await act(async () => void (done = nav!.navigate('/code')))
+      open()
+      await act(() => done)
+      expect([location.pathname, container().textContent, loads]).toEqual(['/code', 'ran 1', 1])
+    })
+
+    it('a rejected load fails that navigation with a LazyLoadError and a later navigation retries', async () => {
+      const errors: unknown[] = []
+      history.replaceState(null, '', '/')
+      document.body.innerHTML = '<div></div>'
+      const onError = (c: Cause.Cause<unknown>) => void errors.push(Cause.squash(c))
+      await act(async () => void (nav = await startRouter(lazyApp(), { container: container(), onError })))
+      reject = true
+      await act(() => nav!.navigate('/code'))
+      expect([errors.map((e) => (e as { _tag?: string })._tag), ran]).toEqual([['LazyLoadError'], 0])
+      reject = false
+      await act(() => nav!.navigate('/code'))
+      expect([container().textContent, loads]).toEqual(['ran 1', 2])
+    })
+
+    it('the first page loads its code before hydrating the server markup', async () => {
+      const html = await (await handle(lazyApp(), new Request('http://x.test/code'))).text()
+      await start('/code', html, lazyApp())
+      expect([container().textContent, loads, ran]).toEqual(['ran 1', 2, 1])
+    })
+  })
 })
