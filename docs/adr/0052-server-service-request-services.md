@@ -26,4 +26,4 @@ ADR 0051 left request services out of v1: a contract method has `R = never`, and
 
 - An implementation's requirement on request services is checked at `implement`, but the Tag's own type does not show it, so a caller cannot see that a method reads the cookie. The same is true of the in-place layer it replaces.
 - A Server Service method and a `serverFn` can both use request services; the choice between them stays the one in ADR 0051 (types versus explicit Schemas).
-- Whether `ResponseHeaders` writes other than `Set-Cookie` from an in-process loader call reach the page response is settled while building spec fn-67 and recorded here when known.
+- `ResponseHeaders` writes other than `Set-Cookie` from an in-process loader call do reach the page response. The loader runs on the request fiber's runtime, so its `ResponseHeaders` is the request's own `Headers`, which `start` adds to whatever response answers. `packages/start/src/__tests__/implement.test.ts` pins this alongside the cookie.

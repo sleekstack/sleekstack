@@ -2,6 +2,7 @@ import { NotFound, Redirect, redirect } from '@sleekstack/router'
 import {
   Cookies,
   DecodeError,
+  implement,
   serverFn,
   ServerService,
   type ServerServiceEntry,
@@ -103,6 +104,19 @@ describe('callService', () => {
     expect(failure(bad)).toBeInstanceOf(DecodeError)
     const boom = await callService(profiles, 'rename', { name: 'boom' }, { layer: profilesLayer })
     expect(Exit.isFailure(boom) && Cause.squash(boom.cause)).toEqual(new Error('secret'))
+  })
+
+  it('an implement Layer gets the request services per call', async () => {
+    const live = implement(Profiles, {
+      rename: ({ name }) => Effect.map(Cookies, (cookies) => ({ name: `${name} by ${cookies.get('session')}` })),
+    })
+    const exit = await callService(
+      profiles,
+      'rename',
+      { name: 'grace' },
+      { layer: live, headers: { cookie: 'session=s1' } },
+    )
+    expect(exit).toEqual(Exit.succeed({ name: 'grace by s1' }))
   })
 })
 

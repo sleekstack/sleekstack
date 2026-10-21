@@ -8,6 +8,7 @@ export { DuplicateServerFn, InvalidServerFnId, serverFn } from './serverFn'
 export type { ServerFn } from './serverFn'
 export { InvalidOrigin } from './origin'
 export { DecodeError } from './wire'
+export { implement } from './implement'
 export { ServerService, taggedError } from './service'
 export type {
   ServerServiceEntry,
