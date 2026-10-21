@@ -189,6 +189,10 @@ _Avoid_: Inspector, debug panel
 A server operation for ui apps, declared with `serverFn(id, { input, success, error? })(function* ...)` and listed in `start({ functions })` (ADR 0039). It runs in a Request Scope, served at `POST /_sleek/fn/<id>`: input decoded before the body, output encoded with the success Schema, the declared error typed across the wire. The browser calls it through a `client(contract)` stub built from the same Schemas. Distinct from a Form Action (the ui submit handler, which a stub can be).
 _Avoid_: Action, Server Action, RPC, procedure
 
+**Server Service**:
+A Context Tag whose methods are Effect signatures, declared with `ServerService(id)<Self, Shape>()` in a client-safe file and implemented by a Layer in a `*.server.ts` file (ADR 0051). A page calls `yield* Profiles`: on the server the implementation runs in-process, in the browser a generated client calls `POST /_sleek/fn/<id>.<method>`. The client and registry are generated from the method types. Distinct from a Server Function (explicit Schemas, one operation, `serverFn`).
+_Avoid_: remote service, RPC, contract
+
 **Server Endpoint**:
 A route handler given to `start({ handlers })` at an exact pathname: one Effect per HTTP method, answering the request with a `Response`, with the request services (`Request`, `Cookies`, `ResponseHeaders`) in the Request Scope (ADR 0039). An unsupported method is 405 with `Allow`.
 _Avoid_: API route, controller

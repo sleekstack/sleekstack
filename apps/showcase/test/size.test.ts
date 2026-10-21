@@ -1,6 +1,8 @@
-import { readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { gzipSync } from 'node:zlib'
+import { serverServices } from '@sleekstack/ui-vite'
 import { build } from 'vite'
 import { describe, expect, it } from 'vitest'
 
@@ -17,27 +19,45 @@ const sourceAlias = [
   { find: /^@sleekstack\/start\/(.*)$/, replacement: pkg('start/src/$1.ts') },
 ]
 
-/** ADR 0017's method: production lib build, minified; eager = entry plus its static imports, gzipped. */
-const measure = async (entry: string, source = false) => {
+const root = path.join(__dirname, '..')
+
+/**
+ * ADR 0017's method: production lib build, minified; eager = entry plus its static imports, gzipped. An entry that
+ * reaches the generated Server Service modules needs `serverServices`: `services` adds it, for the browser (`client`)
+ * or as the server build (`ssr`, everything bundled).
+ */
+const measure = async (entry: string, source = false, services?: 'client' | 'ssr') => {
   const out = await build({
     configFile: false,
+    root,
     logLevel: 'silent',
+    plugins: services ? [serverServices()] : [],
+    ...(services === 'ssr' && { ssr: { noExternal: true } }),
     resolve: source ? { alias: sourceAlias } : {},
     // An app build replaces NODE_ENV; lib mode does not, and React would bundle its dev build too.
     define: { 'process.env.NODE_ENV': '"production"' },
-    build: { write: false, minify: true, lib: { entry: path.join(__dirname, '../src', entry), formats: ['es'] } },
+    build: {
+      write: false,
+      minify: true,
+      ssr: services === 'ssr',
+      lib: { entry: path.resolve(__dirname, '../src', entry), formats: ['es'] },
+    },
   })
   const chunks = (Array.isArray(out) ? out : [out])
     .flatMap((o) => ('output' in o ? o.output : []))
     .filter((c) => c.type === 'chunk')
   const main = chunks.find((c) => c.isEntry)!
-  const eager = [main, ...main.imports.map((f) => chunks.find((c) => c.fileName === f)!)].map((c) => c.code).join('\n')
+  // An import with no chunk is external (a server build's Node built-ins).
+  const eager = [main, ...main.imports.flatMap((f) => chunks.find((c) => c.fileName === f) ?? [])]
+    .map((c) => c.code)
+    .join('\n')
   const lazy = chunks
     .filter((c) => c !== main && !main.imports.includes(c.fileName))
     .map((c) => c.code)
     .join('\n')
   return {
     code: chunks.map((c) => c.code).join('\n'),
+    modules: chunks.flatMap((c) => c.moduleIds),
     eager,
     lazy,
     min: Buffer.byteLength(eager),
@@ -90,15 +110,30 @@ describe('size budget (ADR 0022)', () => {
       // Strings only the server side holds: the `Items` Tag key (server/app.ts and its Layer), start's origin check
       // (origin.ts, beside the endpoint in wire.ts) and its function registry and cookie jar.
       const serverOnly = ['showcase/server/Items', 'sec-fetch-site', 'DuplicateServerFn', 'InvalidCookie']
-      const server = (await measure('../server/app.ts', true)).code
-      for (const marker of serverOnly) expect(server).toContain(marker)
+      const server = await measure('../server/app.ts', true, 'ssr')
+      for (const marker of serverOnly) expect(server.code).toContain(marker)
+      expect(server.modules.some((id) => id.endsWith('/server/tally.server.ts'))).toBe(true)
       for (const source of [false, true]) {
-        const { code } = await measure('main.tsx', source)
+        const { code, modules } = await measure('main.tsx', source, 'client')
         expect(code).toContain('items.add') // the page and its stub are in the client
+        expect(code).toContain('"Tally"') // the Server Service's generated client, keyed by its Tag id
         for (const marker of serverOnly) expect(code, `${marker} (source: ${source})`).not.toContain(marker)
+        // No implementation and no server Layer: nothing under server/, no `*.server.ts`.
+        expect(modules.filter((id) => /\.server\.[cm]?[jt]sx?$|\/showcase\/server\//.test(id))).toEqual([])
       }
     },
   )
+
+  it('a client entry importing a *.server.ts fails the build, naming the chain', { timeout: 60_000 }, async () => {
+    const entry = path.join(mkdtempSync(path.join(tmpdir(), 'showcase-')), 'entry.ts')
+    writeFileSync(
+      entry,
+      `import { TallyLive } from ${JSON.stringify(path.join(root, 'server/tally.server.ts'))}\nconsole.log(TallyLive)\n`,
+    )
+    await expect(measure(entry, false, 'client')).rejects.toThrow(
+      /"server\/tally\.server\.ts" is in the browser build: .*entry\.ts -> server\/tally\.server\.ts/,
+    )
+  })
 
   it(
     'a mount-only bundle carries no Draft code; a Draft brings it from @sleekstack/model',

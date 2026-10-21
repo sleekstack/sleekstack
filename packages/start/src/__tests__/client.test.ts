@@ -2,11 +2,11 @@
 import { action, NotFound, notFound, Redirect, redirect, router, routes, startRouter } from '@sleekstack/router'
 import { type ActionEvent, el, mount, type Mounted, useAction, useAtomValue } from '@sleekstack/ui'
 import { jsx as rawJsx } from '@sleekstack/ui/jsx-runtime'
-import { Effect, Either, Layer, Schema } from 'effect'
+import { Data, Effect, Either, Layer, Schema } from 'effect'
 import { act } from 'react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { client, DecodeError, NetworkError } from '../client'
-import { serverFn, start } from '../index'
+import { client, DecodeError, NetworkError, serverClient, serverClients, ServerService, taggedError } from '../client'
+import { serverFn, type ServerServiceEntry, start } from '../index'
 
 const jsx = (type: any, props: any) => rawJsx(type, props)
 const flush = () => act(async () => void (await new Promise((r) => setTimeout(r, 0))))
@@ -168,5 +168,91 @@ describe('the stub where actions go', () => {
     await act(async () => void (await startRouter(app, { container: container() })))
     await submit()
     expect([location.pathname, container().textContent]).toEqual(['/done', 'done'])
+  })
+})
+
+class NameTaken extends Data.TaggedError('NameTaken')<{ readonly name: string }> {}
+class Profiles extends ServerService('Profiles')<
+  Profiles,
+  {
+    readonly rename: (input: { readonly name: string }) => Effect.Effect<{ readonly name: string }, NameTaken>
+    readonly count: () => Effect.Effect<number>
+  }
+>() {}
+const profiles: ServerServiceEntry<Profiles, Profiles['Type']> = {
+  tag: Profiles,
+  methods: {
+    rename: {
+      input: Schema.Struct({ name: Schema.String }),
+      success: Schema.Struct({ name: Schema.String }),
+      error: taggedError(NameTaken, { name: Schema.String }),
+    },
+    count: { input: Schema.Void, success: Schema.Number },
+  },
+}
+const profilesServer = start({
+  router: router({
+    table: routes({ home: '/' }),
+    pages: { home: { render: () => Effect.succeed(el('p', {}, 'home')) } },
+    notFound: () => Effect.succeed(el('p', {}, 'missing')),
+  }),
+  layer: Layer.succeed(Profiles, {
+    rename: ({ name }) => (name === 'taken' ? Effect.fail(new NameTaken({ name })) : Effect.succeed({ name })),
+    count: () => Effect.succeed(3),
+  }),
+  services: [profiles],
+})
+const serveProfiles = vi.fn((url: string, init: RequestInit) =>
+  profilesServer.fetch(new Request(new URL(url, origin), { ...init, headers: { ...init.headers, origin } })),
+)
+const viaClient = <A, E>(effect: Effect.Effect<A, E, Profiles>) =>
+  run(Effect.provide(effect, serverClients([profiles])))
+
+describe('serverClient', () => {
+  afterEach(() => serveProfiles.mockClear())
+
+  it('a method posts its encoded input to /_sleek/fn/<Tag>.<method>', async () => {
+    stubFetch(serveProfiles)
+    expect(await viaClient(Effect.flatMap(Profiles, (p) => p.rename({ name: 'ada' })))).toEqual(
+      Either.right({ name: 'ada' }),
+    )
+    expect(serveProfiles).toHaveBeenCalledWith(
+      '/_sleek/fn/Profiles.rename',
+      expect.objectContaining({ method: 'POST', body: '{"name":"ada"}' }),
+    )
+  })
+
+  it('a zero-argument method posts an empty body', async () => {
+    stubFetch(serveProfiles)
+    expect(await viaClient(Effect.flatMap(Profiles, (p) => p.count()))).toEqual(Either.right(3))
+    expect(serveProfiles).toHaveBeenCalledWith(
+      '/_sleek/fn/Profiles.count',
+      expect.objectContaining({ body: undefined }),
+    )
+  })
+
+  it('a Failure envelope decodes into the declared error class', async () => {
+    stubFetch(serveProfiles)
+    const result = await viaClient(Effect.flatMap(Profiles, (p) => p.rename({ name: 'taken' })))
+    expect(Either.isLeft(result) && result.left).toBeInstanceOf(NameTaken)
+    expect(result).toMatchObject({ left: { _tag: 'NameTaken', name: 'taken' } })
+  })
+
+  it.each([
+    ['a rejected fetch', () => Promise.reject(new TypeError('offline')), NetworkError],
+    [
+      'a success body failing the success Schema',
+      async () => Response.json({ _tag: 'Success', value: 'x' }),
+      DecodeError,
+    ],
+  ])('%s fails with the matching error', async (_, impl, type) => {
+    stubFetch(impl)
+    const result = await run(
+      Effect.provide(
+        Effect.flatMap(Profiles, (p) => p.count()),
+        serverClient(profiles),
+      ),
+    )
+    expect(Either.isLeft(result) && result.left).toBeInstanceOf(type)
   })
 })

@@ -1,5 +1,13 @@
 import { NotFound, Redirect, router, routes } from '@sleekstack/router'
-import { DecodeError, type Handler, type RequestServices, type ServerFn, start } from '@sleekstack/start'
+import {
+  DecodeError,
+  type Handler,
+  type RequestServices,
+  type ServerFn,
+  type ServerServiceEntry,
+  start,
+} from '@sleekstack/start'
+import type { NetworkError } from '@sleekstack/start/client'
 import { type Cause, Effect, Exit, type Layer, Schema } from 'effect'
 
 type AnySchema = Schema.Schema<any, any, never>
@@ -41,22 +49,13 @@ const envelope = (fn: ServerFn, body: any): Effect.Effect<unknown, unknown> => {
   return Effect.dieMessage(`@sleekstack/testing: not a server-function envelope: ${JSON.stringify(body)}`)
 }
 
-/**
- * Calls `fn` through the same checks as `start(...).fetch` (origin, input decode, output encode), with `layer` and
- * no network. Resolves to its result as an `Exit`: the success value, the declared error, the router's `Redirect` /
- * `NotFound`, or a `DecodeError` for input that fails the input Schema. An undeclared failure or defect is the cause
- * `start` gave its error sink.
- */
-export const callServerFn = async <In extends AnySchema, Out extends AnySchema, Err extends AnySchema | undefined, R>(
-  fn: ServerFn<string, In, Out, Err, R>,
-  input: Schema.Schema.Type<In>,
-  options: CallOptions<R>,
-): Promise<
-  Exit.Exit<
-    Schema.Schema.Type<Out>,
-    (Err extends AnySchema ? Schema.Schema.Type<Err> : never) | Redirect | NotFound | DecodeError
-  >
-> => {
+// Posts `input` to `fn.id` on an app serving `served`, and reads the answer back as `fn`'s result.
+const post = async (
+  fn: ServerFn,
+  input: unknown,
+  options: CallOptions<any>,
+  served: object,
+): Promise<Exit.Exit<any, any>> => {
   // Input the Schema rejects is sent as given, so the server's own decode reports it.
   const encoded = Schema.encodeEither(fn.input)(input)
   const body = encoded._tag === 'Right' ? encoded.right : input
@@ -65,7 +64,7 @@ export const callServerFn = async <In extends AnySchema, Out extends AnySchema, 
   headers.set('content-type', 'application/json')
   let defect: Cause.Cause<unknown> | undefined
   const response = await serve(
-    { layer: options.layer, functions: [fn], onError: (cause: Cause.Cause<unknown>) => void (defect = cause) },
+    { layer: options.layer, ...served, onError: (cause: Cause.Cause<unknown>) => void (defect = cause) },
     new Request(`${origin}/_sleek/fn/${fn.id}`, {
       method: 'POST',
       headers,
@@ -73,14 +72,57 @@ export const callServerFn = async <In extends AnySchema, Out extends AnySchema, 
       body: body === undefined ? undefined : JSON.stringify(body),
     }),
   )
-  if (defect) return Exit.failCause(defect as Cause.Cause<never>)
+  if (defect) return Exit.failCause(defect)
   const text = await response.text()
-  const result = Effect.suspend(() => envelope(fn as ServerFn, JSON.parse(text)))
-  return (await Effect.runPromiseExit(
+  const result = Effect.suspend(() => envelope(fn, JSON.parse(text)))
+  return Effect.runPromiseExit(
     Effect.catchAllDefect(result, () =>
       Effect.dieMessage(`@sleekstack/testing: ${fn.id} answered ${response.status} ${text}`),
     ),
-  )) as never
+  )
+}
+
+/**
+ * Calls `fn` through the same checks as `start(...).fetch` (origin, input decode, output encode), with `layer` and
+ * no network. Resolves to its result as an `Exit`: the success value, the declared error, the router's `Redirect` /
+ * `NotFound`, or a `DecodeError` for input that fails the input Schema. An undeclared failure or defect is the cause
+ * `start` gave its error sink.
+ */
+export const callServerFn = <In extends AnySchema, Out extends AnySchema, Err extends AnySchema | undefined, R>(
+  fn: ServerFn<string, In, Out, Err, R>,
+  input: Schema.Schema.Type<In>,
+  options: CallOptions<R>,
+): Promise<
+  Exit.Exit<
+    Schema.Schema.Type<Out>,
+    (Err extends AnySchema ? Schema.Schema.Type<Err> : never) | Redirect | NotFound | DecodeError
+  >
+> => post(fn as ServerFn, input, options, { functions: [fn] })
+
+type Method<Service, K extends keyof Service> = Service[K] extends (
+  ...input: any
+) => Effect.Effect<infer Out, infer Err>
+  ? Effect.Effect<Out, Err>
+  : never
+
+/**
+ * Calls one method of a Server Service through the same wire as `callServerFn`: `entry` is its registry entry, and
+ * `layer` provides the Tag (the implementation, or a test Layer). Resolves to an `Exit` like `callServerFn`.
+ */
+export const callService = <Id, Service, K extends keyof Service & string>(
+  entry: ServerServiceEntry<Id, Service>,
+  method: K,
+  input: Service[K] extends (...input: infer In) => any ? In[0] : never,
+  options: CallOptions<Id>,
+): Promise<
+  Exit.Exit<
+    Effect.Effect.Success<Method<Service, K>>,
+    Exclude<Effect.Effect.Error<Method<Service, K>>, NetworkError> | Redirect | NotFound | DecodeError
+  >
+> => {
+  // `post` reads only the id and Schemas.
+  const fn = { ...entry.methods[method], id: `${entry.tag.key}.${method}` } as unknown as ServerFn
+  return post(fn, input, options, { services: [entry] })
 }
 
 /**

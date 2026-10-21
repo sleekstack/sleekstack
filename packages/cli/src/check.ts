@@ -8,7 +8,8 @@
  * never fail the check). `runEffect({ request, overrides })` layers are further roots (`kind`); `--lenient` turns an
  * unresolvable one into an opaque root instead of a failure.
  * A project whose package.json lists `@sleekstack/ui` also runs the component pass (`components` under `--json`);
- * its `mount` trees count as roots. Each text error line `file:line CODE: message` is followed by indented
+ * its `mount` trees count as roots. The Server Service pass always runs (`serverServiceErrors` under `--json`, only
+ * when there are any). Each text error line `file:line CODE: message` is followed by indented
  * `fix:` and `docs:` lines. `sleekstack explain <CODE>` prints a code's rule, remedies and docs path.
  *
  * Exit codes (the only place they are defined):
@@ -23,6 +24,7 @@ import { initAgents } from './initAgents'
 import {
   analyze,
   analyzeComponents,
+  analyzeServerServices,
   ERROR_CODES,
   type AnalyzeCode,
   type AnalyzeError,
@@ -115,7 +117,12 @@ export function main(argv: readonly string[], io: Io = stdio): number {
       errors: r.errors,
       graph: r.graph,
     }))
-    const ok = report.extraction.length === 0 && roots.every((r) => r.errors.length === 0) && !ui?.errors.length
+    const server = analyzeServerServices({ project }).errors
+    const ok =
+      report.extraction.length === 0 &&
+      roots.every((r) => r.errors.length === 0) &&
+      !ui?.errors.length &&
+      server.length === 0
     const line = (e: AnalyzeError) =>
       `  ${e.file}:${e.line} ${e.code}: ${e.message}${e.fix.map((f) => `\n    fix: ${f}`).join('')}\n    docs: ${e.docs}`
     if (json)
@@ -128,6 +135,7 @@ export function main(argv: readonly string[], io: Io = stdio): number {
             graphs: report.graphs,
             graphErrors: report.errors,
             ...(ui && { components: ui }),
+            ...(server.length > 0 && { serverServiceErrors: server }),
           },
           null,
           2,
@@ -140,6 +148,7 @@ export function main(argv: readonly string[], io: Io = stdio): number {
           `${r.errors.length ? 'FAIL' : 'ok  '} [${r.kind}] ${r.root} (${r.nodes} nodes)${r.errors.map((e) => '\n' + line(e)).join('')}`,
         )
       ui?.errors.forEach((e) => io.err(line(e)))
+      server.forEach((e) => io.err(line(e)))
     }
     return ok ? 0 : 1
   } catch (e) {

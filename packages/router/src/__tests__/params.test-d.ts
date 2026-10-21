@@ -18,3 +18,15 @@ export const none: Params<'/'>['id'] = ''
 
 // @ts-expect-error a colon inside a segment is not a param
 export const embedded: Params<'/item:format'>['format'] = ''
+
+export const splat: { readonly path: string } = {} as Params<'/files/*path'>
+export const optional: { readonly id?: string } = {} as Params<'/u/:id?'>
+export const both: { readonly org: string; readonly rest: string } = {} as Params<'/o/:org/*rest'>
+
+// @ts-expect-error an optional param may be missing
+export const required: { readonly id: string } = {} as Params<'/u/:id?'>
+
+// @ts-expect-error a splat is not a ':' param named '*path'
+export const star: Params<'/files/*path'>['*path'] = ''
+
+export const loose: Record<string, string> = {} as Params<string>

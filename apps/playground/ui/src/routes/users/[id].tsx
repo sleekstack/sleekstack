@@ -1,6 +1,8 @@
 import { Head } from '@sleekstack/ui'
 import { Route } from '@sleekstack/router'
 
+export const prerender = async () => [{ id: '42' }]
+
 export default function* User() {
   const route = yield* Route
   return (

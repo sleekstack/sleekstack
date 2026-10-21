@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted. Supersedes the plan in specs fn-28 (`ui-router` over TanStack router-core) and fn-32 (its loaders), which were never built. Amended by ADR 0045: the Vite plugin writes a types-only declaration for file-based routes.
+Accepted. Supersedes the plan in specs fn-28 (`ui-router` over TanStack router-core) and fn-32 (its loaders), which were never built. Amended by ADR 0045: the Vite plugin writes a types-only declaration for file-based routes. Amended by ADR 0050: `:name?` and `*name` last segments, and `Page` gains `load`.
 
 ## Context
 

@@ -12,7 +12,9 @@ The database is `./data/conduit.db` by default; set `CONDUIT_DB` to use another 
 
 ## Pages
 
-`src/pages/routes.ts` is the route table. `/` is the Global Feed, `/feed` Your Feed and `/tag/:tag` the tag tab: loaders see only the pathname, so tabs are routes and the page number is a client atom. The other pages are `/login`, `/register`, `/settings`, `/editor` and `/editor/:slug` (signed in only; another user's edit page sends them to the article), `/article/:slug`, `/profile/:username` and `/profile/:username/favorites`.
+The pages are file routes under `src/routes` (`@sleekstack/ui-vite`'s routes plugin, in `vite.config.ts`), and `src/app.tsx` passes `virtual:sleekstack/routes` to `router()`. `/` is the Global Feed, `/feed` Your Feed and `/tag/:tag` the tag tab: loaders see only the pathname, so tabs are routes and the page number is a client atom. The other pages are `/login`, `/register`, `/settings`, `/editor` and `/editor/:slug` (signed in only; another user's edit page sends them to the article), `/article/:slug`, `/profile/:username` and `/profile/:username/favorites`.
+
+The root `_layout.tsx` renders the header and footer and declares the `viewer` loader for every page. The `(guarded)` group's layout adds `signedIn`, which sends a signed-out visitor to `/login`. `_notFound.tsx` is the page for an unknown path. Files whose names start with `_` are not routes: they hold what several routes share. `src/pages` holds the shared loaders, the server-functions Tag and the form parts. `src/routes/routes.gen.d.ts` is generated and committed, because `tsc` and `sleekstack check` run without Vite. `vite` and `vite build` rewrite it when a route file is added or removed.
 
 An article body is markdown, rendered by `src/modules/articles/presentation/markdown.ts`: headings, paragraphs, fenced code, flat lists, inline code, strong, emphasis and links. It builds ui nodes, and ui has no raw-HTML node, so HTML in a body shows as text. A link that is not relative, `http:`, `https:` or `mailto:` keeps its label as text and loses the link.
 

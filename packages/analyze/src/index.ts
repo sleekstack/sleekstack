@@ -25,3 +25,8 @@ export const analyze = (opts: {
 
 /** The `@sleekstack/ui` component pass: one tree per `mount` call and its MissingDependency / UnhandledError / EffectInsideReact / Unresolved errors. */
 export { analyzeComponents } from './components'
+
+/** The Server Service pass (ADR 0051): each `ServerService` contract with its raw method types, and its shape errors. */
+export { analyzeServerServices } from './serverServices'
+export type { ServerServiceDecl, ServerServiceMethod, ServerServiceReport } from './serverServices'
+export type { MethodSchema, PropertySchema, TaggedErrorSchema, TypeSchema } from './typeSchema'

@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-20T19:24:00.668636Z",
+  "depends_on": [
+    "fn-65-file-routes-page-config-layouts-routing.7"
+  ],
+  "id": "fn-65-file-routes-page-config-layouts-routing.8",
+  "priority": null,
+  "spec": "fn-65-file-routes-page-config-layouts-routing",
+  "spec_path": ".flow/tasks/fn-65-file-routes-page-config-layouts-routing.8.md",
+  "status": "done",
+  "title": "playground, docs and ADR 0050 on the new conventions",
+  "updated_at": "2026-10-20T19:24:00.668636Z"
+}

@@ -7,6 +7,7 @@
  * branch of a conditional, `&&` or `.map` counts as rendered. Anything that cannot be read is `Unresolved`.
  */
 
+import * as fs from 'node:fs'
 import * as path from 'node:path'
 import ts from 'typescript'
 import { bodyReturns, libId, programOf, TEST_FILE, unwrap, Unreadable } from './extract'
@@ -33,6 +34,9 @@ const ROUTER_CONTROL: Record<string, string> = {
   Redirect: 'router/resolve#Redirect',
   NotFound: 'router/resolve#NotFound',
 }
+/** `@sleekstack/ui-vite`'s file-route module, typed by the `routes.gen.d.ts` it writes in `routesDir` (ADR 0045). */
+const ROUTES_MODULE = 'virtual:sleekstack/routes'
+const ROUTE_FILE = /\.[jt]sx?$/
 
 export function analyzeComponents(opts: { readonly project: string }): ComponentReport {
   const { root, program, checker } = programOf(opts.project)
@@ -225,8 +229,36 @@ export function analyzeComponents(opts: { readonly project: string }): Component
       return [{ kind: 'unresolved', message: err.message, ...loc(err.node) }]
     }
   }
+  /**
+   * While a file-route layout renders: what its `children` prop stands for (the page, or the next layout in), by the
+   * symbols naming it (a destructured `children`, or the props parameter of `props.children`), and whether it rendered.
+   */
+  let slot:
+    | {
+        readonly names: ReadonlySet<ts.Symbol>
+        readonly props: ReadonlySet<ts.Symbol>
+        readonly nodes: UiNode[]
+        used: boolean
+      }
+    | undefined
+  /** The slot's nodes when `e` is the rendering layout's `children`, else undefined. */
+  const slotted = (e: ts.Expression): UiNode[] | undefined => {
+    if (!slot) return undefined
+    const sym = (x: ts.Expression) => checker.getSymbolAtLocation(x)
+    const hit = ts.isIdentifier(e)
+      ? slot.names.has(sym(e)!)
+      : ts.isPropertyAccessExpression(e) &&
+        e.name.text === 'children' &&
+        ts.isIdentifier(e.expression) &&
+        slot.props.has(sym(e.expression)!)
+    if (!hit) return undefined
+    slot.used = true
+    return slot.nodes
+  }
   const read = (expr: ts.Expression): UiNode[] => {
     const e = unwrap(expr)
+    const inSlot = slotted(e)
+    if (inSlot) return inSlot
     if (ts.isConditionalExpression(e)) return [...build(e.whenTrue), ...build(e.whenFalse)]
     if (
       ts.isBinaryExpression(e) &&
@@ -312,6 +344,8 @@ export function analyzeComponents(opts: { readonly project: string }): Component
   /** What a `{expr}` between JSX tags renders: Effect components through branches and `.map`; plain values render nothing to analyze. */
   const embedded = (x: ts.Expression): UiNode[] => {
     const e = unwrap(x)
+    const inSlot = slotted(e)
+    if (inSlot) return inSlot
     if (ts.isConditionalExpression(e)) return [...embedded(e.whenTrue), ...embedded(e.whenFalse)]
     if (
       ts.isBinaryExpression(e) &&
@@ -367,33 +401,44 @@ export function analyzeComponents(opts: { readonly project: string }): Component
       ]
     }
     if (ts.isJsxNamespacedName(tag)) return fail(tag, `"${text(tag)}" is not a component`)
-    // A library component (the router's `Link`, say) holds no app code: its type gives its E / R.
-    const library = !!id || external(declOf(tag))
-    const target = library ? undefined : calleeTarget(tag)
-    const sig = checker.getTypeAtLocation(tag).getCallSignatures()[0]
-    if (!sig) return fail(tag, `"${text(tag)}" is not a component`)
-    const type = checker.getReturnTypeOfSignature(sig)
-    if (!target) return component(e, text(tag), () => kids, type)
-    if (ts.isCallExpression(target) && calleeOf(target) === 'ui/lazy#lazy') {
-      // The loaded component's tree gives its E / R; the type adds `LazyLoadError`, and its `any` members are that tree's.
-      const loaded = lazyTarget(tag, target)
-      return component(e, text(tag), () => [...rendered(loaded), ...kids], type).slice(0, 1)
-    }
-    if (ts.isCallExpression(target)) {
-      if (calleeOf(target) !== 'ui/component#fromReact' || !target.arguments[0])
-        return fail(tag, `"${text(tag)}" is a dynamic component; its declaration cannot be read`)
-      const given = open.attributes.properties.flatMap((p) => {
+    return element(e, tag, text(tag), kids, () =>
+      open.attributes.properties.flatMap((p) => {
         const v = ts.isJsxSpreadAttribute(p)
           ? p.expression
           : p.initializer && (ts.isJsxExpression(p.initializer) ? p.initializer.expression : p.initializer)
         return v ? [[p, checker.getTypeAtLocation(v)] as const] : []
-      })
-      return [guest(e, text(tag), target.arguments[0], given)]
+      }),
+    )
+  }
+  /** Component `tag` rendered at `e` with children `kids` and props `given`: a library, lazy, guest or app component. */
+  const element = (
+    e: ts.Node,
+    tag: ts.Expression,
+    name: string,
+    kids: UiNode[],
+    given: () => ReadonlyArray<readonly [ts.Node, ts.Type]>,
+  ): UiNode[] => {
+    // A library component (the router's `Link`, say) holds no app code: its type gives its E / R.
+    const library = !!libId(checker.getSymbolAtLocation(tag), checker) || external(declOf(tag))
+    const target = library ? undefined : calleeTarget(tag)
+    const sig = checker.getTypeAtLocation(tag).getCallSignatures()[0]
+    if (!sig) return fail(tag, `"${text(tag)}" is not a component`)
+    const type = checker.getReturnTypeOfSignature(sig)
+    if (!target) return component(e, name, () => kids, type)
+    if (ts.isCallExpression(target) && calleeOf(target) === 'ui/lazy#lazy') {
+      // The loaded component's tree gives its E / R; the type adds `LazyLoadError`, and its `any` members are that tree's.
+      const loaded = lazyTarget(tag, target)
+      return component(e, name, () => [...rendered(loaded), ...kids], type).slice(0, 1)
     }
-    if (stack.has(target)) return component(e, text(tag), () => kids, type)
+    if (ts.isCallExpression(target)) {
+      if (calleeOf(target) !== 'ui/component#fromReact' || !target.arguments[0])
+        return fail(tag, `"${text(tag)}" is a dynamic component; its declaration cannot be read`)
+      return [guest(e, name, target.arguments[0], given())]
+    }
+    if (stack.has(target)) return component(e, name, () => kids, type)
     stack.add(target)
     try {
-      return component(e, text(tag), () => [...rendered(target), ...kids], type)
+      return component(e, name, () => [...rendered(target), ...kids], type)
     } finally {
       stack.delete(target)
     }
@@ -751,13 +796,16 @@ export function analyzeComponents(opts: { readonly project: string }): Component
             ? calleeTarget(value.initializer)
             : fail(p, `"${text(p)}" is not a readable render function`)
     if (ts.isCallExpression(fn)) return fail(fn, `"${text(fn)}" is a computed render function; its tree cannot be read`)
-    const sig = checker.getSignatureFromDeclaration(fn)
-    if (!sig) return fail(p, `"${text(p)}" has no readable signature`)
-    return component(p, name, () => rendered(fn), checker.getReturnTypeOfSignature(sig))
+    return renderOf(p, fn, name)
   }
-  /** A page's `loaders`: one node carrying the `R` of every loader's `load`. */
-  const loadersNode = (p: ts.ObjectLiteralElementLike, name: string): UiNode => {
-    const t = propType(p)
+  /** A component node at `at` for render function `fn`, over what it renders. */
+  const renderOf = (at: ts.Node, fn: ts.FunctionLikeDeclaration, name: string): UiNode[] => {
+    const sig = checker.getSignatureFromDeclaration(fn)
+    if (!sig) return fail(at, `"${text(at)}" has no readable signature`)
+    return component(at, name, () => rendered(fn), checker.getReturnTypeOfSignature(sig))
+  }
+  /** A page's `loaders` (typed `t`, written at `p`): one node carrying the `R` of every loader's `load`. */
+  const loadersNode = (p: ts.Node, t: ts.Type, name: string): UiNode => {
     const items =
       checker.isArrayType(t) || checker.isTupleType(t) ? checker.getTypeArguments(t as ts.TypeReference) : []
     const requires = items.flatMap(members).flatMap((m) => {
@@ -766,6 +814,222 @@ export function analyzeComponents(opts: { readonly project: string }): Component
       return args ? tagNames(p, args[2], 'requires') : fail(p, `Loaders "${text(p)}" have no readable load Effect`)
     })
     return { kind: 'component', name: `${name} loaders`, guest: false, requires, errors: [], children: [], ...loc(p) }
+  }
+  /** The symbol router property `p` names when it is an import from `virtual:sleekstack/routes`. */
+  const routesImport = (p: ts.ObjectLiteralElementLike | undefined): ts.Symbol | undefined => {
+    const init = p && ts.isPropertyAssignment(p) ? unwrap(p.initializer) : undefined
+    const sym =
+      p && ts.isShorthandPropertyAssignment(p)
+        ? checker.getShorthandAssignmentValueSymbol(p)
+        : init && ts.isIdentifier(init)
+          ? checker.getSymbolAtLocation(init)
+          : undefined
+    const d = sym?.declarations?.[0]
+    return d &&
+      ts.isImportSpecifier(d) &&
+      (d.parent.parent.parent.moduleSpecifier as ts.StringLiteral).text === ROUTES_MODULE
+      ? sym
+      : undefined
+  }
+  /** The `routes.gen.d.ts` declaration of a `virtual:sleekstack/routes` import; without one nothing is guessed. */
+  const declared = (p: ts.Node, sym: ts.Symbol): ts.VariableDeclaration => {
+    const d = aliased(sym)
+    return d && ts.isVariableDeclaration(d) && d.getSourceFile().isDeclarationFile
+      ? d
+      : fail(
+          p,
+          `"${text(p)}" is imported from ${ROUTES_MODULE}, which has no routes.gen.d.ts declaration; run vite to write it`,
+        )
+  }
+  /**
+   * The files under `dir` that ui-vite reads for pages (ADR 0050): route files (not `.d.ts`, no `_`-prefixed segment),
+   * and each route file's chain of `_layout` files outside `_` directories, outer first.
+   */
+  const routeFiles = (dir: string) => {
+    const base = dir.split(path.sep).join('/')
+    const all = fs
+      .readdirSync(dir, { recursive: true, encoding: 'utf8' })
+      .map((f) => f.split(path.sep).join('/'))
+      .filter((f) => ROUTE_FILE.test(f) && !f.endsWith('.d.ts'))
+    const underscored = (f: string) => f.split('/').some((s) => s.startsWith('_'))
+    const layouts = new Map(
+      all
+        .filter(
+          (f) => path.posix.basename(f).replace(ROUTE_FILE, '') === '_layout' && !underscored(path.posix.dirname(f)),
+        )
+        .map((f) => [path.posix.dirname(f), `${base}/${f}`]),
+    )
+    const chain = (f: string) => {
+      const dirs = f.split('/').slice(0, -1)
+      return ['.', ...dirs.map((_, i) => dirs.slice(0, i + 1).join('/'))].flatMap((d) => layouts.get(d) ?? [])
+    }
+    return new Map(all.filter((f) => !underscored(f)).map((f) => [`${base}/${f}`, chain(f)]))
+  }
+  /** The `typeof import('./x')` of a `Page<typeof import('./x')>` type in `routes.gen.d.ts`. */
+  const pageImport = (t: ts.TypeNode | undefined) => {
+    const arg = t && ts.isTypeReferenceNode(t) ? t.typeArguments?.[0] : undefined
+    return arg && ts.isImportTypeNode(arg) ? arg : undefined
+  }
+  /** The layout imports of a `Page<typeof import('./x'), [typeof import('./_layout'), ...]>`, outer first. */
+  const layoutImports = (t: ts.TypeNode | undefined): ts.TypeNode[] => {
+    const arg = t && ts.isTypeReferenceNode(t) ? t.typeArguments?.[1] : undefined
+    return arg && ts.isTupleTypeNode(arg) ? [...arg.elements] : []
+  }
+  /** The route module an import type names; undefined when its file is gone. */
+  const routeModule = (arg: ts.ImportTypeNode) => {
+    const module = checker.getTypeFromTypeNode(arg).getSymbol()
+    return module?.valueDeclaration && ts.isSourceFile(module.valueDeclaration) ? module : undefined
+  }
+  /**
+   * The route modules `routes.gen.d.ts` types `pages` from (`Page<typeof import('./x')>`, plus its layout modules in
+   * `Page<..., [typeof import('./_layout')]>`), checked against the files beside it: a declaration that names a missing
+   * file or misses a route or layout file fails, naming both.
+   */
+  const filePages = (p: ts.Node, sym: ts.Symbol) => {
+    const d = declared(p, sym)
+    const file = path.basename(d.getSourceFile().fileName)
+    const members =
+      d.type && ts.isTypeLiteralNode(d.type) ? d.type.members : fail(d, `${file} types pages as no object of routes`)
+    const missing: string[] = []
+    const pages = members.flatMap((m) => {
+      const type = ts.isPropertySignature(m) ? m.type : undefined
+      const arg = pageImport(type)
+      if (!arg || !m.name) return fail(m, `${file} types page "${text(m)}" as no Page<typeof import('./route-file')>`)
+      const layouts = layoutImports(type).map((l) =>
+        ts.isImportTypeNode(l) ? l : fail(l, `${file} types a layout of "${text(m)}" as no typeof import('./_layout')`),
+      )
+      const modules = [arg, ...layouts].map((x) => [x, routeModule(x)] as const)
+      const gone = modules.filter(([, mod]) => !mod).map(([x]) => x.argument.getText())
+      if (gone.length) {
+        missing.push(...gone)
+        return []
+      }
+      const [module, ...layoutModules] = modules.map(([, mod]) => mod!)
+      const fileOf = (x: ts.Symbol) => x.valueDeclaration!.getSourceFile().fileName
+      return [
+        {
+          name: `page ${m.name.getText()}`,
+          module: module!,
+          layouts: layoutModules.map((l, i) => ({
+            name: `layout ${layouts[i]!.argument.getText()}`,
+            module: l,
+            file: fileOf(l),
+          })),
+          file: fileOf(module!),
+          at: m,
+        },
+      ]
+    })
+    const files = routeFiles(path.dirname(d.getSourceFile().fileName))
+    const rel = (f: string) => path.relative(root, f)
+    const listed = new Set(pages.map((x) => x.file))
+    const unlisted = [...files.keys()].filter((f) => !listed.has(f))
+    // Each page's layouts, in order, must be its directory chain's: a stale chain would check the wrong layouts.
+    const chains = pages.flatMap(({ file: f, layouts }) => {
+      const want = files.get(f) ?? []
+      const have = layouts.map((l) => l.file)
+      return want.join() === have.join()
+        ? []
+        : [`${rel(f)} has layouts [${have.map(rel).join(', ')}] where the files give [${want.map(rel).join(', ')}]`]
+    })
+    if (missing.length || unlisted.length || chains.length)
+      fail(
+        d,
+        `${file} disagrees with the route files${missing.length ? `; it names missing ${missing.join(', ')}` : ''}${
+          unlisted.length ? `; it misses ${unlisted.map(rel).join(', ')}` : ''
+        }${chains.length ? `; ${chains.join('; ')}` : ''}; run vite to rewrite it`,
+      )
+    return pages
+  }
+  /** A route or layout module's `loaders` export as one node, when it has one. */
+  const fileLoaders = (name: string, module: ts.Symbol): UiNode[] => {
+    const loaders = aliased(checker.getExportsOfModule(module).find((x) => x.escapedName === 'loaders'))
+    return loaders ? guarded(() => [loadersNode(loaders, checker.getTypeAtLocation(loaders), name)]) : []
+  }
+  /**
+   * A file page's nodes as the generated module runs it: the loaders of its layouts (outer first) and its own, beside
+   * its render, which is the page's default export inside each layout's `children`, so a layout's `Provider` or
+   * `Boundary` covers the page as at runtime.
+   */
+  const filePage = (
+    page: { readonly name: string; readonly module: ts.Symbol },
+    layouts: ReadonlyArray<{ readonly name: string; readonly module: ts.Symbol }>,
+    at: ts.Node,
+  ): UiNode[] => [
+    ...[...layouts, page].flatMap((x) => fileLoaders(x.name, x.module)),
+    ...layouts.reduceRight(
+      (inner, l) => guarded(() => layoutElement(l.module, at, l.name, inner)),
+      guarded(() => defaultElement(page.module, at, page.name)),
+    ),
+  ]
+  /** Layout module `mod`'s default export rendered with `inner` at its `children`; beside it when it never renders them. */
+  const layoutElement = (mod: ts.Symbol, at: ts.Node, name: string, inner: UiNode[]): UiNode[] => {
+    const d = checker.getExportsOfModule(mod).find((x) => x.escapedName === 'default')?.declarations?.[0]
+    const tag =
+      d && ts.isExportAssignment(d)
+        ? d.expression
+        : d && ts.isExportSpecifier(d)
+          ? (d.propertyName ?? d.name)
+          : undefined
+    const fn = d && ts.isFunctionDeclaration(d) ? d : tag && ts.isExpression(tag) ? guardedTarget(tag) : undefined
+    const param = fn && !ts.isCallExpression(fn) ? fn.parameters[0]?.name : undefined
+    const names = new Set<ts.Symbol>()
+    const props = new Set<ts.Symbol>()
+    if (param && ts.isObjectBindingPattern(param))
+      for (const el of param.elements) {
+        const sym = ts.isIdentifier(el.name) ? checker.getSymbolAtLocation(el.name) : undefined
+        if (sym && (el.propertyName ?? el.name).getText() === 'children') names.add(sym)
+      }
+    const propsSym = param && ts.isIdentifier(param) ? checker.getSymbolAtLocation(param) : undefined
+    if (propsSym) props.add(propsSym)
+    const outer = slot
+    const mine = { names, props, nodes: inner, used: false }
+    slot = mine
+    try {
+      const nodes = defaultElement(mod, at, name)
+      return mine.used ? nodes : [...nodes, ...inner]
+    } finally {
+      slot = outer
+    }
+  }
+  /** `calleeTarget`, or undefined where it cannot read the callee (the element read reports that itself). */
+  const guardedTarget = (tag: ts.Expression) => {
+    try {
+      return calleeTarget(tag)
+    } catch (err) {
+      if (!(err instanceof Unreadable)) throw err
+      return undefined
+    }
+  }
+  /** What the generated `render: () => jsx(Default, {})` renders: module `mod`'s default export as an element. */
+  const defaultElement = (mod: ts.Symbol, at: ts.Node, name: string): UiNode[] => {
+    const d = checker.getExportsOfModule(mod).find((x) => x.escapedName === 'default')?.declarations?.[0]
+    if (d && ts.isFunctionDeclaration(d) && d.body)
+      return d.name ? element(d.name, d.name, name, [], () => []) : renderOf(d, d, name)
+    const tag =
+      d && ts.isExportAssignment(d)
+        ? d.expression
+        : d && ts.isExportSpecifier(d)
+          ? (d.propertyName ?? d.name)
+          : undefined
+    return tag && ts.isExpression(tag)
+      ? element(tag, tag, name, [], () => [])
+      : fail(at, `The route module of "${text(at)}" has no readable default export component`)
+  }
+  /** `notFound` imported from `virtual:sleekstack/routes`: the `_notFound` module its declaration names. */
+  const fileNotFound = (p: ts.ObjectLiteralElementLike, sym: ts.Symbol): UiNode[] => {
+    const d = declared(p, sym)
+    const file = path.basename(d.getSourceFile().fileName)
+    const arg =
+      pageImport(d.type && ts.isIndexedAccessTypeNode(d.type) ? d.type.objectType : undefined) ??
+      fail(d, `${file} types notFound as no Page<typeof import('./_notFound')>["render"]; run vite to rewrite it`)
+    const module =
+      routeModule(arg) ??
+      fail(
+        d,
+        `${file} disagrees with the route files; it names missing ${arg.argument.getText()}; run vite to rewrite it`,
+      )
+    return defaultElement(module, d, 'notFound')
   }
   /**
    * A `startRouter(router, { layer })` / `handle(router, request, { layer })` root: one child per page (its render and
@@ -779,22 +1043,35 @@ export function analyzeComponents(opts: { readonly project: string }): Component
       // `Route` is provided around matched pages only, never around `notFound`.
       const provides = [...(layer ? layerTags(opts!, layer).provides : []), 'Loaders', 'Transfer']
       const def = routerOf(n.arguments[0] ?? fail(n, `"${text(n)}" has no router`))
-      const pages = objectOf(prop(def, 'pages')) ?? fail(def, 'Router pages are not a readable object literal')
+      const pp = prop(def, 'pages')
+      const fromFiles = routesImport(pp)
       const nf = prop(def, 'notFound') ?? fail(def, 'Router has no notFound page')
+      const nfFromFiles = routesImport(nf)
+      const route = (at: ts.Node, nodes: UiNode[]): UiNode => ({
+        kind: 'provide',
+        provides: ['Route'],
+        requires: [],
+        children: nodes,
+        ...loc(at),
+      })
+      const pages = fromFiles
+        ? filePages(pp!, fromFiles).map(({ name, module, layouts, at }) =>
+            route(at, filePage({ name, module }, layouts, at)),
+          )
+        : (objectOf(pp) ?? fail(def, 'Router pages are not a readable object literal')).properties.flatMap((p) => {
+            const name = `page ${p.name?.getText() ?? text(p)}`
+            const page = objectOf(p)
+            if (!page) return guarded(() => fail(p, `Page "${text(p)}" is not a readable object literal`))
+            const render = prop(page, 'render')
+            const loaders = prop(page, 'loaders')
+            return route(p, [
+              ...guarded(() => (render ? renderNode(render, name) : fail(p, `"${text(p)}" has no render`))),
+              ...(loaders ? guarded(() => [loadersNode(loaders, propType(loaders), name)]) : []),
+            ])
+          })
       const children: UiNode[] = [
-        ...pages.properties.flatMap((p) => {
-          const name = `page ${p.name?.getText() ?? text(p)}`
-          const page = objectOf(p)
-          if (!page) return guarded(() => fail(p, `Page "${text(p)}" is not a readable object literal`))
-          const render = prop(page, 'render')
-          const loaders = prop(page, 'loaders')
-          const nodes = [
-            ...guarded(() => (render ? renderNode(render, name) : fail(p, `"${text(p)}" has no render`))),
-            ...(loaders ? guarded(() => [loadersNode(loaders, name)]) : []),
-          ]
-          return [{ kind: 'provide', provides: ['Route'], requires: [], children: nodes, ...loc(p) } satisfies UiNode]
-        }),
-        ...guarded(() => renderNode(nf, 'notFound')),
+        ...pages,
+        ...guarded(() => (nfFromFiles ? fileNotFound(nf, nfFromFiles) : renderNode(nf, 'notFound'))),
       ]
       const root: UiNode = Object.keys(ROUTER_CONTROL).reduce<UiNode>(
         (inner, tag) => ({ kind: 'catch', tag: ROUTER_ERROR + tag, children: [inner], ...loc(n) }),

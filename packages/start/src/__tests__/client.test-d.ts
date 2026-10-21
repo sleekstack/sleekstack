@@ -1,8 +1,8 @@
 import { action, type NotFound, type Redirect } from '@sleekstack/router'
 import { type FormAction, useAction } from '@sleekstack/ui'
-import { Context, type Effect, Schema } from 'effect'
-import { client, type DecodeError, type NetworkError } from '../client'
-import { serverFn } from '../index'
+import { Context, type Effect, type Layer, Schema } from 'effect'
+import { client, type DecodeError, type NetworkError, serverClients, ServerService } from '../client'
+import { serverFn, type ServerServiceEntry } from '../index'
 
 class Db extends Context.Tag('Db')<Db, { readonly count: number }>() {}
 class Full extends Schema.TaggedError<Full>()('Full', { max: Schema.Number }) {}
@@ -53,3 +53,14 @@ add({ title: 'milk' })
 const asForm: FormAction = add
 action(add)
 useAction(add)
+
+// `serverClients` provides exactly the entries' Tags.
+class Profiles extends ServerService('Profiles')<Profiles, { readonly count: () => Effect.Effect<number> }>() {}
+class Items extends ServerService('Items')<Items, { readonly list: () => Effect.Effect<ReadonlyArray<string>> }>() {}
+declare const profiles: ServerServiceEntry<Profiles, Profiles['Type']>
+declare const items: ServerServiceEntry<Items, Items['Type']>
+same<ReturnType<typeof serverClients<[typeof profiles, typeof items]>>, Layer.Layer<Profiles | Items>>(true)
+same<ReturnType<typeof serverClients<[typeof profiles]>>, Layer.Layer<Profiles>>(true)
+const both: Layer.Layer<Profiles | Items> = serverClients([profiles, items])
+// @ts-expect-error a Layer providing only Profiles does not provide Items
+const missing: Layer.Layer<Profiles | Items> = serverClients([profiles])

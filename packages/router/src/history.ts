@@ -2,7 +2,7 @@ import { hydrateMount, type Mounted, mount, type Node } from '@sleekstack/ui'
 import { Cause, Effect, Exit, Fiber, Layer, Option } from 'effect'
 import { match, routeLayer, type RouteTable } from './index'
 import { type Held, isFor, Loaders, Navigating, withLoaders } from './loader'
-import { type AppLayer, controlOf, NotFound, Redirect, resolve, type Router, view } from './resolve'
+import { type AppLayer, controlOf, loadPage, NotFound, Redirect, resolve, type Router, view } from './resolve'
 
 /** `layer` is the app services for loaders and pages: required when the router's pages need any (`AppLayer`). */
 export type StartOptions<R = never> = AppLayer<R> & {
@@ -60,12 +60,6 @@ export const startRouter = async <T extends RouteTable, R>(
     const layer = Layer.merge(loaders, Layer.succeed(Navigating, navigating))
     mounted = await mount(app, { container, layer: route ? Layer.merge(layer, route) : layer, onError })
   }
-  const page = (pathname: string) => {
-    const m = match(r.table, pathname)
-    return Option.isSome(m)
-      ? ([view(r.pages[m.value.name]!), routeLayer(m.value)] as const)
-      : ([r.notFound(), undefined] as const)
-  }
 
   const go = (href: string, mode: Mode): Promise<void> => {
     scrolls.set(key, scrollY)
@@ -91,7 +85,7 @@ export const startRouter = async <T extends RouteTable, R>(
       if (mode === 'push') history.pushState({ key: (key = newKey()) }, '', res.href)
       else if (mode === 'replace' || res.href !== href) history.replaceState({ key }, '', res.href)
       const { pathname } = new URL(res.href, location.href)
-      const [app, route] = res._tag === 'NotFound' ? [r.notFound(), undefined] : page(pathname)
+      const [app, route] = res._tag === 'NotFound' ? [r.notFound(), undefined] : [view(res.code), routeLayer(res.match)]
       shown = here(new URL(res.href, location.href))
       yield* Effect.promise(() => show(app, route, rec))
       // Shown, unless a newer navigation has started and owns the map: drop the stale results nothing replaced and those
@@ -120,13 +114,22 @@ export const startRouter = async <T extends RouteTable, R>(
     void go(url.pathname + url.search + url.hash, 'push')
   }
   const onPop = () => here(location) !== shown && void go(location.pathname + location.search + location.hash, 'pop')
+  // Server markup is hydrated once its page's code is loaded, so the first render matches it. The router listens only
+  // after that load: until then a link click is the browser's to follow, as before any script ran.
+  const hydrate = container.hasChildNodes()
+  const first = match(r.table, location.pathname)
+  const app = !hydrate
+    ? undefined
+    : Option.isSome(first)
+      ? view(await Effect.runPromise(loadPage(r.pages[first.value.name]!)))
+      : r.notFound()
   container.addEventListener('click', onClick)
   addEventListener('popstate', onPop)
 
-  if (container.hasChildNodes()) {
+  if (app) {
     // The server already settled the loaders and sent their results: adopt its DOM without running them again.
-    const [app, route] = page(location.pathname)
-    mounted = await hydrateMount(app, { container, layer: route ? Layer.merge(loaders, route) : loaders, onError })
+    const layer = Option.isSome(first) ? Layer.merge(loaders, routeLayer(first.value)) : loaders
+    mounted = await hydrateMount(app, { container, layer, onError })
   } else await go(location.pathname + location.search + location.hash, 'replace')
 
   return {

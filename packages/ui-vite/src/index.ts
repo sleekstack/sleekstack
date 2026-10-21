@@ -6,15 +6,18 @@ import { jsx, type JsxOptions } from './jsx.js'
 import { prerender } from './prerender/build.js'
 import type { PrerenderOption } from './prerender/enumerate.js'
 import { routes, type RoutesOptions } from './routes.js'
+import { serverServices, type ServerServicesOptions } from './server-services.js'
 
 export type { EntriesOptions } from './entries.js'
 export type { JsxOptions } from './jsx.js'
 export type { PrerenderOption, PrerenderParams } from './prerender/enumerate.js'
 export type { RoutesOptions } from './routes.js'
+export { serverServices, type ServerServicesOptions } from './server-services.js'
 
 /** Options of {@link sleekstack}. */
 export type SleekstackOptions = JsxOptions &
   RoutesOptions &
+  ServerServicesOptions &
   EntriesOptions & {
     /**
      * Prerender pages to HTML at build: `true` for every static route, or a list of paths; a route's page adds its
@@ -32,7 +35,8 @@ export type SleekstackOptions = JsxOptions &
 
 /**
  * The SleekStack Vite plugin: ui JSX, stable component ids, `@sleekstack/analyze` diagnostics (dev overlay, failing build),
- * file-based routes (`virtual:sleekstack/routes`) and, with `entries`, client and SSR bundles and dev SSR. Add it beside
+ * file-based routes (`virtual:sleekstack/routes`), Server Service clients and registry (`virtual:sleek/server`,
+ * `virtual:sleek/server-registry`; `serverServices` alone for apps that pick plugins) and, with `entries`, client and SSR bundles and dev SSR. Add it beside
  * `@vitejs/plugin-react` when the app has React guests.
  */
 export const sleekstack = (options: SleekstackOptions = {}): Array<Plugin> => [
@@ -40,6 +44,7 @@ export const sleekstack = (options: SleekstackOptions = {}): Array<Plugin> => [
   ids(options),
   analyze(),
   routes(options),
+  serverServices(options),
   entries(options),
   prerender(options.prerender, options.entries?.server),
 ]

@@ -55,6 +55,18 @@ describe('sleekstack check', () => {
     expect(JSON.parse(run(fixture('entry'), '--json').out)).not.toHaveProperty('components')
   })
 
+  it('a server file reachable from the browser exits 1 as ServerFileInClientGraph, text and --json', () => {
+    const text = run(fixture('server-boundary'))
+    expect(text.code).toBe(1)
+    expect(text.err).toMatch(/main\.ts:2 ServerFileInClientGraph: [^\n]*main\.ts -> profiles\.server\.ts\n    fix: /)
+    const json = run(fixture('server-boundary'), '--json')
+    expect(json.code).toBe(1)
+    expect(
+      JSON.parse(json.out).serverServiceErrors.map((e: { code: string; line: number }) => [e.code, e.line]),
+    ).toEqual([['ServerFileInClientGraph', 2]])
+    expect(JSON.parse(run(fixture('entry'), '--json').out)).not.toHaveProperty('serverServiceErrors')
+  })
+
   it('a crash exits 2', () => {
     const r = run(fixture('none'), '--project', 'missing.json', '--json')
     expect([r.code, r.out]).toEqual([2, ''])

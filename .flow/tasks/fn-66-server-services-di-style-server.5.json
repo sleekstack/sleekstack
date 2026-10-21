@@ -1,0 +1,17 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-21T14:11:43.688242Z",
+  "depends_on": [
+    "fn-66-server-services-di-style-server.2",
+    "fn-66-server-services-di-style-server.4"
+  ],
+  "id": "fn-66-server-services-di-style-server.5",
+  "priority": null,
+  "spec": "fn-66-server-services-di-style-server",
+  "spec_path": ".flow/tasks/fn-66-server-services-di-style-server.5.md",
+  "status": "done",
+  "title": "ui-vite: generate `virtual:sleek/server` and `virtual:sleek/server-registry`",
+  "updated_at": "2026-10-21T14:11:43.688242Z"
+}

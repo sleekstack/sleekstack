@@ -3,6 +3,7 @@ import { client } from '@sleekstack/start/client'
 import { useAction, useAtomValue, useFormStatus } from '@sleekstack/ui'
 import { Cause, Option } from 'effect'
 import { addItem } from './items'
+import { Tally } from './tally'
 
 /** Posts to `/_sleek/fn/items.add`, which the dev server answers through `server/app.ts`. */
 const add = client(addItem)
@@ -45,9 +46,45 @@ const ItemsForm = function* () {
   )
 }
 
+/**
+ * A Server Service through DI: the action asks for `Tally` and calls it. In the browser the layer's `Tally` posts to
+ * `/_sleek/fn/Tally.add`; on the server it would be `TallyLive` itself. The limit arrives as the `TallyLimit` class.
+ */
+const TallyForm = function* () {
+  const [result, submit] = yield* useAction(function* () {
+    const tally = yield* Tally
+    return yield* tally.add({ by: 1 })
+  })
+  const outcome = yield* useAtomValue(result)
+  const count =
+    outcome._tag === 'Success'
+      ? outcome.value
+      : outcome._tag === 'Failure'
+        ? Option.getOrElse(outcome.previousValue, () => 0)
+        : 0
+  const error = outcome._tag === 'Failure' ? Option.getOrUndefined(Cause.failureOption(outcome.cause)) : undefined
+  return (
+    <>
+      <form className="tally" action={submit}>
+        <button type="submit" className="add">
+          Add one
+        </button>
+      </form>
+      <p className="count">{count}</p>
+      {error && (
+        <p className="error">
+          {error._tag === 'TallyLimit' ? `The tally stops at ${error.limit}` : 'Not added: the server did not answer'}
+        </p>
+      )}
+    </>
+  )
+}
+
 export const ServerFnDemo = () => (
   <section className="demo server">
     <h2>Server function</h2>
     <ItemsForm />
+    <h2>Server Service</h2>
+    <TallyForm />
   </section>
 )

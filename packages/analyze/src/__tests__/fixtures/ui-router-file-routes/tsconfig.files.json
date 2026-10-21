@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [],
+  "files": ["app.tsx", "routes/routes.gen.d.ts"]
+}

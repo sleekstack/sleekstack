@@ -27,12 +27,10 @@ Its tests cover server rendering, streaming, hydration and resume, the folder la
 
 [`apps/realworld`](https://github.com/sleekstack/sleekstack/tree/master/apps/realworld) is a [RealWorld](https://github.com/realworld-apps/realworld) ("Conduit") app: sign up, settings, feeds, tags, profiles, follows, favorites, articles with a markdown body, and comments. It is a full-stack app on one `node:sqlite` database. Run it with `pnpm --filter realworld dev`.
 
-- **Pages**: a `@sleekstack/router` table (below). Loaders see only the pathname, so the feed tab and the tag are routes, and the page number is a client atom.
+- **Pages**: file routes under `src/routes` (ui-vite's `routes()` plugin), with a root layout, a `(guarded)` layout and a `_notFound` page. The route files are the table: `tag/[tag].tsx` is `/tag/:tag`, and the pages that need a signed-in user sit in the `(guarded)` group. Loaders see only the pathname, so the feed tab and the tag are routes, and the page number is a client atom.
 - **Server**: `@sleekstack/start` server functions serve the UI and authenticate with an `HttpOnly` session cookie. Page loaders call them in place while the server renders, so the signed-in header renders the same on the server and in the browser.
 - **REST**: an `/api` facade follows the RealWorld API over the same services. The app's [README](https://github.com/sleekstack/sleekstack/blob/master/apps/realworld/README.md) has its status codes and the Postman run.
 - **Forms**: login, settings, the editor and comments use a Draft from `useDraft` and a Form Action from `useAction`.
 - **Markdown**: an article body is parsed by a small in-app renderer into ui nodes. ui has no raw-HTML node, so HTML in a body shows as text, and a `javascript:` link loses its link.
-
-<include>../../../realworld/src/pages/routes.ts</include>
 
 Its tests run the pages in a browser against the real server, server render and hydrate included, and check the folder layering and that the client chunk holds no server module.

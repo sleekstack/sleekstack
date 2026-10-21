@@ -6,10 +6,10 @@ import { analyzeComponents, type UiNode } from '../index'
 const dir = (name: string) => path.join(__dirname, 'fixtures', name)
 const run = (name: string) => analyzeComponents({ project: path.join(dir(name), 'tsconfig.json') })
 const located = (name: string) => run(name).errors.map(({ code, file, line }) => ({ code, file, line }))
-/** Every `// @error Code` marker in a fixture's .ts / .tsx files. */
+/** Every `// @error Code` marker in a fixture's .ts / .tsx files, subdirectories included. */
 const expected = (name: string) =>
   fs
-    .readdirSync(dir(name))
+    .readdirSync(dir(name), { recursive: true, encoding: 'utf8' })
     .filter((f) => /\.tsx?$/.test(f))
     .sort()
     .flatMap((file) =>
@@ -18,7 +18,7 @@ const expected = (name: string) =>
         .split('\n')
         .flatMap((l, i) => {
           const m = /\/\/ @error (\w+)/.exec(l)
-          return m ? [{ code: m[1]!, file, line: i + 1 }] : []
+          return m ? [{ code: m[1]!, file: file.split(path.sep).join('/'), line: i + 1 }] : []
         }),
     )
 const sorted = <T extends { file: string; line: number }>(xs: T[]) =>
@@ -43,10 +43,45 @@ describe('component pass', () => {
     'ui-portal',
     'ui-router-roots',
     'ui-router-link',
+    'ui-router-file-routes',
+    'ui-router-file-routes-stale',
   ])('%s: code and file:line', (name) => {
     const want = expected(name)
     expect(want.length).toBeGreaterThan(0)
     expect(sorted(located(name))).toEqual(want)
+  })
+
+  it('ui-router-file-routes: a tsconfig files list reaches every route module, _notFound included, through the declaration', () => {
+    const r = analyzeComponents({ project: path.join(dir('ui-router-file-routes'), 'tsconfig.files.json') })
+    expect(sorted(r.errors.map(({ code, file, line }) => ({ code, file, line })))).toEqual(
+      expected('ui-router-file-routes'),
+    )
+    const notFound: string[] = []
+    const walk = (n: UiNode): void => {
+      if (n.kind === 'component' && n.name === 'notFound') notFound.push(`${n.file}:${n.line}`)
+      if ('children' in n) n.children.forEach(walk)
+    }
+    r.trees.forEach((t) => walk(t.root))
+    expect(notFound).toEqual(['routes/_notFound.tsx:3', 'routes/_notFound.tsx:3'])
+  })
+
+  it("ui-router-file-routes: a page's layout chain the declaration gets wrong is reported, not skipped", () => {
+    const file = path.join(dir('ui-router-file-routes'), 'routes', 'routes.gen.d.ts')
+    const written = fs.readFileSync(file, 'utf8')
+    const stale = written.replace(
+      'Page<typeof import("./about.tsx"), [typeof import("./_layout.tsx")]>',
+      'Page<typeof import("./about.tsx")>',
+    )
+    expect(stale).not.toBe(written)
+    fs.writeFileSync(file, stale)
+    try {
+      const messages = run('ui-router-file-routes').errors.map((e) => e.message)
+      expect(messages).toContainEqual(
+        expect.stringContaining('routes/about.tsx has layouts [] where the files give [routes/_layout.tsx]'),
+      )
+    } finally {
+      fs.writeFileSync(file, written)
+    }
   })
 
   it('clean fixture: one tree per mount, nothing reported', () => {

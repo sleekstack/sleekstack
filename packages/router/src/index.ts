@@ -1,10 +1,17 @@
 import { Context, Effect, Layer, Option } from 'effect'
 
-type Segment<S extends string> = S extends `:${infer K}` ? { readonly [k in K]: string } : {}
+type Segment<S extends string> = S extends `*${infer K}`
+  ? { readonly [k in K]: string }
+  : S extends `:${infer K}?`
+    ? { readonly [k in K]?: string }
+    : S extends `:${infer K}`
+      ? { readonly [k in K]: string }
+      : {}
 
 /**
  * The params of a path string: `'/users/:id/posts/:post'` gives `{ id: string; post: string }`.
- * Only a whole segment starting with `:` is a param, as in `match`.
+ * Only a whole segment starting with `:` is a param, as in `match`; a last `:id?` gives an optional `id`
+ * and a last `*path` gives `path`.
  */
 export type Params<P extends string> = string extends P
   ? Record<string, string>
@@ -29,8 +36,11 @@ export interface Match<T extends RouteTable = RouteTable, K extends keyof T & st
 /** The matched route, provided around the page by `routeLayer`. */
 export class Route extends Context.Tag('@sleekstack/router/Route')<Route, Match>() {}
 
-/** Path segments without the leading and trailing slash; internal empty segments are kept. */
-const segments = (s: string) => s.replace(/^\/|\/$/g, '').split('/')
+/** Path segments without the leading and trailing slash (none for the root); internal empty segments are kept. */
+const segments = (s: string) => {
+  const trimmed = s.replace(/^\/|\/$/g, '')
+  return trimmed === '' ? [] : trimmed.split('/')
+}
 
 const decode = (segment: string): string | undefined => {
   try {
@@ -40,24 +50,46 @@ const decode = (segment: string): string | undefined => {
   }
 }
 
+const isOptional = (p: string) => p.startsWith(':') && p.endsWith('?')
+const isSplat = (p: string) => p.startsWith('*')
+
+/** The params of `pattern` matched against decoded `actual` segments, or `undefined` when it does not match. */
+const bind = (pattern: string[], actual: string[]): Record<string, string> | undefined => {
+  const last = pattern[pattern.length - 1] ?? ''
+  const tail = isOptional(last) || isSplat(last) ? last : undefined
+  const head = tail === undefined ? pattern : pattern.slice(0, -1)
+  if (head.some((p) => isOptional(p) || isSplat(p)) || actual.length < head.length) return undefined
+  const params: Record<string, string> = Object.create(null)
+  const one = (p: string, a: string) => {
+    if (!p.startsWith(':')) return p === a
+    params[p.slice(1)] = a
+    return a !== ''
+  }
+  if (!head.every((p, i) => one(p, actual[i]!))) return undefined
+  const rest = actual.slice(head.length)
+  if (tail === undefined) return rest.length === 0 ? params : undefined
+  if (isSplat(tail)) {
+    if (rest.length === 0 || rest.includes('')) return undefined
+    params[tail.slice(1)] = rest.join('/')
+    return params
+  }
+  if (rest.length === 0) return params
+  return rest.length === 1 && one(tail.slice(0, -1), rest[0]!) ? params : undefined
+}
+
 /**
  * The first route (in table order) whose path matches `pathname` segment by segment; `:name` matches one
- * non-empty segment. `pathname` segments are percent-decoded; a malformed escape matches no route.
+ * non-empty segment. As the last segment only, `:name?` also matches the path without it (`name` absent) and
+ * `*name` matches one or more non-empty segments, joined with `/`; either one elsewhere never matches.
+ * `pathname` segments are percent-decoded one by one (`%2F` stays in its segment); a malformed escape matches
+ * no route.
  */
 export const match = <T extends RouteTable>(table: T, pathname: string): Option.Option<Match<T>> => {
   const actual = segments(pathname).map(decode)
   if (actual.some((a) => a === undefined)) return Option.none()
   for (const name of Object.keys(table)) {
-    const pattern = segments(table[name]!)
-    if (pattern.length !== actual.length) continue
-    const params: Record<string, string> = Object.create(null)
-    const ok = pattern.every((p, i) => {
-      const a = actual[i]!
-      if (!p.startsWith(':')) return p === a
-      params[p.slice(1)] = a
-      return a !== ''
-    })
-    if (ok) return Option.some({ name, path: table[name], params, pathname } as Match<T>)
+    const params = bind(segments(table[name]!), actual as string[])
+    if (params) return Option.some({ name, path: table[name], params, pathname } as Match<T>)
   }
   return Option.none()
 }

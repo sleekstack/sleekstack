@@ -3,7 +3,7 @@ title: Vite plugin
 description: One plugin for ui JSX, analyzer diagnostics, stable component ids, file-based routes and client and SSR bundles.
 ---
 
-`@sleekstack/ui-vite` sets up a Vite app on `@sleekstack/ui` in one line: `plugins: [sleekstack(options)]`. Add `@vitejs/plugin-react` beside it when the app has React Guests. It is a plugin, not a meta-framework. `apps/playground/ui` in the repository is a working example: a router app streamed by `handle(..., { stream: true })` and hydrated by `startRouter`.
+`@sleekstack/ui-vite` sets up a Vite app on `@sleekstack/ui` in one line: `plugins: [sleekstack(options)]`. Add `@vitejs/plugin-react` beside it when the app has React Guests. It is a plugin, not a meta-framework. `apps/playground/ui` in the repository is a working example: a file-routed app rendered by `handle`, prerendered by `vite build` and hydrated by `startRouter`.
 
 ## Options
 
@@ -28,7 +28,7 @@ ui JSX is opt-in per file ([ADR 0015](https://github.com/sleekstack/sleekstack/b
 
 The plugin runs the `sleekstack check` analysis over the Vite root's `tsconfig.json`. On `vite build`, an analyzer error fails the build with its file:line. In dev, the analyzer runs after source changes, with a debounce. Errors show in Vite's error overlay, and the overlay clears once the code is fixed. A crash inside the analyzer is reported and never stops the dev server. A run is whole-program TypeScript, so the dev server pauses while it runs.
 
-The analyzer reads the router's `pages` only as an object literal written in the `router({ ... })` call. Write the pages out there instead of passing `pages` from `virtual:sleekstack/routes`.
+The analyzer reads a router's `pages` written as an object literal, or imported from `virtual:sleekstack/routes`: it finds each route file through `routes.gen.d.ts` and reports a missing service at the route file's line. A declaration that disagrees with the route files is reported, never guessed; run `vite` to rewrite it.
 
 ## Stable component ids
 
@@ -40,9 +40,20 @@ In dev, a ui module whose value exports are all functions written in place regis
 
 ## File-based routes
 
-Files under `routesDir` become a [router](/docs/routing) route table. `users/[id].tsx` gives `/users/:id`, and an `index` file gives its directory's path. `virtual:sleekstack/routes` exports `table`, which maps route names to path strings with params typed from those strings, and `pages`, which maps route names to each file's default export. In dev, adding or removing a route file updates the table without a restart. An invalid file name fails with the file's path.
+Files under `routesDir` become a [router](/docs/routing) app ([ADR 0050](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0050-file-routes-layouts-and-lazy-pages.md)). A file's path without its extension is its route name:
 
-For TypeScript, the plugin writes a types-only `routes.gen.d.ts` into `routesDir` ([ADR 0045](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0045-vite-plugin-route-declaration.md)). The route table itself is never generated. Commit the file, or gitignore it and run Vite once before a plain `tsc`.
+- `users/[id].tsx` is `/users/:id`, and an `index` file is its directory's path.
+- `posts/[[page]].tsx` is the optional `/posts/:page?`, matching `/posts` and `/posts/2`. `guide/[...slug].tsx` is the splat `/guide/*slug`, matching `/guide/a/b` but not `/guide`. Optional and splat segments must be last.
+- A `(group)` directory adds no path segment. A file or directory whose name starts with `_` is not a route, so helpers, components and tests can sit beside the routes; `_layout` files and a root `_notFound` have the roles below.
+- At one position a static segment matches first, then a param, then an optional param, then a splat. Two files with one path, a bad segment, a misplaced optional or splat, and a file with no default export fail with the file's path.
+
+A route file is a whole page: its default export is the component, and its `loaders`, `fallback` and `prerender` exports are the rest of the page. `virtual:sleekstack/routes` exports `table`, `pages` and, when a root `_notFound` file exists, `notFound`, so the app is `router({ table, pages, notFound })` with all three imported from the module, and `sleekstack check` reads it as it reads a hand-written router.
+
+A `_layout` file's default export takes `children` and wraps every page in its directory and below, outer layouts first; inside a `(group)` it wraps only the group. Its `loaders` run with the page's, layouts' first, each loader once, so a layout guard that redirects redirects every page below it. Layouts are composed when the module is generated, so they remount on every navigation as the page does. `notFound` gets no layout, because the router runs no loaders for the not-found page.
+
+In the client build each page is its own chunk, loaded once on its first navigation (the first page before hydrating); SSR and prerender import every page up front. A failed load renders a `LazyLoadError` at the nearest `Boundary` and is tried again on the next navigation. To hide the code-then-data wait, pass the page's `load` to `Link`'s `code`: `code={pages['users/[id]'].load}`.
+
+For TypeScript, the plugin writes a types-only `routes.gen.d.ts` into `routesDir` ([ADR 0045](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0045-vite-plugin-route-declaration.md)). The route table itself is never generated. In dev, adding, removing or renaming a route, layout or `_notFound` file rewrites it and reloads the page. Commit the file, or gitignore it and run `vite` once before a plain `tsc` or `vite build`.
 
 ## Client and SSR entries
 
@@ -53,4 +64,4 @@ With `entries`, `vite build` builds the client bundle and then the server bundle
 ## Known limitations
 
 - With `entries`, use an absolute `base` (the default `/`, or a path such as `/app/`). A relative base such as `./` is rejected, because a nested route like `/users/42` would request its scripts and CSS from the wrong path.
-- No HMR state preservation, no static site generation and no deploy adapters yet.
+- No deploy adapters yet.

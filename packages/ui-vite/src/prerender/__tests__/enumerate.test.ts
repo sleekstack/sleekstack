@@ -62,4 +62,37 @@ describe('enumerate', () => {
     })
     expect((await enumerate(app, true)).paths).toEqual(['/', '/users/7'])
   })
+
+  it('expands optional and splat routes: an omitted optional drops its segment, a splat takes a /-joined value', async () => {
+    const dynamic: PrerenderRoutes = {
+      table: { posts: '/posts/:page?', guide: '/guide/*slug' },
+      pages: {
+        posts: { prerender: async () => [{}, { page: '2' }] as Record<string, string>[] },
+        guide: { prerender: async () => [{ slug: 'a/b c' }] },
+      },
+    }
+    expect((await enumerate(dynamic, true)).paths).toEqual(['/posts', '/posts/2', '/guide/a/b%20c'])
+  })
+
+  it('rejects an empty or dot segment in a splat value and a missing splat', async () => {
+    const bad = (value: Record<string, string>) =>
+      enumerate({ table: { g: '/g/*s' }, pages: { g: { prerender: async () => [value] } } }, true)
+    await expect(bad({ s: 'a//b' })).rejects.toThrow("route 'g' (/g/*s): prerender() gave an empty segment for 's'")
+    await expect(bad({ s: 'a/../b' })).rejects.toThrow("gave '..' for 's'")
+    await expect(bad({})).rejects.toThrow("prerender() gave no 's'")
+  })
+
+  it('treats listed paths as filling optional and splat routes, so they are not warned about', async () => {
+    const dynamic: PrerenderRoutes = {
+      table: { posts: '/posts/:page?', guide: '/guide/*slug', both: '/x/:y/*z' },
+      pages: { posts: {}, guide: {}, both: {} },
+    }
+    expect((await enumerate(dynamic, ['/posts', '/guide/a/b'])).warnings).toEqual([
+      "prerender: skipped dynamic route 'both' (/x/:y/*z): it has no prerender()",
+    ])
+    expect((await enumerate(dynamic, ['/posts/2', '/guide/a', '/x/1/2/3'])).warnings).toEqual([])
+    expect((await enumerate(dynamic, ['/guide'])).warnings).toContain(
+      "prerender: skipped dynamic route 'guide' (/guide/*slug): it has no prerender()",
+    )
+  })
 })

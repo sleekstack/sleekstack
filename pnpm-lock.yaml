@@ -232,6 +232,9 @@ importers:
       '@sleekstack/testing':
         specifier: workspace:*
         version: link:../../packages/testing
+      '@sleekstack/ui-vite':
+        specifier: workspace:*
+        version: link:../../packages/ui-vite
       '@types/node':
         specifier: ^22.20.1
         version: 22.20.1
@@ -296,6 +299,9 @@ importers:
       '@sleekstack/testing':
         specifier: workspace:*
         version: link:../../packages/testing
+      '@sleekstack/ui-vite':
+        specifier: workspace:*
+        version: link:../../packages/ui-vite
       '@types/node':
         specifier: ^22.20.1
         version: 22.20.1

@@ -10,6 +10,10 @@ const table = routes({
   proto: '/p/:__proto__',
   user: '/users/:id',
   post: '/users/:id/posts/:post',
+  optional: '/u/:id?',
+  files: '/files/*path',
+  midOptional: '/m/:x?/y',
+  midSplat: '/s/*x/y',
 })
 
 describe('match', () => {
@@ -19,12 +23,36 @@ describe('match', () => {
     ['/users/1/posts/2/', 'post', { id: '1', post: '2' }],
     ['/caf%C3%A9', 'cafe', {}],
     ['/item:format', 'file', {}],
+    ['/u/7', 'optional', { id: '7' }],
+    ['/files/a', 'files', { path: 'a' }],
+    ['/files/a/b%20c/d/', 'files', { path: 'a/b c/d' }],
+    ['/files/a%2Fb', 'files', { path: 'a/b' }],
   ])('%s matches %s', (pathname, name, ps) => {
     expect(Option.getOrThrow(match(table, pathname))).toMatchObject({ name, params: ps, pathname })
   })
 
-  it.each(['/users/1/x', '/users/%', '/users/%ZZ', '/users//7', '/users/'])('%s matches no route', (pathname) => {
+  it.each([
+    '/users/1/x',
+    '/users/%',
+    '/users/%ZZ',
+    '/users//7',
+    '/users/',
+    '/u/7/8',
+    '/u//',
+    '/files',
+    '/files/',
+    '/files/a//b',
+    '/files/a/%ZZ',
+    '/m/1/y',
+    '/s/*x/y',
+  ])('%s matches no route', (pathname) => {
     expect(Option.isNone(match(table, pathname))).toBe(true)
+  })
+
+  it.each(['/u', '/u/'])('%s matches the optional route with no param', (pathname) => {
+    const m = Option.getOrThrow(match(table, pathname))
+    expect(m.name).toBe('optional')
+    expect('id' in m.params).toBe(false)
   })
 
   it('a reserved name is an own param', () => {
