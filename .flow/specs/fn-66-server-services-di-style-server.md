@@ -28,7 +28,7 @@ Not a replacement for `serverFn`: `serverFn` stays for the cases a type cannot e
 - `start({ ..., services })` in `@sleekstack/start`: the generated registry. The server layer must provide every registered Tag (existing layer check reports a missing one).
 - Generated: `virtual:sleek/server` (default export: Layer) and `virtual:sleek/server-registry` (default export: registry). Declared in a `*.d.ts` the plugin writes, as `routes.gen.d.ts` is (ADR 0050).
 - Client call error: a browser-side method call can also fail with `NetworkError | DecodeError` (`@sleekstack/start/client`). The Tag's type carries them so a page handles one error type in both environments.
-- `@sleekstack/testing`: `callService(Tag, method, input, { layer })` resolves to an `Exit` through `start(...).fetch` (the wire path); plain DI (`Effect.provide(Layer.succeed(Profiles, ...))`) needs nothing.
+- `@sleekstack/testing`: `callService(entry, method, input, { layer })` (the registry entry carries the Tag and its Schemas) resolves to an `Exit` through `start(...).fetch` (the wire path); plain DI (`Effect.provide(Layer.succeed(Profiles, ...))`) needs nothing.
 
 ## Edge Cases & Constraints
 <!-- scope: technical -->
@@ -105,4 +105,5 @@ Parked unknowns:
 | R7 | A server layer missing a registered Tag fails `sleekstack check`; a duplicate id between a ServerService method and a `serverFn` fails `start` with `DuplicateServerFn`. Errors: an id outside the ADR 0039 grammar (a Tag id or method name) fails `start` with `InvalidServerFnId`; two ServerService classes with one Tag id fail the build naming both files. | fn-66-server-services-di-style-server.1, fn-66-server-services-di-style-server.3 | — |
 | R8 | Swapping the implementation Layer for a test Layer needs no transformer and no network, and `callService` exercises the wire path. Errors: `callService` resolves to an `Exit` like `callServerFn` (declared error, `Redirect`, `NotFound`, `DecodeError`, or the cause the error sink received); an unknown method name is a type error. | fn-66-server-services-di-style-server.1, fn-66-server-services-di-style-server.7 | — |
 | R9 | CONTEXT.md has a Server Service entry, ADR 0051 is in the index, and `apps/docs` has a guide page whose example type-checks (`pnpm turbo run test typecheck build --filter=docs`). No error surface beyond the docs build failing on a broken example or link. | fn-66-server-services-di-style-server.7 | — |
+
 
