@@ -1,8 +1,7 @@
 // The home feeds, the tag tab, pagination, favorites and the profile pages in a browser: pages are server-rendered by the
-// real `start` app and hydrated by `startRouter`; server function calls go to the same app through `fetch`, which keeps
+// real `start` app and hydrated by `startRouter`; Server Service calls go to the same app through `fetch`, which keeps
 // the session cookie. Node environment with a jsdom window installed below, as in auth.test.ts (`node:sqlite`).
 import { type Navigation, startRouter } from '@sleekstack/router'
-import { client } from '@sleekstack/start/client'
 import { flush } from '@sleekstack/testing'
 import { Layer } from 'effect'
 import { act } from 'react'
@@ -16,7 +15,6 @@ vi.hoisted(() => {
 const { app } = await import('../server/app')
 const { pages } = await import('../src/app')
 const { QueriesLive } = await import('../src/layers')
-const { ServerFunctions } = await import('../src/pages/functions')
 const { default: ServerServicesLive } = await import('virtual:sleek/server')
 
 const browser = await builtinEnvironments.jsdom.setup(globalThis, { jsdom: { url: 'http://conduit.test/' } })
@@ -42,7 +40,7 @@ beforeAll(() => {
   })
 })
 
-/** Calls server function `id` as the holder of `session` (another browser), straight on the app. */
+/** Calls Server Service method `id` as the holder of `session` (another browser), straight on the app. */
 const fn = async (id: string, input: unknown, session = '') => {
   const response = await app.fetch(
     new Request(new URL(`/_sleek/fn/${id}`, location.origin), {
@@ -92,7 +90,7 @@ const open = async (path: string) => {
   nav = await act(() =>
     startRouter(pages, {
       container,
-      layer: Layer.mergeAll(QueriesLive, Layer.succeed(ServerFunctions, client), ServerServicesLive),
+      layer: Layer.mergeAll(QueriesLive, ServerServicesLive),
       onError,
     }),
   )
@@ -154,7 +152,7 @@ describe('home feeds', () => {
 
   it.each([
     ['a tag', '.sidebar a[href="/tag/hover"]', ['ArticlesApi.list']],
-    ['an article preview', '.preview-link', ['ArticlesApi.get', 'comments.list']],
+    ['an article preview', '.preview-link', ['ArticlesApi.get', 'CommentsApi.list']],
     ['a preview author', '.article-preview .author', ['IdentityApi.profile', 'ArticlesApi.list']],
   ])("hovering %s link prefetches its route's loaders; following it then makes no call", async (_, link, ids) => {
     const a = await user()

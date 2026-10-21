@@ -9,14 +9,14 @@ const APP = '<div id="app"></div>'
 // A replacer function, so a `$&` in the page stays literal.
 const inject = (document: string, page: string) => document.replace(APP, () => `<div id="app">${page}</div>`)
 
-/** Server functions, the REST facade and page navigations go to `start`; Vite serves modules and assets. */
+/** Server Service calls, the REST facade and page navigations go to `start`; Vite serves modules and assets. */
 const forStart = (req: IncomingMessage) =>
   req.url!.startsWith('/_sleek/') ||
   req.url!.startsWith('/api/') ||
   ((req.method === 'GET' || req.method === 'HEAD') && (req.headers.accept ?? '').includes('text/html'))
 
 /**
- * Connect middleware for the Vite dev server: a server function call, an `/api/` request or a page navigation goes, as
+ * Connect middleware for the Vite dev server: a Server Service call, an `/api/` request or a page navigation goes, as
  * a web `Request`, to the `start` entry that `load` returns; every other request goes on to Vite. An HTML answer (a
  * server-rendered page) is sent inside the document `documentOf` gives.
  */

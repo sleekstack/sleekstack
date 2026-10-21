@@ -144,7 +144,7 @@ export const ERROR_CODES: Readonly<Record<AnalyzeCode, ErrorHelp>> = {
     docs: UI,
   },
   ServerServiceFileShape: {
-    rule: 'A ServerService file holds only imports, types, Data.TaggedError and ServerService classes, is not and imports no *.server.ts, and each Tag id has one class.',
+    rule: 'A ServerService file holds only imports, types, Data.TaggedError, Schema.TaggedError and ServerService classes, is not and imports no *.server.ts, and each Tag id has one class.',
     fix: ['Move values and implementation code into a *.server.ts file', 'Give each ServerService its own Tag id'],
     docs: SERVER,
   },
@@ -152,13 +152,13 @@ export const ERROR_CODES: Readonly<Record<AnalyzeCode, ErrorHelp>> = {
     rule: 'Every ServerService method is written out as `(input?) => Effect.Effect<A, E>`: one parameter at most, R = never, no `any`.',
     fix: [
       'Pass several inputs as one object',
-      'Provide services in the implementation Layer',
+      'Use services in the implementation (`implement` allows the request services)',
       'Replace `any` with the type',
     ],
     docs: SERVER,
   },
   ServerServiceTypeNotSerializable: {
-    rule: 'ServerService method types are JSON-shaped: primitives, literals, unions, arrays, plain objects; errors are Data.TaggedError classes.',
+    rule: 'ServerService method types are JSON-shaped: primitives, literals, unions, arrays, plain objects, string-keyed records; errors are Data.TaggedError or Schema.TaggedError classes.',
     fix: ['Use a JSON-shaped type (a string for a Date, an array for a Set)', 'Use a serverFn with an explicit Schema'],
     docs: SERVER,
   },

@@ -14,7 +14,7 @@ The database is `./data/conduit.db` by default; set `CONDUIT_DB` to use another 
 
 The pages are file routes under `src/routes` (`@sleekstack/ui-vite`'s routes plugin, in `vite.config.ts`), and `src/app.tsx` passes `virtual:sleekstack/routes` to `router()`. `/` is the Global Feed, `/feed` Your Feed and `/tag/:tag` the tag tab: loaders see only the pathname, so tabs are routes and the page number is a client atom. The other pages are `/login`, `/register`, `/settings`, `/editor` and `/editor/:slug` (signed in only; another user's edit page sends them to the article), `/article/:slug`, `/profile/:username` and `/profile/:username/favorites`.
 
-The root `_layout.tsx` renders the header and footer and declares the `viewer` loader for every page. The `(guarded)` group's layout adds `signedIn`, which sends a signed-out visitor to `/login`. `_notFound.tsx` is the page for an unknown path. Files whose names start with `_` are not routes: they hold what several routes share. `src/pages` holds the shared loaders, the server-functions Tag and the form parts. `src/routes/routes.gen.d.ts` is generated and committed, because `tsc` and `sleekstack check` run without Vite. `vite` and `vite build` rewrite it when a route file is added or removed.
+The root `_layout.tsx` renders the header and footer and declares the `viewer` loader for every page. The `(guarded)` group's layout adds `signedIn`, which sends a signed-out visitor to `/login`. `_notFound.tsx` is the page for an unknown path. Files whose names start with `_` are not routes: they hold what several routes share. `src/pages` holds the shared loaders and the form parts. `src/routes/routes.gen.d.ts` is generated and committed, because `tsc` and `sleekstack check` run without Vite. `vite` and `vite build` rewrite it when a route file is added or removed.
 
 An article body is markdown, rendered by `src/modules/articles/presentation/markdown.ts`: headings, paragraphs, fenced code, flat lists, inline code, strong, emphasis and links. It builds ui nodes, and ui has no raw-HTML node, so HTML in a body shows as text. A link that is not relative, `http:`, `https:` or `mailto:` keeps its label as text and loses the link.
 
@@ -24,7 +24,7 @@ The tests in `test/` run the pages in a browser: each page is server-rendered by
 
 Both call the same services in `server/`:
 
-- **Server functions** (`server/app.ts`, `POST /_sleek/fn/<id>`) serve the UI. They authenticate with the `HttpOnly` session cookie and never return the token.
+- **Server Services** (`POST /_sleek/fn/<Tag>.<method>`) serve the UI. `IdentityApi`, `ArticlesApi` and `CommentsApi` are contracts in each module's `application/contracts.ts`; pages and loaders call `yield* <Tag>`, a generated client in the browser and the implementation in process on the server. The implementations are built with `implement` in `server/*.server.ts` and authenticate with the `HttpOnly` session cookie, read per call. They never return the token.
 - **The REST facade** (`server/rest.ts`, `/api/...`) follows the RealWorld API. It authenticates with `Authorization: Token <jwt>` only. Without the header the viewer is anonymous. A bad token, or any other scheme, is 401 on every route, the optional-auth ones included.
 
 REST status codes and error bodies:

@@ -11,7 +11,7 @@ const { devMiddleware } = await import('../server/dev')
 
 const ORIGIN = 'http://conduit.test'
 
-/** Calls server function `id` from the app's own origin, with `cookie` when given. */
+/** Calls Server Service method `id` from the app's own origin, with `cookie` when given. */
 const call = async (id: string, input?: unknown, cookie?: string) => {
   const response = await app.fetch(
     new Request(`${ORIGIN}/_sleek/fn/${id}`, {
@@ -82,11 +82,14 @@ describe('session cookie', () => {
     expect((await call('IdentityApi.profile', { username: 'eve' }, stale)).body).toMatchObject({
       value: { following: false },
     })
-    expect((await call('comments.list', { slug: 'stale-cookies' }, stale)).body).toEqual({ _tag: 'Success', value: [] })
+    expect((await call('CommentsApi.list', { slug: 'stale-cookies' }, stale)).body).toEqual({
+      _tag: 'Success',
+      value: [],
+    })
     for (const [id, input] of [
       ['IdentityApi.current', undefined],
       ['ArticlesApi.favorite', { slug: 'stale-cookies' }],
-      ['comments.add', { slug: 'stale-cookies', comment: { body: 'x' } }],
+      ['CommentsApi.add', { slug: 'stale-cookies', comment: { body: 'x' } }],
     ] as const) {
       const out = await call(id, input, stale)
       expect([id, out.body, out.setCookie]).toEqual([id, { _tag: 'Failure', error: { _tag: 'Unauthorized' } }, cleared])
@@ -127,9 +130,11 @@ describe('session cookie', () => {
       value: { following: true },
     })
     expect((await call('ArticlesApi.feed', {}, reader)).body).toMatchObject({ value: { articlesCount: 1 } })
-    expect((await call('comments.add', { slug: 'hi-there', comment: { body: 'nice' } }, reader)).body).toMatchObject({
-      value: { body: 'nice', author: { username: 'dee' } },
-    })
+    expect((await call('CommentsApi.add', { slug: 'hi-there', comment: { body: 'nice' } }, reader)).body).toMatchObject(
+      {
+        value: { body: 'nice', author: { username: 'dee' } },
+      },
+    )
     expect((await call('ArticlesApi.delete', { slug: 'hi-there' }, reader)).body).toEqual({
       _tag: 'Failure',
       error: { _tag: 'Forbidden', errors: { article: ['is not yours'] } },

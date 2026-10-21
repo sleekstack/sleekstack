@@ -62,7 +62,7 @@ const unwrap = <A, I>(call: Call, key: string, schema: Schema.Schema<A, I>) =>
 const SLUG = '([^/]+)'
 const route = (path: string) => new RegExp(`^${path}$`)
 
-// The RealWorld API, each route over the same service as its server function.
+// The RealWorld API, each route over the same service as its Server Service method.
 const ROUTES: ReadonlyArray<Route> = [
   ['POST', route('users'), (c) => Effect.flatMap(unwrap(c, 'user', NewUser), register).pipe(ok(201, 'user'))],
   ['POST', route('users/login'), (c) => Effect.flatMap(unwrap(c, 'user', LoginUser), login).pipe(ok(200, 'user'))],
@@ -201,7 +201,7 @@ const json = ([status, body]: Reply) =>
 
 /**
  * The RealWorld REST facade at `/api/`: every route resolves the viewer from `Authorization: Token` (anonymous
- * without one, 401 for a bad one) and calls the same service as its server function. It answers every `/api/`
+ * without one, 401 for a bad one) and calls the same service as its Server Service method. It answers every `/api/`
  * request itself, an unknown one with 404, and passes every other path on.
  */
 export const rest: Middleware<never, Db | TokenSecret> = (request) => {

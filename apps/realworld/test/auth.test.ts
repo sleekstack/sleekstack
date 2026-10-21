@@ -1,9 +1,8 @@
 // The shell and the auth pages in a browser: each page is server-rendered by the real `start` app, hydrated by
-// `startRouter`, and its server function calls go to the same app through `fetch`, which keeps the HttpOnly session
+// `startRouter`, and its Server Service calls go to the same app through `fetch`, which keeps the HttpOnly session
 // cookie the way a browser does. The file runs in Node (the server needs `node:sqlite`, which a jsdom-environment
 // file cannot import) with a jsdom window installed below.
 import { type Navigation, startRouter } from '@sleekstack/router'
-import { client } from '@sleekstack/start/client'
 import { flush } from '@sleekstack/testing'
 import { Layer } from 'effect'
 import { act } from 'react'
@@ -18,7 +17,6 @@ vi.hoisted(() => {
 const { app, SESSION } = await import('../server/app')
 const { pages } = await import('../src/app')
 const { QueriesLive } = await import('../src/layers')
-const { ServerFunctions } = await import('../src/pages/functions')
 const { default: ServerServicesLive } = await import('virtual:sleek/server')
 
 /** The browser's cookie jar: the session cookie the app set, sent back on every request. */
@@ -71,7 +69,7 @@ const open = async (path: string) => {
   nav = await act(() =>
     startRouter(pages, {
       container,
-      layer: Layer.mergeAll(QueriesLive, Layer.succeed(ServerFunctions, client), ServerServicesLive),
+      layer: Layer.mergeAll(QueriesLive, ServerServicesLive),
       onError,
     }),
   )

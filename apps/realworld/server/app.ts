@@ -1,50 +1,17 @@
 import { QueryClientLive } from '@sleekstack/query'
-import type { NotFound, Redirect } from '@sleekstack/router'
-import { serverFn, start } from '@sleekstack/start'
-import { type Context, type Effect, Layer, type Schema } from 'effect'
+import { start } from '@sleekstack/start'
+import { Layer } from 'effect'
 import services from 'virtual:sleek/server-registry'
 import { pages } from '../src/app'
 import { AppLive } from '../src/layers'
-import * as comments from '../src/modules/comments'
-import { ServerFunctions } from '../src/pages/functions'
 import { ArticlesApiLive } from './articles-api.server'
-import { addComment, deleteComment, listComments } from './comments'
+import { CommentsApiLive } from './comments-api.server'
 import { DbLive } from './db'
 import { TokenSecretLive } from './identity'
-import { asViewer, IdentityApiLive } from './identity-api.server'
+import { IdentityApiLive } from './identity-api.server'
 import { rest } from './rest'
 
 export { SESSION } from './identity-api.server'
-
-type AnySchema = Schema.Schema<any, any, never>
-
-/** The server function for `contract`, its body run as the session cookie's viewer; failures as `serverFn` allows. */
-const viewerFn = <const Id extends string, In extends AnySchema, Out extends AnySchema, Err extends AnySchema, R>(
-  contract: { readonly id: Id; readonly input: In; readonly success: Out; readonly error: Err },
-  run: (
-    input: Schema.Schema.Type<In>,
-  ) => Effect.Effect<Schema.Schema.Type<Out>, Schema.Schema.Type<Err> | NotFound | Redirect, R>,
-) =>
-  serverFn(
-    contract.id,
-    contract,
-  )(function* (input) {
-    return yield* asViewer(run(input))
-  })
-
-const functions = [
-  viewerFn(comments.listCommentsContract, ({ slug }) => listComments(slug)),
-  viewerFn(comments.addCommentContract, ({ slug, comment }) => addComment(slug, comment)),
-  viewerFn(comments.deleteCommentContract, ({ slug, id }) => deleteComment(slug, id)),
-]
-
-const byId = new Map(functions.map((fn) => [fn.id, fn]))
-/**
- * The server's `ServerFunctions`: a page's loaders call the function in place. Its services (`Db`, `Cookies`, ...) are
- * not in the stub's type: the page renders on the request fiber's runtime, which provides them.
- */
-const ServerFunctionsInPlace = Layer.succeed(ServerFunctions, ((contract: { readonly id: string }) =>
-  byId.get(contract.id)!) as unknown as Context.Tag.Service<ServerFunctions>)
 
 /**
  * The server's `QueryClient`: a page's lists take their first page from its loader (`initialData`) and never fetch here.
@@ -55,23 +22,14 @@ const ServerFunctionsInPlace = Layer.succeed(ServerFunctions, ((contract: { read
 const ServerQueriesLive = QueryClientLive({ defaultOptions: { queries: { gcTime: 0 } } })
 
 /**
- * The server entry: the REST facade at `/api/`, the server functions, the Server Services and the pages, over SQLite
+ * The server entry: the REST facade at `/api/`, the Server Services and the pages, over SQLite
  * (`CONDUIT_DB`, default `./data/conduit.db`).
  */
 export const app = start({
   router: pages,
-  layer: Layer.mergeAll(IdentityApiLive, ArticlesApiLive).pipe(
-    Layer.provideMerge(
-      Layer.mergeAll(
-        AppLive,
-        ServerQueriesLive,
-        DbLive(process.env.CONDUIT_DB),
-        TokenSecretLive,
-        ServerFunctionsInPlace,
-      ),
-    ),
+  layer: Layer.mergeAll(IdentityApiLive, ArticlesApiLive, CommentsApiLive).pipe(
+    Layer.provideMerge(Layer.mergeAll(AppLive, ServerQueriesLive, DbLive(process.env.CONDUIT_DB), TokenSecretLive)),
   ),
   middleware: [rest],
-  functions,
   services,
 })

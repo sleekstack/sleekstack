@@ -14,7 +14,7 @@ import { routes } from '../vite.config'
 //     index             the module's public API: all another module (or a page) may import
 //   errors            the tagged domain error set, shared by every module and both server surfaces
 //   routes/           screens, one route file each (`virtual:sleekstack/routes`); import modules only through their `index`
-//   pages/            what the screens share (loaders, server functions, form parts); import modules only through their `index`
+//   pages/            what the screens share (loaders, form parts); import modules only through their `index`
 //   layers            composition root: the only importer of the modules' `infrastructure`
 //   app, main         composition roots for the UI
 // Modules reach each other only through `index`, and only along MODULE_DEPS (no cycles).
@@ -64,14 +64,7 @@ const ruleOf = (mod: string): Rule | undefined => {
   if (mod.startsWith('pages/'))
     return {
       local: ['pages/', 'errors'],
-      packages: [
-        'effect',
-        '@sleekstack/core',
-        '@sleekstack/model',
-        '@sleekstack/router',
-        '@sleekstack/start/client',
-        UI,
-      ],
+      packages: ['effect', '@sleekstack/core', '@sleekstack/model', '@sleekstack/router', UI],
     }
   if (mod.startsWith('routes/'))
     return {
@@ -81,7 +74,6 @@ const ruleOf = (mod: string): Rule | undefined => {
         '@sleekstack/core',
         '@sleekstack/model',
         '@sleekstack/router',
-        '@sleekstack/start/client',
         UI,
         '@sleekstack/ui/jsx-runtime',
         ROUTES,
@@ -90,7 +82,7 @@ const ruleOf = (mod: string): Rule | undefined => {
   const exact: Record<string, Rule> = {
     errors: { local: [], packages: ['effect'] },
     layers: { local: [], packages: ['effect', '@sleekstack/query/ui'] },
-    app: { local: ['layers', 'pages/'], packages: [UI, '@sleekstack/router', ROUTES] },
+    app: { local: [], packages: [UI, '@sleekstack/router', ROUTES] },
     main: { local: ['app', 'layers'], packages: ['effect', '@sleekstack/router', 'virtual:sleek/server'] },
   }
   return exact[mod]

@@ -10,9 +10,8 @@ import {
 } from '@sleekstack/router'
 import { type Context, Effect, Schema } from 'effect'
 import { Article, ArticleList, ArticlesApi } from '../modules/articles'
-import { Comment, listCommentsContract } from '../modules/comments'
+import { Comment, CommentsApi } from '../modules/comments'
 import { Account, IdentityApi, Profile } from '../modules/identity'
-import { ServerFunctions } from './functions'
 
 // The loaders that a link on another page names, apart from the pages so any page imports them without a cycle.
 
@@ -34,7 +33,7 @@ export const signedIn = loader(
 )
 
 /** A target route's loaders (its layouts' and its own) for a page-body `Link`, so hover and focus prefetch them. */
-export type RouteLoaders = LinkProps<IdentityApi | ArticlesApi | ServerFunctions | Route | Loaders>['loaders']
+export type RouteLoaders = LinkProps<IdentityApi | ArticlesApi | CommentsApi | Route | Loaders>['loaders']
 
 export const PAGE_SIZE = 10
 
@@ -74,7 +73,7 @@ export const article = loader(
 export const comments = loader(
   'comments',
   Schema.Array(Comment),
-  Effect.flatMap(Effect.zip(ServerFunctions, slug), ([call, s]) => call(listCommentsContract)({ slug: s })).pipe(
+  Effect.flatMap(Effect.zip(CommentsApi, slug), ([api, s]) => api.list({ slug: s })).pipe(
     Effect.catchTag('NotFound', notFound),
   ),
 )

@@ -5,10 +5,9 @@ import { useAction, useAtomValue, useFormStatus, useLocal, useSetAtom } from '@s
 import { Effect } from 'effect'
 import { table } from 'virtual:sleekstack/routes'
 import { Article, ArticlesApi, FavoriteButton, formatDate, markdown, type Toggle } from '../../modules/articles'
-import { addCommentContract, Comment, deleteCommentContract, NewComment } from '../../modules/comments'
+import { Comment, CommentsApi, NewComment } from '../../modules/comments'
 import type { Account } from '../../modules/identity'
 import { ErrorList, errorsOf, toHome } from '../../pages/form'
-import { ServerFunctions } from '../../pages/functions'
 import { article, authLoaders, comments, editLoaders, profileLoaders, viewer } from '../../pages/loaders'
 import { code, previewTargets } from '../_links'
 import { FollowButton } from '../profile/_profile'
@@ -99,11 +98,11 @@ const CommentForm = function* ({
   me: Account
   onAdded: (comment: Comment) => void
 }) {
-  const call = yield* ServerFunctions
+  const api = yield* CommentsApi
   const draft = yield* useDraft(CommentDraft, undefined)
   const setBody = yield* useSetAtom(draft.field('body'))
   const [added, add] = yield* useAction(() =>
-    Effect.flatMap(draft.toDto(), (comment) => call(addCommentContract)({ slug, comment })).pipe(
+    Effect.flatMap(draft.toDto(), (comment) => api.add({ slug, comment })).pipe(
       Effect.tap((comment) =>
         Effect.sync(() => {
           onAdded(comment)
@@ -151,11 +150,9 @@ const CommentCard = function* ({
   mine: boolean
   onDeleted: (id: number) => void
 }) {
-  const call = yield* ServerFunctions
+  const api = yield* CommentsApi
   const [deleted, remove] = yield* useAction(() =>
-    call(deleteCommentContract)({ slug, id: comment.id }).pipe(
-      Effect.tap(() => Effect.sync(() => onDeleted(comment.id))),
-    ),
+    api.delete({ slug, id: comment.id }).pipe(Effect.tap(() => Effect.sync(() => onDeleted(comment.id)))),
   )
   const { pending } = yield* useFormStatus(deleted)
   const outcome = yield* useAtomValue(deleted)
