@@ -1,54 +1,27 @@
 /** @jsxImportSource @sleekstack/ui */
-import type { Atom } from '@sleekstack/core'
 import { type DraftSpec, useDraft } from '@sleekstack/model'
 import { Link } from '@sleekstack/router'
-import { type Child, useAction, useAtomValue, useFormStatus, useSetAtom } from '@sleekstack/ui'
+import { type Child, useAction, useAtomValue, useFormStatus } from '@sleekstack/ui'
 import { Effect } from 'effect'
+import { table } from 'virtual:sleekstack/routes'
 import { LoginUser, loginContract, NewUser, registerContract } from '../modules/identity'
-import { ErrorList, errorsOf, toHome } from './form'
-import { ServerFunctions } from './functions'
-import { Layout } from './layout'
-import { authLoaders } from './loaders'
-import { table } from './routes'
-
-/** A text input bound to a Draft field. */
-export const Field = function* ({
-  value,
-  placeholder,
-  type = 'text',
-}: {
-  value: Atom.Writable<string>
-  placeholder: string
-  type?: 'text' | 'email' | 'password'
-}) {
-  const set = yield* useSetAtom(value)
-  return (
-    <fieldset class="form-group">
-      <input
-        class="form-control form-control-lg"
-        type={type}
-        placeholder={placeholder}
-        value={value}
-        onInput={(e) => set(e.currentTarget.value)}
-      />
-    </fieldset>
-  )
-}
+import { Field } from '../pages/field'
+import { ErrorList, errorsOf, toHome } from '../pages/form'
+import { ServerFunctions } from '../pages/functions'
+import { authLoaders } from '../pages/loaders'
 
 const AuthPage = ({ title, other, children }: { title: string; other: Child; children?: Child }) => (
-  <Layout>
-    <div class="auth-page">
-      <div class="container page">
-        <div class="row">
-          <div class="col-md-6 offset-md-3 col-xs-12">
-            <h1 class="text-xs-center">{title}</h1>
-            <p class="text-xs-center">{other}</p>
-            {children}
-          </div>
+  <div class="auth-page">
+    <div class="container page">
+      <div class="row">
+        <div class="col-md-6 offset-md-3 col-xs-12">
+          <h1 class="text-xs-center">{title}</h1>
+          <p class="text-xs-center">{other}</p>
+          {children}
         </div>
       </div>
     </div>
-  </Layout>
+  </div>
 )
 
 // The server validates: the Drafts hold what the inputs hold and are sent as they are.

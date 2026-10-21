@@ -1,6 +1,6 @@
 /** @jsxImportSource @sleekstack/ui */
 import { Atom } from '@sleekstack/core'
-import { Link, loader, params, Route, useLoader } from '@sleekstack/router'
+import { Link, loader, Route, useLoader } from '@sleekstack/router'
 import { useAtomValue, useSetAtom } from '@sleekstack/ui'
 import { Effect, Schema } from 'effect'
 import {
@@ -15,10 +15,17 @@ import {
   useArticleList,
   useStaleArticleLists,
 } from '../modules/articles'
-import { ServerFunctions } from './functions'
-import { Layout, type RouteLoaders, signedIn, viewer } from './layout'
-import { type ArticleSource, articleSource, PAGE_SIZE, previewLinks } from './loaders'
-import { table } from './routes'
+import { table } from 'virtual:sleekstack/routes'
+import { ServerFunctions } from '../pages/functions'
+import {
+  type ArticleSource,
+  articleSource,
+  PAGE_SIZE,
+  previewLoaders,
+  type RouteLoaders,
+  signedIn,
+  viewer,
+} from '../pages/loaders'
 
 /**
  * The page a list shows, for the path it was picked on: another path reads page 0, so the page resets when the route
@@ -60,7 +67,7 @@ export const ArticleFeed = function* ({ source }: { source: ArticleSource }) {
       ) : list.isError ? (
         <LoadFailed />
       ) : (
-        <ArticlePreviews articles={list.data.articles} toggle={toggle} links={previewLinks} />
+        <ArticlePreviews articles={list.data.articles} toggle={toggle} links={{ table, ...previewLoaders }} />
       )}
       <Pagination
         count={first.right.articlesCount}
@@ -78,10 +85,11 @@ export const globalArticles = articleSource('globalArticles', (paging) =>
 export const feedArticles = articleSource('feedArticles', (paging) =>
   Effect.flatMap(ServerFunctions, (c) => c(feedContract)(paging)),
 )
+// The tag route names it `:tag`.
+const routeTag = Effect.map(Route, (m) => m.params['tag']!)
+
 export const tagArticles = articleSource('tagArticles', (paging) =>
-  Effect.flatMap(Effect.zip(ServerFunctions, params(table, 'tag')), ([c, { tag }]) =>
-    c(listArticlesContract)({ ...paging, tag }),
-  ),
+  Effect.flatMap(Effect.zip(ServerFunctions, routeTag), ([c, tag]) => c(listArticlesContract)({ ...paging, tag })),
 )
 
 /** Every tag in use, for the sidebar. */
@@ -182,25 +190,11 @@ const Home = function* ({ tab, source }: { tab: Tab; source: ArticleSource }) {
   )
 }
 
-export const HomePage = () => (
-  <Layout>
-    <Home tab={{ kind: 'global' }} source={globalArticles} />
-  </Layout>
-)
+export const HomePage = () => <Home tab={{ kind: 'global' }} source={globalArticles} />
 
-export const FeedPage = () => (
-  <Layout>
-    <Home tab={{ kind: 'feed' }} source={feedArticles} />
-  </Layout>
-)
+export const FeedPage = () => <Home tab={{ kind: 'feed' }} source={feedArticles} />
 
-const TagHome = function* () {
-  const { tag } = yield* params(table, 'tag')
+export const TagPage = function* () {
+  const tag = yield* routeTag
   return <Home tab={{ kind: 'tag', tag }} source={tagArticles} />
 }
-
-export const TagPage = () => (
-  <Layout>
-    <TagHome />
-  </Layout>
-)

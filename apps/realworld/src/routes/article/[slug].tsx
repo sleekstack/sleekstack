@@ -3,6 +3,7 @@ import { type DraftSpec, useDraft } from '@sleekstack/model'
 import { Link, useLoader } from '@sleekstack/router'
 import { useAction, useAtomValue, useFormStatus, useLocal, useSetAtom } from '@sleekstack/ui'
 import { Effect } from 'effect'
+import { table } from 'virtual:sleekstack/routes'
 import {
   Article,
   deleteArticleContract,
@@ -12,17 +13,21 @@ import {
   markdown,
   type Toggle,
   unfavoriteContract,
-} from '../modules/articles'
-import { addCommentContract, Comment, deleteCommentContract, NewComment } from '../modules/comments'
-import type { Account } from '../modules/identity'
-import { ErrorList, errorsOf, toHome } from './form'
-import { ServerFunctions } from './functions'
-import { Layout, viewer } from './layout'
-import { article, authLoaders, comments, editLoaders, previewLinks, profileLoaders } from './loaders'
-import { FollowButton } from './profile'
-
-export { article, comments }
-import { table } from './routes'
+} from '../../modules/articles'
+import { addCommentContract, Comment, deleteCommentContract, NewComment } from '../../modules/comments'
+import type { Account } from '../../modules/identity'
+import { ErrorList, errorsOf, toHome } from '../../pages/form'
+import { ServerFunctions } from '../../pages/functions'
+import {
+  article,
+  authLoaders,
+  comments,
+  editLoaders,
+  previewLoaders,
+  profileLoaders,
+  viewer,
+} from '../../pages/loaders'
+import { FollowButton } from '../profile/_profile'
 
 const profileHref = (username: string) => `/profile/${encodeURIComponent(username)}`
 
@@ -34,7 +39,6 @@ const OwnerActions = function* ({ slug }: { slug: string }) {
   const outcome = yield* useAtomValue(deleted)
   return (
     <>
-      {/* The editor's `editable` loader is not named: its module imports this one. */}
       <Link
         table={table}
         loaders={editLoaders}
@@ -76,7 +80,7 @@ const ArticleMeta = function* ({ article, me }: { article: Article; me: Account 
       ) : (
         <>
           <FollowButton user={author} signedIn={me !== null} />
-          <FavoriteButton article={article} toggle={toggle} links={previewLinks} />
+          <FavoriteButton article={article} toggle={toggle} links={{ table, ...previewLoaders }} />
         </>
       )}
     </div>
@@ -267,8 +271,6 @@ const ArticleView = function* () {
   )
 }
 
-export const ArticlePage = () => (
-  <Layout>
-    <ArticleView />
-  </Layout>
-)
+export default ArticleView
+
+export const loaders = [article, comments]

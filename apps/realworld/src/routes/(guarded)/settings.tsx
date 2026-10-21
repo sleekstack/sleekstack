@@ -3,11 +3,11 @@ import { type DraftSpec, useDraft } from '@sleekstack/model'
 import { useLoader } from '@sleekstack/router'
 import { useAction, useAtomValue, useFormStatus, useSetAtom } from '@sleekstack/ui'
 import { Effect, Schema } from 'effect'
-import { type Account, logoutContract, type UpdateUser, updateUserContract } from '../modules/identity'
-import { Field } from './auth'
-import { ErrorList, errorsOf, toHome } from './form'
-import { ServerFunctions } from './functions'
-import { Layout, signedIn } from './layout'
+import { type Account, logoutContract, type UpdateUser, updateUserContract } from '../../modules/identity'
+import { Field } from '../../pages/field'
+import { ErrorList, errorsOf, toHome } from '../../pages/form'
+import { ServerFunctions } from '../../pages/functions'
+import { signedIn } from '../../pages/loaders'
 
 const SettingsForm = Schema.Struct({
   image: Schema.String,
@@ -87,8 +87,4 @@ const SignedInSettings = function* () {
   })
 }
 
-export const SettingsPage = () => (
-  <Layout>
-    <SignedInSettings />
-  </Layout>
-)
+export default SignedInSettings

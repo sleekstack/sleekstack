@@ -3,10 +3,9 @@ import { Result } from '@sleekstack/core'
 import { Link, useLoader } from '@sleekstack/router'
 import { useAction, useAtomValue, useDerivedAtom, useFormStatus } from '@sleekstack/ui'
 import { Effect, Option } from 'effect'
-import { followContract, type Profile, unfollowContract } from '../modules/identity'
-import { ServerFunctions } from './functions'
-import { ArticleFeed } from './home'
-import { Layout, signedIn, viewer } from './layout'
+import { table } from 'virtual:sleekstack/routes'
+import { followContract, type Profile, unfollowContract } from '../../modules/identity'
+import { ServerFunctions } from '../../pages/functions'
 import {
   type ArticleSource,
   authLoaders,
@@ -15,10 +14,10 @@ import {
   favoritesLoaders,
   profile,
   profileLoaders,
-} from './loaders'
-import { table } from './routes'
-
-export { authoredArticles, favoritedArticles, profile }
+  signedIn,
+  viewer,
+} from '../../pages/loaders'
+import { ArticleFeed } from '../_home'
 
 const profileHref = (username: string) => `/profile/${encodeURIComponent(username)}`
 
@@ -121,14 +120,6 @@ const ProfileView = function* ({ favorites }: { favorites: boolean }) {
   )
 }
 
-export const ProfilePage = () => (
-  <Layout>
-    <ProfileView favorites={false} />
-  </Layout>
-)
+export const ProfilePage = () => <ProfileView favorites={false} />
 
-export const FavoritesPage = () => (
-  <Layout>
-    <ProfileView favorites />
-  </Layout>
-)
+export const FavoritesPage = () => <ProfileView favorites />

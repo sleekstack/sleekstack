@@ -1,14 +1,43 @@
-import { type Loader, loader, notFound, redirect, Route, useLoader } from '@sleekstack/router'
+import {
+  type LinkProps,
+  type Loader,
+  type Loaders,
+  loader,
+  notFound,
+  redirect,
+  Route,
+  useLoader,
+} from '@sleekstack/router'
 import type { Stub } from '@sleekstack/start/client'
 import { Effect, Schema } from 'effect'
 import { Article, ArticleList, getArticleContract, listArticlesContract } from '../modules/articles'
 import { Comment, listCommentsContract } from '../modules/comments'
-import { Profile, profileContract } from '../modules/identity'
+import { Account, currentUserContract, Profile, profileContract } from '../modules/identity'
 import { ServerFunctions } from './functions'
-import { type RouteLoaders, signedIn, viewer } from './layout'
-import { table } from './routes'
 
 // The loaders that a link on another page names, apart from the pages so any page imports them without a cycle.
+
+/**
+ * Who is signed in, or `null`: the root layout declares it, so the server resolves it from the session cookie and sends
+ * it with the page, and the hydrating browser renders the same header. A bad session reads as signed out.
+ */
+export const viewer = loader(
+  'viewer',
+  Schema.NullOr(Account),
+  Effect.flatMap(ServerFunctions, (call) => call(currentUserContract)()).pipe(
+    Effect.catchTag('Unauthorized', () => Effect.succeed(null)),
+  ),
+)
+
+/** The signed-in user, for a page only they may see: anyone else is sent to `/login`. */
+export const signedIn = loader(
+  'signedIn',
+  Account,
+  Effect.flatMap(useLoader(viewer), (user) => (user ? Effect.succeed(user) : redirect('/login'))),
+)
+
+/** A target route's loaders (its layouts' and its own) for a page-body `Link`, so hover and focus prefetch them. */
+export type RouteLoaders = LinkProps<ServerFunctions | Route | Loaders>['loaders']
 
 export const PAGE_SIZE = 10
 
@@ -87,7 +116,7 @@ export const editable = loader(
   ),
 )
 
-// Each linked route's loaders as `app.tsx` declares them, for hover and focus prefetch.
+// Each linked route's loaders as its route file and layouts declare them, for hover and focus prefetch.
 export const articleLoaders: RouteLoaders = [viewer, article, comments]
 export const profileLoaders: RouteLoaders = [viewer, profile, authoredArticles.first]
 export const favoritesLoaders: RouteLoaders = [viewer, profile, favoritedArticles.first]
@@ -95,5 +124,5 @@ export const editLoaders: RouteLoaders = [viewer, signedIn, article, editable]
 /** `/login` and `/register` both declare only `viewer`. */
 export const authLoaders: RouteLoaders = [viewer]
 
-/** The link targets an article preview (and its signed-out favorite button) renders. */
-export const previewLinks = { table, article: articleLoaders, profile: profileLoaders, login: authLoaders }
+/** The loaders of the link targets an article preview (and its signed-out favorite button) renders; with the route table, its `links`. */
+export const previewLoaders = { article: articleLoaders, profile: profileLoaders, login: authLoaders }

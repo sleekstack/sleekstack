@@ -3,14 +3,11 @@ import { type DraftSpec, useDraft } from '@sleekstack/model'
 import { useLoader } from '@sleekstack/router'
 import { useAction, useAtomValue, useFormStatus, useSetAtom } from '@sleekstack/ui'
 import { Effect, Schema } from 'effect'
-import { Article, createArticleContract, type NewArticle, updateArticleContract } from '../modules/articles'
-import { Field } from './auth'
-import { ErrorList, errorsOf, toPage } from './form'
-import { ServerFunctions } from './functions'
-import { Layout } from './layout'
-import { editable } from './loaders'
-
-export { editable }
+import { Article, createArticleContract, type NewArticle, updateArticleContract } from '../../../modules/articles'
+import { Field } from '../../../pages/field'
+import { ErrorList, errorsOf, toPage } from '../../../pages/form'
+import { ServerFunctions } from '../../../pages/functions'
+import { editable } from '../../../pages/loaders'
 
 const articleHref = (slug: string) => `/article/${encodeURIComponent(slug)}`
 
@@ -112,20 +109,10 @@ const Editor = function* ({ article }: { article: Article | null }) {
   )
 }
 
-export const NewArticlePage = () => (
-  <Layout>
-    <Editor article={null} />
-  </Layout>
-)
+export const NewArticlePage = () => <Editor article={null} />
 
-const Editing = function* () {
+export const EditArticlePage = function* () {
   const a = yield* Effect.either(useLoader(editable))
   if (a._tag === 'Left') return <div class="container page">The article could not be loaded: try again.</div>
   return <Editor article={a.right} />
 }
-
-export const EditArticlePage = () => (
-  <Layout>
-    <Editing />
-  </Layout>
-)

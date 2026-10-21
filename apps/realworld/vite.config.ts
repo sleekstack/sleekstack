@@ -1,10 +1,15 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { sleekstack } from '@sleekstack/ui-vite'
 import { defineConfig } from 'vitest/config'
 import { devMiddleware } from './server/dev'
 
+/** `virtual:sleekstack/routes` from `src/routes`: the file-routes plugin alone, the only part of `sleekstack()` used here. */
+export const routes = () => sleekstack().filter((p) => p.name === 'sleekstack:routes')
+
 export default defineConfig({
   plugins: [
+    routes(),
     {
       // The server on the dev server: `server/app.ts`, loaded through Vite so an edit to it applies on the next request.
       // Registered here, not in a returned hook, so page navigations reach it before Vite's own `index.html`.
