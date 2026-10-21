@@ -1,0 +1,62 @@
+---
+title: Server Services
+description: Server operations declared as an Effect contract, implemented in a *.server.ts Layer, with the browser client and the server registry generated from the types.
+---
+
+A Server Service is a Context Tag whose methods are Effect signatures ([ADR 0051](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0051-server-services.md)). A page calls `yield* Profiles`. On the server that is the implementation, in-process. In the browser it is a client that posts to the server. No Schema, id, `functions` entry or client stub is written by hand: the Vite plugin generates them from the contract's types.
+
+## The contract
+
+`ServerService(id)<Self, Shape>()` comes from `@sleekstack/start/client`, the subpath the browser may import. The contract file holds only types, `Data.TaggedError` classes and `ServerService` classes, so any page may import it.
+
+<include>../../snippets/server-services/profiles.ts</include>
+
+- A method takes at most one input (an object or a single value); none means `void`. Its `R` is `never`.
+- The supported types are `string`, `number`, `boolean`, `null`, `undefined`, string, number and boolean literals, unions of those, arrays, optional properties, nested object types and `void`. Errors are `Data.TaggedError` classes with JSON-shaped fields, and the client decodes them back into their class. Any other type is the analyzer error `ServerServiceTypeNotSerializable`, with its file and line.
+- The method signature is the wire shape. The generated success Schema encodes only the declared fields, so a wider row returned by the implementation does not leak its extra columns.
+- On the Tag, every method also fails with `NetworkError | DecodeError`, so a page handles one error type in both environments. A method can fail with `Redirect` or `NotFound` only if its error union lists them.
+
+## The implementation
+
+The implementation is an ordinary Layer in a `*.server.ts` file, given to `start({ layer })` like any other. Nothing is auto-discovered. The Layer is type-checked against the Tag, so a method changed in the contract fails the server compile.
+
+<include>../../snippets/server-services/profiles.server.ts</include>
+
+## The generated modules
+
+`sleekstack()` from `@sleekstack/ui-vite` includes the generator. An app on another Vite setup adds `serverServices()` from the same package to its plugins. It serves two virtual modules, and it writes their types to `src/server.gen.d.ts` (option `serverDeclaration`). Commit that file, as you would `routes.gen.d.ts`.
+
+- `virtual:sleek/server`: a Layer providing every Server Service Tag as a client. A call encodes the input, posts it to `POST /_sleek/fn/<Tag id>.<method>` and decodes the answer.
+- `virtual:sleek/server-registry`: each Tag with its method Schemas, for `start({ services })`.
+
+The declaration names each Tag from its contract file:
+
+<include>../../snippets/server-services/server.gen.d.ts</include>
+
+The server entry gives the registry to `start` and the implementation to its layer:
+
+<include>../../snippets/server-services/server.tsx</include>
+
+The page provides the browser Layer and asks for the Tag:
+
+<include>../../snippets/server-services/page.tsx</include>
+
+The wire is the Server Function wire of [ADR 0039](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0039-start-server-core.md), unchanged: the same method, origin, size and input checks, and the same `Success` or `Failure` envelope. Input that does not match the generated Schema is a 400 `DecodeError` before the implementation runs. An undeclared failure or a defect goes to the error sink and answers an empty 500. A method id that collides with a `serverFn` id fails `start` with `DuplicateServerFn`.
+
+## The browser boundary
+
+A `*.server.ts` file reachable from browser code fails the client build, naming the import chain (`index.html -> src/main.ts -> src/page.ts -> src/profiles.server.ts`). `sleekstack check` reports the same as `ServerFileInClientGraph`. A `*.server.ts` imported only by server code or by tests is not an error, and an `import type` from client code is erased, so it is not an error either. The generated client imports each contract file and never an implementation.
+
+## Testing
+
+A test Layer replaces the implementation with no transformer and no network. `callService` from `@sleekstack/testing` runs a method through `start(...).fetch`, the wire path, and resolves to an `Exit` like `callServerFn`. It takes the registry entry, which carries the Schemas.
+
+<include>../../snippets/server-services/profiles.test-example.ts</include>
+
+## What a Server Service does not do
+
+- **Refinements.** A type cannot say non-empty, a brand or a length, and the Schema is exactly as strict as the type: `name: string` accepts the empty string. A field that needs a constraint at the trust boundary belongs in a `serverFn` with an explicit Schema.
+- **Request services.** A method's `R` is `never`, so it cannot read `Request`, `Cookies` or `ResponseHeaders`. A function that needs them is a `serverFn`.
+- **Streaming.** A method answers once, as a Server Function does.
+
+`serverFn` stays the tool for those cases, and for a one-off form action whose Schema decodes `FormData`.

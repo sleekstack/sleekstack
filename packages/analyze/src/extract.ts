@@ -35,11 +35,11 @@ export function libId(sym: ts.Symbol | undefined, checker: ts.TypeChecker): stri
   if (sym.flags & ts.SymbolFlags.Alias) sym = checker.getAliasedSymbol(sym)
   const file = sym.declarations?.[0]?.getSourceFile().fileName.replace(/\\/g, '/')
   if (!file) return undefined
-  const own = /\/(?:packages|@sleekstack)\/(core|runtime|query|ui|router)\/(?:src|dist)\/(.+?)(?:\.d)?\.tsx?$/.exec(
-    file,
-  )
+  const own =
+    /\/(?:packages|@sleekstack)\/(core|runtime|query|ui|router|start)\/(?:src|dist)\/(.+?)(?:\.d)?\.tsx?$/.exec(file)
   if (own) return `${own[1]}/${own[2]}#${sym.name}`
   if (/\/effect\/dist\/dts\/Context\.d\.ts$/.test(file)) return `effect/Context#${sym.name}`
+  if (/\/effect\/dist\/dts\/Data\.d\.ts$/.test(file)) return `effect/Data#${sym.name}`
   if (/\/effect\/dist\/dts\/Effect\.d\.ts$/.test(file)) return `effect/Effect#${sym.name}`
   if (/\/effect\/dist\/dts\/Layer\.d\.ts$/.test(file)) return `effect/Layer#${sym.name}`
   if (/\/effect\/dist\/dts\/Stream\.d\.ts$/.test(file)) return `effect/Stream#${sym.name}`
@@ -125,19 +125,36 @@ export const bodyReturns = (fn: ts.FunctionLikeDeclaration): ts.Expression[] => 
   return out
 }
 
-/** The tsconfig project at `project` as a program and checker; `root` is the tsconfig's directory. */
+/** The last program built and the stamp of the files it came from: one slot, as every program holds its checker. */
+let lastProgram:
+  | { configPath: string; stamp: string; value: { root: string; program: ts.Program; checker: ts.TypeChecker } }
+  | undefined
+
+/**
+ * The tsconfig project at `project` as a program and checker; `root` is the tsconfig's directory. While the config and
+ * its files are unchanged the passes that follow one another on a project share one program (the dev server's analyzer
+ * and generator do); after a change the new program reuses the old one's unchanged files.
+ */
 export function programOf(project: string) {
   const configPath = path.resolve(project)
   const root = path.dirname(configPath)
   const read = ts.readConfigFile(configPath, ts.sys.readFile)
   if (read.error) throw new Error(ts.flattenDiagnosticMessageText(read.error.messageText, '\n'))
   const parsed = ts.parseJsonConfigFileContent(read.config, ts.sys, root, undefined, configPath)
+  const stamp = [configPath, ...parsed.fileNames]
+    .map((f) => `${f}:${ts.sys.getModifiedTime?.(f)?.getTime() ?? ''}`)
+    .join('|')
+  const last = lastProgram?.configPath === configPath ? lastProgram : undefined
+  if (last?.stamp === stamp) return last.value
   const program = ts.createProgram({
     rootNames: parsed.fileNames,
     options: parsed.options,
     projectReferences: parsed.projectReferences,
+    oldProgram: last?.value.program,
   })
-  return { root, program, checker: program.getTypeChecker() }
+  const value = { root, program, checker: program.getTypeChecker() }
+  lastProgram = { configPath, stamp, value }
+  return value
 }
 
 export function extract(project: string, entries?: readonly string[], lenient = false): Report {

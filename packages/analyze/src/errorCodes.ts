@@ -26,6 +26,10 @@ export type AnalyzeCode =
   | 'NonResumableHandler'
   | 'ConditionalSlot'
   | 'MissingKey'
+  | 'ServerServiceFileShape'
+  | 'ServerServiceMethodShape'
+  | 'ServerServiceTypeNotSerializable'
+  | 'ServerFileInClientGraph'
 
 export interface ErrorHelp {
   /** What the analyzer checks. */
@@ -39,6 +43,7 @@ export interface ErrorHelp {
 const GRAPH = '/docs/errors#graph-errors'
 const READ = '/docs/errors#analyzer-read-errors'
 const UI = '/docs/errors#component-errors'
+const SERVER = '/docs/errors#server-service-errors'
 
 export const ERROR_CODES: Readonly<Record<AnalyzeCode, ErrorHelp>> = {
   MissingDependency: {
@@ -137,6 +142,30 @@ export const ERROR_CODES: Readonly<Record<AnalyzeCode, ErrorHelp>> = {
       'Wrap a returned fragment in an element that carries the key',
     ],
     docs: UI,
+  },
+  ServerServiceFileShape: {
+    rule: 'A ServerService file holds only imports, types, Data.TaggedError and ServerService classes, is not and imports no *.server.ts, and each Tag id has one class.',
+    fix: ['Move values and implementation code into a *.server.ts file', 'Give each ServerService its own Tag id'],
+    docs: SERVER,
+  },
+  ServerServiceMethodShape: {
+    rule: 'Every ServerService method is written out as `(input?) => Effect.Effect<A, E>`: one parameter at most, R = never, no `any`.',
+    fix: [
+      'Pass several inputs as one object',
+      'Provide services in the implementation Layer',
+      'Replace `any` with the type',
+    ],
+    docs: SERVER,
+  },
+  ServerServiceTypeNotSerializable: {
+    rule: 'ServerService method types are JSON-shaped: primitives, literals, unions, arrays, plain objects; errors are Data.TaggedError classes.',
+    fix: ['Use a JSON-shaped type (a string for a Date, an array for a Set)', 'Use a serverFn with an explicit Schema'],
+    docs: SERVER,
+  },
+  ServerFileInClientGraph: {
+    rule: 'No *.server.ts is value-imported, directly or not, by a module importing virtual:sleek/server.',
+    fix: ['Import the contract, not the implementation', 'Use `import type` for types'],
+    docs: SERVER,
   },
 }
 

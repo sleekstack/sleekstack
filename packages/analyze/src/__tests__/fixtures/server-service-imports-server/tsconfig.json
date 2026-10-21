@@ -1,0 +1,27 @@
+{
+  "extends": "../../../../../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "@sleekstack/ui",
+    "paths": {
+      "@sleekstack/start": [
+        "../../../../../start/src/index.ts"
+      ],
+      "@sleekstack/start/client": [
+        "../../../../../start/src/client.ts"
+      ],
+      "@sleekstack/ui": [
+        "../../../../../ui/src/index.ts"
+      ],
+      "@sleekstack/ui/jsx-runtime": [
+        "../../../../../ui/src/jsx-runtime.ts"
+      ],
+      "@sleekstack/router": [
+        "../../../../../router/src/index.ts"
+      ]
+    }
+  },
+  "include": [
+    "."
+  ]
+}

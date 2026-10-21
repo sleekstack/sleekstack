@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-21T14:11:43.688222Z",
+  "depends_on": [
+    "fn-66-server-services-di-style-server.3"
+  ],
+  "id": "fn-66-server-services-di-style-server.4",
+  "priority": null,
+  "spec": "fn-66-server-services-di-style-server",
+  "spec_path": ".flow/tasks/fn-66-server-services-di-style-server.4.md",
+  "status": "done",
+  "title": "analyze: method types to a Schema description, `ServerServiceTypeNotSerializable`",
+  "updated_at": "2026-10-21T14:11:43.688222Z"
+}

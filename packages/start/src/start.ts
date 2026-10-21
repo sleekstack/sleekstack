@@ -5,7 +5,8 @@ import { Cause, Effect, Layer } from 'effect'
 import { type Handler, runHandler } from './handler'
 import { type Middleware, runMiddleware } from './middleware'
 import { normalizeOrigin } from './origin'
-import { registry, type ServerFn } from './serverFn'
+import { registry, type ServerFn, serviceFunctions } from './serverFn'
+import type { ServerServiceEntry } from './service'
 import { requestServices, type RequestServices } from './services'
 import { endpoint } from './wire'
 
@@ -21,7 +22,7 @@ type StartLayer<R> = 0 extends 1 & R
     : { readonly layer: Layer.Layer<R, any, never> }
 
 /** What `start` takes: the router, handlers by pathname, and the layer the app's requirements come from. */
-export type StartOptions<T extends RouteTable, RP, RH, RM, RF> = {
+export type StartOptions<T extends RouteTable, RP, RH, RM, RF, RS = never> = {
   readonly router: Router<T, RP>
   /** Route handlers by exact pathname. */
   readonly handlers?: { readonly [pathname: string]: Handler<any, RH> }
@@ -29,6 +30,11 @@ export type StartOptions<T extends RouteTable, RP, RH, RM, RF> = {
   readonly middleware?: ReadonlyArray<Middleware<any, RM>>
   /** Server functions, served at `POST /_sleek/fn/<id>`. Ids are unique and `[A-Za-z0-9][A-Za-z0-9_.-]*`. */
   readonly functions?: ReadonlyArray<ServerFn<string, any, any, any, RF>>
+  /**
+   * Server Services (the generated registry), each method served at `POST /_sleek/fn/<Tag id>.<method>`. `layer` must
+   * provide every Tag; ids share the `functions` rules.
+   */
+  readonly services?: ReadonlyArray<ServerServiceEntry<RS>>
   /**
    * Origins besides the request's own allowed to call server functions, each a bare origin such as
    * `https://app.example`; anything else fails `start` with `InvalidOrigin`. This sends no CORS headers: middleware does.
@@ -38,7 +44,7 @@ export type StartOptions<T extends RouteTable, RP, RH, RM, RF> = {
   readonly bodyLimit?: number
   /** The runtime's error sink: defects from every stage. Default: `console.error`. */
   readonly onError?: ErrorSink
-} & StartLayer<NoInfer<Needs<RP | RH | RM | RF>>>
+} & StartLayer<NoInfer<Needs<RP | RH | RM | RF | RS>>>
 
 /** The app `start` returns: a standard `fetch` handler over the router. */
 export interface Start {
@@ -49,18 +55,21 @@ const isControl = (e: unknown): e is Redirect | NotFound => e instanceof Redirec
 
 /**
  * The server entry: configures the runtime over `layer`, and `fetch` answers each request in one Request Scope,
- * through middleware, then server functions, then the route handler for the pathname, then the router's page (an
+ * through middleware, then server functions and Server Service methods, then the route handler for the pathname, then the router's page (an
  * unmatched path is its not-found page with 404). A defect or unhandled failure in any stage reaches `onError` and
  * answers an empty 500. A `Redirect` or `NotFound` from middleware or a handler answers 302 or 404.
  */
-export const start = <const T extends RouteTable, RP = never, RH = never, RM = never, RF = never>(
-  options: StartOptions<T, RP, RH, RM, RF>,
+export const start = <const T extends RouteTable, RP = never, RH = never, RM = never, RF = never, RS = never>(
+  options: StartOptions<T, RP, RH, RM, RF, RS>,
 ): Start => {
   const { router, handlers = {}, middleware = [] } = options
-  const serverFunctions = endpoint(registry(options.functions ?? []), {
-    origins: (options.origins ?? []).map(normalizeOrigin),
-    bodyLimit: options.bodyLimit ?? 1024 * 1024,
-  })
+  const serverFunctions = endpoint(
+    registry([...(options.functions ?? []), ...serviceFunctions(options.services ?? [])]),
+    {
+      origins: (options.origins ?? []).map(normalizeOrigin),
+      bodyLimit: options.bodyLimit ?? 1024 * 1024,
+    },
+  )
   const sink: ErrorSink = options.onError ?? ((cause) => console.error(Cause.pretty(cause)))
   configureRuntime({
     layer: (options.layer ?? Layer.empty) as Layer.Layer<never, unknown, never>,
