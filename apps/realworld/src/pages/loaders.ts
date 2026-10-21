@@ -12,7 +12,7 @@ import type { Stub } from '@sleekstack/start/client'
 import { Effect, Schema } from 'effect'
 import { Article, ArticleList, getArticleContract, listArticlesContract } from '../modules/articles'
 import { Comment, listCommentsContract } from '../modules/comments'
-import { Account, currentUserContract, Profile, profileContract } from '../modules/identity'
+import { Account, IdentityApi, Profile } from '../modules/identity'
 import { ServerFunctions } from './functions'
 
 // The loaders that a link on another page names, apart from the pages so any page imports them without a cycle.
@@ -24,9 +24,7 @@ import { ServerFunctions } from './functions'
 export const viewer = loader(
   'viewer',
   Schema.NullOr(Account),
-  Effect.flatMap(ServerFunctions, (call) => call(currentUserContract)()).pipe(
-    Effect.catchTag('Unauthorized', () => Effect.succeed(null)),
-  ),
+  Effect.flatMap(IdentityApi, (api) => api.current()).pipe(Effect.catchTag('Unauthorized', () => Effect.succeed(null))),
 )
 
 /** The signed-in user, for a page only they may see: anyone else is sent to `/login`. */
@@ -37,7 +35,7 @@ export const signedIn = loader(
 )
 
 /** A target route's loaders (its layouts' and its own) for a page-body `Link`, so hover and focus prefetch them. */
-export type RouteLoaders = LinkProps<ServerFunctions | Route | Loaders>['loaders']
+export type RouteLoaders = LinkProps<IdentityApi | ServerFunctions | Route | Loaders>['loaders']
 
 export const PAGE_SIZE = 10
 
@@ -89,9 +87,9 @@ const username = Effect.map(Route, (m) => m.params['username']!)
 export const profile = loader(
   'profile',
   Profile,
-  Effect.flatMap(Effect.zip(ServerFunctions, username), ([call, name]) =>
-    call(profileContract)({ username: name }),
-  ).pipe(Effect.catchTag('NotFound', notFound)),
+  Effect.flatMap(Effect.zip(IdentityApi, username), ([api, name]) => api.profile({ username: name })).pipe(
+    Effect.catchTag('NotFound', notFound),
+  ),
 )
 
 export const authoredArticles = articleSource('authoredArticles', (paging) =>

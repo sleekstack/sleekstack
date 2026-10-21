@@ -4,8 +4,7 @@ import { Link, useLoader } from '@sleekstack/router'
 import { useAction, useAtomValue, useDerivedAtom, useFormStatus } from '@sleekstack/ui'
 import { Effect, Option } from 'effect'
 import { table } from 'virtual:sleekstack/routes'
-import { followContract, type Profile, unfollowContract } from '../../modules/identity'
-import { ServerFunctions } from '../../pages/functions'
+import { IdentityApi, type Profile } from '../../modules/identity'
 import {
   type ArticleSource,
   authLoaders,
@@ -24,9 +23,9 @@ const profileHref = (username: string) => `/profile/${encodeURIComponent(usernam
 
 /** Follow or unfollow `user`; the button shows the server's answer. A signed-out viewer gets a link to `/login`. */
 const Follow = function* ({ user, signedIn }: { user: Profile; signedIn: boolean }) {
-  const call = yield* ServerFunctions
+  const api = yield* IdentityApi
   const [result, run] = yield* useAction((): Effect.Effect<Profile, unknown> =>
-    call(current.following ? unfollowContract : followContract)({ username: current.username }),
+    (current.following ? api.unfollow : api.follow)({ username: current.username }),
   )
   const confirmed = yield* useDerivedAtom((get) => Option.getOrElse(Result.value(get(result)), () => user))
   const current = yield* useAtomValue(confirmed)

@@ -1,13 +1,12 @@
 import { QueryClientLive } from '@sleekstack/query'
 import type { NotFound, Redirect } from '@sleekstack/router'
-import { Cookies, Request, serverFn, start } from '@sleekstack/start'
-import { type Context, Effect, Layer, Option, type Schema } from 'effect'
+import { serverFn, start } from '@sleekstack/start'
+import { type Context, type Effect, Layer, type Schema } from 'effect'
+import services from 'virtual:sleek/server-registry'
 import { pages } from '../src/app'
 import { AppLive } from '../src/layers'
 import * as articles from '../src/modules/articles'
 import * as comments from '../src/modules/comments'
-import * as identity from '../src/modules/identity'
-import { type User, Viewer } from '../src/modules/identity'
 import { ServerFunctions } from '../src/pages/functions'
 import {
   createArticle,
@@ -22,51 +21,11 @@ import {
 } from './articles'
 import { addComment, deleteComment, listComments } from './comments'
 import { DbLive } from './db'
-import {
-  currentUser,
-  follow,
-  login,
-  profile,
-  register,
-  TokenSecretLive,
-  unfollow,
-  updateUser,
-  ViewerLive,
-} from './identity'
+import { TokenSecretLive } from './identity'
+import { asViewer, IdentityApiLive } from './identity-api.server'
 import { rest } from './rest'
 
-/** The session cookie: the token, out of reach of scripts. */
-export const SESSION = 'conduit_session'
-// The token's own lifetime (server/crypto.ts).
-const SESSION_SECONDS = 30 * 24 * 60 * 60
-
-/**
- * `effect` as the viewer whose token the session cookie holds: anonymous without one. A stale cookie (bad, expired, or
- * naming a deleted user) is cleared and reads as anonymous too, so a function that needs a viewer is `Unauthorized`.
- */
-const asViewer = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
-  Effect.flatMap(Cookies, (cookies) =>
-    Effect.provide(
-      effect,
-      ViewerLive(cookies.get(SESSION)).pipe(
-        Layer.catchAll(() =>
-          Layer.effect(Viewer, Effect.as(Effect.orDie(cookies.delete(SESSION, { path: '/' })), Option.none())),
-        ),
-      ),
-    ),
-  )
-
-/** Session cookies are `Secure` in production and on any https request; dev over http keeps working. */
-const secure = Effect.map(
-  Request,
-  (request) => process.env.NODE_ENV === 'production' || request.url.startsWith('https:'),
-)
-
-/** Signs `user` in on this browser: the session cookie holds their token. */
-const signIn = (user: User) =>
-  Effect.flatMap(Effect.zip(Cookies, secure), ([cookies, secure]) =>
-    cookies.set(SESSION, user.token, { httpOnly: true, secure, sameSite: 'Lax', path: '/', maxAge: SESSION_SECONDS }),
-  ).pipe(Effect.orDie, Effect.as(user))
+export { SESSION } from './identity-api.server'
 
 type AnySchema = Schema.Schema<any, any, never>
 
@@ -85,30 +44,6 @@ const viewerFn = <const Id extends string, In extends AnySchema, Out extends Any
   })
 
 const functions = [
-  serverFn(
-    identity.registerContract.id,
-    identity.registerContract,
-  )(function* (input) {
-    return yield* Effect.flatMap(register(input), signIn)
-  }),
-  serverFn(
-    identity.loginContract.id,
-    identity.loginContract,
-  )(function* (input) {
-    return yield* Effect.flatMap(login(input), signIn)
-  }),
-  serverFn(
-    identity.logoutContract.id,
-    identity.logoutContract,
-  )(function* () {
-    const cookies = yield* Cookies
-    yield* Effect.orDie(cookies.delete(SESSION, { path: '/' }))
-  }),
-  viewerFn(identity.currentUserContract, () => currentUser),
-  viewerFn(identity.updateUserContract, updateUser),
-  viewerFn(identity.profileContract, ({ username }) => profile(username)),
-  viewerFn(identity.followContract, ({ username }) => follow(username)),
-  viewerFn(identity.unfollowContract, ({ username }) => unfollow(username)),
   viewerFn(articles.listArticlesContract, listArticles),
   viewerFn(articles.feedContract, feed),
   viewerFn(articles.getArticleContract, ({ slug }) => getArticle(slug)),
@@ -140,18 +75,23 @@ const ServerFunctionsInPlace = Layer.succeed(ServerFunctions, ((contract: { read
 const ServerQueriesLive = QueryClientLive({ defaultOptions: { queries: { gcTime: 0 } } })
 
 /**
- * The server entry: the REST facade at `/api/`, the server functions and the pages, over SQLite (`CONDUIT_DB`, default
- * `./data/conduit.db`).
+ * The server entry: the REST facade at `/api/`, the server functions, the Server Services and the pages, over SQLite
+ * (`CONDUIT_DB`, default `./data/conduit.db`).
  */
 export const app = start({
   router: pages,
-  layer: Layer.mergeAll(
-    AppLive,
-    ServerQueriesLive,
-    DbLive(process.env.CONDUIT_DB),
-    TokenSecretLive,
-    ServerFunctionsInPlace,
+  layer: IdentityApiLive.pipe(
+    Layer.provideMerge(
+      Layer.mergeAll(
+        AppLive,
+        ServerQueriesLive,
+        DbLive(process.env.CONDUIT_DB),
+        TokenSecretLive,
+        ServerFunctionsInPlace,
+      ),
+    ),
   ),
   middleware: [rest],
   functions,
+  services,
 })

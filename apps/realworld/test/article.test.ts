@@ -17,6 +17,7 @@ const { app } = await import('../server/app')
 const { pages } = await import('../src/app')
 const { QueriesLive } = await import('../src/layers')
 const { ServerFunctions } = await import('../src/pages/functions')
+const { default: ServerServicesLive } = await import('virtual:sleek/server')
 
 const browser = await builtinEnvironments.jsdom.setup(globalThis, { jsdom: { url: 'http://conduit.test/' } })
 afterAll(() => browser.teardown(globalThis))
@@ -62,7 +63,7 @@ let n = 0
 /** Registers a fresh user; returns their name and session cookie. */
 const user = async () => {
   const name = `a${++n}`
-  const { session } = await fn('users.register', { username: name, email: `${name}@x.io`, password: 'secret1' })
+  const { session } = await fn('IdentityApi.register', { username: name, email: `${name}@x.io`, password: 'secret1' })
   return { name, session }
 }
 const post = async (session: string, title: string, body = 'b', tagList: string[] = []) =>
@@ -94,7 +95,11 @@ const open = async (path: string) => {
   container = document.body.appendChild(document.createElement('div'))
   container.innerHTML = await response.text()
   nav = await act(() =>
-    startRouter(pages, { container, layer: Layer.merge(QueriesLive, Layer.succeed(ServerFunctions, client)), onError }),
+    startRouter(pages, {
+      container,
+      layer: Layer.mergeAll(QueriesLive, Layer.succeed(ServerFunctions, client), ServerServicesLive),
+      onError,
+    }),
   )
   await flush()
 }

@@ -17,6 +17,7 @@ const { app } = await import('../server/app')
 const { pages } = await import('../src/app')
 const { QueriesLive } = await import('../src/layers')
 const { ServerFunctions } = await import('../src/pages/functions')
+const { default: ServerServicesLive } = await import('virtual:sleek/server')
 
 const browser = await builtinEnvironments.jsdom.setup(globalThis, { jsdom: { url: 'http://conduit.test/' } })
 afterAll(() => browser.teardown(globalThis))
@@ -59,7 +60,7 @@ let n = 0
 /** Registers a fresh user; returns their name and session cookie. */
 const user = async () => {
   const name = `u${++n}`
-  const { session } = await fn('users.register', { username: name, email: `${name}@x.io`, password: 'secret1' })
+  const { session } = await fn('IdentityApi.register', { username: name, email: `${name}@x.io`, password: 'secret1' })
   return { name, session }
 }
 const post = (session: string, title: string, tagList: string[] = []) =>
@@ -89,7 +90,11 @@ const open = async (path: string) => {
   container = document.body.appendChild(document.createElement('div'))
   container.innerHTML = await response.text()
   nav = await act(() =>
-    startRouter(pages, { container, layer: Layer.merge(QueriesLive, Layer.succeed(ServerFunctions, client)), onError }),
+    startRouter(pages, {
+      container,
+      layer: Layer.mergeAll(QueriesLive, Layer.succeed(ServerFunctions, client), ServerServicesLive),
+      onError,
+    }),
   )
   await flush()
 }
@@ -130,7 +135,7 @@ describe('home feeds', () => {
     expect(container.querySelector('.navbar-brand')!.getAttribute('href')).toBe('/feed')
     expect(all('.article-preview')).toEqual(['No articles are here... yet.'])
 
-    await fn('profiles.follow', { username: writer.name }, reader.session)
+    await fn('IdentityApi.follow', { username: writer.name }, reader.session)
     await act_(() => nav!.navigate('/'))
     await act_(() => nav!.navigate('/feed'))
     expect(titles()).toEqual(['Followed post'])
@@ -150,7 +155,7 @@ describe('home feeds', () => {
   it.each([
     ['a tag', '.sidebar a[href="/tag/hover"]', ['articles.list']],
     ['an article preview', '.preview-link', ['articles.get', 'comments.list']],
-    ['a preview author', '.article-preview .author', ['profiles.get', 'articles.list']],
+    ['a preview author', '.article-preview .author', ['IdentityApi.profile', 'articles.list']],
   ])("hovering %s link prefetches its route's loaders; following it then makes no call", async (_, link, ids) => {
     const a = await user()
     await post(a.session, 'Hovered', ['hover'])
@@ -232,7 +237,7 @@ describe('profile pages', () => {
 
     await submit('.follow button')
     expect(all('.follow button')).toEqual([`Unfollow ${writer.name}`])
-    expect((await fn('profiles.get', { username: writer.name }, reader.session)).value.following).toBe(true)
+    expect((await fn('IdentityApi.profile', { username: writer.name }, reader.session)).value.following).toBe(true)
     await submit('.follow button')
     expect(all('.follow button')).toEqual([`Follow ${writer.name}`])
 

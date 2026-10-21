@@ -1,5 +1,6 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import { serverServices } from '@sleekstack/ui-vite'
 import { build } from 'vite'
 import { expect, it } from 'vitest'
 import { routes } from '../vite.config'
@@ -43,7 +44,14 @@ const ruleOf = (mod: string): Rule | undefined => {
     if (layer === 'application')
       return {
         local: ['domain/', 'application/', 'errors'],
-        packages: ['effect', '@sleekstack/core', '@sleekstack/query', '@sleekstack/query/ui', UI],
+        packages: [
+          'effect',
+          '@sleekstack/core',
+          '@sleekstack/query',
+          '@sleekstack/query/ui',
+          '@sleekstack/start/client',
+          UI,
+        ],
       }
     if (layer === 'infrastructure') return { local: ['domain/', 'infrastructure/', 'errors'], packages: ['effect'] }
     if (layer === 'presentation')
@@ -83,7 +91,7 @@ const ruleOf = (mod: string): Rule | undefined => {
     errors: { local: [], packages: ['effect'] },
     layers: { local: [], packages: ['effect', '@sleekstack/query/ui'] },
     app: { local: ['layers', 'pages/'], packages: [UI, '@sleekstack/router', ROUTES] },
-    main: { local: ['app', 'layers'], packages: ['effect', '@sleekstack/router'] },
+    main: { local: ['app', 'layers'], packages: ['effect', '@sleekstack/router', 'virtual:sleek/server'] },
   }
   return exact[mod]
 }
@@ -95,7 +103,11 @@ const files = (dir: string): string[] =>
   fs
     .readdirSync(dir, { withFileTypes: true })
     .flatMap((e) =>
-      e.isDirectory() ? files(path.join(dir, e.name)) : /\.tsx?$/.test(e.name) ? [path.join(dir, e.name)] : [],
+      e.isDirectory()
+        ? files(path.join(dir, e.name))
+        : /\.tsx?$/.test(e.name) && !e.name.endsWith('.d.ts')
+          ? [path.join(dir, e.name)]
+          : [],
     )
 const moduleOf = (file: string) =>
   path
@@ -194,7 +206,7 @@ it('the client chunk holds no server module', { timeout: 60_000 }, async () => {
   const out = await build({
     configFile: false,
     logLevel: 'silent',
-    plugins: [routes()],
+    plugins: [routes(), serverServices()],
     resolve: { alias: sourceAlias },
     define: { 'process.env.NODE_ENV': '"production"' },
     build: { write: false, minify: true, lib: { entry: path.join(src, 'main.tsx'), formats: ['es'] } },

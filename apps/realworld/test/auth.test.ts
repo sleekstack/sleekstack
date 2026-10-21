@@ -19,6 +19,7 @@ const { app, SESSION } = await import('../server/app')
 const { pages } = await import('../src/app')
 const { QueriesLive } = await import('../src/layers')
 const { ServerFunctions } = await import('../src/pages/functions')
+const { default: ServerServicesLive } = await import('virtual:sleek/server')
 
 /** The browser's cookie jar: the session cookie the app set, sent back on every request. */
 let cookie = ''
@@ -68,7 +69,11 @@ const open = async (path: string) => {
   container.innerHTML = html
   const header = container.querySelector('nav')
   nav = await act(() =>
-    startRouter(pages, { container, layer: Layer.merge(QueriesLive, Layer.succeed(ServerFunctions, client)), onError }),
+    startRouter(pages, {
+      container,
+      layer: Layer.mergeAll(QueriesLive, Layer.succeed(ServerFunctions, client), ServerServicesLive),
+      onError,
+    }),
   )
   await flush()
   return { html, header }
@@ -77,7 +82,11 @@ const open = async (path: string) => {
 /** Registers `name` from this browser, which then holds their session cookie. */
 const signUp = async (name: string) => {
   const body = JSON.stringify({ username: name, email: `${name}@x.io`, password: 'secret1' })
-  await fetch('/_sleek/fn/users.register', { method: 'POST', headers: { 'content-type': 'application/json' }, body })
+  await fetch('/_sleek/fn/IdentityApi.register', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body,
+  })
   calls.mockClear()
 }
 
@@ -143,7 +152,7 @@ describe('auth pages', () => {
     const taken = { username: 'bob', email: 'bob@x.io', password: 'secret1' }
     keepCookies(
       await app.fetch(
-        new Request(new URL('/_sleek/fn/users.register', location.origin), {
+        new Request(new URL('/_sleek/fn/IdentityApi.register', location.origin), {
           method: 'POST',
           headers: { origin: location.origin, 'content-type': 'application/json' },
           body: JSON.stringify(taken),

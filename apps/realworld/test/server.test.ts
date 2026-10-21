@@ -30,8 +30,8 @@ const user = (name: string) => ({ username: name, email: `${name}@x.io`, passwor
 
 describe('session cookie', () => {
   it('login sets the HttpOnly session cookie; protected functions need it; logout clears it', async () => {
-    await call('users.register', user('ann'))
-    const signedIn = await call('users.login', { email: 'ann@x.io', password: 'secret1' })
+    await call('IdentityApi.register', user('ann'))
+    const signedIn = await call('IdentityApi.login', { email: 'ann@x.io', password: 'secret1' })
     expect(signedIn.body).toEqual({
       _tag: 'Success',
       value: { email: 'ann@x.io', username: 'ann', bio: null, image: null },
@@ -43,21 +43,21 @@ describe('session cookie', () => {
     ])
     const cookie = pair(signedIn.setCookie)
 
-    expect((await call('user.current')).body).toEqual({ _tag: 'Failure', error: { _tag: 'Unauthorized' } })
-    expect((await call('user.current', undefined, cookie)).body).toMatchObject({ value: { username: 'ann' } })
-    expect((await call('user.current', undefined, `${SESSION}=bad.token.here`)).body).toEqual({
+    expect((await call('IdentityApi.current')).body).toEqual({ _tag: 'Failure', error: { _tag: 'Unauthorized' } })
+    expect((await call('IdentityApi.current', undefined, cookie)).body).toMatchObject({ value: { username: 'ann' } })
+    expect((await call('IdentityApi.current', undefined, `${SESSION}=bad.token.here`)).body).toEqual({
       _tag: 'Failure',
       error: { _tag: 'Unauthorized' },
     })
 
-    const out = await call('users.logout', undefined, cookie)
+    const out = await call('IdentityApi.logout', undefined, cookie)
     expect(out.setCookie).toEqual([`${SESSION}=; Path=/; Max-Age=0`])
   })
 
   it('the session cookie is Secure on https', async () => {
     const https = 'https://conduit.test'
     const response = await app.fetch(
-      new Request(`${https}/_sleek/fn/users.register`, {
+      new Request(`${https}/_sleek/fn/IdentityApi.register`, {
         method: 'POST',
         headers: { origin: https, 'content-type': 'application/json' },
         body: JSON.stringify(user('sec')),
@@ -71,7 +71,7 @@ describe('session cookie', () => {
   it('a stale cookie reads as signed out and is cleared; a function that needs a viewer is Unauthorized', async () => {
     const stale = `${SESSION}=bad.token.here`
     const cleared = [`${SESSION}=; Path=/; Max-Age=0`]
-    const author = pair((await call('users.register', user('eve'))).setCookie)
+    const author = pair((await call('IdentityApi.register', user('eve'))).setCookie)
     await call('articles.create', { title: 'Stale cookies', description: 'd', body: 'Still readable' }, author)
 
     const tags = await call('tags.list', undefined, stale)
@@ -79,10 +79,12 @@ describe('session cookie', () => {
     expect((await call('articles.get', { slug: 'stale-cookies' }, stale)).body).toMatchObject({
       value: { title: 'Stale cookies', favorited: false },
     })
-    expect((await call('profiles.get', { username: 'eve' }, stale)).body).toMatchObject({ value: { following: false } })
+    expect((await call('IdentityApi.profile', { username: 'eve' }, stale)).body).toMatchObject({
+      value: { following: false },
+    })
     expect((await call('comments.list', { slug: 'stale-cookies' }, stale)).body).toEqual({ _tag: 'Success', value: [] })
     for (const [id, input] of [
-      ['user.current', undefined],
+      ['IdentityApi.current', undefined],
       ['articles.favorite', { slug: 'stale-cookies' }],
       ['comments.add', { slug: 'stale-cookies', comment: { body: 'x' } }],
     ] as const) {
@@ -104,24 +106,24 @@ describe('session cookie', () => {
   })
 
   it('register signs in; a wrong login is the declared Forbidden', async () => {
-    const registered = await call('users.register', user('bea'))
+    const registered = await call('IdentityApi.register', user('bea'))
     expect(registered.setCookie).toEqual([expect.stringMatching(new RegExp(`^${SESSION}=`))])
-    expect((await call('users.login', { email: 'bea@x.io', password: 'nope' })).body).toEqual({
+    expect((await call('IdentityApi.login', { email: 'bea@x.io', password: 'nope' })).body).toEqual({
       _tag: 'Failure',
       error: { _tag: 'Forbidden', errors: { 'email or password': ['is invalid'] } },
     })
   })
 
   it('articles, comments and profiles run as the cookie viewer; their domain errors cross typed', async () => {
-    const author = pair((await call('users.register', user('cal'))).setCookie)
-    const reader = pair((await call('users.register', user('dee'))).setCookie)
+    const author = pair((await call('IdentityApi.register', user('cal'))).setCookie)
+    const reader = pair((await call('IdentityApi.register', user('dee'))).setCookie)
     const created = await call(
       'articles.create',
       { title: 'Hi there', description: 'd', body: 'b', tagList: ['x'] },
       author,
     )
     expect(created.body).toMatchObject({ _tag: 'Success', value: { slug: 'hi-there', author: { username: 'cal' } } })
-    expect((await call('profiles.follow', { username: 'cal' }, reader)).body).toMatchObject({
+    expect((await call('IdentityApi.follow', { username: 'cal' }, reader)).body).toMatchObject({
       value: { following: true },
     })
     expect((await call('articles.feed', {}, reader)).body).toMatchObject({ value: { articlesCount: 1 } })
@@ -150,7 +152,7 @@ describe('request checks', () => {
 
   it('a body over 1 MiB is 413', async () => {
     const response = await app.fetch(
-      new Request(`${ORIGIN}/_sleek/fn/users.login`, {
+      new Request(`${ORIGIN}/_sleek/fn/IdentityApi.login`, {
         method: 'POST',
         headers: { origin: ORIGIN },
         body: JSON.stringify({ email: 'x'.repeat(1024 * 1024), password: 'p' }),
