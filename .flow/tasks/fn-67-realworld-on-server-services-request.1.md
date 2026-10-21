@@ -37,9 +37,15 @@ The enabler everything else needs: an implementation Layer whose methods may use
 - [ ] `pnpm turbo run test typecheck --filter=@sleekstack/start... --filter=@sleekstack/testing` passes.
 
 ## Done summary
-TBD
+Added `implement(Tag, methods)` to `@sleekstack/start` (new `packages/start/src/implement.ts`, server entry only). It builds `Layer<Tag>`, and its methods may require `Request | Cookies | ResponseHeaders`; any other service is a type error at the call. Tests pin both paths. On the wire, a method's cookie write becomes `Set-Cookie` and a method reads the request's cookie. In process, a page loader doing `yield* Session` sets a cookie and a `ResponseHeaders` header, and both reach the page response; ADR 0052 records that answer. A bad cookie value gives the same response as a Server Function that declares `InvalidCookie`. `callService` accepts an `implement` Layer and provides the request services per call. The `./client` imports are unchanged.
 
+Tests: packages/start/src/__tests__/implement.test.ts, implement.test-d.ts; packages/testing/src/__tests__/serverFn.test.ts ("an implement Layer gets the request services per call").
+baseline: not captured pre-edit; post-change gate green.
+
+Tier: session (jev-unavailable(no_key)); project routing block pins implementer opus at medium
+
+stage: impl-review - skipped(config: REVIEW_MODE=none)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: dc3e24a699c19af6e6ffb2216d120294c74df672
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/start... --filter=@sleekstack/testing
 - PRs:
