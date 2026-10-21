@@ -54,3 +54,14 @@ start({ router: app, layer: provided, services: [entry] })
 start({ router: app, services: [entry] })
 // @ts-expect-error a layer without the Tag
 start({ router: app, layer: Layer.succeed(Db, { taken: '' }), services: [entry] })
+
+// A registry of several Tags needs each one: `services` is read per entry, not inferred as the first Tag.
+class Accounts extends ServerService('Accounts')<Accounts, { readonly count: () => Effect.Effect<number> }>() {}
+const accounts: ServerServiceEntry<Accounts, Accounts['Type']> = {
+  tag: Accounts,
+  methods: { count: { input: Schema.Void, success: Schema.Number } },
+}
+const accountsLayer = Layer.succeed(Accounts, { count: () => Effect.succeed(1) })
+start({ router: app, layer: Layer.merge(provided, accountsLayer), services: [entry, accounts] })
+// @ts-expect-error the layer provides only one of the two Tags
+start({ router: app, layer: provided, services: [entry, accounts] })

@@ -1,14 +1,11 @@
 import { QueryClientLive } from '@sleekstack/query'
 import type { NotFound, Redirect } from '@sleekstack/router'
 import { serverFn, start } from '@sleekstack/start'
-import type { ServerServiceEntry } from '@sleekstack/start/client'
 import { type Context, type Effect, Layer, type Schema } from 'effect'
 import services from 'virtual:sleek/server-registry'
 import { pages } from '../src/app'
 import { AppLive } from '../src/layers'
-import type { ArticlesApi } from '../src/modules/articles'
 import * as comments from '../src/modules/comments'
-import type { IdentityApi } from '../src/modules/identity'
 import { ServerFunctions } from '../src/pages/functions'
 import { ArticlesApiLive } from './articles-api.server'
 import { addComment, deleteComment, listComments } from './comments'
@@ -76,7 +73,5 @@ export const app = start({
   ),
   middleware: [rest],
   functions,
-  // ponytail: `start` infers one Tag from `services` (Context.Tag is invariant in its id), so a registry of two fails
-  // to type. Typed to the Tags the layer must provide until `start` takes the registry's own entry type.
-  services: services as unknown as ReadonlyArray<ServerServiceEntry<IdentityApi | ArticlesApi>>,
+  services,
 })
