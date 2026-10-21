@@ -64,7 +64,7 @@ const user = async () => {
   return { name, session }
 }
 const post = (session: string, title: string, tagList: string[] = []) =>
-  fn('articles.create', { title, description: `about ${title}`, body: 'b', tagList }, session)
+  fn('ArticlesApi.create', { title, description: `about ${title}`, body: 'b', tagList }, session)
 
 let nav: Navigation | undefined
 let container: HTMLElement
@@ -153,9 +153,9 @@ describe('home feeds', () => {
   })
 
   it.each([
-    ['a tag', '.sidebar a[href="/tag/hover"]', ['articles.list']],
-    ['an article preview', '.preview-link', ['articles.get', 'comments.list']],
-    ['a preview author', '.article-preview .author', ['IdentityApi.profile', 'articles.list']],
+    ['a tag', '.sidebar a[href="/tag/hover"]', ['ArticlesApi.list']],
+    ['an article preview', '.preview-link', ['ArticlesApi.get', 'comments.list']],
+    ['a preview author', '.article-preview .author', ['IdentityApi.profile', 'ArticlesApi.list']],
   ])("hovering %s link prefetches its route's loaders; following it then makes no call", async (_, link, ids) => {
     const a = await user()
     await post(a.session, 'Hovered', ['hover'])
@@ -175,7 +175,7 @@ describe('home feeds', () => {
     expect([titles().length, titles()[0], all('.pagination .page-link')]).toEqual([10, 'Paged 12', ['1', '2']])
 
     await click('.pagination li:nth-child(2) .page-link')
-    expect(calls).toHaveBeenCalledWith('articles.list')
+    expect(calls).toHaveBeenCalledWith('ArticlesApi.list')
     expect([titles(), all('.pagination .active')]).toEqual([['Paged 2', 'Paged 1'], ['2']])
 
     await act_(() => nav!.navigate('/'))
@@ -194,7 +194,7 @@ describe('home feeds', () => {
     await click('.pagination li:nth-child(1) .page-link')
     expect([titles()[0], hearts()[0]]).toEqual(['Trip 11', '1'])
     await submit('.favorite button') // unfavorites: the button knows it is favorited
-    expect((await fn('articles.get', { slug: last }, fan.session)).value.favorited).toBe(false)
+    expect((await fn('ArticlesApi.get', { slug: last }, fan.session)).value.favorited).toBe(false)
   })
 
   it('favoriting shows the new count at once and keeps the server answer', async () => {
@@ -214,7 +214,7 @@ describe('home feeds', () => {
     const { value } = await post(writer.session, 'Doomed', ['doomed'])
     cookie = fan.session
     await open('/tag/doomed')
-    await fn('articles.delete', { slug: value.slug }, writer.session) // the favorite will be a NotFound
+    await fn('ArticlesApi.delete', { slug: value.slug }, writer.session) // the favorite will be a NotFound
     let release!: () => void
     gate = new Promise((r) => (release = r))
     await act(async () => container.querySelector<HTMLFormElement>('form.favorite')!.requestSubmit()) // no flush: the call waits
@@ -230,7 +230,7 @@ describe('profile pages', () => {
     const [writer, reader] = [await user(), await user()]
     const { value } = await post(reader.session, 'Reader post')
     await post(writer.session, 'Writer post')
-    await fn('articles.favorite', { slug: value.slug }, writer.session)
+    await fn('ArticlesApi.favorite', { slug: value.slug }, writer.session)
     cookie = reader.session
     await open(`/profile/${writer.name}`)
     expect([all('.user-info h4'), titles(), activeTab()]).toEqual([[writer.name], ['Writer post'], ['My Articles']])

@@ -72,11 +72,11 @@ describe('session cookie', () => {
     const stale = `${SESSION}=bad.token.here`
     const cleared = [`${SESSION}=; Path=/; Max-Age=0`]
     const author = pair((await call('IdentityApi.register', user('eve'))).setCookie)
-    await call('articles.create', { title: 'Stale cookies', description: 'd', body: 'Still readable' }, author)
+    await call('ArticlesApi.create', { title: 'Stale cookies', description: 'd', body: 'Still readable' }, author)
 
-    const tags = await call('tags.list', undefined, stale)
+    const tags = await call('ArticlesApi.tags', undefined, stale)
     expect([tags.body, tags.setCookie]).toEqual([{ _tag: 'Success', value: expect.any(Array) }, cleared])
-    expect((await call('articles.get', { slug: 'stale-cookies' }, stale)).body).toMatchObject({
+    expect((await call('ArticlesApi.get', { slug: 'stale-cookies' }, stale)).body).toMatchObject({
       value: { title: 'Stale cookies', favorited: false },
     })
     expect((await call('IdentityApi.profile', { username: 'eve' }, stale)).body).toMatchObject({
@@ -85,7 +85,7 @@ describe('session cookie', () => {
     expect((await call('comments.list', { slug: 'stale-cookies' }, stale)).body).toEqual({ _tag: 'Success', value: [] })
     for (const [id, input] of [
       ['IdentityApi.current', undefined],
-      ['articles.favorite', { slug: 'stale-cookies' }],
+      ['ArticlesApi.favorite', { slug: 'stale-cookies' }],
       ['comments.add', { slug: 'stale-cookies', comment: { body: 'x' } }],
     ] as const) {
       const out = await call(id, input, stale)
@@ -118,7 +118,7 @@ describe('session cookie', () => {
     const author = pair((await call('IdentityApi.register', user('cal'))).setCookie)
     const reader = pair((await call('IdentityApi.register', user('dee'))).setCookie)
     const created = await call(
-      'articles.create',
+      'ArticlesApi.create',
       { title: 'Hi there', description: 'd', body: 'b', tagList: ['x'] },
       author,
     )
@@ -126,26 +126,26 @@ describe('session cookie', () => {
     expect((await call('IdentityApi.follow', { username: 'cal' }, reader)).body).toMatchObject({
       value: { following: true },
     })
-    expect((await call('articles.feed', {}, reader)).body).toMatchObject({ value: { articlesCount: 1 } })
+    expect((await call('ArticlesApi.feed', {}, reader)).body).toMatchObject({ value: { articlesCount: 1 } })
     expect((await call('comments.add', { slug: 'hi-there', comment: { body: 'nice' } }, reader)).body).toMatchObject({
       value: { body: 'nice', author: { username: 'dee' } },
     })
-    expect((await call('articles.delete', { slug: 'hi-there' }, reader)).body).toEqual({
+    expect((await call('ArticlesApi.delete', { slug: 'hi-there' }, reader)).body).toEqual({
       _tag: 'Failure',
       error: { _tag: 'Forbidden', errors: { article: ['is not yours'] } },
     })
-    expect((await call('articles.get', { slug: 'nope' })).body).toEqual({
+    expect((await call('ArticlesApi.get', { slug: 'nope' })).body).toEqual({
       _tag: 'Failure',
       error: { _tag: 'NotFound', resource: 'article' },
     })
-    expect((await call('tags.list')).body).toEqual({ _tag: 'Success', value: ['x'] })
+    expect((await call('ArticlesApi.tags')).body).toEqual({ _tag: 'Success', value: ['x'] })
   })
 })
 
 describe('request checks', () => {
   it('a cross-origin call is 403', async () => {
     const response = await app.fetch(
-      new Request(`${ORIGIN}/_sleek/fn/tags.list`, { method: 'POST', headers: { origin: 'http://evil.test' } }),
+      new Request(`${ORIGIN}/_sleek/fn/ArticlesApi.tags`, { method: 'POST', headers: { origin: 'http://evil.test' } }),
     )
     expect(response.status).toBe(403)
   })

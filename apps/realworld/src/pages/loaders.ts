@@ -8,9 +8,8 @@ import {
   Route,
   useLoader,
 } from '@sleekstack/router'
-import type { Stub } from '@sleekstack/start/client'
-import { Effect, Schema } from 'effect'
-import { Article, ArticleList, getArticleContract, listArticlesContract } from '../modules/articles'
+import { type Context, Effect, Schema } from 'effect'
+import { Article, ArticleList, ArticlesApi } from '../modules/articles'
 import { Comment, listCommentsContract } from '../modules/comments'
 import { Account, IdentityApi, Profile } from '../modules/identity'
 import { ServerFunctions } from './functions'
@@ -35,7 +34,7 @@ export const signedIn = loader(
 )
 
 /** A target route's loaders (its layouts' and its own) for a page-body `Link`, so hover and focus prefetch them. */
-export type RouteLoaders = LinkProps<IdentityApi | ServerFunctions | Route | Loaders>['loaders']
+export type RouteLoaders = LinkProps<IdentityApi | ArticlesApi | ServerFunctions | Route | Loaders>['loaders']
 
 export const PAGE_SIZE = 10
 
@@ -45,12 +44,12 @@ interface Paging {
 }
 
 /** How a list call fails: the list and feed functions share their errors. */
-type ListFailure = Effect.Effect.Error<ReturnType<Stub<typeof listArticlesContract>>>
-type Query = (paging: Paging) => Effect.Effect<ArticleList, ListFailure, ServerFunctions | Route>
+type ListFailure = Effect.Effect.Error<ReturnType<Context.Tag.Service<ArticlesApi>['list']>>
+type Query = (paging: Paging) => Effect.Effect<ArticleList, ListFailure, ArticlesApi | Route>
 
 /** A list of articles: its first page as a loader (server-rendered), any page by `query`. */
 export interface ArticleSource {
-  readonly first: Loader<ArticleList, typeof ArticleList.Encoded, ListFailure, ServerFunctions | Route>
+  readonly first: Loader<ArticleList, typeof ArticleList.Encoded, ListFailure, ArticlesApi | Route>
   readonly query: Query
 }
 
@@ -66,7 +65,7 @@ const slug = Effect.map(Route, (m) => m.params['slug']!)
 export const article = loader(
   'article',
   Article,
-  Effect.flatMap(Effect.zip(ServerFunctions, slug), ([call, s]) => call(getArticleContract)({ slug: s })).pipe(
+  Effect.flatMap(Effect.zip(ArticlesApi, slug), ([api, s]) => api.get({ slug: s })).pipe(
     Effect.catchTag('NotFound', notFound),
   ),
 )
@@ -93,14 +92,10 @@ export const profile = loader(
 )
 
 export const authoredArticles = articleSource('authoredArticles', (paging) =>
-  Effect.flatMap(Effect.zip(ServerFunctions, username), ([call, author]) =>
-    call(listArticlesContract)({ ...paging, author }),
-  ),
+  Effect.flatMap(Effect.zip(ArticlesApi, username), ([api, author]) => api.list({ ...paging, author })),
 )
 export const favoritedArticles = articleSource('favoritedArticles', (paging) =>
-  Effect.flatMap(Effect.zip(ServerFunctions, username), ([call, favorited]) =>
-    call(listArticlesContract)({ ...paging, favorited }),
-  ),
+  Effect.flatMap(Effect.zip(ArticlesApi, username), ([api, favorited]) => api.list({ ...paging, favorited })),
 )
 
 const articleHref = (slug: string) => `/article/${encodeURIComponent(slug)}`

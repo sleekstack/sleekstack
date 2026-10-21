@@ -1,72 +1,32 @@
-import { Schema } from 'effect'
-import { Forbidden, NotFound, Unauthorized, ValidationError } from '../../../errors'
-import { Article, ArticleList, ArticleQuery, NewArticle, Page, UpdateArticle } from '../domain/model'
+import { ServerService } from '@sleekstack/start/client'
+import type { Effect } from 'effect'
+import type { Forbidden, NotFound, Unauthorized, ValidationError } from '../../../errors'
+import type { Article, ArticleList, ArticleQuery, NewArticle, Page, UpdateArticle } from '../domain/model'
 
-// The client-safe halves of the article server functions: ids and Schemas, built into functions by `server/app.ts`.
-// A stale session cookie reads as anonymous; `Unauthorized` is for one that needs a signed-in viewer.
-
-const BySlug = Schema.Struct({ slug: Schema.String })
-
-export const listArticlesContract = {
-  id: 'articles.list',
-  input: ArticleQuery,
-  success: ArticleList,
-  error: Schema.Union(ValidationError, Unauthorized),
+export interface BySlug {
+  readonly slug: string
 }
 
-export const feedContract = {
-  id: 'articles.feed',
-  input: Page,
-  success: ArticleList,
-  error: Schema.Union(ValidationError, Unauthorized),
-}
-
-export const getArticleContract = {
-  id: 'articles.get',
-  input: BySlug,
-  success: Article,
-  error: Schema.Union(Unauthorized, NotFound),
-}
-
-export const createArticleContract = {
-  id: 'articles.create',
-  input: NewArticle,
-  success: Article,
-  error: Schema.Union(ValidationError, Unauthorized),
-}
-
-export const updateArticleContract = {
-  id: 'articles.update',
-  input: Schema.Struct({ slug: Schema.String, article: UpdateArticle }),
-  success: Article,
-  error: Schema.Union(ValidationError, Unauthorized, Forbidden, NotFound),
-}
-
-export const deleteArticleContract = {
-  id: 'articles.delete',
-  input: BySlug,
-  success: Schema.Void,
-  error: Schema.Union(Unauthorized, Forbidden, NotFound),
-}
-
-export const favoriteContract = {
-  id: 'articles.favorite',
-  input: BySlug,
-  success: Article,
-  error: Schema.Union(Unauthorized, NotFound),
-}
-
-export const unfavoriteContract = {
-  id: 'articles.unfavorite',
-  input: BySlug,
-  success: Article,
-  error: Schema.Union(Unauthorized, NotFound),
-}
-
-/** Every tag in use, sorted. */
-export const tagsContract = {
-  id: 'tags.list',
-  input: Schema.Void,
-  success: Schema.Array(Schema.String),
-  error: Unauthorized,
-}
+/**
+ * The articles Server Service: the contract only. `server/articles-api.server.ts` implements it; every method runs as
+ * the session cookie's viewer. A stale session cookie reads as anonymous; `Unauthorized` is for one that needs a
+ * signed-in viewer.
+ */
+export class ArticlesApi extends ServerService('ArticlesApi')<
+  ArticlesApi,
+  {
+    readonly list: (input: ArticleQuery) => Effect.Effect<ArticleList, ValidationError | Unauthorized>
+    readonly feed: (input: Page) => Effect.Effect<ArticleList, ValidationError | Unauthorized>
+    readonly get: (input: BySlug) => Effect.Effect<Article, Unauthorized | NotFound>
+    readonly create: (input: NewArticle) => Effect.Effect<Article, ValidationError | Unauthorized>
+    readonly update: (input: {
+      readonly slug: string
+      readonly article: UpdateArticle
+    }) => Effect.Effect<Article, ValidationError | Unauthorized | Forbidden | NotFound>
+    readonly delete: (input: BySlug) => Effect.Effect<void, Unauthorized | Forbidden | NotFound>
+    readonly favorite: (input: BySlug) => Effect.Effect<Article, Unauthorized | NotFound>
+    readonly unfavorite: (input: BySlug) => Effect.Effect<Article, Unauthorized | NotFound>
+    /** Every tag in use, sorted. */
+    readonly tags: () => Effect.Effect<ReadonlyArray<string>, Unauthorized>
+  }
+>() {}

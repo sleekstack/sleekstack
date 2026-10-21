@@ -4,16 +4,7 @@ import { Link, useLoader } from '@sleekstack/router'
 import { useAction, useAtomValue, useFormStatus, useLocal, useSetAtom } from '@sleekstack/ui'
 import { Effect } from 'effect'
 import { table } from 'virtual:sleekstack/routes'
-import {
-  Article,
-  deleteArticleContract,
-  FavoriteButton,
-  favoriteContract,
-  formatDate,
-  markdown,
-  type Toggle,
-  unfavoriteContract,
-} from '../../modules/articles'
+import { Article, ArticlesApi, FavoriteButton, formatDate, markdown, type Toggle } from '../../modules/articles'
 import { addCommentContract, Comment, deleteCommentContract, NewComment } from '../../modules/comments'
 import type { Account } from '../../modules/identity'
 import { ErrorList, errorsOf, toHome } from '../../pages/form'
@@ -26,8 +17,8 @@ const profileHref = (username: string) => `/profile/${encodeURIComponent(usernam
 
 /** The author's Edit and Delete buttons; a delete lands on `/`. */
 const OwnerActions = function* ({ slug }: { slug: string }) {
-  const call = yield* ServerFunctions
-  const [deleted, remove] = yield* useAction(() => call(deleteArticleContract)({ slug }))
+  const api = yield* ArticlesApi
+  const [deleted, remove] = yield* useAction(() => api.delete({ slug }))
   const { pending } = yield* useFormStatus(deleted)
   const outcome = yield* useAtomValue(deleted)
   return (
@@ -53,9 +44,9 @@ const OwnerActions = function* ({ slug }: { slug: string }) {
 
 /** The author row: Edit and Delete for the author, Follow and Favorite for anyone else. */
 const ArticleMeta = function* ({ article, me }: { article: Article; me: Account | null }) {
-  const call = yield* ServerFunctions
+  const api = yield* ArticlesApi
   const toggle: Toggle | null = me
-    ? (a) => call(a.favorited ? unfavoriteContract : favoriteContract)({ slug: a.slug })
+    ? (a) => (a.favorited ? api.unfavorite({ slug: a.slug }) : api.favorite({ slug: a.slug }))
     : null
   const { author } = article
   return (

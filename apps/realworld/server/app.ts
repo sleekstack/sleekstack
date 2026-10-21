@@ -1,24 +1,16 @@
 import { QueryClientLive } from '@sleekstack/query'
 import type { NotFound, Redirect } from '@sleekstack/router'
 import { serverFn, start } from '@sleekstack/start'
+import type { ServerServiceEntry } from '@sleekstack/start/client'
 import { type Context, type Effect, Layer, type Schema } from 'effect'
 import services from 'virtual:sleek/server-registry'
 import { pages } from '../src/app'
 import { AppLive } from '../src/layers'
-import * as articles from '../src/modules/articles'
+import type { ArticlesApi } from '../src/modules/articles'
 import * as comments from '../src/modules/comments'
+import type { IdentityApi } from '../src/modules/identity'
 import { ServerFunctions } from '../src/pages/functions'
-import {
-  createArticle,
-  deleteArticle,
-  favorite,
-  feed,
-  getArticle,
-  listArticles,
-  tags,
-  unfavorite,
-  updateArticle,
-} from './articles'
+import { ArticlesApiLive } from './articles-api.server'
 import { addComment, deleteComment, listComments } from './comments'
 import { DbLive } from './db'
 import { TokenSecretLive } from './identity'
@@ -44,15 +36,6 @@ const viewerFn = <const Id extends string, In extends AnySchema, Out extends Any
   })
 
 const functions = [
-  viewerFn(articles.listArticlesContract, listArticles),
-  viewerFn(articles.feedContract, feed),
-  viewerFn(articles.getArticleContract, ({ slug }) => getArticle(slug)),
-  viewerFn(articles.createArticleContract, createArticle),
-  viewerFn(articles.updateArticleContract, ({ slug, article }) => updateArticle(slug, article)),
-  viewerFn(articles.deleteArticleContract, ({ slug }) => deleteArticle(slug)),
-  viewerFn(articles.favoriteContract, ({ slug }) => favorite(slug)),
-  viewerFn(articles.unfavoriteContract, ({ slug }) => unfavorite(slug)),
-  viewerFn(articles.tagsContract, () => tags),
   viewerFn(comments.listCommentsContract, ({ slug }) => listComments(slug)),
   viewerFn(comments.addCommentContract, ({ slug, comment }) => addComment(slug, comment)),
   viewerFn(comments.deleteCommentContract, ({ slug, id }) => deleteComment(slug, id)),
@@ -80,7 +63,7 @@ const ServerQueriesLive = QueryClientLive({ defaultOptions: { queries: { gcTime:
  */
 export const app = start({
   router: pages,
-  layer: IdentityApiLive.pipe(
+  layer: Layer.mergeAll(IdentityApiLive, ArticlesApiLive).pipe(
     Layer.provideMerge(
       Layer.mergeAll(
         AppLive,
@@ -93,5 +76,7 @@ export const app = start({
   ),
   middleware: [rest],
   functions,
-  services,
+  // ponytail: `start` infers one Tag from `services` (Context.Tag is invariant in its id), so a registry of two fails
+  // to type. Typed to the Tags the layer must provide until `start` takes the registry's own entry type.
+  services: services as unknown as ReadonlyArray<ServerServiceEntry<IdentityApi | ArticlesApi>>,
 })

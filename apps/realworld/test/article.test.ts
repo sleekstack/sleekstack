@@ -67,7 +67,8 @@ const user = async () => {
   return { name, session }
 }
 const post = async (session: string, title: string, body = 'b', tagList: string[] = []) =>
-  (await fn('articles.create', { title, description: `about ${title}`, body, tagList }, session)).value.slug as string
+  (await fn('ArticlesApi.create', { title, description: `about ${title}`, body, tagList }, session)).value
+    .slug as string
 const comment = (session: string, slug: string, body: string) =>
   fn('comments.add', { slug, comment: { body } }, session)
 
@@ -192,7 +193,7 @@ describe('article page', () => {
     expect($('.article-meta a.btn')!.getAttribute('href')).toBe(`/editor/${slug}`)
     await submit('.delete-article button')
     expect(location.pathname).toBe('/')
-    const { result } = await call('articles.get', { slug })
+    const { result } = await call('ArticlesApi.get', { slug })
     expect(result.error?._tag).toBe('NotFound')
   })
 
