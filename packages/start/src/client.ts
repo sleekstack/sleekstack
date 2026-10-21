@@ -1,7 +1,8 @@
 import type { NotFound, Redirect } from '@sleekstack/router'
 import type { ActionEvent } from '@sleekstack/ui'
-import { Data, Effect, ParseResult, Schema } from 'effect'
+import { Data, Effect, Layer, ParseResult, Schema } from 'effect'
 import type { ErrorOf, ServerFn } from './serverFn'
+import type { ServerServiceEntry, ServerServiceMethodSchemas } from './service'
 import { DecodeError, decodeResult, prefix } from './wire'
 
 export { DecodeError } from './wire'
@@ -106,3 +107,25 @@ export const client = <C extends Contract>(contract: C): Stub<C> =>
       }
       return yield* decodeResult(contract as unknown as ServerFn<string, C['input'], C['success'], C['error']>, body)
     })) as Stub<C>
+
+/**
+ * The browser side of a Server Service: a Layer providing its Tag, each method a `client` stub posting to
+ * `/_sleek/fn/<Tag id>.<method>`. The generated `virtual:sleek/server` module merges these with `serverClients`.
+ */
+export const serverClient = <Id, Service>(entry: ServerServiceEntry<Id, Service>): Layer.Layer<Id> => {
+  const methods = Object.fromEntries(
+    Object.entries(entry.methods).map(([name, schemas]) => [
+      name,
+      client({ id: `${entry.tag.key}.${name}`, ...(schemas as ServerServiceMethodSchemas) }),
+    ]),
+  )
+  return Layer.succeed(entry.tag, methods as Service)
+}
+
+type TagOf<E> = E extends ServerServiceEntry<infer Id, any> ? Id : never
+
+/** Every entry's `serverClient` in one Layer, providing exactly the entries' Tags. */
+export const serverClients = <const Entries extends ReadonlyArray<ServerServiceEntry>>(
+  entries: Entries,
+): Layer.Layer<TagOf<Entries[number]>> =>
+  entries.reduce((layer, entry) => Layer.merge(layer, serverClient(entry)), Layer.empty as Layer.Layer<any>)
