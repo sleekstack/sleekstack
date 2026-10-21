@@ -41,9 +41,16 @@ The server half of the runtime, driven by a hand-written registry so the DI mode
 - [ ] `pnpm turbo run test typecheck --filter=@sleekstack/start... --filter=@sleekstack/testing` passes.
 
 ## Done summary
-TBD
+Added `ServerService(id)<Self, Shape>()` and `taggedError(Class, fields)` (packages/start/src/service.ts, exported from both `@sleekstack/start` and `@sleekstack/start/client`). Also added `start({ services })`, which flattens registry entries into `<Tag id>.<method>` server functions that share the `functions` registry, so `DuplicateServerFn` and `InvalidServerFnId` apply to both and the wire is unchanged. And `callService` in `@sleekstack/testing`.
 
+- Tests: packages/start/src/__tests__/service.test.ts (wire success/void, Failure envelope, Redirect/NotFound, undeclared 500 plus sink, 400 with spy not called, duplicate and invalid ids, taggedError round-trip and `Schema.is`). packages/start/src/__tests__/service.test-d.ts (Tag methods widened, a narrow impl Layer is assignable, `R` must be `never`, `start` without the Tag layer errors). packages/testing/src/__tests__/serverFn.test.ts `callService` (success, declared error, bad input, defect, unknown method type error).
+- Deviation: `callService` takes the registry entry rather than the bare Tag: `callService(entry, method, input, { layer })`. The Tag alone has no Schemas, and the wire path needs them. The entry carries the Tag.
+- For task 4: the Tag type adds only `NetworkError | DecodeError`. An implementation can fail with `Redirect` / `NotFound` only if the contract's error union declares them (the test contract does). The generator should treat those two as router control flow, not as a `taggedError`.
+- `ServerServiceEntry<Id, Service>` is the shared entry type (`{ tag, methods: { [K in keyof Service]: { input, success, error? } } }`).
+
+stage: impl-review - skipped(config: REVIEW_MODE=none)
+Tier: session (jev-unavailable(no_key)); project routing block pins implementer opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: d56c9f57f854c9117b81bf16bfa2a351c2ebf62e
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/start... --filter=@sleekstack/testing, npx prettier --check packages/start/src packages/testing/src
 - PRs:
