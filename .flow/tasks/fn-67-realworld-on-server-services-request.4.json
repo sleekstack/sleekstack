@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-21T18:27:21.856209Z",
+  "depends_on": [
+    "fn-67-realworld-on-server-services-request.3"
+  ],
+  "id": "fn-67-realworld-on-server-services-request.4",
+  "priority": null,
+  "spec": "fn-67-realworld-on-server-services-request",
+  "spec_path": ".flow/tasks/fn-67-realworld-on-server-services-request.4.md",
+  "status": "todo",
+  "title": "realworld: the articles Server Service",
+  "updated_at": "2026-10-21T18:27:21.856209Z"
+}
