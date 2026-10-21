@@ -16,8 +16,13 @@ export type Implementation<Service> = {
  * @example
  * ```ts
  * import { Cookies, implement } from '@sleekstack/start'
+ * import { ServerService } from '@sleekstack/start/client'
  * import { Effect } from 'effect'
- * import { Session } from './session'
+ *
+ * export class Session extends ServerService('Session')<
+ *   Session,
+ *   { readonly whoami: () => Effect.Effect<string | null> }
+ * >() {}
  *
  * export const SessionLive = implement(Session, {
  *   whoami: () => Effect.map(Cookies, (cookies) => cookies.get('session') ?? null),

@@ -21,10 +21,10 @@ type StartLayer<R> = 0 extends 1 & R
     ? { readonly layer?: Layer.Layer<any, any, never> }
     : { readonly layer: Layer.Layer<R, any, never> }
 
-/** What `start` takes: the router, handlers by pathname, and the layer the app's requirements come from. */
 /** The Tag of each registry entry in `E`: a registry of several Tags needs each one, so it is read per entry, not inferred as one. */
 type TagsOf<E> = E extends ServerServiceEntry<infer Id, any> ? Id : never
 
+/** What `start` takes: the router, handlers by pathname, and the layer the app's requirements come from. */
 export type StartOptions<T extends RouteTable, RP, RH, RM, RF, SE extends ServerServiceEntry = never> = {
   readonly router: Router<T, RP>
   /** Route handlers by exact pathname. */
