@@ -427,27 +427,28 @@ describe('startRouter', () => {
     // A fresh router per test: a page's loaded code is cached on the page.
     let loads = 0
     let ran = 0
-    let reject = false
+    let reject: false | 'sync' | 'async' = false
     let gate = Promise.resolve()
     const counted = loader(
       'counted',
       Schema.String,
       Effect.sync(() => `ran ${++ran}`),
     )
-    const lazyApp = () =>
+    const lazyApp = (render = read(counted)) =>
       router({
         table: routes({ home: '/', code: '/code', other: '/other' }),
         pages: {
           home: { render: () => Effect.succeed(el('p', {}, 'home')) },
           other: { render: () => Effect.succeed(el('p', {}, 'other')) },
           code: {
-            load: () => (
-              loads++,
-              gate.then(() => {
+            load: () => {
+              loads++
+              if (reject === 'sync') throw new Error('no chunk')
+              return gate.then(() => {
                 if (reject) throw new Error('chunk failed')
-                return { render: read(counted), loaders: [counted] }
+                return { render, loaders: [counted] }
               })
-            ),
+            },
           },
         },
         notFound: () => Effect.succeed(el('h1', {}, 'not found')),
@@ -490,24 +491,43 @@ describe('startRouter', () => {
       expect([location.pathname, container().textContent, loads]).toEqual(['/code', 'ran 1', 1])
     })
 
-    it('a rejected load fails that navigation with a LazyLoadError and a later navigation retries', async () => {
-      const errors: unknown[] = []
-      history.replaceState(null, '', '/')
-      document.body.innerHTML = '<div></div>'
-      const onError = (c: Cause.Cause<unknown>) => void errors.push(Cause.squash(c))
-      await act(async () => void (nav = await startRouter(lazyApp(), { container: container(), onError })))
-      reject = true
-      await act(() => nav!.navigate('/code'))
-      expect([errors.map((e) => (e as { _tag?: string })._tag), ran]).toEqual([['LazyLoadError'], 0])
-      reject = false
-      await act(() => nav!.navigate('/code'))
-      expect([container().textContent, loads]).toEqual(['ran 1', 2])
-    })
+    it.each(['async', 'sync'] as const)(
+      'a %s rejected load fails that navigation with a LazyLoadError and a later navigation retries',
+      async (mode) => {
+        const errors: unknown[] = []
+        history.replaceState(null, '', '/')
+        document.body.innerHTML = '<div></div>'
+        const onError = (c: Cause.Cause<unknown>) => void errors.push(Cause.squash(c))
+        await act(async () => void (nav = await startRouter(lazyApp(), { container: container(), onError })))
+        reject = mode
+        await act(() => nav!.navigate('/code'))
+        expect([errors.map((e) => (e as { _tag?: string })._tag), ran]).toEqual([['LazyLoadError'], 0])
+        reject = false
+        await act(() => nav!.navigate('/code'))
+        expect([container().textContent, loads]).toEqual(['ran 1', 2])
+      },
+    )
 
     it('the first page loads its code before hydrating the server markup', async () => {
       const html = await (await handle(lazyApp(), new Request('http://x.test/code'))).text()
       await start('/code', html, lazyApp())
       expect([container().textContent, loads, ran]).toEqual(['ran 1', 2, 1])
+    })
+
+    it("a link clicked while the first page's code loads is the browser's; hydration still completes", async () => {
+      const linked = () => jsx('div', { children: [jsx('a', { href: '/other', children: 'other' }), read(counted)()] })
+      const html = await (await handle(lazyApp(linked), new Request('http://x.test/code'))).text()
+      let open!: () => void
+      gate = new Promise((r) => (open = r))
+      history.replaceState(null, '', '/code')
+      document.body.innerHTML = `<div>${html}</div>`
+      let started!: Promise<Navigation>
+      await act(async () => void (started = startRouter(lazyApp(linked), { container: container() })))
+      const ev = new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 })
+      container().querySelector('a')!.dispatchEvent(ev)
+      open()
+      await act(async () => void (nav = await started))
+      expect([ev.defaultPrevented, location.pathname, container().textContent]).toEqual([false, '/code', 'otherran 1'])
     })
   })
 })

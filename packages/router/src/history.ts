@@ -114,15 +114,21 @@ export const startRouter = async <T extends RouteTable, R>(
     void go(url.pathname + url.search + url.hash, 'push')
   }
   const onPop = () => here(location) !== shown && void go(location.pathname + location.search + location.hash, 'pop')
+  // Server markup is hydrated once its page's code is loaded, so the first render matches it. The router listens only
+  // after that load: until then a link click is the browser's to follow, as before any script ran.
+  const hydrate = container.hasChildNodes()
+  const first = match(r.table, location.pathname)
+  const app = !hydrate
+    ? undefined
+    : Option.isSome(first)
+      ? view(await Effect.runPromise(loadPage(r.pages[first.value.name]!)))
+      : r.notFound()
   container.addEventListener('click', onClick)
   addEventListener('popstate', onPop)
 
-  if (container.hasChildNodes()) {
-    // The server already settled the loaders and sent their results: adopt its DOM without running them again, once
-    // the page's code is loaded so the first render matches it.
-    const m = match(r.table, location.pathname)
-    const app = Option.isSome(m) ? view(await Effect.runPromise(loadPage(r.pages[m.value.name]!))) : r.notFound()
-    const layer = Option.isSome(m) ? Layer.merge(loaders, routeLayer(m.value)) : loaders
+  if (app) {
+    // The server already settled the loaders and sent their results: adopt its DOM without running them again.
+    const layer = Option.isSome(first) ? Layer.merge(loaders, routeLayer(first.value)) : loaders
     mounted = await hydrateMount(app, { container, layer, onError })
   } else await go(location.pathname + location.search + location.hash, 'replace')
 

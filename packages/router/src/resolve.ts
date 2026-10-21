@@ -46,8 +46,8 @@ const codeOf = (page: Page): Effect.Effect<PageCode, LazyLoadError> =>
     if (done) return Effect.succeed(done)
     let p = loading.get(page)
     if (!p) {
-      p = page
-        .load()
+      // A `load` that throws synchronously rejects like one whose import fails.
+      p = new Promise<PageCode>((ok) => ok(page.load()))
         .then((c) => {
           if (typeof c?.render !== 'function') throw new TypeError('@sleekstack/router: loaded page has no render')
           loaded.set(page, c)
