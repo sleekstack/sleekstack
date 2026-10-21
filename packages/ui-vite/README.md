@@ -60,16 +60,59 @@ Each function that a ui JSX file exports gets the id `<path from the Vite root, 
 
 ## File-based routes
 
-Files under `routesDir` become a `@sleekstack/router` route table. `users/[id].tsx` gives the path `/users/:id`, and an `index` file gives its directory's path. A static segment matches before a param in the same position.
+Files under `routesDir` become a `@sleekstack/router` app (ADR 0045, ADR 0050). A file's path without its extension is its route name, and its segments give the path:
 
-`virtual:sleekstack/routes` exports two objects keyed by route name, which is the file path without its extension:
+| File segment      | Path segment             | Example                                                                  |
+| ----------------- | ------------------------ | ------------------------------------------------------------------------ |
+| `users`           | `users`                  | `users/index.tsx` is `/users`; an `index` file is its directory's path   |
+| `[id]`            | `:id`                    | `users/[id].tsx` is `/users/:id`                                         |
+| `[[page]]`        | `:page?`                 | `posts/[[page]].tsx` matches `/posts` and `/posts/2` (last segment only) |
+| `[...slug]`       | `*slug`                  | `guide/[...slug].tsx` matches `/guide/a/b`, not `/guide` (last only)     |
+| `(group)`         | nothing                  | `(docs)/guide/[...slug].tsx` is still `/guide/*slug`                     |
+| `_name` (any `_`) | not a route, not scanned | `_counter.tsx`, `_lib/`: helpers, components and tests beside the routes |
 
-- `table` maps each name to its path string. Params are inferred from the path strings, as in a hand-written table (ADR 0036).
-- `pages` maps each name to the route file's default export.
+At one position a static segment matches first, then `:param`, then `:param?`, then `*splat`. Two files whose paths differ only in param names fail naming both; `users/index` beside `users/[[id]]` is fine, and the static file wins for `/users`. A bad segment, an optional or splat segment that is not the last, or a file with no default export fails with the file's path.
 
-In dev, adding or removing a route file rebuilds the module and reloads the page without a restart. A segment that is neither a name nor a `[param]` fails with the file's path, and so do two files that give the same path.
+A route file is a whole page. Its default export is the component; the named exports `loaders`, `fallback` and `prerender` are the rest of its router `Page`:
 
-The plugin writes `routes.gen.d.ts` into `routesDir` (ADR 0045). The file only declares the module's types, with literal paths and each page's type, and it is rewritten on build start and when route files are added or removed. An app may commit the file or gitignore it. If it is gitignored, run `vite` or `vite build` once before a plain `tsc`.
+```tsx
+// src/routes/users/[id].tsx
+import { useLoader } from '@sleekstack/router'
+import { user } from './_loaders' // a `_` file: not a route
+
+export const loaders = [user]
+export const fallback = 'Loading'
+export const prerender = async () => [{ id: '42' }]
+export default function* User() {
+  const u = yield* useLoader(user)
+  return <h1>{u.name}</h1>
+}
+```
+
+`virtual:sleekstack/routes` exports `table` (route name to path string; params are inferred from the strings as in a hand-written table, ADR 0036), `pages` (route name to `Page`) and, only when a root `_notFound` file exists, `notFound` rendering its default export. The app passes them straight to the router, and `sleekstack check` reads that router as it reads a literal one:
+
+```tsx
+import { router } from '@sleekstack/router'
+import { notFound, pages, table } from 'virtual:sleekstack/routes'
+
+export const app = router({ table, pages, notFound })
+```
+
+**Layouts.** A `_layout` file's default export is a component taking `children`; it wraps every page in its directory and below, outer layouts first, and a layout in a `(group)` applies only inside the group. A layout's optional `loaders` export joins the page's: the layouts' loaders (outer first), then the page's own, each loader once. A layout loader that redirects redirects every page below it. The layouts are composed when the module is generated, not by the router, so they remount on every navigation as the page does; a layout that keeps state across sibling pages is not supported. `notFound` gets no layout: the router runs no loaders for the not-found page, so a layout's loaders would never have run for it. A `_layout` inside a `_` directory is ignored.
+
+**Lazy pages.** In the client build each page is only `{ load }`, importing its route file and its layouts, so each route is its own chunk. The router loads a page's code once, before its loaders run or it renders, and before hydrating the first page; concurrent navigations share the load, and a failed one renders a `LazyLoadError` at the nearest `Boundary` and is tried again on the next navigation. SSR and prerender import every page eagerly. The first visit to a page loads its code, then its data; `Link`'s `code` prefetches the code on hover or focus:
+
+```tsx
+<Link href="/users/42" table={table} code={pages['users/[id]'].load}>
+  User 42
+</Link>
+```
+
+`load` is typed as optional, because the server's pages have none; `Link` takes `code` as optional too.
+
+In dev, adding, removing or renaming a route, layout or `_notFound` file rebuilds the module and reloads the page without a restart; editing one is an ordinary hot update.
+
+The plugin writes `routes.gen.d.ts` into `routesDir` (ADR 0045). The file only declares the module's types: literal paths, each page typed from its route module and its layouts' modules, and `notFound` when there is one. It is rewritten when the dev server starts and when route files are added or removed. An app may commit the file or gitignore it. If it is gitignored, run `vite` once before a plain `tsc` or `vite build`: the analyzer reads the declaration, and a declaration that disagrees with the route files is reported, never guessed.
 
 ## Client and SSR entries
 
@@ -111,14 +154,8 @@ declare module 'virtual:sleekstack/client' {
 - A loader or render error, a response other than 200, or an error reported to `onError` fails the build, naming the route.
 
 ```tsx
-// app.tsx
-export const app = router({
-  table,
-  pages: {
-    index: { render: () => <Home /> },
-    'users/[id]': { prerender: async () => [{ id: '42' }], render: () => <User /> },
-  },
-})
+// src/routes/users/[id].tsx, or `prerender` on a hand-written page
+export const prerender = async () => [{ id: '42' }]
 ```
 
 The server entry must export its router as `router` and take `(request, { onError })`, passing `onError` on to `handle`. For the page's `<Head>` tags to appear in the written head, render to a string (no `stream`) and give `document.before` a function of the head:
@@ -142,7 +179,7 @@ export default (request: Request, context?: { onError: (cause: Cause.Cause<unkno
   handle(app, request, { document, onError: context?.onError })
 ```
 
-Loaders run at build time, and their data rides the hydration payload as it does in SSR, so the client entry's `startRouter` hydrates a prerendered page. `apps/playground/ui` prerenders with `prerender: true`; its test serves `dist/client` from a plain static file server and hydrates the home page.
+Loaders run at build time, and their data rides the hydration payload as it does in SSR, so the client entry's `startRouter` hydrates a prerendered page. `apps/playground/ui` prerenders a path list plus `users/[id]`'s `prerender()`; its test serves `dist/client` from a plain static file server and hydrates the home page.
 
 ## Content sites: `sleekContent`
 
@@ -206,6 +243,7 @@ The tags come from the page's own `<Head>`: `@sleekstack/ui-vite/og-meta` (no No
 
 ## Known limitations
 
+- **Prerendering optional and splat routes:** `prerender()` and `prerender: true` expand only `:param` segments. List the paths of `:name?` and `*name` routes instead (`prerender: ['/', '/posts', '/guide/intro']`); with `prerender: true` a splat route is taken for a static one and written at its literal pattern.
 - **Relative `base` with `entries`:** a relative `base` such as `./` is rejected, because a page at `/users/42` would request its client chunk from `/users/assets/...`. Use an absolute `base` (the default `/`, or a path such as `/app/`).
 - No deploy adapters. HMR state preservation (the `hmr` option, see the Vite guide) and static site generation (`prerender`) are covered above. `sleekContent` prerenders content trees only.
 

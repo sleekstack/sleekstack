@@ -13,10 +13,15 @@ declare module 'virtual:sleekstack/routes' {
   >
   export const table: {
     readonly "index": "/"
+    readonly "(docs)/guide/[...slug]": "/guide/*slug"
+    readonly "posts/[[page]]": "/posts/:page?"
     readonly "users/[id]": "/users/:id"
   }
   export const pages: {
-    readonly "index": Page<typeof import("./index.tsx")>
-    readonly "users/[id]": Page<typeof import("./users/[id].tsx")>
+    readonly "index": Page<typeof import("./index.tsx"), [typeof import("./_layout.tsx")]>
+    readonly "(docs)/guide/[...slug]": Page<typeof import("./(docs)/guide/[...slug].tsx"), [typeof import("./_layout.tsx"), typeof import("./(docs)/_layout.tsx")]>
+    readonly "posts/[[page]]": Page<typeof import("./posts/[[page]].tsx"), [typeof import("./_layout.tsx")]>
+    readonly "users/[id]": Page<typeof import("./users/[id].tsx"), [typeof import("./_layout.tsx")]>
   }
+  export const notFound: Page<typeof import("./_notFound.tsx")>["render"]
 }

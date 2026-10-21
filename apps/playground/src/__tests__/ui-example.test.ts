@@ -70,6 +70,10 @@ it.each([true, false])(
           expect(user).toContain('<h1>User 42</h1>')
         }
         expect((await fetch(new URL('/users/7', site.url))).status).toBe(404)
+        // The listed paths: an optional param with and without it, and a splat inside a group's layout.
+        expect(await page('/posts')).toContain('<h1>Posts page 1</h1>')
+        expect(await page('/posts/2')).toContain('<h1>Posts page 2</h1>')
+        expect(await page('/guide/intro')).toMatch(/<nav>.*<article>.*<h1>Guide intro<\/h1>/s)
         const css = /<link rel="stylesheet" href="(\/assets\/[\w-]+\.css)">/.exec(html)?.[1]
         expect(css).toBeDefined()
         expect(await page(css!)).toMatch(/\S/)
@@ -121,6 +125,14 @@ it('the dev server answers a page through the server entry, loading the client e
     const url = server.resolvedUrls!.local[0]!
     const html = await (await fetch(new URL('/users/7', url))).text()
     expect(html).toContain('<h1>User 7</h1>')
+    // `_notFound` answers what no route matches, a `_` helper included, with no layout around it.
+    for (const p of ['/nope', '/_counter']) {
+      const missing = await fetch(new URL(p, url))
+      expect(missing.status).toBe(404)
+      const body = await missing.text()
+      expect(body).toContain('<h1>Not found</h1>')
+      expect(body).not.toContain('<nav>')
+    }
     expect(html).toContain('<script type="module" src="/@vite/client"></script>')
     expect(html).toContain('/@react-refresh')
     expect(html).toContain('<script type="module" src="/src/entry-client.ts"></script>')

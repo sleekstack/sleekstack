@@ -3,7 +3,7 @@ title: Routing
 description: Typed routes, loaders, redirects and a server handler for @sleekstack/ui apps with @sleekstack/router.
 ---
 
-`@sleekstack/router` is a separate package for apps on the `@sleekstack/ui` host (ADR 0036). A route table is a `const` object of path strings, and params are typed from those strings with no code generation. With the [Vite plugin](/docs/vite), the table can come from route files.
+`@sleekstack/router` is a separate package for apps on the `@sleekstack/ui` host (ADR 0036). A route table is a `const` object of path strings, and params are typed from those strings with no code generation. With the [Vite plugin](/docs/vite), the whole router can come from route files: `router({ table, pages, notFound })` from `virtual:sleekstack/routes`, with `[[page]]` and `[...slug]` file segments for optional and splat params, `_layout` files and lazy pages.
 
 <include>../../snippets/routing/app.tsx</include>
 
@@ -13,3 +13,4 @@ description: Typed routes, loaders, redirects and a server handler for @sleeksta
 - `handle` runs a page's declared loaders before a string render, so the response has the right status. With `stream: true` the shell goes out once they settle; loaders the page reads without declaring them stream under `Pending`, and their redirect or not-found is sent as a script. A loader error with a numeric `status` sets it; any other is a 500. The results reach the client through `Transfer`, so it does not load them again.
 - `startRouter` handles same-origin link clicks, back and forward, and scroll restoration. A newer navigation interrupts the pending one and stops its loads.
 - `Link` prefetches a route's code and loaders on hover or focus; `prefetch={false}` opts out. It passes other anchor attributes (`class`, `aria-*`, `data-*`, `rel`, `target`, ...) to the `<a>` and takes no event handlers; a `target` or `download` link still prefetches, as a warm-up only. `action(run)` takes any form a form `action` takes.
+- A page can be `{ load: () => import('./page') }`, a module exporting its `render`, `loaders` and `fallback`. The router loads it once, before its loaders run or it renders, and before hydrating the first page; concurrent navigations share the load. A failed load renders a `LazyLoadError` at the nearest `Boundary`, and the next navigation tries again. Pass `code={pages.user.load}` to `Link` to prefetch it.
