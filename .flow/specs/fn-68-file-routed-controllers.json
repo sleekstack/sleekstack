@@ -10,7 +10,7 @@
   "id": "fn-68-file-routed-controllers",
   "impl_review_rounds": {
     "fn-68-file-routed-controllers.1": 0,
-    "fn-68-file-routed-controllers.2": 1
+    "fn-68-file-routed-controllers.2": 0
   },
   "next_task": 1,
   "plan_review_rounds": 0,
@@ -453,10 +453,55 @@
       "task": "fn-68-file-routed-controllers.2",
       "timestamp": "2026-10-22T17:59:25.821657Z",
       "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "1f1f93b52781bda67308252196077bc4907ed2828b46d5f9b806b26dfd193907",
+      "backend": "codex",
+      "base_sha": "5b98abe15046e5e9c45ea3f0bc3589c29b944a4c",
+      "counter_kind": "impl",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "not_applicable"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-b5579eb3f9c1f3008e228c7c8b7db381",
+            "classification": "introduced",
+            "findingId": "finding-b5579eb3f9c1f3008e228c7c8b7db381",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "implementation"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "1cdd61aa1dc2df7c26fecb43b32ab9053ff62a69",
+      "head_sha_observed": true,
+      "kind": "impl",
+      "model": "gpt-6.1-sol",
+      "outcome": "verdict",
+      "output_bytes": 782,
+      "output_sha256": "4ba7c409416985477f8b7ccae7904f7c431dfce95b27b4b1f9f3716db4688455",
+      "reservation_id": "9d9bd428243644f2bdac6f91146adc98",
+      "round_consumed": true,
+      "scope": "impl:fn-68-file-routed-controllers.2",
+      "superseded_by": null,
+      "task": "fn-68-file-routed-controllers.2",
+      "timestamp": "2026-10-22T18:05:21.448956Z",
+      "verdict": "SHIP"
     }
   ],
   "review_hash_epoch": {
     "impl:fn-68-file-routed-controllers.1": 1,
+    "impl:fn-68-file-routed-controllers.2": 1,
     "plan": 2,
     "plan#completion": 0
   },
@@ -481,5 +526,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-22T17:59:25.823944Z"
+  "updated_at": "2026-10-22T18:05:21.451333Z"
 }

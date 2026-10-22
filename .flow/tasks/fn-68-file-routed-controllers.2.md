@@ -37,9 +37,43 @@ Replace the two private copies of the server-only rule with one analyzer export 
 - [ ] `pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack --filter=@sleekstack/ui-vite...` passes
 
 ## Done summary
-TBD
+BLOCKED (SCOPE_EXCEEDED) after the first review round. The code is committed and every gate is green. The single surviving review finding can only be fixed outside the declared Touches.
 
+Implemented: `@sleekstack/analyze` now exports one server-only list, `SERVER_ONLY` (kinds `server` and `controller`, plus the reserved name `_defaults`, which counts only under the server directory). It also exports the predicate `isServerOnly(file, serverDir)` and `TEST_FILE`, broadened to cover `__tests__/`, `test/`, `tests/`, `*.test.*` and `*.spec.*`. `analyzeServerServices` takes `serverDir` (default `server`), and its client-graph walk and contract-file checks use the shared predicate. `serverServices()` reads the list through its jiti route, has dropped its private `SERVER_FILE` and `TEST_FILE`, and gains the `serverDir` option. The load filter now matches every source, because the list is read at run time. The watcher keeps its own `IMPLEMENTATION` pattern, as the plan said. The `ServerFileInClientGraph` rule text names the new kinds.
+
+One file outside Touches was regenerated: `packages/cli/llms.md`, via `UPDATE_LLMS=1 vitest run llms`. The rule-text change made its generated error section stale, which would have failed the `sleekstack` test gate. Tasks 4 and 12 list it in their Touches.
+
+Tests (each run red before the fix, for the intended reason):
+- analyze `serverServices.test.ts`: the `server-boundary-kinds` fixture, run with the default `serverDir` and with `lib`. A Controller is reported. A `_defaults.ts` is reported only under the server directory. `test/entry.ts` is not a browser entry.
+- ui-vite `server-services.test.ts`: a Controller fails the client build naming the chain. `_defaults.ts` fails the dev client load only under `serverDir`, checked with the default and with `lib`. A test-only file under `test/` may import a server file.
+
+Surviving finding (codex round 1, NEEDS_WORK; the contracts and integration draws found the same defect; correctness gave SHIP): `sleekstack({ serverDir })` passes the option to `serverServices()` only. The bundled `analyze()` plugin (`packages/ui-vite/src/analyze.ts`, `sleekstackAnalyzer`) still calls `analyzeServerServices({ project })` with the default `server`, so a custom `serverDir` gets a false `ServerFileInClientGraph` for `server/**/_defaults.ts` from the analyze plugin. Proposed fix (about 5 lines, outside Touches): let `analyze()` take the server directory and pass it to `analyzeServerServices({ project, serverDir })`, and have `index.ts` call it with `options.serverDir`. Add a `sleekstack({ serverDir: 'lib' })` test that allows `server/_defaults.ts` and rejects `lib/_defaults.ts`. A related gap that is not a review finding: the `sleekstack check` CLI cannot see a Vite option, so a custom `serverDir` is invisible to it. That is spec-level.
+
+Pre-existing flake (not caused by this task): on one cold run, before the plugin change, the existing test "fails the client build naming the import chain" got a chain without `index.html ->`. It passed 6 reruns. It looks like a race in when Rolldown fires `moduleParsed` for `index.html`.
+
+Gates: baseline green via receipt 1fa0aad3. After the change, the spec's full test and typecheck command passed (28 tasks; analyze 100, cli 27, ui-vite 182 and realworld 155 tests all ran with no cache hit). showcase and docs tests and typechecks are green. `pnpm --filter realworld check` is green. The fixture graph check diff is empty.
+GATE_SKIPPED:unittest:green-receipt 1fa0aad3 - baseline reused from prior post-gate pass
+
+Tier: session (jev-unavailable(no_key)); routing block sets opus at medium (actual: claude-opus-5-5)
+
+stage: impl-review - failed(round 1 NEEDS_WORK; the fix is outside the declared Touches; escalated SCOPE_EXCEEDED, not re-reviewed)
+
+---
+
+Round 2 (continuation, after the conductor widened Touches in fdac3756): the surviving finding is fixed in 1cdd61aa, the codex re-review returned SHIP, and the task is done. The BLOCKED status above is resolved.
+
+Fix: `analyze(run, serverDir?)` in `packages/ui-vite/src/analyze.ts` passes the directory to `analyzeServerServices({ project, serverDir })`. The `Analyzer` type takes `serverDir` as its second argument, and the default stays the analyzer's `server`. `sleekstack()` in `packages/ui-vite/src/index.ts` calls `analyze(undefined, options.serverDir)`, so both bundled plugins now read the same server directory. `packages/cli/llms.md` was already regenerated in round 1 and needed no change in this round.
+
+Tests (both ran red first, each for the intended reason): `server-services.test.ts`, under "sleekstack({ serverDir: "lib" }), its analyzer included". A client build reaching `server/_defaults.ts` passes; before the fix it failed with the analyzer's false `ServerFileInClientGraph`. A client build reaching `lib/_defaults.ts` fails with the analyzer's `ServerFileInClientGraph: The server-only "lib/_defaults.ts"`; before the fix, only the load guard rejected it.
+
+Still a gap and not a finding: `sleekstack check` cannot see a Vite option, so it always reads `server`. The spec assigns that to the docs in task 12.
+
+Gates (re-verified in this round, not taken from round 1). Baseline: green through a turbo cache hit on the Quick command (28 of 28 tasks cached), and `pnpm --filter realworld check` green. After the fix, the spec's full test and typecheck command passed: 28 tasks, 5 run uncached, including ui-vite (184 tests, the 182 from round 1 plus 2 new) and realworld (155 tests). Green receipt `.flow/tmp/green-receipts/1cdd61aa-unittest.json`. `pnpm --filter realworld check` and the showcase and docs test and typecheck runs are green. The round-1 flake ("fails the client build naming the import chain") did not reappear.
+
+Memory: bug/integration entry `sleekstack-option-must-reach-every-2026-10-22`.
+
+stage: impl-review - ran (round 1 NEEDS_WORK, 1 finding; round 2 codex re-review SHIP on 5b98abe1..1cdd61aa)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: a1058bde1177879b73bed2c6c918e3b0aadc24c3, fdac37560ec50717472c48b5040b2025725a65ed, 1cdd61aa1dc2df7c26fecb43b32ab9053ff62a69
+- Tests: GATE_SKIPPED:unittest:green-receipt 1fa0aad3 - baseline reused from prior post-gate pass, pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack --filter=@sleekstack/router... --filter=@sleekstack/ui-vite... --filter=@sleekstack/start... --filter=@sleekstack/testing --filter=realworld, pnpm turbo run test typecheck --filter=showcase --filter=docs, pnpm --filter realworld check, (cd packages/cli/src/__tests__/fixtures/effect-app && node ../../../../bin/cli.js check --json --entry runtime.ts) # diff before/after empty, pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack --filter=@sleekstack/router... --filter=@sleekstack/ui-vite... --filter=@sleekstack/start... --filter=@sleekstack/testing --filter=realworld # round 2, after 1cdd61aa, pnpm --filter realworld check # round 2, pnpm turbo run test typecheck --filter=showcase --filter=docs # round 2
 - PRs:
