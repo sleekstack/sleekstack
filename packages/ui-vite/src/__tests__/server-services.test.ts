@@ -9,7 +9,7 @@ import ts from 'typescript'
 import { build, createServer, type InlineConfig, type ViteDevServer } from 'vite'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { sleekstack } from '../index.js'
-import { printSchema, serverServices } from '../server-services.js'
+import { printSchema, serverServices, type ServerServicesOptions } from '../server-services.js'
 
 const FIXTURE = path.join(import.meta.dirname, 'fixtures/server-services')
 const START_CLIENT = path.resolve(import.meta.dirname, '../../../start/src/client.ts')
@@ -144,14 +144,17 @@ afterEach(async () => {
   fs.rmSync(base, { recursive: true, force: true })
 })
 
-/** A copy of the fixture in `src`, plus `extra` files, with a tsconfig the analyzer reads. */
+/** A copy of the fixture in `src`, plus `extra` files (relative to `src`), with a tsconfig the analyzer reads. */
 const scaffold = (extra: Record<string, string> = {}) => {
   base = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'ui-vite-server-services-')))
   fs.symlinkSync(path.resolve(import.meta.dirname, '../../node_modules'), path.join(base, 'node_modules'))
   const root = path.join(base, 'app')
   const src = path.join(root, 'src')
   fs.cpSync(FIXTURE, src, { recursive: true })
-  for (const [file, text] of Object.entries(extra)) fs.writeFileSync(path.join(src, file), text)
+  for (const [file, text] of Object.entries(extra)) {
+    fs.mkdirSync(path.dirname(path.join(src, file)), { recursive: true })
+    fs.writeFileSync(path.join(src, file), text)
+  }
   fs.writeFileSync(
     path.join(root, 'tsconfig.json'),
     JSON.stringify({
@@ -177,19 +180,19 @@ const typeErrors = (root: string) => {
   return ts.getPreEmitDiagnostics(program).map((d) => ts.flattenDiagnosticMessageText(d.messageText, '\n'))
 }
 /** `@sleekstack/start/client` is its source, so the generated code runs. */
-const config = (root: string): InlineConfig => ({
+const config = (root: string, options?: ServerServicesOptions): InlineConfig => ({
   root,
   configFile: false,
   logLevel: 'silent',
-  plugins: [serverServices()],
+  plugins: [serverServices(options)],
   resolve: { alias: { '@sleekstack/start/client': START_CLIENT } },
 })
 
 /** A dev server (no file watching: tests emit watcher events) over `scaffold(extra)`. */
-const serve = async (extra: Record<string, string> = {}) => {
+const serve = async (extra: Record<string, string> = {}, options?: ServerServicesOptions) => {
   const { root, src } = scaffold(extra)
   server = await createServer({
-    ...config(root),
+    ...config(root, options),
     // The client environment's dependency optimizer would hold `close` for its run.
     optimizeDeps: { noDiscovery: true },
     server: { middlewareMode: true, hmr: false, watch: null },
@@ -315,10 +318,11 @@ export class Dated extends ServerService('Dated')<Dated, { readonly at: () => Ef
 
 describe('server boundary', () => {
   /** A browser entry reaching `page.ts`, which imports from the implementation as `page`. */
-  const app = (page: string) => {
+  const app = (page: string, extra: Record<string, string> = {}) => {
     const { root } = scaffold({
       'main.ts': `import layer from '${CLIENT}'\nimport { page } from './page'\nconsole.log(layer, page)\n`,
       'page.ts': page,
+      ...extra,
     })
     fs.writeFileSync(path.join(root, 'index.html'), '<script type="module" src="/src/main.ts"></script>')
     return root
@@ -361,6 +365,45 @@ describe('server boundary', () => {
     })
     const env = server.environments.client
     await env.transformRequest('/src/page.test.ts')
+    await expect(env.transformRequest('/src/profiles.server.ts')).resolves.toBeTruthy()
+  })
+
+  it('fails the client build on a Controller reachable from a browser entry', async () => {
+    const root = app(`import { users } from './users.controller'\nexport const page = users\n`, {
+      'users.controller.ts': 'export const users = 1\n',
+    })
+    await expect(client(root)).rejects.toThrow(
+      'the server-only "src/users.controller.ts" is in the browser build: index.html -> src/main.ts -> src/page.ts -> src/users.controller.ts',
+    )
+  })
+
+  it.each([
+    [undefined, 'server', 'lib'],
+    ['lib', 'lib', 'server'],
+  ] as const)(
+    'with serverDir %s, fails the dev client load of %s/_defaults.ts and not of %s/_defaults.ts',
+    async (serverDir, inside, outside) => {
+      const { server } = await serve(
+        {
+          [`../${inside}/routes/_defaults.ts`]: 'export const a = 1\n',
+          [`../${outside}/_defaults.ts`]: 'export const b = 1\n',
+        },
+        { serverDir },
+      )
+      const env = server.environments.client
+      await expect(env.transformRequest(`/${inside}/routes/_defaults.ts`)).rejects.toThrow(
+        `the server-only "${inside}/routes/_defaults.ts" is in the browser build`,
+      )
+      await expect(env.transformRequest(`/${outside}/_defaults.ts`)).resolves.toBeTruthy()
+    },
+  )
+
+  it('lets a test-only file under test/ import a server file in the client environment', async () => {
+    const { server } = await serve({
+      '../test/helpers.ts': `import { ProfilesLive } from '../src/profiles.server'\nconsole.log(ProfilesLive)\n`,
+    })
+    const env = server.environments.client
+    await env.transformRequest('/test/helpers.ts')
     await expect(env.transformRequest('/src/profiles.server.ts')).resolves.toBeTruthy()
   })
 })

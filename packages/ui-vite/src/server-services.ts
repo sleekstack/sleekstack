@@ -3,10 +3,12 @@ import * as path from 'node:path'
 import type { AnalyzeError, PropertySchema, TaggedErrorSchema, TypeSchema } from '@sleekstack/analyze'
 import { type Environment, normalizePath, type Plugin } from 'vite'
 
-/** Where the Server Service modules' types go. */
+/** Where the Server Service modules' types go, and where the server code lives. */
 export interface ServerServicesOptions {
   /** The declaration of `virtual:sleek/server` and `virtual:sleek/server-registry`, relative to the Vite root. Default `src/server.gen.d.ts`. */
   readonly serverDeclaration?: string
+  /** The server directory, relative to the Vite root; a `_defaults.ts` under it is server-only. Default `server`. */
+  readonly serverDir?: string
 }
 
 const CLIENT = 'virtual:sleek/server'
@@ -25,9 +27,8 @@ const STAND_IN = './discovered'
 /** Generated code imports it; ui-vite itself never does. */
 const START_CLIENT = '@sleekstack/start/client'
 const SOURCE = /\.[cm]?[jt]sx?$/
-const SERVER_FILE = /\.server\.[cm]?[jt]sx?$/
-/** `@sleekstack/analyze`'s `TEST_FILE`: a chain rooted in a test is not the browser's (vitest loads jsdom tests as client). */
-const TEST_FILE = /(^|[\\/])__tests__[\\/]|\.(test|spec)\.[cm]?[jt]sx?$/
+/** A Server Service implementation: the watcher skips it, as its change never changes a contract. */
+const IMPLEMENTATION = /\.server\.[cm]?[jt]sx?$/
 
 /** A Server Service as the generator needs it; files relative to the tsconfig directory. */
 interface Contract {
@@ -149,13 +150,20 @@ type Generated =
   | { readonly client: string; readonly registry: string; readonly declaration: string; readonly empty: boolean }
   | { readonly error: string }
 
-/** `@sleekstack/analyze`'s Server Service pass, loaded through jiti as `analyze.ts` does (it ships as TypeScript source). */
-const readContracts = async (project: string): Promise<{ contracts: Contract[]; errors: readonly AnalyzeError[] }> => {
-  const { createJiti } = await import('jiti')
-  const { analyzeServerServices } = await createJiti(import.meta.url).import<typeof import('@sleekstack/analyze')>(
-    '@sleekstack/analyze',
-  )
-  const { services, errors } = analyzeServerServices({ project })
+let analyzerModule: Promise<typeof import('@sleekstack/analyze')> | undefined
+/** `@sleekstack/analyze`, loaded once through jiti as `analyze.ts` does (it ships as TypeScript source). */
+const analyzer = () =>
+  (analyzerModule ??= import('jiti').then(({ createJiti }) =>
+    createJiti(import.meta.url).import<typeof import('@sleekstack/analyze')>('@sleekstack/analyze'),
+  ))
+
+/** The analyzer's Server Service pass over the tsconfig at `project`. */
+const readContracts = async (
+  project: string,
+  serverDir: string,
+): Promise<{ contracts: Contract[]; errors: readonly AnalyzeError[] }> => {
+  const { analyzeServerServices } = await analyzer()
+  const { services, errors } = analyzeServerServices({ project, serverDir })
   return {
     // The client build reports that one itself, with the chain it loaded; the server build is not bound by it.
     errors: errors.filter((e) => e.code !== 'ServerFileInClientGraph'),
@@ -175,19 +183,21 @@ const readContracts = async (project: string): Promise<{ contracts: Contract[]; 
  * Their types are kept in `serverDeclaration`, rewritten only when its text changes (and not created while there are
  * no contracts). In dev, a source change that
  * changes the generated code invalidates both modules in every environment and reloads the page; a `*.server.ts`
- * (implementation) change is ignored. The boundary: a `*.server.ts` loaded in a client environment fails the build or
- * the dev load, naming the import chain (type-only imports are erased before they get here). It also serves
+ * (implementation) change is ignored. The boundary: a server-only file (`SERVER_ONLY` of `@sleekstack/analyze`, with
+ * `serverDir`) loaded in a client environment fails the build or the dev load, naming the import chain, unless the
+ * chain starts at a test (type-only imports are erased before they get here). It also serves
  * `virtual:sleek/server-app`, the discovered app (`DiscoveredApp` of `@sleekstack/start`), and gives it to `start()`
  * in place of the stand-in `start` imports.
  */
 export const serverServices = (options: ServerServicesOptions = {}): Plugin => {
   let project = ''
   let root = ''
+  let serverDir = ''
   let declarationFile = ''
   let generated: Promise<Generated> | undefined
   const generate = async (): Promise<Generated> => {
     try {
-      const { contracts, errors } = await readContracts(project)
+      const { contracts, errors } = await readContracts(project, serverDir)
       if (errors.length)
         return {
           error: `sleekstack: Server Service contracts have ${errors.length} error(s):\n${errors
@@ -236,6 +246,7 @@ export const serverServices = (options: ServerServicesOptions = {}): Plugin => {
     configResolved(config) {
       root = config.root
       project = path.join(root, 'tsconfig.json')
+      serverDir = path.resolve(root, options.serverDir ?? 'server')
       declarationFile = path.resolve(root, options.serverDeclaration ?? 'src/server.gen.d.ts')
       generated = undefined
     },
@@ -258,11 +269,14 @@ export const serverServices = (options: ServerServicesOptions = {}): Plugin => {
         if (!parents.has(child)) parents.set(child, info.id)
     },
     load: {
-      filter: { id: [new RegExp(`^\0(${VIRTUAL})$`), SERVER_FILE] },
+      // Every source: the server-only list is the analyzer's, read at run time, so it cannot narrow the filter.
+      filter: { id: [new RegExp(`^\0(${VIRTUAL})$`), SOURCE] },
       async handler(id) {
         if (id === `\0${SERVER_APP}`) return 'export default { controllers: [] }\n'
-        if (SERVER_FILE.test(id)) {
+        if (SOURCE.test(id)) {
           if (this.environment.config.consumer !== 'client') return null
+          const { isServerOnly, TEST_FILE } = await analyzer()
+          if (!isServerOnly(id, serverDir)) return null
           const chain = chainOf(this.environment, id).map(rel)
           if (!TEST_FILE.test(chain[0]!))
             this.error(
@@ -279,7 +293,12 @@ export const serverServices = (options: ServerServicesOptions = {}): Plugin => {
       // ponytail: re-reads every contract (a whole TypeScript program) per non-server source change; key the rerun on
       // the contracts' import graph if large projects stall.
       const changed = async (file: string) => {
-        if (!SOURCE.test(file) || SERVER_FILE.test(file) || file.endsWith('.d.ts') || file.includes('/node_modules/'))
+        if (
+          !SOURCE.test(file) ||
+          IMPLEMENTATION.test(file) ||
+          file.endsWith('.d.ts') ||
+          file.includes('/node_modules/')
+        )
           return
         const before = await current()
         generated = undefined

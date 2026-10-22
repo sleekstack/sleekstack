@@ -83,6 +83,22 @@ describe('analyzeServerServices', () => {
     ])
   })
 
+  it.each([
+    [undefined, ['users.controller.ts', 'server/routes/_defaults.ts']],
+    ['lib', ['users.controller.ts', 'lib/_defaults.ts']],
+  ] as const)(
+    'reports a Controller, and a _defaults.ts only under the server directory (serverDir %s); a test under test/ is no browser entry',
+    (serverDir, files) => {
+      const project = path.join(dir('server-boundary-kinds'), 'tsconfig.json')
+      expect(analyzeServerServices({ project, serverDir }).errors.map((e) => [e.code, e.message])).toEqual(
+        files.map((f) => [
+          'ServerFileInClientGraph',
+          `The server-only "${f}" is reachable from the browser: main.ts -> ${f}`,
+        ]),
+      )
+    },
+  )
+
   it('is silent for type-only imports and server files only server code imports', () => {
     expect(run('server-boundary-clean').errors).toEqual([])
   })

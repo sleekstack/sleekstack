@@ -29,4 +29,7 @@ export { analyzeComponents } from './components'
 /** The Server Service pass (ADR 0051): each `ServerService` contract with its raw method types, and its shape errors. */
 export { analyzeServerServices } from './serverServices'
 export type { ServerServiceDecl, ServerServiceMethod, ServerServiceReport } from './serverServices'
+/** The server-only files (R12) and the test-file predicate, shared by `sleekstack check` and the Vite plugin. */
+export { isServerOnly, SERVER_ONLY } from './serverServices'
+export { TEST_FILE } from './extract'
 export type { MethodSchema, PropertySchema, TaggedErrorSchema, TypeSchema } from './typeSchema'
