@@ -288,6 +288,32 @@ describe('auth and request errors', () => {
       })
   })
 
+  it('a body without application/json is 415', async () => {
+    const response = await app.fetch(
+      new Request('http://conduit.test/api/users/login', {
+        method: 'POST',
+        headers: { 'content-type': 'text/plain' },
+        body: JSON.stringify({ user: { email: 'a@x.io', password: 'p' } }),
+      }),
+    )
+    expect([response.status, await response.json()]).toEqual([415, { errors: { body: ['must be application/json'] } }])
+  })
+
+  it('a non-numeric comment id is the JSON 404', async () => {
+    expect(await api('DELETE', 'articles/any/comments/abc')).toEqual({
+      status: 404,
+      body: { errors: { body: ['not found'] } },
+    })
+  })
+
+  // Intended differences from the route table: Controllers ignore a trailing slash, and a path with an empty segment
+  // matches no Controller, so it reaches the page router.
+  it('/api/articles/ answers like /api/articles; /api//x reaches the pages', async () => {
+    expect(await api('GET', 'articles/')).toEqual(await api('GET', 'articles'))
+    const empty = await app.fetch(new Request('http://conduit.test/api//x'))
+    expect(empty.headers.get('content-type')).toMatch(/text\/html/)
+  })
+
   it('the directory wrap answers a body without application/json 415, a failed decode 404 (params) or 422', async () => {
     const answer = async (error: UnsupportedMediaType | ParseResult.ParseError) => {
       const request = new Request('http://conduit.test/api/x', { method: 'POST' })
