@@ -25,7 +25,8 @@ Finish the documentation and status work of ADR 0053 once the code exists.
 - `docs/proposals/start-framework.md:60-125`
 
 ## Acceptance
-- [ ] the docs pages and guide describe Controllers, `ResponseStatus`, Directory Defaults and `callController`, with type-checked snippets
+- [ ] the docs pages and guide describe Controllers, `ResponseStatus`, Directory Defaults and `callController`, with type-checked snippets <!-- Conductor note from task 9: `callController` has no api-coverage entry (the test does not cover @sleekstack/testing). The testing page must say that in an app whose vitest config has the `serverServices()` plugin, `start` also tries the discovered Controllers before the given entry, so one that matches the same URL answers instead. -->
+- [ ] `pnpm --filter docs test` and `pnpm --filter docs build` pass at the end (the spec's Quick commands do not cover docs)
 - [ ] ADR 0053 is Accepted with its spec id and the README row matches
 - [ ] `cli/llms.md` is under its cap
 - [ ] `pnpm turbo run test typecheck build --filter=docs --concurrency=1` passes
