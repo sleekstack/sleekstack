@@ -11,7 +11,6 @@ import {
   feed,
   getArticle,
   listArticles,
-  tags,
   unfavorite,
   updateArticle,
 } from './articles'
@@ -116,7 +115,6 @@ const ROUTES: ReadonlyArray<Route> = [
     route(`articles/${SLUG}/comments/(\\d+)`),
     ({ params: [s, id] }) => noContent(deleteComment(s!, Number(id))),
   ],
-  ['GET', route('tags'), () => ok(200, 'tags')(tags)],
 ]
 
 const errors = (status: number, errors: Record<string, ReadonlyArray<string>>): Reply => [status, { errors }]
@@ -200,9 +198,9 @@ const json = ([status, body]: Reply) =>
   body === undefined ? new Response(null, { status }) : Response.json(body, { status })
 
 /**
- * The RealWorld REST facade at `/api/`: every route resolves the viewer from `Authorization: Token` (anonymous
- * without one, 401 for a bad one) and calls the same service as its Server Service method. It answers every `/api/`
- * request itself, an unknown one with 404, and passes every other path on.
+ * The RealWorld routes not yet on Controllers: every route resolves the viewer from `Authorization: Token` (anonymous
+ * without one, 401 for a bad one) and calls the same service as its Server Service method. Any request without a
+ * route here, a malformed escape included, passes on to the Controllers under `server/routes/api`.
  */
 export const rest: Middleware<never, Db | TokenSecret> = (request) => {
   const url = new URL(request.url)
@@ -212,7 +210,7 @@ export const rest: Middleware<never, Db | TokenSecret> = (request) => {
   let match: RegExpExecArray | null = null
   const found = ROUTES.find(([method, pattern]) => method === request.method && (match = pattern.exec(path)))
   const params = match && decodeParams(match)
-  if (!found || !params) return Effect.succeed(json(errors(404, { body: ['not found'] })))
+  if (!found || !params) return Effect.void
   const call: Call = {
     params,
     query: url.searchParams,

@@ -1,4 +1,9 @@
+import { UnsupportedMediaType } from '@sleekstack/start'
+import { Effect, Layer, type ParseResult, Schema } from 'effect'
 import { describe, expect, it, vi } from 'vitest'
+import { DbLive } from '../server/db'
+import { TokenSecretLive } from '../server/identity'
+import { wrap } from '../server/routes/api/_defaults'
 
 // One in-memory database for this file, set before `server/app` reads it.
 vi.hoisted(() => {
@@ -236,7 +241,7 @@ describe('auth and request errors', () => {
     const declared = await app.fetch(
       new Request('http://conduit.test/api/users/login', {
         method: 'POST',
-        headers: { 'content-length': String(2 * 1024 * 1024) },
+        headers: { 'content-type': 'application/json', 'content-length': String(2 * 1024 * 1024) },
         body: '{}',
       }),
     )
@@ -244,6 +249,7 @@ describe('auth and request errors', () => {
     const streamed = await app.fetch(
       new Request('http://conduit.test/api/users/login', {
         method: 'POST',
+        headers: { 'content-type': 'application/json' },
         body: new Blob([big]).stream(),
         duplex: 'half',
       } as RequestInit),
@@ -261,5 +267,51 @@ describe('auth and request errors', () => {
     ] as const)
       expect(await api(method, path)).toEqual({ status: 404, body: { errors: { body: ['not found'] } } })
     expect((await app.fetch(new Request('http://conduit.test/'))).headers.get('content-type')).toMatch(/text\/html/)
+  })
+
+  it('/api/ itself is 404', async () => {
+    expect(await api('GET', '')).toEqual({ status: 404, body: { errors: { body: ['not found'] } } })
+  })
+
+  // An intended difference from the route table: routing runs inside the directory `wrap`, which resolves the viewer
+  // first, so a bad token is 401 before an unknown route, method or escape is 404.
+  it('a bad token is 401 on an unknown route, method or escape too', async () => {
+    for (const [method, path] of [
+      ['GET', ''],
+      ['GET', 'nope'],
+      ['PATCH', 'user'],
+      ['GET', 'articles/%E0%A4%A/comments'],
+    ] as const)
+      expect(await api(method, path, { auth: 'Token bad.token.here' })).toEqual({
+        status: 401,
+        body: { errors: { token: ['is invalid'] } },
+      })
+  })
+
+  it('the directory wrap answers a body without application/json 415, a failed decode 404 (params) or 422', async () => {
+    const answer = async (error: UnsupportedMediaType | ParseResult.ParseError) => {
+      const request = new Request('http://conduit.test/api/x', { method: 'POST' })
+      const response = await Effect.runPromise(
+        wrap(Effect.fail(error), request).pipe(Effect.provide(Layer.merge(DbLive(':memory:'), TokenSecretLive))),
+      )
+      return { status: response.status, body: await response.json() }
+    }
+    // The decode failure the HTTP face gives: issue paths start at the input part.
+    const decodeError = <A, I>(schema: Schema.Schema<A, I>, input: unknown) =>
+      Effect.runSync(Effect.flip(Schema.decodeUnknown(schema)(input)))
+    expect(await answer(new UnsupportedMediaType())).toEqual({
+      status: 415,
+      body: { errors: { body: ['must be application/json'] } },
+    })
+    const Params = Schema.Struct({ params: Schema.Struct({ id: Schema.NumberFromString }) })
+    const Body = Schema.Struct({ body: Schema.Struct({ user: Schema.Struct({ email: Schema.String }) }) })
+    expect(await answer(decodeError(Params, { params: { id: 'x' } }))).toEqual({
+      status: 404,
+      body: { errors: { body: ['not found'] } },
+    })
+    expect(await answer(decodeError(Body, { body: { user: {} } }))).toEqual({
+      status: 422,
+      body: { errors: { 'user.email': ['is missing'] } },
+    })
   })
 })

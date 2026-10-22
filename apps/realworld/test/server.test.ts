@@ -8,6 +8,7 @@ vi.hoisted(() => {
 
 const { app, SESSION } = await import('../server/app')
 const { devMiddleware } = await import('../server/dev')
+const { isControllerPath } = await import('virtual:sleek/server-app')
 
 const ORIGIN = 'http://conduit.test'
 
@@ -178,7 +179,7 @@ describe('dev middleware', () => {
         setHeader: () => res,
         end: (chunk: Buffer) => resolve({ status: res.statusCode, body: chunk.toString(), next: false }),
       }
-      devMiddleware(async () => app, documentOf)(req as never, res as never, (error) =>
+      devMiddleware(async () => app, documentOf, isControllerPath)(req as never, res as never, (error) =>
         error ? reject(error) : resolve({ next: true }),
       )
     })
