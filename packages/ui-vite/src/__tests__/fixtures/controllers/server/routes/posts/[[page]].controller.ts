@@ -1,3 +1,3 @@
 import { Effect } from 'effect'
 
-export const GET = () => Effect.succeed('posts')
+export const GET = (_: { params: { page?: string } }) => Effect.succeed('posts')

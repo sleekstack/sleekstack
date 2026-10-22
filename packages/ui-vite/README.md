@@ -114,6 +114,28 @@ In dev, adding, removing or renaming a route, layout or `_notFound` file rebuild
 
 The plugin writes `routes.gen.d.ts` into `routesDir` (ADR 0045). The file only declares the module's types: literal paths, each page typed from its route module and its layouts' modules, and `notFound` when there is one. It is rewritten when the dev server starts and when route files are added or removed. An app may commit the file or gitignore it. If it is gitignored, run `vite` once before a plain `tsc` or `vite build`: the analyzer reads the declaration, and a declaration that disagrees with the route files is reported, never guessed.
 
+## The discovered app: `virtual:sleek/server-app`
+
+`serverServices()` (also part of `sleekstack()`) serves the app `start()` reads on its first request. Its default export (`DiscoveredApp` of `@sleekstack/start`) holds:
+
+- one entry per Controller (`*.controller.ts` under `controllersDir`, default `server/routes`), in match order. Each entry has the route name, the pattern, each method's function with the `params`, `query`, `body` and success Schemas printed from its written signature, and the option chain. The chain is each `_defaults.ts` from `serverDir` down, then the Controller's own `wrap`, `bodyLimit` and `origins` exports. The Controller and `_defaults.ts` modules are imported eagerly; `start` loads this module only on its first request.
+- `router`, the page router built from `virtual:sleekstack/routes`, when the file-routes plugin is in the config and `routesDir` has routes. An explicit `start({ router })` wins over it. Without a `_notFound` file, the not-found page is empty.
+
+A discovery or analyzer error (`ControllerMethodShape`, `ControllerParamsMismatch`, a Controller missing from the tsconfig, ...) fails the module's load with the file's path. The Controllers are typed in `serverDeclaration` (default `src/server.gen.d.ts`) beside the Server Services: `Controllers` maps each route name to its pattern, and `ControllerModules` maps each route name to the type of its module. A browser entry that reaches the module fails the client build at the first Controller or `_defaults.ts`, naming the chain.
+
+**Dev servers.** The module's named export `isControllerPath(pathname)` is true when a Controller's pattern matches. A dev server forwards those paths to `start` instead of hard-coding a prefix. `devMiddleware(load, accepts)` (exported) sends each request that `accepts` to the `start` entry `load` returns, and every other request on to Vite. `accepts` may return a promise:
+
+```ts
+server.middlewares.use(
+  devMiddleware(
+    async () => (await server.ssrLoadModule('/server/app.ts')).app,
+    async (pathname) =>
+      pathname.startsWith('/_sleek/') ||
+      (await server.ssrLoadModule('virtual:sleek/server-app')).isControllerPath(pathname),
+  ),
+)
+```
+
 ## Client and SSR entries
 
 With `entries`, `vite build` first builds the client environment into `dist/client`, then the `ssr` environment into `dist/server`. The server entry's default export answers a request:

@@ -13,6 +13,7 @@ export type { JsxOptions } from './jsx.js'
 export type { PrerenderOption, PrerenderParams } from './prerender/enumerate.js'
 export type { RoutesOptions } from './routes.js'
 export { serverServices, type ServerServicesOptions } from './server-services.js'
+export { devMiddleware } from './dev.js'
 
 /** Options of {@link sleekstack}. */
 export type SleekstackOptions = JsxOptions &

@@ -1,14 +1,17 @@
 import { spawnSync } from 'node:child_process'
 import * as fs from 'node:fs'
+import { createServer as listen } from 'node:http'
+import type { AddressInfo } from 'node:net'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { TaggedErrorSchema, TypeSchema } from '@sleekstack/analyze'
 import { Either, Schema } from 'effect'
 import ts from 'typescript'
-import { build, createServer, type InlineConfig, type ViteDevServer } from 'vite'
+import { build, createServer, type InlineConfig, type Plugin, type ViteDevServer } from 'vite'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { sleekstack } from '../index.js'
+import { devMiddleware, sleekstack } from '../index.js'
+import { routes } from '../routes.js'
 import { discoverControllers, printSchema, serverServices, type ServerServicesOptions } from '../server-services.js'
 
 const FIXTURE = path.join(import.meta.dirname, 'fixtures/server-services')
@@ -18,14 +21,20 @@ const REGISTRY = 'virtual:sleek/server-registry'
 const SERVER_APP = 'virtual:sleek/server-app'
 /** A server entry calling `start()` with no options, and a test of it for a nested vitest run. */
 const APP_FIXTURE = path.join(import.meta.dirname, 'fixtures/server-app')
-const CONTROLLERS_FIXTURE = path.join(import.meta.dirname, 'fixtures/controllers')
-/** The Controllers fixture as `scaffold` extras: its `server` directory beside `src`. */
-const controllerFiles = Object.fromEntries(
-  fs
-    .readdirSync(CONTROLLERS_FIXTURE, { recursive: true, encoding: 'utf8' })
-    .filter((f) => fs.statSync(path.join(CONTROLLERS_FIXTURE, f)).isFile())
-    .map((f) => [`../${f}`, fs.readFileSync(path.join(CONTROLLERS_FIXTURE, f), 'utf8')]),
-)
+/** A fixture of app files (not its committed declaration) as `scaffold` extras: its directories beside `src`. */
+const appFiles = (fixture: string) => {
+  const dir = path.join(import.meta.dirname, 'fixtures', fixture)
+  return Object.fromEntries(
+    fs
+      .readdirSync(dir, { recursive: true, encoding: 'utf8' })
+      .filter((f) => fs.statSync(path.join(dir, f)).isFile() && !f.endsWith('.gen.d.ts'))
+      .map((f) => [`../${f}`, fs.readFileSync(path.join(dir, f), 'utf8')]),
+  )
+}
+const controllerFiles = appFiles('controllers')
+/** One Controller with a referenced Schema, string codecs and an option chain (`_defaults.ts` maps decode failures to 422). */
+const CONTROLLER_APP = path.join(import.meta.dirname, 'fixtures/controller-app')
+const controllerApp = appFiles('controller-app')
 
 describe('the printed Schemas over the wire', () => {
   const str = { kind: 'string' } as const
@@ -212,7 +221,8 @@ const scaffold = (extra: Record<string, string> = {}) => {
         noEmit: true,
         paths: { '@sleekstack/start/client': [START_CLIENT] },
       },
-      include: ['src'],
+      // The analyzer reads the Controllers under `server` and `api` (the `controllersDir` test).
+      include: ['src', 'server', 'api'],
     }),
   )
   return { root, src }
@@ -234,10 +244,11 @@ const config = (root: string, options?: ServerServicesOptions): InlineConfig => 
 })
 
 /** A dev server (no file watching: tests emit watcher events) over `scaffold(extra)`. */
-const serve = async (extra: Record<string, string> = {}, options?: ServerServicesOptions) => {
+const serve = async (extra: Record<string, string> = {}, plugins: Plugin[] = [serverServices()]) => {
   const { root, src } = scaffold(extra)
   server = await createServer({
-    ...config(root, options),
+    ...config(root),
+    plugins,
     // The client environment's dependency optimizer would hold `close` for its run.
     optimizeDeps: { noDiscovery: true },
     server: { middlewareMode: true, hmr: false, watch: null },
@@ -455,7 +466,7 @@ describe('server boundary', () => {
           [`../${inside}/routes/_defaults.ts`]: 'export const a = 1\n',
           [`../${outside}/_defaults.ts`]: 'export const b = 1\n',
         },
-        { serverDir },
+        [serverServices({ serverDir })],
       )
       const env = server.environments.client
       await expect(env.transformRequest(`/${inside}/routes/_defaults.ts`)).rejects.toThrow(
@@ -535,6 +546,149 @@ export const n: number = app
 `,
     })
     expect(typeErrors(root)).toEqual([])
+  })
+
+  const json = (body: unknown): RequestInit => ({
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+
+  it('serves a generated entry through start(): a referenced Schema, string codecs and the option chain', async () => {
+    const { server, src, load } = await serve({ ...serverApp, ...controllerApp })
+    const { app } = await server.ssrLoadModule(path.join(src, 'server.ts'))
+    const call = async (url: string, init?: RequestInit) => {
+      const response: Response = await app.fetch(new Request(`http://x.test${url}`, init))
+      return [response.status, await response.text()]
+    }
+    // Decoded through the number and boolean codecs; encoded through the success Schema, which drops `hidden`.
+    expect(await call('/users/7?tags=a&tags=b&full=true')).toEqual([200, '{"id":7,"tags":["a","b"],"full":true}'])
+    // A failed decode reaches the wrap of server/_defaults.ts.
+    expect(await call('/users/7.5e1')).toEqual([422, ''])
+    expect(await call('/users/7?full=yes')).toEqual([422, ''])
+    expect(await call('/users/7', json({ name: 'Ann' }))).toEqual([200, '{"id":7,"name":"Ann"}'])
+    // The referenced `Name` is `Schema.NonEmptyString`.
+    expect(await call('/users/7', json({ name: '' }))).toEqual([422, ''])
+    // The Controller's own bodyLimit (32): BodyTooLarge passes the wrap.
+    expect(await call('/users/7', json({ name: 'a'.repeat(32) }))).toEqual([413, ''])
+    // The module the entry came from.
+    expect(await load(SERVER_APP)).toMatchInlineSnapshot(`
+      "import { Schema } from 'effect'
+      import { bind, segments } from '@sleekstack/router'
+      import * as $0 from "<root>/server/_defaults.ts"
+      import * as $1 from "<root>/server/routes/users/[id].controller.ts"
+      import { Name as Name_2 } from "<root>/src/schemas.ts"
+      const options = (file, m) => ({ file, wrap: m.wrap, bodyLimit: m.bodyLimit, origins: m.origins })
+      const controllers = [
+        { route: "users/[id]", pattern: "/users/:id", methods: { GET: { run: $1.GET, params: Schema.Struct({ "id": Schema.transform(Schema.String.pipe(Schema.pattern(/^-?\\d+(\\.\\d+)?$/)), Schema.Finite, { strict: true, decode: Number, encode: String }) }), query: Schema.Struct({ "tags": Schema.optional(Schema.Union(Schema.Undefined, Schema.Array(Schema.String))), "full": Schema.optional(Schema.Union(Schema.Undefined, Schema.BooleanFromString)) }), success: Schema.Struct({ "id": Schema.Number, "tags": Schema.Array(Schema.String), "full": Schema.Boolean }) }, PUT: { run: $1.PUT, params: Schema.Struct({ "id": Schema.transform(Schema.String.pipe(Schema.pattern(/^-?\\d+(\\.\\d+)?$/)), Schema.Finite, { strict: true, decode: Number, encode: String }) }), body: Schema.Struct({ "name": Name_2 }) } }, options: [options("server/_defaults.ts", $0), options("server/routes/users/[id].controller.ts", $1)] },
+      ]
+      export default {
+        controllers,
+      }
+      const decode = (segment) => {
+        try {
+          return decodeURIComponent(segment)
+        } catch {
+          return segment
+        }
+      }
+      export const isControllerPath = (pathname) => {
+        const actual = segments(pathname).map(decode)
+        return controllers.some((c) => bind(segments(c.pattern), actual) !== undefined)
+      }
+      "
+    `)
+  })
+
+  it('writes the committed declaration of the fixture, which types a consumer', async () => {
+    const { root, src, declaration } = await serve({ ...serverApp, ...controllerApp })
+    expect(fs.readFileSync(declaration, 'utf8')).toBe(
+      fs.readFileSync(path.join(CONTROLLER_APP, 'src/server.gen.d.ts'), 'utf8'),
+    )
+    fs.writeFileSync(
+      path.join(src, 'consumer.ts'),
+      `import { type ControllerModules, type Controllers, isControllerPath } from '${SERVER_APP}'
+export const pattern: Controllers['users/[id]'] = '/users/:id'
+type Put = Parameters<ControllerModules['users/[id]']['PUT']>[0]
+export const put: Put = { params: { id: 1 }, body: { name: 'a' } }
+// @ts-expect-error the id is a number
+export const text: Put = { params: { id: '1' }, body: { name: 'a' } }
+export const forwards: boolean = isControllerPath('/users/1')
+// @ts-expect-error the Controller exports no POST
+export type Post = ControllerModules['users/[id]']['POST']
+`,
+    )
+    expect(typeErrors(root)).toEqual([])
+  })
+
+  it('carries the page router built from the file routes, which start() serves unless given its own', async () => {
+    const page = (text: string) =>
+      `import { jsx } from '@sleekstack/ui/jsx-runtime'\nexport default () => jsx('p', { children: ${JSON.stringify(text)} })\n`
+    const { server, src } = await serve(
+      {
+        ...serverApp,
+        'routes/index.ts': page('discovered'),
+        'explicit.ts': `import { router } from '@sleekstack/router'
+import { start } from '@sleekstack/start'
+import { jsx } from '@sleekstack/ui/jsx-runtime'
+const render = () => jsx('p', { children: 'explicit' })
+export const app = start({ router: router({ table: { home: '/' }, pages: { home: { render } }, notFound: render }) })
+`,
+      },
+      [routes(), serverServices()],
+    )
+    const html = async (file: string) => {
+      const { app } = await server.ssrLoadModule(path.join(src, file))
+      return (await app.fetch(new Request('http://x.test/'))).text()
+    }
+    expect(await html('server.ts')).toContain('>discovered<')
+    expect(await html('explicit.ts')).toContain('>explicit<')
+  })
+
+  it('resolves the module in a vite build --ssr, and fails a client build reaching a Controller through it', async () => {
+    const { root } = scaffold({
+      ...serverApp,
+      ...controllerApp,
+      'main.ts': `import app from '${SERVER_APP}'\nconsole.log(app)\n`,
+    })
+    fs.writeFileSync(path.join(root, 'index.html'), '<script type="module" src="/src/main.ts"></script>')
+    await expect(build({ ...config(root), build: { write: false } })).rejects.toThrow(
+      /the server-only "server\/.+" is in the browser build: index\.html -> src\/main\.ts -> virtual:sleek\/server-app -> server\//,
+    )
+    const app = await built(root)
+    expect(await (await app.fetch(new Request('http://x.test/users/7'))).text()).toBe('{"id":7,"tags":[],"full":false}')
+  })
+
+  it('forwards Controller paths to start() in dev, and leaves asset and module requests to Vite', async () => {
+    const { server, src } = await serve({ ...serverApp, ...controllerFiles })
+    const accepts = async (pathname: string): Promise<boolean> =>
+      (await server.ssrLoadModule(SERVER_APP)).isControllerPath(pathname)
+    const forwarded = ['/', '/files/a/b', '/posts', '/posts/2', '/stats', '/users/', '/users/new', '/users/%E2%9C%93']
+    const kept = [
+      '/src/contract.ts',
+      '/@vite/client',
+      '/@fs/x.ts',
+      '/node_modules/.vite/deps/effect.js',
+      '/favicon.ico',
+    ]
+    expect(await Promise.all([...forwarded, ...kept, '/files', '/users/1/edit'].map(accepts))).toEqual([
+      ...forwarded.map(() => true),
+      ...kept.map(() => false),
+      false,
+      false,
+    ])
+
+    const middleware = devMiddleware(async () => (await server.ssrLoadModule(path.join(src, 'server.ts'))).app, accepts)
+    const http = listen((req, res) => middleware(req, res, () => server.middlewares(req, res)))
+    await new Promise<void>((r) => http.listen(0, r))
+    try {
+      const url = `http://localhost:${(http.address() as AddressInfo).port}`
+      expect(await (await fetch(`${url}/users/1`)).text()).toBe('"user"')
+      const module = await fetch(`${url}/src/contract.ts`)
+      expect([module.status, module.headers.get('content-type')]).toEqual([200, 'text/javascript'])
+    } finally {
+      http.close()
+    }
   })
 })
 
