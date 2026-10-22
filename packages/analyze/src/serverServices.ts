@@ -3,8 +3,8 @@
  *
  * The Server Service pass (ADR 0051): every `class X extends ServerService('Id')<X, Shape>() {}`, found by the
  * declaration its base call resolves to (so imports through re-exports and barrels work), with its file and method
- * shape checked. The declarations carry the raw method types for the Type-to-Schema step. Also reports each `*.server.ts`
- * reachable from a browser entry (`ServerFileInClientGraph`).
+ * shape checked. The declarations carry the raw method types for the Type-to-Schema step. Also reports each server-only
+ * file (`SERVER_ONLY`) reachable from a browser entry (`ServerFileInClientGraph`).
  */
 
 import * as path from 'node:path'
@@ -19,7 +19,25 @@ const EFFECT = 'effect/Effect#Effect'
 const START = 'start/start#start'
 const LAYER = 'effect/Layer#Layer'
 const CLIENT_MODULE = 'virtual:sleek/server'
-const SERVER_FILE = /\.server\.[cm]?[jt]sx?$/
+
+/**
+ * The server-only files (R12): none may be reachable from a browser entry. A file is server-only by its kind, the suffix
+ * before its extension (`*.server.ts`, `*.controller.ts`), anywhere; or by a reserved name (`_defaults.ts`) under the
+ * server directory. `sleekstack check` and the Vite plugin both read this one list, through `isServerOnly`.
+ */
+export const SERVER_ONLY: { readonly kinds: readonly string[]; readonly reserved: readonly string[] } = {
+  kinds: ['server', 'controller'],
+  reserved: ['_defaults'],
+}
+
+/** Whether `file` is server-only (`SERVER_ONLY`) in an app whose server directory is `serverDir`; both absolute. */
+export const isServerOnly = (file: string, serverDir: string): boolean => {
+  const stem = /^(.+?)\.[cm]?[jt]sx?$/.exec(path.basename(file))?.[1]
+  if (!stem) return false
+  if (SERVER_ONLY.kinds.some((kind) => stem.endsWith(`.${kind}`))) return true
+  const under = path.relative(serverDir, file)
+  return SERVER_ONLY.reserved.includes(stem) && !path.isAbsolute(under) && under.split(/[\\/]/)[0] !== '..'
+}
 
 export interface ServerServiceMethod {
   readonly name: string
@@ -49,8 +67,13 @@ export interface ServerServiceReport {
   readonly checker: ts.TypeChecker
 }
 
-export function analyzeServerServices(opts: { readonly project: string }): ServerServiceReport {
+/** `serverDir`: the server directory, relative to the tsconfig directory (default `server`); it scopes the reserved names of `SERVER_ONLY`. */
+export function analyzeServerServices(opts: {
+  readonly project: string
+  readonly serverDir?: string
+}): ServerServiceReport {
   const { root, program, checker } = programOf(opts.project)
+  const serverDir = path.resolve(root, opts.serverDir ?? 'server')
   const errors: AnalyzeError[] = []
   const services: ServerServiceDecl[] = []
   const loc = (n: ts.Node): Location => {
@@ -158,12 +181,12 @@ export function analyzeServerServices(opts: { readonly project: string }): Serve
   /** A file declaring a Server Service holds only imports, types, tagged error and Server Service classes. */
   const checkFile = (sf: ts.SourceFile, first: ts.ClassLikeDeclaration) => {
     const shape = (n: ts.Node, why: string) => report('ServerServiceFileShape', n, why)
-    if (SERVER_FILE.test(sf.fileName))
-      shape(first, 'A Server Service contract is client-safe; it cannot sit in a `*.server.ts` file')
+    if (isServerOnly(sf.fileName, serverDir))
+      shape(first, 'A Server Service contract is client-safe; it cannot sit in a server-only file')
     for (const s of sf.statements) {
       if (ts.isImportDeclaration(s)) {
         const target = checker.getSymbolAtLocation(s.moduleSpecifier)?.valueDeclaration
-        if (target && ts.isSourceFile(target) && SERVER_FILE.test(target.fileName))
+        if (target && ts.isSourceFile(target) && isServerOnly(target.fileName, serverDir))
           shape(s, `A Server Service contract file imports the server-only "${s.moduleSpecifier.getText()}"`)
       } else if (ts.isClassDeclaration(s) ? !(serviceCall(s) || isTaggedError(s)) : !isTypeOnly(s))
         shape(
@@ -257,7 +280,10 @@ export function analyzeServerServices(opts: { readonly project: string }): Serve
     visitStart(sf)
   }
 
-  serverFilesInClientGraph(program, sources, (n, message) => report('ServerFileInClientGraph', n, message), root)
+  serverFilesInClientGraph(program, sources, (n, message) => report('ServerFileInClientGraph', n, message), {
+    root,
+    serverDir,
+  })
 
   const byId = new Map<string, ServerServiceDecl[]>()
   for (const s of services) byId.set(s.id, [...(byId.get(s.id) ?? []), s])
@@ -303,13 +329,13 @@ const valueImports = (sf: ts.SourceFile): Array<{ readonly spec: string; readonl
 
 /**
  * `ServerFileInClientGraph`: from every module importing `virtual:sleek/server` (a browser entry), walks the value
- * imports and reports each `*.server.ts` reached, once, at the importing statement with the shortest chain.
+ * imports and reports each server-only file reached, once, at the importing statement with the shortest chain.
  */
 const serverFilesInClientGraph = (
   program: ts.Program,
   sources: readonly ts.SourceFile[],
   report: (at: ts.Node, message: string) => void,
-  root: string,
+  { root, serverDir }: { readonly root: string; readonly serverDir: string },
 ) => {
   const resolve = (spec: string, from: ts.SourceFile) => {
     const file = ts.resolveModuleName(spec, from.fileName, program.getCompilerOptions(), ts.sys).resolvedModule
@@ -329,7 +355,7 @@ const serverFilesInClientGraph = (
       const chain = [...chains.get(from)!, rel(to)]
       chains.set(to, chain)
       // Not walked further: what a server file imports is server code.
-      if (SERVER_FILE.test(to.fileName))
+      if (isServerOnly(to.fileName, serverDir))
         report(at, `The server-only "${rel(to)}" is reachable from the browser: ${chain.join(' -> ')}`)
       else queue.push(to)
     }

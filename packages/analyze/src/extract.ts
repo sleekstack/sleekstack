@@ -60,7 +60,8 @@ const LAYER_COMBINATORS = new Set([
   'effect/Layer#provide',
   'effect/Layer#provideMerge',
 ])
-export const TEST_FILE = /(^|[\\/])__tests__[\\/]|\.(test|spec)\.[cm]?[jt]sx?$/
+/** A test file, by its project-relative path: under `__tests__/`, `test/` or `tests/`, or named `*.test.*` or `*.spec.*`. */
+export const TEST_FILE = /(^|[\\/])(__tests__|tests?)[\\/]|\.(test|spec)\.[cm]?[jt]sx?$/
 
 export const unwrap = (e: ts.Expression): ts.Expression => {
   while (

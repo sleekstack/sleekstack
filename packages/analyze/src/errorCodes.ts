@@ -163,7 +163,7 @@ export const ERROR_CODES: Readonly<Record<AnalyzeCode, ErrorHelp>> = {
     docs: SERVER,
   },
   ServerFileInClientGraph: {
-    rule: 'No *.server.ts is value-imported, directly or not, by a module importing virtual:sleek/server.',
+    rule: 'No server-only file (*.server.ts, *.controller.ts, or a _defaults.ts under the server directory) is value-imported, directly or not, by a module importing virtual:sleek/server.',
     fix: ['Import the contract, not the implementation', 'Use `import type` for types'],
     docs: SERVER,
   },
