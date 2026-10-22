@@ -37,9 +37,37 @@ Add the request-service and failure vocabulary of ADR 0053 and the dispatcher th
 - [ ] `pnpm turbo run test typecheck --filter=@sleekstack/start... --filter=@sleekstack/router...` passes
 
 ## Done summary
-TBD
+`start` now serves Controller entries passed in `start({ controllers })`. They come after the discovered ones, and the merged list is computed once with the discovered app. A Controller answers after the exact-pathname handler and before the page. The request services gain `ResponseStatus`. The routing failures and the `Wrap` and `RpcWrap` authoring types are exported with TSDoc.
 
-## Evidence
-- Commits:
+- `ResponseStatus` is an `Effect.Tag` declared in `services.ts`, so `yield* ResponseStatus.set(201)` works. It joins `RequestServices`, which widens `Needs` and `implement` (type test in `implement.test-d.ts`). A value that is not an integer from 200 to 599 dies with `InvalidStatus`. `requestServices` keeps the status per request and returns `status()` beside `finish`. Only the Controller face reads it.
+- `controller.ts` (new) holds the failures `InvalidPathEncoding`, `MethodNotAllowed { allowed }`, `BodyTooLarge` and `UnsupportedMediaType`, plus `matchController` and `serveController`.
+  - The matcher is built on the router's `segments` and `bind`, which are now exported (README rows added). A malformed escape decodes to a lone surrogate, which a successful decode never yields. So it binds at a param or splat position and never at a static one (R15).
+  - Inside the `wrap` chain (outermost first), the face checks, in order: the method (`HEAD` runs `GET` unless exported, `OPTIONS` answers 204 with `Allow` unless exported, otherwise `MethodNotAllowed`), then the escapes (`InvalidPathEncoding`), then runs the method.
+  - Outside `wrap`, an unhandled `InvalidPathEncoding` answers 404, `MethodNotAllowed` answers 405 with `Allow`, `BodyTooLarge` 413 and `UnsupportedMediaType` 415. A `HEAD` answer's body is dropped outermost, and a streaming body is cancelled.
+- `Wrap` is `(next: Effect<Response, any, any>, request) => Effect<Response, any, any>`, and `ControllerOptions.wrap` now uses it. Its TSDoc says that a `wrap` which provides a service must write its signature out, as the analyzer fixture `_defaults.ts` does. `RpcWrap` is `<A, E, R>(next: Effect<A, E, R>, request) => Effect<A, E, any>` (ADR 0054).
 - Tests:
+  - `controller-dispatch.test.ts` runs through `fetch` (table-driven): `%2F` and `%00` in a param, a malformed escape in a param or splat (empty 404) and in a static position (the page's not-found), `/files/a%2Fb/c` equal to `/files/a/b/c`, trailing slash, empty segment, lowercase `patch`, `HEAD` with and without `GET`, `OPTIONS` and `Allow`, 405, a zero-method file, and a handler winning over a Controller.
+  - The same file covers: a streaming body cancelled on `HEAD`; routing failures, default `OPTIONS` and a `HEAD` drop of a `wrap` error body, all inside `wrap`; two concurrent statuses that do not cross; a status set and then a failure (wrap's status wins, staged header and cookie kept).
+  - `start.test.ts` has a table for `InvalidStatus` at 199, 200, 599, 600 and 200.5.
+  - Mutating the escape marker or sharing the status cell turned 5 tests red, then the code was restored.
+
+Interim encoding for task 6 to replace: a returned `Response` passes through, and any other value is `Response.json(value, { status })`. The status defaults to 200, and the method gets `{ params }` as raw decoded strings. A `void` method therefore throws inside `Response.json` until task 6 adds R16. The unhandled 413 and 415 mappings exist, but nothing raises those failures yet.
+
+Out of Touches, left for task 12: the docs snippet `apps/docs/snippets/server-services/profiles-session.server.ts` and the start README still list three request services.
+
+Gates (post-edit):
+- `pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack --filter=@sleekstack/router... --filter=@sleekstack/ui-vite... --filter=@sleekstack/start... --filter=@sleekstack/testing --filter=realworld`: green, 28/28 tasks, start 134 tests, router 86 (unchanged).
+- `pnpm --filter realworld check`: green.
+- docs `api-coverage.test.ts` after `generate:api`: green, 18 tests.
+- Fixture graph check: the diff is empty.
+- Baseline: green. The unittest gate reused its receipt and realworld check was run.
+
+GATE_SKIPPED:unittest:green-receipt 07faa8d8 - baseline reused from prior post-gate pass
+
+Tier: session (jev-unavailable(no_key)); routing block sets opus at medium (actual: claude-opus-5-5)
+
+stage: impl-review - skipped(policy: user asked for one completion review at the end of the spec)
+## Evidence
+- Commits: 465aae15e0a1cd76b79ef25ebc880e57eaf7a411
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack --filter=@sleekstack/router... --filter=@sleekstack/ui-vite... --filter=@sleekstack/start... --filter=@sleekstack/testing --filter=realworld, pnpm --filter realworld check, (cd apps/docs && pnpm generate:api && npx vitest run test/api-coverage.test.ts), (cd packages/cli/src/__tests__/fixtures/effect-app && node ../../../../bin/cli.js check --json --entry runtime.ts) # before/after diff empty, GATE_SKIPPED:unittest:green-receipt 07faa8d8 - baseline reused from prior post-gate pass
 - PRs:
