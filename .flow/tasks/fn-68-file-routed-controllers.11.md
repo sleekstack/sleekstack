@@ -36,10 +36,50 @@ Move every remaining RealWorld route to a Controller and delete the regex table 
 - [ ] `pnpm turbo run test typecheck --filter=realworld` and `pnpm --filter realworld check` pass
 
 ## Done summary
-TBD
+Realworld's whole REST facade now runs on Controllers under `apps/realworld/server/routes/api`, and `server/rest.ts` and its `middleware: [rest]` entry are deleted, so no route table remains (R14).
 
+- There is one Controller per path from the old `ROUTES` table:
+  - `users`, `users/login`, `user`
+  - `profiles/[username]` and `profiles/[username]/follow`
+  - `articles` and the static `articles/feed`, which wins over `[slug]`
+  - `articles/[slug]`, with `/favorite`, `/comments` and `/comments/[id]` under it
+- Every method has a written signature and calls the same domain function the table called.
+  - Envelope bodies and answers are written as `Schema.Schema.Type<typeof X>` at a nested position, using `NewUser`, `LoginUser`, `UpdateUser`, `NewArticle`, `UpdateArticle`, `NewComment`, `User`, `Profile`, `Article`, `ArticleList` and `Comment`.
+  - Register, create article and add comment answer 201 through `ResponseStatus.set(201)`. The two deletes return `void`, so they answer 204.
+- The comment `id` is written as a plain `number` param. A non-numeric id fails the `params` decode, and the directory `wrap` turns that into the JSON 404.
+- `articles` and `articles/feed` take query values as written optional strings. The domain `Page` Schema accepts strings, so a non-numeric `limit` is still the service's 422.
+- `src/server.gen.d.ts` is committed exactly as the plugin regenerated it, with 12 new Controllers.
+- The README's REST bullet now describes the Controllers and the directory `wrap`. The status table gains 413 and 415 rows, and the 404 row now covers a non-numeric comment id.
+
+Tests (`test/rest.test.ts`):
+- None of the existing 15 tests was edited. All of them passed against the Controllers as soon as `rest.ts` was deleted, including the earlier task's tests.
+- New: `a body without application/json is 415`, which reaches the 415 through `fetch`.
+- New: `a non-numeric comment id is the JSON 404`. A mutation check (id typed `string`) turned it red with a 401 instead of the 404, and the code was then restored.
+- New: `/api/articles/ answers like /api/articles; /api//x reaches the pages`, covering the two R14 intended differences that had no test yet.
+
+Behaviour differences beyond R14's list:
+- A numeric but non-integer or negative comment id (`1.5`, `-1`) now decodes and reaches `deleteComment`. It answers 404 `{comment: ['not found']}`, where the regex gave 404 `{body: ['not found']}`. It is still a 404.
+
+Follow-ups (not built):
+- The return-annotation check refuses an Effect return type written through a type alias of the same file (`type Answer = Effect.Effect<...>`) with `ControllerMethodShape: does not return an Effect.Effect<A, E>`. It reads `ret.aliasSymbol`, while the Schema reader unaliases. An alias of the success object works, and the Controllers here use that.
+- `docs/adr/0053` still names `server/rest.ts` as the workaround it replaced. That is history; the docs work belongs to task 12.
+
+Gates:
+- Baseline was green through gate receipt db02a6dd (only `.flow/` had changed since), and `pnpm --filter realworld check` exited 0.
+- `GATE_SKIPPED:unittest:green-receipt db02a6dd - baseline reused from prior post-gate pass`
+- Post-edit Quick command: green, 28/28 tasks, realworld 161 tests (158 before). Receipt `.flow/tmp/green-receipts/0787cd81-unittest.json`.
+- `pnpm --filter realworld check`: exit 0. A probe with a mismatched params key failed with `ControllerParamsMismatch`, so `check` reads the new files.
+- `pnpm --filter docs test`: 58/58.
+- `pnpm --filter realworld build`: exit 0. The client build excludes the Controllers.
+- `prettier --check apps/realworld`: clean.
+- Fixture graph check: not run, because no public export changed.
+
+Untracked `.flow/specs/fn-70-served-records.*` and `.flow/tasks/fn-70-served-records.*` files appeared from another session during the run. They were left out of every commit through the conductor's pathspec exclusion.
+
+Tier: session (jev-unavailable(no_key)); routing block sets opus at medium (actual: claude-opus-5-5)
+
+stage: impl-review - skipped(policy: user asked for one completion review at the end of the spec)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 0787cd811e8d8889413c231518c87515fc60b1f5
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack --filter=@sleekstack/router... --filter=@sleekstack/ui-vite... --filter=@sleekstack/start... --filter=@sleekstack/testing --filter=realworld, pnpm --filter realworld check, pnpm --filter docs test, pnpm --filter realworld build, GATE_SKIPPED:unittest:green-receipt db02a6dd - baseline reused from prior post-gate pass
 - PRs:
-
