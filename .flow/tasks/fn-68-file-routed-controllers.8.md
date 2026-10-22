@@ -38,9 +38,46 @@ Emit the discovered-app module that `start()` reads, from the discovery of task 
 - [ ] `pnpm turbo run test typecheck --filter=@sleekstack/ui-vite...` passes
 
 ## Done summary
-TBD
+`virtual:sleek/server-app` now serves the discovered Controllers as real entries that `start()` runs, and gives dev servers a predicate for forwarding Controller paths (R8, R10, R12).
 
+- Codegen (`packages/ui-vite/src/server-services.ts`, `appCode`). Each Controller from `discoverControllers` is joined on its route name with the analyzer's `analyzeControllers` reading. Its entry carries:
+  - `route` and `pattern`.
+  - Per method, `run` (the module's export) and the printed `params`, `query` and `body` Schemas, only for the parts the signature declares. `success` appears only when the return type is written. An optional `params` or `query` is printed without its `undefined` member, because `start` always gives both parts and finds a query's array keys on the top-level object.
+  - The option chain, `options("<project-relative file>", $n)`: each `_defaults.ts` from the outermost down, then the Controller itself. It is read from eager namespace imports, so an option a file does not export is just `undefined`.
+- Shared import map. `importMap` builds both the registry and the discovered app. `'*'` names a whole module as `$<n>`, which can never equal a `<name>_<n>` alias. The Server Service registry output is unchanged: the existing snapshot passes.
+- Errors. An analyzer error (every code, `MissingDependency` included) fails the module's load with `file:line`, as contract errors already do. So does a discovered Controller that is not in the tsconfig program. Either way the previous declaration stays in place.
+- Router. When the `sleekstack:routes` plugin is in the config and `routesDir` has routes, the default export also has a memoized `get router()`. It builds `router({ table, pages, notFound })` from `virtual:sleekstack/routes` and reads it only inside the getter. Without a `_notFound` file, `notFound` renders an empty `Fragment`. An explicit `start({ router })` still wins: `start` already reads `options.router ?? app.router`.
+- Dev forwarding. The module's named export `isControllerPath(pathname)` checks the request against each Controller pattern with router's `segments` and `bind`. Segments are decoded first, and a malformed escape stays raw, so it binds only at a param or splat position, as in start's matcher. `devMiddleware` is exported from `@sleekstack/ui-vite`, and its `accepts` may now return a promise. Calls with a synchronous `accepts`, such as `sleekContent`, keep working.
+- Declaration. When Controllers exist, the section keeps `Controllers` and adds `ControllerModules`, each route name's `typeof import(...)` of its module, plus `isControllerPath`. A file without Controllers is byte-identical to before.
+- Chain message: `rel` keeps a virtual id as it is. The client-build error now reads `... -> src/main.ts -> virtual:sleek/server-app -> server/_defaults.ts` and no longer shows a path relative to the working directory.
+- README: new section "The discovered app: `virtual:sleek/server-app`".
+
+Tests (`packages/ui-vite/src/__tests__/server-services.test.ts`, 5 new). New fixture `fixtures/controller-app/` has one Controller with a referenced Schema, number and boolean codecs, a query array, its own `bodyLimit`, and a `_defaults.ts` `wrap` that maps decode failures to 422. Its generated declaration is committed as `src/server.gen.d.ts`.
+- "serves a generated entry through start()": success encode drops an extra field, number and boolean codec failures reach the wrap, the referenced `NonEmptyString` rejects `''`, the Controller's `bodyLimit` gives 413, plus an inline snapshot of the module.
+- "writes the committed declaration": byte-equal to the committed file, and a consumer typechecks against `Controllers`, `ControllerModules` and `isControllerPath`.
+- "carries the page router": `start()` renders the file-route page, and `start({ router })` renders its own.
+- "vite build --ssr": the SSR build serves a Controller. A client build whose entry imports the module fails, naming the chain to a server file.
+- "forwards Controller paths": a predicate table (Controller paths true; `/src/...`, `/@vite/client`, `/@fs/...`, deps and `/favicon.ico` false), then `devMiddleware` over real HTTP: a Controller path answers from `start` and a module request is served by Vite.
+
+The scaffold tsconfig now includes `server` and `api`. The `controllers` fixture declares the `params` its parameterized paths need, which the analyzer now checks at load. Mutation check: removing `defined()`, dropping the `_defaults.ts` chain, dropping the Controller's own options, removing the router getter, making the predicate always false, and making `accepts` synchronous each turned its test red at the intended behavior assertion. The code was then restored.
+
+Follow-ups, not built:
+- `apps/docs` `test/examples.test.ts` "ui and start @example blocks > compile" fails on the `Wrap` `@example` in `packages/start/src/app.ts`: it uses `Effect`, `Viewer` and `viewerFrom` without imports. This came from task 5 (465aae15) and is outside these Touches and outside the spec's Quick commands. Task 12, the docs task, should fix the example.
+- Realworld (task 10): replace `startsWith('/api/')` in `apps/realworld/server/dev.ts` with `(await server.ssrLoadModule('virtual:sleek/server-app')).isControllerPath(pathname)`.
+- `isControllerPath` is declared only while Controllers exist, to keep files without them byte-identical. The module exports it either way.
+
+Gates:
+- Baseline was green via receipt 4278e073. `realworld check` and the fixture graph check were run before the edits.
+- After the change, the full Quick command passed: 28 of 28 tasks, with ui-vite at 206 tests (201 before) and realworld at 155. Receipt `.flow/tmp/green-receipts/25ce8af7-unittest.json`.
+- `pnpm --filter realworld check`: exit 0.
+- Fixture graph check: the diff is empty. `devMiddleware` is a new public export.
+- Extra run, since `ui-vite...` covers dependencies, not dependents: showcase (59) and playground (3) pass. docs fails only on the inherited example above.
+GATE_SKIPPED:unittest:green-receipt 4278e073 - baseline reused from prior post-gate pass
+
+Tier: session (jev-unavailable(no_key)); routing block sets opus at medium (actual: claude-opus-5-5)
+
+stage: impl-review - skipped(policy: user asked for one completion review at the end of the spec)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 25ce8af7fcd792ebbf019df6257f17e12c84979f
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack --filter=@sleekstack/router... --filter=@sleekstack/ui-vite... --filter=@sleekstack/start... --filter=@sleekstack/testing --filter=realworld, pnpm --filter realworld check, (cd packages/cli/src/__tests__/fixtures/effect-app && node ../../../../bin/cli.js check --json --entry runtime.ts) # diff vs baseline empty, GATE_SKIPPED:unittest:green-receipt 4278e073 - baseline reused from prior post-gate pass
 - PRs:
