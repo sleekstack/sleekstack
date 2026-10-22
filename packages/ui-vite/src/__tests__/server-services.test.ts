@@ -398,6 +398,20 @@ describe('server boundary', () => {
     },
   )
 
+  describe('sleekstack({ serverDir: "lib" }), its analyzer included', () => {
+    const reaching = (dir: string) => {
+      const root = app(`import { a } from '../${dir}/_defaults'\nexport const page = a\n`, {
+        [`../${dir}/_defaults.ts`]: 'export const a = 1\n',
+      })
+      return build({ ...config(root), plugins: sleekstack({ serverDir: 'lib' }), build: { write: false } })
+    }
+
+    it('builds a client reaching server/_defaults.ts', () => expect(reaching('server')).resolves.toBeDefined())
+
+    it('fails a client build reaching lib/_defaults.ts with ServerFileInClientGraph', () =>
+      expect(reaching('lib')).rejects.toThrow('ServerFileInClientGraph: The server-only "lib/_defaults.ts"'))
+  })
+
   it('lets a test-only file under test/ import a server file in the client environment', async () => {
     const { server } = await serve({
       '../test/helpers.ts': `import { ProfilesLive } from '../src/profiles.server'\nconsole.log(ProfilesLive)\n`,

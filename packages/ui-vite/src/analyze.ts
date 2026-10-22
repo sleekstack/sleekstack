@@ -2,8 +2,14 @@ import * as path from 'node:path'
 import type { AnalyzeError } from '@sleekstack/analyze'
 import type { ErrorPayload, Plugin, ViteDevServer } from 'vite'
 
-/** Runs the whole-program analysis of the tsconfig project at `project`; returns its diagnostics (files relative to the project's directory). */
-export type Analyzer = (project: string) => readonly AnalyzeError[] | Promise<readonly AnalyzeError[]>
+/**
+ * Runs the whole-program analysis of the tsconfig project at `project`, whose server directory is `serverDir` (relative
+ * to the project's directory; default `server`); returns its diagnostics (files relative to the project's directory).
+ */
+export type Analyzer = (
+  project: string,
+  serverDir?: string,
+) => readonly AnalyzeError[] | Promise<readonly AnalyzeError[]>
 
 const DEBOUNCE_MS = 200
 const SOURCE = /\.[cm]?[jt]sx?$/
@@ -12,7 +18,7 @@ const SOURCE = /\.[cm]?[jt]sx?$/
  * `@sleekstack/analyze` (graph, component and Server Service passes), loaded on first use through jiti: the analyzer
  * ships as TypeScript source, which Node cannot import from this package's compiled output.
  */
-const sleekstackAnalyzer: Analyzer = async (project) => {
+const sleekstackAnalyzer: Analyzer = async (project, serverDir) => {
   const { createJiti } = await import('jiti')
   const { analyze, analyzeComponents, analyzeServerServices } = await createJiti(import.meta.url).import<
     typeof import('@sleekstack/analyze')
@@ -22,7 +28,7 @@ const sleekstackAnalyzer: Analyzer = async (project) => {
     ...report.extraction,
     ...report.runtimes.flatMap((r) => r.errors),
     ...analyzeComponents({ project }).errors,
-    ...analyzeServerServices({ project }).errors,
+    ...analyzeServerServices({ project, serverDir }).errors,
   ]
   // Roots sharing a module repeat its errors.
   return [...new Map(all.map((e) => [`${e.file}:${e.line}:${e.code}:${e.message}`, e])).values()]
@@ -45,15 +51,16 @@ const overlayError = (errors: readonly AnalyzeError[]) => {
 /**
  * Runs the analyzer over the Vite root's `tsconfig.json`: always on build, where an analyzer error fails the build,
  * and debounced on every source change in dev, where errors show in the error overlay (file:line of the first) and
- * clear once a run comes back clean. A crashing analyzer is logged (and shown in dev), never thrown.
+ * clear once a run comes back clean. A crashing analyzer is logged (and shown in dev), never thrown. `serverDir` is the
+ * server directory relative to the Vite root, as `ServerServicesOptions.serverDir`.
  */
-export const analyze = (run: Analyzer = sleekstackAnalyzer): Plugin => {
+export const analyze = (run: Analyzer = sleekstackAnalyzer, serverDir?: string): Plugin => {
   let project = ''
   let built: Promise<readonly AnalyzeError[] | Error> | undefined
   const attempt = async (): Promise<readonly AnalyzeError[] | Error> => {
     try {
       // Analyzer files are relative to the project's directory; the overlay and Rolldown want absolute ones.
-      return (await run(project)).map((e) => ({ ...e, file: path.resolve(path.dirname(project), e.file) }))
+      return (await run(project, serverDir)).map((e) => ({ ...e, file: path.resolve(path.dirname(project), e.file) }))
     } catch (cause) {
       return new Error(crashMessage(cause))
     }

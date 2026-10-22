@@ -42,7 +42,7 @@ export type SleekstackOptions = JsxOptions &
 export const sleekstack = (options: SleekstackOptions = {}): Array<Plugin> => [
   jsx(options),
   ids(options),
-  analyze(),
+  analyze(undefined, options.serverDir),
   routes(options),
   serverServices(options),
   entries(options),
