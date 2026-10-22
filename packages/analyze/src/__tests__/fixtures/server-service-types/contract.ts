@@ -1,11 +1,12 @@
 import type { NotFound, Redirect } from '@sleekstack/router'
 import { ServerService } from '@sleekstack/start/client'
-import { Data, type Effect } from 'effect'
-import { Missing } from './errors'
+import { Data, type Effect, Schema } from 'effect'
+import { Invalid, Missing } from './errors'
 
 interface Named { readonly name: string }
 type Tagged = Named & { readonly tags: readonly string[] }
 export class NameTaken extends Data.TaggedError('NameTaken')<{ readonly name: string; readonly at?: number }> {}
+export class Gone extends Schema.TaggedError<Gone>()('Gone', {}) {}
 
 export class Kinds extends ServerService('Kinds')<
   Kinds,
@@ -18,5 +19,7 @@ export class Kinds extends ServerService('Kinds')<
     readonly nested: (input: Tagged) => Effect.Effect<{ readonly owner: Named }>
     readonly voidInput: () => Effect.Effect<void>
     readonly errors: () => Effect.Effect<void, NameTaken | Missing | Redirect | NotFound>
+    readonly schemaErrors: () => Effect.Effect<void, Invalid | Gone>
+    readonly records: (input: Record<string, ReadonlyArray<string>>) => Effect.Effect<{ [key: string]: number }>
   }
 >() {}

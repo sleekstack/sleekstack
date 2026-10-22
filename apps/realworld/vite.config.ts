@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { sleekstack } from '@sleekstack/ui-vite'
+import { serverServices, sleekstack } from '@sleekstack/ui-vite'
 import { defineConfig } from 'vitest/config'
 import { devMiddleware } from './server/dev'
 
@@ -10,6 +10,8 @@ export const routes = () => sleekstack().filter((p) => p.name === 'sleekstack:ro
 export default defineConfig({
   plugins: [
     routes(),
+    // Server Services: generates `virtual:sleek/server` and its registry from the contracts, and keeps `*.server.ts` out of the browser.
+    serverServices(),
     {
       // The server on the dev server: `server/app.ts`, loaded through Vite so an edit to it applies on the next request.
       // Registered here, not in a returned hook, so page navigations reach it before Vite's own `index.html`.

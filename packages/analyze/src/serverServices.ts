@@ -155,7 +155,7 @@ export function analyzeServerServices(opts: { readonly project: string }): Serve
     services.push({ id: idType.value, name: c.name.text, location: loc(c), methods })
   }
 
-  /** A file declaring a Server Service holds only imports, types, `Data.TaggedError` and Server Service classes. */
+  /** A file declaring a Server Service holds only imports, types, tagged error and Server Service classes. */
   const checkFile = (sf: ts.SourceFile, first: ts.ClassLikeDeclaration) => {
     const shape = (n: ts.Node, why: string) => report('ServerServiceFileShape', n, why)
     if (SERVER_FILE.test(sf.fileName))
@@ -166,7 +166,10 @@ export function analyzeServerServices(opts: { readonly project: string }): Serve
         if (target && ts.isSourceFile(target) && SERVER_FILE.test(target.fileName))
           shape(s, `A Server Service contract file imports the server-only "${s.moduleSpecifier.getText()}"`)
       } else if (ts.isClassDeclaration(s) ? !(serviceCall(s) || isTaggedError(s)) : !isTypeOnly(s))
-        shape(s, 'A Server Service contract file holds only imports, types, Data.TaggedError and ServerService classes')
+        shape(
+          s,
+          'A Server Service contract file holds only imports, types, Data.TaggedError, Schema.TaggedError and ServerService classes',
+        )
     }
   }
   const isTypeOnly = (s: ts.Statement) =>

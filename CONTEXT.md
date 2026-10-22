@@ -190,7 +190,7 @@ A server operation for ui apps, declared with `serverFn(id, { input, success, er
 _Avoid_: Action, Server Action, RPC, procedure
 
 **Server Service**:
-A Context Tag whose methods are Effect signatures, declared with `ServerService(id)<Self, Shape>()` in a client-safe file and implemented by a Layer in a `*.server.ts` file (ADR 0051). A page calls `yield* Profiles`: on the server the implementation runs in-process, in the browser a generated client calls `POST /_sleek/fn/<id>.<method>`. The client and registry are generated from the method types. Distinct from a Server Function (explicit Schemas, one operation, `serverFn`).
+A Context Tag whose methods are Effect signatures, declared with `ServerService(id)<Self, Shape>()` in a client-safe file and implemented by a Layer in a `*.server.ts` file (ADR 0051). A page calls `yield* Profiles`: on the server the implementation runs in-process, in the browser a generated client calls `POST /_sleek/fn/<id>.<method>`. The client and registry are generated from the method types. An implementation Layer is built with `implement(Tag, methods)`, whose methods may use the request services (ADR 0052). Distinct from a Server Function (explicit Schemas, one operation, `serverFn`).
 _Avoid_: remote service, RPC, contract
 
 **Server Endpoint**:

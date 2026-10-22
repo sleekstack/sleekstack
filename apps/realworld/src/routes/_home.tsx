@@ -5,18 +5,13 @@ import { useAtomValue, useSetAtom } from '@sleekstack/ui'
 import { Effect, Schema } from 'effect'
 import {
   ArticlePreviews,
-  favoriteContract,
-  feedContract,
-  listArticlesContract,
+  ArticlesApi,
   Pagination,
-  tagsContract,
   type Toggle,
-  unfavoriteContract,
   useArticleList,
   useStaleArticleLists,
 } from '../modules/articles'
 import { table } from 'virtual:sleekstack/routes'
-import { ServerFunctions } from '../pages/functions'
 import { type ArticleSource, articleSource, PAGE_SIZE, type RouteLoaders, signedIn, viewer } from '../pages/loaders'
 import { code, previewTargets } from './_links'
 
@@ -35,8 +30,8 @@ const LoadFailed = () => <div class="article-preview">Articles could not be load
  * stale previews: a preview's favorite button keeps the article it first rendered.
  */
 export const ArticleFeed = function* ({ source }: { source: ArticleSource }) {
-  const call = yield* ServerFunctions
-  const services = yield* Effect.context<ServerFunctions | Route>()
+  const api = yield* ArticlesApi
+  const services = yield* Effect.context<ArticlesApi | Route>()
   const { pathname } = yield* Route
   const user = yield* Effect.orElseSucceed(useLoader(viewer), () => null)
   const first = yield* Effect.either(useLoader(source.first))
@@ -51,7 +46,7 @@ export const ArticleFeed = function* ({ source }: { source: ArticleSource }) {
   )
   if (first._tag === 'Left') return <LoadFailed />
   const toggle: Toggle | null = user
-    ? (a) => call(a.favorited ? unfavoriteContract : favoriteContract)({ slug: a.slug }).pipe(Effect.tap(stale))
+    ? (a) => (a.favorited ? api.unfavorite({ slug: a.slug }) : api.favorite({ slug: a.slug })).pipe(Effect.tap(stale))
     : null
   return (
     <>
@@ -73,23 +68,23 @@ export const ArticleFeed = function* ({ source }: { source: ArticleSource }) {
 }
 
 export const globalArticles = articleSource('globalArticles', (paging) =>
-  Effect.flatMap(ServerFunctions, (c) => c(listArticlesContract)(paging)),
+  Effect.flatMap(ArticlesApi, (api) => api.list(paging)),
 )
 export const feedArticles = articleSource('feedArticles', (paging) =>
-  Effect.flatMap(ServerFunctions, (c) => c(feedContract)(paging)),
+  Effect.flatMap(ArticlesApi, (api) => api.feed(paging)),
 )
 // The tag route names it `:tag`.
 const routeTag = Effect.map(Route, (m) => m.params['tag']!)
 
 export const tagArticles = articleSource('tagArticles', (paging) =>
-  Effect.flatMap(Effect.zip(ServerFunctions, routeTag), ([c, tag]) => c(listArticlesContract)({ ...paging, tag })),
+  Effect.flatMap(Effect.zip(ArticlesApi, routeTag), ([api, tag]) => api.list({ ...paging, tag })),
 )
 
 /** Every tag in use, for the sidebar. */
 export const popularTags = loader(
   'popularTags',
   Schema.Array(Schema.String),
-  Effect.flatMap(ServerFunctions, (c) => c(tagsContract)()),
+  Effect.flatMap(ArticlesApi, (api) => api.tags()),
 )
 
 const tagHref = (tag: string) => `/tag/${encodeURIComponent(tag)}`

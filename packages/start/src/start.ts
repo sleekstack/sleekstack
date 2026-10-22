@@ -21,8 +21,11 @@ type StartLayer<R> = 0 extends 1 & R
     ? { readonly layer?: Layer.Layer<any, any, never> }
     : { readonly layer: Layer.Layer<R, any, never> }
 
+/** The Tag of each registry entry in `E`: a registry of several Tags needs each one, so it is read per entry, not inferred as one. */
+type TagsOf<E> = E extends ServerServiceEntry<infer Id, any> ? Id : never
+
 /** What `start` takes: the router, handlers by pathname, and the layer the app's requirements come from. */
-export type StartOptions<T extends RouteTable, RP, RH, RM, RF, RS = never> = {
+export type StartOptions<T extends RouteTable, RP, RH, RM, RF, SE extends ServerServiceEntry = never> = {
   readonly router: Router<T, RP>
   /** Route handlers by exact pathname. */
   readonly handlers?: { readonly [pathname: string]: Handler<any, RH> }
@@ -34,7 +37,7 @@ export type StartOptions<T extends RouteTable, RP, RH, RM, RF, RS = never> = {
    * Server Services (the generated registry), each method served at `POST /_sleek/fn/<Tag id>.<method>`. `layer` must
    * provide every Tag; ids share the `functions` rules.
    */
-  readonly services?: ReadonlyArray<ServerServiceEntry<RS>>
+  readonly services?: ReadonlyArray<SE>
   /**
    * Origins besides the request's own allowed to call server functions, each a bare origin such as
    * `https://app.example`; anything else fails `start` with `InvalidOrigin`. This sends no CORS headers: middleware does.
@@ -44,7 +47,7 @@ export type StartOptions<T extends RouteTable, RP, RH, RM, RF, RS = never> = {
   readonly bodyLimit?: number
   /** The runtime's error sink: defects from every stage. Default: `console.error`. */
   readonly onError?: ErrorSink
-} & StartLayer<NoInfer<Needs<RP | RH | RM | RF | RS>>>
+} & StartLayer<NoInfer<Needs<RP | RH | RM | RF | TagsOf<SE>>>>
 
 /** The app `start` returns: a standard `fetch` handler over the router. */
 export interface Start {
@@ -59,8 +62,15 @@ const isControl = (e: unknown): e is Redirect | NotFound => e instanceof Redirec
  * unmatched path is its not-found page with 404). A defect or unhandled failure in any stage reaches `onError` and
  * answers an empty 500. A `Redirect` or `NotFound` from middleware or a handler answers 302 or 404.
  */
-export const start = <const T extends RouteTable, RP = never, RH = never, RM = never, RF = never, RS = never>(
-  options: StartOptions<T, RP, RH, RM, RF, RS>,
+export const start = <
+  const T extends RouteTable,
+  RP = never,
+  RH = never,
+  RM = never,
+  RF = never,
+  SE extends ServerServiceEntry = never,
+>(
+  options: StartOptions<T, RP, RH, RM, RF, SE>,
 ): Start => {
   const { router, handlers = {}, middleware = [] } = options
   const serverFunctions = endpoint(

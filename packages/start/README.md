@@ -4,22 +4,23 @@ The server entry for a `@sleekstack/ui` app: `start({ router, layer, middleware,
 
 ## Exports
 
-| Entry                      | Export                                                                                    | What                                                       |
-| -------------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| `@sleekstack/start`        | `start`, `Start`, `StartOptions`                                                          | the server entry and its options                           |
-|                            | `serverFn`, `ServerFn`                                                                    | declares a server function                                 |
-|                            | `ServerService`, `ServerServiceEntry`, `ServerServiceShape`, `ServerServiceMethodSchemas` | declares a Server Service; `services` takes its entries    |
-|                            | `taggedError`                                                                             | a Schema for a `Data.TaggedError` class                    |
-|                            | `Handler`, `Method`                                                                       | a route handler: one Effect per HTTP method                |
-|                            | `Middleware`                                                                              | runs before every other stage; a `Response` short-circuits |
-|                            | `Request`, `Cookies`, `ResponseHeaders`, `CookieJar`, `CookieOptions`, `RequestServices`  | the request services (Tags)                                |
-|                            | `InvalidCookie`, `DuplicateServerFn`, `InvalidServerFnId`, `InvalidOrigin`, `DecodeError` | errors                                                     |
-| `@sleekstack/start/client` | `client`, `Contract`, `Stub`                                                              | the browser stub, typed from a client-safe contract        |
-|                            | `serverClient`, `serverClients`                                                           | Server Service Tags as browser Layers over the wire        |
-|                            | `ServerService`, `taggedError`, `ServerServiceEntry`                                      | the contract side, also exported here                      |
-|                            | `NetworkError`, `DecodeError`                                                             | the stub's own failures                                    |
+| Entry                      | Export                                                                                    | What                                                                            |
+| -------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `@sleekstack/start`        | `start`, `Start`, `StartOptions`                                                          | the server entry and its options                                                |
+|                            | `serverFn`, `ServerFn`                                                                    | declares a server function                                                      |
+|                            | `ServerService`, `ServerServiceEntry`, `ServerServiceShape`, `ServerServiceMethodSchemas` | declares a Server Service; `services` takes its entries                         |
+|                            | `implement`                                                                               | a Server Service implementation Layer; its methods may use the request services |
+|                            | `taggedError`                                                                             | a Schema for a `Data.TaggedError` class                                         |
+|                            | `Handler`, `Method`                                                                       | a route handler: one Effect per HTTP method                                     |
+|                            | `Middleware`                                                                              | runs before every other stage; a `Response` short-circuits                      |
+|                            | `Request`, `Cookies`, `ResponseHeaders`, `CookieJar`, `CookieOptions`, `RequestServices`  | the request services (Tags)                                                     |
+|                            | `InvalidCookie`, `DuplicateServerFn`, `InvalidServerFnId`, `InvalidOrigin`, `DecodeError` | errors                                                                          |
+| `@sleekstack/start/client` | `client`, `Contract`, `Stub`                                                              | the browser stub, typed from a client-safe contract                             |
+|                            | `serverClient`, `serverClients`                                                           | Server Service Tags as browser Layers over the wire                             |
+|                            | `ServerService`, `taggedError`, `ServerServiceEntry`                                      | the contract side, also exported here                                           |
+|                            | `NetworkError`, `DecodeError`                                                             | the stub's own failures                                                         |
 
-Decisions: ADR 0039, ADR 0051 (Server Services). The registry for `services` and the browser Layer are generated by `serverServices()` in `@sleekstack/ui-vite` (`virtual:sleek/server-registry`, `virtual:sleek/server`). Tests call a server function, a Server Service method or a handler without HTTP through `callServerFn`, `callService` and `callHandler` from `@sleekstack/testing`.
+Decisions: ADR 0039, ADR 0051 (Server Services), ADR 0052 (request services in an implementation). The registry for `services` and the browser Layer are generated by `serverServices()` in `@sleekstack/ui-vite` (`virtual:sleek/server-registry`, `virtual:sleek/server`). Tests call a server function, a Server Service method or a handler without HTTP through `callServerFn`, `callService` and `callHandler` from `@sleekstack/testing`.
 
 ## Origins and CORS
 

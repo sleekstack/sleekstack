@@ -3,10 +3,9 @@ import { type DraftSpec, useDraft } from '@sleekstack/model'
 import { useLoader } from '@sleekstack/router'
 import { useAction, useAtomValue, useFormStatus, useSetAtom } from '@sleekstack/ui'
 import { Effect, Schema } from 'effect'
-import { Article, createArticleContract, type NewArticle, updateArticleContract } from '../../../modules/articles'
+import { Article, ArticlesApi, type NewArticle } from '../../../modules/articles'
 import { Field } from '../../../pages/field'
 import { ErrorList, errorsOf, toPage } from '../../../pages/form'
-import { ServerFunctions } from '../../../pages/functions'
 import { editable } from '../../../pages/loaders'
 
 const articleHref = (slug: string) => `/article/${encodeURIComponent(slug)}`
@@ -35,7 +34,7 @@ const EditorDraft = {
 
 /** A new article (`article` null) or an edit of `article`; a save lands on the saved article. */
 const Editor = function* ({ article }: { article: Article | null }) {
-  const call = yield* ServerFunctions
+  const api = yield* ArticlesApi
   const draft = yield* useDraft(EditorDraft, article)
   const setBody = yield* useSetAtom(draft.field('body'))
   const setTag = yield* useSetAtom(draft.field('tag'))
@@ -43,7 +42,7 @@ const Editor = function* ({ article }: { article: Article | null }) {
   const setTags = yield* useSetAtom(draft.field('tagList'))
   const [saved, save] = yield* useAction(() =>
     Effect.flatMap(draft.toDto(), (dto) =>
-      article ? call(updateArticleContract)({ slug: article.slug, article: dto }) : call(createArticleContract)(dto),
+      article ? api.update({ slug: article.slug, article: dto }) : api.create(dto),
     ),
   )
   const { pending } = yield* useFormStatus(saved)

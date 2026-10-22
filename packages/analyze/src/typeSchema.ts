@@ -11,6 +11,7 @@ import ts from 'typescript'
 import { libId } from './extract'
 
 const TAGGED_ERROR = 'effect/Data#TaggedError'
+const SCHEMA_TAGGED_ERROR = 'effect/Schema#TaggedError'
 /** Router control flow: carried by the wire's own envelope, not by the error Schema. */
 const CONTROL = new Set(['router/resolve#Redirect', 'router/resolve#NotFound'])
 
@@ -27,6 +28,8 @@ export interface TaggedErrorSchema {
   /** The file declaring the class, relative to the tsconfig directory. */
   readonly file: string
   readonly fields: readonly PropertySchema[]
+  /** A `Schema.TaggedError` class is its own Schema: `fields` is empty and the class is used as is. */
+  readonly schema?: true
 }
 
 export type TypeSchema =
@@ -34,6 +37,8 @@ export type TypeSchema =
   | { readonly kind: 'literal'; readonly value: string | number | boolean }
   | { readonly kind: 'union'; readonly members: readonly TypeSchema[] }
   | { readonly kind: 'array'; readonly readonly: boolean; readonly element: TypeSchema }
+  /** A single `string` index signature and no properties: `Record<string, T>`. */
+  | { readonly kind: 'record'; readonly readonly: boolean; readonly value: TypeSchema }
   | { readonly kind: 'object'; readonly properties: readonly PropertySchema[] }
 
 export interface MethodSchema {
@@ -53,14 +58,25 @@ export class NotSerializable {
   ) {}
 }
 
-/** The `Data.TaggedError('X')<Fields>` base of `class X extends Data.TaggedError('X')<Fields> {}`. */
-export const taggedErrorBase = (c: ts.ClassLikeDeclaration, checker: ts.TypeChecker) => {
+/**
+ * The tagged error base of `class X extends Data.TaggedError('X')<Fields> {}` (its fields as a type node) or of
+ * `class X extends Schema.TaggedError<X>()('X', fields) {}` (the class is its own Schema).
+ */
+export const taggedErrorBase = (
+  c: ts.ClassLikeDeclaration,
+  checker: ts.TypeChecker,
+): { readonly schema: false; readonly fields: ts.TypeNode | undefined } | { readonly schema: true } | undefined => {
   const ext = c.heritageClauses?.find((h) => h.token === ts.SyntaxKind.ExtendsKeyword)?.types[0]
-  return ext &&
-    ts.isCallExpression(ext.expression) &&
-    libId(checker.getSymbolAtLocation(ext.expression.expression), checker) === TAGGED_ERROR
-    ? ext
-    : undefined
+  if (!ext || !ts.isCallExpression(ext.expression)) return undefined
+  const callee = ext.expression.expression
+  if (libId(checker.getSymbolAtLocation(callee), checker) === TAGGED_ERROR)
+    return { schema: false, fields: ext.typeArguments?.[0] }
+  if (
+    ts.isCallExpression(callee) &&
+    libId(checker.getSymbolAtLocation(callee.expression), checker) === SCHEMA_TAGGED_ERROR
+  )
+    return { schema: true }
+  return undefined
 }
 
 export const methodSchema = (
@@ -123,18 +139,25 @@ export const methodSchema = (
         }
         if (t.getCallSignatures().length || t.getConstructSignatures().length) return bad(at, t, 'a function')
         const sym = t.getSymbol()
-        if (
-          sym &&
-          (sym.flags & ts.SymbolFlags.Class ||
-            sym.declarations?.some((d) => program.isSourceFileDefaultLibrary(d.getSourceFile())))
-        )
-          return bad(at, t, 'a class instance or built-in object')
+        const builtIn = () => bad(at, t, 'a class instance or built-in object')
+        if (sym && sym.flags & ts.SymbolFlags.Class) return builtIn()
+        // Before the built-in check: `Record<string, T>` is a mapped type declared in the default library.
+        const indexes = checker.getIndexInfosOfType(t)
+        if (indexes.length) return recordOf(t, indexes, at)
+        if (sym?.declarations?.some((d) => program.isSourceFileDefaultLibrary(d.getSourceFile()))) return builtIn()
       }
-      if (checker.getIndexInfosOfType(t).length) return bad(at, t, 'an index signature')
       return { kind: 'object', properties: propertiesOf(t, at) }
     } finally {
       stack.delete(t)
     }
+  }
+
+  const recordOf = (t: ts.Type, indexes: readonly ts.IndexInfo[], at: string): TypeSchema => {
+    const [index] = indexes
+    if (indexes.length > 1 || !(index!.keyType.flags & F.String))
+      return bad(at, t, 'an index signature other than a single `string` key')
+    if (checker.getPropertiesOfType(t).length) return bad(at, t, 'properties beside an index signature')
+    return { kind: 'record', readonly: index!.isReadonly, value: convert(index!.type, `${at}[string]`) }
   }
 
   const propertiesOf = (t: ts.Type, at: string): PropertySchema[] =>
@@ -151,19 +174,18 @@ export const methodSchema = (
     if (CONTROL.has(libId(sym, checker) ?? '')) return []
     const decl = sym?.valueDeclaration
     const base = decl && ts.isClassLike(decl) ? taggedErrorBase(decl, checker) : undefined
-    if (!sym || !decl || !base) return bad('error', t, 'an error must be a Data.TaggedError class')
+    if (!sym || !decl || !base)
+      return bad('error', t, 'an error must be a Data.TaggedError or Schema.TaggedError class')
+    const error = {
+      kind: 'taggedError',
+      name: sym.getName(),
+      file: path.relative(ctx.root, decl.getSourceFile().fileName),
+    } as const
+    if (base.schema) return [{ ...error, fields: [], schema: true }]
     const at = `error(${sym.getName()})`
-    const fieldsNode = base.typeArguments?.[0]
-    const fields = fieldsNode ? convert(checker.getTypeFromTypeNode(fieldsNode), at) : undefined
+    const fields = base.fields ? convert(checker.getTypeFromTypeNode(base.fields), at) : undefined
     if (fields && fields.kind !== 'object') return bad(at, t, 'tagged error fields must be an object type')
-    return [
-      {
-        kind: 'taggedError',
-        name: sym.getName(),
-        file: path.relative(ctx.root, decl.getSourceFile().fileName),
-        fields: fields?.properties ?? [],
-      },
-    ]
+    return [{ ...error, fields: fields?.properties ?? [] }]
   }
 
   try {

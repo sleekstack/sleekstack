@@ -1,5 +1,6 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import { serverServices } from '@sleekstack/ui-vite'
 import { build } from 'vite'
 import { expect, it } from 'vitest'
 import { routes } from '../vite.config'
@@ -13,7 +14,7 @@ import { routes } from '../vite.config'
 //     index             the module's public API: all another module (or a page) may import
 //   errors            the tagged domain error set, shared by every module and both server surfaces
 //   routes/           screens, one route file each (`virtual:sleekstack/routes`); import modules only through their `index`
-//   pages/            what the screens share (loaders, server functions, form parts); import modules only through their `index`
+//   pages/            what the screens share (loaders, form parts); import modules only through their `index`
 //   layers            composition root: the only importer of the modules' `infrastructure`
 //   app, main         composition roots for the UI
 // Modules reach each other only through `index`, and only along MODULE_DEPS (no cycles).
@@ -43,7 +44,14 @@ const ruleOf = (mod: string): Rule | undefined => {
     if (layer === 'application')
       return {
         local: ['domain/', 'application/', 'errors'],
-        packages: ['effect', '@sleekstack/core', '@sleekstack/query', '@sleekstack/query/ui', UI],
+        packages: [
+          'effect',
+          '@sleekstack/core',
+          '@sleekstack/query',
+          '@sleekstack/query/ui',
+          '@sleekstack/start/client',
+          UI,
+        ],
       }
     if (layer === 'infrastructure') return { local: ['domain/', 'infrastructure/', 'errors'], packages: ['effect'] }
     if (layer === 'presentation')
@@ -56,14 +64,7 @@ const ruleOf = (mod: string): Rule | undefined => {
   if (mod.startsWith('pages/'))
     return {
       local: ['pages/', 'errors'],
-      packages: [
-        'effect',
-        '@sleekstack/core',
-        '@sleekstack/model',
-        '@sleekstack/router',
-        '@sleekstack/start/client',
-        UI,
-      ],
+      packages: ['effect', '@sleekstack/core', '@sleekstack/model', '@sleekstack/router', UI],
     }
   if (mod.startsWith('routes/'))
     return {
@@ -73,7 +74,6 @@ const ruleOf = (mod: string): Rule | undefined => {
         '@sleekstack/core',
         '@sleekstack/model',
         '@sleekstack/router',
-        '@sleekstack/start/client',
         UI,
         '@sleekstack/ui/jsx-runtime',
         ROUTES,
@@ -82,8 +82,8 @@ const ruleOf = (mod: string): Rule | undefined => {
   const exact: Record<string, Rule> = {
     errors: { local: [], packages: ['effect'] },
     layers: { local: [], packages: ['effect', '@sleekstack/query/ui'] },
-    app: { local: ['layers', 'pages/'], packages: [UI, '@sleekstack/router', ROUTES] },
-    main: { local: ['app', 'layers'], packages: ['effect', '@sleekstack/router'] },
+    app: { local: [], packages: [UI, '@sleekstack/router', ROUTES] },
+    main: { local: ['app', 'layers'], packages: ['effect', '@sleekstack/router', 'virtual:sleek/server'] },
   }
   return exact[mod]
 }
@@ -95,7 +95,11 @@ const files = (dir: string): string[] =>
   fs
     .readdirSync(dir, { withFileTypes: true })
     .flatMap((e) =>
-      e.isDirectory() ? files(path.join(dir, e.name)) : /\.tsx?$/.test(e.name) ? [path.join(dir, e.name)] : [],
+      e.isDirectory()
+        ? files(path.join(dir, e.name))
+        : /\.tsx?$/.test(e.name) && !e.name.endsWith('.d.ts')
+          ? [path.join(dir, e.name)]
+          : [],
     )
 const moduleOf = (file: string) =>
   path
@@ -194,7 +198,7 @@ it('the client chunk holds no server module', { timeout: 60_000 }, async () => {
   const out = await build({
     configFile: false,
     logLevel: 'silent',
-    plugins: [routes()],
+    plugins: [routes(), serverServices()],
     resolve: { alias: sourceAlias },
     define: { 'process.env.NODE_ENV': '"production"' },
     build: { write: false, minify: true, lib: { entry: path.join(src, 'main.tsx'), formats: ['es'] } },

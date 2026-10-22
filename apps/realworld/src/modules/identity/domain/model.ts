@@ -10,6 +10,10 @@ export const User = Schema.Struct({
 })
 export type User = typeof User.Type
 
+/** The signed-in user as the server answers the browser: the token stays in its `HttpOnly` cookie, out of reach of scripts. */
+export const Account = User.omit('token')
+export type Account = typeof Account.Type
+
 /** Another user as the viewer sees them; `following` is false for an anonymous viewer. */
 export const Profile = Schema.Struct({
   username: Schema.String,

@@ -82,6 +82,24 @@ describe('Type to Schema', () => {
         ],
       },
     ],
+    [
+      'schemaErrors',
+      {
+        input: voidT,
+        success: voidT,
+        error: [
+          { kind: 'taggedError', name: 'Invalid', file: 'errors.ts', fields: [], schema: true },
+          { kind: 'taggedError', name: 'Gone', file: 'contract.ts', fields: [], schema: true },
+        ],
+      },
+    ],
+    [
+      'records',
+      io(
+        { kind: 'record', readonly: false, value: { kind: 'array', readonly: true, element: str } },
+        { kind: 'record', readonly: false, value: num },
+      ),
+    ],
   ])('%s', (name, expected) => {
     expect(schemas.get(name)).toEqual(expected)
   })
@@ -114,6 +132,10 @@ describe('ServerServiceTypeNotSerializable', () => {
     ['taggedSuccess', 'success', 'Oops'],
     ['holes', 'input', 'readonly (string | undefined)[]'],
     ['brand', 'input', 'string & { readonly brand: "Id"; }'],
+    ['numberKey', 'input', '{ readonly [n: number]: string; }'],
+    ['templateKey', 'input', 'Record<`x-${string}`, string>'],
+    ['twoIndexes', 'input', '{ readonly [k: string]: string; readonly [n: number]: string; }'],
+    ['recordValue', 'success.at[string]', 'Date'],
   ])('%s: file:line and the member path', (method, member, text) => {
     const e = r.errors.find((x) => x.message.startsWith(`Server Service method "Bad.${method}":`))
     expect(e).toMatchObject({ code: 'ServerServiceTypeNotSerializable', file: 'contract.ts', line: lineOf(method) })
@@ -122,5 +144,5 @@ describe('ServerServiceTypeNotSerializable', () => {
   })
 
   it('reports one error per method and nothing else', () =>
-    expect(r.errors.map((e) => e.code)).toEqual(Array(14).fill('ServerServiceTypeNotSerializable')))
+    expect(r.errors.map((e) => e.code)).toEqual(Array(18).fill('ServerServiceTypeNotSerializable')))
 })

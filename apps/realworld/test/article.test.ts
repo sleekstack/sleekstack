@@ -1,8 +1,7 @@
 // The article page, its comments and the editor in a browser: pages are server-rendered by the real `start` app and
-// hydrated by `startRouter`; server function calls go to the same app through `fetch`, which keeps the session cookie.
+// hydrated by `startRouter`; Server Service calls go to the same app through `fetch`, which keeps the session cookie.
 // Node environment with a jsdom window installed below, as in auth.test.ts (`node:sqlite`).
 import { type Navigation, startRouter } from '@sleekstack/router'
-import { client } from '@sleekstack/start/client'
 import { flush } from '@sleekstack/testing'
 import { Layer } from 'effect'
 import { act } from 'react'
@@ -16,7 +15,7 @@ vi.hoisted(() => {
 const { app } = await import('../server/app')
 const { pages } = await import('../src/app')
 const { QueriesLive } = await import('../src/layers')
-const { ServerFunctions } = await import('../src/pages/functions')
+const { default: ServerServicesLive } = await import('virtual:sleek/server')
 
 const browser = await builtinEnvironments.jsdom.setup(globalThis, { jsdom: { url: 'http://conduit.test/' } })
 afterAll(() => browser.teardown(globalThis))
@@ -41,7 +40,7 @@ beforeAll(() => {
   })
 })
 
-/** Calls server function `id` as the holder of `session` (another browser), straight on the app; returns its result. */
+/** Calls Server Service method `id` as the holder of `session` (another browser), straight on the app; returns its result. */
 const call = async (id: string, input: unknown, session = '') => {
   const response = await app.fetch(
     new Request(new URL(`/_sleek/fn/${id}`, location.origin), {
@@ -62,13 +61,14 @@ let n = 0
 /** Registers a fresh user; returns their name and session cookie. */
 const user = async () => {
   const name = `a${++n}`
-  const { session } = await fn('users.register', { username: name, email: `${name}@x.io`, password: 'secret1' })
+  const { session } = await fn('IdentityApi.register', { username: name, email: `${name}@x.io`, password: 'secret1' })
   return { name, session }
 }
 const post = async (session: string, title: string, body = 'b', tagList: string[] = []) =>
-  (await fn('articles.create', { title, description: `about ${title}`, body, tagList }, session)).value.slug as string
+  (await fn('ArticlesApi.create', { title, description: `about ${title}`, body, tagList }, session)).value
+    .slug as string
 const comment = (session: string, slug: string, body: string) =>
-  fn('comments.add', { slug, comment: { body } }, session)
+  fn('CommentsApi.add', { slug, comment: { body } }, session)
 
 let nav: Navigation | undefined
 let container: HTMLElement
@@ -94,7 +94,11 @@ const open = async (path: string) => {
   container = document.body.appendChild(document.createElement('div'))
   container.innerHTML = await response.text()
   nav = await act(() =>
-    startRouter(pages, { container, layer: Layer.merge(QueriesLive, Layer.succeed(ServerFunctions, client)), onError }),
+    startRouter(pages, {
+      container,
+      layer: Layer.mergeAll(QueriesLive, ServerServicesLive),
+      onError,
+    }),
   )
   await flush()
 }
@@ -166,7 +170,9 @@ describe('article page', () => {
 
     await submit('.mod-options button')
     expect([comments(), $('.mod-options')]).toEqual([["the writer's"], null])
-    expect((await fn('comments.list', { slug })).value.map((c: { body: string }) => c.body)).toEqual(["the writer's"])
+    expect((await fn('CommentsApi.list', { slug })).value.map((c: { body: string }) => c.body)).toEqual([
+      "the writer's",
+    ])
   })
 
   it('a blank comment shows the server error and posts nothing', async () => {
@@ -187,7 +193,7 @@ describe('article page', () => {
     expect($('.article-meta a.btn')!.getAttribute('href')).toBe(`/editor/${slug}`)
     await submit('.delete-article button')
     expect(location.pathname).toBe('/')
-    const { result } = await call('articles.get', { slug })
+    const { result } = await call('ArticlesApi.get', { slug })
     expect(result.error?._tag).toBe('NotFound')
   })
 

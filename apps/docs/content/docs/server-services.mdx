@@ -7,12 +7,12 @@ A Server Service is a Context Tag whose methods are Effect signatures ([ADR 0051
 
 ## The contract
 
-`ServerService(id)<Self, Shape>()` comes from `@sleekstack/start/client`, the subpath the browser may import. The contract file holds only types, `Data.TaggedError` classes and `ServerService` classes, so any page may import it.
+`ServerService(id)<Self, Shape>()` comes from `@sleekstack/start/client`, the subpath the browser may import. The contract file holds only types, `Data.TaggedError` or `Schema.TaggedError` classes and `ServerService` classes, so any page may import it.
 
 <include>../../snippets/server-services/profiles.ts</include>
 
-- A method takes at most one input (an object or a single value); none means `void`. Its `R` is `never`.
-- The supported types are `string`, `number`, `boolean`, `null`, `undefined`, string, number and boolean literals, unions of those, arrays, optional properties, nested object types and `void`. Errors are `Data.TaggedError` classes with JSON-shaped fields, and the client decodes them back into their class. Any other type is the analyzer error `ServerServiceTypeNotSerializable`, with its file and line.
+- A method takes at most one input (an object or a single value); none means `void`. Its `R` is `never`: the contract is what the browser sees, and the browser has no request.
+- The supported types are `string`, `number`, `boolean`, `null`, `undefined`, string, number and boolean literals, unions of those, arrays, string-keyed records (`Record<string, T>`), optional properties, nested object types and `void`. Errors are `Data.TaggedError` classes with JSON-shaped fields or `Schema.TaggedError` classes, and the client decodes them back into their class. Any other type is the analyzer error `ServerServiceTypeNotSerializable`, with its file and line.
 - The method signature is the wire shape. The generated success Schema encodes only the declared fields, so a wider row returned by the implementation does not leak its extra columns.
 - On the Tag, every method also fails with `NetworkError | DecodeError`, so a page handles one error type in both environments. A method can fail with `Redirect` or `NotFound` only if its error union lists them.
 
@@ -21,6 +21,18 @@ A Server Service is a Context Tag whose methods are Effect signatures ([ADR 0051
 The implementation is an ordinary Layer in a `*.server.ts` file, given to `start({ layer })` like any other. Nothing is auto-discovered. The Layer is type-checked against the Tag, so a method changed in the contract fails the server compile.
 
 <include>../../snippets/server-services/profiles.server.ts</include>
+
+## Request services
+
+An implementation that reads the request or its cookies is built with `implement(Tag, methods)` from `@sleekstack/start` ([ADR 0052](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0052-server-service-request-services.md)). Each method may require `Request`, `Cookies` and `ResponseHeaders`, and nothing else: any other service in a method's `R` is a type error at the `implement` call. The result is a `Layer<Tag>`, given to `start({ layer })` like any other.
+
+<include>../../snippets/server-services/profiles-session.server.ts</include>
+
+- **Per call.** The services come from the fiber that calls the method, never from the Layer build. On the wire, the endpoint runs each call in its Request Scope, so `Cookies` is that request's jar and a cookie the method sets goes out with the response. In process, a loader calling `yield* Profiles` while a page renders runs on the request fiber's runtime, which provides the same services, so a cookie set there lands on the page response.
+- **Other services.** A service the implementation needs once, such as a database, is taken when its Layer is built: `Layer.unwrapEffect` over `Effect.context<Db>()`, then `implement` with methods that provide it.
+- **Errors.** A method can only fail with what its contract declares. `InvalidCookie` from `cookies.set` is not declared, so handle it or turn it into a defect.
+
+The [realworld app](https://github.com/sleekstack/sleekstack/tree/master/apps/realworld) is the worked example: `IdentityApi`, `ArticlesApi` and `CommentsApi`, each implemented in a `server/*.server.ts` file that reads the session cookie per call.
 
 ## The generated modules
 
@@ -56,7 +68,6 @@ A test Layer replaces the implementation with no transformer and no network. `ca
 ## What a Server Service does not do
 
 - **Refinements.** A type cannot say non-empty, a brand or a length, and the Schema is exactly as strict as the type: `name: string` accepts the empty string. A field that needs a constraint at the trust boundary belongs in a `serverFn` with an explicit Schema.
-- **Request services.** A method's `R` is `never`, so it cannot read `Request`, `Cookies` or `ResponseHeaders`. A function that needs them is a `serverFn`.
 - **Streaming.** A method answers once, as a Server Function does.
 
 `serverFn` stays the tool for those cases, and for a one-off form action whose Schema decodes `FormData`.

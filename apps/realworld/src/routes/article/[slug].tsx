@@ -4,20 +4,10 @@ import { Link, useLoader } from '@sleekstack/router'
 import { useAction, useAtomValue, useFormStatus, useLocal, useSetAtom } from '@sleekstack/ui'
 import { Effect } from 'effect'
 import { table } from 'virtual:sleekstack/routes'
-import {
-  Article,
-  deleteArticleContract,
-  FavoriteButton,
-  favoriteContract,
-  formatDate,
-  markdown,
-  type Toggle,
-  unfavoriteContract,
-} from '../../modules/articles'
-import { addCommentContract, Comment, deleteCommentContract, NewComment } from '../../modules/comments'
+import { Article, ArticlesApi, FavoriteButton, formatDate, markdown, type Toggle } from '../../modules/articles'
+import { Comment, CommentsApi, NewComment } from '../../modules/comments'
 import type { Account } from '../../modules/identity'
 import { ErrorList, errorsOf, toHome } from '../../pages/form'
-import { ServerFunctions } from '../../pages/functions'
 import { article, authLoaders, comments, editLoaders, profileLoaders, viewer } from '../../pages/loaders'
 import { code, previewTargets } from '../_links'
 import { FollowButton } from '../profile/_profile'
@@ -26,8 +16,8 @@ const profileHref = (username: string) => `/profile/${encodeURIComponent(usernam
 
 /** The author's Edit and Delete buttons; a delete lands on `/`. */
 const OwnerActions = function* ({ slug }: { slug: string }) {
-  const call = yield* ServerFunctions
-  const [deleted, remove] = yield* useAction(() => call(deleteArticleContract)({ slug }))
+  const api = yield* ArticlesApi
+  const [deleted, remove] = yield* useAction(() => api.delete({ slug }))
   const { pending } = yield* useFormStatus(deleted)
   const outcome = yield* useAtomValue(deleted)
   return (
@@ -53,9 +43,9 @@ const OwnerActions = function* ({ slug }: { slug: string }) {
 
 /** The author row: Edit and Delete for the author, Follow and Favorite for anyone else. */
 const ArticleMeta = function* ({ article, me }: { article: Article; me: Account | null }) {
-  const call = yield* ServerFunctions
+  const api = yield* ArticlesApi
   const toggle: Toggle | null = me
-    ? (a) => call(a.favorited ? unfavoriteContract : favoriteContract)({ slug: a.slug })
+    ? (a) => (a.favorited ? api.unfavorite({ slug: a.slug }) : api.favorite({ slug: a.slug }))
     : null
   const { author } = article
   return (
@@ -108,11 +98,11 @@ const CommentForm = function* ({
   me: Account
   onAdded: (comment: Comment) => void
 }) {
-  const call = yield* ServerFunctions
+  const api = yield* CommentsApi
   const draft = yield* useDraft(CommentDraft, undefined)
   const setBody = yield* useSetAtom(draft.field('body'))
   const [added, add] = yield* useAction(() =>
-    Effect.flatMap(draft.toDto(), (comment) => call(addCommentContract)({ slug, comment })).pipe(
+    Effect.flatMap(draft.toDto(), (comment) => api.add({ slug, comment })).pipe(
       Effect.tap((comment) =>
         Effect.sync(() => {
           onAdded(comment)
@@ -160,11 +150,9 @@ const CommentCard = function* ({
   mine: boolean
   onDeleted: (id: number) => void
 }) {
-  const call = yield* ServerFunctions
+  const api = yield* CommentsApi
   const [deleted, remove] = yield* useAction(() =>
-    call(deleteCommentContract)({ slug, id: comment.id }).pipe(
-      Effect.tap(() => Effect.sync(() => onDeleted(comment.id))),
-    ),
+    api.delete({ slug, id: comment.id }).pipe(Effect.tap(() => Effect.sync(() => onDeleted(comment.id)))),
   )
   const { pending } = yield* useFormStatus(deleted)
   const outcome = yield* useAtomValue(deleted)

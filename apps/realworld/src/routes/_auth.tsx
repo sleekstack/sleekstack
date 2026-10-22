@@ -4,10 +4,9 @@ import { Link } from '@sleekstack/router'
 import { type Child, useAction, useAtomValue, useFormStatus } from '@sleekstack/ui'
 import { Effect } from 'effect'
 import { table } from 'virtual:sleekstack/routes'
-import { LoginUser, loginContract, NewUser, registerContract } from '../modules/identity'
+import { IdentityApi, LoginUser, NewUser } from '../modules/identity'
 import { Field } from '../pages/field'
 import { ErrorList, errorsOf, toHome } from '../pages/form'
-import { ServerFunctions } from '../pages/functions'
 import { authLoaders } from '../pages/loaders'
 import { code } from './_links'
 
@@ -39,9 +38,9 @@ const RegisterDraft = {
 } satisfies DraftSpec<NewUser, NewUser>
 
 const LoginForm = function* () {
-  const call = yield* ServerFunctions
+  const api = yield* IdentityApi
   const draft = yield* useDraft(LoginDraft, undefined)
-  const [result, submit] = yield* useAction(() => Effect.flatMap(draft.toDto(), (dto) => call(loginContract)(dto)))
+  const [result, submit] = yield* useAction(() => Effect.flatMap(draft.toDto(), api.login))
   const { pending } = yield* useFormStatus(result)
   const outcome = yield* useAtomValue(result)
   return (
@@ -59,9 +58,9 @@ const LoginForm = function* () {
 }
 
 const RegisterForm = function* () {
-  const call = yield* ServerFunctions
+  const api = yield* IdentityApi
   const draft = yield* useDraft(RegisterDraft, undefined)
-  const [result, submit] = yield* useAction(() => Effect.flatMap(draft.toDto(), (dto) => call(registerContract)(dto)))
+  const [result, submit] = yield* useAction(() => Effect.flatMap(draft.toDto(), api.register))
   const { pending } = yield* useFormStatus(result)
   const outcome = yield* useAtomValue(result)
   return (

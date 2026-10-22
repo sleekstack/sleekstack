@@ -23,5 +23,9 @@ export class Bad extends ServerService('Bad')<
     readonly taggedSuccess: () => Effect.Effect<Oops>
     readonly holes: (input: ReadonlyArray<string | undefined>) => Effect.Effect<void>
     readonly brand: (input: string & { readonly brand: 'Id' }) => Effect.Effect<void>
+    readonly numberKey: (input: { readonly [n: number]: string }) => Effect.Effect<void>
+    readonly templateKey: (input: Record<`x-${string}`, string>) => Effect.Effect<void>
+    readonly twoIndexes: (input: { readonly [k: string]: string; readonly [n: number]: string }) => Effect.Effect<void>
+    readonly recordValue: () => Effect.Effect<{ readonly at: Record<string, Date> }>
   }
 >() {}

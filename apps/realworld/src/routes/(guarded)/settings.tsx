@@ -3,10 +3,9 @@ import { type DraftSpec, useDraft } from '@sleekstack/model'
 import { useLoader } from '@sleekstack/router'
 import { useAction, useAtomValue, useFormStatus, useSetAtom } from '@sleekstack/ui'
 import { Effect, Schema } from 'effect'
-import { type Account, logoutContract, type UpdateUser, updateUserContract } from '../../modules/identity'
+import { type Account, IdentityApi, type UpdateUser } from '../../modules/identity'
 import { Field } from '../../pages/field'
 import { ErrorList, errorsOf, toHome } from '../../pages/form'
-import { ServerFunctions } from '../../pages/functions'
 import { signedIn } from '../../pages/loaders'
 
 const SettingsForm = Schema.Struct({
@@ -32,12 +31,12 @@ const SettingsDraft = {
 } satisfies DraftSpec<SettingsForm, UpdateUser, Account>
 
 const Settings = function* ({ user }: { user: Account }) {
-  const call = yield* ServerFunctions
+  const api = yield* IdentityApi
   const draft = yield* useDraft(SettingsDraft, user)
   const setBio = yield* useSetAtom(draft.field('bio'))
-  const [saved, save] = yield* useAction(() => Effect.flatMap(draft.toDto(), (dto) => call(updateUserContract)(dto)))
+  const [saved, save] = yield* useAction(() => Effect.flatMap(draft.toDto(), api.update))
   const saving = (yield* useFormStatus(saved)).pending
-  const [loggedOut, logout] = yield* useAction(() => call(logoutContract)())
+  const [loggedOut, logout] = yield* useAction(() => api.logout())
   const loggingOut = (yield* useFormStatus(loggedOut)).pending
   const errors = [...errorsOf(yield* useAtomValue(saved)), ...errorsOf(yield* useAtomValue(loggedOut))]
   return (
