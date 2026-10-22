@@ -2,6 +2,7 @@ import { handle, type Loaders, NotFound, Redirect, type Router, type RouteTable 
 import { configureRuntime, type ErrorSink, runEffect } from '@sleekstack/runtime'
 import type { Store, Transfer } from '@sleekstack/ui'
 import { Cause, Effect, Layer } from 'effect'
+import type { DiscoveredApp } from './app'
 import { type Handler, runHandler } from './handler'
 import { type Middleware, runMiddleware } from './middleware'
 import { normalizeOrigin } from './origin'
@@ -26,7 +27,8 @@ type TagsOf<E> = E extends ServerServiceEntry<infer Id, any> ? Id : never
 
 /** What `start` takes: the router, handlers by pathname, and the layer the app's requirements come from. */
 export type StartOptions<T extends RouteTable, RP, RH, RM, RF, SE extends ServerServiceEntry = never> = {
-  readonly router: Router<T, RP>
+  /** The page router. Default: the discovered app's; with neither, every page answers 404. */
+  readonly router?: Router<T, RP>
   /** Route handlers by exact pathname. */
   readonly handlers?: { readonly [pathname: string]: Handler<any, RH> }
   /** Run in order before every other stage. */
@@ -49,18 +51,38 @@ export type StartOptions<T extends RouteTable, RP, RH, RM, RF, SE extends Server
   readonly onError?: ErrorSink
 } & StartLayer<NoInfer<Needs<RP | RH | RM | RF | TagsOf<SE>>>>
 
-/** The app `start` returns: a standard `fetch` handler over the router. */
+/** The app `start` returns: a standard `fetch` handler. */
 export interface Start {
   readonly fetch: (request: globalThis.Request) => Promise<Response>
 }
 
 const isControl = (e: unknown): e is Redirect | NotFound => e instanceof Redirect || e instanceof NotFound
 
+const MISSING_APP =
+  'sleekstack: start() was given no options and found no discovered app (virtual:sleek/server-app). Add serverServices() or sleekstack() from @sleekstack/ui-vite to the Vite config, or pass the options.'
+
+/**
+ * The app the Vite plugin discovered, imported on the first request, never at module load: its Controllers may import
+ * `start` themselves. Without the plugin nothing is discovered: an empty app stands in when options were given, and
+ * with none every request fails naming the plugin.
+ */
+const discover = (explicit: boolean): Promise<DiscoveredApp> =>
+  import('./discovered').then(({ default: app }) => {
+    if (app) return app
+    if (explicit) return { controllers: [] }
+    throw new Error(MISSING_APP)
+  })
+
 /**
  * The server entry: configures the runtime over `layer`, and `fetch` answers each request in one Request Scope,
  * through middleware, then server functions and Server Service methods, then the route handler for the pathname, then the router's page (an
  * unmatched path is its not-found page with 404). A defect or unhandled failure in any stage reaches `onError` and
  * answers an empty 500. A `Redirect` or `NotFound` from middleware or a handler answers 302 or 404.
+ *
+ * Options merge with the discovered app, which `serverServices()` from `@sleekstack/ui-vite` serves as
+ * `virtual:sleek/server-app` and `start` reads on the first request: with no `router` pages come from the discovered
+ * one, and with neither every page answers 404. Called with no options and no discovered app, every request fails
+ * naming the plugin.
  */
 export const start = <
   const T extends RouteTable,
@@ -70,9 +92,11 @@ export const start = <
   RF = never,
   SE extends ServerServiceEntry = never,
 >(
-  options: StartOptions<T, RP, RH, RM, RF, SE>,
+  options: StartOptions<T, RP, RH, RM, RF, SE> = {} as StartOptions<T, RP, RH, RM, RF, SE>,
 ): Start => {
-  const { router, handlers = {}, middleware = [] } = options
+  const { handlers = {}, middleware = [] } = options
+  const explicit = Object.keys(options).length > 0
+  let discovered: Promise<DiscoveredApp> | undefined
   const serverFunctions = endpoint(
     registry([...(options.functions ?? []), ...serviceFunctions(options.services ?? [])]),
     {
@@ -87,20 +111,24 @@ export const start = <
     onError: sink,
   })
   // Pages render on the request fiber's runtime: its services, FiberRefs, tracer and devtools scope.
-  const page = (request: globalThis.Request) =>
-    Effect.flatMap(Effect.runtime<never>(), (runtime) =>
-      Effect.promise(() =>
-        handle(router as Router, request, { runtime, onError: (cause) => sink(cause, { phase: 'call' }) }),
-      ),
-    )
+  const page = (router: Router | undefined, request: globalThis.Request) =>
+    router
+      ? Effect.flatMap(Effect.runtime<never>(), (runtime) =>
+          Effect.promise(() =>
+            handle(router, request, { runtime, onError: (cause) => sink(cause, { phase: 'call' }) }),
+          ),
+        )
+      : Effect.succeed(new Response(null, { status: 404 }))
   const fetch = async (request: globalThis.Request): Promise<Response> => {
+    const app = await (discovered ??= discover(explicit))
+    const router = (options.router as Router | undefined) ?? app.router
     const services = requestServices(request)
     const pathname = new URL(request.url).pathname
     const handler = Object.hasOwn(handlers, pathname) ? handlers[pathname] : undefined
     const program = Effect.gen(function* () {
       const response = (yield* runMiddleware(middleware, request)) ?? (yield* serverFunctions(request))
       if (response) return response
-      return yield* handler ? runHandler(handler, request) : page(request)
+      return yield* handler ? runHandler(handler, request) : page(router, request)
     }).pipe(Effect.catchIf((e) => !isControl(e), Effect.die))
     try {
       return services.finish(await runEffect(program, { request: services.layer }))

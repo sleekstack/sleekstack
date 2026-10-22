@@ -1,6 +1,8 @@
+import { spawnSync } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import type { TaggedErrorSchema, TypeSchema } from '@sleekstack/analyze'
 import { Schema } from 'effect'
 import ts from 'typescript'
@@ -13,6 +15,8 @@ const FIXTURE = path.join(import.meta.dirname, 'fixtures/server-services')
 const START_CLIENT = path.resolve(import.meta.dirname, '../../../start/src/client.ts')
 const CLIENT = 'virtual:sleek/server'
 const REGISTRY = 'virtual:sleek/server-registry'
+/** A server entry calling `start()` with no options, and a test of it for a nested vitest run. */
+const APP_FIXTURE = path.join(import.meta.dirname, 'fixtures/server-app')
 
 describe('the printed Schemas over the wire', () => {
   const str = { kind: 'string' } as const
@@ -355,5 +359,38 @@ describe('server boundary', () => {
     const env = server.environments.client
     await env.transformRequest('/src/page.test.ts')
     await expect(env.transformRequest('/src/profiles.server.ts')).resolves.toBeTruthy()
+  })
+})
+
+// `@sleekstack/start` is the workspace link here (its built dist), as in an app of this repo.
+describe('the discovered app', () => {
+  const serverApp = Object.fromEntries(
+    fs.readdirSync(APP_FIXTURE).map((file) => [file, fs.readFileSync(path.join(APP_FIXTURE, file), 'utf8')]),
+  )
+  const status = async (app: { fetch: (request: Request) => Promise<Response> }) =>
+    (await app.fetch(new Request('http://x.test/'))).status
+
+  it('reaches start() through ssrLoadModule: no router and no Controllers, so a page is 404', async () => {
+    const { server, src } = await serve(serverApp)
+    expect(await status((await server.ssrLoadModule(path.join(src, 'server.ts'))).app)).toBe(404)
+  })
+
+  it('reaches start() in a vitest run', () => {
+    const { root } = scaffold(serverApp)
+    const plugin = JSON.stringify(path.resolve(import.meta.dirname, '../server-services.ts'))
+    fs.writeFileSync(
+      path.join(root, 'vitest.config.ts'),
+      `import { serverServices } from ${plugin}\nexport default { plugins: [serverServices()], test: { include: ['src/*.vitest.ts'] } }\n`,
+    )
+    const vitest = path.resolve(import.meta.dirname, '../../node_modules/vitest/vitest.mjs')
+    const run = spawnSync(process.execPath, [vitest, 'run', '--root', root], { encoding: 'utf8' })
+    expect(run.status, run.stdout + run.stderr).toBe(0)
+    expect(run.stdout).toContain('1 passed')
+  })
+
+  it('reaches start() from a vite build --ssr', async () => {
+    const { root } = scaffold(serverApp)
+    await build({ ...config(root), build: { ssr: 'src/server.ts' } })
+    expect(await status((await import(pathToFileURL(path.join(root, 'dist/server.mjs')).href)).app)).toBe(404)
   })
 })

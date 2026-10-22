@@ -12,6 +12,12 @@ export interface ServerServicesOptions {
 const CLIENT = 'virtual:sleek/server'
 const REGISTRY = 'virtual:sleek/server-registry'
 const MODULES = [CLIENT, REGISTRY]
+/** The discovered app `start()` reads: no Controllers are discovered yet, so it is empty. */
+const SERVER_APP = 'virtual:sleek/server-app'
+const VIRTUAL = [...MODULES, SERVER_APP].join('|')
+/** `@sleekstack/start` imports a stand-in for the discovered app (nothing discovered) as `./discovered` from here. */
+const START_MODULE = /[\\/]start[\\/](?:dist|src)[\\/]start\.[jt]s$/
+const STAND_IN = './discovered'
 /** Generated code imports it; ui-vite itself never does. */
 const START_CLIENT = '@sleekstack/start/client'
 const SOURCE = /\.[cm]?[jt]sx?$/
@@ -166,7 +172,9 @@ const readContracts = async (project: string): Promise<{ contracts: Contract[]; 
  * no contracts). In dev, a source change that
  * changes the generated code invalidates both modules in every environment and reloads the page; a `*.server.ts`
  * (implementation) change is ignored. The boundary: a `*.server.ts` loaded in a client environment fails the build or
- * the dev load, naming the import chain (type-only imports are erased before they get here).
+ * the dev load, naming the import chain (type-only imports are erased before they get here). It also serves
+ * `virtual:sleek/server-app`, the discovered app (`DiscoveredApp` of `@sleekstack/start`), and gives it to `start()`
+ * in place of the stand-in `start` imports.
  */
 export const serverServices = (options: ServerServicesOptions = {}): Plugin => {
   let project = ''
@@ -234,8 +242,11 @@ export const serverServices = (options: ServerServicesOptions = {}): Plugin => {
       writeDeclaration(await current())
     },
     resolveId: {
-      filter: { id: new RegExp(`^(${MODULES.join('|')})$`) },
-      handler: (id) => `\0${id}`,
+      // Before Vite's own resolver, which would find the stand-in's file.
+      order: 'pre',
+      filter: { id: new RegExp(`^(${VIRTUAL}|\\./discovered)$`) },
+      handler: (id, importer) =>
+        id !== STAND_IN ? `\0${id}` : importer && START_MODULE.test(importer) ? `\0${SERVER_APP}` : null,
     },
     moduleParsed(info) {
       const parents = parentsOf(this.environment)
@@ -243,8 +254,9 @@ export const serverServices = (options: ServerServicesOptions = {}): Plugin => {
         if (!parents.has(child)) parents.set(child, info.id)
     },
     load: {
-      filter: { id: [new RegExp(`^\0(${MODULES.join('|')})$`), SERVER_FILE] },
+      filter: { id: [new RegExp(`^\0(${VIRTUAL})$`), SERVER_FILE] },
       async handler(id) {
+        if (id === `\0${SERVER_APP}`) return 'export default { controllers: [] }\n'
         if (SERVER_FILE.test(id)) {
           if (this.environment.config.consumer !== 'client') return null
           const chain = chainOf(this.environment, id).map(rel)
