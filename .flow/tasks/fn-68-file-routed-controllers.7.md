@@ -36,9 +36,29 @@ Find the Controllers and `_defaults.ts` files, name and order them, and keep the
 - [ ] `pnpm turbo run test typecheck --filter=@sleekstack/ui-vite...` passes
 
 ## Done summary
-TBD
+`serverServices()` now discovers Controllers (R1, R2, R10). `discoverControllers` in `packages/ui-vite/src/server-services.ts` finds every `*.controller.ts` under the new `controllersDir` option (default `<serverDir>/routes`). It names each one with the analyzer's `controllerRoute`, sorts them with the page routes' match order, and gives each its `_defaults.ts` chain, outer first, from `serverDir` down (the analyzer's `wrapped` rule). A discovery error fails the load of `virtual:sleek/server-app` and names the files. The module still serves `export default { controllers: [] }`; task 8 emits the entries from `discoverControllers`.
 
+- Errors, each naming the file: a Controller outside `controllersDir`, a non-last optional or splat segment, and a URL under `/_sleek/`. Two Controllers at one path, or a Controller at a page route's path (param names ignored, using `scan` and `sortKey` exported from `routes.ts`), name both files. `routes.ts` also exports `matchOrder`, which its own scan now uses, so it is the only sort.
+- Interpretation of `/_sleek/`: under the `_` rule, the only way a Controller's URL could start with `/_sleek/` is a `_sleek` directory at the URL root (groups skipped). That directory would otherwise be ignored silently, so it now fails the build.
+- Orphans are searched for under `serverDir` and `controllersDir` only. A `*.controller.ts` elsewhere in the project is reported by `sleekstack check` (`Unresolvable`), not by the plugin.
+- Page routes are read from the new `routesDir` option, which comes in by making `ServerServicesOptions` extend `RoutesOptions`. They are scanned only when Controller files exist, so an app without Controllers never has its page directory read here.
+- Declaration: one writer adds a `virtual:sleek/server-app` section, `export interface Controllers { readonly "<route>": "<pattern>" }`, in match order. It does not redeclare `default`. If either the discovery or the contract read fails, the whole previous file is kept. With no Controllers the text is byte-identical to before, so the committed `server.gen.d.ts` files of realworld, showcase and docs did not change.
+- Dev: a Controller or `_defaults.ts` (under `serverDir` or `controllersDir`) added, removed, renamed or edited, or any change that alters the discovery result, invalidates `virtual:sleek/server-app` in every environment and sends a full reload. Discovery is recomputed on every change, so a new `_defaults.ts` re-resolves every Controller beneath it. The memo resets in `configResolved`, `watchChange` and each dev change. `serverDir` and `controllersDir` are added to the watcher.
+- `analyze.ts` is unchanged. The bundled analyze plugin does not run the Controller pass, so it does not read `controllersDir`.
+
+Tests (`server-services.test.ts`, "Controller discovery", 11 new tests, new fixture `fixtures/controllers/`): route names, patterns, match order, `index`, `(group)`, ignored `_` files and the defaults chain; one table case per error (orphan, non-last splat, `/_sleek/`, Controller vs Controller, Controller vs page), each checking the named files; a TypeScript consumer typechecked against the written declaration, merged with start's `default`; a dev sequence (add, edit, rename, remove a Controller, edit and add a `_defaults.ts`, plus an unrelated file that invalidates nothing); an invalid file keeping the declaration while the load reports its path; and `controllersDir` through both `serverServices()` and `sleekstack()`. I checked that each test can fail by breaking its piece of the implementation one at a time. Each mutation failed the matching test at the intended assertion.
+
+Follow-ups, not built:
+- The analyze plugin (dev overlay, build failure) does not report Controller diagnostics (`ControllerMethodShape`, `MissingDependency`). If task 8 wants them there, it can add `analyzeControllers({ project, serverDir, controllersDir })` and pass `controllersDir` from `sleekstack()`.
+- `sleekstack check` cannot see `controllersDir` (the same gap as `serverDir`; task 12 docs).
+
+Gates: baseline green via receipt 7938605d (only `.flow/` changed since). After the change, the full Quick command passed: 28 of 28 tasks, ui-vite 201 tests and realworld 155. `pnpm --filter realworld check` exit 0. Green receipt `.flow/tmp/green-receipts/4278e073-unittest.json`. Fixture graph check not run, because no public export name changed (`discoverControllers` is not exported from the package index).
+GATE_SKIPPED:unittest:green-receipt 7938605d - baseline reused from prior post-gate pass
+
+Tier: session (jev-unavailable(no_key)); routing block sets opus at medium (actual: claude-opus-5-5)
+
+stage: impl-review - skipped(policy: user asked for one completion review at the end of the spec)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 4278e073927ea36a3497613976b1d5607ea0e74e
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack --filter=@sleekstack/router... --filter=@sleekstack/ui-vite... --filter=@sleekstack/start... --filter=@sleekstack/testing --filter=realworld, pnpm --filter realworld check, GATE_SKIPPED:unittest:green-receipt 7938605d - baseline reused from prior post-gate pass
 - PRs:
