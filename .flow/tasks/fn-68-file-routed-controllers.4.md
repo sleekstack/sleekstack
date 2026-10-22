@@ -40,9 +40,28 @@ Recognise Controllers in the analyzer: their methods through the shared reader, 
 - [ ] `pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack` passes
 
 ## Done summary
-TBD
+The analyzer now recognizes Controllers (R3, R4). `analyzeControllers` reads every `*.controller.ts` file: its route comes from `controllerRoute`, its methods go through the shared reader, and it reports `ControllerMethodShape`, `ControllerParamsMismatch` and `MissingDependency`. `sleekstack check` counts Controllers as roots, so a server-only app no longer exits 2.
 
+- Route derivation: `controllerRoute(controllersDir, file)` in `packages/analyze/src/controllers.ts`, exported from `index.ts`, returns `{ route, pattern }` in ADR 0050 syntax. `index` and `(group)` stay in the route name. It returns undefined for a path under `_` and throws `sleekstack: invalid Controller file <file>: ...` for a file outside the directory, a segment of no route form, or an optional or splat segment that is not last. Task 7 can call it directly. `check` reports the same throw as `Unresolvable`, because the spec names no code for it.
+- Reader options (`serverServices.ts`, `typeSchema.ts`): `readSignature` gained `returns: 'optional'` and `errors: 'any'`. With an unwritten return type, the inferred return must still be an Effect, and `schema.success` is undefined. `MethodSchema`/`MethodSignature` gained a defaulted `Success` type parameter, and overloads keep the Server Service path typed `TypeSchema`. `methodSchema` now takes the signature node. The Server Service output did not change: analyze's 108 earlier tests, ui-vite's 190 tests (which pin the generated text) and realworld's 155 tests all pass unchanged. `locationOf`, `sourcesOf`, `startCalls`, `propertyOf` and `layerOutputs` were moved out of `analyzeServerServices` so both passes use them.
+- Method rules: method names match case-sensitively, and methods come out in canonical order. A default export, or an export that differs from a method name only in case, is `ControllerMethodShape`. Type-only exports and other names are ignored. The input must be one object with keys limited to `params`, `query` and `body`, and `body` is allowed only on POST, PUT, PATCH and DELETE. A whole input written as one Schema reference is refused. `number`/`boolean` values (including query array elements) are marked `codec: 'string'`. A referenced `params`/`query` Schema is checked through its `Encoded` type. A value that cannot decode from a string (an object, `null`, a numeric literal) is `ControllerMethodShape`. `params` keys must equal the path's params, and a method with no `params` on a parameterized path is a mismatch.
+- R3: a method's `R` must be provided by a request service (`start/services#Request|Cookies|ResponseHeaders|ResponseStatus`), by the `ROut` of a `start({ layer })`, or by a `wrap` above it. The `wrap` chain is each `_defaults.ts` from `serverDir` down, then the Controller's own. A wrap discharges its `next` requirements minus those of its result.
+- Codes and docs: the two new codes are in `errorCodes.ts` with the anchor `/docs/errors#controller-errors`. `ServerServiceTypeNotSerializable` now covers Controllers, and the `ServerServiceMethodShape` rule and its `errors.mdx` row now cover an unusable Schema reference. `errors.mdx` gained a Controller errors section, and its `ServerFileInClientGraph` row now lists all server-only kinds. The `llms.md` generator now writes only the rule for each code (`sleekstack explain` prints the fixes), which brings the file to 5911 of 8192 bytes. The analyze README gained a Controller pass section.
+
+Tests: `controllers.test.ts` has 22 tests. They cover the route table and its throws, every diagnostic at its file:line from `// @error` markers in `fixtures/controllers` (near-miss, bad input key, body on GET, extra and missing `params` keys, non-string `params` Schema, whole-input reference, Date body, orphan, non-last splat), the clean Controller's marked Schemas, and the wrap scoping. `Viewer` is provided under `users/` but reported for `missing`. The CLI test `check.test.ts` "a server-only app..." uses the fixture `controllers`. Each red was checked: turning off each of the three provider sources fails the test, and so does removing the Controller-roots clause from `check.ts`, which makes check exit 2.
+
+Gates: baseline green via receipt ab532ecd (only `.flow/` changed since). After the change the full Quick command passed: 28 tasks, 9 uncached (analyze 130, cli 28, ui-vite 190, realworld 155 tests); receipt `.flow/tmp/green-receipts/07faa8d8-unittest.json`. `pnpm --filter realworld check` exit 0. The fixture graph check output is byte-identical before and after (10803 bytes).
+
+Follow-ups, not built:
+- Task 5 must declare `ResponseStatus` in `packages/start/src/services.ts`. The analyzer recognizes request services by `start/services#<name>`.
+- A `wrap`'s own result requirements are not checked against providers. A generic `wrap` signature discharges nothing.
+- A method with no return annotation whose body returns a union of Effects (`cond ? Effect.fail(x) : Effect.void`) is refused as "does not return an Effect". The fix is to annotate it or return a single Effect.
+- The "No roots" message of `check` still names only `configureRuntime`/`mount`.
+
+Tier: session (jev-unavailable(no_key)); routing block sets opus at medium (actual: claude-opus-5-5)
+
+stage: impl-review - skipped(policy: user asked for one completion review at the end of the spec)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 07faa8d82a4241ab612dafa93dff1e2fc64eb3cc
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack --filter=@sleekstack/router... --filter=@sleekstack/ui-vite... --filter=@sleekstack/start... --filter=@sleekstack/testing --filter=realworld, pnpm --filter realworld check, (cd packages/cli/src/__tests__/fixtures/effect-app && node ../../../../bin/cli.js check --json --entry runtime.ts) - identical before and after, baseline: green via receipt ab532ecd (only .flow/ changed since)
 - PRs:
