@@ -32,9 +32,52 @@ Finish the documentation and status work of ADR 0053 once the code exists.
 - [ ] `pnpm turbo run test typecheck build --filter=docs --concurrency=1` passes
 
 ## Done summary
-TBD
+The docs and the status work of ADR 0053 are done. A new Controllers guide with type-checked snippets covers Controllers, `ResponseStatus`, Directory Defaults and `callController`. The other pages and READMEs now describe the discovered app, and ADR 0053 is Accepted.
 
+- New guide `apps/docs/content/docs/controllers.mdx`, listed in `meta.json` after `server-services`:
+  - Sections: files and URLs, methods and decoding, answers, failures and `wrap` (a table of the routing failures and their unhandled answers), serving, testing, and the browser boundary.
+  - It cites `apps/realworld/server/routes/api` as the worked example.
+  - It states the limit on return-type aliases.
+- Snippets live in `apps/docs/snippets/controllers/`, laid out like an app:
+  - `server/routes/notes.controller.ts` and `notes/[id].controller.ts`
+  - `server/routes/_defaults.ts`, with a `wrap` that provides `Viewer` and maps errors, plus a `bodyLimit`
+  - `server/notes.ts`, `server/app.ts`, `src/schemas.ts`
+  - `src/server.gen.d.ts`: only the `virtual:sleek/server-app` section, because the server-services snippet already declares the other two modules in the same program
+  - `server/notes.test-example.ts` (`callController` with `keyof Controllers`)
+  - `server/dev.ts` (`devMiddleware` plus `isControllerPath`, included from `vite.mdx`)
+  - `sleekstack check` over a temporary tsconfig on this tree exited 0. `analyzeControllers` read both Controllers with no errors, including the `ReadonlyArray<Schema.Schema.Type<typeof Note>>` success and the whole-`body` reference.
+- Docs pages:
+  - `server-services.mdx`: `ResponseStatus` is a request service; three generated modules; the server-only list is `*.server.ts`, `*.controller.ts` and `_defaults.ts`; `callController`.
+  - `vite.mdx`: `serverDir`, `controllersDir` and `serverDeclaration` options, with a note that `serverDir` and `controllersDir` are Vite-only (no `check` flag) and that a standalone plugin needs `routesDir`. A new section, "Controllers and the discovered app", covers the page router, load errors, the declaration, dev reload, the client-build chain and dev forwarding.
+  - `testing.mdx`: `callService` and `callController`, and the conductor's note that discovered Controllers answer first under the `serverServices()` Vitest plugin. It now defines a test file and notes that Controllers are check roots.
+  - `errors.mdx`: start-call failures are now separated from failures when Controller files load on the first request (`bodyLimit`, `origins`).
+  - `index.mdx`: the start row.
+- READMEs:
+  - `packages/start`: the stage order and `start()`; an exports table with `ResponseStatus`, `InvalidStatus`, `Wrap`, `RpcWrap`, the `DiscoveredApp` and `Controller*` types and the four routing failures; ADR 0053; `callController`; a new Controllers section (`bodyLimit` specificity, `origins` only adds, `controllers` option, `services` dedup, unhandled defaults); origins wording.
+  - `packages/ui-vite`: options rows plus the `serverServices()` note; the discovered-app section extended with the discovery errors, the kept declaration, the Directory Defaults chain and dev reload.
+  - `packages/analyze`: `TEST_FILE`, the alias limit and the default dirs that `check` reads.
+  - Root `README.md`: the start row.
+- ADRs and proposal:
+  - ADR 0053: Status is "Accepted ... Built in spec fn-68". A note says that until ADR 0054 is built, services come from `start({ layer })` or a `wrap`. The Context line about `rest.ts` is now in the past tense.
+  - `docs/adr/README.md`: the row is "Accepted", matching every other row's convention.
+  - ADR 0054 and its row stay Proposed.
+  - `docs/proposals/start-framework.md` sections 6 and 7 point to ADR 0053.
+- Not changed: `packages/cli/llms.md` (5911 of 8192 bytes; no code changed) and `CONTEXT.md` (its Controller, Controller Method and Directory Defaults entries already match).
+
+Gates:
+- Baseline: green via receipt e2026efe (only `.flow/` changed since). `pnpm --filter realworld check` exited 0 and `pnpm --filter docs test` passed 58/58 before any edit.
+- `pnpm turbo run test typecheck build --filter=docs --concurrency=1`: 11/11 tasks. The first run caught `server/notes.ts` not being included in any guide; that is fixed.
+- Full Quick command: the first run hit a vitest worker-start timeout in `realworld#test` (`markdown.test.ts` never ran: 11 files, 132 tests). That run is inconclusive tooling, not a code failure. The re-run was green: 28/28 tasks, realworld 12 files, 161 tests. Receipt: `.flow/tmp/green-receipts/94347b28-unittest.json`.
+- After the commit, all exited 0: `pnpm --filter realworld check`, `pnpm --filter docs test` (58/58), `pnpm --filter docs build` (check:links ok), `pnpm format:check`.
+- The built page shows that the `[id]` include path renders, and that the anchors `#failures-and-wrap` and `#controllers-and-the-discovered-app` exist.
+- Fixture graph check: not run, because no public export changed.
+
+The untracked `.flow/specs/fn-70*` and `.flow/tasks/fn-70*` files were left out through the pathspec exclusion. The lockfile stash was not touched.
+
+Tier: session (jev-unavailable(no_key)); routing block sets opus at medium (actual: claude-opus-5-5)
+
+stage: impl-review - skipped(policy: user asked for one completion review at the end of the spec)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 94347b284a70f4ec6c86b2e3c1f5045111e7b45d
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack --filter=@sleekstack/router... --filter=@sleekstack/ui-vite... --filter=@sleekstack/start... --filter=@sleekstack/testing --filter=realworld, pnpm --filter realworld check, pnpm turbo run test typecheck build --filter=docs --concurrency=1, pnpm --filter docs test, pnpm --filter docs build, pnpm format:check
 - PRs:
