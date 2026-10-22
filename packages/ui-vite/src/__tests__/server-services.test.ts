@@ -4,7 +4,7 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { TaggedErrorSchema, TypeSchema } from '@sleekstack/analyze'
-import { Schema } from 'effect'
+import { Either, Schema } from 'effect'
 import ts from 'typescript'
 import { build, createServer, type InlineConfig, type ViteDevServer } from 'vite'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -27,12 +27,14 @@ describe('the printed Schemas over the wire', () => {
   class Invalid extends Schema.TaggedError<Invalid>()('Invalid', {
     errors: Schema.Record({ key: Schema.String, value: Schema.Array(Schema.String) }),
   }) {}
+  const schemaOf = (description: TypeSchema | TaggedErrorSchema) =>
+    new Function('Schema', 'Invalid', `return ${printSchema(description, alias)}`)(Schema, Invalid) as Schema.Schema<
+      any,
+      any
+    >
   // Each value goes through the Schema's encode, JSON text and decode, as a call does.
   const roundTrip = (description: TypeSchema | TaggedErrorSchema, value: unknown) => {
-    const schema = new Function('Schema', 'Invalid', `return ${printSchema(description, alias)}`)(
-      Schema,
-      Invalid,
-    ) as Schema.Schema<any, any>
+    const schema = schemaOf(description)
     const text = JSON.stringify(Schema.encodeSync(schema)(value))
     return Schema.decodeUnknownSync(schema)(text === undefined ? undefined : JSON.parse(text))
   }
@@ -71,6 +73,35 @@ describe('the printed Schemas over the wire', () => {
       { a: ['x'], b: [] },
     ],
   ])('%s', (_, description, value) => expect(roundTrip(description, value)).toEqual(value))
+
+  it.each<[string, TypeSchema, ReadonlyArray<readonly [string, unknown]>, readonly string[]]>([
+    [
+      'number',
+      { kind: 'number', codec: 'string' },
+      [
+        ['0', 0],
+        ['-2', -2],
+        ['1.5', 1.5],
+      ],
+      ['', ' 1', '1e3', '0x10', 'NaN', 'Infinity', '.5', '1.', '+1', '1'.repeat(400)],
+    ],
+    [
+      'boolean',
+      { kind: 'boolean', codec: 'string' },
+      [
+        ['true', true],
+        ['false', false],
+      ],
+      ['', 'TRUE', '1', 'yes'],
+    ],
+  ])(
+    'the %s string codec reads a path or query value from its text, and nothing else',
+    (_, description, read, refused) => {
+      const decode = Schema.decodeUnknownEither(schemaOf(description))
+      expect(read.map(([text]) => Either.getOrThrow(decode(text)))).toEqual(read.map(([, value]) => value))
+      expect(refused.filter((text) => Either.isRight(decode(text)))).toEqual([])
+    },
+  )
 
   it('decodes a Schema.TaggedError back into its class', () => {
     const decoded = roundTrip(
@@ -128,6 +159,12 @@ describe('printSchema', () => {
       'taggedError(NameTaken@a.ts, { "name": Schema.String })',
     ],
     [{ kind: 'taggedError', name: 'Invalid', file: 'e.ts', fields: [], schema: true }, 'Invalid@e.ts'],
+    [{ kind: 'ref', file: 'schemas.ts', name: 'User' }, 'User@schemas.ts'],
+    [
+      { kind: 'number', codec: 'string' },
+      'Schema.transform(Schema.String.pipe(Schema.pattern(/^-?\\d+(\\.\\d+)?$/)), Schema.Finite, { strict: true, decode: Number, encode: String })',
+    ],
+    [{ kind: 'boolean', codec: 'string' }, 'Schema.BooleanFromString'],
     [{ kind: 'record', readonly: true, value: str }, 'Schema.Record({ key: Schema.String, value: Schema.String })'],
     [
       { kind: 'record', readonly: false, value: str },
@@ -257,6 +294,28 @@ export const n: number = layer
 `,
     )
     expect(typeErrors(root)).toEqual([])
+  })
+
+  it('imports a referenced Schema from its module and decodes through it', async () => {
+    const { server, load } = await serve({
+      'names.ts': `import { Schema } from 'effect'\nexport const Name = Schema.NonEmptyString\n`,
+      'named.ts': `import { ServerService } from '@sleekstack/start/client'
+import type { Effect, Schema } from 'effect'
+import type { Name } from './names'
+
+export class Named extends ServerService('Named')<Named, { readonly set: (input: Schema.Schema.Type<typeof Name>) => Effect.Effect<void> }>() {}
+`,
+    })
+    expect(await load(REGISTRY)).toMatch(
+      /import \{ Name as (Name_\d+) \} from "<root>\/src\/names\.ts"\n[^]*"set": \{ input: \1, success: Schema\.Void \}/,
+    )
+    const { Schema } = await server.ssrLoadModule('effect')
+    const entries: ReadonlyArray<{ methods: Record<string, { input: unknown }> }> = (
+      await server.ssrLoadModule(REGISTRY)
+    ).default
+    const set = entries.find((e) => 'set' in e.methods)!.methods.set!.input
+    expect(Schema.decodeUnknownSync(set)('a')).toBe('a')
+    expect(() => Schema.decodeUnknownSync(set)('')).toThrow()
   })
 
   it('fails the load with file:line on an analyzer error, emitting no client', async () => {

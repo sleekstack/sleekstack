@@ -12,7 +12,7 @@ import ts from 'typescript'
 import { analyzeError } from './errorCodes'
 import { libId, programOf, TEST_FILE } from './extract'
 import type { AnalyzeCode, AnalyzeError, Location } from './model'
-import { type MethodSchema, methodSchema, NotSerializable, taggedErrorBase } from './typeSchema'
+import { type MethodSchema, methodSchema, NotSerializable, taggedErrorBase, Unreadable } from './typeSchema'
 
 const SERVER_SERVICE = 'start/service#ServerService'
 const EFFECT = 'effect/Effect#Effect'
@@ -49,6 +49,65 @@ export interface ServerServiceMethod {
   readonly error: ts.Type
   /** The three types as the generator's Schema description. */
   readonly schema: MethodSchema
+}
+
+/** A method's written signature `(input) => Effect.Effect<A, E, R>`: its types and their Schema description. */
+export interface MethodSignature {
+  /** The parameter's type; undefined for a method without one. */
+  readonly input: ts.Type | undefined
+  readonly success: ts.Type
+  readonly error: ts.Type
+  readonly requires: ts.Type
+  readonly schema: MethodSchema
+}
+
+const hasAny = (n: ts.Node): boolean => n.kind === ts.SyntaxKind.AnyKeyword || !!ts.forEachChild(n, hasAny)
+const isAny = (t: ts.Type) => !!(t.flags & ts.TypeFlags.Any)
+
+/**
+ * The signature reader Server Service, Controller and RPC methods share (R4): `sig` as written, one parameter or none,
+ * no `any`, returning a written `Effect.Effect<A, E, R>`. `requires: 'never'` (a hand-written Server Service) refuses a
+ * required service; `input` refuses a parameter type, returning why. `serverDir` (absolute) scopes the server-only
+ * modules a Schema reference may not come from. A refusal is `Unreadable` (the method's shape) or `NotSerializable`.
+ */
+export const readSignature = (
+  ctx: {
+    readonly program: ts.Program
+    readonly checker: ts.TypeChecker
+    readonly root: string
+    readonly serverDir: string
+  },
+  sig: ts.SignatureDeclaration,
+  accept: { readonly requires: 'never' | 'any'; readonly input?: (type: ts.Type) => string | undefined },
+): MethodSignature | Unreadable | NotSerializable => {
+  const { checker } = ctx
+  const effect = 'does not return an `Effect.Effect<A, E>`'
+  if (!sig.type) return new Unreadable(sig, 'needs an explicit function type `(input) => Effect.Effect<A, E>`')
+  if (hasAny(sig)) return new Unreadable(sig, 'is typed with `any`; write out the types')
+  if (sig.parameters.length > 1)
+    return new Unreadable(sig.parameters[1]!, 'takes more than one parameter; pass one object')
+  const param = sig.parameters[0]
+  const input = param ? checker.getTypeAtLocation(param) : undefined
+  const ret = checker.getTypeFromTypeNode(sig.type)
+  if (libId(ret.aliasSymbol ?? ret.getSymbol(), checker) !== EFFECT) return new Unreadable(sig.type, effect)
+  const [success, error, requires] = checker.getTypeArguments(ret as ts.TypeReference)
+  if (!success || !error || !requires) return new Unreadable(sig.type, effect)
+  if ([input, success, error, requires].some((t) => t && isAny(t)))
+    return new Unreadable(sig, 'is typed with `any`; write out the types')
+  if (accept.requires === 'never' && !(requires.flags & ts.TypeFlags.Never))
+    return new Unreadable(
+      sig.type,
+      `requires "${checker.typeToString(requires)}"; a Server Service method needs no services`,
+    )
+  const refused = param && input && accept.input?.(input)
+  if (refused) return new Unreadable(param, refused)
+  const schema = methodSchema(
+    { ...ctx, serverOnly: (file) => isServerOnly(file, ctx.serverDir) },
+    { input, success, error, written: { input: param?.type, returns: sig.type } },
+  )
+  return schema instanceof NotSerializable || schema instanceof Unreadable
+    ? schema
+    : { input, success, error, requires, schema }
 }
 
 export interface ServerServiceDecl {
@@ -116,9 +175,6 @@ export function analyzeServerServices(opts: {
   }
   const isTaggedError = (c: ts.ClassLikeDeclaration) => !!taggedErrorBase(c, checker)
 
-  const hasAny = (n: ts.Node): boolean => n.kind === ts.SyntaxKind.AnyKeyword || !!ts.forEachChild(n, hasAny)
-  const isAny = (t: ts.Type) => !!(t.flags & ts.TypeFlags.Any)
-
   const methodOf = (owner: string, shapeNode: ts.TypeNode, prop: ts.Symbol): ServerServiceMethod | undefined => {
     const at = prop.valueDeclaration ?? prop.declarations?.[0]
     const name = `${owner}.${prop.getName()}`
@@ -127,30 +183,19 @@ export function analyzeServerServices(opts: {
       return undefined
     }
     if (!at) return bad(shapeNode, 'has no declaration to read; write the shape as an object type')
-    // The signature as written: a property typed with a function type, or a method signature with a return type.
+    // The signature as written: a property typed with a function type, or a method signature.
     const sig = ts.isPropertySignature(at) && at.type && ts.isFunctionTypeNode(at.type) ? at.type : at
-    if (!(ts.isFunctionTypeNode(sig) || ts.isMethodSignature(sig)) || !sig.type)
+    if (!(ts.isFunctionTypeNode(sig) || ts.isMethodSignature(sig)))
       return bad(at, 'needs an explicit function type `(input) => Effect.Effect<A, E>`')
-    if (hasAny(sig)) return bad(sig, 'is typed with `any`; write out the types')
-    if (sig.parameters.length > 1) return bad(sig.parameters[1]!, 'takes more than one parameter; pass one object')
-    const param = sig.parameters[0]
-    const input = param ? checker.getTypeAtLocation(param) : undefined
-    const ret = checker.getTypeFromTypeNode(sig.type)
-    if (libId(ret.aliasSymbol ?? ret.getSymbol(), checker) !== EFFECT)
-      return bad(sig.type, 'does not return an `Effect.Effect<A, E>`')
-    const [success, error, requires] = checker.getTypeArguments(ret as ts.TypeReference)
-    if (!success || !error || !requires) return bad(sig.type, 'does not return an `Effect.Effect<A, E>`')
-    if ([input, success, error, requires].some((t) => t && isAny(t)))
-      return bad(sig, 'is typed with `any`; write out the types')
-    if (!(requires.flags & ts.TypeFlags.Never))
-      return bad(sig.type, `requires "${checker.typeToString(requires)}"; a Server Service method needs no services`)
-    const schema = methodSchema({ program, checker, root }, { input, success, error })
-    if (schema instanceof NotSerializable)
+    const read = readSignature({ program, checker, root, serverDir }, sig, { requires: 'never' })
+    if (read instanceof Unreadable) return bad(read.at, read.why)
+    if (read instanceof NotSerializable)
       return void report(
         'ServerServiceTypeNotSerializable',
         at,
-        `Server Service method "${name}": ${schema.path} has type "${schema.text}", which is not serializable (${schema.why})`,
+        `Server Service method "${name}": ${read.path} has type "${read.text}", which is not serializable (${read.why})`,
       )
+    const { input, success, error, schema } = read
     return { name: prop.getName(), location: loc(at), input, success, error, schema }
   }
 

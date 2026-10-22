@@ -1,9 +1,10 @@
 /**
  * packages/analyze/src/typeSchema.ts
  *
- * Type to Schema (ADR 0051): a Server Service method's input, success and error types as a closed, JSON-serializable
- * description the generator prints as Schema code. A type outside the subset is a `NotSerializable` naming the property
- * path to it, never a guess.
+ * Type to Schema (ADR 0051): a method's input, success and error types as a closed, JSON-serializable description the
+ * generator prints as Schema code. A type outside the subset is a `NotSerializable` naming the property path to it,
+ * never a guess. A written `Schema.Schema.Type<typeof X>` is a reference to `X` itself (ADR 0053), read from the
+ * signature's own text, because its type no longer names `X`; a reference the reader cannot use is `Unreadable`.
  */
 
 import * as path from 'node:path'
@@ -12,6 +13,8 @@ import { libId } from './extract'
 
 const TAGGED_ERROR = 'effect/Data#TaggedError'
 const SCHEMA_TAGGED_ERROR = 'effect/Schema#TaggedError'
+const SCHEMA_TYPE = 'effect/Schema#Type'
+const EFFECT = 'effect/Effect#Effect'
 /** Router control flow: carried by the wire's own envelope, not by the error Schema. */
 const CONTROL = new Set(['router/resolve#Redirect', 'router/resolve#NotFound'])
 
@@ -33,13 +36,17 @@ export interface TaggedErrorSchema {
 }
 
 export type TypeSchema =
-  | { readonly kind: 'string' | 'number' | 'boolean' | 'null' | 'undefined' | 'void' }
+  | { readonly kind: 'string' | 'null' | 'undefined' | 'void' }
+  /** `codec: 'string'`: an HTTP path or query value, read from its text (a finite decimal; `true` or `false`). */
+  | { readonly kind: 'number' | 'boolean'; readonly codec?: 'string' }
   | { readonly kind: 'literal'; readonly value: string | number | boolean }
   | { readonly kind: 'union'; readonly members: readonly TypeSchema[] }
   | { readonly kind: 'array'; readonly readonly: boolean; readonly element: TypeSchema }
   /** A single `string` index signature and no properties: `Record<string, T>`. */
   | { readonly kind: 'record'; readonly readonly: boolean; readonly value: TypeSchema }
   | { readonly kind: 'object'; readonly properties: readonly PropertySchema[] }
+  /** `Schema.Schema.Type<typeof X>`: the Schema `X`, exported as `name` by `file` (relative to the tsconfig directory). */
+  | { readonly kind: 'ref'; readonly file: string; readonly name: string }
 
 export interface MethodSchema {
   /** `void` for a method without a parameter. */
@@ -54,6 +61,14 @@ export class NotSerializable {
     /** The member path to the offender, e.g. `input.tags[]`. */
     readonly path: string,
     readonly text: string,
+    readonly why: string,
+  ) {}
+}
+
+/** A signature or written type the reader cannot use; `why` completes a sentence about the method. */
+export class Unreadable {
+  constructor(
+    readonly at: ts.Node,
     readonly why: string,
   ) {}
 }
@@ -79,10 +94,25 @@ export const taggedErrorBase = (
   return undefined
 }
 
+/**
+ * The method's types as a `MethodSchema`. `written` holds the signature's parameter and return type nodes, the text a
+ * Schema reference is read from: inline, through a type alias of the signature's file, as a property, an array element
+ * or a union member. A referenced `X` must be an exported value of a module that is not `serverOnly`.
+ */
 export const methodSchema = (
-  ctx: { readonly program: ts.Program; readonly checker: ts.TypeChecker; readonly root: string },
-  m: { readonly input: ts.Type | undefined; readonly success: ts.Type; readonly error: ts.Type },
-): MethodSchema | NotSerializable => {
+  ctx: {
+    readonly program: ts.Program
+    readonly checker: ts.TypeChecker
+    readonly root: string
+    readonly serverOnly: (file: string) => boolean
+  },
+  m: {
+    readonly input: ts.Type | undefined
+    readonly success: ts.Type
+    readonly error: ts.Type
+    readonly written: { readonly input: ts.TypeNode | undefined; readonly returns: ts.TypeNode }
+  },
+): MethodSchema | NotSerializable | Unreadable => {
   const { program, checker } = ctx
   const F = ts.TypeFlags
   /** Object types on the current path: meeting one again is a recursive type. */
@@ -90,11 +120,94 @@ export const methodSchema = (
   const bad = (at: string, t: ts.Type, why: string): never => {
     throw new NotSerializable(at, checker.typeToString(t), why)
   }
+  const home = m.written.returns.getSourceFile()
+  /** The references `convert` read; one it never reached sits where the reader cannot follow it. */
+  const read = new Set<ts.Node>()
+
+  /** The type alias `n` names, when declared in the signature's file without type parameters. */
+  const aliasOf = (n: ts.Node) => {
+    const decl = ts.isTypeReferenceNode(n)
+      ? checker.getSymbolAtLocation(n.typeName)?.declarations?.find(ts.isTypeAliasDeclaration)
+      : undefined
+    return decl && !decl.typeParameters && decl.getSourceFile() === home ? decl : undefined
+  }
+  const unalias = (n: ts.TypeNode, seen = new Set<ts.Node>()): ts.TypeNode => {
+    if (ts.isParenthesizedTypeNode(n)) return unalias(n.type, seen)
+    const alias = aliasOf(n)
+    if (!alias || seen.has(alias)) return n
+    seen.add(alias)
+    return unalias(alias.type, seen)
+  }
+  /** `Schema.Schema.Type<...>`: the `Type` of the `Schema` namespace of effect's Schema module. */
+  const isReference = (n: ts.Node): n is ts.TypeReferenceNode => {
+    if (!ts.isTypeReferenceNode(n)) return false
+    const sym = checker.getSymbolAtLocation(n.typeName)
+    const decl = (sym && sym.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(sym) : sym)?.declarations?.[0]
+    return (
+      libId(sym, checker) === SCHEMA_TYPE &&
+      !!decl &&
+      ts.isModuleBlock(decl.parent) &&
+      decl.parent.parent.name.text === 'Schema'
+    )
+  }
+  /** The references written in `n`, through the type aliases `aliasOf` follows. */
+  const referencesIn = (n: ts.Node, found = new Set<ts.TypeReferenceNode>(), seen = new Set<ts.Node>()) => {
+    if (isReference(n)) return found.add(n)
+    const alias = aliasOf(n)
+    if (alias && !seen.has(alias)) referencesIn(alias.type, found, seen.add(alias))
+    ts.forEachChild(n, (c) => void referencesIn(c, found, seen))
+    return found
+  }
+  /** The name `sf` exports `target` under at run time; an `export type` is erased, so it does not count. */
+  const exportName = (sf: ts.SourceFile, target: ts.Symbol) => {
+    const own = (s: ts.Symbol) =>
+      checker.getExportSymbolOfSymbol(s.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(s) : s)
+    const module = checker.getSymbolAtLocation(sf)
+    return module
+      ? checker.getExportsOfModule(module).find((e) => {
+          const d = e.declarations?.[0]
+          return (
+            !(d && ts.isExportSpecifier(d) && (d.isTypeOnly || d.parent.parent.isTypeOnly)) && own(e) === own(target)
+          )
+        })?.name
+      : undefined
+  }
+  const referenceOf = (n: ts.TypeReferenceNode, at: string): TypeSchema => {
+    read.add(n)
+    const cannot = (why: string): never => {
+      throw new Unreadable(n, `reads ${at} from a Schema reference ${why}`)
+    }
+    const [query, ...rest] = n.typeArguments ?? []
+    if (!query || rest.length || !ts.isTypeQueryNode(query) || !ts.isIdentifier(query.exprName))
+      return cannot('that is not `Schema.Schema.Type<typeof X>` with `X` a name')
+    const name = query.exprName.text
+    const local = checker.getSymbolAtLocation(query.exprName)
+    const target = local && (local.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(local) : local)
+    const decl = target?.valueDeclaration
+    if (!target || !decl) return cannot(`to "${name}", which has no value`)
+    const sf = decl.getSourceFile()
+    const file = path.relative(ctx.root, sf.fileName)
+    if (sf.isDeclarationFile || ts.getCombinedModifierFlags(decl) & ts.ModifierFlags.Ambient)
+      return cannot(`to "${name}", which is only declared and has no value at run time`)
+    if (ctx.serverOnly(sf.fileName))
+      return cannot(`to "${name}" of the server-only "${file}"; reference a Schema of a client-safe module`)
+    const exported = exportName(sf, target)
+    if (!exported) return cannot(`to "${name}", which "${file}" does not export as a value`)
+    if (checker.getTypeFromTypeNode(n).flags & (F.Never | F.Any | F.Unknown))
+      return cannot(`to "${name}", which is not a Schema`)
+    return { kind: 'ref', file, name: exported }
+  }
 
   const hasUndefined = (t: TypeSchema): boolean =>
     t.kind === 'undefined' || (t.kind === 'union' && t.members.some(hasUndefined))
 
-  const convert = (t: ts.Type, at: string): TypeSchema => {
+  /** `node`, when given, is the written text of `t`: it matters only when it holds a Schema reference. */
+  const convert = (t: ts.Type, at: string, node?: ts.TypeNode): TypeSchema => {
+    const n = node && unalias(node)
+    if (n && isReference(n)) return referenceOf(n, at)
+    // A written union holding a reference converts member by member: its type may have merged them.
+    if (n && ts.isUnionTypeNode(n) && referencesIn(n).size)
+      return { kind: 'union', members: n.types.map((m) => convert(checker.getTypeFromTypeNode(m), at, m)) }
     if (t.flags & F.Any) return bad(at, t, '`any` has no Schema')
     if (t.flags & F.Unknown) return bad(at, t, '`unknown` has no Schema')
     if (t.flags & F.String) return { kind: 'string' }
@@ -117,11 +230,20 @@ export const methodSchema = (
       )
       return { kind: 'union', members }
     }
-    if (t.isIntersection() || t.flags & F.Object) return objectOf(t, at)
+    if (t.isIntersection() || t.flags & F.Object) return objectOf(t, at, n)
     return bad(at, t, 'it is outside the Server Service type subset')
   }
 
-  const objectOf = (t: ts.Type, at: string): TypeSchema => {
+  /** The element of a written array type: `T[]`, `readonly T[]`, `Array<T>` or `ReadonlyArray<T>`. */
+  const elementOf = (n: ts.TypeNode | undefined): ts.TypeNode | undefined => {
+    const array = n && ts.isTypeOperatorNode(n) && n.operator === ts.SyntaxKind.ReadonlyKeyword ? n.type : n
+    if (array && ts.isArrayTypeNode(array)) return array.elementType
+    return array && ts.isTypeReferenceNode(array) && /^(Readonly)?Array$/.test(array.typeName.getText())
+      ? array.typeArguments?.[0]
+      : undefined
+  }
+
+  const objectOf = (t: ts.Type, at: string, n: ts.TypeNode | undefined): TypeSchema => {
     if (stack.has(t)) return bad(at, t, 'a recursive type has no finite Schema')
     stack.add(t)
     try {
@@ -131,7 +253,7 @@ export const methodSchema = (
       } else {
         if (checker.isTupleType(t)) return bad(at, t, 'tuples are outside the Server Service type subset')
         if (checker.isArrayType(t)) {
-          const element = convert(checker.getTypeArguments(t as ts.TypeReference)[0]!, `${at}[]`)
+          const element = convert(checker.getTypeArguments(t as ts.TypeReference)[0]!, `${at}[]`, elementOf(n))
           // JSON writes an `undefined` element as `null`, which does not decode back.
           if (hasUndefined(element))
             return bad(at, t, 'an array element that may be `undefined` becomes `null` in JSON')
@@ -160,12 +282,24 @@ export const methodSchema = (
     return { kind: 'record', readonly: index!.isReadonly, value: convert(index!.type, `${at}[string]`) }
   }
 
+  /** A property declared in the signature's file (not mapped or instantiated) is read from its written type when that holds a reference. */
   const propertiesOf = (t: ts.Type, at: string): PropertySchema[] =>
-    checker.getPropertiesOfType(t).map((p) => ({
-      name: p.getName(),
-      optional: !!(p.flags & ts.SymbolFlags.Optional),
-      type: convert(checker.getTypeOfSymbol(p), `${at}.${p.getName()}`),
-    }))
+    checker.getPropertiesOfType(t).map((p) => {
+      const decl = p.flags & ts.SymbolFlags.Transient ? undefined : p.valueDeclaration
+      const node =
+        decl && (ts.isPropertySignature(decl) || ts.isPropertyDeclaration(decl)) && decl.getSourceFile() === home
+          ? decl.type
+          : undefined
+      const member = `${at}.${p.getName()}`
+      return {
+        name: p.getName(),
+        optional: !!(p.flags & ts.SymbolFlags.Optional),
+        type:
+          node && referencesIn(node).size
+            ? convert(checker.getTypeFromTypeNode(node), member, node)
+            : convert(checker.getTypeOfSymbol(p), member),
+      }
+    })
 
   const errorOf = (t: ts.Type): TaggedErrorSchema[] => {
     if (t.flags & F.Never) return []
@@ -188,14 +322,28 @@ export const methodSchema = (
     return [{ ...error, fields: fields?.properties ?? [] }]
   }
 
+  const returns = unalias(m.written.returns)
+  const success =
+    ts.isTypeReferenceNode(returns) && libId(checker.getSymbolAtLocation(returns.typeName), checker) === EFFECT
+      ? returns.typeArguments?.[0]
+      : undefined
   try {
-    return {
-      input: m.input ? convert(m.input, 'input') : { kind: 'void' },
-      success: convert(m.success, 'success'),
+    const schema: MethodSchema = {
+      input: m.input ? convert(m.input, 'input', m.written.input) : { kind: 'void' },
+      success: convert(m.success, 'success', success),
       error: errorOf(m.error),
     }
+    const missed = [m.written.input, m.written.returns]
+      .flatMap((n) => (n ? [...referencesIn(n)] : []))
+      .find((r) => !read.has(r))
+    return missed
+      ? new Unreadable(
+          missed,
+          'has a Schema reference where the reader cannot follow it; write it inline or through a type alias of this file without type parameters, as a property, an array element or a union member',
+        )
+      : schema
   } catch (e) {
-    if (e instanceof NotSerializable) return e
+    if (e instanceof NotSerializable || e instanceof Unreadable) return e
     throw e
   }
 }

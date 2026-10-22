@@ -1,7 +1,11 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
+import { programOf } from '../extract'
 import { analyzeServerServices, ERROR_CODES } from '../index'
+import { type MethodSignature, readSignature } from '../serverServices'
+import { Unreadable } from '../typeSchema'
 
 const dir = (name: string) => path.join(__dirname, 'fixtures', name)
 const run = (name: string) => analyzeServerServices({ project: path.join(dir(name), 'tsconfig.json') })
@@ -107,5 +111,36 @@ describe('analyzeServerServices', () => {
     expect(run('server-service-duplicate-id').errors[0]!.message).toBe(
       'Server Service Tag id "Profiles" is declared by several classes: A (a.ts:4), B (b.ts:4)',
     )
+  })
+})
+
+describe('readSignature', () => {
+  const { root, program, checker } = programOf(path.join(dir('server-service-schema-ref'), 'tsconfig.json'))
+  const ctx = { program, checker, root, serverDir: path.join(root, 'server') }
+  const GET = program.getSourceFile(path.join(root, 'methods.ts'))!.statements.find(ts.isVariableStatement)!
+    .declarationList.declarations[0]!.initializer as ts.ArrowFunction
+
+  it('reads a method requiring a service under requires "any", and refuses it under "never"', () => {
+    const read = readSignature(ctx, GET, { requires: 'any' }) as MethodSignature
+    expect(checker.typeToString(read.requires)).toBe('Users')
+    const object = (name: string, type: unknown) => ({ kind: 'object', properties: [{ name, optional: false, type }] })
+    expect(read.schema).toEqual({
+      input: object('params', object('id', { kind: 'string' })),
+      success: { kind: 'ref', file: 'schemas.ts', name: 'User' },
+      error: [],
+    })
+    const never = readSignature(ctx, GET, { requires: 'never' })
+    expect(never).toBeInstanceOf(Unreadable)
+    expect([(never as Unreadable).at, (never as Unreadable).why]).toEqual([
+      GET.type,
+      'requires "Users"; a Server Service method needs no services',
+    ])
+  })
+
+  it('refuses, at the parameter, an input type the caller does not accept', () => {
+    const refused = readSignature(ctx, GET, { requires: 'any', input: () => 'takes no params' }) as Unreadable
+    expect(refused).toBeInstanceOf(Unreadable)
+    expect(refused.at).toBe(GET.parameters[0])
+    expect(refused.why).toBe('takes no params')
   })
 })

@@ -44,7 +44,7 @@ interface Contract {
   }>
 }
 
-/** Names the class `name` exported from `file` (relative to the tsconfig directory) in the generated module. */
+/** Names the class or Schema `name` exported from `file` (relative to the tsconfig directory) in the generated module. */
 type Alias = (file: string, name: string) => string
 
 const PRIMITIVE = {
@@ -54,6 +54,12 @@ const PRIMITIVE = {
   null: 'Null',
   undefined: 'Undefined',
   void: 'Void',
+}
+/** A path or query value read from its text: a finite decimal (no `NaN`, `Infinity`, hex or exponent); `true` or `false`. */
+const FROM_STRING = {
+  number:
+    'Schema.transform(Schema.String.pipe(Schema.pattern(/^-?\\d+(\\.\\d+)?$/)), Schema.Finite, { strict: true, decode: Number, encode: String })',
+  boolean: 'Schema.BooleanFromString',
 }
 
 /** JSON drops an `undefined` property, so a property that may be `undefined` may also be absent on the wire. */
@@ -70,7 +76,7 @@ const fields = (props: readonly PropertySchema[], alias: Alias): string =>
         .join(', ')} }`
     : '{}'
 
-/** The Schema source of a Type to Schema description; a tagged error names its class through `alias`. */
+/** The Schema source of a Type to Schema description; a tagged error class and a referenced Schema are named through `alias`. */
 export const printSchema = (t: TypeSchema | TaggedErrorSchema, alias: Alias): string => {
   switch (t.kind) {
     case 'literal':
@@ -89,8 +95,10 @@ export const printSchema = (t: TypeSchema | TaggedErrorSchema, alias: Alias): st
       return `Schema.Struct(${fields(t.properties, alias)})`
     case 'taggedError':
       return t.schema ? alias(t.file, t.name) : `taggedError(${alias(t.file, t.name)}, ${fields(t.fields, alias)})`
+    case 'ref':
+      return alias(t.file, t.name)
     default:
-      return `Schema.${PRIMITIVE[t.kind]}`
+      return 'codec' in t && t.codec ? FROM_STRING[t.kind] : `Schema.${PRIMITIVE[t.kind]}`
   }
 }
 

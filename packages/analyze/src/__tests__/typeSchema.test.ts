@@ -110,6 +110,65 @@ describe('Type to Schema', () => {
   })
 })
 
+describe('Schema references', () => {
+  const refs = run('server-service-schema-ref')
+  const schemas = new Map(refs.services[0]!.methods.map((m) => [m.name, m.schema]))
+  const ref = (file: string, name: string) => ({ kind: 'ref', file, name })
+  const user = ref('schemas.ts', 'User')
+  const name = ref('schemas.ts', 'Name')
+
+  it('reads the fixture without errors', () => expect(refs.errors).toEqual([]))
+
+  it.each<[string, unknown]>([
+    ['inline', io(user, name)],
+    ['alias', io(user, { kind: 'object', properties: [prop('owner', user)] })],
+    [
+      'nested',
+      io({
+        kind: 'object',
+        properties: [
+          prop('names', { kind: 'array', readonly: true, element: name }),
+          prop('tags', { kind: 'array', readonly: true, element: name }, true),
+          prop('pick', { kind: 'union', members: [ref('choice.ts', 'default'), { kind: 'null' }] }),
+        ],
+      }),
+    ],
+  ])('%s', (method, expected) => expect(schemas.get(method)).toEqual(expected))
+
+  it('refuses a reference it cannot use, at its line, naming why', () => {
+    const lines = fs.readFileSync(path.join(dir('server-service-schema-ref-bad'), 'contract.ts'), 'utf8').split('\n')
+    const lineOf = (text: string) => lines.findIndex((l) => l.includes(text)) + 1
+    const method = (m: string, why: string) => [
+      'ServerServiceMethodShape',
+      lineOf(`readonly ${m}:`),
+      `Server Service method "Bad.${m}" ${why}`,
+    ]
+    const from = (at: string, x: string, why: string) => `reads ${at} from a Schema reference to "${x}"${why}`
+    expect(run('server-service-schema-ref-bad').errors.map((e) => [e.code, e.line, e.message])).toEqual([
+      [
+        'ServerServiceFileShape',
+        lineOf("from './secret.server'"),
+        `A Server Service contract file imports the server-only "'./secret.server'"`,
+      ],
+      method('typeOnly', from('input', 'Hidden', ', which "schemas.ts" does not export as a value')),
+      method(
+        'serverOnly',
+        from('input', 'Secret', ' of the server-only "secret.server.ts"; reference a Schema of a client-safe module'),
+      ),
+      method('declared', from('input', 'Declared', ', which is only declared and has no value at run time')),
+      method('notSchema', from('success', 'NotSchema', ', which is not a Schema')),
+      method(
+        'qualified',
+        'reads input from a Schema reference that is not `Schema.Schema.Type<typeof X>` with `X` a name',
+      ),
+      method(
+        'generic',
+        'has a Schema reference where the reader cannot follow it; write it inline or through a type alias of this file without type parameters, as a property, an array element or a union member',
+      ),
+    ])
+  })
+})
+
 describe('ServerServiceTypeNotSerializable', () => {
   const r = run('server-service-not-serializable')
   const lines = fs.readFileSync(path.join(dir('server-service-not-serializable'), 'contract.ts'), 'utf8').split('\n')
