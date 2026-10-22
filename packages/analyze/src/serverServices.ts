@@ -62,6 +62,9 @@ export interface MethodSignature {
 }
 
 const hasAny = (n: ts.Node): boolean => n.kind === ts.SyntaxKind.AnyKeyword || !!ts.forEachChild(n, hasAny)
+/** `any` in the signature as written: its type parameters, parameter types and return type, never a body. */
+const writesAny = (sig: ts.SignatureDeclaration) =>
+  [...(sig.typeParameters ?? []), ...sig.parameters.map((p) => p.type), sig.type].some((n) => n && hasAny(n))
 const isAny = (t: ts.Type) => !!(t.flags & ts.TypeFlags.Any)
 
 /**
@@ -83,7 +86,7 @@ export const readSignature = (
   const { checker } = ctx
   const effect = 'does not return an `Effect.Effect<A, E>`'
   if (!sig.type) return new Unreadable(sig, 'needs an explicit function type `(input) => Effect.Effect<A, E>`')
-  if (hasAny(sig)) return new Unreadable(sig, 'is typed with `any`; write out the types')
+  if (writesAny(sig)) return new Unreadable(sig, 'is typed with `any`; write out the types')
   if (sig.parameters.length > 1)
     return new Unreadable(sig.parameters[1]!, 'takes more than one parameter; pass one object')
   const param = sig.parameters[0]

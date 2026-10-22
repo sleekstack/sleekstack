@@ -133,6 +133,8 @@ describe('Schema references', () => {
         ],
       }),
     ],
+    // Schemas of `unknown` and `never` are Schemas all the same.
+    ['anything', io(ref('schemas.ts', 'Anything'), ref('schemas.ts', 'Nothing'))],
   ])('%s', (method, expected) => expect(schemas.get(method)).toEqual(expected))
 
   it('refuses a reference it cannot use, at its line, naming why', () => {
@@ -161,10 +163,13 @@ describe('Schema references', () => {
         'qualified',
         'reads input from a Schema reference that is not `Schema.Schema.Type<typeof X>` with `X` a name',
       ),
-      method(
-        'generic',
-        'has a Schema reference where the reader cannot follow it; write it inline or through a type alias of this file without type parameters, as a property, an array element or a union member',
-      ),
+      // Each use is checked on its own: `twice` reads `direct`, then refuses `wrapped`. A generic interface's
+      // property is refused where it is written.
+      ...['generic', 'boxed', 'interfaced', 'twice'].map((m) => [
+        'ServerServiceMethodShape',
+        lineOf(m === 'interfaced' ? 'readonly value: Body //' : `readonly ${m}:`),
+        `Server Service method "Bad.${m}" has a Schema reference where the reader cannot follow it; write it inline or through a type alias of this file without type parameters, as a property, an array element or a union member`,
+      ]),
     ])
   })
 })

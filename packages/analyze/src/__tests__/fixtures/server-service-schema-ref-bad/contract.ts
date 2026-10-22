@@ -5,6 +5,12 @@ import type { Declared, Hidden, NotSchema, User } from './schemas'
 import type { Secret } from './secret.server' // @error ServerServiceFileShape
 
 type Wrap<T> = { readonly value: T }
+type Body = Schema.Schema.Type<typeof User>
+type Box<T> = { readonly value: Body; readonly extra: T }
+interface Boxed<T> {
+  readonly value: Body // @error ServerServiceMethodShape
+  readonly extra: T
+}
 
 export class Bad extends ServerService('Bad')<
   Bad,
@@ -15,5 +21,8 @@ export class Bad extends ServerService('Bad')<
     readonly notSchema: () => Effect.Effect<Schema.Schema.Type<typeof NotSchema>> // @error ServerServiceMethodShape
     readonly qualified: (input: Schema.Schema.Type<typeof Schemas.User>) => Effect.Effect<void> // @error ServerServiceMethodShape
     readonly generic: (input: Wrap<Schema.Schema.Type<typeof User>>) => Effect.Effect<void> // @error ServerServiceMethodShape
+    readonly boxed: (input: Box<string>) => Effect.Effect<void> // @error ServerServiceMethodShape
+    readonly interfaced: (input: Boxed<string>) => Effect.Effect<void>
+    readonly twice: (input: { readonly direct: Body; readonly wrapped: Wrap<Body> }) => Effect.Effect<void> // @error ServerServiceMethodShape
   }
 >() {}
