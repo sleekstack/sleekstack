@@ -9,7 +9,7 @@ import ts from 'typescript'
 import { build, createServer, type InlineConfig, type ViteDevServer } from 'vite'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { sleekstack } from '../index.js'
-import { printSchema, serverServices, type ServerServicesOptions } from '../server-services.js'
+import { discoverControllers, printSchema, serverServices, type ServerServicesOptions } from '../server-services.js'
 
 const FIXTURE = path.join(import.meta.dirname, 'fixtures/server-services')
 const START_CLIENT = path.resolve(import.meta.dirname, '../../../start/src/client.ts')
@@ -18,6 +18,14 @@ const REGISTRY = 'virtual:sleek/server-registry'
 const SERVER_APP = 'virtual:sleek/server-app'
 /** A server entry calling `start()` with no options, and a test of it for a nested vitest run. */
 const APP_FIXTURE = path.join(import.meta.dirname, 'fixtures/server-app')
+const CONTROLLERS_FIXTURE = path.join(import.meta.dirname, 'fixtures/controllers')
+/** The Controllers fixture as `scaffold` extras: its `server` directory beside `src`. */
+const controllerFiles = Object.fromEntries(
+  fs
+    .readdirSync(CONTROLLERS_FIXTURE, { recursive: true, encoding: 'utf8' })
+    .filter((f) => fs.statSync(path.join(CONTROLLERS_FIXTURE, f)).isFile())
+    .map((f) => [`../${f}`, fs.readFileSync(path.join(CONTROLLERS_FIXTURE, f), 'utf8')]),
+)
 
 describe('the printed Schemas over the wire', () => {
   const str = { kind: 'string' } as const
@@ -527,5 +535,165 @@ export const n: number = app
 `,
     })
     expect(typeErrors(root)).toEqual([])
+  })
+})
+
+describe('Controller discovery', () => {
+  const dirsOf = (root: string) => ({
+    serverDir: `${root}/server`,
+    controllersDir: `${root}/server/routes`,
+    routesDir: `${root}/src/routes`,
+  })
+
+  it('names each Controller by its path, in match order, with its _defaults.ts files outer first', async () => {
+    const { root } = scaffold(controllerFiles)
+    const found = await discoverControllers(dirsOf(root))
+    expect(found.map((c) => [c.route, c.pattern, c.defaults.map((d) => path.relative(root, d))])).toEqual([
+      ['index', '/', ['server/_defaults.ts']],
+      ['files/[...path]', '/files/*path', ['server/_defaults.ts']],
+      ['posts/[[page]]', '/posts/:page?', ['server/_defaults.ts']],
+      ['(admin)/stats', '/stats', ['server/_defaults.ts']],
+      ['users/index', '/users', ['server/_defaults.ts', 'server/routes/users/_defaults.ts']],
+      ['users/new', '/users/new', ['server/_defaults.ts', 'server/routes/users/_defaults.ts']],
+      ['users/[id]', '/users/:id', ['server/_defaults.ts', 'server/routes/users/_defaults.ts']],
+    ])
+    for (const c of found) expect(c.file).toBe(`${root}/server/routes/${c.route}.controller.ts`)
+  })
+
+  it.each<[string, Record<string, string>, (root: string) => readonly string[]]>([
+    [
+      'an orphan Controller',
+      { '../server/users.controller.ts': '' },
+      (r) => [`invalid Controller file ${r}/server/users.controller.ts: it is outside the Controllers directory`],
+    ],
+    [
+      'a splat that is not last',
+      { '../server/routes/[...rest]/x.controller.ts': '' },
+      (r) => [
+        `invalid Controller file ${r}/server/routes/[...rest]/x.controller.ts: an optional or splat segment must be the last one`,
+      ],
+    ],
+    [
+      'a URL under /_sleek/',
+      { '../server/routes/(api)/_sleek/fn.controller.ts': '' },
+      (r) => [
+        `invalid Controller file ${r}/server/routes/(api)/_sleek/fn.controller.ts: its URL would start with /_sleek/`,
+      ],
+    ],
+    [
+      'two Controllers whose paths differ only in param names',
+      { '../server/routes/users/[id].controller.ts': '', '../server/routes/users/[name].controller.ts': '' },
+      (r) => [
+        'Controller files ',
+        `${r}/server/routes/users/[id].controller.ts`,
+        `${r}/server/routes/users/[name].controller.ts`,
+        'both give path /users/:',
+      ],
+    ],
+    [
+      'a Controller and a page route at one path',
+      { '../server/routes/(site)/about/[x].controller.ts': '', 'routes/about/[slug].tsx': 'export default 1\n' },
+      (r) => [
+        `Controller file ${r}/server/routes/(site)/about/[x].controller.ts and route file ${r}/src/routes/about/[slug].tsx both give path /about/:x`,
+      ],
+    ],
+  ])('fails naming the file(s) for %s', async (_, extra, parts) => {
+    const { root } = scaffold(extra)
+    const error = await discoverControllers(dirsOf(root)).then(
+      () => undefined,
+      (e: Error) => e.message,
+    )
+    for (const part of parts(root)) expect(error).toContain(part)
+  })
+
+  it('declares each route name with its pattern beside the Server Services, for a TypeScript consumer', async () => {
+    const { root, src, declaration } = await serve(controllerFiles)
+    const text = fs.readFileSync(declaration, 'utf8')
+    expect(text).toContain('Layer.Layer<import("./contract").Profiles>')
+    expect(text).toContain(`declare module '${SERVER_APP}' {`)
+    fs.writeFileSync(
+      path.join(src, 'consumer.ts'),
+      `import type { DiscoveredApp } from '@sleekstack/start'
+import app, { type Controllers } from '${SERVER_APP}'
+export const a: DiscoveredApp = app
+export const id: Controllers['users/[id]'] = '/users/:id'
+export const names: ReadonlyArray<keyof Controllers> = ['index', '(admin)/stats', 'files/[...path]']
+// @ts-expect-error a route name no Controller has
+export const none: Controllers['users/[name]'] = '/users/:name'
+// @ts-expect-error the pattern is a literal
+export const other: Controllers['users/[id]'] = '/users/1'
+`,
+    )
+    expect(typeErrors(root)).toEqual([])
+  })
+
+  it('invalidates the discovered app in every environment on a Controller or _defaults.ts added, removed, renamed or edited', async () => {
+    const { server, root, load, declaration } = await serve(controllerFiles)
+    for (const env of Object.values(server.environments)) await env.transformRequest(SERVER_APP)
+    const spies = Object.values(server.environments).map((env) => vi.spyOn(env.moduleGraph, 'invalidateModule'))
+    const reload = vi.spyOn(server.ws, 'send')
+    /** Applies one file event and lets the plugin's rerun finish (the load waits on it). */
+    const event = async (kind: 'add' | 'change' | 'unlink', file: string) => {
+      const full = path.join(root, file)
+      if (kind === 'unlink') fs.rmSync(full)
+      else {
+        fs.mkdirSync(path.dirname(full), { recursive: true })
+        fs.writeFileSync(full, `export const at = ${Date.now()}\n`)
+      }
+      server.watcher.emit(kind, full)
+      await new Promise((r) => setTimeout(r, 0))
+      await load(SERVER_APP)
+      await new Promise((r) => setTimeout(r, 0))
+      // Vite also invalidates an edited file's importers, passing its own propagation arguments; the plugin passes the module only.
+      const invalidated = spies.map((spy) => spy.mock.calls.filter((args) => args.length === 1).map(([mod]) => mod.id))
+      const reloaded = reload.mock.calls.some(([payload]) => JSON.stringify(payload) === '{"type":"full-reload"}')
+      for (const spy of spies) spy.mockClear()
+      reload.mockClear()
+      return { invalidated, reloaded }
+    }
+    const once = { invalidated: spies.map(() => [`\0${SERVER_APP}`]), reloaded: true }
+    const declared = () => fs.readFileSync(declaration, 'utf8')
+
+    expect(await event('add', 'server/routes/tags.controller.ts')).toEqual(once)
+    expect(declared()).toContain('readonly "tags": "/tags"')
+    expect(await event('change', 'server/routes/tags.controller.ts')).toEqual(once)
+    expect(await event('unlink', 'server/routes/tags.controller.ts')).toEqual(once)
+    expect(await event('add', 'server/routes/labels.controller.ts')).toEqual(once)
+    expect(declared()).toContain('readonly "labels": "/labels"')
+    expect(declared()).not.toContain('"tags"')
+    expect(await event('unlink', 'server/routes/labels.controller.ts')).toEqual(once)
+    expect(declared()).not.toContain('"labels"')
+    expect(await event('change', 'server/routes/users/_defaults.ts')).toEqual(once)
+    expect(await event('add', 'server/routes/(admin)/_defaults.ts')).toEqual(once)
+    // An unrelated source changes nothing.
+    expect(await event('add', 'src/other.ts')).toEqual({ invalidated: spies.map(() => []), reloaded: false })
+  })
+
+  it('keeps the previous declaration while a Controller is invalid, and the load reports its path', async () => {
+    const { server, root, load, declaration } = await serve(controllerFiles)
+    const before = fs.readFileSync(declaration, 'utf8')
+    const invalid = path.join(root, 'server/routes/[...rest]/x.controller.ts')
+    fs.mkdirSync(path.dirname(invalid), { recursive: true })
+    fs.writeFileSync(invalid, '')
+    server.watcher.emit('add', invalid)
+    await new Promise((r) => setTimeout(r, 0))
+    await expect(load(SERVER_APP)).rejects.toThrow(`invalid Controller file ${invalid}`)
+    expect(fs.readFileSync(declaration, 'utf8')).toBe(before)
+
+    fs.rmSync(invalid)
+    server.watcher.emit('unlink', invalid)
+    await new Promise((r) => setTimeout(r, 0))
+    await expect(load(SERVER_APP)).resolves.toContain('export default')
+    expect(fs.readFileSync(declaration, 'utf8')).toBe(before)
+  })
+
+  it.each([
+    ['serverServices', (options: ServerServicesOptions) => [serverServices(options)]],
+    ['sleekstack', sleekstack],
+  ])('%s({ controllersDir: "api" }) discovers the Controllers there', async (_, plugins) => {
+    const { root, src } = scaffold({ 'main.ts': 'console.log(1)\n', '../api/users.controller.ts': '' })
+    fs.writeFileSync(path.join(root, 'index.html'), '<script type="module" src="/src/main.ts"></script>')
+    await build({ ...config(root), plugins: plugins({ controllersDir: 'api' }), build: { write: false } })
+    expect(fs.readFileSync(path.join(src, 'server.gen.d.ts'), 'utf8')).toContain('readonly "users": "/users"')
   })
 })

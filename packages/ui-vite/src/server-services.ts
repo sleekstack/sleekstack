@@ -2,20 +2,29 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import type { AnalyzeError, PropertySchema, TaggedErrorSchema, TypeSchema } from '@sleekstack/analyze'
 import { type Environment, normalizePath, type Plugin } from 'vite'
+import { matchOrder, type RoutesOptions, scan, sortKey } from './routes.js'
 
-/** Where the Server Service modules' types go, and where the server code lives. */
-export interface ServerServicesOptions {
-  /** The declaration of `virtual:sleek/server` and `virtual:sleek/server-registry`, relative to the Vite root. Default `src/server.gen.d.ts`. */
+/**
+ * Where the Server Service modules' types go, and where the server code lives. `routesDir` is the page routes'
+ * directory, which a Controller's path must not repeat.
+ */
+export interface ServerServicesOptions extends RoutesOptions {
+  /** The declaration of `virtual:sleek/server`, `virtual:sleek/server-registry` and `virtual:sleek/server-app`, relative to the Vite root. Default `src/server.gen.d.ts`. */
   readonly serverDeclaration?: string
   /** The server directory, relative to the Vite root; a `_defaults.ts` under it is server-only. Default `server`. */
   readonly serverDir?: string
+  /** The directory of the Controllers (`*.controller.ts`), relative to the Vite root. Default `<serverDir>/routes`. */
+  readonly controllersDir?: string
 }
 
 const CLIENT = 'virtual:sleek/server'
 const REGISTRY = 'virtual:sleek/server-registry'
 const MODULES = [CLIENT, REGISTRY]
-/** The discovered app `start()` reads: no Controllers are discovered yet, so it is empty. */
+/** The discovered app `start()` reads: its Controllers are discovered, and their entries are not generated yet. */
 const SERVER_APP = 'virtual:sleek/server-app'
+const CONTROLLER = /\.controller\.ts$/
+const DEFAULTS = '_defaults.ts'
+const GROUP = /^\(.+\)$/
 const VIRTUAL = [...MODULES, SERVER_APP].join('|')
 /**
  * `@sleekstack/start` imports a stand-in for the discovered app (nothing discovered) as `./discovered` from here. The
@@ -141,8 +150,7 @@ const declarationOf = (contracts: readonly Contract[], root: string, dir: string
   }
   const tags = contracts.map(tag).join(' | ') || 'never'
   const classes = contracts.map((c) => `typeof ${tag(c)}`).join(' | ') || 'never'
-  return `// Written by @sleekstack/ui-vite from the Server Service contracts; do not edit.
-declare module '${CLIENT}' {
+  return `declare module '${CLIENT}' {
   const layer: import('effect').Layer.Layer<${tags}>
   export default layer
 }
@@ -183,6 +191,93 @@ const readContracts = async (
   }
 }
 
+/** A discovered Controller: its file, route name, URL pattern and the `_defaults.ts` files above it, outer first. */
+export interface DiscoveredController {
+  readonly file: string
+  readonly route: string
+  readonly pattern: string
+  readonly defaults: readonly string[]
+}
+
+/** The files under `dir`, none when it does not exist. */
+const filesUnder = (dir: string) =>
+  (fs.existsSync(dir) ? fs.readdirSync(dir, { recursive: true, encoding: 'utf8' }) : []).map((f) =>
+    normalizePath(path.join(dir, f)),
+  )
+
+/**
+ * The Controllers under `controllersDir` in match order, with the route derivation of `@sleekstack/analyze`, each
+ * with every `_defaults.ts` from `serverDir` down to its directory. Paths are absolute. Throws naming the file for a
+ * Controller outside `controllersDir` (found there or under `serverDir`), an invalid segment, an optional or splat
+ * segment that is not last, or a URL under the reserved `/_sleek/` (a `_sleek` directory, not a route otherwise); and
+ * naming both files for two Controllers, or a Controller and a page route under `routesDir`, at one path.
+ */
+export const discoverControllers = async ({
+  serverDir,
+  controllersDir,
+  routesDir,
+}: {
+  readonly serverDir: string
+  readonly controllersDir: string
+  readonly routesDir: string
+}): Promise<DiscoveredController[]> => {
+  const files = [...new Set([serverDir, controllersDir].flatMap(filesUnder))]
+  const sources = files.filter((f) => CONTROLLER.test(f))
+  if (sources.length === 0) return []
+  const { controllerRoute } = await analyzer()
+  const defaults = new Set(files.filter((f) => path.posix.basename(f) === DEFAULTS))
+  const defaultsOf = (file: string) => {
+    const rel = path.posix.relative(serverDir, path.posix.dirname(file))
+    if (rel.split('/')[0] === '..' || path.isAbsolute(rel)) return []
+    const dirs = rel ? rel.split('/') : []
+    return ['', ...dirs.map((_, i) => dirs.slice(0, i + 1).join('/'))]
+      .map((d) => path.posix.join(serverDir, d, DEFAULTS))
+      .filter((f) => defaults.has(f))
+  }
+  const controllers = sources
+    .flatMap((file) => {
+      const route = controllerRoute(controllersDir, file)
+      if (route) return [{ file, route: route.route, pattern: route.pattern, defaults: defaultsOf(file) }]
+      const [top] = path.posix
+        .relative(controllersDir, file)
+        .split('/')
+        .slice(0, -1)
+        .filter((s) => !GROUP.test(s))
+      if (top === '_sleek')
+        throw new Error(
+          `sleekstack: invalid Controller file ${file}: its URL would start with /_sleek/, which is reserved`,
+        )
+      return []
+    })
+    .sort((a, b) => matchOrder(a.pattern, b.pattern))
+  const byPath = new Map<string, DiscoveredController>()
+  for (const c of controllers) {
+    const other = byPath.get(sortKey(c.pattern))
+    if (other) throw new Error(`sleekstack: Controller files ${other.file} and ${c.file} both give path ${c.pattern}`)
+    byPath.set(sortKey(c.pattern), c)
+  }
+  for (const page of scan(routesDir).found) {
+    const c = byPath.get(sortKey(page.path))
+    if (c)
+      throw new Error(`sleekstack: Controller file ${c.file} and route file ${page.file} both give path ${c.pattern}`)
+  }
+  return controllers
+}
+
+/** The discovered Controllers, or the error that fails the discovered app's load. */
+type Discovered = { readonly controllers: readonly DiscoveredController[] } | { readonly error: string }
+
+/** The Controllers section of the declaration: each route name's URL pattern, in match order. */
+const controllersDeclaration = (controllers: readonly DiscoveredController[]) =>
+  controllers.length === 0
+    ? ''
+    : `declare module '${SERVER_APP}' {
+  /** The URL pattern of each discovered Controller by its route name, in match order. */
+  export interface Controllers {${controllers.map((c) => `\n    readonly ${JSON.stringify(c.route)}: ${JSON.stringify(c.pattern)}`).join('')}
+  }
+}
+`
+
 /**
  * Serves `virtual:sleek/server` (default export: `serverClients(...)`, a Layer providing every Server Service Tag over
  * the wire) and `virtual:sleek/server-registry` (default export: the entries for `start({ services })`), generated
@@ -195,14 +290,25 @@ const readContracts = async (
  * `serverDir`) loaded in a client environment fails the build or the dev load, naming the import chain, unless the
  * chain starts at a test (type-only imports are erased before they get here). It also serves
  * `virtual:sleek/server-app`, the discovered app (`DiscoveredApp` of `@sleekstack/start`), and gives it to `start()`
- * in place of the stand-in `start` imports.
+ * in place of the stand-in `start` imports. Its Controllers are found by `discoverControllers`, whose error fails the
+ * module's load, and declared in `serverDeclaration` (`Controllers`, each route name's pattern); a failing
+ * discovery or contract read leaves the whole declaration as it was. In dev, a Controller or `_defaults.ts` added,
+ * removed or edited invalidates the module in every environment and reloads the page.
  */
 export const serverServices = (options: ServerServicesOptions = {}): Plugin => {
   let project = ''
   let root = ''
   let serverDir = ''
+  let controllersDir = ''
+  let routesDir = ''
   let declarationFile = ''
   let generated: Promise<Generated> | undefined
+  let discovered: Promise<Discovered> | undefined
+  const discovery = () =>
+    (discovered ??= discoverControllers({ serverDir, controllersDir, routesDir }).then(
+      (controllers) => ({ controllers }),
+      (cause: unknown) => ({ error: cause instanceof Error ? cause.message : String(cause) }),
+    ))
   const generate = async (): Promise<Generated> => {
     try {
       const { contracts, errors } = await readContracts(project, serverDir)
@@ -241,12 +347,20 @@ export const serverServices = (options: ServerServicesOptions = {}): Plugin => {
     return chain
   }
   const rel = (id: string) => normalizePath(path.relative(root, id.replace(/^\0/, '')))
-  const writeDeclaration = (g: Generated) => {
-    if ('error' in g) return
-    // An app with no contracts gets no file.
-    if (!fs.existsSync(declarationFile) ? g.empty : fs.readFileSync(declarationFile, 'utf8') === g.declaration) return
+  /** The one writer of the declaration: both sections, or none while either fails. */
+  const writeDeclaration = (g: Generated, d: Discovered) => {
+    if ('error' in g || 'error' in d) return
+    const text = `// Written by @sleekstack/ui-vite from the Server Service contracts${d.controllers.length ? ' and the Controllers' : ''}; do not edit.
+${g.declaration}${controllersDeclaration(d.controllers)}`
+    // An app with no contracts and no Controllers gets no file.
+    if (
+      !fs.existsSync(declarationFile)
+        ? g.empty && d.controllers.length === 0
+        : fs.readFileSync(declarationFile, 'utf8') === text
+    )
+      return
     fs.mkdirSync(path.dirname(declarationFile), { recursive: true })
-    fs.writeFileSync(declarationFile, g.declaration)
+    fs.writeFileSync(declarationFile, text)
   }
   return {
     name: 'sleekstack:server-services',
@@ -254,15 +368,19 @@ export const serverServices = (options: ServerServicesOptions = {}): Plugin => {
     configResolved(config) {
       root = config.root
       project = path.join(root, 'tsconfig.json')
-      serverDir = path.resolve(root, options.serverDir ?? 'server')
+      serverDir = normalizePath(path.resolve(root, options.serverDir ?? 'server'))
+      controllersDir = options.controllersDir
+        ? normalizePath(path.resolve(root, options.controllersDir))
+        : `${serverDir}/routes`
+      routesDir = normalizePath(path.resolve(root, options.routesDir ?? 'src/routes'))
       declarationFile = path.resolve(root, options.serverDeclaration ?? 'src/server.gen.d.ts')
-      generated = undefined
+      generated = discovered = undefined
     },
     watchChange() {
-      if (this.environment.mode === 'build') generated = undefined
+      if (this.environment.mode === 'build') generated = discovered = undefined
     },
     async buildStart() {
-      writeDeclaration(await current())
+      writeDeclaration(await current(), await discovery())
     },
     resolveId: {
       // Before Vite's own resolver, which would find the stand-in's file.
@@ -280,7 +398,11 @@ export const serverServices = (options: ServerServicesOptions = {}): Plugin => {
       // Every source: the server-only list is the analyzer's, read at run time, so it cannot narrow the filter.
       filter: { id: [new RegExp(`^\0(${VIRTUAL})$`), SOURCE] },
       async handler(id) {
-        if (id === `\0${SERVER_APP}`) return 'export default { controllers: [] }\n'
+        if (id === `\0${SERVER_APP}`) {
+          const d = await discovery()
+          if ('error' in d) return this.error(d.error)
+          return 'export default { controllers: [] }\n'
+        }
         if (SOURCE.test(id)) {
           if (this.environment.config.consumer !== 'client') return null
           const { isServerOnly, TEST_FILE } = await analyzer()
@@ -308,19 +430,27 @@ export const serverServices = (options: ServerServicesOptions = {}): Plugin => {
           file.includes('/node_modules/')
         )
           return
-        const before = await current()
-        generated = undefined
-        const after = await current()
-        writeDeclaration(after)
-        if (JSON.stringify(before) === JSON.stringify(after)) return
+        const before = await Promise.all([current(), discovery()])
+        generated = discovered = undefined
+        const after = await Promise.all([current(), discovery()])
+        writeDeclaration(...after)
+        const same = (i: 0 | 1) => JSON.stringify(before[i]) === JSON.stringify(after[i])
+        // An edit leaves the discovery as it was, yet the app must load the edited Controller or Directory Defaults.
+        const discoveryFile =
+          [serverDir, controllersDir].some((dir) => file.startsWith(`${dir}/`)) &&
+          (CONTROLLER.test(file) || path.posix.basename(file) === DEFAULTS)
+        const ids = [...(same(0) ? [] : MODULES), ...(same(1) && !discoveryFile ? [] : [SERVER_APP])]
+        if (ids.length === 0) return
         for (const env of Object.values(server.environments))
-          for (const id of MODULES) {
+          for (const id of ids) {
             const mod = env.moduleGraph.getModuleById(`\0${id}`)
             if (mod) env.moduleGraph.invalidateModule(mod)
           }
         server.ws.send({ type: 'full-reload' })
       }
       const on = (file: string) => void changed(normalizePath(file))
+      // A server or Controllers directory outside the Vite root is not watched by default.
+      server.watcher.add([serverDir, controllersDir])
       server.watcher.on('add', on).on('change', on).on('unlink', on)
     },
   }
