@@ -15,6 +15,7 @@ const FIXTURE = path.join(import.meta.dirname, 'fixtures/server-services')
 const START_CLIENT = path.resolve(import.meta.dirname, '../../../start/src/client.ts')
 const CLIENT = 'virtual:sleek/server'
 const REGISTRY = 'virtual:sleek/server-registry'
+const SERVER_APP = 'virtual:sleek/server-app'
 /** A server entry calling `start()` with no options, and a test of it for a nested vitest run. */
 const APP_FIXTURE = path.join(import.meta.dirname, 'fixtures/server-app')
 
@@ -168,6 +169,13 @@ const scaffold = (extra: Record<string, string> = {}) => {
   )
   return { root, src }
 }
+/** The type errors of the scaffold's TypeScript program. */
+const typeErrors = (root: string) => {
+  const { config } = ts.readConfigFile(path.join(root, 'tsconfig.json'), ts.sys.readFile)
+  const parsed = ts.parseJsonConfigFileContent(config, ts.sys, root)
+  const program = ts.createProgram(parsed.fileNames, parsed.options)
+  return ts.getPreEmitDiagnostics(program).map((d) => ts.flattenDiagnosticMessageText(d.messageText, '\n'))
+}
 /** `@sleekstack/start/client` is its source, so the generated code runs. */
 const config = (root: string): InlineConfig => ({
   root,
@@ -245,12 +253,7 @@ export const s: ReadonlyArray<ServerServiceEntry<Profiles>> = services
 export const n: number = layer
 `,
     )
-    const { config } = ts.readConfigFile(path.join(root, 'tsconfig.json'), ts.sys.readFile)
-    const parsed = ts.parseJsonConfigFileContent(config, ts.sys, root)
-    const program = ts.createProgram(parsed.fileNames, parsed.options)
-    expect(ts.getPreEmitDiagnostics(program).map((d) => ts.flattenDiagnosticMessageText(d.messageText, '\n'))).toEqual(
-      [],
-    )
+    expect(typeErrors(root)).toEqual([])
   })
 
   it('fails the load with file:line on an analyzer error, emitting no client', async () => {
@@ -388,9 +391,25 @@ describe('the discovered app', () => {
     expect(run.stdout).toContain('1 passed')
   })
 
-  it('reaches start() from a vite build --ssr', async () => {
-    const { root } = scaffold(serverApp)
+  const built = async (root: string) => {
     await build({ ...config(root), build: { ssr: 'src/server.ts' } })
-    expect(await status((await import(pathToFileURL(path.join(root, 'dist/server.mjs')).href)).app)).toBe(404)
+    return (await import(pathToFileURL(path.join(root, 'dist/server.mjs')).href)).app
+  }
+
+  it('reaches start() from a vite build --ssr', async () => {
+    expect(await status(await built(scaffold(serverApp).root))).toBe(404)
+  })
+
+  it('is typed by @sleekstack/start for a consumer', () => {
+    const { root } = scaffold({
+      ...serverApp,
+      'consumer.ts': `import type { DiscoveredApp } from '@sleekstack/start'
+import app from '${SERVER_APP}'
+export const a: DiscoveredApp = app
+// @ts-expect-error the app is typed, not any
+export const n: number = app
+`,
+    })
+    expect(typeErrors(root)).toEqual([])
   })
 })

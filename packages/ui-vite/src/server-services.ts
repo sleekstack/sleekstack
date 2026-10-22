@@ -15,7 +15,11 @@ const MODULES = [CLIENT, REGISTRY]
 /** The discovered app `start()` reads: no Controllers are discovered yet, so it is empty. */
 const SERVER_APP = 'virtual:sleek/server-app'
 const VIRTUAL = [...MODULES, SERVER_APP].join('|')
-/** `@sleekstack/start` imports a stand-in for the discovered app (nothing discovered) as `./discovered` from here. */
+/**
+ * `@sleekstack/start` imports a stand-in for the discovered app (nothing discovered) as `./discovered` from here. The
+ * redirect needs Vite to process `start`, as it must anyway: its dist is not loadable by Node alone (extensionless
+ * relative imports), so an externalized `start` fails to load rather than missing the discovered app.
+ */
 const START_MODULE = /[\\/]start[\\/](?:dist|src)[\\/]start\.[jt]s$/
 const STAND_IN = './discovered'
 /** Generated code imports it; ui-vite itself never does. */
