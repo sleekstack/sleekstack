@@ -34,6 +34,11 @@ export interface ControllerMethodEntry {
  *
  * @example
  * ```ts
+ * import { Context, Effect } from 'effect'
+ *
+ * class Viewer extends Context.Tag('Viewer')<Viewer, { readonly id: string }>() {}
+ * declare const viewerFrom: (request: Request) => { readonly id: string }
+ *
  * export const wrap = (
  *   next: Effect.Effect<Response, unknown, Viewer>,
  *   request: Request,
