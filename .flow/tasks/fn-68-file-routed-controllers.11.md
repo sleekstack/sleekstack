@@ -79,6 +79,7 @@ Untracked `.flow/specs/fn-70-served-records.*` and `.flow/tasks/fn-70-served-rec
 Tier: session (jev-unavailable(no_key)); routing block sets opus at medium (actual: claude-opus-5-5)
 
 stage: impl-review - skipped(policy: user asked for one completion review at the end of the spec)
+stage: plan-sync - ran (sonnet; updated task 12)
 ## Evidence
 - Commits: 0787cd811e8d8889413c231518c87515fc60b1f5
 - Tests: pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack --filter=@sleekstack/router... --filter=@sleekstack/ui-vite... --filter=@sleekstack/start... --filter=@sleekstack/testing --filter=realworld, pnpm --filter realworld check, pnpm --filter docs test, pnpm --filter realworld build, GATE_SKIPPED:unittest:green-receipt db02a6dd - baseline reused from prior post-gate pass
