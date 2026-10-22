@@ -35,10 +35,64 @@ The early proof for R14: put the directory `wrap`, the catch-all and one real ro
 - [ ] `pnpm turbo run test typecheck --filter=realworld` and `pnpm --filter realworld check` pass
 
 ## Done summary
-TBD
+`GET /api/tags`, `/api/` and every `/api/` path with no route now go through Controllers under `apps/realworld/server/routes/api`, with a directory `wrap`. `rest.ts` still serves the other 18 routes (R14, first slice).
 
+- `_defaults.ts` `wrap` does two things:
+  - It provides `ViewerLive(token)` from `Authorization: Token`.
+  - It maps failures to RealWorld `{errors}` answers:
+    - the domain errors, as `rest.ts` maps them
+    - `InvalidPathEncoding` and `MethodNotAllowed`: 404 `{body: ['not found']}`
+    - `BodyTooLarge`: 413 `is too large`
+    - `UnsupportedMediaType`: 415 `{body: ['must be application/json']}`
+    - a decode `ParseError`: 404 when any issue's path starts at `params`. Otherwise 422, keyed by the path with its first element (`body`/`query`) dropped, or by `body` when nothing is left. Malformed JSON therefore stays `body: ['is not valid JSON']`.
+  - Its written signature takes `next: Effect<Response, Failure, Viewer>` and returns `Effect<Response, never, Db | TokenSecret>`, so `sleekstack check` counts `Viewer` as provided. A probe confirmed it: a Controller that requires `Viewer` passes `check`, and fails with `MissingDependency` once `next` drops `Viewer`.
+- Controllers:
+  - `index` (`/api`) and `[...rest]` (`/api/*rest`, declaring `params: { rest: string }`) export `GET`, which fails with the domain `NotFound({ resource: 'body' })`. The wrap turns that into the JSON 404, and any other method there gets the same 404 through `MethodNotAllowed`.
+  - `tags` `GET` has a written return type.
+- `rest.ts`:
+  - `tags` is removed from `ROUTES`.
+  - A request with no table entry or a malformed param now returns `Effect.void` and reaches the Controllers. The middleware's own 404 is gone.
+  - `failure`, `tokenOf` and the body reader stay duplicated there until task 11 deletes the file.
+- `server/dev.ts` `devMiddleware(load, documentOf, isControllerPath)`:
+  - The `/api/` prefix test is replaced by a predicate applied to the URL's pathname. The predicate may return a promise.
+  - Forwarding is the same as before, except that it runs after the predicate resolves.
+  - `vite.config.ts` passes `ssrLoadModule('virtual:sleek/server-app').isControllerPath`.
+  - `server.test.ts` passes the module's `isControllerPath`.
+- `src/server.gen.d.ts` is the plugin's regenerated output, committed as written: `Controllers`, `ControllerModules` and `isControllerPath`.
+- Tests (`test/rest.test.ts`):
+  - `content-type: application/json` was added to the two size-limit requests; their 413 assertions are unchanged.
+  - New: `/api/ itself is 404` (the index Controller).
+  - New: `a bad token is 401 on an unknown route, method or escape too`, which documents the R14 intended difference.
+  - New: the directory wrap answers a body without application/json with 415, a failed `params` decode with 404, and a failed body decode with 422 keyed `user.email`. This test calls `wrap` directly, because no migrated Controller declares `body` yet, so a 415 cannot come from `fetch` in this task.
+  - The 415 and decode-mapping test is the only coverage of the wrap's `ParseError`, 413 and 415 branches until task 11 moves the body routes. Task 11's fetch tests (malformed JSON, missing envelope key, non-numeric comment id, 413) will exercise them end to end.
+- Mutation check. Each mutation turned at least one test red, and the code was then restored:
+  - the middleware answering 404 again
+  - no `index` Controller
+  - no `tags` Controller
+  - the 415 status changed
+  - the `params` to 404 rule removed
+  - no relative-path slice
+- Dev smoke on a real `vite` server:
+  - `/api/tags` 200
+  - `/api/nope` and `/api/` JSON 404
+  - a bad token on `/api/nope` 401
+  - `/api/profiles/nobody` still served by `rest.ts` (404 `profile`)
+  - `/src/main.tsx` served by Vite
+
+Behaviour changes beyond R14's list: `OPTIONS /api/tags` answers 204 with `Allow` (R9 default), and `/api` without a trailing slash answers the JSON 404 instead of the page router.
+
+Gates:
+- Baseline was green on a full run, since there was no receipt for HEAD: 28/28 tasks, and `pnpm --filter realworld check` exit 0.
+- Post-edit Quick command: green, 28/28 tasks, realworld 158 tests (155 before). Receipt `.flow/tmp/green-receipts/db02a6dd-unittest.json`.
+- `pnpm --filter realworld check`: exit 0.
+- `pnpm --filter docs test`: 58/58.
+- `prettier --check apps/realworld`: clean.
+- Fixture graph check: not run. There is no public export change; only realworld app files changed.
+
+Tier: session (jev-unavailable(no_key)); routing block sets opus at medium (actual: claude-opus-5-5)
+
+stage: impl-review - skipped(policy: user asked for one completion review at the end of the spec)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: db02a6dd64dc4568a9b4529de6b7cefd9f13e800
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack --filter=@sleekstack/router... --filter=@sleekstack/ui-vite... --filter=@sleekstack/start... --filter=@sleekstack/testing --filter=realworld, pnpm --filter realworld check, pnpm --filter docs test, npx prettier --check apps/realworld
 - PRs:
-
