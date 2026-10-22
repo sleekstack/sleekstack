@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted. Amends ADR 0039 (adds a second way to declare server operations; `serverFn`, `client(contract)` and the wire are unchanged). Built in spec fn-66.
+Accepted. Amends ADR 0039 (adds a second way to declare server operations; `serverFn`, `client(contract)` and the wire are unchanged). Built in spec fn-66. Amended by ADR 0054: "Nothing is auto-discovered" no longer holds; RPC Files and the RPC Manifest generate Server Services, and Layer Files are found by extension.
 
 ## Context
 

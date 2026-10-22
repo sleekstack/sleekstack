@@ -190,12 +190,39 @@ A server operation for ui apps, declared with `serverFn(id, { input, success, er
 _Avoid_: Action, Server Action, RPC, procedure
 
 **Server Service**:
-A Context Tag whose methods are Effect signatures, declared with `ServerService(id)<Self, Shape>()` in a client-safe file and implemented by a Layer in a `*.server.ts` file (ADR 0051). A page calls `yield* Profiles`: on the server the implementation runs in-process, in the browser a generated client calls `POST /_sleek/fn/<id>.<method>`. The client and registry are generated from the method types. An implementation Layer is built with `implement(Tag, methods)`, whose methods may use the request services (ADR 0052). Distinct from a Server Function (explicit Schemas, one operation, `serverFn`).
-_Avoid_: remote service, RPC, contract
+A Context Tag whose methods are Effect signatures, declared by hand with `ServerService(id)<Self, Shape>()` in a client-safe file and implemented by a Layer in a `*.server.ts` file (ADR 0051), or generated from an RPC File or the RPC Manifest (ADR 0054). A page calls `yield* Profiles`: on the server the implementation runs in-process, in the browser a generated client calls `POST /_sleek/fn/<id>.<method>`. The client and registry are generated from the method types. An implementation Layer is built with `implement(Tag, methods)`, whose methods may use the request services (ADR 0052). Distinct from a Server Function (explicit Schemas, one operation, `serverFn`).
+_Avoid_: remote service, contract, RPC (except in the file names `*.rpc.ts` and `rpc.ts`)
 
-**Server Endpoint**:
-A route handler given to `start({ handlers })` at an exact pathname: one Effect per HTTP method, answering the request with a `Response`, with the request services (`Request`, `Cookies`, `ResponseHeaders`) in the Request Scope (ADR 0039). An unsupported method is 405 with `Allow`.
-_Avoid_: API route, controller
+**Controller**:
+A `*.controller.ts` file under `server/routes` whose path sets its URL and whose exported methods answer HTTP requests from decoded input (ADR 0053). A handler given to `start({ handlers })` at an exact pathname is not a Controller: it takes the `Request` itself (ADR 0039).
+_Avoid_: Server Endpoint, API route
+
+**Controller Method**:
+One exported HTTP method of a Controller (`GET`, `POST`, ...): an Effect function of `{ params?, query?, body? }` whose written-out signature is its contract. It reads and shapes the request through the request services (`Request`, `Cookies`, `ResponseHeaders`, `ResponseStatus`) in the Request Scope.
+_Avoid_: handler, action
+
+**Directory Defaults**:
+A reserved `_defaults.ts` file whose options apply to the files below its directory: `wrap` to every Controller, `bodyLimit` and `origins` to Controllers and RPC Files too (ADR 0053).
+_Avoid_: middleware
+
+**RPC File**:
+A `*.rpc.ts` file whose exported functions are the methods of one Server Service, each with a written-out signature; the build generates the Tag, registry entry, Layer and browser client from it (ADR 0054).
+_Avoid_: contract, remote service
+
+**RPC Manifest**:
+The reserved `server/rpc.ts` file that exposes chosen Controller Methods as the methods of named Server Services, without redefining them (ADR 0054).
+_Avoid_: RPC wrapper, router
+
+**Layer File**:
+A `*.layer.ts` file whose default export is a Layer; the build finds every one and composes them by what each requires (ADR 0054).
+_Avoid_: provider
+
+**Server Root**:
+The reserved `server/_app.ts` file for options that no Controller or RPC File owns, such as `onError` (ADR 0054).
+
+**Schema File**:
+A client-safe `*.schema.ts` file whose default export is a Schema that a signature references, so the browser and the server share it. A naming convention only: nothing is found or wired from it (ADR 0054).
+_Avoid_: DTO, contract
 
 ### Docs site concepts (`apps/docs`)
 

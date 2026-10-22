@@ -1,0 +1,17 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-22T14:05:54.581792Z",
+  "depends_on": [
+    "fn-69-server-auto-wiring.4",
+    "fn-69-server-auto-wiring.6"
+  ],
+  "id": "fn-69-server-auto-wiring.9",
+  "priority": null,
+  "spec": "fn-69-server-auto-wiring",
+  "spec_path": ".flow/tasks/fn-69-server-auto-wiring.9.md",
+  "status": "todo",
+  "title": "realworld: Layer Files, comments RPC File and the server entry",
+  "updated_at": "2026-10-22T14:12:08.000033Z"
+}

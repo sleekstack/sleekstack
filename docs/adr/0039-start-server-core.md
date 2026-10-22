@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted. Settles D1 to D4 and D6 of the Start proposal (`docs/proposals/start-framework.md`), built in spec fn-54. Supersedes nothing.
+Accepted. Settles D1 to D4 and D6 of the Start proposal (`docs/proposals/start-framework.md`), built in spec fn-54. Supersedes nothing. Amended by ADR 0053 (file-routed Controllers answer its exact-pathname gap; `ResponseStatus` joins the request services) and ADR 0054 (server parts found by extension; `serverFn` and `functions` stay explicit).
 
 ## Context
 
