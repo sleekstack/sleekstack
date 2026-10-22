@@ -61,6 +61,7 @@ Follow-ups, not built:
 Tier: session (jev-unavailable(no_key)); routing block sets opus at medium (actual: claude-opus-5-5)
 
 stage: impl-review - skipped(policy: user asked for one completion review at the end of the spec)
+stage: plan-sync - ran (sonnet; updated tasks 5, 7, 8, 10, 11, 12)
 ## Evidence
 - Commits: 07faa8d82a4241ab612dafa93dff1e2fc64eb3cc
 - Tests: pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack --filter=@sleekstack/router... --filter=@sleekstack/ui-vite... --filter=@sleekstack/start... --filter=@sleekstack/testing --filter=realworld, pnpm --filter realworld check, (cd packages/cli/src/__tests__/fixtures/effect-app && node ../../../../bin/cli.js check --json --entry runtime.ts) - identical before and after, baseline: green via receipt ab532ecd (only .flow/ changed since)
