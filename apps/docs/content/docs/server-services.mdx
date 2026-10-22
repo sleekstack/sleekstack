@@ -18,13 +18,13 @@ A Server Service is a Context Tag whose methods are Effect signatures ([ADR 0051
 
 ## The implementation
 
-The implementation is an ordinary Layer in a `*.server.ts` file, given to `start({ layer })` like any other. Nothing is auto-discovered. The Layer is type-checked against the Tag, so a method changed in the contract fails the server compile.
+The implementation is an ordinary Layer in a `*.server.ts` file, given to `start({ layer })` like any other. Unlike a [Controller](/docs/controllers), an implementation is not discovered: the server entry passes it. The Layer is type-checked against the Tag, so a method changed in the contract fails the server compile.
 
 <include>../../snippets/server-services/profiles.server.ts</include>
 
 ## Request services
 
-An implementation that reads the request or its cookies is built with `implement(Tag, methods)` from `@sleekstack/start` ([ADR 0052](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0052-server-service-request-services.md)). Each method may require `Request`, `Cookies` and `ResponseHeaders`, and nothing else: any other service in a method's `R` is a type error at the `implement` call. The result is a `Layer<Tag>`, given to `start({ layer })` like any other.
+An implementation that reads the request or its cookies is built with `implement(Tag, methods)` from `@sleekstack/start` ([ADR 0052](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0052-server-service-request-services.md)). Each method may require `Request`, `Cookies`, `ResponseHeaders` and `ResponseStatus`, and nothing else: any other service in a method's `R` is a type error at the `implement` call. `ResponseStatus` sets only a Controller's answer, so here it has no effect. The result is a `Layer<Tag>`, given to `start({ layer })` like any other.
 
 <include>../../snippets/server-services/profiles-session.server.ts</include>
 
@@ -36,10 +36,11 @@ The [realworld app](https://github.com/sleekstack/sleekstack/tree/master/apps/re
 
 ## The generated modules
 
-`sleekstack()` from `@sleekstack/ui-vite` includes the generator. An app on another Vite setup adds `serverServices()` from the same package to its plugins. It serves two virtual modules, and it writes their types to `src/server.gen.d.ts` (option `serverDeclaration`). Commit that file, as you would `routes.gen.d.ts`.
+`sleekstack()` from `@sleekstack/ui-vite` includes the generator. An app on another Vite setup adds `serverServices()` from the same package to its plugins. It serves three virtual modules, and it writes their types to `src/server.gen.d.ts` (option `serverDeclaration`). Commit that file, as you would `routes.gen.d.ts`.
 
 - `virtual:sleek/server`: a Layer providing every Server Service Tag as a client. A call encodes the input, posts it to `POST /_sleek/fn/<Tag id>.<method>` and decodes the answer.
 - `virtual:sleek/server-registry`: each Tag with its method Schemas, for `start({ services })`.
+- `virtual:sleek/server-app`: the discovered app with its [Controllers](/docs/controllers), which `start()` reads on its first request.
 
 The declaration names each Tag from its contract file:
 
@@ -57,13 +58,15 @@ The wire is the Server Function wire of [ADR 0039](https://github.com/sleekstack
 
 ## The browser boundary
 
-A `*.server.ts` file reachable from browser code fails the client build, naming the import chain (`index.html -> src/main.ts -> src/page.ts -> src/profiles.server.ts`). `sleekstack check` reports the same as `ServerFileInClientGraph`. A `*.server.ts` imported only by server code or by tests is not an error, and an `import type` from client code is erased, so it is not an error either. The generated client imports each contract file and never an implementation.
+A server-only file reachable from browser code fails the client build, naming the import chain (`index.html -> src/main.ts -> src/page.ts -> src/profiles.server.ts`). The server-only files are `*.server.ts`, `*.controller.ts`, and a `_defaults.ts` under the server directory (`server`, option `serverDir`). `sleekstack check` reports the same as `ServerFileInClientGraph`. A server-only file imported only by server code or by tests is not an error, and an `import type` from client code is erased, so it is not an error either. The generated client imports each contract file and never an implementation.
 
 ## Testing
 
 A test Layer replaces the implementation with no transformer and no network. `callService` from `@sleekstack/testing` runs a method through `start(...).fetch`, the wire path, and resolves to an `Exit` like `callServerFn`. It takes the registry entry, which carries the Schemas.
 
 <include>../../snippets/server-services/profiles.test-example.ts</include>
+
+A Controller is tested the same way with `callController`, which takes the Controller's entry from the discovered app ([Controllers](/docs/controllers#testing)).
 
 ## What a Server Service does not do
 

@@ -2,7 +2,7 @@ import { Cookies, implement } from '@sleekstack/start'
 import { Effect } from 'effect'
 import { NameTaken, Profiles } from './profiles'
 
-/** `implement` builds the Layer: each method may use `Request`, `Cookies` and `ResponseHeaders`, read per call. */
+/** `implement` builds the Layer: each method may use the request services (`Request`, `Cookies`, ...), read per call. */
 export const ProfilesSessionLive = implement(Profiles, {
   rename: ({ name }) =>
     Effect.gen(function* () {
