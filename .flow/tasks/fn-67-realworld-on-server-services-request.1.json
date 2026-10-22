@@ -8,7 +8,7 @@
   "priority": null,
   "spec": "fn-67-realworld-on-server-services-request",
   "spec_path": ".flow/tasks/fn-67-realworld-on-server-services-request.1.md",
-  "status": "todo",
+  "status": "done",
   "title": "start: `implement(Tag, methods)` with request services, per call on the wire and in process",
   "updated_at": "2026-10-21T18:27:21.855695Z"
 }

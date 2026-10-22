@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-67-realworld-on-server-services-request",
   "spec_path": ".flow/tasks/fn-67-realworld-on-server-services-request.5.md",
-  "status": "todo",
+  "status": "done",
   "title": "realworld: comments Server Service, remove the contract machinery, docs",
   "updated_at": "2026-10-21T18:27:21.856231Z"
 }

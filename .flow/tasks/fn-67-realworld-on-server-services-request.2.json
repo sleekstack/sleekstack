@@ -8,7 +8,7 @@
   "priority": null,
   "spec": "fn-67-realworld-on-server-services-request",
   "spec_path": ".flow/tasks/fn-67-realworld-on-server-services-request.2.md",
-  "status": "todo",
+  "status": "done",
   "title": "analyze and ui-vite: `Schema.TaggedError` errors and string-keyed records in the type subset",
   "updated_at": "2026-10-21T18:27:21.856146Z"
 }
