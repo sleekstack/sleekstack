@@ -42,9 +42,28 @@ Build and prove the seam every later task uses: `start()` reads the discovered a
 - [ ] `pnpm turbo run test typecheck --filter=@sleekstack/start... --filter=@sleekstack/ui-vite...` passes
 
 ## Done summary
-TBD
+`start()` now takes no options. On its first request it reads the discovered app, which the `serverServices()` plugin serves as `virtual:sleek/server-app`. For now the plugin serves an empty app. `router` is optional: with no router and no discovered router, every page answers 404. With no options and nothing discovered, every request fails with a message that names the plugin. The entry contract is exported with TSDoc and has API reference entries: `DiscoveredApp`, `ControllerEntry`, `ControllerMethodEntry` and `ControllerOptions`.
 
+Spike outcome (the start package is a workspace link):
+- The zero-argument `start()` works in all three contexts: `ssrLoadModule`, a nested vitest run and `vite build --ssr`. Each test in `packages/ui-vite/src/__tests__/server-services.test.ts`, under "the discovered app", gets a 404 for a page. The app-passed form `start(app)` was not built. It would work too, because the server entry's own `import app from 'virtual:sleek/server-app'` resolves even when start is externalized. The fallback (a generated entry that calls `start`) is not needed.
+- The mechanism changed from the plan. A literal `import('virtual:sleek/server-app')` inside start broke every consumer that runs without the plugin. vitest's jsdom transform failed to resolve it, which failed all of `@sleekstack/testing`'s suites and start's own `client.test.ts`. `vite build --ssr` also failed in Rolldown. So start now imports a real stand-in, `packages/start/src/discovered.ts`, whose default export `undefined` means nothing is discovered. The plugin's `resolveId` (`order: 'pre'`) sends that import to `\0virtual:sleek/server-app`. Without the plugin, a build or a jsdom run of start works with explicit options, and with none it fails on the first request naming the plugin.
+- Externalized start: both forms fail at import, before discovery matters. This was already true before this task: start's dist uses extensionless relative imports, so Node alone cannot load it (ERR_MODULE_NOT_FOUND for `./start`). Forcing `ssr.noExternal: ['@sleekstack/start']` from the plugin was tried and dropped. Vitest maps it to `server.deps.inline`, and realworld's suite went from about 2s to about 60s of imports, with two timeouts.
+
+Contract notes for the later tasks:
+- The ambient `declare module 'virtual:sleek/server-app'` (default export `DiscoveredApp`) ships from start in `src/server-app.ts`. A side-effect import in `index.ts` pulls it in. The generated declaration in tasks 7 and 8 must not redeclare `default`. It can add named exports, for example entries typed by route name.
+- The entry values are eager, not lazy imports as task 8's text says. `ControllerEntry` is `{ route, pattern, methods: { [Method]?: { run, params?, query?, body?, success? } }, options: ControllerOptions[] }`. The `options` chain runs outermost first, and each element carries its `file` for app-load errors.
+- `serverServices()` does not write `virtual:sleek/server-app` into the server declaration and does not invalidate it in dev. Task 7 owns both.
+- "No explicit options" means `Object.keys(options).length === 0`, so `start({})` counts as none.
+- `configureRuntime` still runs when `start()` is called. Discovered Layers (sibling spec) will need it moved to the first request.
+- Follow-up, not built: start's dist is bundler-only (extensionless imports). Publishing it would need NodeNext imports.
+
+Gates: the baseline was green. `pnpm turbo run test typecheck` for the spec's filters, plus showcase and docs (api-coverage included), is green. `pnpm --filter realworld check` is green. The fixture graph check diff is empty.
+GATE_SKIPPED:unittest:green-receipt 1fa0aad3 - baseline reused from prior post-gate pass
+
+Tier: session (jev-unavailable(no_key)); routing block sets opus at medium (actual: claude-opus-5-5)
+
+stage: impl-review - ran (codex: fan-out NEEDS_WORK, 2 findings; fixed one, the other withdrawn; re-review SHIP)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 2bae4b0e50d7c461d96759be48392722de0cceb3, 1fa0aad352cf37554fc6e283f2aa8d182a03bfbc
+- Tests: GATE_SKIPPED:unittest:green-receipt 1fa0aad3 - baseline reused from prior post-gate pass, pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack --filter=@sleekstack/router... --filter=@sleekstack/ui-vite... --filter=@sleekstack/start... --filter=@sleekstack/testing --filter=realworld, pnpm turbo run test typecheck --filter=showcase --filter=docs, pnpm --filter realworld check, (cd packages/cli/src/__tests__/fixtures/effect-app && node ../../../../bin/cli.js check --json --entry runtime.ts) # diff vs pre-change: empty
 - PRs:
