@@ -67,6 +67,7 @@ GATE_SKIPPED:unittest:green-receipt 07faa8d8 - baseline reused from prior post-g
 Tier: session (jev-unavailable(no_key)); routing block sets opus at medium (actual: claude-opus-5-5)
 
 stage: impl-review - skipped(policy: user asked for one completion review at the end of the spec)
+stage: plan-sync - ran (sonnet; updated tasks 6, 9, 12)
 ## Evidence
 - Commits: 465aae15e0a1cd76b79ef25ebc880e57eaf7a411
 - Tests: pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack --filter=@sleekstack/router... --filter=@sleekstack/ui-vite... --filter=@sleekstack/start... --filter=@sleekstack/testing --filter=realworld, pnpm --filter realworld check, (cd apps/docs && pnpm generate:api && npx vitest run test/api-coverage.test.ts), (cd packages/cli/src/__tests__/fixtures/effect-app && node ../../../../bin/cli.js check --json --entry runtime.ts) # before/after diff empty, GATE_SKIPPED:unittest:green-receipt 07faa8d8 - baseline reused from prior post-gate pass
