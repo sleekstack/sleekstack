@@ -63,6 +63,7 @@ GATE_SKIPPED:unittest:green-receipt 1fa0aad3 - baseline reused from prior post-g
 Tier: session (jev-unavailable(no_key)); routing block sets opus at medium (actual: claude-opus-5-5)
 
 stage: impl-review - ran (codex: fan-out NEEDS_WORK, 2 findings; fixed one, the other withdrawn; re-review SHIP)
+stage: plan-sync - ran (sonnet; updated tasks 2, 3, 5, 6, 7, 8, 12)
 ## Evidence
 - Commits: 2bae4b0e50d7c461d96759be48392722de0cceb3, 1fa0aad352cf37554fc6e283f2aa8d182a03bfbc
 - Tests: GATE_SKIPPED:unittest:green-receipt 1fa0aad3 - baseline reused from prior post-gate pass, pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack --filter=@sleekstack/router... --filter=@sleekstack/ui-vite... --filter=@sleekstack/start... --filter=@sleekstack/testing --filter=realworld, pnpm turbo run test typecheck --filter=showcase --filter=docs, pnpm --filter realworld check, (cd packages/cli/src/__tests__/fixtures/effect-app && node ../../../../bin/cli.js check --json --entry runtime.ts) # diff vs pre-change: empty

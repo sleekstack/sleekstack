@@ -15,13 +15,13 @@ Find the Controllers and `_defaults.ts` files, name and order them, and keep the
 - Scan `*.controller.ts` under `controllersDir` (default `<serverDir>/routes`), following the `scan` shape at `routes.ts:128-148`: the `_` rule, `index`, `(group)`, route name and path from the analyzer's derivation (task 4). A `*.controller.ts` outside the directory, an optional or splat segment that is not last, and a URL starting with `/_sleek/` fail the build naming the file.
 - Collisions (R2): two Controllers differing only in param names, and a Controller and a page route with the same path, fail naming both; read the page routes through the existing scan helpers and compare with `sortKey` (`routes.ts:62-73`, export what is private). The plugin's sort is the single source of match order.
 - `_defaults.ts` chain per Controller, outer first, following `layoutsOf` (`routes.ts:104-116`).
-- Declaration: one writer for the Services and Controllers sections of the existing server declaration file (`server-services.ts:214-220`); write only when changed; keep the previous file when a scan fails.
-- Dev: add, remove, rename and edit of a Controller or `_defaults.ts` regenerate, invalidate `virtual:sleek/server-app` in every environment and full-reload (patterns `routes.ts:274-288`, `server-services.ts:262-282`); a `_defaults.ts` change re-resolves every Controller beneath it. Reset any memo in `configResolved` and `watchChange` (memory).
+- Declaration: one writer for the Services and Controllers sections of the existing server declaration file (`server-services.ts:226-232`); write only when changed; keep the previous file when a scan fails. `@sleekstack/start` already declares `virtual:sleek/server-app` ambiently (`packages/start/src/server-app.ts`, default export `DiscoveredApp`), so the written declaration must not redeclare `default`; it may add named exports, for example entries typed by route name. <!-- Updated by plan-sync: fn-68-file-routed-controllers.1 shipped the ambient declaration and moved the server-services.ts references -->
+- Dev: add, remove, rename and edit of a Controller or `_defaults.ts` regenerate, invalidate `virtual:sleek/server-app` in every environment and full-reload (patterns `routes.ts:274-288`, `server-services.ts:278-298`, whose invalidation loop covers only `MODULES`, not `SERVER_APP`); a `_defaults.ts` change re-resolves every Controller beneath it. Reset any memo in `configResolved` and `watchChange` (memory).
 
 ### Investigation targets
 **Required** (read before coding):
 - `packages/ui-vite/src/routes.ts:15-148,225-288`
-- `packages/ui-vite/src/server-services.ts:171-284`
+- `packages/ui-vite/src/server-services.ts:183-300`
 - `.flow/memory/bug/integration/virtual-module-needs-a-declaration-and-2026-10-18.md`
 - `.flow/memory/bug/integration/vite-plugin-memo-must-reset-per-build-2026-10-18.md`
 

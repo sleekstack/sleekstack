@@ -12,8 +12,8 @@ Replace the two private copies of the server-only rule with one analyzer export 
 **Files:** `packages/analyze/src/serverServices.ts`, `packages/analyze/src/extract.ts`, `packages/analyze/src/index.ts`, `packages/analyze/src/errorCodes.ts`, `packages/ui-vite/src/server-services.ts`, their tests
 
 ### Approach
-- Export one list as data: kind patterns (`*.server.ts`, `*.controller.ts`) plus reserved names scoped to the server directory (`_defaults.ts` now; the sibling spec adds `rpc.ts`, `_app.ts`), and one broadened test-file predicate (`__tests__/`, `test/`, `tests/`, `*.test.*`, `*.spec.*`). Today these are `SERVER_FILE` at `analyze/serverServices.ts:22` and `ui-vite/server-services.ts:18`, and `TEST_FILE` at `analyze/extract.ts:63` and `ui-vite/server-services.ts:20`.
-- Have the plugin read the list through its existing jiti route to the analyzer (`server-services.ts:143-158`), and delete its copies. The load guard (`:245-261`) uses the list; the watch predicate stays separate (it watches contract sources, not server-only files).
+- Export one list as data: kind patterns (`*.server.ts`, `*.controller.ts`) plus reserved names scoped to the server directory (`_defaults.ts` now; the sibling spec adds `rpc.ts`, `_app.ts`), and one broadened test-file predicate (`__tests__/`, `test/`, `tests/`, `*.test.*`, `*.spec.*`). Today these are `SERVER_FILE` at `analyze/serverServices.ts:22` and `ui-vite/server-services.ts:28`, and `TEST_FILE` at `analyze/extract.ts:63` and `ui-vite/server-services.ts:30`.
+- Have the plugin read the list through its existing jiti route to the analyzer (`server-services.ts:153-168`), and delete its copies. The load guard (`:260-277`) uses the list; the watch predicate stays separate (it watches contract sources, not server-only files). <!-- Updated by plan-sync: fn-68-file-routed-controllers.1 added lines to server-services.ts, so the line references moved -->
 - Add the `serverDir` plugin option (default `server`) used to scope the reserved names.
 - Update the `ServerFileInClientGraph` rule text (`errorCodes.ts:166`).
 - Equivalence pin: the existing boundary tests in analyze and ui-vite, the `server-boundary` check fixture, and the showcase and realworld client-chunk tests pass unchanged.
@@ -21,7 +21,7 @@ Replace the two private copies of the server-only rule with one analyzer export 
 ### Investigation targets
 **Required** (read before coding):
 - `packages/analyze/src/serverServices.ts:21-22,277-337` - list, valueImports, graph walk
-- `packages/ui-vite/src/server-services.ts:18-20,143-158,245-261` - copies, jiti route, load guard
+- `packages/ui-vite/src/server-services.ts:28-30,153-168,260-277` - copies, jiti route, load guard
 - `packages/analyze/src/errorCodes.ts:160-170`
 
 **Optional**:

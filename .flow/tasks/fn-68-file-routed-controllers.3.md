@@ -14,14 +14,14 @@ Extract the method-signature reader so Controller Methods and the sibling spec's
 ### Approach
 - Pull `methodOf` (`serverServices.ts:99-132`) out into a reader parameterised by whether `R` must be `never` (hand-written Server Services keep it; Controllers and RPC allow any `R`) and by the accepted input shape. Keep the written-signature, `hasAny` and Effect type-argument logic as it is.
 - Add a `ref` kind to `TypeSchema` (`typeSchema.ts:35-42`) for `Schema.Schema.Type<typeof X>`: read syntactically from the type node, inline or through a same-file alias, at any position of a written type (property, array element, union member); `X` must be an exported Schema value of a client-safe module, otherwise a diagnostic path (the code is added in task 4). Add a `codec: 'string'` flag for HTTP path and query values (finite-decimal `number`, `true`/`false` `boolean`); a referenced Schema is used as written.
-- Teach `printSchema` (`server-services.ts:63-84`) to print a `ref` through the existing `alias()` import mechanism and the string codecs.
+- Teach `printSchema` (`server-services.ts:73-94`) to print a `ref` through the existing `alias()` import mechanism and the string codecs. <!-- Updated by plan-sync: fn-68-file-routed-controllers.1 added lines to server-services.ts, so the line references moved -->
 - Equivalence pin: record the generated `virtual:sleek/server-registry` text for the realworld and showcase contracts and the analyzer's reader output for the existing fixtures before the change; they must match byte for byte after it.
 
 ### Investigation targets
 **Required** (read before coding):
 - `packages/analyze/src/serverServices.ts:96-156`
 - `packages/analyze/src/typeSchema.ts:35-201`
-- `packages/ui-vite/src/server-services.ts:63-135`
+- `packages/ui-vite/src/server-services.ts:73-145`
 - `.flow/memory/bug/build-errors/syntactic-default-export-check-must-2026-10-20.md` - skip type-only forms
 
 **Optional**:
