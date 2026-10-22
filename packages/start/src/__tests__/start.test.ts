@@ -2,7 +2,15 @@ import { loader, notFound, redirect, router, routes, useLoader } from '@sleeksta
 import { el } from '@sleekstack/ui'
 import { Cause, Context, Effect, Exit, FiberRef, Layer, Schema } from 'effect'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { Cookies, InvalidCookie, Request as RequestTag, ResponseHeaders, start } from '../index'
+import {
+  Cookies,
+  InvalidCookie,
+  InvalidStatus,
+  Request as RequestTag,
+  ResponseHeaders,
+  ResponseStatus,
+  start,
+} from '../index'
 import { requestServices } from '../services'
 
 class Greeting extends Context.Tag('Greeting')<Greeting, string>() {}
@@ -169,6 +177,16 @@ describe('request services', () => {
     const exit = await Effect.runPromiseExit(Effect.provide(set, requestServices(new Request('http://x.test')).layer))
     expect(exit).toEqual(Exit.fail(new InvalidCookie({ name, part: part as InvalidCookie['part'] })))
   })
+
+  it.each([199, 200, 599, 600, 200.5])(
+    'ResponseStatus.set(%d) takes an integer from 200 to 599, else dies with InvalidStatus',
+    async (n) => {
+      const exit = await Effect.runPromiseExit(
+        Effect.provide(ResponseStatus.set(n), requestServices(new Request('http://x.test')).layer),
+      )
+      expect(exit).toEqual(n === 200 || n === 599 ? Exit.void : Exit.die(new InvalidStatus({ status: n })))
+    },
+  )
 
   it('a test layer replaces the request services', async () => {
     const handler = () => Effect.map(Cookies, (c) => c.get('session'))

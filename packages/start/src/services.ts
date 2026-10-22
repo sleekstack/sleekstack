@@ -37,8 +37,22 @@ export interface CookieJar {
 /** The request's cookies, readable and settable; the response carries what was set. */
 export class Cookies extends Context.Tag('@sleekstack/start/Cookies')<Cookies, CookieJar>() {}
 
+/** A status given to `ResponseStatus.set` that is not an integer from 200 to 599: a programmer error, so a defect. */
+export class InvalidStatus extends Data.TaggedError('InvalidStatus')<{ readonly status: number }> {}
+
+/**
+ * The status of a Controller's answer: `yield* ResponseStatus.set(201)`. The default is 200, or 204 for `void`. Only
+ * a Controller's HTTP face reads it: the server-function wire and every other stage ignore it, and so does a
+ * Controller answer that is a `Response` or that `wrap` maps from a failure. A status that is not an integer from 200
+ * to 599 dies with `InvalidStatus`.
+ */
+export class ResponseStatus extends Effect.Tag('@sleekstack/start/ResponseStatus')<
+  ResponseStatus,
+  { readonly set: (status: number) => Effect.Effect<void> }
+>() {}
+
 /** The services `start` provides to every stage of a request. */
-export type RequestServices = Request | Cookies | ResponseHeaders
+export type RequestServices = Request | Cookies | ResponseHeaders | ResponseStatus
 
 const TOKEN = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/
 const VALUE = /^(?:[\x21\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*|"[\x21\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*")$/
@@ -101,10 +115,21 @@ export const requestServices = (request: globalThis.Request) => {
     set: (name, value, options = {}) => write(name, value, options),
     delete: (name, options = {}) => write(name, undefined, { ...options, maxAge: 0 }),
   }
+  let status: number | undefined
+  const setStatus = (n: number) =>
+    Number.isInteger(n) && n >= 200 && n <= 599
+      ? Effect.sync(() => void (status = n))
+      : Effect.die(new InvalidStatus({ status: n }))
   return {
     layer: Layer.succeedContext(
-      Context.make(Request, request).pipe(Context.add(Cookies, jar), Context.add(ResponseHeaders, headers)),
+      Context.make(Request, request).pipe(
+        Context.add(Cookies, jar),
+        Context.add(ResponseHeaders, headers),
+        Context.add(ResponseStatus, { set: setStatus }),
+      ),
     ),
+    /** The status set through `ResponseStatus`, if any. */
+    status: (): number | undefined => status,
     /** `response` with the `ResponseHeaders` and `Set-Cookie` lines added. */
     finish: (response: Response): Response => {
       if (setCookies.size === 0 && [...headers].length === 0) return response

@@ -2,7 +2,8 @@ import { handle, type Loaders, NotFound, Redirect, type Router, type RouteTable 
 import { configureRuntime, type ErrorSink, runEffect } from '@sleekstack/runtime'
 import type { Store, Transfer } from '@sleekstack/ui'
 import { Cause, Effect, Layer } from 'effect'
-import type { DiscoveredApp } from './app'
+import type { ControllerEntry, DiscoveredApp } from './app'
+import { matchController, serveController } from './controller'
 import { type Handler, runHandler } from './handler'
 import { type Middleware, runMiddleware } from './middleware'
 import { normalizeOrigin } from './origin'
@@ -31,6 +32,8 @@ export type StartOptions<T extends RouteTable, RP, RH, RM, RF, SE extends Server
   readonly router?: Router<T, RP>
   /** Route handlers by exact pathname. */
   readonly handlers?: { readonly [pathname: string]: Handler<any, RH> }
+  /** Controllers besides the discovered ones, matched after them in list order. */
+  readonly controllers?: ReadonlyArray<ControllerEntry>
   /** Run in order before every other stage. */
   readonly middleware?: ReadonlyArray<Middleware<any, RM>>
   /** Server functions, served at `POST /_sleek/fn/<id>`. Ids are unique and `[A-Za-z0-9][A-Za-z0-9_.-]*`. */
@@ -75,8 +78,8 @@ const discover = (explicit: boolean): Promise<DiscoveredApp> =>
 
 /**
  * The server entry: configures the runtime over `layer`, and `fetch` answers each request in one Request Scope,
- * through middleware, then server functions and Server Service methods, then the route handler for the pathname, then the router's page (an
- * unmatched path is its not-found page with 404). A defect or unhandled failure in any stage reaches `onError` and
+ * through middleware, then server functions and Server Service methods, then the route handler for the pathname, then
+ * the first Controller matching the path, then the router's page (an unmatched path is its not-found page with 404). A defect or unhandled failure in any stage reaches `onError` and
  * answers an empty 500. A `Redirect` or `NotFound` from middleware or a handler answers 302 or 404.
  *
  * Options merge with the discovered app, which `serverServices()` from `@sleekstack/ui-vite` serves as
@@ -120,7 +123,10 @@ export const start = <
         )
       : Effect.succeed(new Response(null, { status: 404 }))
   const fetch = async (request: globalThis.Request): Promise<Response> => {
-    const app = await (discovered ??= discover(explicit))
+    const app = await (discovered ??= discover(explicit).then((found) => ({
+      ...found,
+      controllers: [...found.controllers, ...(options.controllers ?? [])],
+    })))
     const router = (options.router as Router | undefined) ?? app.router
     const services = requestServices(request)
     const pathname = new URL(request.url).pathname
@@ -128,7 +134,9 @@ export const start = <
     const program = Effect.gen(function* () {
       const response = (yield* runMiddleware(middleware, request)) ?? (yield* serverFunctions(request))
       if (response) return response
-      return yield* handler ? runHandler(handler, request) : page(router, request)
+      if (handler) return yield* runHandler(handler, request)
+      const controller = matchController(app.controllers, pathname)
+      return yield* controller ? serveController(controller, request, services.status) : page(router, request)
     }).pipe(Effect.catchIf((e) => !isControl(e), Effect.die))
     try {
       return services.finish(await runEffect(program, { request: services.layer }))

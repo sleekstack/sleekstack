@@ -37,7 +37,7 @@ export interface Match<T extends RouteTable = RouteTable, K extends keyof T & st
 export class Route extends Context.Tag('@sleekstack/router/Route')<Route, Match>() {}
 
 /** Path segments without the leading and trailing slash (none for the root); internal empty segments are kept. */
-const segments = (s: string) => {
+export const segments = (s: string) => {
   const trimmed = s.replace(/^\/|\/$/g, '')
   return trimmed === '' ? [] : trimmed.split('/')
 }
@@ -53,8 +53,11 @@ const decode = (segment: string): string | undefined => {
 const isOptional = (p: string) => p.startsWith(':') && p.endsWith('?')
 const isSplat = (p: string) => p.startsWith('*')
 
-/** The params of `pattern` matched against decoded `actual` segments, or `undefined` when it does not match. */
-const bind = (pattern: string[], actual: string[]): Record<string, string> | undefined => {
+/**
+ * The params of `pattern` segments matched against decoded `actual` segments with `match`'s rules, or `undefined`
+ * when they do not match. Both are `segments` of a path; `match` decodes `actual` first.
+ */
+export const bind = (pattern: string[], actual: string[]): Record<string, string> | undefined => {
   const last = pattern[pattern.length - 1] ?? ''
   const tail = isOptional(last) || isSplat(last) ? last : undefined
   const head = tail === undefined ? pattern : pattern.slice(0, -1)

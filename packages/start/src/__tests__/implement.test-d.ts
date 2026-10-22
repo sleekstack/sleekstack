@@ -1,5 +1,5 @@
 import { Context, Data, Effect, type Layer } from 'effect'
-import { Cookies, implement, Request, ServerService } from '../index'
+import { Cookies, implement, Request, ResponseStatus, ServerService } from '../index'
 
 class NameTaken extends Data.TaggedError('NameTaken')<{ readonly name: string }> {}
 class Db extends Context.Tag('Db')<Db, { readonly taken: string }>() {}
@@ -18,6 +18,7 @@ const live = implement(Profiles, {
     Effect.gen(function* () {
       if ((yield* Cookies).get('session') === undefined) return yield* new NameTaken(input)
       yield* Request
+      yield* ResponseStatus.set(201)
       return input
     }),
 })
