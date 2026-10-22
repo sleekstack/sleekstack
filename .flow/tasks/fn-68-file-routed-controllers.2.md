@@ -3,7 +3,7 @@ satisfies: [R12]
 ---
 # fn-68-file-routed-controllers.2 analyze+ui-vite: one server-only list shared by check and the plugin
 
-Touches: [packages/analyze/src/serverServices.ts, packages/analyze/src/extract.ts, packages/analyze/src/index.ts, packages/analyze/src/errorCodes.ts, packages/analyze/src/__tests__/**, packages/ui-vite/src/server-services.ts, packages/ui-vite/src/__tests__/server-services.test.ts]
+Touches: [packages/analyze/src/serverServices.ts, packages/analyze/src/extract.ts, packages/analyze/src/index.ts, packages/analyze/src/errorCodes.ts, packages/analyze/src/__tests__/**, packages/ui-vite/src/server-services.ts, packages/ui-vite/src/analyze.ts, packages/ui-vite/src/index.ts, packages/ui-vite/src/__tests__/server-services.test.ts, packages/cli/llms.md]
 
 ## Description
 Replace the two private copies of the server-only rule with one analyzer export (R12), and add the new Controller kinds to it. Refactor-shaped: `*.server.ts` behaviour must not change.
@@ -14,7 +14,8 @@ Replace the two private copies of the server-only rule with one analyzer export 
 ### Approach
 - Export one list as data: kind patterns (`*.server.ts`, `*.controller.ts`) plus reserved names scoped to the server directory (`_defaults.ts` now; the sibling spec adds `rpc.ts`, `_app.ts`), and one broadened test-file predicate (`__tests__/`, `test/`, `tests/`, `*.test.*`, `*.spec.*`). Today these are `SERVER_FILE` at `analyze/serverServices.ts:22` and `ui-vite/server-services.ts:28`, and `TEST_FILE` at `analyze/extract.ts:63` and `ui-vite/server-services.ts:30`.
 - Have the plugin read the list through its existing jiti route to the analyzer (`server-services.ts:153-168`), and delete its copies. The load guard (`:260-277`) uses the list; the watch predicate stays separate (it watches contract sources, not server-only files). <!-- Updated by plan-sync: fn-68-file-routed-controllers.1 added lines to server-services.ts, so the line references moved -->
-- Add the `serverDir` plugin option (default `server`) used to scope the reserved names.
+- Add the `serverDir` plugin option (default `server`) used to scope the reserved names. It must reach every consumer in `sleekstack()`: the bundled `analyze()` plugin (`ui-vite/src/analyze.ts`) takes the directory and passes it to `analyzeServerServices({ project, serverDir })`, and `index.ts` hands it `options.serverDir`. Test `sleekstack({ serverDir: 'lib' })`: it allows `server/_defaults.ts` and rejects `lib/_defaults.ts`. <!-- Added after impl-review round 1 of this task (SCOPE_EXCEEDED): Touches widened to analyze.ts, index.ts and llms.md (the rule-text change regenerates it) -->
+- `sleekstack check` cannot see a Vite option, so it reads the default `server` directory; a custom `serverDir` is a Vite-only option and the docs (task 12) say so. No CLI flag.
 - Update the `ServerFileInClientGraph` rule text (`errorCodes.ts:166`).
 - Equivalence pin: the existing boundary tests in analyze and ui-vite, the `server-boundary` check fixture, and the showcase and realworld client-chunk tests pass unchanged.
 
