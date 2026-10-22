@@ -1,6 +1,6 @@
 import { router, routes } from '@sleekstack/router'
 import { el } from '@sleekstack/ui'
-import { Data, Effect } from 'effect'
+import { Data, Effect, Schema } from 'effect'
 import { describe, expect, it } from 'vitest'
 import {
   type ControllerEntry,
@@ -22,7 +22,8 @@ const entry = (
   options: ControllerEntry['options'] = [],
 ): ControllerEntry => ({ route: pattern, pattern, methods, options })
 
-const echo: ControllerMethodEntry = { run: ({ params }) => Effect.succeed(params) }
+const params = Schema.Record({ key: Schema.String, value: Schema.String })
+const echo: ControllerMethodEntry = { params, run: ({ params }) => Effect.succeed(params) }
 const answer = (value: unknown): ControllerMethodEntry => ({ run: () => Effect.succeed(value) })
 
 // Maps every failure to a JSON 418 naming it, and marks each answer it runs.
@@ -53,6 +54,7 @@ const server = start({
     }),
     entry('/status/:n', {
       GET: {
+        params,
         run: ({ params }) =>
           Effect.gen(function* () {
             yield* ResponseStatus.set(Number(params.n))

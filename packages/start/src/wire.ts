@@ -13,7 +13,8 @@ export class DecodeError extends Schema.TaggedError<DecodeError>()('DecodeError'
   ),
 }) {}
 
-const decodeError = (error: ParseResult.ParseError): DecodeError =>
+/** A `ParseError` as a `DecodeError`, one issue per field. */
+export const decodeError = (error: ParseResult.ParseError): DecodeError =>
   new DecodeError({
     issues: ParseResult.ArrayFormatter.formatErrorSync(error).map((i) => ({
       path: i.path.map((p) => (typeof p === 'number' ? p : String(p))),
@@ -40,7 +41,7 @@ const json = (status: number, body: unknown) => Response.json(body, { status })
 const empty = (status: number, headers?: HeadersInit) => new Response(null, { status, headers })
 
 /** Reads the body as text, or `undefined` once it passes `limit` bytes. */
-const readBody = async (request: Request, limit: number): Promise<string | undefined> => {
+export const readBody = async (request: Request, limit: number): Promise<string | undefined> => {
   if (Number(request.headers.get('content-length')) > limit) return undefined
   if (!request.body) return ''
   const reader = request.body.getReader()
