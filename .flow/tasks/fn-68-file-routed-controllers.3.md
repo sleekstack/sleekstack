@@ -12,16 +12,16 @@ Extract the method-signature reader so Controller Methods and the sibling spec's
 **Files:** `packages/analyze/src/serverServices.ts`, `packages/analyze/src/typeSchema.ts`, `packages/analyze/src/index.ts`, `packages/ui-vite/src/server-services.ts`, their tests and fixtures
 
 ### Approach
-- Pull `methodOf` (`serverServices.ts:99-132`) out into a reader parameterised by whether `R` must be `never` (hand-written Server Services keep it; Controllers and RPC allow any `R`) and by the accepted input shape. Keep the written-signature, `hasAny` and Effect type-argument logic as it is.
+- Pull `methodOf` (`serverServices.ts:122-155`) out into a reader parameterised by whether `R` must be `never` (hand-written Server Services keep it; Controllers and RPC allow any `R`) and by the accepted input shape. Keep the written-signature, `hasAny` and Effect type-argument logic as it is. <!-- Updated by plan-sync: fn-68-file-routed-controllers.2 added lines to serverServices.ts (the `SERVER_ONLY` list, `isServerOnly`, the `serverDir` option), so the line references moved -->
 - Add a `ref` kind to `TypeSchema` (`typeSchema.ts:35-42`) for `Schema.Schema.Type<typeof X>`: read syntactically from the type node, inline or through a same-file alias, at any position of a written type (property, array element, union member); `X` must be an exported Schema value of a client-safe module, otherwise a diagnostic path (the code is added in task 4). Add a `codec: 'string'` flag for HTTP path and query values (finite-decimal `number`, `true`/`false` `boolean`); a referenced Schema is used as written.
-- Teach `printSchema` (`server-services.ts:73-94`) to print a `ref` through the existing `alias()` import mechanism and the string codecs. <!-- Updated by plan-sync: fn-68-file-routed-controllers.1 added lines to server-services.ts, so the line references moved -->
+- Teach `printSchema` (`server-services.ts:74-95`) to print a `ref` through the existing `alias()` import mechanism and the string codecs. <!-- Updated by plan-sync: fn-68-file-routed-controllers.1 added lines to server-services.ts, so the line references moved --> <!-- Updated by plan-sync: fn-68-file-routed-controllers.2 moved them again -->
 - Equivalence pin: record the generated `virtual:sleek/server-registry` text for the realworld and showcase contracts and the analyzer's reader output for the existing fixtures before the change; they must match byte for byte after it.
 
 ### Investigation targets
 **Required** (read before coding):
-- `packages/analyze/src/serverServices.ts:96-156`
+- `packages/analyze/src/serverServices.ts:119-179`
 - `packages/analyze/src/typeSchema.ts:35-201`
-- `packages/ui-vite/src/server-services.ts:73-145`
+- `packages/ui-vite/src/server-services.ts:74-146`
 - `.flow/memory/bug/build-errors/syntactic-default-export-check-must-2026-10-20.md` - skip type-only forms
 
 **Optional**:

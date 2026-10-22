@@ -14,15 +14,15 @@ Recognise Controllers in the analyzer: their methods through the shared reader, 
 ### Approach
 - Recognise `*.controller.ts` files and their method exports: names matched case-sensitively, a near-miss (`get`, `Post`, `export default`) is `ControllerMethodShape`; one input object with keys limited to `params`, `query`, `body` (or none); `body` only on POST, PUT, PATCH, DELETE; referenced `params`/`query` Schemas must encode to strings. Reuse the task 3 reader.
 - Own the Controller route-path derivation here (ADR 0050 syntax, `.controller.ts` suffix stripped, `index` and `(group)` kept in the route name) so the plugin and check share one source; check that `params` keys equal the path's params (`ControllerParamsMismatch`, including a missing `params` on a parameterised path).
-- Add the two codes to the closed `AnalyzeCode` union and its table (`errorCodes.ts:11-32,48-170`), reword `ServerServiceTypeNotSerializable` to cover Controller types, update `errors.mdx:72-80`, and regenerate `cli/llms.md` (`UPDATE_LLMS=1`). `llms.md` is 7433 of 8192 bytes: shorten the generated rows to one line each rather than raising the cap.
+- Add the two codes to the closed `AnalyzeCode` union and its table (`errorCodes.ts:11-32,48-170`), reword `ServerServiceTypeNotSerializable` to cover Controller types, update `errors.mdx:72-80`, and regenerate `cli/llms.md` (`UPDATE_LLMS=1`). `llms.md` is 7515 of 8192 bytes: shorten the generated rows to one line each rather than raising the cap. <!-- Updated by plan-sync: fn-68-file-routed-controllers.2 reworded the `ServerFileInClientGraph` rule and regenerated llms.md (was 7433 bytes) -->
 - `check`: treat discovered Controllers as roots so a server-only app does not exit 2 (`check.ts:104-110`); a requirement a directory `wrap` discharges (its `next` requirements minus its result's) counts as provided for the Controllers beneath it (R3).
 
 ### Investigation targets
 **Required** (read before coding):
-- `packages/analyze/src/serverServices.ts:159-258` - checkFile, checkStart
+- `packages/analyze/src/serverServices.ts:182-281` - checkFile, checkStart
 - `packages/analyze/src/errorCodes.ts:11-179`
 - `packages/cli/src/check.ts:100-140`
-- `packages/analyze/src/extract.ts:707-766` - layerLeaf, for reading `wrap` and Layer types
+- `packages/analyze/src/extract.ts:708-767` - layerLeaf, for reading `wrap` and Layer types
 
 **Optional**:
 - `packages/analyze/src/__tests__/errorCodes.test.ts`, `packages/cli/src/__tests__/llms.test.ts`
