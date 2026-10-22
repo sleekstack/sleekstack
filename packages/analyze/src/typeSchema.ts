@@ -48,11 +48,12 @@ export type TypeSchema =
   /** `Schema.Schema.Type<typeof X>`: the Schema `X`, exported as `name` by `file` (relative to the tsconfig directory). */
   | { readonly kind: 'ref'; readonly file: string; readonly name: string }
 
-export interface MethodSchema {
+export interface MethodSchema<Success extends TypeSchema | undefined = TypeSchema> {
   /** `void` for a method without a parameter. */
   readonly input: TypeSchema
-  readonly success: TypeSchema
-  /** The tagged errors of `E`; `Redirect` and `NotFound` are left to the wire. */
+  /** Undefined only for a signature whose return type is not written. */
+  readonly success: Success
+  /** The tagged errors of `E`; `Redirect` and `NotFound` are left to the wire. Empty when `E` is not read. */
   readonly error: readonly TaggedErrorSchema[]
 }
 
@@ -95,9 +96,10 @@ export const taggedErrorBase = (
 }
 
 /**
- * The method's types as a `MethodSchema`. `written` holds the signature's parameter and return type nodes, the text a
- * Schema reference is read from: inline, through a type alias of the signature's file, as a property, an array element
- * or a union member. A referenced `X` must be an exported value of a module that is not `serverOnly`.
+ * The method's types as a `MethodSchema`. `written` is the signature, whose parameter and return type nodes are the
+ * text a Schema reference is read from: inline, through a type alias of the signature's file, as a property, an array
+ * element or a union member. A referenced `X` must be an exported value of a module that is not `serverOnly`. With no
+ * written return type there is no success Schema; `error` undefined leaves `E` unread.
  */
 export const methodSchema = (
   ctx: {
@@ -109,10 +111,10 @@ export const methodSchema = (
   m: {
     readonly input: ts.Type | undefined
     readonly success: ts.Type
-    readonly error: ts.Type
-    readonly written: { readonly input: ts.TypeNode | undefined; readonly returns: ts.TypeNode }
+    readonly error: ts.Type | undefined
+    readonly written: ts.SignatureDeclaration
   },
-): MethodSchema | NotSerializable | Unreadable => {
+): MethodSchema<TypeSchema | undefined> | NotSerializable | Unreadable => {
   const { program, checker } = ctx
   const F = ts.TypeFlags
   /** Object types on the current path: meeting one again is a recursive type. */
@@ -120,7 +122,7 @@ export const methodSchema = (
   const bad = (at: string, t: ts.Type, why: string): never => {
     throw new NotSerializable(at, checker.typeToString(t), why)
   }
-  const home = m.written.returns.getSourceFile()
+  const home = m.written.getSourceFile()
   const unfollowable = (n: ts.Node): never => {
     throw new Unreadable(
       n,
@@ -335,19 +337,22 @@ export const methodSchema = (
     return [{ ...error, fields: fields?.properties ?? [] }]
   }
 
-  const returns = unalias(m.written.returns)
+  const written = m.written.type
+  const returns = written && unalias(written)
   const effect =
-    ts.isTypeReferenceNode(returns) && libId(checker.getSymbolAtLocation(returns.typeName), checker) === EFFECT
+    returns &&
+    ts.isTypeReferenceNode(returns) &&
+    libId(checker.getSymbolAtLocation(returns.typeName), checker) === EFFECT
       ? returns
       : undefined
   try {
     // Only `A` of a written `Effect.Effect<A, E, R>` may hold a reference.
-    for (const n of effect ? (effect.typeArguments?.slice(1) ?? []) : [m.written.returns])
+    for (const n of effect ? (effect.typeArguments?.slice(1) ?? []) : written ? [written] : [])
       if (referencesIn(n).size) unfollowable(n)
     return {
-      input: m.input ? convert(m.input, 'input', m.written.input) : { kind: 'void' },
-      success: convert(m.success, 'success', effect?.typeArguments?.[0]),
-      error: errorOf(m.error),
+      input: m.input ? convert(m.input, 'input', m.written.parameters[0]?.type) : { kind: 'void' },
+      success: written && convert(m.success, 'success', effect?.typeArguments?.[0]),
+      error: m.error ? errorOf(m.error) : [],
     }
   } catch (e) {
     if (e instanceof NotSerializable || e instanceof Unreadable) return e

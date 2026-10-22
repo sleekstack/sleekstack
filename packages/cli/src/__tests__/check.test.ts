@@ -67,6 +67,19 @@ describe('sleekstack check', () => {
     expect(JSON.parse(run(fixture('entry'), '--json').out)).not.toHaveProperty('serverServiceErrors')
   })
 
+  it('a server-only app: its Controllers are roots, and a service nobody provides is MissingDependency', () => {
+    const text = run(fixture('controllers'))
+    expect(text.code).toBe(1)
+    expect(text.err).toMatch(
+      /server\/routes\/index\.controller\.ts:6 MissingDependency: Controller "index" GET requires "Db", [^\n]*\n {4}fix: /,
+    )
+    const json = JSON.parse(run(fixture('controllers'), '--json').out)
+    expect(json.controllerErrors.map((e: { code: string; line: number }) => [e.code, e.line])).toEqual([
+      ['MissingDependency', 6],
+    ])
+    expect(JSON.parse(run(fixture('entry'), '--json').out)).not.toHaveProperty('controllerErrors')
+  })
+
   it('a crash exits 2', () => {
     const r = run(fixture('none'), '--project', 'missing.json', '--json')
     expect([r.code, r.out]).toEqual([2, ''])

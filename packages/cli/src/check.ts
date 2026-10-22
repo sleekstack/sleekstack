@@ -9,7 +9,8 @@
  * unresolvable one into an opaque root instead of a failure.
  * A project whose package.json lists `@sleekstack/ui` also runs the component pass (`components` under `--json`);
  * its `mount` trees count as roots. The Server Service pass always runs (`serverServiceErrors` under `--json`, only
- * when there are any). Each text error line `file:line CODE: message` is followed by indented
+ * when there are any), and so does the Controller pass: the `*.controller.ts` files under `server/routes` are roots too
+ * (`controllerErrors` under `--json`, only when there are any). Each text error line `file:line CODE: message` is followed by indented
  * `fix:` and `docs:` lines. `sleekstack explain <CODE>` prints a code's rule, remedies and docs path.
  *
  * Exit codes (the only place they are defined):
@@ -24,6 +25,7 @@ import { initAgents } from './initAgents'
 import {
   analyze,
   analyzeComponents,
+  analyzeControllers,
   analyzeServerServices,
   ERROR_CODES,
   type AnalyzeCode,
@@ -101,7 +103,13 @@ export function main(argv: readonly string[], io: Io = stdio): number {
       lenient,
     })
     const ui = components(project)
-    if (report.runtimes.length === 0 && !ui?.trees.length)
+    const controllers = analyzeControllers({ project })
+    if (
+      report.runtimes.length === 0 &&
+      !ui?.trees.length &&
+      !controllers.controllers.length &&
+      !controllers.errors.length
+    )
       return (
         io.err(
           `No roots: no configureRuntime call ${ui ? 'or @sleekstack/ui mount ' : ''}found (pass --entry or set "sleekstack.entry" in package.json${ui ? ', or mount a tree' : ''}).\n${USAGE}`,
@@ -122,7 +130,8 @@ export function main(argv: readonly string[], io: Io = stdio): number {
       report.extraction.length === 0 &&
       roots.every((r) => r.errors.length === 0) &&
       !ui?.errors.length &&
-      server.length === 0
+      server.length === 0 &&
+      controllers.errors.length === 0
     const line = (e: AnalyzeError) =>
       `  ${e.file}:${e.line} ${e.code}: ${e.message}${e.fix.map((f) => `\n    fix: ${f}`).join('')}\n    docs: ${e.docs}`
     if (json)
@@ -136,6 +145,7 @@ export function main(argv: readonly string[], io: Io = stdio): number {
             graphErrors: report.errors,
             ...(ui && { components: ui }),
             ...(server.length > 0 && { serverServiceErrors: server }),
+            ...(controllers.errors.length > 0 && { controllerErrors: controllers.errors }),
           },
           null,
           2,
@@ -149,6 +159,7 @@ export function main(argv: readonly string[], io: Io = stdio): number {
         )
       ui?.errors.forEach((e) => io.err(line(e)))
       server.forEach((e) => io.err(line(e)))
+      controllers.errors.forEach((e) => io.err(line(e)))
     }
     return ok ? 0 : 1
   } catch (e) {

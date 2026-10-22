@@ -10,10 +10,10 @@ const file = `${pkgDir}/llms.md`
 const START = '<!-- generated:errors:start -->'
 const END = '<!-- generated:errors:end -->'
 
-/** The generated section; run with `UPDATE_LLMS=1` to rewrite llms.md from the table. */
+/** The generated section, one rule per code (`sleekstack explain` prints the fixes); `UPDATE_LLMS=1` rewrites llms.md. */
 export const errorsSection = () =>
   Object.entries(ERROR_CODES)
-    .map(([code, h]) => `- \`${code}\`: ${h.rule} Fix: ${h.fix.join('; ')}.`)
+    .map(([code, h]) => `- \`${code}\`: ${h.rule}`)
     .join('\n')
 
 describe('llms.md', () => {

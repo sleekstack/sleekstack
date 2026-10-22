@@ -12,7 +12,14 @@ import ts from 'typescript'
 import { analyzeError } from './errorCodes'
 import { libId, programOf, TEST_FILE } from './extract'
 import type { AnalyzeCode, AnalyzeError, Location } from './model'
-import { type MethodSchema, methodSchema, NotSerializable, taggedErrorBase, Unreadable } from './typeSchema'
+import {
+  type MethodSchema,
+  methodSchema,
+  NotSerializable,
+  taggedErrorBase,
+  type TypeSchema,
+  Unreadable,
+} from './typeSchema'
 
 const SERVER_SERVICE = 'start/service#ServerService'
 const EFFECT = 'effect/Effect#Effect'
@@ -52,13 +59,31 @@ export interface ServerServiceMethod {
 }
 
 /** A method's written signature `(input) => Effect.Effect<A, E, R>`: its types and their Schema description. */
-export interface MethodSignature {
+export interface MethodSignature<Success extends TypeSchema | undefined = TypeSchema> {
   /** The parameter's type; undefined for a method without one. */
   readonly input: ts.Type | undefined
   readonly success: ts.Type
   readonly error: ts.Type
   readonly requires: ts.Type
-  readonly schema: MethodSchema
+  readonly schema: MethodSchema<Success>
+}
+
+/** The program a signature is read in; `serverDir` (absolute) scopes the server-only modules. */
+export interface SignatureContext {
+  readonly program: ts.Program
+  readonly checker: ts.TypeChecker
+  readonly root: string
+  readonly serverDir: string
+}
+
+/** What a caller accepts beyond the shared rules. */
+interface Accept {
+  /** `'never'` (a hand-written Server Service) refuses a required service. */
+  readonly requires: 'never' | 'any'
+  /** Refuses a parameter type, returning why. */
+  readonly input?: (type: ts.Type) => string | undefined
+  /** `'any'`: `E` may be any type and is not read (a Controller's never crosses the wire). Default: tagged errors. */
+  readonly errors?: 'any'
 }
 
 const hasAny = (n: ts.Node): boolean => n.kind === ts.SyntaxKind.AnyKeyword || !!ts.forEachChild(n, hasAny)
@@ -69,48 +94,111 @@ const isAny = (t: ts.Type) => !!(t.flags & ts.TypeFlags.Any)
 
 /**
  * The signature reader Server Service, Controller and RPC methods share (R4): `sig` as written, one parameter or none,
- * no `any`, returning a written `Effect.Effect<A, E, R>`. `requires: 'never'` (a hand-written Server Service) refuses a
- * required service; `input` refuses a parameter type, returning why. `serverDir` (absolute) scopes the server-only
- * modules a Schema reference may not come from. A refusal is `Unreadable` (the method's shape) or `NotSerializable`.
+ * no `any`, returning a written `Effect.Effect<A, E, R>`. With `returns: 'optional'` the return type may be left out:
+ * the inferred one must still be an Effect, and there is no success Schema. A refusal is `Unreadable` (the method's
+ * shape) or `NotSerializable`.
  */
-export const readSignature = (
-  ctx: {
-    readonly program: ts.Program
-    readonly checker: ts.TypeChecker
-    readonly root: string
-    readonly serverDir: string
-  },
+export function readSignature(
+  ctx: SignatureContext,
   sig: ts.SignatureDeclaration,
-  accept: { readonly requires: 'never' | 'any'; readonly input?: (type: ts.Type) => string | undefined },
-): MethodSignature | Unreadable | NotSerializable => {
+  accept: Accept & { readonly returns: 'optional' },
+): MethodSignature<TypeSchema | undefined> | Unreadable | NotSerializable
+export function readSignature(
+  ctx: SignatureContext,
+  sig: ts.SignatureDeclaration,
+  accept: Accept,
+): MethodSignature | Unreadable | NotSerializable
+export function readSignature(
+  ctx: SignatureContext,
+  sig: ts.SignatureDeclaration,
+  accept: Accept & { readonly returns?: 'optional' },
+): MethodSignature<TypeSchema | undefined> | Unreadable | NotSerializable {
   const { checker } = ctx
   const effect = 'does not return an `Effect.Effect<A, E>`'
-  if (!sig.type) return new Unreadable(sig, 'needs an explicit function type `(input) => Effect.Effect<A, E>`')
+  if (!sig.type && accept.returns !== 'optional')
+    return new Unreadable(sig, 'needs an explicit function type `(input) => Effect.Effect<A, E>`')
   if (writesAny(sig)) return new Unreadable(sig, 'is typed with `any`; write out the types')
   if (sig.parameters.length > 1)
     return new Unreadable(sig.parameters[1]!, 'takes more than one parameter; pass one object')
   const param = sig.parameters[0]
   const input = param ? checker.getTypeAtLocation(param) : undefined
-  const ret = checker.getTypeFromTypeNode(sig.type)
-  if (libId(ret.aliasSymbol ?? ret.getSymbol(), checker) !== EFFECT) return new Unreadable(sig.type, effect)
+  const inferred = checker.getSignatureFromDeclaration(sig)
+  const ret = sig.type ? checker.getTypeFromTypeNode(sig.type) : inferred && checker.getReturnTypeOfSignature(inferred)
+  const at = sig.type ?? sig
+  if (!ret || libId(ret.aliasSymbol ?? ret.getSymbol(), checker) !== EFFECT) return new Unreadable(at, effect)
   const [success, error, requires] = checker.getTypeArguments(ret as ts.TypeReference)
-  if (!success || !error || !requires) return new Unreadable(sig.type, effect)
+  if (!success || !error || !requires) return new Unreadable(at, effect)
   if ([input, success, error, requires].some((t) => t && isAny(t)))
     return new Unreadable(sig, 'is typed with `any`; write out the types')
   if (accept.requires === 'never' && !(requires.flags & ts.TypeFlags.Never))
-    return new Unreadable(
-      sig.type,
-      `requires "${checker.typeToString(requires)}"; a Server Service method needs no services`,
-    )
+    return new Unreadable(at, `requires "${checker.typeToString(requires)}"; a Server Service method needs no services`)
   const refused = param && input && accept.input?.(input)
   if (refused) return new Unreadable(param, refused)
   const schema = methodSchema(
     { ...ctx, serverOnly: (file) => isServerOnly(file, ctx.serverDir) },
-    { input, success, error, written: { input: param?.type, returns: sig.type } },
+    { input, success, error: accept.errors === 'any' ? undefined : error, written: sig },
   )
   return schema instanceof NotSerializable || schema instanceof Unreadable
     ? schema
     : { input, success, error, requires, schema }
+}
+
+/** `n`'s location, its file relative to `root`. */
+export const locationOf = (root: string, n: ts.Node): Location => {
+  const sf = n.getSourceFile()
+  const start = sf.getLineAndCharacterOfPosition(n.getStart(sf))
+  const end = sf.getLineAndCharacterOfPosition(n.getEnd())
+  return {
+    file: path.relative(root, sf.fileName),
+    line: start.line + 1,
+    column: start.character + 1,
+    endLine: end.line + 1,
+    endColumn: end.character + 1,
+  }
+}
+
+/** The project's own source files: its root files, without declarations, `node_modules` and tests. */
+export const sourcesOf = (program: ts.Program, root: string): ts.SourceFile[] =>
+  program
+    .getSourceFiles()
+    .filter(
+      (sf) =>
+        !sf.isDeclarationFile &&
+        !/[\\/]node_modules[\\/]/.test(sf.fileName) &&
+        program.getRootFileNames().includes(sf.fileName) &&
+        !TEST_FILE.test(path.relative(root, sf.fileName)),
+    )
+
+/** The `start(...)` calls in `sources`, each with its options object literal when it has one. */
+export const startCalls = (
+  sources: readonly ts.SourceFile[],
+  checker: ts.TypeChecker,
+): Array<{ readonly call: ts.CallExpression; readonly options: ts.ObjectLiteralExpression | undefined }> => {
+  const out: Array<{ call: ts.CallExpression; options: ts.ObjectLiteralExpression | undefined }> = []
+  const visit = (n: ts.Node): void => {
+    if (ts.isCallExpression(n) && libId(checker.getSymbolAtLocation(n.expression), checker) === START) {
+      const options = n.arguments[0]
+      out.push({ call: n, options: options && ts.isObjectLiteralExpression(options) ? options : undefined })
+    }
+    ts.forEachChild(n, visit)
+  }
+  sources.forEach(visit)
+  return out
+}
+
+/** The value of the property `name` of an object literal: `name: value` or the shorthand `name`. */
+export const propertyOf = (options: ts.ObjectLiteralExpression, name: string): ts.Expression | undefined => {
+  const p = options.properties.find((x) => x.name !== undefined && ts.isIdentifier(x.name) && x.name.text === name)
+  return p && ts.isPropertyAssignment(p) ? p.initializer : p && ts.isShorthandPropertyAssignment(p) ? p.name : undefined
+}
+
+/** The Tags a Layer expression provides (its `ROut` members); undefined when its type is not a readable Layer. */
+export const layerOutputs = (layer: ts.Expression, checker: ts.TypeChecker): ts.Type[] | undefined => {
+  const type = checker.getTypeAtLocation(layer)
+  if (libId(type.aliasSymbol ?? type.getSymbol(), checker) !== LAYER) return undefined
+  const out = checker.getTypeArguments(type as ts.TypeReference)[0]
+  if (!out || out.flags & ts.TypeFlags.Any) return undefined
+  return out.flags & ts.TypeFlags.Never ? [] : out.isUnion() ? out.types : [out]
 }
 
 export interface ServerServiceDecl {
@@ -138,18 +226,7 @@ export function analyzeServerServices(opts: {
   const serverDir = path.resolve(root, opts.serverDir ?? 'server')
   const errors: AnalyzeError[] = []
   const services: ServerServiceDecl[] = []
-  const loc = (n: ts.Node): Location => {
-    const sf = n.getSourceFile()
-    const start = sf.getLineAndCharacterOfPosition(n.getStart(sf))
-    const end = sf.getLineAndCharacterOfPosition(n.getEnd())
-    return {
-      file: path.relative(root, sf.fileName),
-      line: start.line + 1,
-      column: start.character + 1,
-      endLine: end.line + 1,
-      endColumn: end.character + 1,
-    }
-  }
+  const loc = (n: ts.Node) => locationOf(root, n)
   const report = (code: AnalyzeCode, n: ts.Node, message: string) => errors.push(analyzeError(code, message, loc(n)))
 
   const callee = (c: ts.CallExpression) => libId(checker.getSymbolAtLocation(c.expression), checker)
@@ -249,15 +326,7 @@ export function analyzeServerServices(opts: {
     ts.isEmptyStatement(s) ||
     (ts.isExportDeclaration(s) && (s.isTypeOnly || !s.moduleSpecifier))
 
-  const sources = program
-    .getSourceFiles()
-    .filter(
-      (sf) =>
-        !sf.isDeclarationFile &&
-        !/[\\/]node_modules[\\/]/.test(sf.fileName) &&
-        program.getRootFileNames().includes(sf.fileName) &&
-        !TEST_FILE.test(path.relative(root, sf.fileName)),
-    )
+  const sources = sourcesOf(program, root)
   for (const sf of sources) {
     const found: ts.ClassLikeDeclaration[] = []
     const stray: ts.CallExpression[] = []
@@ -281,15 +350,7 @@ export function analyzeServerServices(opts: {
 
   /** `start({ services, layer })`: each registered Tag needs an implementation in `layer`, as `start`'s own types require. */
   const checkStart = (call: ts.CallExpression, options: ts.ObjectLiteralExpression) => {
-    const valueOf = (name: string) => {
-      const p = options.properties.find((x) => x.name !== undefined && ts.isIdentifier(x.name) && x.name.text === name)
-      return p && ts.isPropertyAssignment(p)
-        ? p.initializer
-        : p && ts.isShorthandPropertyAssignment(p)
-          ? p.name
-          : undefined
-    }
-    const services = valueOf('services')
+    const services = propertyOf(options, 'services')
     if (!services) return
     const entries = checker.getIndexTypeOfType(checker.getTypeAtLocation(services), ts.IndexKind.Number)
     if (!entries) return
@@ -299,15 +360,9 @@ export function analyzeServerServices(opts: {
       const id = checker.getTypeArguments(entry as ts.TypeReference)[0]
       return id && !(id.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown)) ? tagsOf(id) : []
     })
-    const layer = valueOf('layer')
-    const provided: ts.Type[] = []
-    if (layer) {
-      const type = checker.getTypeAtLocation(layer)
-      if (libId(type.aliasSymbol ?? type.getSymbol(), checker) !== LAYER) return // a Layer it cannot read: leave it to `tsc`
-      const out = checker.getTypeArguments(type as ts.TypeReference)[0]
-      if (!out || out.flags & ts.TypeFlags.Any) return
-      if (!(out.flags & ts.TypeFlags.Never)) provided.push(...(out.isUnion() ? out.types : [out]))
-    }
+    const layer = propertyOf(options, 'layer')
+    const provided = layer ? layerOutputs(layer, checker) : []
+    if (!provided) return // a Layer it cannot read: leave it to `tsc`
     const have = new Set(provided.map((t) => t.getSymbol()))
     for (const tag of required)
       if (!have.has(tag.getSymbol()))
@@ -317,16 +372,7 @@ export function analyzeServerServices(opts: {
           `Server Service "${tag.getSymbol()?.getName() ?? checker.typeToString(tag)}" is registered in start({ services }) but start's layer does not provide it`,
         )
   }
-  for (const sf of sources) {
-    const visitStart = (n: ts.Node): void => {
-      if (ts.isCallExpression(n) && callee(n) === START) {
-        const options = n.arguments[0]
-        if (options && ts.isObjectLiteralExpression(options)) checkStart(n, options)
-      }
-      ts.forEachChild(n, visitStart)
-    }
-    visitStart(sf)
-  }
+  for (const { call, options } of startCalls(sources, checker)) if (options) checkStart(call, options)
 
   serverFilesInClientGraph(program, sources, (n, message) => report('ServerFileInClientGraph', n, message), {
     root,
