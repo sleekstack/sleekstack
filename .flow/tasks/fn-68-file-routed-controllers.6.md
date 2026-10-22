@@ -38,9 +38,43 @@ The request-to-response half of a Controller Method: check order, input decode, 
 - [ ] `pnpm turbo run test typecheck --filter=@sleekstack/start...` passes
 
 ## Done summary
-TBD
+The Controller HTTP face now decodes and encodes, and `start` merges its options with the discovered app (R4, R5, R8, R11, R16, R17).
 
-## Evidence
-- Commits:
+- `serveController` (`packages/start/src/controller.ts`) runs, inside the `wrap` chain and after the method and escape checks: content type (`application/json`, any parameter, case-insensitive, else `UnsupportedMediaType`), body size within the most specific `bodyLimit` (`BodyTooLarge`), JSON (`ParseError` at `body` with `is not valid JSON`), then one `Schema.Struct` of the declared parts, decoded with `errors: 'all'`, so issue paths start at `params`, `query` or `body`.
+  - Only declared parts reach the method. An empty body is absent, so a required `body` fails decode with `is missing`.
+  - A query key collects all its values when the encoded Schema type is an array (read from `SchemaAST.encodedAST`). Any other key takes the last value. Query objects have a null prototype.
+  - `bodyLimit` comes from the last defined value in the option chain, then `start({ bodyLimit })`, then 1 MiB. It applies only when `body` is declared.
+- Encode: a `Response` passes through, ignoring `ResponseStatus`. Otherwise the status is `ResponseStatus`, or 200, or 204 for `undefined`. A written `success` Schema encodes the value (`orDie`, so an encode failure is a defect and an empty 500). `undefined`, 204, 205 and 304 send no body. `null` is JSON `null`.
+- An unhandled `ParseError` answers 400 with the `DecodeError` JSON. `wire.ts` now exports `readBody` and `decodeError`.
+- `start` keeps `registry` and the explicit `origins` check at the call, so `DuplicateServerFn` and `InvalidOrigin` still throw synchronously. Explicit `services` are de-duplicated by Tag identity (first entry wins). The memoized first-request load does three things:
+  - merges the Controllers
+  - throws an `Error` naming the file for a `bodyLimit` that is not a positive integer
+  - builds `endpoint(...)` over the union of `start({ origins })` and every option file's `origins`, normalized and de-duplicated
+- `serveController` now takes `{ status, bodyLimit }` (`ServeDefaults`) as its third argument.
 - Tests:
+  - New `controller-decode.test.ts`, through `fetch`: decode (repeated query keys, number and boolean codecs, `[[id]]`, splat, extra keys, all issues), content types, 413 by declared length and by stream, 1 MiB minus 100 accepted, `bodyLimit` specificity and unread body, every R16 status, `null`, `Response` passthrough, success-Schema field drop, encode defect, `wrap` order, decode failure inside `wrap`, and `Redirect`/`NotFound` passthrough.
+  - `start.test.ts` gains a `merge` block: services de-duplicated by Tag next to a duplicate `serverFn` throw, the `origins` union, the `start({ bodyLimit })` fallback, and `bodyLimit` load failures for 0, -1, 1.5, Infinity and NaN. Every `start` in that file shares one `base` layer and `onError`, so a reconfigure is harmless.
+  - `controller-dispatch.test.ts`: `echo` and the status entry now declare a `params` Schema (only declared parts reach a method).
+- Mutation check: each of 11 code mutations (content-type check, array query, `bodyLimit` order, null-body set, 400 mapping, empty body, `void` default, services dedupe, `origins` union, `bodyLimit` validation, start `bodyLimit` passthrough) turned at least one new test red. The code was then restored.
+
+Follow-ups, not built:
+- An invalid `origins` export in a file rejects the load with `InvalidOrigin`. No test covers it, because the spec lists no error for it.
+- A `ParseError` that a method raises itself (not from decode) also answers 400 when `wrap` leaves it.
+- Task 12 should document the `bodyLimit`/`origins` merge in the start README.
+
+Gates (post-edit):
+- `pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack --filter=@sleekstack/router... --filter=@sleekstack/ui-vite... --filter=@sleekstack/start... --filter=@sleekstack/testing --filter=realworld`: green, 28/28 tasks, start 184 tests (134 before).
+- `pnpm --filter realworld check`: green.
+- Fixture graph check: the diff is empty (no public export change).
+- `prettier --check packages/start/src`: clean.
+- Baseline: green via the unittest receipt at 465aae15 (only `.flow/` changed since then); `realworld check` and the fixture check were run before the edits.
+
+GATE_SKIPPED:unittest:green-receipt 465aae15 - baseline reused from prior post-gate pass
+
+Tier: session (jev-unavailable(no_key)); routing block sets opus at medium (actual: claude-opus-5-5)
+
+stage: impl-review - skipped(policy: user asked for one completion review at the end of the spec)
+## Evidence
+- Commits: 7938605d57d0a7c7870627a6713ebb03c646bd85
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack --filter=@sleekstack/router... --filter=@sleekstack/ui-vite... --filter=@sleekstack/start... --filter=@sleekstack/testing --filter=realworld, pnpm --filter realworld check, (cd packages/cli/src/__tests__/fixtures/effect-app && node ../../../../bin/cli.js check --json --entry runtime.ts), GATE_SKIPPED:unittest:green-receipt 465aae15 - baseline reused from prior post-gate pass
 - PRs:
