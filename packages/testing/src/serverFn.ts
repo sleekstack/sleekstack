@@ -1,11 +1,13 @@
-import { NotFound, Redirect, router, routes } from '@sleekstack/router'
+import { bind, NotFound, Redirect, router, routes, segments } from '@sleekstack/router'
 import {
+  type ControllerEntry,
   DecodeError,
   type Handler,
   type RequestServices,
   type ServerFn,
   type ServerServiceEntry,
   start,
+  type StartOptions,
 } from '@sleekstack/start'
 import type { NetworkError } from '@sleekstack/start/client'
 import { type Cause, Effect, Exit, type Layer, Schema } from 'effect'
@@ -21,7 +23,7 @@ export interface CallOptions<R> {
 
 const origin = 'http://sleekstack.test'
 
-// A server function or a handler answers first, so no page is ever reached.
+// A server function, a handler or a Controller matched beforehand answers first, so no page is ever reached.
 const noPages = router({
   table: routes({}),
   pages: {},
@@ -135,3 +137,29 @@ export const callHandler = <R>(
   request: Request,
   options: Pick<CallOptions<R>, 'layer'>,
 ): Promise<Response> => serve({ layer: options.layer, handlers: { [new URL(request.url).pathname]: handler } }, request)
+
+// As `start` matches Controllers: a malformed escape becomes a lone surrogate, which no successful decode yields and
+// no static segment equals, so it binds only at a param or splat position.
+const decodeSegment = (segment: string) => {
+  try {
+    return decodeURIComponent(segment)
+  } catch {
+    return '\uD800'
+  }
+}
+
+/**
+ * Answers `request` with the Controller `entry` through the same HTTP face as `start(...).fetch` (the `HEAD`,
+ * `OPTIONS` and 405 defaults, content type, `bodyLimit`, decode, the `wrap` chain and encode), with `layer` and no
+ * network, skipping middleware and server functions. `entry` is the Controller's entry in the `controllers` of the
+ * discovered app (`virtual:sleek/server-app`), which carries the Schemas and options its erased annotations cannot. A
+ * URL that its pattern does not match answers 404; a defect answers an empty 500 and its cause goes to `onError`.
+ */
+export const callController = (
+  entry: ControllerEntry,
+  request: Request,
+  options: Pick<CallOptions<any>, 'layer'> & Pick<StartOptions<any, any, any, any, any>, 'onError'>,
+): Promise<Response> =>
+  bind(segments(entry.pattern), segments(new URL(request.url).pathname).map(decodeSegment))
+    ? serve({ layer: options.layer, onError: options.onError, controllers: [entry] }, request)
+    : Promise.resolve(new Response(null, { status: 404 }))

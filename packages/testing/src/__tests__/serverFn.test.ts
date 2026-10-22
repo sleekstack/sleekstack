@@ -1,5 +1,6 @@
 import { NotFound, Redirect, redirect } from '@sleekstack/router'
 import {
+  type ControllerEntry,
   Cookies,
   DecodeError,
   implement,
@@ -7,11 +8,12 @@ import {
   ServerService,
   type ServerServiceEntry,
   type ServerServiceEntryOf,
+  start,
   taggedError,
 } from '@sleekstack/start'
 import { Cause, Context, Data, Effect, Exit, Layer, Option, Schema } from 'effect'
 import { describe, expect, it } from 'vitest'
-import { callHandler, callServerFn, callService } from '../index'
+import { callController, callHandler, callServerFn, callService } from '../index'
 
 class Names extends Context.Tag('Names')<Names, { readonly taken: ReadonlySet<string> }>() {}
 class NameTaken extends Schema.TaggedError<NameTaken>()('NameTaken', { name: Schema.String }) {}
@@ -141,5 +143,66 @@ describe('callHandler', () => {
     expect([put.status, put.headers.get('allow')]).toEqual([405, 'GET, DELETE'])
     const del = await callHandler(handler, new Request('http://x.test/names', { method: 'DELETE' }), { layer })
     expect(del.status).toBe(404)
+  })
+})
+
+describe('callController', () => {
+  // A referenced Schema: what the generated entry carries for `body: Schema.Schema.Type<typeof Person>`.
+  const Person = Schema.Struct({ name: Schema.NonEmptyString })
+  // The entry generated for `server/routes/people/[id].controller.ts` under a `_defaults.ts` whose `wrap` maps `Taken`.
+  const people: ControllerEntry = {
+    route: 'people/[id]',
+    pattern: '/people/:id',
+    methods: {
+      PUT: {
+        run: ({ params, body }) =>
+          Effect.gen(function* () {
+            if (body.name === 'boom') return yield* Effect.die(new Error('secret'))
+            if ((yield* Names).taken.has(body.name)) return yield* new Taken({ name: body.name })
+            return { id: params.id, name: body.name, extra: 'dropped' }
+          }),
+        params: Schema.Struct({ id: Schema.String }),
+        body: Person,
+        success: Schema.Struct({ id: Schema.String, name: Schema.String }),
+      },
+    },
+    options: [
+      {
+        file: 'server/routes/_defaults.ts',
+        wrap: (next) =>
+          Effect.catchIf(
+            next,
+            (e) => e instanceof Taken,
+            (e) => Effect.succeed(Response.json({ taken: e.name }, { status: 409 })),
+          ),
+      },
+      { file: 'server/routes/people/[id].controller.ts' },
+    ],
+  }
+  const put = (name: string, path = '/people/7') =>
+    new Request(`http://x.test${path}`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name }),
+    })
+  const read = async (res: Response) => [res.status, res.headers.get('content-type'), await res.text()]
+
+  it.each([
+    ['success, encoded through the success Schema', 'grace', 200],
+    ['a decode failure the referenced Schema reports', '', 400],
+    ['a failure the directory wrap maps', 'ada', 409],
+  ])('%s answers as start(...).fetch does', async (_, name, status) => {
+    const viaStart = await read(await start({ controllers: [people], layer }).fetch(put(name)))
+    const viaCall = await read(await callController(people, put(name), { layer }))
+    expect(viaCall).toEqual(viaStart)
+    expect(viaCall[0]).toBe(status)
+  })
+
+  it('a URL the pattern does not match is 404; a defect is an empty 500 whose cause reaches onError', async () => {
+    expect((await callController(people, put('grace', '/people/7/photos'), { layer })).status).toBe(404)
+    let defect: Cause.Cause<unknown> | undefined
+    const boom = await callController(people, put('boom'), { layer, onError: (cause) => void (defect = cause) })
+    expect(await read(boom)).toEqual([500, null, ''])
+    expect(defect && Cause.squash(defect)).toEqual(new Error('secret'))
   })
 })
