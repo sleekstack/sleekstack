@@ -54,6 +54,7 @@ Continuation: the original worker committed 25af7d78 and died before recording a
 
 baseline: not re-run (continuation; task code already committed at 25af7d78; post-commit gates all green)
 stage: impl-review - skipped(policy: user asked for one completion review at the end of the spec)
+stage: plan-sync - ran (sonnet; updated task 6)
 Tier: session (jev-unavailable(no_key)); routing block sets opus at medium
 ## Evidence
 - Commits: 25af7d78c26925d75c8a8f43dd581a2247c90859
