@@ -28,6 +28,8 @@ const CONTROLLER = /\.controller\.ts$/
 const DEFAULTS = '_defaults.ts'
 const RPC_FILE = /\.rpc\.ts$/
 const MANIFEST = 'rpc.ts'
+/** A Layer File: found anywhere in the TypeScript program but tests, by the analyzer's Layer File pass. */
+const LAYER_FILE = /\.layer\.ts$/
 /** The server directory's files that the discovered app imports by name. */
 const RESERVED = new Set([DEFAULTS, MANIFEST, '_app.ts'])
 const GROUP = /^\(.+\)$/
@@ -331,6 +333,28 @@ const readRpc = async (
   return { services, code: `import { Context } from 'effect'\n${tags.join('')}` }
 }
 
+/** The Layer Files in composition order, and the Server Root when it exports `onError`; paths absolute. */
+interface LayerFiles {
+  readonly files: readonly string[]
+  readonly onError: string | undefined
+}
+
+/** The analyzer's Layer File pass over the tsconfig at `project` (`root` is its directory). */
+const readLayerFiles = async (
+  project: string,
+  root: string,
+  serverDir: string,
+): Promise<LayerFiles | { error: string }> => {
+  const { analyzeLayerFiles } = await analyzer()
+  const { layerFiles, serverRoot, errors } = analyzeLayerFiles({ project, serverDir })
+  if (errors.length) return { error: failed('Layer Files', errors, root) }
+  const absolute = (file: string) => normalizePath(path.resolve(root, file))
+  return {
+    files: layerFiles.map((f) => absolute(f.file)),
+    onError: serverRoot?.onError ? absolute(serverRoot.file) : undefined,
+  }
+}
+
 /** A discovered Controller: its file, route name, URL pattern and the `_defaults.ts` files above it, outer first. */
 export interface DiscoveredController {
   readonly file: string
@@ -423,8 +447,9 @@ const defined = (t: TypeSchema): TypeSchema => {
  * The discovered app's module: each Controller's entry (`ControllerEntry` of `@sleekstack/start`), with its methods'
  * Schemas from `read` and its option chain from the files' exports; each RPC File's service (`DiscoveredService`: its
  * entry, its implementation Layer from `serviceLayer` over the file's methods and `wrap`, and its option chain without
- * `wrap`); the page router over `virtual:sleekstack/routes` when `pages` is given; and `isControllerPath`, the dev
- * servers' forwarding predicate. Throws naming a Controller the analyzer did not read.
+ * `wrap`); the Layer Files' `layer`, each over the ones before it (composition order), and the Server Root's `onError`;
+ * the page router over `virtual:sleekstack/routes` when `pages` is given; and `isControllerPath`, the dev servers'
+ * forwarding predicate. Throws naming a Controller the analyzer did not read.
  */
 const appCode = (
   controllers: readonly DiscoveredController[],
@@ -432,8 +457,9 @@ const appCode = (
   pages: { readonly notFound: boolean } | undefined,
   root: string,
   rpc: readonly RpcService[],
+  layers: LayerFiles,
 ): string => {
-  if (controllers.length === 0 && !pages && rpc.length === 0)
+  if (controllers.length === 0 && !pages && rpc.length === 0 && layers.files.length === 0 && !layers.onError)
     return 'export default { controllers: [] }\nexport const isControllerPath = () => false\n'
   const { alias, imports } = importMap(root)
   const entries = controllers.map((c) => {
@@ -466,8 +492,13 @@ const appCode = (
     return `      { entry: ${entryCode(contract, alias)}, layer: serviceLayer(${alias(RPC, contract.name)}, { ${methods} }, ${own}.wrap), options: [${chain.join(', ')}] },\n`
   })
   const manifest = rpc.some((s) => !RPC_FILE.test(s.file))
+  // `Layer.provideMerge(next, before)`: each Layer File gets what the files before it provide.
+  const layer = layers.files
+    .map((f) => alias(f, 'default'))
+    .reduce<string | undefined>((before, next) => (before ? `Layer.provideMerge(${next}, ${before})` : next), undefined)
+  const onError = layers.onError && alias(layers.onError, 'onError')
   const notFound = pages?.notFound ? 'routes.notFound' : '() => jsx(Fragment, {})'
-  return `import { Schema } from 'effect'
+  return `import { ${layer ? 'Layer, ' : ''}Schema } from 'effect'
 import { bind, ${pages ? 'router, ' : ''}segments } from '@sleekstack/router'
 ${rpc.length ? `import { serviceLayer } from '@sleekstack/start'\nimport { taggedError } from '${START_CLIENT}'\n` : ''}${pages ? `import * as routes from 'virtual:sleekstack/routes'\n` : ''}${pages && !pages.notFound ? `import { Fragment, jsx } from '@sleekstack/ui/jsx-runtime'\n` : ''}${imports()}const options = (file, m) => ({ file, wrap: m.wrap, bodyLimit: m.bodyLimit, origins: m.origins })
 ${rpc.length ? 'const limits = (file, m) => ({ file, bodyLimit: m.bodyLimit, origins: m.origins })\n' : ''}${
@@ -477,12 +508,12 @@ ${rpc.length ? 'const limits = (file, m) => ({ file, bodyLimit: m.bodyLimit, ori
       : ''
   }const controllers = [
 ${entries.join('')}]
-${pages ? 'let built\n' : ''}${rpc.length ? 'let services\n' : ''}export default {
+${pages ? 'let built\n' : ''}${rpc.length ? 'let services\n' : ''}${layer ? 'let layer\n' : ''}export default {
   controllers,
-${
-  // Built on first read: `@sleekstack/start` is still evaluating while it imports this module.
-  rpc.length ? `  get services() {\n    return (services ??= [\n${services.join('')}    ])\n  },\n` : ''
-}${pages ? `  get router() {\n    return (built ??= router({ table: routes.table, pages: routes.pages, notFound: ${notFound} }))\n  },\n` : ''}}
+${onError ? `  onError: ${onError},\n` : ''}${layer ? `  get layer() {\n    return (layer ??= ${layer})\n  },\n` : ''}${
+    // Built on first read: `@sleekstack/start` is still evaluating while it imports this module.
+    rpc.length ? `  get services() {\n    return (services ??= [\n${services.join('')}    ])\n  },\n` : ''
+  }${pages ? `  get router() {\n    return (built ??= router({ table: routes.table, pages: routes.pages, notFound: ${notFound} }))\n  },\n` : ''}}
 const decode = (segment) => {
   try {
     return decodeURIComponent(segment)
@@ -499,7 +530,12 @@ export const isControllerPath = (pathname) => {
 
 /** The discovered Controllers and the module serving them, or the error that fails the discovered app's load. */
 type Discovered =
-  { readonly controllers: readonly DiscoveredController[]; readonly code: string } | { readonly error: string }
+  | {
+      readonly controllers: readonly DiscoveredController[]
+      readonly layerFiles: readonly string[]
+      readonly code: string
+    }
+  | { readonly error: string }
 
 /** The Controllers section of the declaration: each route name's URL pattern, in match order, and module. */
 const controllersDeclaration = (controllers: readonly DiscoveredController[], dir: string) => {
@@ -515,6 +551,23 @@ const controllersDeclaration = (controllers: readonly DiscoveredController[], di
   }
   /** Whether a discovered Controller's pattern matches \`pathname\`, so a dev server forwards it to \`start\`. */
   export const isControllerPath: (pathname: string) => boolean
+}
+`
+}
+
+/** The Layer Files section of the declaration: what each Layer File provides, by file, sorted. */
+const layerFilesDeclaration = (files: readonly string[], root: string, dir: string) => {
+  if (files.length === 0) return ''
+  const entries = [...files]
+    .sort()
+    .map(
+      (f) =>
+        `\n    readonly ${JSON.stringify(normalizePath(path.relative(root, f)))}: import('effect').Layer.Layer.Success<typeof ${importType(dir, f)}.default>`,
+    )
+  return `declare module '${SERVER_APP}' {
+  /** What each Layer File provides, by file. */
+  export interface LayerFileServices {${entries.join('')}
+  }
 }
 `
 }
@@ -547,7 +600,10 @@ const controllersDeclaration = (controllers: readonly DiscoveredController[], di
  * its entries wrap, its Layer's `wrap` the Manifest's own (never the Controller directory's) and its options the default
  * export's. The declaration types each Tag by the file's methods (`GeneratedServiceShape`) and fills `GeneratedServices`. An
  * error of the pass fails every load naming file:line and leaves the declaration as it was; in dev, an RPC File added,
- * removed or edited regenerates and invalidates the modules like a contract or Controller does.
+ * removed or edited regenerates and invalidates the modules like a contract or Controller does. The analyzer's Layer
+ * File pass gives the discovered app its `layer` (the `*.layer.ts` files, tests excluded, composed by requirement) and
+ * the Server Root's (`_app.ts` under `serverDir`) `onError`, and the declaration's `LayerFileServices`; they are
+ * discovered, failed and invalidated as the Controllers are.
  */
 export const serverServices = (options: ServerServicesOptions = {}): Plugin => {
   let project = ''
@@ -574,9 +630,15 @@ export const serverServices = (options: ServerServicesOptions = {}): Plugin => {
       if (errors.length) return { error: failed('Controllers', errors, root) }
       const r = await rpcRead()
       if ('error' in r) return r
+      const layers = await readLayerFiles(project, root, serverDir)
+      if ('error' in layers) return layers
       const pages = routed ? scan(routesDir) : undefined
       const found = pages?.found.length ? { notFound: !!pages.notFound } : undefined
-      return { controllers, code: appCode(controllers, methods, found, root, r.services) }
+      return {
+        controllers,
+        layerFiles: layers.files,
+        code: appCode(controllers, methods, found, root, r.services, layers),
+      }
     } catch (cause) {
       return { error: cause instanceof Error ? cause.message : String(cause) }
     }
@@ -629,13 +691,15 @@ export const serverServices = (options: ServerServicesOptions = {}): Plugin => {
       'the Server Service contracts',
       d.controllers.length && 'the Controllers',
       g.rpc && 'the RPC Files',
+      d.layerFiles.length && 'the Layer Files',
     ]
+    const dir = normalizePath(path.dirname(declarationFile))
     const text = `// Written by @sleekstack/ui-vite from ${new Intl.ListFormat('en').format(sources.filter((x): x is string => !!x))}; do not edit.
-${g.declaration}${controllersDeclaration(d.controllers, normalizePath(path.dirname(declarationFile)))}`
-    // An app with no contracts, RPC Files or Controllers gets no file.
+${g.declaration}${controllersDeclaration(d.controllers, dir)}${layerFilesDeclaration(d.layerFiles, root, dir)}`
+    // An app with no contracts, RPC Files, Controllers or Layer Files gets no file.
     if (
       !fs.existsSync(declarationFile)
-        ? g.empty && d.controllers.length === 0
+        ? g.empty && d.controllers.length === 0 && d.layerFiles.length === 0
         : fs.readFileSync(declarationFile, 'utf8') === text
     )
       return
@@ -704,6 +768,10 @@ ${g.declaration}${controllersDeclaration(d.controllers, normalizePath(path.dirna
       },
     },
     configureServer(server) {
+      /** A Layer File may sit anywhere in the TypeScript program, outside the Vite root too. */
+      const watchLayerFiles = (d: Discovered) => {
+        if (!('error' in d)) server.watcher.add(d.layerFiles.map((f) => path.dirname(f)))
+      }
       // ponytail: re-reads every contract (a whole TypeScript program) per non-server source change; key the rerun on
       // the contracts' import graph if large projects stall.
       const changed = async (file: string) => {
@@ -719,11 +787,15 @@ ${g.declaration}${controllersDeclaration(d.controllers, normalizePath(path.dirna
         generated = discovered = rpcs = undefined
         const after = await Promise.all([current(), discovery()])
         writeDeclaration(...after)
+        watchLayerFiles(after[1])
         const same = (i: 0 | 1) => JSON.stringify(before[i]) === JSON.stringify(after[i])
-        // An edit leaves the discovery as it was, yet the app must load the edited Controller, RPC File or reserved file.
+        // An edit leaves the discovery as it was, yet the app must load the edited Controller, RPC File, reserved file
+        // or Layer File (anywhere but a test, as the analyzer reads them).
+        const { TEST_FILE } = await analyzer()
         const discoveryFile =
-          [serverDir, controllersDir].some((dir) => file.startsWith(`${dir}/`)) &&
-          (CONTROLLER.test(file) || RPC_FILE.test(file) || RESERVED.has(path.posix.basename(file)))
+          ([serverDir, controllersDir].some((dir) => file.startsWith(`${dir}/`)) &&
+            (CONTROLLER.test(file) || RPC_FILE.test(file) || RESERVED.has(path.posix.basename(file)))) ||
+          (LAYER_FILE.test(file) && !TEST_FILE.test(path.relative(root, file)))
         const ids = [...(same(0) ? [] : MODULES), ...(same(1) && !discoveryFile ? [] : [SERVER_APP])]
         if (ids.length === 0) return
         for (const env of Object.values(server.environments))
@@ -736,6 +808,7 @@ ${g.declaration}${controllersDeclaration(d.controllers, normalizePath(path.dirna
       const on = (file: string) => void changed(normalizePath(file))
       // A server or Controllers directory outside the Vite root is not watched by default.
       server.watcher.add([serverDir, controllersDir])
+      void discovery().then(watchLayerFiles)
       server.watcher.on('add', on).on('change', on).on('unlink', on)
     },
   }

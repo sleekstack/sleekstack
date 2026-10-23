@@ -45,6 +45,9 @@ const rpcApp = appFiles('rpc-files')
 /** A Manifest wrapping a Controller of `params` and `body` and one of no input, under a `wrap` reading a cookie and a directory `wrap`. */
 const MANIFEST_APP = path.join(import.meta.dirname, 'fixtures/rpc-manifest')
 const manifestApp = appFiles('rpc-manifest')
+/** Three Layer Files (one outside the server directory) composed by requirement, one under `test/`, a Server Root's `onError`, and a server entry whose explicit `layer` shadows `Config`. */
+const LAYER_APP = path.join(import.meta.dirname, 'fixtures/layer-files')
+const layerApp = appFiles('layer-files')
 
 describe('the printed Schemas over the wire', () => {
   const str = { kind: 'string' } as const
@@ -1081,5 +1084,109 @@ export const text = Effect.flatMap(Notes, (n) => n.save({ params: { id: '1' }, b
     // As the declaration reads once the Controller is renamed: the Manifest's route is unknown.
     fs.writeFileSync(declaration, fs.readFileSync(declaration, 'utf8').replaceAll('notes/[id]', 'memos/[id]'))
     expect(typeErrors(root).join('\n')).toContain('"PUT api/notes/[id]"')
+  })
+})
+
+describe('Layer Files', () => {
+  const get = async (app: { fetch: (request: Request) => Promise<Response> }) => {
+    const response = await app.fetch(new Request('http://x.test/api/hello'))
+    return [response.status, await response.text()]
+  }
+
+  it('compose into the discovered app by requirement, tests excluded, under the explicit layer', async () => {
+    const { server, src, load } = await serve(layerApp)
+    const code = await load(SERVER_APP)
+    expect(code).toMatch(
+      /get layer\(\) \{\n {4}return \(layer \?\?= Layer\.provideMerge\((default_\d+), Layer\.provideMerge\((default_\d+), (default_\d+)\)\)\)/,
+    )
+    const [, greeter, db, config] = code.match(
+      /provideMerge\((default_\d+), Layer\.provideMerge\((default_\d+), (default_\d+)\)/,
+    )!
+    expect(code).toContain(`import { default as ${config} } from "<root>/server/config.layer.ts"`)
+    expect(code).toContain(`import { default as ${db} } from "<root>/server/db.layer.ts"`)
+    expect(code).toContain(`import { default as ${greeter} } from "<root>/src/greeter.layer.ts"`)
+    expect(code).not.toContain('src/test/')
+    expect(code).toMatch(/onError: onError_\d+,/)
+    // The explicit `layer` wins for `Config`; the Layer Files still build over their own.
+    const { app } = await server.ssrLoadModule(path.join(src, 'server.ts'))
+    expect(await get(app)).toEqual([200, '"hi / hello, ann"'])
+  })
+
+  it('fail every request with the same cause when one fails to build, to the Server Root onError', async () => {
+    const { server, src } = await serve({
+      ...layerApp,
+      '../server/config.layer.ts': `import { Effect, Layer } from 'effect'\nimport { Config } from '../src/tags'\nexport default Layer.effect(Config, Effect.fail('config down'))\n`,
+    })
+    const causes: unknown[] = ((globalThis as { layerFileCauses?: unknown[] }).layerFileCauses = [])
+    const { app } = await server.ssrLoadModule(path.join(src, 'server.ts'))
+    const { Cause } = await server.ssrLoadModule('effect')
+    expect(await get(app)).toEqual([500, ''])
+    expect(await get(app)).toEqual([500, ''])
+    expect(causes).toHaveLength(2)
+    expect(causes.map((c) => Cause.squash(c))).toEqual(['config down', 'config down'])
+  })
+
+  it('write the committed declaration of the fixture, which types the explicit layer', async () => {
+    const { root, src, declaration } = await serve(layerApp)
+    expect(fs.readFileSync(declaration, 'utf8')).toBe(
+      fs.readFileSync(path.join(LAYER_APP, 'src/server.gen.d.ts'), 'utf8'),
+    )
+    fs.writeFileSync(
+      path.join(src, 'consumer.ts'),
+      `import { start } from '@sleekstack/start'
+import { Context, Effect, Layer } from 'effect'
+import { Greeter } from './tags'
+class Extra extends Context.Tag('Extra')<Extra, string>() {}
+class Unknown extends Context.Tag('Unknown')<Unknown, string>() {}
+export const ok = start({ layer: Layer.effect(Extra, Effect.map(Greeter, (g) => g.greet('x'))) })
+// @ts-expect-error no Layer File provides Unknown
+export const missing = start({ layer: Layer.effect(Extra, Unknown) })
+`,
+    )
+    expect(typeErrors(root)).toEqual([])
+  })
+
+  it('regenerate in dev on a Layer File added, edited or removed, and not on one under test/', async () => {
+    const { server, root, load, declaration } = await serve(layerApp)
+    for (const env of Object.values(server.environments)) await env.transformRequest(SERVER_APP)
+    const spies = Object.values(server.environments).map((env) => vi.spyOn(env.moduleGraph, 'invalidateModule'))
+    const event = async (kind: 'add' | 'change' | 'unlink', file: string, text = '') => {
+      const full = path.join(root, file)
+      if (kind === 'unlink') fs.rmSync(full)
+      else fs.writeFileSync(full, text)
+      server.watcher.emit(kind, full)
+      await new Promise((r) => setTimeout(r, 0))
+      await load(SERVER_APP).catch(() => undefined)
+      await new Promise((r) => setTimeout(r, 0))
+      const invalidated = spies.map((spy) => spy.mock.calls.filter((args) => args.length === 1).map(([mod]) => mod.id))
+      for (const spy of spies) spy.mockClear()
+      return invalidated
+    }
+    const app = spies.map(() => [`\0${SERVER_APP}`])
+    const none = spies.map(() => [])
+    const extra = (greeting: string) =>
+      `import { Layer } from 'effect'\nimport { Db } from './tags'\nexport default Layer.succeed(Db, { greeting: '${greeting}' })\n`
+    const declared = () => fs.readFileSync(declaration, 'utf8')
+
+    expect(await event('change', 'src/test/db.layer.ts', extra('other'))).toEqual(none)
+    expect(
+      await event(
+        'change',
+        'server/db.layer.ts',
+        `${fs.readFileSync(path.join(root, 'server/db.layer.ts'), 'utf8')}\n`,
+      ),
+    ).toEqual(app)
+    expect(
+      await event('add', 'src/extra.layer.ts', `import { Layer } from 'effect'\nexport default Layer.empty\n`),
+    ).toEqual(app)
+    expect(declared()).toContain('"src/extra.layer.ts"')
+    expect(await event('change', 'server/_app.ts', 'export const onError = (): void => {}\n')).toEqual(app)
+
+    const before = declared()
+    await event('change', 'src/extra.layer.ts', 'export default 1\n')
+    await expect(load(SERVER_APP)).rejects.toThrow(`${root}/src/extra.layer.ts:1 ServerFileShape`)
+    expect(declared()).toBe(before)
+    expect(await event('unlink', 'src/extra.layer.ts')).toEqual(app)
+    expect(declared()).not.toContain('extra.layer')
   })
 })
