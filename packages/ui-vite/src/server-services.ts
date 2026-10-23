@@ -345,6 +345,8 @@ const readLayerFiles = async (
   root: string,
   serverDir: string,
 ): Promise<LayerFiles | { error: string }> => {
+  // No TypeScript program, no Layer Files: an app without a tsconfig still serves its discovered app.
+  if (!fs.existsSync(project)) return { files: [], onError: undefined }
   const { analyzeLayerFiles } = await analyzer()
   const { layerFiles, serverRoot, errors } = analyzeLayerFiles({ project, serverDir })
   if (errors.length) return { error: failed('Layer Files', errors, root) }
