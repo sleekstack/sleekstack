@@ -3,7 +3,8 @@
  *
  * The Controller pass (ADR 0053): every `*.controller.ts` file, its route (ADR 0050's path syntax, the one derivation
  * the Vite plugin shares) and its methods, read through the shared signature reader with the input rules of R4. The
- * services a method requires must come from the request services, `start({ layer })` or a `wrap` above it (R3).
+ * services a method requires must come from the request services, `start({ layer })` or a `wrap` above it (R3), and
+ * so must those a `wrap`'s result requires, from a `wrap` above that one.
  */
 
 import * as path from 'node:path'
@@ -135,16 +136,22 @@ export function analyzeControllers(opts: {
 
   const tagsOf = (types: readonly ts.Type[]) => types.flatMap((t) => t.getSymbol() ?? [])
 
-  /** The services the `wrap` export of `sf` discharges: its `next` requirements minus its result's. */
-  const discharged = (sf: ts.SourceFile): ts.Symbol[] => {
+  /**
+   * The `wrap` export of `sf`: the services it discharges (its `next` requirements minus its result's) and those its
+   * result requires (an untyped `any` requires nothing).
+   */
+  const wrapOf = (sf: ts.SourceFile) => {
     const wrap = exportsOf(sf).find((e) => e.name === 'wrap')
     const [sig] = wrap ? checker.getTypeOfSymbol(resolve(wrap)).getCallSignatures() : []
     const next = sig?.parameters[0]
     const inner = next && requiresOf(checker.getTypeOfSymbol(next))
     const outer = sig && requiresOf(checker.getReturnTypeOfSignature(sig))
-    if (!inner || !outer) return []
-    const kept = new Set(tagsOf(outer))
-    return tagsOf(inner).filter((s) => !kept.has(s))
+    const kept = new Set(tagsOf(outer ?? []))
+    return {
+      at: wrap?.declarations?.[0] ?? sf,
+      discharged: inner && outer ? tagsOf(inner).filter((s) => !kept.has(s)) : [],
+      requires: (outer ?? []).filter((t) => !(t.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown))),
+    }
   }
   /** `dir` relative to `from` as its segments; undefined when it is not under `from`. */
   const under = (from: string, dir: string) => {
@@ -154,15 +161,15 @@ export function analyzeControllers(opts: {
   const defaults = new Map(
     sources.filter((sf) => path.basename(sf.fileName) === DEFAULTS).map((sf) => [path.dirname(sf.fileName), sf]),
   )
-  /** What every `wrap` above `sf` discharges: each `_defaults.ts` from the server directory down, then its own. */
-  const wrapped = (sf: ts.SourceFile) => {
+  /** Every `wrap` around `sf`, outer first: each `_defaults.ts` from the server directory down, then its own. */
+  const wraps = (sf: ts.SourceFile) => {
     const dirs = under(serverDir, path.dirname(sf.fileName))
     const chain = dirs
       ? [serverDir, ...dirs.map((_, i) => path.join(serverDir, ...dirs.slice(0, i + 1)))].flatMap(
           (dir) => defaults.get(dir) ?? [],
         )
       : []
-    return new Set([...chain, sf].flatMap(discharged))
+    return [...chain, sf].map(wrapOf)
   }
   const fromStart = new Set(
     startCalls(sources, checker).flatMap(({ options }) => {
@@ -344,6 +351,8 @@ export function analyzeControllers(opts: {
   }
 
   const controllers: ControllerDecl[] = []
+  /** A `_defaults.ts` wrap is checked for each Controller beneath it, and reported once per missing service. */
+  const reportedWraps = new Set<string>()
   for (const sf of sources.filter((s) => CONTROLLER.test(s.fileName))) {
     let route: ControllerRoute | undefined
     try {
@@ -369,12 +378,31 @@ export function analyzeControllers(opts: {
         )
     }
     methods.sort((a, b) => METHODS.indexOf(a.name) - METHODS.indexOf(b.name))
-    const provided = wrapped(sf)
+    const provided = new Set<ts.Symbol>()
+    const isProvided = (tag: ts.Symbol | undefined) =>
+      tag && (REQUEST_SERVICES.has(libId(tag, checker) ?? '') || fromStart.has(tag) || provided.has(tag))
+    // A wrap's result runs inside the wraps above it only, so only they discharge what it requires.
+    for (const wrap of wraps(sf)) {
+      for (const t of wrap.requires) {
+        const tag = t.getSymbol()
+        const name = tag?.getName() ?? checker.typeToString(t)
+        const at = locationOf(root, wrap.at)
+        if (isProvided(tag) || reportedWraps.has(`${at.file}#${name}`)) continue
+        reportedWraps.add(`${at.file}#${name}`)
+        errors.push(
+          analyzeError(
+            'MissingDependency',
+            `The wrap of "${at.file}" requires "${name}", which no wrap above it and no start({ layer }) provides`,
+            at,
+          ),
+        )
+      }
+      for (const tag of wrap.discharged) provided.add(tag)
+    }
     for (const method of methods)
       for (const t of members(method.requires)) {
         const tag = t.getSymbol()
-        if (tag && (REQUEST_SERVICES.has(libId(tag, checker) ?? '') || fromStart.has(tag) || provided.has(tag)))
-          continue
+        if (isProvided(tag)) continue
         errors.push(
           analyzeError(
             'MissingDependency',

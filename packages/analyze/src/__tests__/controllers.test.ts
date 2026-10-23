@@ -96,10 +96,12 @@ describe('analyzeControllers', () => {
     ])
   })
 
-  it('a service a directory wrap discharges is provided only to the Controllers beneath it', () => {
+  it('a service a directory wrap discharges is provided only to the Controllers beneath it; a wrap result requires its own', () => {
     expect(report.errors.filter((e) => e.code === 'MissingDependency').map((e) => e.message)).toEqual([
       'Controller "missing" GET requires "Audit", which no wrap above it and no start({ layer }) provides',
       'Controller "missing" POST requires "Viewer", which no wrap above it and no start({ layer }) provides',
+      // Once for both Controllers beneath it; the inner wrap's `Viewer` comes from it.
+      'The wrap of "server/routes/audited/_defaults.ts" requires "Audit", which no wrap above it and no start({ layer }) provides',
     ])
   })
 

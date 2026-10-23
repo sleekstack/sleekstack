@@ -53,7 +53,7 @@ It reads every `*.controller.ts` file (ADR 0053). `controllerRoute(controllersDi
 - `ControllerMethodShape`: a near-miss export (`get`, `Post`, a default export), a method that is not one function of one `{ params?, query?, body? }` object returning an Effect (written inline: a type alias of the whole `Effect.Effect<...>` is not read, an alias of its success type is), a `body` on `GET`, `HEAD` or `OPTIONS`, or a `params` or `query` value that does not decode from a string.
 - `ControllerParamsMismatch`: the keys of `params` differ from the path's params.
 - `ServerServiceTypeNotSerializable`: an input or written success type outside the Server Service type subset.
-- `MissingDependency`: a service a method requires that no request service, `start({ layer })` or `wrap` above it provides. A `wrap` (in a `_defaults.ts` from the server directory down, or the Controller's own) discharges its `next` requirements minus its result's.
+- `MissingDependency`: a service a method requires that no request service, `start({ layer })` or `wrap` above it provides. A `wrap` (in a `_defaults.ts` from the server directory down, or the Controller's own) discharges its `next` requirements minus its result's; what its result requires must come from a request service, `start({ layer })` or a `wrap` above it, else it is reported once at that `wrap`.
 - `Unresolvable`: a `*.controller.ts` file whose path is not a route.
 
 `sleekstack check` runs it on every project and counts each Controller as a root, so a server-only app has roots. It always reads the default `server` and `server/routes`: the Vite plugin's `serverDir` and `controllersDir` options do not reach it, and it has no flag for them.
