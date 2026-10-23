@@ -3,7 +3,7 @@ satisfies: [R1, R10]
 ---
 # fn-69-server-auto-wiring.9 realworld: Layer Files, comments RPC File and the server entry
 
-Touches: [apps/realworld/server/**, apps/realworld/src/modules/comments/**, apps/realworld/src/server.gen.d.ts, apps/realworld/vite.config.ts, apps/realworld/test/**, apps/realworld/src/pages/loaders.ts, apps/realworld/src/routes/article/[slug].tsx]
+Touches: [apps/realworld/server/**, apps/realworld/src/modules/comments/**, apps/realworld/src/server.gen.d.ts, apps/realworld/vite.config.ts, apps/realworld/test/**, apps/realworld/src/pages/loaders.ts, apps/realworld/src/routes/article/[slug].tsx, packages/analyze/src/serverServices.ts, packages/analyze/src/__tests__/**]
 
 ## Description
 The first realworld slice of R10: the infra becomes Layer Files, the smallest service (comments, 3 methods incl. `delete`) becomes an RPC File, and `server/app.ts` shrinks.
