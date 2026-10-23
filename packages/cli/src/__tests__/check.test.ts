@@ -95,6 +95,15 @@ describe('sleekstack check', () => {
     ])
   })
 
+  it('an app of only RPC Files: they are roots, and their errors exit 1', () => {
+    const text = run(fixture('rpc'))
+    expect(text.code).toBe(1)
+    expect(text.err).toMatch(/server\/notes\.rpc\.ts:4 RpcMethodShape: [^\n]*\n {4}fix: /)
+    const json = JSON.parse(run(fixture('rpc'), '--json').out)
+    expect(json.rpcErrors.map((e: { code: string; line: number }) => [e.code, e.line])).toEqual([['RpcMethodShape', 4]])
+    expect(JSON.parse(run(fixture('entry'), '--json').out)).not.toHaveProperty('rpcErrors')
+  })
+
   it('a crash exits 2', () => {
     const r = run(fixture('none'), '--project', 'missing.json', '--json')
     expect([r.code, r.out]).toEqual([2, ''])

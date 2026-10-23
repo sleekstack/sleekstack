@@ -9,7 +9,7 @@ import { matchOrder, type RoutesOptions, scan, sortKey } from './routes.js'
  * directory, which a Controller's path must not repeat.
  */
 export interface ServerServicesOptions extends RoutesOptions {
-  /** The declaration of `virtual:sleek/server`, `virtual:sleek/server-registry` and `virtual:sleek/server-app`, relative to the Vite root. Default `src/server.gen.d.ts`. */
+  /** The declaration of `virtual:sleek/server`, `virtual:sleek/server-registry`, `virtual:sleek/server-app` and `virtual:sleek/rpc`, relative to the Vite root. Default `src/server.gen.d.ts`. */
   readonly serverDeclaration?: string
   /** The server directory, relative to the Vite root; a `_defaults.ts` under it is server-only. Default `server`. */
   readonly serverDir?: string
@@ -19,11 +19,16 @@ export interface ServerServicesOptions extends RoutesOptions {
 
 const CLIENT = 'virtual:sleek/server'
 const REGISTRY = 'virtual:sleek/server-registry'
-const MODULES = [CLIENT, REGISTRY]
+/** The generated Tags, one per RPC File: client-safe, so pages import them. */
+const RPC = 'virtual:sleek/rpc'
+const MODULES = [CLIENT, REGISTRY, RPC]
 /** The discovered app `start()` reads. */
 const SERVER_APP = 'virtual:sleek/server-app'
 const CONTROLLER = /\.controller\.ts$/
 const DEFAULTS = '_defaults.ts'
+const RPC_FILE = /\.rpc\.ts$/
+/** The server directory's files that the discovered app imports by name. */
+const RESERVED = new Set([DEFAULTS, 'rpc.ts', '_app.ts'])
 const GROUP = /^\(.+\)$/
 const VIRTUAL = [...MODULES, SERVER_APP].join('|')
 /**
@@ -39,7 +44,7 @@ const SOURCE = /\.[cm]?[jt]sx?$/
 /** A Server Service implementation: the watcher skips it, as its change never changes a contract. */
 const IMPLEMENTATION = /\.server\.[cm]?[jt]sx?$/
 
-/** A Server Service as the generator needs it; files relative to the tsconfig directory. */
+/** A Server Service as the generator needs it; files relative to the tsconfig directory, or `virtual:sleek/rpc` for a generated Tag. */
 interface Contract {
   readonly name: string
   readonly file: string
@@ -64,7 +69,7 @@ const importMap = (root: string) => {
   const names = new Map<string, string>()
   let lines = ''
   const alias: Alias = (file, name) => {
-    const from = JSON.stringify(normalizePath(path.resolve(root, file)))
+    const from = JSON.stringify(file === RPC ? RPC : normalizePath(path.resolve(root, file)))
     const key = `${from}#${name}`
     let as = names.get(key)
     if (as === undefined) {
@@ -138,18 +143,19 @@ const errorSchema = (errors: readonly TaggedErrorSchema[], alias: Alias) =>
     ? ''
     : `, error: ${errors.length === 1 ? printSchema(errors[0]!, alias) : `Schema.Union(${errors.map((e) => printSchema(e, alias)).join(', ')})`}`
 
+/** One registry entry (`ServerServiceEntry` of `@sleekstack/start`) as an expression. */
+const entryCode = (c: Contract, alias: Alias) =>
+  `{ tag: ${alias(c.file, c.name)}, methods: { ${c.methods
+    .map(
+      ({ name, schema }) =>
+        `${JSON.stringify(name)}: { input: ${printSchema(schema.input, alias)}, success: ${printSchema(schema.success, alias)}${errorSchema(schema.error, alias)} }`,
+    )
+    .join(', ')} } }`
+
 /** The registry entries as module code, importing each Tag and error class from its contract file (absolute, under `root`). */
 const entriesCode = (contracts: readonly Contract[], root: string): string => {
   const { alias, imports } = importMap(root)
-  const entries = contracts.map(
-    (c) =>
-      `  { tag: ${alias(c.file, c.name)}, methods: { ${c.methods
-        .map(
-          ({ name, schema }) =>
-            `${JSON.stringify(name)}: { input: ${printSchema(schema.input, alias)}, success: ${printSchema(schema.success, alias)}${errorSchema(schema.error, alias)} }`,
-        )
-        .join(', ')} } },\n`,
-  )
+  const entries = contracts.map((c) => `  ${entryCode(c, alias)},\n`)
   return `import { Schema } from 'effect'
 import { serverClients, taggedError } from '${START_CLIENT}'
 ${imports()}const entries = [
@@ -163,11 +169,36 @@ const importType = (dir: string, file: string) => {
   return `import(${JSON.stringify(rel.startsWith('.') ? rel : `./${rel}`)})`
 }
 
-/** Both modules' types, each Tag named by `import()` from its contract file, relative to the declaration's directory. */
-const declarationOf = (contracts: readonly Contract[], root: string, dir: string): string => {
+/**
+ * The generated Tags' types: each Tag's service is its RPC File's methods with `R` erased and `NetworkError |
+ * DecodeError` added (`GeneratedServiceShape`), and each Tag's key is a `GeneratedServices` member of the discovered app.
+ */
+const rpcDeclaration = (rpc: readonly RpcService[], dir: string) => {
+  if (rpc.length === 0) return ''
+  const tags = rpc.map(({ contract: { name, methods }, file }) => {
+    const picked = methods.map((m) => JSON.stringify(m.name)).join(' | ') || 'never'
+    return `
+  export interface ${name} {
+    readonly '${RPC}': ${JSON.stringify(name)}
+  }
+  export const ${name}: import('effect').Context.Tag<${name}, import('@sleekstack/start').GeneratedServiceShape<Pick<typeof ${importType(dir, file)}, ${picked}>>>`
+  })
+  return `declare module '${RPC}' {${tags.join('')}
+}
+declare module '${SERVER_APP}' {
+  /** Each generated Server Service Tag (RPC Files and the RPC Manifest), by key. */
+  export interface GeneratedServices {${rpc.map(({ contract: { name } }) => `\n    readonly ${name}: import('${RPC}').${name}`).join('')}
+  }
+}
+`
+}
+
+/** The modules' types, each Tag named by `import()` from its contract file, relative to the declaration's directory. */
+const declarationOf = (contracts: readonly Contract[], rpc: readonly RpcService[], root: string, dir: string) => {
   const tag = (c: Contract) => `${importType(dir, path.resolve(root, c.file))}.${c.name}`
-  const tags = contracts.map(tag).join(' | ') || 'never'
-  const classes = contracts.map((c) => `typeof ${tag(c)}`).join(' | ') || 'never'
+  const generated = rpc.map((s) => `import('${RPC}').${s.contract.name}`)
+  const tags = [...contracts.map(tag), ...generated].join(' | ') || 'never'
+  const classes = [...contracts.map(tag), ...generated].map((t) => `typeof ${t}`).join(' | ') || 'never'
   return `declare module '${CLIENT}' {
   const layer: import('effect').Layer.Layer<${tags}>
   export default layer
@@ -176,12 +207,18 @@ declare module '${REGISTRY}' {
   const services: ReadonlyArray<import('${START_CLIENT}').ServerServiceEntryOf<${classes}>>
   export default services
 }
-`
+${rpcDeclaration(rpc, dir)}`
 }
 
-/** What the contracts give: both modules and their declaration, or the error that fails every load. */
+/** What the contracts and RPC Files give: the client-side modules and their declaration, or the error that fails every load. */
 type Generated =
-  | { readonly client: string; readonly registry: string; readonly declaration: string; readonly empty: boolean }
+  | {
+      readonly client: string
+      readonly registry: string
+      readonly rpc: string
+      readonly declaration: string
+      readonly empty: boolean
+    }
   | { readonly error: string }
 
 let analyzerModule: Promise<typeof import('@sleekstack/analyze')> | undefined
@@ -213,6 +250,67 @@ const readContracts = async (
       methods: s.methods.map((m) => ({ name: m.name, schema: m.schema })),
     })),
   }
+}
+
+/** An RPC File's Server Service: its entry (the Tag is `virtual:sleek/rpc`'s), file and `_defaults.ts` chain, outer first; paths absolute. */
+interface RpcService {
+  readonly contract: Contract
+  readonly file: string
+  readonly defaults: readonly string[]
+}
+
+/** The RPC Files' services and the code of `virtual:sleek/rpc`, or the error that fails every load. */
+type Rpcs = { readonly services: readonly RpcService[]; readonly code: string } | { readonly error: string }
+
+/** The `_defaults.ts` files among `files` from `serverDir` down to a file's directory, outer first; none outside it. */
+const defaultsChain = (serverDir: string, files: readonly string[]) => {
+  const defaults = new Set(files.filter((f) => path.posix.basename(f) === DEFAULTS))
+  return (file: string) => {
+    const rel = path.posix.relative(serverDir, path.posix.dirname(file))
+    if (rel.split('/')[0] === '..' || path.isAbsolute(rel)) return []
+    const dirs = rel ? rel.split('/') : []
+    return ['', ...dirs.map((_, i) => dirs.slice(0, i + 1).join('/'))]
+      .map((d) => path.posix.join(serverDir, d, DEFAULTS))
+      .filter((f) => defaults.has(f))
+  }
+}
+
+/**
+ * The analyzer's RPC pass over the tsconfig at `project` (`root` is its directory), run only when a `*.rpc.ts` is under
+ * `serverDir`. Throws naming an RPC File the analyzer did not read.
+ */
+const readRpc = async (
+  project: string,
+  root: string,
+  dirs: { readonly serverDir: string; readonly controllersDir: string },
+): Promise<Rpcs> => {
+  const files = filesUnder(dirs.serverDir)
+  const sources = files.filter((f) => RPC_FILE.test(f))
+  if (sources.length === 0) return { services: [], code: '' }
+  const { analyzeRpc } = await analyzer()
+  const report = analyzeRpc({ project, ...dirs })
+  // As for the contracts: the client build reports that one itself, with the chain it loaded.
+  const errors = report.errors.filter((e) => e.code !== 'ServerFileInClientGraph')
+  if (errors.length) return { error: failed('RPC Files', errors, root) }
+  const defaultsOf = defaultsChain(dirs.serverDir, files)
+  const services = report.services
+    .map((s) => ({ ...s, file: normalizePath(path.resolve(root, s.file)) }))
+    .filter((s) => RPC_FILE.test(s.file))
+    .map(({ name, file, methods }) => ({
+      contract: { name, file: RPC, methods: methods.map((m) => ({ name: m.name, schema: m.schema })) },
+      file,
+      defaults: defaultsOf(file),
+    }))
+  const read = new Set(services.map((s) => s.file))
+  const unread = sources.find((f) => !read.has(f))
+  if (unread)
+    throw new Error(
+      `sleekstack: RPC File ${unread} is not in the TypeScript project of the Vite root, so its methods cannot be read; include it in tsconfig.json`,
+    )
+  const tags = services.map(
+    (s) => `export const ${s.contract.name} = Context.GenericTag(${JSON.stringify(s.contract.name)})\n`,
+  )
+  return { services, code: `import { Context } from 'effect'\n${tags.join('')}` }
 }
 
 /** A discovered Controller: its file, route name, URL pattern and the `_defaults.ts` files above it, outer first. */
@@ -249,15 +347,7 @@ export const discoverControllers = async ({
   const sources = files.filter((f) => CONTROLLER.test(f))
   if (sources.length === 0) return []
   const { controllerRoute } = await analyzer()
-  const defaults = new Set(files.filter((f) => path.posix.basename(f) === DEFAULTS))
-  const defaultsOf = (file: string) => {
-    const rel = path.posix.relative(serverDir, path.posix.dirname(file))
-    if (rel.split('/')[0] === '..' || path.isAbsolute(rel)) return []
-    const dirs = rel ? rel.split('/') : []
-    return ['', ...dirs.map((_, i) => dirs.slice(0, i + 1).join('/'))]
-      .map((d) => path.posix.join(serverDir, d, DEFAULTS))
-      .filter((f) => defaults.has(f))
-  }
+  const defaultsOf = defaultsChain(serverDir, files)
   const controllers = sources
     .flatMap((file) => {
       const route = controllerRoute(controllersDir, file)
@@ -313,17 +403,19 @@ const defined = (t: TypeSchema): TypeSchema => {
 
 /**
  * The discovered app's module: each Controller's entry (`ControllerEntry` of `@sleekstack/start`), with its methods'
- * Schemas from `read` and its option chain from the files' exports; the page router over `virtual:sleekstack/routes`
- * when `pages` is given; and `isControllerPath`, the dev servers' forwarding predicate. Throws naming a Controller the
- * analyzer did not read.
+ * Schemas from `read` and its option chain from the files' exports; each RPC File's service (`DiscoveredService`: its
+ * entry, its implementation Layer from `serviceLayer` over the file's methods and `wrap`, and its option chain without
+ * `wrap`); the page router over `virtual:sleekstack/routes` when `pages` is given; and `isControllerPath`, the dev
+ * servers' forwarding predicate. Throws naming a Controller the analyzer did not read.
  */
 const appCode = (
   controllers: readonly DiscoveredController[],
   read: ReadonlyMap<string, ControllerMethods>,
   pages: { readonly notFound: boolean } | undefined,
   root: string,
+  rpc: readonly RpcService[],
 ): string => {
-  if (controllers.length === 0 && !pages)
+  if (controllers.length === 0 && !pages && rpc.length === 0)
     return 'export default { controllers: [] }\nexport const isControllerPath = () => false\n'
   const { alias, imports } = importMap(root)
   const entries = controllers.map((c) => {
@@ -344,15 +436,26 @@ const appCode = (
     )
     return `  { route: ${JSON.stringify(c.route)}, pattern: ${JSON.stringify(c.pattern)}, methods: { ${methods.map(method).join(', ')} }, options: [${chain.join(', ')}] },\n`
   })
+  const services = rpc.map(({ contract, file, defaults }) => {
+    const module = alias(file, '*')
+    const methods = contract.methods.map((m) => `${JSON.stringify(m.name)}: ${module}.${m.name}`).join(', ')
+    const chain = [...defaults, file].map(
+      (f) => `limits(${JSON.stringify(normalizePath(path.relative(root, f)))}, ${alias(f, '*')})`,
+    )
+    return `      { entry: ${entryCode(contract, alias)}, layer: serviceLayer(${alias(RPC, contract.name)}, { ${methods} }, ${module}.wrap), options: [${chain.join(', ')}] },\n`
+  })
   const notFound = pages?.notFound ? 'routes.notFound' : '() => jsx(Fragment, {})'
   return `import { Schema } from 'effect'
 import { bind, ${pages ? 'router, ' : ''}segments } from '@sleekstack/router'
-${pages ? `import * as routes from 'virtual:sleekstack/routes'\n` : ''}${pages && !pages.notFound ? `import { Fragment, jsx } from '@sleekstack/ui/jsx-runtime'\n` : ''}${imports()}const options = (file, m) => ({ file, wrap: m.wrap, bodyLimit: m.bodyLimit, origins: m.origins })
-const controllers = [
+${rpc.length ? `import { serviceLayer } from '@sleekstack/start'\nimport { taggedError } from '${START_CLIENT}'\n` : ''}${pages ? `import * as routes from 'virtual:sleekstack/routes'\n` : ''}${pages && !pages.notFound ? `import { Fragment, jsx } from '@sleekstack/ui/jsx-runtime'\n` : ''}${imports()}const options = (file, m) => ({ file, wrap: m.wrap, bodyLimit: m.bodyLimit, origins: m.origins })
+${rpc.length ? 'const limits = (file, m) => ({ file, bodyLimit: m.bodyLimit, origins: m.origins })\n' : ''}const controllers = [
 ${entries.join('')}]
-${pages ? 'let built\n' : ''}export default {
+${pages ? 'let built\n' : ''}${rpc.length ? 'let services\n' : ''}export default {
   controllers,
-${pages ? `  get router() {\n    return (built ??= router({ table: routes.table, pages: routes.pages, notFound: ${notFound} }))\n  },\n` : ''}}
+${
+  // Built on first read: `@sleekstack/start` is still evaluating while it imports this module.
+  rpc.length ? `  get services() {\n    return (services ??= [\n${services.join('')}    ])\n  },\n` : ''
+}${pages ? `  get router() {\n    return (built ??= router({ table: routes.table, pages: routes.pages, notFound: ${notFound} }))\n  },\n` : ''}}
 const decode = (segment) => {
   try {
     return decodeURIComponent(segment)
@@ -409,7 +512,13 @@ const controllersDeclaration = (controllers: readonly DiscoveredController[], di
  * server forwards to `start`. The Controllers are declared in `serverDeclaration` (`Controllers`, each route name's
  * pattern, and `ControllerModules`, its module); a failing discovery, Controller pass or contract read leaves the whole
  * declaration as it was. In dev, a Controller or `_defaults.ts` added, removed or edited invalidates the module in
- * every environment and reloads the page.
+ * every environment and reloads the page. Each `*.rpc.ts` under `serverDir` (an RPC File, read by the analyzer's RPC
+ * pass) is one Server Service: its Tag, `Context.GenericTag(<name>)`, is a named export of `virtual:sleek/rpc`, the
+ * one Tag object every other module imports; its entry is in the browser Layer and the registry; and the discovered
+ * app carries it as a service whose Layer is `serviceLayer` of `@sleekstack/start` over the file's methods and `wrap`.
+ * The declaration types each Tag by the file's methods (`GeneratedServiceShape`) and fills `GeneratedServices`. An
+ * error of the pass fails every load naming file:line and leaves the declaration as it was; in dev, an RPC File added,
+ * removed or edited regenerates and invalidates the modules like a contract or Controller does.
  */
 export const serverServices = (options: ServerServicesOptions = {}): Plugin => {
   let project = ''
@@ -422,6 +531,11 @@ export const serverServices = (options: ServerServicesOptions = {}): Plugin => {
   let routed = false
   let generated: Promise<Generated> | undefined
   let discovered: Promise<Discovered> | undefined
+  let rpcs: Promise<Rpcs> | undefined
+  const rpcRead = () =>
+    (rpcs ??= readRpc(project, root, { serverDir, controllersDir }).catch((cause: unknown) => ({
+      error: cause instanceof Error ? cause.message : String(cause),
+    })))
   const discover = async (): Promise<Discovered> => {
     try {
       const controllers = await discoverControllers({ serverDir, controllersDir, routesDir })
@@ -429,9 +543,11 @@ export const serverServices = (options: ServerServicesOptions = {}): Plugin => {
         ? await readControllers(project, serverDir, controllersDir)
         : { methods: new Map<string, ControllerMethods>(), errors: [] }
       if (errors.length) return { error: failed('Controllers', errors, root) }
+      const r = await rpcRead()
+      if ('error' in r) return r
       const pages = routed ? scan(routesDir) : undefined
-      const code = appCode(controllers, methods, pages?.found.length ? { notFound: !!pages.notFound } : undefined, root)
-      return { controllers, code }
+      const found = pages?.found.length ? { notFound: !!pages.notFound } : undefined
+      return { controllers, code: appCode(controllers, methods, found, root, r.services) }
     } catch (cause) {
       return { error: cause instanceof Error ? cause.message : String(cause) }
     }
@@ -441,12 +557,15 @@ export const serverServices = (options: ServerServicesOptions = {}): Plugin => {
     try {
       const { contracts, errors } = await readContracts(project, serverDir)
       if (errors.length) return { error: failed('Server Service contracts', errors, root) }
-      const entries = entriesCode(contracts, root)
+      const r = await rpcRead()
+      if ('error' in r) return r
+      const entries = entriesCode([...contracts, ...r.services.map((s) => s.contract)], root)
       return {
         client: `${entries}export default serverClients(entries)\n`,
         registry: `${entries}export default entries\n`,
-        declaration: declarationOf(contracts, root, normalizePath(path.dirname(declarationFile))),
-        empty: contracts.length === 0,
+        rpc: r.code,
+        declaration: declarationOf(contracts, r.services, root, normalizePath(path.dirname(declarationFile))),
+        empty: contracts.length === 0 && r.services.length === 0,
       }
     } catch (cause) {
       return {
@@ -477,9 +596,14 @@ export const serverServices = (options: ServerServicesOptions = {}): Plugin => {
   /** The one writer of the declaration: both sections, or none while either fails. */
   const writeDeclaration = (g: Generated, d: Discovered) => {
     if ('error' in g || 'error' in d) return
-    const text = `// Written by @sleekstack/ui-vite from the Server Service contracts${d.controllers.length ? ' and the Controllers' : ''}; do not edit.
+    const sources = [
+      'the Server Service contracts',
+      d.controllers.length && 'the Controllers',
+      g.rpc && 'the RPC Files',
+    ]
+    const text = `// Written by @sleekstack/ui-vite from ${new Intl.ListFormat('en').format(sources.filter((x): x is string => !!x))}; do not edit.
 ${g.declaration}${controllersDeclaration(d.controllers, normalizePath(path.dirname(declarationFile)))}`
-    // An app with no contracts and no Controllers gets no file.
+    // An app with no contracts, RPC Files or Controllers gets no file.
     if (
       !fs.existsSync(declarationFile)
         ? g.empty && d.controllers.length === 0
@@ -502,10 +626,10 @@ ${g.declaration}${controllersDeclaration(d.controllers, normalizePath(path.dirna
       routesDir = normalizePath(path.resolve(root, options.routesDir ?? 'src/routes'))
       declarationFile = path.resolve(root, options.serverDeclaration ?? 'src/server.gen.d.ts')
       routed = config.plugins.some((p) => p.name === 'sleekstack:routes')
-      generated = discovered = undefined
+      generated = discovered = rpcs = undefined
     },
     watchChange() {
-      if (this.environment.mode === 'build') generated = discovered = undefined
+      if (this.environment.mode === 'build') generated = discovered = rpcs = undefined
     },
     async buildStart() {
       const d = await discovery()
@@ -547,7 +671,7 @@ ${g.declaration}${controllersDeclaration(d.controllers, normalizePath(path.dirna
         }
         const g = await current()
         if ('error' in g) return this.error(g.error)
-        return id === `\0${CLIENT}` ? g.client : g.registry
+        return id === `\0${CLIENT}` ? g.client : id === `\0${RPC}` ? g.rpc : g.registry
       },
     },
     configureServer(server) {
@@ -562,14 +686,15 @@ ${g.declaration}${controllersDeclaration(d.controllers, normalizePath(path.dirna
         )
           return
         const before = await Promise.all([current(), discovery()])
-        generated = discovered = undefined
+        // Both results carry every RPC File change: the Tags' names are in the client, their chains in the app.
+        generated = discovered = rpcs = undefined
         const after = await Promise.all([current(), discovery()])
         writeDeclaration(...after)
         const same = (i: 0 | 1) => JSON.stringify(before[i]) === JSON.stringify(after[i])
-        // An edit leaves the discovery as it was, yet the app must load the edited Controller or Directory Defaults.
+        // An edit leaves the discovery as it was, yet the app must load the edited Controller, RPC File or reserved file.
         const discoveryFile =
           [serverDir, controllersDir].some((dir) => file.startsWith(`${dir}/`)) &&
-          (CONTROLLER.test(file) || path.posix.basename(file) === DEFAULTS)
+          (CONTROLLER.test(file) || RPC_FILE.test(file) || RESERVED.has(path.posix.basename(file)))
         const ids = [...(same(0) ? [] : MODULES), ...(same(1) && !discoveryFile ? [] : [SERVER_APP])]
         if (ids.length === 0) return
         for (const env of Object.values(server.environments))

@@ -19,8 +19,12 @@ const START_CLIENT = path.resolve(import.meta.dirname, '../../../start/src/clien
 const CLIENT = 'virtual:sleek/server'
 const REGISTRY = 'virtual:sleek/server-registry'
 const SERVER_APP = 'virtual:sleek/server-app'
+const RPC = 'virtual:sleek/rpc'
 /** A server entry calling `start()` with no options, and a test of it for a nested vitest run. */
 const APP_FIXTURE = path.join(import.meta.dirname, 'fixtures/server-app')
+const serverApp = Object.fromEntries(
+  fs.readdirSync(APP_FIXTURE).map((file) => [file, fs.readFileSync(path.join(APP_FIXTURE, file), 'utf8')]),
+)
 /** A fixture of app files (not its committed declaration) as `scaffold` extras: its directories beside `src`. */
 const appFiles = (fixture: string) => {
   const dir = path.join(import.meta.dirname, 'fixtures', fixture)
@@ -35,6 +39,9 @@ const controllerFiles = appFiles('controllers')
 /** One Controller with a referenced Schema, string codecs and an option chain (`_defaults.ts` maps decode failures to 422). */
 const CONTROLLER_APP = path.join(import.meta.dirname, 'fixtures/controller-app')
 const controllerApp = appFiles('controller-app')
+/** One RPC File (`delete`, a typed error class, a referenced Schema, its own bodyLimit) under a `_defaults.ts` adding an origin. */
+const RPC_APP = path.join(import.meta.dirname, 'fixtures/rpc-files')
+const rpcApp = appFiles('rpc-files')
 
 describe('the printed Schemas over the wire', () => {
   const str = { kind: 'string' } as const
@@ -502,9 +509,6 @@ describe('server boundary', () => {
 
 // `@sleekstack/start` is the workspace link here (its built dist), as in an app of this repo.
 describe('the discovered app', () => {
-  const serverApp = Object.fromEntries(
-    fs.readdirSync(APP_FIXTURE).map((file) => [file, fs.readFileSync(path.join(APP_FIXTURE, file), 'utf8')]),
-  )
   const status = async (app: { fetch: (request: Request) => Promise<Response> }) =>
     (await app.fetch(new Request('http://x.test/'))).status
 
@@ -871,5 +875,125 @@ export const other: Controllers['users/[id]'] = '/users/1'
     fs.writeFileSync(path.join(root, 'index.html'), '<script type="module" src="/src/main.ts"></script>')
     await build({ ...config(root), plugins: plugins({ controllersDir: 'api' }), build: { write: false } })
     expect(fs.readFileSync(path.join(src, 'server.gen.d.ts'), 'utf8')).toContain('readonly "users": "/users"')
+  })
+})
+
+describe('RPC Files', () => {
+  it('generate the Tag, the registry entry, the implementation Layer and the client, sharing one Tag object', async () => {
+    const { server, src, load } = await serve({ ...serverApp, ...rpcApp })
+    expect(await load(RPC)).toBe(
+      `import { Context } from 'effect'\nexport const Comments = Context.GenericTag("Comments")\n`,
+    )
+    expect(await load(REGISTRY)).toMatch(
+      /import \{ Comments as (Comments_\d+) \} from "virtual:sleek\/rpc"\n[^]*\{ tag: \1, methods: \{ "add": [^]*"delete": \{ input: Schema\.Number, success: Schema\.Void, error: taggedError\(CommentMissing_\d+, \{ "id": Schema\.Number \}\) \}/,
+    )
+    expect(await load(SERVER_APP)).toMatch(
+      /layer: serviceLayer\(Comments_\d+, \{ "add": (\$\d+)\.add, "delete": \1\.delete, "list": \1\.list \}, \1\.wrap\), options: \[limits\("server\/_defaults\.ts", \$\d+\), limits\("server\/comments\.rpc\.ts", \1\)\]/,
+    )
+
+    const { Context, Effect, Layer } = await server.ssrLoadModule('effect')
+    const { Comments } = await server.ssrLoadModule(RPC)
+    const registry: ReadonlyArray<{ tag: unknown }> = (await server.ssrLoadModule(REGISTRY)).default
+    const { services } = (await server.ssrLoadModule(SERVER_APP)).default
+    expect(registry.filter((e) => e.tag === Comments)).toHaveLength(1)
+    expect(services.map((s: { entry: { tag: unknown } }) => s.entry.tag)).toEqual([Comments])
+    expect(services[0].entry.tag).toBe(Comments)
+    const client = await Effect.runPromise(Effect.scoped(Layer.build((await server.ssrLoadModule(CLIENT)).default)))
+    expect(Object.keys(Context.unsafeGet(client, Comments)).sort()).toEqual(['add', 'delete', 'list'])
+
+    // The wire id is <Service>.<method>; the inherited origin and the file's own bodyLimit apply.
+    const { app } = await server.ssrLoadModule(path.join(src, 'server.ts'))
+    const call = async (id: string, body: unknown, origin = 'http://x.test') => {
+      const response: Response = await app.fetch(
+        new Request(`http://x.test/_sleek/fn/${id}`, {
+          method: 'POST',
+          headers: { origin },
+          body: JSON.stringify(body),
+        }),
+      )
+      return [response.status, await response.text()]
+    }
+    expect(await call('Comments.delete', 1)).toEqual([200, '{"_tag":"Success"}'])
+    expect(await call('Comments.delete', 1)).toEqual([
+      200,
+      '{"_tag":"Failure","error":{"_tag":"CommentMissing","id":1}}',
+    ])
+    expect((await call('Comments.add', { body: '' }))[0]).toBe(400)
+    expect(await call('Comments.add', { body: 'x' }, 'https://app.test')).toEqual([200, '{"_tag":"Success","value":2}'])
+    expect(await call('Comments.add', { body: 'x'.repeat(64) })).toEqual([413, ''])
+    expect(await call('Comments.list', undefined)).toEqual([200, '{"_tag":"Success","value":[{"id":2,"body":"x"}]}'])
+  })
+
+  it('write the committed declaration of the fixture, which types `yield* Comments` for a consumer', async () => {
+    const { root, src, declaration } = await serve({ ...serverApp, ...rpcApp })
+    expect(fs.readFileSync(declaration, 'utf8')).toBe(
+      fs.readFileSync(path.join(RPC_APP, 'src/server.gen.d.ts'), 'utf8'),
+    )
+    fs.writeFileSync(
+      path.join(src, 'consumer.ts'),
+      `import type { DecodeError } from '@sleekstack/start'
+import type { NetworkError } from '@sleekstack/start/client'
+import { Effect } from 'effect'
+import { Comments } from '${RPC}'
+import type { GeneratedServices } from '${SERVER_APP}'
+import type { CommentMissing } from './comments'
+export const removed: Effect.Effect<void, CommentMissing | NetworkError | DecodeError, Comments> = Effect.gen(function* () {
+  const comments = yield* Comments
+  return yield* comments.delete(1)
+})
+export const key: keyof GeneratedServices = 'Comments'
+// @ts-expect-error the input is a number
+export const text = Effect.flatMap(Comments, (c) => c.delete('1'))
+// @ts-expect-error an option is not a method
+export const limit = Effect.map(Comments, (c) => c.bodyLimit)
+`,
+    )
+    expect(typeErrors(root)).toEqual([])
+  })
+
+  it('regenerate in dev on an RPC File added, renamed, edited or removed; an invalid one keeps the declaration and its load names the file', async () => {
+    const { server, root, load, declaration } = await serve({ ...serverApp, ...rpcApp })
+    for (const env of Object.values(server.environments))
+      for (const id of [CLIENT, REGISTRY, RPC, SERVER_APP]) await env.transformRequest(id)
+    const spies = Object.values(server.environments).map((env) => vi.spyOn(env.moduleGraph, 'invalidateModule'))
+    /** Applies one file event and lets the plugin's rerun finish (the load waits on it); the ids it invalidated. */
+    const event = async (kind: 'add' | 'change' | 'unlink', file: string, text = '') => {
+      const full = path.join(root, file)
+      if (kind === 'unlink') fs.rmSync(full)
+      else fs.writeFileSync(full, text)
+      server.watcher.emit(kind, full)
+      await new Promise((r) => setTimeout(r, 0))
+      await load(SERVER_APP).catch(() => undefined)
+      await new Promise((r) => setTimeout(r, 0))
+      // Vite also invalidates an edited file's importers, passing its own propagation arguments; the plugin passes the module only.
+      const invalidated = spies.map((spy) => spy.mock.calls.filter((args) => args.length === 1).map(([mod]) => mod.id))
+      for (const spy of spies) spy.mockClear()
+      return invalidated
+    }
+    const counter = (n: number) =>
+      `import { Effect } from 'effect'\nexport const count = (): Effect.Effect<number> => Effect.succeed(${n})\n`
+    const every = spies.map(() => [CLIENT, REGISTRY, RPC, SERVER_APP].map((id) => `\0${id}`))
+    const declared = () => fs.readFileSync(declaration, 'utf8')
+
+    expect(await event('add', 'server/notes.rpc.ts', counter(1))).toEqual(every)
+    expect(declared()).toContain('export const Notes:')
+    expect(await event('change', 'server/notes.rpc.ts', counter(2))).toEqual(spies.map(() => [`\0${SERVER_APP}`]))
+    await event('unlink', 'server/notes.rpc.ts')
+    expect(await event('add', 'server/jots.rpc.ts', counter(1))).toEqual(every)
+    expect(declared()).toContain('export const Jots:')
+    expect(declared()).not.toContain('Notes')
+
+    const before = declared()
+    await event(
+      'add',
+      'server/bad.rpc.ts',
+      `import { Effect } from 'effect'\nexport const loose = (x: any): Effect.Effect<void> => Effect.log(x)\n`,
+    )
+    for (const id of [RPC, CLIENT, SERVER_APP])
+      await expect(load(id)).rejects.toThrow(`${root}/server/bad.rpc.ts:2 RpcMethodShape`)
+    expect(declared()).toBe(before)
+    expect(await event('unlink', 'server/bad.rpc.ts')).toEqual(every)
+    expect(await event('unlink', 'server/jots.rpc.ts')).toEqual(every)
+    expect(declared()).not.toContain('Jots')
   })
 })
