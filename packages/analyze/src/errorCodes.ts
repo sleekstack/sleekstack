@@ -32,6 +32,9 @@ export type AnalyzeCode =
   | 'ServerFileInClientGraph'
   | 'ControllerMethodShape'
   | 'ControllerParamsMismatch'
+  | 'LayerFileCycle'
+  | 'LayerFileConflict'
+  | 'ServerFileShape'
 
 export interface ErrorHelp {
   /** What the analyzer checks. */
@@ -47,6 +50,7 @@ const READ = '/docs/errors#analyzer-read-errors'
 const UI = '/docs/errors#component-errors'
 const SERVER = '/docs/errors#server-service-errors'
 const CONTROLLER = '/docs/errors#controller-errors'
+const FILES = '/docs/errors#server-file-errors'
 
 export const ERROR_CODES: Readonly<Record<AnalyzeCode, ErrorHelp>> = {
   MissingDependency: {
@@ -184,6 +188,28 @@ export const ERROR_CODES: Readonly<Record<AnalyzeCode, ErrorHelp>> = {
     rule: "The keys of a Controller method's params equal its path's params (`[id]` is `params.id`).",
     fix: ['Name each params key after a path param', 'Declare params with every path param on each method'],
     docs: CONTROLLER,
+  },
+  LayerFileCycle: {
+    rule: 'Layer Files may not require each other in a cycle.',
+    fix: ['Break the cycle: move the shared part into a third Layer File both require'],
+    docs: FILES,
+  },
+  LayerFileConflict: {
+    rule: 'Each Tag is provided by one Layer File at most.',
+    fix: [
+      'Remove one of the Layer Files, or have one provide another Tag',
+      'Override a Layer File through start({ layer }), which shadows it',
+    ],
+    docs: FILES,
+  },
+  ServerFileShape: {
+    rule: "A *.layer.ts file's default export is a Layer, not typed `any`; the server directory's _app.ts exports only onError.",
+    fix: [
+      'Export the Layer as the default export (`export default Layer.effect(...)`)',
+      'Write out the Layer type instead of `any`',
+      'Move other _app.ts exports to another module',
+    ],
+    docs: FILES,
   },
 }
 

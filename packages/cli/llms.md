@@ -84,4 +84,7 @@ Anything else is a `CaptiveDependency`. `request` and `component` never nest.
 - `ServerFileInClientGraph`: No server-only file (*.server.ts, *.controller.ts, or a _defaults.ts under the server directory) is value-imported, directly or not, by a module importing virtual:sleek/server.
 - `ControllerMethodShape`: A Controller method is a named export GET, HEAD, POST, PUT, PATCH, DELETE or OPTIONS: a function of one object `{ params?, query?, body? }` (body only on POST, PUT, PATCH, DELETE) returning an Effect, no `any`; params and query decode from strings.
 - `ControllerParamsMismatch`: The keys of a Controller method's params equal its path's params (`[id]` is `params.id`).
+- `LayerFileCycle`: Layer Files may not require each other in a cycle.
+- `LayerFileConflict`: Each Tag is provided by one Layer File at most.
+- `ServerFileShape`: A *.layer.ts file's default export is a Layer, not typed `any`; the server directory's _app.ts exports only onError.
 <!-- generated:errors:end -->

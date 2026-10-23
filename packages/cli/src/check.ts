@@ -10,8 +10,10 @@
  * A project whose package.json lists `@sleekstack/ui` also runs the component pass (`components` under `--json`);
  * its `mount` trees count as roots. The Server Service pass always runs (`serverServiceErrors` under `--json`, only
  * when there are any), and so does the Controller pass: the `*.controller.ts` files under `server/routes` are roots too
- * (`controllerErrors` under `--json`, only when there are any). Each text error line `file:line CODE: message` is followed by indented
- * `fix:` and `docs:` lines. `sleekstack explain <CODE>` prints a code's rule, remedies and docs path.
+ * (`controllerErrors` under `--json`, only when there are any), and so does the Layer File pass: the `*.layer.ts` files
+ * are roots as well, so an app whose `start()` takes no options still has some (`layerFileErrors`, with the Server
+ * Root's, likewise). Each text error line `file:line CODE: message` is followed by indented `fix:` and `docs:` lines.
+ * `sleekstack explain <CODE>` prints a code's rule, remedies and docs path.
  *
  * Exit codes (the only place they are defined):
  *   0  clean / explain printed
@@ -26,6 +28,7 @@ import {
   analyze,
   analyzeComponents,
   analyzeControllers,
+  analyzeLayerFiles,
   analyzeServerServices,
   ERROR_CODES,
   type AnalyzeCode,
@@ -104,11 +107,14 @@ export function main(argv: readonly string[], io: Io = stdio): number {
     })
     const ui = components(project)
     const controllers = analyzeControllers({ project })
+    const layerFiles = analyzeLayerFiles({ project })
     if (
       report.runtimes.length === 0 &&
       !ui?.trees.length &&
       !controllers.controllers.length &&
-      !controllers.errors.length
+      !controllers.errors.length &&
+      !layerFiles.layerFiles.length &&
+      !layerFiles.errors.length
     )
       return (
         io.err(
@@ -131,7 +137,8 @@ export function main(argv: readonly string[], io: Io = stdio): number {
       roots.every((r) => r.errors.length === 0) &&
       !ui?.errors.length &&
       server.length === 0 &&
-      controllers.errors.length === 0
+      controllers.errors.length === 0 &&
+      layerFiles.errors.length === 0
     const line = (e: AnalyzeError) =>
       `  ${e.file}:${e.line} ${e.code}: ${e.message}${e.fix.map((f) => `\n    fix: ${f}`).join('')}\n    docs: ${e.docs}`
     if (json)
@@ -146,6 +153,7 @@ export function main(argv: readonly string[], io: Io = stdio): number {
             ...(ui && { components: ui }),
             ...(server.length > 0 && { serverServiceErrors: server }),
             ...(controllers.errors.length > 0 && { controllerErrors: controllers.errors }),
+            ...(layerFiles.errors.length > 0 && { layerFileErrors: layerFiles.errors }),
           },
           null,
           2,
@@ -160,6 +168,7 @@ export function main(argv: readonly string[], io: Io = stdio): number {
       ui?.errors.forEach((e) => io.err(line(e)))
       server.forEach((e) => io.err(line(e)))
       controllers.errors.forEach((e) => io.err(line(e)))
+      layerFiles.errors.forEach((e) => io.err(line(e)))
     }
     return ok ? 0 : 1
   } catch (e) {

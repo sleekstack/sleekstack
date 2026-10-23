@@ -192,13 +192,23 @@ export const propertyOf = (options: ts.ObjectLiteralExpression, name: string): t
   return p && ts.isPropertyAssignment(p) ? p.initializer : p && ts.isShorthandPropertyAssignment(p) ? p.name : undefined
 }
 
+/** `ROut` and `RIn` of a Layer type; undefined when it is not a Layer. */
+export const layerTypes = (
+  type: ts.Type,
+  checker: ts.TypeChecker,
+): { readonly out: ts.Type; readonly in: ts.Type } | undefined => {
+  if (libId(type.aliasSymbol ?? type.getSymbol(), checker) !== LAYER) return undefined
+  const [out, , rIn] = checker.getTypeArguments(type as ts.TypeReference)
+  return out && rIn ? { out, in: rIn } : undefined
+}
+
+/** A union's members; none for `never`. */
+export const membersOf = (t: ts.Type): ts.Type[] => (t.flags & ts.TypeFlags.Never ? [] : t.isUnion() ? t.types : [t])
+
 /** The Tags a Layer expression provides (its `ROut` members); undefined when its type is not a readable Layer. */
 export const layerOutputs = (layer: ts.Expression, checker: ts.TypeChecker): ts.Type[] | undefined => {
-  const type = checker.getTypeAtLocation(layer)
-  if (libId(type.aliasSymbol ?? type.getSymbol(), checker) !== LAYER) return undefined
-  const out = checker.getTypeArguments(type as ts.TypeReference)[0]
-  if (!out || out.flags & ts.TypeFlags.Any) return undefined
-  return out.flags & ts.TypeFlags.Never ? [] : out.isUnion() ? out.types : [out]
+  const out = layerTypes(checker.getTypeAtLocation(layer), checker)?.out
+  return !out || out.flags & ts.TypeFlags.Any ? undefined : membersOf(out)
 }
 
 export interface ServerServiceDecl {
