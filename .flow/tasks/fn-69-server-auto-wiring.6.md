@@ -38,9 +38,24 @@ Emit the composed Layer of the Layer Files and the Server Root's `onError` into 
 - [ ] `pnpm turbo run test typecheck --filter=@sleekstack/ui-vite...` passes
 
 ## Done summary
-TBD
+`virtual:sleek/server-app` now carries `layer` and the Server Root's `onError`. `layer` holds the Layer Files from the analyzer's `analyzeLayerFiles`, folded in its composition order with `Layer.provideMerge(next, before)` behind a memoized getter. `onError` is the `_app.ts` export, emitted only when it exists, so `start`'s `console.error` default stands otherwise. The declaration fills `LayerFileServices`, sorted by file, typing each Layer File as `Layer.Layer.Success<typeof import(file).default>`. It is keyed by file, not by Tag: the analyzer gives Tag names only, and `start` reads only the union of the values. An analyzer error fails the module load with `file:line`, and the previous declaration stays. In dev, a `*.layer.ts` change outside tests regenerates and invalidates the app. The check uses the analyzer's `TEST_FILE`, the same predicate the pass applies. The Layer Files' directories are added to the watcher.
 
+Tests (`packages/ui-vite/src/__tests__/server-services.test.ts`, describe 'Layer Files', fixture `fixtures/layer-files/`):
+- three Layer Files (one outside `server/`) are composed by requirement; `src/test/db.layer.ts` is not composed; the explicit `layer` shadows `Config` (`"hi / hello, ann"`)
+- a failing Layer File build answers 500 twice, and the Server Root's `onError` gets the same cause each time
+- the committed declaration is sorted and types the explicit `layer` (a `start({ layer })` that requires a Layer File output typechecks; an unprovided requirement is a type error)
+- in dev: an add, edit or remove, an `_app.ts` edit, and an invalid file (keeps the declaration; the load names `file:1 ServerFileShape`); an edit under `test/` invalidates nothing
+
+An app without a `tsconfig.json` skips the Layer File pass (it has no program). The first full gate run caught this in the ids, jsx and prerender fixtures, and the follow-up commit fixed it.
+
+Note: the doc comment for `LayerFileServices` in `packages/start/src/server-app.ts` says "by key". That file is outside this task's Touches, so I left it unchanged.
+
+Gates (serial, `--concurrency=1`; the first parallel run timed out in showcase under load): the main turbo test+typecheck, `realworld check`, docs test+typecheck+build, `pnpm --filter docs test`, `pnpm --filter docs build`, `pnpm format:check`, and the fixture graph check all passed. No public export changed.
+
+baseline: green (ui-vite test+typecheck, turbo cache, pre-edit)
+stage: impl-review - skipped(policy: user asked for one completion review at the end of the spec)
+Tier: session (jev-unavailable(no_key)); routing block sets opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 597df2d3ec328e5bf6840eef39d2d775dd2cc33b, 88e22e5ea4bb5fb4115a122766262a7c26be5c89
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack --filter=@sleekstack/ui-vite... --filter=@sleekstack/start... --filter=@sleekstack/testing --filter=realworld --filter=showcase --concurrency=1, pnpm --filter realworld check, pnpm turbo run test typecheck build --filter=docs --concurrency=1, pnpm --filter docs test, pnpm --filter docs build, pnpm format:check
 - PRs:
