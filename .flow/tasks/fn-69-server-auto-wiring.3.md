@@ -44,9 +44,16 @@ The runtime support the generated code calls: a builder for the implementation L
 - [ ] `pnpm turbo run test typecheck --filter=@sleekstack/start...` passes
 
 ## Done summary
-TBD
+Added the runtime the generated code calls: `serviceLayer(tag, methods, wrap?)` (build services captured once without the build Scope, request services from each call's fiber, every call inside the `RpcWrap` on the wire and in process) and `rpc(services, options)` for the RPC Manifest, with route names typed from `ControllerModules`. `DiscoveredApp` now carries `layer`, `services` (`DiscoveredService`: entry, implementation Layer, option chain) and `onError`. `start` composes them on the first request, with the explicit `layer` winning and allowed to require `LayerFileServices`. The wire resolves `bodyLimit` per registered id, and `origins` are a union over every option chain.
 
+Notes for tasks 4 to 6: `rpc(...)` returns `{ services, options }`, not the bare table, so the Manifest's `wrap`, `bodyLimit` and `origins` can be read at run time; the plain object-literal default export has no options. The generated declaration fills `ControllerModules` (already written), `LayerFileServices` and `GeneratedServices` (Tag key to Tag type) in `virtual:sleek/server-app`. Shadowed Layer Files are still built. The explicit `layer` must not require a generated Tag.
+
+Tests: `packages/start/src/__tests__/rpc.test.ts` (builder, wrap on the wire and in process, typed error as the Exit failure, the Server Root's `onError` against an explicit one, explicit layer shadowing, de-duplicated `services`, `origins` union, unknown id or cross-origin with no leak, per-id `bodyLimit`, invalid `bodyLimit` naming the file), `rpc.test-d.ts` (route names), `layer.test-d.ts` (Layer File requirement). Fixture graph diff empty.
+
+Tier: session (jev-unavailable(no_key)); routing block sets opus at medium
+
+stage: impl-review - skipped(policy: user asked for one completion review at the end of the spec)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: f94403eddbc68f41883f95d985e678f2dad0240f
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/start..., pnpm --filter docs test, pnpm format:check, fixture graph check: diff empty
 - PRs:
