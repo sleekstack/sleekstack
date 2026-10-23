@@ -54,6 +54,7 @@ Tests: packages/analyze/src/__tests__/rpc.test.ts with the fixtures `rpc` and `r
 Notes for later tasks: `controllers.ts` now exports `signatureOf`, `METHODS` and `CONTROLLER` at module level, but not from `index.ts`. Manifest options (`wrap`, `bodyLimit`, `origins`) are not read here. The `rpc(...)` callee is accepted by shape, because task 3 has not written the helper yet: pin it by declaration once it exists. `sleekstack check` does not call `analyzeRpc` yet, because packages/cli/src is outside Touches. The effect-app fixture graph check was not run: no names it reads changed.
 
 stage: impl-review - skipped(policy: user asked for one completion review at the end of the spec)
+stage: plan-sync - ran (sonnet; updated tasks 3, 4, 5, 11)
 Tier: session (jev-unavailable(no_key)); routing block sets opus at medium
 ## Evidence
 - Commits: 98b9ea7045ad463114ae421556a86ad0aae59430
