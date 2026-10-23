@@ -402,7 +402,7 @@ const controllersDeclaration = (controllers: readonly DiscoveredController[], di
  * chain starts at a test (type-only imports are erased before they get here). It also serves
  * `virtual:sleek/server-app`, the discovered app (`DiscoveredApp` of `@sleekstack/start`), and gives it to `start()`
  * in place of the stand-in `start` imports. Its Controllers are found by `discoverControllers` and read by the
- * analyzer's Controller pass; an error of either fails the module's load naming the file. Each entry imports its
+ * analyzer's Controller pass; an error of either fails the module's load, and any build, naming the file. Each entry imports its
  * Controller and `_defaults.ts` modules eagerly (`start` loads the module on its first request) and carries the
  * printed Schemas of each method. With the file-routes plugin and routes under `routesDir`, the module also carries
  * the page router built from `virtual:sleekstack/routes`. Its named export `isControllerPath(pathname)` is what a dev
@@ -508,7 +508,10 @@ ${g.declaration}${controllersDeclaration(d.controllers, normalizePath(path.dirna
       if (this.environment.mode === 'build') generated = discovered = undefined
     },
     async buildStart() {
-      writeDeclaration(await current(), await discovery())
+      const d = await discovery()
+      writeDeclaration(await current(), d)
+      // A build need not import the discovered app, whose load is what reports the error in dev.
+      if (this.environment.mode === 'build' && 'error' in d) this.error(d.error)
     },
     resolveId: {
       // Before Vite's own resolver, which would find the stand-in's file.

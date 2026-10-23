@@ -760,6 +760,28 @@ describe('Controller discovery', () => {
     for (const part of parts(root)) expect(error).toContain(part)
   })
 
+  describe('a client build that never imports the discovered app', () => {
+    const client = (extra: Record<string, string>) => {
+      const { root } = scaffold({ ...controllerFiles, 'main.ts': 'console.log(1)\n', ...extra })
+      fs.writeFileSync(path.join(root, 'index.html'), '<script type="module" src="/src/main.ts"></script>')
+      return { root, built: build({ ...config(root), build: { write: false } }) }
+    }
+
+    it('fails on an orphan Controller, naming it', async () => {
+      const { root, built } = client({ '../server/users.controller.ts': '' })
+      await expect(built).rejects.toThrow(
+        `invalid Controller file ${root}/server/users.controller.ts: it is outside the Controllers directory`,
+      )
+    })
+
+    it('fails on two Controllers at one path, naming both', async () => {
+      const { root, built } = client({ '../server/routes/users/[name].controller.ts': '' })
+      await expect(built).rejects.toThrow(
+        `Controller files ${root}/server/routes/users/[id].controller.ts and ${root}/server/routes/users/[name].controller.ts both give path /users/:`,
+      )
+    })
+  })
+
   it('declares each route name with its pattern beside the Server Services, for a TypeScript consumer', async () => {
     const { root, src, declaration } = await serve(controllerFiles)
     const text = fs.readFileSync(declaration, 'utf8')
