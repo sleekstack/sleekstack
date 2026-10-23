@@ -39,9 +39,23 @@ Generate Server Services from the server directory's `rpc.ts` by wrapping Contro
 - [ ] `pnpm turbo run test typecheck --filter=@sleekstack/ui-vite... --filter=@sleekstack/start...` passes
 
 ## Done summary
-TBD
+`rpc.ts` under serverDir now generates one Server Service per Manifest service: a Tag in `virtual:sleek/rpc`, a registry entry and client, and a `serviceLayer` over the wrapped Controller Methods that runs inside the Manifest's own `wrap`. The wire id is `<Service>.<method>`, and `bodyLimit` and `origins` are read from `rpc(...)`'s default-export options. The declaration types each Manifest Tag from the Controllers' modules, so renaming a Controller is a type error at the `rpc.ts` route string.
 
+Tests (`packages/ui-vite/src/__tests__/server-services.test.ts`, 'the RPC Manifest', fixture `rpc-manifest/`):
+- the three-part `{ params, body }` input and a no-input method
+- a cookie-read `wrap`, with the typed error crossing as the Exit failure
+- the directory `wrap` not applied on the RPC face but kept on REST
+- the bodyLimit returning 413
+- an in-process call wrapped too
+- the committed declaration
+- the type error on rename, checked through the TS program in vitest rather than a separate `*.test-d.ts`
+
+Continuation: the original worker committed 25af7d78 and died before recording a receipt. This worker re-checked every AC against the commit and re-ran all gates with `--force`. No code changes were needed.
+
+baseline: not re-run (continuation; task code already committed at 25af7d78; post-commit gates all green)
+stage: impl-review - skipped(policy: user asked for one completion review at the end of the spec)
+Tier: session (jev-unavailable(no_key)); routing block sets opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 25af7d78c26925d75c8a8f43dd581a2247c90859
+- Tests: pnpm turbo run test typecheck --force --filter=@sleekstack/analyze --filter=sleekstack --filter=@sleekstack/ui-vite... --filter=@sleekstack/start... --filter=@sleekstack/testing --filter=realworld --filter=showcase, pnpm --filter realworld check, pnpm turbo run test typecheck build --force --filter=docs --concurrency=1, pnpm --filter docs test, pnpm --filter docs build, pnpm format:check, (cd packages/cli/src/__tests__/fixtures/effect-app && node ../../../../bin/cli.js check --json --entry runtime.ts)
 - PRs:
