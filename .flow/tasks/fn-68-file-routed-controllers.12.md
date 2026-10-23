@@ -77,6 +77,7 @@ The untracked `.flow/specs/fn-70*` and `.flow/tasks/fn-70*` files were left out 
 Tier: session (jev-unavailable(no_key)); routing block sets opus at medium (actual: claude-opus-5-5)
 
 stage: impl-review - skipped(policy: user asked for one completion review at the end of the spec)
+stage: plan-sync - skipped(empty: no downstream todo tasks)
 ## Evidence
 - Commits: 94347b284a70f4ec6c86b2e3c1f5045111e7b45d
 - Tests: pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack --filter=@sleekstack/router... --filter=@sleekstack/ui-vite... --filter=@sleekstack/start... --filter=@sleekstack/testing --filter=realworld, pnpm --filter realworld check, pnpm turbo run test typecheck build --filter=docs --concurrency=1, pnpm --filter docs test, pnpm --filter docs build, pnpm format:check
