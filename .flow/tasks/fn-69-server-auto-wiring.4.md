@@ -56,6 +56,7 @@ Notes for task 5: Manifest services (`analyzeRpc` services whose file is not `*.
 
 baseline: green (all Quick commands, pre-edit)
 stage: impl-review - skipped(policy: user asked for one completion review at the end of the spec)
+stage: plan-sync - ran (sonnet; updated task 5)
 Tier: session (jev-unavailable(no_key)); routing block sets opus at medium
 ## Evidence
 - Commits: b145cea76d2382af195e9df7792e51760145253a
