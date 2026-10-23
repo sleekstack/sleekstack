@@ -38,9 +38,26 @@ The early proof point: one written signature in a `*.rpc.ts` file produces the T
 - [ ] `pnpm turbo run test typecheck --filter=@sleekstack/ui-vite...` passes
 
 ## Done summary
-TBD
+The plugin now turns each `*.rpc.ts` under `serverDir` into a Server Service, end to end. `virtual:sleek/rpc` exports one `Context.GenericTag(<name>)` per RPC File, and `virtual:sleek/server`, `virtual:sleek/server-registry` and `virtual:sleek/server-app` all import their Tags from it, so every module shares one Tag object. The client and registry entries come from the shared `entryCode`. The discovered app's `services` holds `{ entry, layer: serviceLayer(Tag, { methods }, file.wrap), options: [_defaults.ts chain, file] }`, with options that carry `bodyLimit` and `origins` but not `wrap`. `services` is a lazy getter, because `@sleekstack/start` is still evaluating when it imports the module.
 
+The declaration types each Tag as `Context.Tag<Id, GeneratedServiceShape<Pick<typeof import(file), methods>>>`, with methods sorted, and it fills `GeneratedServices`. An app without RPC Files gets a byte-identical declaration: the committed realworld, showcase and docs files did not change.
+
+Dev: adding, removing or renaming an RPC File invalidates all four modules. An edit that keeps the signatures invalidates only the server app. An invalid file fails every load with `file:line` and leaves the previous declaration in place. `sleekstack check` now runs `analyzeRpc` (`rpcErrors`), and RPC Files count as roots.
+
+Tests:
+- `packages/ui-vite/src/__tests__/server-services.test.ts`, describe 'RPC Files', with the fixture `fixtures/rpc-files` (`delete`, a typed error class, a referenced Schema, its own `bodyLimit`, and a `_defaults.ts` origin):
+  - the four artefacts and one shared Tag
+  - the wire ids `Comments.<method>`: the typed failure, a Schema decode 400, the inherited origin, the file's `bodyLimit` (413)
+  - the committed declaration, and a TS consumer of `yield* Comments`
+  - dev add, edit, rename and remove, and an invalid file
+- `packages/cli/src/__tests__/check.test.ts`, 'an app of only RPC Files', with the fixture `fixtures/rpc`.
+
+Notes for task 5: Manifest services (`analyzeRpc` services whose file is not `*.rpc.ts`) are filtered out here. `discoveryFile` already covers `rpc.ts` and `_app.ts`. Fixture graph diff empty.
+
+baseline: green (all Quick commands, pre-edit)
+stage: impl-review - skipped(policy: user asked for one completion review at the end of the spec)
+Tier: session (jev-unavailable(no_key)); routing block sets opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: b145cea76d2382af195e9df7792e51760145253a
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack --filter=@sleekstack/ui-vite... --filter=@sleekstack/start... --filter=@sleekstack/testing --filter=realworld --filter=showcase, pnpm --filter realworld check, pnpm turbo run test typecheck build --filter=docs --concurrency=1, (cd packages/cli/src/__tests__/fixtures/effect-app && node ../../../../bin/cli.js check --json --entry runtime.ts) # diff empty, pnpm --filter docs test, pnpm --filter docs build, pnpm format:check
 - PRs:
