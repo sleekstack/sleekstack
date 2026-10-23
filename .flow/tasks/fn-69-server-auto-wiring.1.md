@@ -40,9 +40,17 @@ Recognise `*.layer.ts` and the Server Root and compose the Layer Files by requir
 - [ ] `pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack` passes
 
 ## Done summary
-TBD
+Added the Layer File pass (`analyzeLayerFiles` in packages/analyze/src/layerFiles.ts). It reads each `*.layer.ts` default export as a Layer (tests excluded), composes the files by requirement (independent files by path codepoint, a cycle last) and reports `LayerFileCycle`, `LayerFileConflict`, `MissingDependency` and `ServerFileShape`; the Server Root `_app.ts` takes only `onError`. The Controller pass now counts Layer File outputs as provided for methods and wrap results. `sleekstack check` treats Layer Files as roots, so an app whose `start()` takes no options no longer exits 2, and it prints `layerFileErrors` under `--json`. The new codes are in the error table, errors.mdx and llms.md.
 
+The fixtures cover every acceptance case: two files composed by requirement, a cycle, a duplicate provider, an unmet requirement, no default export, a default typed `any`, a stray `_app.ts` export, an excluded `test/` Layer, and an explicit `layer` shadowing `z-config.layer.ts` with no conflict. The tests are packages/analyze/src/__tests__/layerFiles.test.ts, controllers.test.ts and packages/cli/src/__tests__/check.test.ts.
+
+A continuation worker re-verified commit cb585393 against the acceptance criteria and found no gaps. Every Quick command was re-run with `--force` and passed: analyze 140 tests, cli 29, docs 58. `realworld check` and `format:check` were clean. The effect-app fixture graph has no new keys because it has no Layer Files.
+
+Analyzer note: the explicit `layer` does not discharge a Layer File's own requirement. The spec puts `layer` above the Layer Files, which matches the current behavior.
+
+stage: impl-review - skipped(policy: user asked for one completion review at the end of the spec)
+Tier: session (jev-unavailable(no_key)); routing block sets opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: cb58539367c098cb37fabfd6d20af0c0074db746
+- Tests: pnpm turbo run test typecheck --force --filter=@sleekstack/analyze --filter=sleekstack --filter=@sleekstack/ui-vite... --filter=@sleekstack/start... --filter=@sleekstack/testing --filter=realworld --filter=showcase, pnpm --filter realworld check, pnpm turbo run test typecheck build --force --filter=docs --concurrency=1, pnpm --filter docs test, pnpm format:check, (cd packages/cli/src/__tests__/fixtures/effect-app && node ../../../../bin/cli.js check --json --entry runtime.ts)
 - PRs:
