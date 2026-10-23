@@ -40,6 +40,7 @@ The analyzer's `checkStart` (`packages/analyze/src/serverServices.ts`) now count
 
 baseline: green (all Quick commands, turbo cache, pre-edit; recorded by the previous worker)
 stage: impl-review - skipped(policy: user asked for one completion review at the end of the spec)
+stage: plan-sync - ran (sonnet; updated tasks 10, 11)
 Tier: session (jev-unavailable(no_key)); routing block sets opus at medium
 ## Evidence
 - Commits: efb2b86309e90cc84b292700c051ce86e719254b
