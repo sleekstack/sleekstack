@@ -32,4 +32,13 @@ export type { ServerServiceDecl, ServerServiceMethod, ServerServiceReport } from
 /** The server-only files (R12) and the test-file predicate, shared by `sleekstack check` and the Vite plugin. */
 export { isServerOnly, SERVER_ONLY } from './serverServices'
 export { TEST_FILE } from './extract'
+/** The Controller pass (ADR 0053): routes, methods and their input Schemas, and the route derivation the plugin shares. */
+export { analyzeControllers, controllerRoute } from './controllers'
+export type {
+  ControllerDecl,
+  ControllerMethod,
+  ControllerMethodName,
+  ControllerReport,
+  ControllerRoute,
+} from './controllers'
 export type { MethodSchema, PropertySchema, TaggedErrorSchema, TypeSchema } from './typeSchema'

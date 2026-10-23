@@ -2,11 +2,11 @@
 
 ## Status
 
-Proposed (draft). Amends ADR 0039 (route handlers at exact pathnames only; the request services gain `ResponseStatus`) and reuses ADR 0050's path syntax. Replaces the term Server Endpoint. Its wiring half is ADR 0054. Spec: fn-68.
+Accepted. Amends ADR 0039 (route handlers at exact pathnames only; the request services gain `ResponseStatus`) and reuses ADR 0050's path syntax. Replaces the term Server Endpoint. Its wiring half is ADR 0054, still Proposed: until it is built, a Controller's services come from `start({ layer })` or a `wrap`, not from found Layers. Built in spec fn-68.
 
 ## Context
 
-ADR 0039's `start({ handlers })` serves a handler at an exact pathname and has no params (its listed known gap). Realworld works around that with `server/rest.ts`: one middleware over `/api/` with a 19-entry regex table that also resolves the viewer from `Authorization`, decodes each body and maps tagged errors to statuses. A handler is `(Request) => Effect<Response>`, so nothing types its input or output: each handler decodes by hand and nothing can generate a client from it.
+ADR 0039's `start({ handlers })` serves a handler at an exact pathname and has no params (its listed known gap). Realworld worked around that with `server/rest.ts`: one middleware over `/api/` with a 19-entry regex table that also resolved the viewer from `Authorization`, decoded each body and mapped tagged errors to statuses. A handler is `(Request) => Effect<Response>`, so nothing types its input or output: each handler decodes by hand and nothing can generate a client from it.
 
 ADR 0050 already turns files into routes for pages, and the Start proposal (`docs/proposals/start-framework.md`, section 4) planned `api/health.ts` as a route handler. Nothing built it.
 

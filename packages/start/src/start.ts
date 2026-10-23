@@ -2,7 +2,8 @@ import { handle, type Loaders, NotFound, Redirect, type Router, type RouteTable 
 import { configureRuntime, type ErrorSink, runEffect } from '@sleekstack/runtime'
 import type { Store, Transfer } from '@sleekstack/ui'
 import { Cause, Effect, Layer } from 'effect'
-import type { DiscoveredApp } from './app'
+import type { ControllerEntry, DiscoveredApp } from './app'
+import { matchController, serveController } from './controller'
 import { type Handler, runHandler } from './handler'
 import { type Middleware, runMiddleware } from './middleware'
 import { normalizeOrigin } from './origin'
@@ -31,21 +32,27 @@ export type StartOptions<T extends RouteTable, RP, RH, RM, RF, SE extends Server
   readonly router?: Router<T, RP>
   /** Route handlers by exact pathname. */
   readonly handlers?: { readonly [pathname: string]: Handler<any, RH> }
+  /** Controllers besides the discovered ones, matched after them in list order. */
+  readonly controllers?: ReadonlyArray<ControllerEntry>
   /** Run in order before every other stage. */
   readonly middleware?: ReadonlyArray<Middleware<any, RM>>
   /** Server functions, served at `POST /_sleek/fn/<id>`. Ids are unique and `[A-Za-z0-9][A-Za-z0-9_.-]*`. */
   readonly functions?: ReadonlyArray<ServerFn<string, any, any, any, RF>>
   /**
    * Server Services (the generated registry), each method served at `POST /_sleek/fn/<Tag id>.<method>`. `layer` must
-   * provide every Tag; ids share the `functions` rules.
+   * provide every Tag; ids share the `functions` rules. An entry whose Tag is already listed registers nothing.
    */
   readonly services?: ReadonlyArray<SE>
   /**
    * Origins besides the request's own allowed to call server functions, each a bare origin such as
-   * `https://app.example`; anything else fails `start` with `InvalidOrigin`. This sends no CORS headers: middleware does.
+   * `https://app.example`; anything else fails `start` with `InvalidOrigin`. Every Controller file's `origins` export
+   * adds to them. This sends no CORS headers: middleware does.
    */
   readonly origins?: ReadonlyArray<string>
-  /** Largest server-function request body, in bytes; larger is 413. Default: 1 MiB. */
+  /**
+   * Largest request body, in bytes, of a server function and of a Controller with no `bodyLimit` export of its own or
+   * in a `_defaults.ts` above it; larger is 413. Default: 1 MiB.
+   */
   readonly bodyLimit?: number
   /** The runtime's error sink: defects from every stage. Default: `console.error`. */
   readonly onError?: ErrorSink
@@ -74,9 +81,17 @@ const discover = (explicit: boolean): Promise<DiscoveredApp> =>
   })
 
 /**
+ * The discovered app with the Controllers given as options after its own, and the server-function stage over the
+ * union of `origins` and every Controller file's `origins`.
+ */
+interface Loaded extends DiscoveredApp {
+  readonly serverFunctions: (request: globalThis.Request) => Effect.Effect<Response | undefined, unknown, unknown>
+}
+
+/**
  * The server entry: configures the runtime over `layer`, and `fetch` answers each request in one Request Scope,
- * through middleware, then server functions and Server Service methods, then the route handler for the pathname, then the router's page (an
- * unmatched path is its not-found page with 404). A defect or unhandled failure in any stage reaches `onError` and
+ * through middleware, then server functions and Server Service methods, then the route handler for the pathname, then
+ * the first Controller matching the path, then the router's page (an unmatched path is its not-found page with 404). A defect or unhandled failure in any stage reaches `onError` and
  * answers an empty 500. A `Redirect` or `NotFound` from middleware or a handler answers 302 or 404.
  *
  * Options merge with the discovered app, which `serverServices()` from `@sleekstack/ui-vite` serves as
@@ -94,16 +109,30 @@ export const start = <
 >(
   options: StartOptions<T, RP, RH, RM, RF, SE> = {} as StartOptions<T, RP, RH, RM, RF, SE>,
 ): Start => {
-  const { handlers = {}, middleware = [] } = options
+  const { handlers = {}, middleware = [], bodyLimit = 1024 * 1024 } = options
   const explicit = Object.keys(options).length > 0
-  let discovered: Promise<DiscoveredApp> | undefined
-  const serverFunctions = endpoint(
-    registry([...(options.functions ?? []), ...serviceFunctions(options.services ?? [])]),
-    {
-      origins: (options.origins ?? []).map(normalizeOrigin),
-      bodyLimit: options.bodyLimit ?? 1024 * 1024,
-    },
-  )
+  const entries = options.services ?? []
+  const functions = registry([
+    ...(options.functions ?? []),
+    // By Tag identity: the generated registry passed beside the discovered app registers nothing twice.
+    ...serviceFunctions(entries.filter((entry, i) => entries.findIndex((other) => other.tag === entry.tag) === i)),
+  ])
+  const origins = (options.origins ?? []).map(normalizeOrigin)
+  let loaded: Promise<Loaded> | undefined
+  const load = () =>
+    discover(explicit).then((found): Loaded => {
+      const controllers = [...found.controllers, ...(options.controllers ?? [])]
+      const chain = controllers.flatMap((controller) => controller.options)
+      for (const o of chain)
+        if (o.bodyLimit !== undefined && !(Number.isInteger(o.bodyLimit) && o.bodyLimit > 0))
+          throw new Error(`sleekstack: bodyLimit in ${o.file} must be a positive finite integer, got ${o.bodyLimit}.`)
+      const added = chain.flatMap((o) => o.origins ?? []).map(normalizeOrigin)
+      return {
+        ...found,
+        controllers,
+        serverFunctions: endpoint(functions, { origins: [...new Set([...origins, ...added])], bodyLimit }),
+      }
+    })
   const sink: ErrorSink = options.onError ?? ((cause) => console.error(Cause.pretty(cause)))
   configureRuntime({
     layer: (options.layer ?? Layer.empty) as Layer.Layer<never, unknown, never>,
@@ -120,15 +149,19 @@ export const start = <
         )
       : Effect.succeed(new Response(null, { status: 404 }))
   const fetch = async (request: globalThis.Request): Promise<Response> => {
-    const app = await (discovered ??= discover(explicit))
+    const app = await (loaded ??= load())
     const router = (options.router as Router | undefined) ?? app.router
     const services = requestServices(request)
     const pathname = new URL(request.url).pathname
     const handler = Object.hasOwn(handlers, pathname) ? handlers[pathname] : undefined
     const program = Effect.gen(function* () {
-      const response = (yield* runMiddleware(middleware, request)) ?? (yield* serverFunctions(request))
+      const response = (yield* runMiddleware(middleware, request)) ?? (yield* app.serverFunctions(request))
       if (response) return response
-      return yield* handler ? runHandler(handler, request) : page(router, request)
+      if (handler) return yield* runHandler(handler, request)
+      const controller = matchController(app.controllers, pathname)
+      return yield* controller
+        ? serveController(controller, request, { status: services.status, bodyLimit })
+        : page(router, request)
     }).pipe(Effect.catchIf((e) => !isControl(e), Effect.die))
     try {
       return services.finish(await runEffect(program, { request: services.layer }))

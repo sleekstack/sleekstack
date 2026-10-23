@@ -69,7 +69,7 @@ This enables:
 | [`@sleekstack/model`](packages/model/README.md) | Model and Draft for `@sleekstack/ui` (ADR 0038, 0040): `ModelSpec` / `DraftSpec` and `useDraft`, an editable copy of a Model with one save boundary |
 | [`@sleekstack/testing`](packages/testing/README.md) | Vitest + jsdom component tests for `@sleekstack/ui`: `render`, `flush`, `mockLayer`, used with Testing Library |
 | [`@sleekstack/router`](packages/router/README.md) | Typed routes for `@sleekstack/ui` apps: a const route table, loaders, actions, prefetching `Link`, a server `handle` and a browser `startRouter` |
-| [`@sleekstack/start`](packages/start/README.md) | The full-stack layer for `@sleekstack/ui` apps (ADR 0039): a `fetch` entry with middleware and route handlers, server functions with typed client stubs, request services |
+| [`@sleekstack/start`](packages/start/README.md) | The full-stack layer for `@sleekstack/ui` apps (ADR 0039): a `fetch` entry with middleware and route handlers, server functions with typed client stubs, Server Services, file-routed Controllers (ADR 0053), request services |
 | [`@sleekstack/query`](packages/query/README.md) | TanStack Query on Effect Layers (`QueryClientLive`, `effectFn`), with ui hooks in `@sleekstack/query/ui` |
 | [`@sleekstack/analyze`](packages/analyze/README.md) | The static Analyzer behind `sleekstack check`: the dependency Graph and the component pass, read through the TypeScript checker |
 | [`sleekstack`](packages/cli/README.md) | The CLI: `sleekstack check` and `sleekstack explain <CODE>` |

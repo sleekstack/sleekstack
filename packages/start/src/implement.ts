@@ -9,8 +9,9 @@ export type Implementation<Service> = {
 }
 
 /**
- * The implementation Layer of a Server Service. Its methods may use `Request`, `Cookies` and `ResponseHeaders` (any
- * other service is a type error here); each call gets them from the fiber that calls it: the endpoint's Request Scope
+ * The implementation Layer of a Server Service. Its methods may use `Request`, `Cookies`, `ResponseHeaders` and
+ * `ResponseStatus`, which only a Controller's answer reads (any other service is a type error here); each call gets
+ * them from the fiber that calls it: the endpoint's Request Scope
  * on the wire, the request fiber's runtime when a page's loader calls the Tag in process.
  *
  * @example

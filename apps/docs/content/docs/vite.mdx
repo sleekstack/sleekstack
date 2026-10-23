@@ -1,6 +1,6 @@
 ---
 title: Vite plugin
-description: One plugin for ui JSX, analyzer diagnostics, stable component ids, file-based routes and client and SSR bundles.
+description: One plugin for ui JSX, analyzer diagnostics, stable component ids, file-based routes, Server Services and Controllers, and client and SSR bundles.
 ---
 
 `@sleekstack/ui-vite` sets up a Vite app on `@sleekstack/ui` in one line: `plugins: [sleekstack(options)]`. Add `@vitejs/plugin-react` beside it when the app has React Guests. It is a plugin, not a meta-framework. `apps/playground/ui` in the repository is a working example: a file-routed app rendered by `handle`, prerendered by `vite build` and hydrated by `startRouter`.
@@ -9,12 +9,17 @@ description: One plugin for ui JSX, analyzer diagnostics, stable component ids, 
 
 Every option is optional.
 
-| Option                | Default      | What it does                                                                                                                                                                                                                                |
-| --------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `include` / `exclude` | none         | Globs (relative to the Vite root) or regexes of `.jsx` / `.tsx` files that are ui JSX without the pragma. A file that already names a `@jsxImportSource` keeps it.                                                                          |
-| `routesDir`           | `src/routes` | Directory of route files, relative to the Vite root. Serves `virtual:sleekstack/routes`.                                                                                                                                                    |
-| `entries`             | none         | `{ client, server }`, paths relative to the Vite root. `vite build` writes `dist/client` and `dist/server`, and the dev server answers every request through the server entry.                                                              |
-| `hmr`                 | `true`       | Dev only. A ui module whose exports are all components hot-updates and keeps its `useLocal` state; a ui module that exports anything else reloads the page. React guests are untouched (Fast Refresh owns them). `false` emits no HMR code. |
+| Option                | Default               | What it does                                                                                                                                                                                                                                |
+| --------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `include` / `exclude` | none                  | Globs (relative to the Vite root) or regexes of `.jsx` / `.tsx` files that are ui JSX without the pragma. A file that already names a `@jsxImportSource` keeps it.                                                                          |
+| `routesDir`           | `src/routes`          | Directory of route files, relative to the Vite root. Serves `virtual:sleekstack/routes`.                                                                                                                                                    |
+| `serverDir`           | `server`              | The server directory, relative to the Vite root. A `_defaults.ts` under it is server-only, and Directory Defaults start here.                                                                                                               |
+| `controllersDir`      | `<serverDir>/routes`  | Directory of the [Controllers](/docs/controllers), relative to the Vite root.                                                                                                                                                               |
+| `serverDeclaration`   | `src/server.gen.d.ts` | Where the types of the Server Service modules and of `virtual:sleek/server-app` are written, relative to the Vite root.                                                                                                                     |
+| `entries`             | none                  | `{ client, server }`, paths relative to the Vite root. `vite build` writes `dist/client` and `dist/server`, and the dev server answers every request through the server entry.                                                              |
+| `hmr`                 | `true`                | Dev only. A ui module whose exports are all components hot-updates and keeps its `useLocal` state; a ui module that exports anything else reloads the page. React guests are untouched (Fast Refresh owns them). `false` emits no HMR code. |
+
+`serverDir` and `controllersDir` are Vite options only. `sleekstack check` cannot see them and has no flag for them: it always reads `server` and `server/routes`. `serverServices()` used on its own beside `routes()` takes `routesDir` too, because it reads the page routes to refuse a Controller at a page's path; give both plugins the same value (`sleekstack()` does).
 
 ## The pragma rule
 
@@ -45,7 +50,7 @@ Files under `routesDir` become a [router](/docs/routing) app ([ADR 0050](https:/
 - `users/[id].tsx` is `/users/:id`, and an `index` file is its directory's path.
 - `posts/[[page]].tsx` is the optional `/posts/:page?`, matching `/posts` and `/posts/2`. `guide/[...slug].tsx` is the splat `/guide/*slug`, matching `/guide/a/b` but not `/guide`. Optional and splat segments must be last.
 - A `(group)` directory adds no path segment. A file or directory whose name starts with `_` is not a route, so helpers, components and tests can sit beside the routes; `_layout` files and a root `_notFound` have the roles below.
-- At one position a static segment matches first, then a param, then an optional param, then a splat. Two files with one path, a bad segment, a misplaced optional or splat, and a file with no default export fail with the file's path.
+- At one position a static segment matches first, then a param, then an optional param, then a splat. Two files with one path, a bad segment, a misplaced optional or splat, and a file with no default export fail with the file's path. A Controller at a route file's path fails the load of the [discovered app](#controllers-and-the-discovered-app), naming both files.
 
 A route file is a whole page: its default export is the component, and its `loaders`, `fallback` and `prerender` exports are the rest of the page. `virtual:sleekstack/routes` exports `table`, `pages` and, when a root `_notFound` file exists, `notFound`, so the app is `router({ table, pages, notFound })` with all three imported from the module, and `sleekstack check` reads it as it reads a hand-written router.
 
@@ -54,6 +59,28 @@ A `_layout` file's default export takes `children` and wraps every page in its d
 In the client build each page is its own chunk, loaded once on its first navigation (the first page before hydrating); SSR and prerender import every page up front. A failed load renders a `LazyLoadError` at the nearest `Boundary` and is tried again on the next navigation. To hide the code-then-data wait, pass the page's `load` to `Link`'s `code`: `code={pages['users/[id]'].load}`.
 
 For TypeScript, the plugin writes a types-only `routes.gen.d.ts` into `routesDir` ([ADR 0045](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0045-vite-plugin-route-declaration.md)). The route table itself is never generated. In dev, adding, removing or renaming a route, layout or `_notFound` file rewrites it and reloads the page. Commit the file, or gitignore it and run `vite` once before a plain `tsc` or `vite build`.
+
+## Controllers and the discovered app
+
+`serverServices()`, part of `sleekstack()`, finds the [Controllers](/docs/controllers) (`*.controller.ts` under `controllersDir`) and the `_defaults.ts` files under `serverDir`. It serves them as `virtual:sleek/server-app`, the app `start()` reads on its first request. Each Controller entry carries its route name, its pattern, each method with the Schemas printed from its signature, and its option chain: each `_defaults.ts` from `serverDir` down to the Controller's directory, then the Controller's own exports. A `controllersDir` outside `serverDir` therefore has no Directory Defaults.
+
+The module also carries the page router built from `virtual:sleekstack/routes`, when the file-routes plugin is in the config (`routes()` beside a standalone `serverServices()` counts) and `routesDir` has routes. An explicit `start({ router })` wins over it. Without a `_notFound` file, its not-found page is empty.
+
+Loading the module fails, naming the files, on any of these:
+
+- a `*.controller.ts` under `serverDir` but outside `controllersDir` (one elsewhere is `Unresolvable` from `sleekstack check`);
+- an optional or splat segment that is not last;
+- two Controllers, or a Controller and a page route, at one path (param names are ignored);
+- a `_sleek` directory at the root of `controllersDir` (groups skipped), whose URL would start with `/_sleek/`;
+- an error of the analyzer's Controller pass, with file:line, `MissingDependency` included, or a Controller outside the Vite root's tsconfig program.
+
+While discovery or the analyzer fails, the declaration keeps its previous text. With Controllers, `serverDeclaration` gains a `virtual:sleek/server-app` section with `Controllers` (route name to pattern, in match order), `ControllerModules` and `isControllerPath`. With none, it has no such section. In dev, a Controller or `_defaults.ts` that is added, removed, renamed or edited reloads the page without a restart, and `serverDir` and `controllersDir` are watched even outside the Vite root.
+
+A browser entry that reaches a Controller fails the client build with the chain through the module, such as `src/main.ts -> virtual:sleek/server-app -> server/_defaults.ts`.
+
+**Dev servers.** The module's named export `isControllerPath(pathname)` is true when a Controller's pattern matches. `devMiddleware(load, accepts)` from `@sleekstack/ui-vite` sends each request that `accepts` to the `start` entry `load` returns, and every other request on to Vite. `accepts` may return a promise, so a dev server forwards Controller paths without hard-coding a prefix such as `/api/`:
+
+<include>../../snippets/controllers/server/dev.ts</include>
 
 ## Client and SSR entries
 

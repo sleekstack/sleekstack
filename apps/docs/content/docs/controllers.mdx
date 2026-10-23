@@ -1,0 +1,107 @@
+---
+title: Controllers
+description: REST on @sleekstack/start from files. A *.controller.ts file's path sets its URL, and its methods are Effect functions typed by their written-out signature.
+---
+
+A Controller is a `*.controller.ts` file under `server/routes` ([ADR 0053](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0053-file-routed-controllers.md)). Its path sets its URL, and each exported HTTP method answers requests from decoded input. Nothing registers it: the `serverServices()` plugin of `@sleekstack/ui-vite` (also part of `sleekstack()`) finds it, and `start()` serves it. There is no wrapper function around a method. The written-out signature is the contract, and the input Schemas are read from it.
+
+The [realworld app](https://github.com/sleekstack/sleekstack/tree/master/apps/realworld/server/routes/api) is the worked example: its whole REST facade is a `_defaults.ts` and 14 Controllers under `server/routes/api`.
+
+## Files and URLs
+
+A file's path under `server/routes`, without `.controller.ts`, is its route name, and it sets the URL with the [file route](/docs/vite) syntax of pages:
+
+- `notes.controller.ts` is `/notes`, and `notes/[id].controller.ts` is `/notes/:id`. An `index` file is its directory's path.
+- `[[page]]` is an optional param and `[...rest]` a splat, matching one or more segments. Either must be the last segment. A splat does not match its own directory, so `/api` itself needs an `index` Controller beside `api/[...rest]`.
+- A `(group)` directory adds no segment. A file or directory whose name starts with `_` is not a route.
+- At one position a static segment matches first, then a param, then an optional param, then a splat. A trailing slash is ignored, and a path with an empty segment (`/api//x`) matches no Controller.
+
+A request goes to middleware, then server functions and Server Service methods, then a `start({ handlers })` entry at its exact pathname, then the first matching Controller, then the page router. A Controller whose pattern also matches a page's URL, such as a splat, shadows that page: it serves its own methods there and answers 405 for the rest, with no fall-through to the page.
+
+These fail the load of the discovered app, naming the files: an optional or splat segment that is not last, two Controllers at one path (param names are ignored), a Controller at a page route's path, a Controller whose URL would start with `/_sleek/`, and a `*.controller.ts` under the server directory but outside `server/routes`.
+
+## Methods
+
+A method is a named export `GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE` or `OPTIONS`. It takes one input object, `{ params?, query?, body? }`, or none, and returns an `Effect.Effect<A, E, R>`.
+
+<include>../../snippets/controllers/server/routes/notes.controller.ts</include>
+
+<include>../../snippets/controllers/server/routes/notes/[id].controller.ts</include>
+
+Before the method runs, `params` is decoded from the path, `query` from the URL and `body` from JSON:
+
+- A type written `Schema.Schema.Type<typeof X>`, where `X` is an exported Schema of a client-safe module, uses `X` itself. It may stand inline or behind a type alias of the same file, as a property, an array element or a union member.
+- Any other type is printed to a Schema from the [Server Service](/docs/server-services) type subset. A plain annotation is exactly as strict as its type: `title: string` accepts the empty string, so a constraint needs a referenced Schema.
+- Path and query values are strings. A printed `number` accepts a finite decimal only, and a printed `boolean` accepts `true` and `false` only. A referenced Schema for `params` or `query` must encode to strings.
+- A repeated query key gives an array when the type is an array, else its last value. `[[id]]` is an optional string, and a splat is one string joined with `/`. Keys the type does not name are ignored.
+- The keys of `params` equal the path's params. A method on `notes/[id]` without `params: { id }` is `ControllerParamsMismatch`.
+- `body` is legal on `POST`, `PUT`, `PATCH` and `DELETE`. A method that declares it needs `Content-Type: application/json` (a charset is accepted), and an empty body fails the decode. A method that declares no `body` leaves the body unread and may read it through `Request`.
+
+`sleekstack check` and the Vite plugin report a method they cannot read as `ControllerMethodShape`, with file:line. A near-miss export (`get`, `Post`, a default export) is one, and so is an Effect return type written through a type alias. Write `Effect.Effect<A, E, R>` inline and alias only the success value. See [Errors](/docs/errors#controller-errors).
+
+## Answers
+
+- A value answers as JSON with 200. With a written success type, the value is encoded through its Schema, so fields outside it are not sent. Without one, the value is serialized as it is.
+- `void` answers 204, and `null` answers JSON `null`. `undefined` sends an empty body at any status. The statuses 204, 205 and 304 never carry a body.
+- A method with no written success type may return a `Response`, which passes through with its own status and body.
+- The method shapes the answer through the request services `Request`, `Cookies`, `ResponseHeaders` and `ResponseStatus`, provided per call. `yield* ResponseStatus.set(201)` sets the status. A value that is not an integer from 200 to 599 is a defect, `InvalidStatus`.
+- When a method fails, its status is dropped and the answer is whatever `wrap` gives the failure. Staged `ResponseHeaders` and `Set-Cookie` lines still apply to it.
+
+`HEAD` runs `GET` and drops the body unless the file exports `HEAD`. `OPTIONS` answers 204 with `Allow` unless the file exports it. No CORS headers are sent; set them in `wrap` through `ResponseHeaders`.
+
+## Failures and `wrap`
+
+One call checks, in order: the method, the path's escapes, the content type, the body size, the JSON, then the decode of `params`, `query` and `body` with all issues reported. Each failure reaches the `wrap` chain. One that no `wrap` handles gets its default answer:
+
+| Failure                | When                                                                      | Unhandled                       |
+| ---------------------- | ------------------------------------------------------------------------- | ------------------------------- |
+| `MethodNotAllowed`     | The path has no such method. It carries `allowed`.                        | 405 with `Allow`                |
+| `InvalidPathEncoding`  | A param or splat value has a malformed percent-escape.                    | 404, no body                    |
+| `UnsupportedMediaType` | A method that declares `body` got no `Content-Type: application/json`.    | 415                             |
+| `BodyTooLarge`         | The body is over `bodyLimit`.                                             | 413                             |
+| `ParseError`           | Malformed JSON (`is not valid JSON`), a missing body, or a failed decode. | 400 with the `DecodeError` JSON |
+| anything else          | The method's own errors, an encode failure or a defect.                   | the error sink, an empty 500    |
+
+A `ParseError`'s issue paths start at the input part: `params.id`, `query.limit` or `body.title`. A malformed escape in a static segment matches no Controller and falls through to the page router. A `Redirect` or `NotFound` from `@sleekstack/router` that no `wrap` handles answers 302 or 404.
+
+A `wrap` export takes `(next, request)`, where `next` is decode, method and encode, and returns the answer. It provides services, such as the viewer, and maps failures to responses. A `_defaults.ts` file, the Directory Defaults, gives its `wrap` to every Controller in its directory and below:
+
+<include>../../snippets/controllers/server/routes/_defaults.ts</include>
+
+- The chain runs outer first: each `_defaults.ts` from the server directory down, then the Controller's own `wrap`. The chain starts at the server directory, so Controllers outside it have no Directory Defaults.
+- `sleekstack check` reads the services a `wrap` provides from its written signature: those in `next`'s requirements that its result leaves out. A `wrap: Wrap` annotation provides nothing to the check, so write the signature out.
+- `bodyLimit` (bytes, a positive integer) applies only to a method that declares `body`. The Controller's own export wins, then the nearest `_defaults.ts`, then `start({ bodyLimit })`, then 1 MiB.
+- `origins` in a Controller or `_defaults.ts` only adds to the allow-list of the server-function wire. No file can remove an origin. A Controller has no origin check of its own: its `application/json` rule stops cross-site form posts.
+- A `bodyLimit` export that is not a positive integer, or an `origins` export with an entry that is not a bare origin (`InvalidOrigin`), fails the app's load on its first request, naming the file.
+
+## Serving
+
+`start()` reads the discovered app on its first request. Explicit options merge with it: the given `controllers` are matched after the discovered ones, a `services` entry whose Tag is already listed registers nothing, and `bodyLimit` and `onError` are the app-wide defaults. Without a `router` option, pages come from the discovered page router, and with neither every page answers 404.
+
+<include>../../snippets/controllers/server/app.ts</include>
+
+A method's `R` comes from `start({ layer })`, a `wrap`, or the request services. The services are ordinary Tags and Layers: here `Notes` comes from `layer` and `Viewer` from the directory `wrap`.
+
+<include>../../snippets/controllers/server/notes.ts</include>
+
+`sleekstack check` counts every Controller as a root, so a service no one provides is a `MissingDependency` with file:line, even in an app with no ui. `start()` with no options and no discovered app fails every request, naming the missing plugin. Auto-wiring needs Vite; a host without it passes the options itself.
+
+The plugin types the Controllers in `src/server.gen.d.ts`, beside the Server Services. `Controllers` maps each route name to its URL pattern, and `ControllerModules` maps it to the type of its module:
+
+<include>../../snippets/controllers/src/server.gen.d.ts</include>
+
+The [Vite plugin](/docs/vite#controllers-and-the-discovered-app) page covers the discovery options, dev reloads and how a dev server forwards Controller paths to `start`.
+
+## Testing
+
+`callController(entry, request, { layer, onError? })` from `@sleekstack/testing` answers a request through the Controller's HTTP face: the method defaults, content type, `bodyLimit`, decode, the `wrap` chain and encode, with a test Layer and no network. It skips middleware and server functions. `entry` is the Controller's entry in the discovered app's `controllers`, because the erased annotations cannot carry its Schemas.
+
+<include>../../snippets/controllers/server/notes.test-example.ts</include>
+
+A URL that the entry's pattern does not match answers 404. A defect answers an empty 500, and its cause goes to `onError`. In a test whose Vitest config has the `serverServices()` plugin, `start` also tries the discovered Controllers first, so a discovered one that matches the same URL answers instead of `entry`.
+
+## The browser boundary
+
+`*.controller.ts` files and the `_defaults.ts` files under the server directory are server-only. A browser entry that reaches one fails the client build, naming the import chain, and `sleekstack check` reports `ServerFileInClientGraph`. A page imports the client-safe Schemas a Controller references, never the Controller.
+
+<include>../../snippets/controllers/src/schemas.ts</include>

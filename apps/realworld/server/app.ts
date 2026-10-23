@@ -9,7 +9,6 @@ import { CommentsApiLive } from './comments-api.server'
 import { DbLive } from './db'
 import { TokenSecretLive } from './identity'
 import { IdentityApiLive } from './identity-api.server'
-import { rest } from './rest'
 
 export { SESSION } from './identity-api.server'
 
@@ -22,14 +21,13 @@ export { SESSION } from './identity-api.server'
 const ServerQueriesLive = QueryClientLive({ defaultOptions: { queries: { gcTime: 0 } } })
 
 /**
- * The server entry: the REST facade at `/api/`, the Server Services and the pages, over SQLite
- * (`CONDUIT_DB`, default `./data/conduit.db`).
+ * The server entry: the REST facade at `/api/` (the Controllers under `server/routes/api`, discovered by
+ * `serverServices()`), the Server Services and the pages, over SQLite (`CONDUIT_DB`, default `./data/conduit.db`).
  */
 export const app = start({
   router: pages,
   layer: Layer.mergeAll(IdentityApiLive, ArticlesApiLive, CommentsApiLive).pipe(
     Layer.provideMerge(Layer.mergeAll(AppLive, ServerQueriesLive, DbLive(process.env.CONDUIT_DB), TokenSecretLive)),
   ),
-  middleware: [rest],
   services,
 })

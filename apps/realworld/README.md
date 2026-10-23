@@ -25,20 +25,22 @@ The tests in `test/` run the pages in a browser: each page is server-rendered by
 Both call the same services in `server/`:
 
 - **Server Services** (`POST /_sleek/fn/<Tag>.<method>`) serve the UI. `IdentityApi`, `ArticlesApi` and `CommentsApi` are contracts in each module's `application/contracts.ts`; pages and loaders call `yield* <Tag>`, a generated client in the browser and the implementation in process on the server. The implementations are built with `implement` in `server/*.server.ts` and authenticate with the `HttpOnly` session cookie, read per call. They never return the token.
-- **The REST facade** (`server/rest.ts`, `/api/...`) follows the RealWorld API. It authenticates with `Authorization: Token <jwt>` only. Without the header the viewer is anonymous. A bad token, or any other scheme, is 401 on every route, the optional-auth ones included.
+- **The REST facade** (`/api/...`) follows the RealWorld API. Each route is a Controller under `server/routes/api`, one file per path (`articles/[slug].controller.ts` is `/api/articles/:slug`), served by `start` with no route table. The directory's `_defaults.ts` `wrap` authenticates with `Authorization: Token <jwt>` only and maps every failure to the table below. Without the header the viewer is anonymous. A bad token, or any other scheme, is 401 on every path, unknown ones and the optional-auth routes included.
 
 REST status codes and error bodies:
 
-| Case                                                | Status | Body                                                    |
-| --------------------------------------------------- | ------ | ------------------------------------------------------- |
-| Blank or taken field, non-numeric `limit`/`offset`  | 422    | `{"errors": {"<field>": ["can't be blank"]}}`           |
-| Malformed JSON                                      | 422    | `{"errors": {"body": ["is not valid JSON"]}}`           |
-| Missing envelope key (`user`, `article`, `comment`) | 422    | `{"errors": {"user": ["is missing"]}}`                  |
-| No token where one is required, bad token           | 401    | `{"errors": {"token": ["is missing" \| "is invalid"]}}` |
-| Wrong email or password                             | 403    | `{"errors": {"email or password": ["is invalid"]}}`     |
-| Not the author                                      | 403    | `{"errors": {"article": ["is not yours"]}}`             |
-| Unknown article, comment or profile                 | 404    | `{"errors": {"article": ["not found"]}}`                |
-| Unknown `/api/` route or method                     | 404    | `{"errors": {"body": ["not found"]}}`                   |
+| Case                                                    | Status | Body                                                    |
+| ------------------------------------------------------- | ------ | ------------------------------------------------------- |
+| Blank or taken field, non-numeric `limit`/`offset`      | 422    | `{"errors": {"<field>": ["can't be blank"]}}`           |
+| Malformed JSON                                          | 422    | `{"errors": {"body": ["is not valid JSON"]}}`           |
+| Missing envelope key (`user`, `article`, `comment`)     | 422    | `{"errors": {"user": ["is missing"]}}`                  |
+| No token where one is required, bad token               | 401    | `{"errors": {"token": ["is missing" \| "is invalid"]}}` |
+| Wrong email or password                                 | 403    | `{"errors": {"email or password": ["is invalid"]}}`     |
+| Not the author                                          | 403    | `{"errors": {"article": ["is not yours"]}}`             |
+| Unknown article, comment or profile                     | 404    | `{"errors": {"article": ["not found"]}}`                |
+| Unknown `/api/` route or method, non-numeric comment id | 404    | `{"errors": {"body": ["not found"]}}`                   |
+| Body over 1 MiB                                         | 413    | `{"errors": {"body": ["is too large"]}}`                |
+| Body without `Content-Type: application/json`           | 415    | `{"errors": {"body": ["must be application/json"]}}`    |
 
 Register, create article and add comment answer 201. Deleting an article or a comment answers 204 with no body.
 

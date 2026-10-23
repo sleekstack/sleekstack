@@ -22,12 +22,43 @@ export interface ControllerMethodEntry {
   readonly success?: AnySchema
 }
 
+/**
+ * The type of a `wrap` export of a Controller or Directory Defaults (`_defaults.ts`) file: `next` is the Controller's
+ * HTTP face (decode, method, encode), and `wrap` provides services such as the viewer and maps failures, the routing
+ * failures (`InvalidPathEncoding`, `MethodNotAllowed`, `BodyTooLarge`, `UnsupportedMediaType`) and decode failures
+ * included, to answers. Wraps compose outer first. A `Redirect` or `NotFound` it lets through answers 302 or 404.
+ *
+ * `sleekstack check` reads the services a `wrap` provides from its written signature: those in `next`'s requirements
+ * that its result leaves out. A `wrap: Wrap` annotation is untyped there and provides nothing, so a `wrap` that
+ * provides a service writes its signature out:
+ *
+ * @example
+ * ```ts
+ * import { Context, Effect } from 'effect'
+ *
+ * class Viewer extends Context.Tag('Viewer')<Viewer, { readonly id: string }>() {}
+ * declare const viewerFrom: (request: Request) => { readonly id: string }
+ *
+ * export const wrap = (
+ *   next: Effect.Effect<Response, unknown, Viewer>,
+ *   request: Request,
+ * ): Effect.Effect<Response, unknown> => Effect.provideService(next, Viewer, viewerFrom(request))
+ * ```
+ */
+export type Wrap = (next: Effect.Effect<Response, any, any>, request: Request) => Effect.Effect<Response, any, any>
+
+/**
+ * The type of an RPC File's `wrap` export (ADR 0054): it runs inside each method of the generated Server Service and
+ * keeps the method's value and error types, providing services or recovering within them.
+ */
+export type RpcWrap = <A, E, R>(next: Effect.Effect<A, E, R>, request: Request) => Effect.Effect<A, E, any>
+
 /** The option exports of one Controller or Directory Defaults (`_defaults.ts`) file. */
 export interface ControllerOptions {
   /** The file the options come from, named when one of them is invalid. */
   readonly file: string
   /** Runs around decode, method and encode: provides services and maps failures to answers. */
-  readonly wrap?: (next: Effect.Effect<Response, any, any>, request: Request) => Effect.Effect<Response, any, any>
+  readonly wrap?: Wrap
   /** Largest request body in bytes, when the method declares `body`. */
   readonly bodyLimit?: number
   /** Origins added to the app-wide allow-list of the server-function wire. */

@@ -62,8 +62,11 @@ const toRoute = (dir: string, file: string, layouts: ReadonlyMap<string, string>
 const rank = (segment: string) =>
   segment.startsWith('*') ? '\uffff' : segment.endsWith('?') ? '\ufffe' : segment.startsWith(':') ? '\ufffd' : segment
 
-/** Sorts routes into match order; param names are ignored, so it is also the collision key. */
-const sortKey = (route: Route) => route.path.split('/').map(rank).join('/')
+/** A path's match-order key; param names are ignored, so it is also the collision key. */
+export const sortKey = (p: string) => p.split('/').map(rank).join('/')
+
+/** Orders two paths for matching, as the page routes and the Controllers are ordered. */
+export const matchOrder = (a: string, b: string) => (sortKey(a) < sortKey(b) ? -1 : sortKey(a) > sortKey(b) ? 1 : 0)
 
 /** A file or directory starting with `_` is not a route (helpers, components, tests beside the routes). */
 const ignored = (dir: string, file: string) =>
@@ -125,7 +128,7 @@ interface Scanned {
  * The route files under `dir`, in match order, and the root `_notFound`; throws naming the files when two give the
  * same path or one has no default export.
  */
-const scan = (dir: string): Scanned => {
+export const scan = (dir: string): Scanned => {
   const files = (fs.existsSync(dir) ? fs.readdirSync(dir, { recursive: true, encoding: 'utf8' }) : []).map((f) =>
     normalizePath(path.join(dir, f)),
   )
@@ -136,12 +139,12 @@ const scan = (dir: string): Scanned => {
   const found = files
     .filter((f) => ROUTE_FILE.test(f) && !f.endsWith('.d.ts') && !ignored(dir, f))
     .map((f) => toRoute(dir, f, layouts))
-    .sort((a, b) => (sortKey(a) < sortKey(b) ? -1 : sortKey(a) > sortKey(b) ? 1 : 0))
+    .sort((a, b) => matchOrder(a.path, b.path))
   const byPath = new Map<string, string>()
   for (const r of found) {
-    const other = byPath.get(sortKey(r))
+    const other = byPath.get(sortKey(r.path))
     if (other) throw new Error(`sleekstack: route files ${other} and ${r.file} both give path ${r.path}`)
-    byPath.set(sortKey(r), r.file)
+    byPath.set(sortKey(r.path), r.file)
   }
   for (const f of [...found.map((r) => r.file), ...layouts.values(), ...(notFound ? [notFound] : [])]) needDefault(f)
   return { found, notFound }

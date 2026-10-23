@@ -2,7 +2,20 @@ import { loader, notFound, redirect, router, routes, useLoader } from '@sleeksta
 import { el } from '@sleekstack/ui'
 import { Cause, Context, Effect, Exit, FiberRef, Layer, Schema } from 'effect'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { Cookies, InvalidCookie, Request as RequestTag, ResponseHeaders, start } from '../index'
+import {
+  type ControllerEntry,
+  Cookies,
+  DuplicateServerFn,
+  InvalidCookie,
+  InvalidStatus,
+  Request as RequestTag,
+  ResponseHeaders,
+  ResponseStatus,
+  serverFn,
+  ServerService,
+  type ServerServiceEntry,
+  start,
+} from '../index'
 import { requestServices } from '../services'
 
 class Greeting extends Context.Tag('Greeting')<Greeting, string>() {}
@@ -25,13 +38,27 @@ const app = router({
   notFound: () => Effect.succeed(el('p', {}, 'missing')),
 })
 
+class Pinger extends ServerService('Pinger')<Pinger, { readonly ping: () => Effect.Effect<string> }>() {}
+const pinger: ServerServiceEntry<Pinger, Pinger['Type']> = {
+  tag: Pinger,
+  methods: { ping: { input: Schema.Void, success: Schema.String } },
+}
+
 const log: string[] = []
 const errors: Cause.Cause<unknown>[] = []
 
+// Every `start` here configures the same runtime, so the merge tests' calls leave the others' as it was.
+const base = {
+  layer: Layer.mergeAll(
+    Layer.succeed(Greeting, 'hello'),
+    Layer.succeed(Pinger, { ping: () => Effect.succeed('pong') }),
+  ),
+  onError: (cause: Cause.Cause<unknown>) => void errors.push(cause),
+}
+
 const server = start({
+  ...base,
   router: app,
-  layer: Layer.succeed(Greeting, 'hello'),
-  onError: (cause) => void errors.push(cause),
   middleware: [
     (req) =>
       Effect.gen(function* () {
@@ -170,6 +197,16 @@ describe('request services', () => {
     expect(exit).toEqual(Exit.fail(new InvalidCookie({ name, part: part as InvalidCookie['part'] })))
   })
 
+  it.each([199, 200, 599, 600, 200.5])(
+    'ResponseStatus.set(%d) takes an integer from 200 to 599, else dies with InvalidStatus',
+    async (n) => {
+      const exit = await Effect.runPromiseExit(
+        Effect.provide(ResponseStatus.set(n), requestServices(new Request('http://x.test')).layer),
+      )
+      expect(exit).toEqual(n === 200 || n === 599 ? Exit.void : Exit.die(new InvalidStatus({ status: n })))
+    },
+  )
+
   it('a test layer replaces the request services', async () => {
     const handler = () => Effect.map(Cookies, (c) => c.get('session'))
     const fake = Layer.succeed(Cookies, {
@@ -178,5 +215,73 @@ describe('request services', () => {
       delete: () => Effect.void,
     })
     expect(await Effect.runPromise(Effect.provide(handler(), fake))).toBe('test')
+  })
+})
+
+describe('merge', () => {
+  const ping = serverFn('ping', { input: Schema.Void, success: Schema.Void })(function* () {})
+  const fn = (path: string, origin = 'http://x.test') =>
+    new Request(`http://x.test/_sleek/fn/${path}`, { method: 'POST', headers: { origin }, body: '' })
+  const thrown = (f: () => unknown) => {
+    try {
+      f()
+    } catch (e) {
+      return e
+    }
+  }
+
+  it('services de-duplicate by Tag; a repeated serverFn id is still DuplicateServerFn', async () => {
+    const app = start({ ...base, services: [pinger, { ...pinger }] })
+    expect(await (await app.fetch(fn('Pinger.ping'))).json()).toEqual({ _tag: 'Success', value: 'pong' })
+    const e = thrown(() => start({ ...base, functions: [ping, ping] }))
+    expect([e instanceof DuplicateServerFn, e]).toEqual([true, expect.objectContaining({ id: 'ping' })])
+  })
+
+  it.each([
+    ['https://start.test', 200],
+    ['https://defaults.test', 200],
+    ['https://own.test', 200],
+    ['https://other.test', 403],
+  ])('the server-function allow-list is the union of start and every file: %s answers %i', async (origin, status) => {
+    const app = start({
+      ...base,
+      functions: [ping],
+      origins: ['https://start.test'],
+      controllers: [
+        {
+          route: 'a',
+          pattern: '/a',
+          methods: {},
+          options: [
+            { file: 'a/_defaults.ts', origins: ['https://defaults.test'] },
+            { file: 'a.controller.ts', origins: ['https://own.test/'] },
+          ],
+        },
+      ],
+    })
+    expect((await app.fetch(fn('ping', origin))).status).toBe(status)
+  })
+
+  it('start({ bodyLimit }) is the default of a Controller with none of its own', async () => {
+    const echo: ControllerEntry = {
+      route: 'echo',
+      pattern: '/echo',
+      methods: { POST: { body: Schema.String, run: ({ body }) => Effect.succeed(body) } },
+      options: [],
+    }
+    const app = start({ ...base, bodyLimit: 8, controllers: [echo] })
+    const post = (body: string) =>
+      app.fetch(
+        new Request('http://x.test/echo', { method: 'POST', headers: { 'content-type': 'application/json' }, body }),
+      )
+    expect([(await post('"short"')).status, (await post('"too long"')).status]).toEqual([200, 413])
+  })
+
+  it.each([0, -1, 1.5, Infinity, NaN])('a bodyLimit of %d fails the app load naming its file', async (bodyLimit) => {
+    const app = start({
+      ...base,
+      controllers: [{ route: 'a', pattern: '/a', methods: {}, options: [{ file: 'a/_defaults.ts', bodyLimit }] }],
+    })
+    await expect(app.fetch(new Request('http://x.test/a'))).rejects.toThrow('bodyLimit in a/_defaults.ts')
   })
 })

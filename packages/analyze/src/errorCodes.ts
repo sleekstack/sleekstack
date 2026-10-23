@@ -30,6 +30,8 @@ export type AnalyzeCode =
   | 'ServerServiceMethodShape'
   | 'ServerServiceTypeNotSerializable'
   | 'ServerFileInClientGraph'
+  | 'ControllerMethodShape'
+  | 'ControllerParamsMismatch'
 
 export interface ErrorHelp {
   /** What the analyzer checks. */
@@ -44,6 +46,7 @@ const GRAPH = '/docs/errors#graph-errors'
 const READ = '/docs/errors#analyzer-read-errors'
 const UI = '/docs/errors#component-errors'
 const SERVER = '/docs/errors#server-service-errors'
+const CONTROLLER = '/docs/errors#controller-errors'
 
 export const ERROR_CODES: Readonly<Record<AnalyzeCode, ErrorHelp>> = {
   MissingDependency: {
@@ -149,16 +152,17 @@ export const ERROR_CODES: Readonly<Record<AnalyzeCode, ErrorHelp>> = {
     docs: SERVER,
   },
   ServerServiceMethodShape: {
-    rule: 'Every ServerService method is written out as `(input?) => Effect.Effect<A, E>`: one parameter at most, R = never, no `any`.',
+    rule: 'Every ServerService method is written out as `(input?) => Effect.Effect<A, E>`: one parameter at most, R = never, no `any`; a `Schema.Schema.Type<typeof X>` names an exported Schema of a client-safe module where the reader can follow it.',
     fix: [
       'Pass several inputs as one object',
       'Use services in the implementation (`implement` allows the request services)',
       'Replace `any` with the type',
+      'Write a Schema reference inline or through a type alias of the same file',
     ],
     docs: SERVER,
   },
   ServerServiceTypeNotSerializable: {
-    rule: 'ServerService method types are JSON-shaped: primitives, literals, unions, arrays, plain objects, string-keyed records; errors are Data.TaggedError or Schema.TaggedError classes.',
+    rule: 'ServerService and Controller method types are JSON-shaped: primitives, literals, unions, arrays, plain objects, string-keyed records; Server Service errors are Data.TaggedError or Schema.TaggedError classes.',
     fix: ['Use a JSON-shaped type (a string for a Date, an array for a Set)', 'Use a serverFn with an explicit Schema'],
     docs: SERVER,
   },
@@ -166,6 +170,20 @@ export const ERROR_CODES: Readonly<Record<AnalyzeCode, ErrorHelp>> = {
     rule: 'No server-only file (*.server.ts, *.controller.ts, or a _defaults.ts under the server directory) is value-imported, directly or not, by a module importing virtual:sleek/server.',
     fix: ['Import the contract, not the implementation', 'Use `import type` for types'],
     docs: SERVER,
+  },
+  ControllerMethodShape: {
+    rule: 'A Controller method is a named export GET, HEAD, POST, PUT, PATCH, DELETE or OPTIONS: a function of one object `{ params?, query?, body? }` (body only on POST, PUT, PATCH, DELETE) returning an Effect, no `any`; params and query decode from strings.',
+    fix: [
+      'Name the export in capitals (`GET`, not `get`), or give a helper another name',
+      'Take one object with only params, query and body',
+      'Reference a Schema that encodes to strings for params and query',
+    ],
+    docs: CONTROLLER,
+  },
+  ControllerParamsMismatch: {
+    rule: "The keys of a Controller method's params equal its path's params (`[id]` is `params.id`).",
+    fix: ['Name each params key after a path param', 'Declare params with every path param on each method'],
+    docs: CONTROLLER,
   },
 }
 

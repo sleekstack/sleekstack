@@ -115,6 +115,8 @@ export default [cors, requireSession({ only: '/admin/*' })]
 
 Request services provided per call, replaceable in tests with `mockLayer`: `Request` (read-only method, url, headers), `Cookies` (`get`/`set`/`delete`, sets become `Set-Cookie`), `ResponseHeaders`. These are plain Tags; kit modules depend on them like any service.
 
+Built differently: file-routed handlers are Controllers ([ADR 0053](../adr/0053-file-routed-controllers.md), spec fn-68). A `*.controller.ts` file under `server/routes` sets its URL from its path, its methods are plain Effect functions of decoded `{ params?, query?, body? }` typed by their written-out signature, `ResponseStatus` joins the request services, and a `_defaults.ts` file's `wrap` runs around every Controller below its directory.
+
 ## 7. One server entry, any host
 
 ```ts
@@ -122,7 +124,7 @@ export default start({ router, layer, functions, handlers, middleware })
 // -> { fetch(request: Request): Promise<Response> }
 ```
 
-Web-standard `Request`/`Response`, like `handle` today. Order: static assets, middleware, `/_sleek/fn/*`, route handlers, router `handle` (page). It uses `runEffect` from `@sleekstack/runtime` for every call, so the `onError` sink, `isControlFlow`, devtools events and request scope apply unchanged.
+Web-standard `Request`/`Response`, like `handle` today. Order: static assets, middleware, `/_sleek/fn/*`, route handlers, router `handle` (page). [ADR 0053](../adr/0053-file-routed-controllers.md) puts Controllers between route handlers and the page, makes `router` optional, and lets `start()` with no options serve the app the Vite plugin discovers. It uses `runEffect` from `@sleekstack/runtime` for every call, so the `onError` sink, `isControlFlow`, devtools events and request scope apply unchanged.
 
 Adapters are thin: Vite dev middleware (first), Node (`http`), Workers/edge, Vercel. Each is `fetch` plus how static files are served; no adapter owns logic.
 

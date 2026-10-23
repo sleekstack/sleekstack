@@ -1,6 +1,7 @@
 import { Effect } from 'effect'
 
-const methods = ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'] as const
+/** The HTTP methods in canonical (`Allow`) order. */
+export const methods = ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'] as const
 
 /** An HTTP method a route handler can answer. */
 export type Method = (typeof methods)[number]

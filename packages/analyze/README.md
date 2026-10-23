@@ -9,7 +9,7 @@ const report = analyze({ project: 'tsconfig.json', entries: ['src/runtime.ts'], 
 ```
 
 - `project`: path to a `tsconfig.json`.
-- `entries`: limit the roots to the `configureRuntime` / `runEffect` calls in these files (otherwise every call outside test files).
+- `entries`: limit the roots to the `configureRuntime` / `runEffect` calls in these files (otherwise every call outside test files: `TEST_FILE` matches a file under `__tests__/`, `test/` or `tests/`, or named `*.test.*` or `*.spec.*`).
 - `lenient`: turn an unresolvable `runEffect` Layer into an opaque root instead of an error.
 
 Roots are `configureRuntime` layers plus `runEffect` `request` and `overrides` Layers; each is checked as its own graph. A `Report` lists the roots' nodes, modules and `AnalyzeError`s (`code`, `message`, `file`, `line`).
@@ -39,3 +39,21 @@ It builds one tree per `mount` call (nodes `component`, `provide`, `catch`, `unr
 - `NonResumableHandler`: an `on()` handler that is not a reference to a top-level `const h = defineHandler('literal', ...)`, or a `resume` handler map it cannot read. Each `resume` call is a tree root whose handlers are checked against its layer.
 
 `sleekstack check` runs it only when the nearest package.json lists `@sleekstack/ui` (any dependency field) and adds a `components` key to `--json`; other projects are unchanged. [`apps/showcase`](../../apps/showcase/README.md) has one fixture per code in `apps/showcase/fixtures/`.
+
+## Controller pass
+
+```ts
+import { analyzeControllers, controllerRoute } from '@sleekstack/analyze'
+
+const { controllers, errors } = analyzeControllers({ project: 'tsconfig.json' }) // serverDir, controllersDir optional
+```
+
+It reads every `*.controller.ts` file (ADR 0053). `controllerRoute(controllersDir, file)` gives its route name and URL pattern in ADR 0050's syntax (`users/[id]` is `/users/:id`); the Vite plugin uses the same derivation. Each method (`GET`, `HEAD`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`) goes through the signature reader the Server Service pass uses, and its `schema.input` marks the `number` and `boolean` values of `params` and `query` with `codec: 'string'`. A method may leave out its return type; then `schema.success` is undefined. It reports, with file:line:
+
+- `ControllerMethodShape`: a near-miss export (`get`, `Post`, a default export), a method that is not one function of one `{ params?, query?, body? }` object returning an Effect (written inline: a type alias of the whole `Effect.Effect<...>` is not read, an alias of its success type is), a `body` on `GET`, `HEAD` or `OPTIONS`, or a `params` or `query` value that does not decode from a string.
+- `ControllerParamsMismatch`: the keys of `params` differ from the path's params.
+- `ServerServiceTypeNotSerializable`: an input or written success type outside the Server Service type subset.
+- `MissingDependency`: a service a method requires that no request service, `start({ layer })` or `wrap` above it provides. A `wrap` (in a `_defaults.ts` from the server directory down, or the Controller's own) discharges its `next` requirements minus its result's; what its result requires must come from a request service, `start({ layer })` or a `wrap` above it, else it is reported once at that `wrap`.
+- `Unresolvable`: a `*.controller.ts` file whose path is not a route.
+
+`sleekstack check` runs it on every project and counts each Controller as a root, so a server-only app has roots. It always reads the default `server` and `server/routes`: the Vite plugin's `serverDir` and `controllersDir` options do not reach it, and it has no flag for them.

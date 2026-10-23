@@ -18,6 +18,7 @@
     "routing",
     "vite",
     "server-services",
+    "controllers",
     "side-effects",
     "ui-devtools",
     "errors",
