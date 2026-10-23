@@ -45,6 +45,12 @@ const mark =
 const unprocessable: Wrap = (next) =>
   Effect.catchIf(next, ParseResult.isParseError, () => Effect.succeed(new Response(null, { status: 422 })))
 
+const Tags = Schema.Array(Schema.String)
+class Search extends Schema.Class<Search>('Search')({ tag: Tags }) {}
+/** A Controller at `/query/<name>` echoing its `query`, decoded through `schema`. */
+const queryEntry = (name: string, schema: ControllerMethodEntry['query']) =>
+  entry(`/query/${name}`, { GET: { query: schema, run: echoInput } })
+
 const errors: Cause.Cause<unknown>[] = []
 
 const server = start({
@@ -107,6 +113,21 @@ const server = start({
     entry('/limit/unread', { POST: { run: () => Effect.succeed('unread') } }, [
       { file: 'limit/_defaults.ts', bodyLimit: 16 },
     ]),
+    queryEntry('struct', Schema.Struct({ tag: Tags, q: Schema.optional(Schema.String) })),
+    queryEntry('record', Schema.Record({ key: Schema.String, value: Tags })),
+    queryEntry(
+      'union',
+      Schema.Union(
+        Schema.Struct({ kind: Schema.Literal('a'), tag: Tags }),
+        Schema.Struct({ kind: Schema.Literal('b') }),
+      ),
+    ),
+    queryEntry('class', Search),
+    queryEntry(
+      'suspend',
+      Schema.suspend(() => Schema.Struct({ tag: Schema.suspend(() => Tags) })),
+    ),
+    queryEntry('filter', Schema.Struct({ tag: Tags }).pipe(Schema.filter((q) => q.tag.length > 0))),
   ],
 })
 
@@ -136,6 +157,20 @@ describe('Controller decode', () => {
   ])('GET %s decodes to %j', async (path, input) => {
     const res = await call(path)
     expect([res.status, await res.json()]).toEqual([200, input])
+  })
+
+  it.each([
+    ['struct?tag=a&tag=b&q=x&q=y', { tag: ['a', 'b'], q: 'y' }],
+    ['struct?tag=a', { tag: ['a'] }],
+    ['record?tag=a&tag=b&x=c', { tag: ['a', 'b'], x: ['c'] }],
+    ['union?kind=a&tag=a&tag=b', { kind: 'a', tag: ['a', 'b'] }],
+    ['union?kind=b&kind=b', { kind: 'b' }],
+    ['class?tag=a&tag=b', { tag: ['a', 'b'] }],
+    ['suspend?tag=a&tag=b', { tag: ['a', 'b'] }],
+    ['filter?tag=a&tag=b', { tag: ['a', 'b'] }],
+  ])('GET /query/%s collects a repeated key exactly when its encoded type is an array: %j', async (path, query) => {
+    const res = await call(`/query/${path}`)
+    expect([res.status, await res.json()]).toEqual([200, { query }])
   })
 
   it.each([

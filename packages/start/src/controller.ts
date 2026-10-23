@@ -66,16 +66,32 @@ type AnySchema = Schema.Schema<any, any, never>
 const parts = ['params', 'query', 'body'] as const
 
 const isArray = (ast: SchemaAST.AST): boolean =>
-  SchemaAST.isTupleType(ast) || (SchemaAST.isUnion(ast) && ast.types.some(isArray))
+  SchemaAST.isTupleType(ast) ||
+  (SchemaAST.isUnion(ast) && ast.types.some(isArray)) ||
+  (SchemaAST.isSuspend(ast) && isArray(ast.f()))
+
+/** Whether `key` of the encoded object `ast` is an array: its property, else an index signature, in any union member. */
+const isArrayAt = (ast: SchemaAST.AST, key: string): boolean => {
+  switch (ast._tag) {
+    case 'TypeLiteral': {
+      const named = ast.propertySignatures.find((p) => p.name === key)
+      return named ? isArray(named.type) : ast.indexSignatures.some((s) => isArray(s.type))
+    }
+    case 'Union':
+      return ast.types.some((member) => isArrayAt(member, key))
+    case 'Suspend':
+      return isArrayAt(ast.f(), key)
+    // `encodedAST` leaves no refinement or transformation; a class is its encoded struct.
+    default:
+      return false
+  }
+}
 
 /** The URL's query for `schema`: a repeated key gives all its values when its encoded type is an array, else the last. */
 const queryOf = (url: URL, schema: AnySchema) => {
   const ast = SchemaAST.encodedAST(schema.ast)
-  const arrays = new Set(
-    SchemaAST.isTypeLiteral(ast) ? ast.propertySignatures.filter((p) => isArray(p.type)).map((p) => p.name) : [],
-  )
   const query: Record<string, string | string[]> = Object.create(null)
-  for (const [key, value] of url.searchParams) query[key] = arrays.has(key) ? [...(query[key] ?? []), value] : value
+  for (const [key, value] of url.searchParams) query[key] = isArrayAt(ast, key) ? [...(query[key] ?? []), value] : value
   return query
 }
 

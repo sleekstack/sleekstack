@@ -304,7 +304,7 @@ const readControllers = async (project: string, serverDir: string, controllersDi
   return { methods, errors }
 }
 
-/** `params` and `query` are always given, so an optional one decodes as its defined members (`start` reads a query's arrays from its top-level object). */
+/** `params` and `query` are always given, so an optional one decodes as its defined members. */
 const defined = (t: TypeSchema): TypeSchema => {
   if (t.kind !== 'union') return t
   const members = t.members.filter((m) => m.kind !== 'undefined')
