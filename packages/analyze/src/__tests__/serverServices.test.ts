@@ -62,6 +62,7 @@ describe('analyzeServerServices', () => {
     'server-service-duplicate-id',
     'server-service-indirect',
     'server-service-start-missing',
+    'server-service-start-generated',
     'server-boundary',
   ])('%s: code and file:line', (name) => {
     const errors = run(name).errors
@@ -75,6 +76,12 @@ describe('analyzeServerServices', () => {
 
   it('names the Tag a start({ services }) layer does not provide', () => {
     expect(run('server-service-start-missing').errors.map((e) => e.message)).toEqual([
+      'Server Service "Accounts" is registered in start({ services }) but start\'s layer does not provide it',
+    ])
+  })
+
+  it('counts a Tag generated from an RPC File (virtual:sleek/rpc) as provided, and still names a hand-written one', () => {
+    expect(run('server-service-start-generated').errors.map((e) => e.message)).toEqual([
       'Server Service "Accounts" is registered in start({ services }) but start\'s layer does not provide it',
     ])
   })

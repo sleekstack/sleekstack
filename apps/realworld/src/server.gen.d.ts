@@ -1,11 +1,23 @@
-// Written by @sleekstack/ui-vite from the Server Service contracts and the Controllers; do not edit.
+// Written by @sleekstack/ui-vite from the Server Service contracts, the Controllers, the RPC Files, and the Layer Files; do not edit.
 declare module 'virtual:sleek/server' {
-  const layer: import('effect').Layer.Layer<import("./modules/identity/application/contracts").IdentityApi | import("./modules/articles/application/contracts").ArticlesApi | import("./modules/comments/application/contracts").CommentsApi>
+  const layer: import('effect').Layer.Layer<import("./modules/identity/application/contracts").IdentityApi | import("./modules/articles/application/contracts").ArticlesApi | import('virtual:sleek/rpc').CommentsApi>
   export default layer
 }
 declare module 'virtual:sleek/server-registry' {
-  const services: ReadonlyArray<import('@sleekstack/start/client').ServerServiceEntryOf<typeof import("./modules/identity/application/contracts").IdentityApi | typeof import("./modules/articles/application/contracts").ArticlesApi | typeof import("./modules/comments/application/contracts").CommentsApi>>
+  const services: ReadonlyArray<import('@sleekstack/start/client').ServerServiceEntryOf<typeof import("./modules/identity/application/contracts").IdentityApi | typeof import("./modules/articles/application/contracts").ArticlesApi | typeof import('virtual:sleek/rpc').CommentsApi>>
   export default services
+}
+declare module 'virtual:sleek/rpc' {
+  export interface CommentsApi {
+    readonly 'virtual:sleek/rpc': "CommentsApi"
+  }
+  export const CommentsApi: import('effect').Context.Tag<CommentsApi, import('@sleekstack/start').GeneratedServiceShape<Pick<typeof import("../server/comments-api.rpc"), "add" | "delete" | "list">>>
+}
+declare module 'virtual:sleek/server-app' {
+  /** Each generated Server Service Tag (RPC Files and the RPC Manifest), by key. */
+  export interface GeneratedServices {
+    readonly CommentsApi: import('virtual:sleek/rpc').CommentsApi
+  }
 }
 declare module 'virtual:sleek/server-app' {
   /** The URL pattern of each discovered Controller by its route name, in match order. */
@@ -44,4 +56,12 @@ declare module 'virtual:sleek/server-app' {
   }
   /** Whether a discovered Controller's pattern matches `pathname`, so a dev server forwards it to `start`. */
   export const isControllerPath: (pathname: string) => boolean
+}
+declare module 'virtual:sleek/server-app' {
+  /** What each Layer File provides, by file. */
+  export interface LayerFileServices {
+    readonly "server/db.layer.ts": import('effect').Layer.Layer.Success<typeof import("../server/db.layer").default>
+    readonly "server/queries.layer.ts": import('effect').Layer.Layer.Success<typeof import("../server/queries.layer").default>
+    readonly "server/token-secret.layer.ts": import('effect').Layer.Layer.Success<typeof import("../server/token-secret.layer").default>
+  }
 }

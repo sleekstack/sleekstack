@@ -360,7 +360,13 @@ export function analyzeServerServices(opts: {
     found.forEach(serviceOf)
   }
 
-  /** `start({ services, layer })`: each registered Tag needs an implementation in `layer`, as `start`'s own types require. */
+  /** A Tag `virtual:sleek/rpc` declares (an RPC File's or the Manifest's): the discovered app provides it, as `start`'s `GeneratedServices` does. */
+  const isGenerated = (tag: ts.Type) =>
+    !!tag.getSymbol()?.declarations?.some((d) => {
+      const m = d.parent?.parent
+      return !!m && ts.isModuleDeclaration(m) && ts.isStringLiteral(m.name) && m.name.text === 'virtual:sleek/rpc'
+    })
+  /** `start({ services, layer })`: each registered Tag needs an implementation in `layer` or the discovered app, as `start`'s own types require. */
   const checkStart = (call: ts.CallExpression, options: ts.ObjectLiteralExpression) => {
     const services = propertyOf(options, 'services')
     if (!services) return
@@ -377,7 +383,7 @@ export function analyzeServerServices(opts: {
     if (!provided) return // a Layer it cannot read: leave it to `tsc`
     const have = new Set(provided.map((t) => t.getSymbol()))
     for (const tag of required)
-      if (!have.has(tag.getSymbol()))
+      if (!have.has(tag.getSymbol()) && !isGenerated(tag))
         report(
           'MissingDependency',
           call,

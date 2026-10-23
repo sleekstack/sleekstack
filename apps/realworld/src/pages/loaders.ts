@@ -10,7 +10,8 @@ import {
 } from '@sleekstack/router'
 import { type Context, Effect, Schema } from 'effect'
 import { Article, ArticleList, ArticlesApi } from '../modules/articles'
-import { Comment, CommentsApi } from '../modules/comments'
+import { CommentsApi } from 'virtual:sleek/rpc'
+import { Comment } from '../modules/comments'
 import { Account, IdentityApi, Profile } from '../modules/identity'
 
 // The loaders that a link on another page names, apart from the pages so any page imports them without a cycle.

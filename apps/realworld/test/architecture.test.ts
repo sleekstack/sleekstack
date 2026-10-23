@@ -32,6 +32,8 @@ interface Rule {
 }
 const UI = '@sleekstack/ui'
 const ROUTES = 'virtual:sleekstack/routes'
+// The generated Server Service Tags (the RPC Files under server/): client-safe, like the contracts they replace.
+const RPC = 'virtual:sleek/rpc'
 const LAYERS = ['domain', 'application', 'infrastructure', 'presentation'] as const
 
 const ruleOf = (mod: string): Rule | undefined => {
@@ -64,7 +66,7 @@ const ruleOf = (mod: string): Rule | undefined => {
   if (mod.startsWith('pages/'))
     return {
       local: ['pages/', 'errors'],
-      packages: ['effect', '@sleekstack/core', '@sleekstack/model', '@sleekstack/router', UI],
+      packages: ['effect', '@sleekstack/core', '@sleekstack/model', '@sleekstack/router', UI, RPC],
     }
   if (mod.startsWith('routes/'))
     return {
@@ -77,6 +79,7 @@ const ruleOf = (mod: string): Rule | undefined => {
         UI,
         '@sleekstack/ui/jsx-runtime',
         ROUTES,
+        RPC,
       ],
     }
   const exact: Record<string, Rule> = {

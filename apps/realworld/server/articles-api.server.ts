@@ -15,7 +15,7 @@ import {
 } from './articles'
 import type { Db } from './db'
 import type { TokenSecret } from './identity'
-import { asViewer } from './identity-api.server'
+import { asViewer } from './session'
 
 /** `ArticlesApi` over the server's `Db` and `TokenSecret`, taken once when the Layer is built; each call runs as the viewer. */
 export const ArticlesApiLive = Layer.unwrapEffect(
