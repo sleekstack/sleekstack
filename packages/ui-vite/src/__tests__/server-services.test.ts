@@ -42,6 +42,9 @@ const controllerApp = appFiles('controller-app')
 /** One RPC File (`delete`, a typed error class, a referenced Schema, its own bodyLimit) under a `_defaults.ts` adding an origin. */
 const RPC_APP = path.join(import.meta.dirname, 'fixtures/rpc-files')
 const rpcApp = appFiles('rpc-files')
+/** A Manifest wrapping a Controller of `params` and `body` and one of no input, under a `wrap` reading a cookie and a directory `wrap`. */
+const MANIFEST_APP = path.join(import.meta.dirname, 'fixtures/rpc-manifest')
+const manifestApp = appFiles('rpc-manifest')
 
 describe('the printed Schemas over the wire', () => {
   const str = { kind: 'string' } as const
@@ -995,5 +998,88 @@ export const limit = Effect.map(Comments, (c) => c.bodyLimit)
     expect(await event('unlink', 'server/bad.rpc.ts')).toEqual(every)
     expect(await event('unlink', 'server/jots.rpc.ts')).toEqual(every)
     expect(declared()).not.toContain('Jots')
+  })
+})
+
+describe('the RPC Manifest', () => {
+  it('generates the Tag, entry, Layer and client of the wrapped Controller Methods, under its own wrap on the wire and in process', async () => {
+    const { server, src, load } = await serve({ ...serverApp, ...manifestApp })
+    expect(await load(RPC)).toBe(`import { Context } from 'effect'\nexport const Notes = Context.GenericTag("Notes")\n`)
+    // The wire input is the Controller's `{ params, body }` with a plain number; `count` takes none.
+    expect(await load(REGISTRY)).toContain(
+      '"save": { input: Schema.Struct({ "params": Schema.Struct({ "id": Schema.Number }), "body": Schema.Struct({ "text": Schema.String }) }), success: Schema.String, error: taggedError(',
+    )
+    expect(await load(SERVER_APP)).toMatch(
+      /layer: serviceLayer\(Notes_\d+, \{ "count": \$\d+\.GET, "save": \$\d+\.PUT \}, manifest\((\$\d+)\)\.wrap\), options: \[limits\("server\/_defaults\.ts", \$\d+\), limits\("server\/rpc\.ts", manifest\(\1\)\)\]/,
+    )
+    const { Context, Effect, Layer } = await server.ssrLoadModule('effect')
+    const { Notes } = await server.ssrLoadModule(RPC)
+    const client = await Effect.runPromise(Effect.scoped(Layer.build((await server.ssrLoadModule(CLIENT)).default)))
+    expect(Object.keys(Context.unsafeGet(client, Notes)).sort()).toEqual(['count', 'save'])
+
+    const { app } = await server.ssrLoadModule(path.join(src, 'server.ts'))
+    const call = async (id: string, body: unknown, cookie = '') => {
+      const response: Response = await app.fetch(
+        new Request(`http://x.test/_sleek/fn/${id}`, {
+          method: 'POST',
+          headers: { origin: 'http://x.test', cookie },
+          body: JSON.stringify(body),
+        }),
+      )
+      return [response.status, await response.text()]
+    }
+    const note = { params: { id: 1 }, body: { text: 'x' } }
+    expect(await call('Notes.count', undefined)).toEqual([200, '{"_tag":"Success","value":3}'])
+    expect(await call('Notes.save', note, 'user=ann')).toEqual([200, '{"_tag":"Success","value":"ann:1:x"}'])
+    // The typed error crosses as the Exit failure: the directory wrap (viewer `rest`, failures as 418) is not applied.
+    expect(await call('Notes.save', note)).toEqual([200, '{"_tag":"Failure","error":{"_tag":"NoteLocked","id":1}}'])
+    expect((await call('Notes.save', { ...note, params: { id: '1' } }))[0]).toBe(400)
+    // The Manifest's bodyLimit.
+    expect((await call('Notes.save', { ...note, body: { text: 'x'.repeat(64) } }, 'user=ann'))[0]).toBe(413)
+    // The REST face keeps the directory wrap.
+    const rest: Response = await app.fetch(
+      new Request('http://x.test/api/notes/1', {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: '{"text":"x"}',
+      }),
+    )
+    expect(rest.status).toBe(418)
+
+    // In process, the generated Layer's method runs inside the Manifest's wrap too.
+    const { Cookies, Request: RequestTag } = await server.ssrLoadModule('@sleekstack/start')
+    const { services } = (await server.ssrLoadModule(SERVER_APP)).default
+    const saved = Effect.flatMap(Notes, (notes: any) => notes.save(note)).pipe(
+      Effect.provide(services[0].layer),
+      Effect.provideService(Cookies, { get: (name: string) => (name === 'user' ? 'ann' : undefined) }),
+      Effect.provideService(RequestTag, new Request('http://x.test/')),
+    )
+    expect(await Effect.runPromise(saved)).toBe('ann:1:x')
+  })
+
+  it('writes the committed declaration of the fixture; a renamed Controller is a type error in rpc.ts', async () => {
+    const { root, declaration } = await serve({ ...serverApp, ...manifestApp })
+    expect(fs.readFileSync(declaration, 'utf8')).toBe(
+      fs.readFileSync(path.join(MANIFEST_APP, 'src/server.gen.d.ts'), 'utf8'),
+    )
+    fs.writeFileSync(
+      path.join(root, 'src/consumer.ts'),
+      `import type { DecodeError } from '@sleekstack/start'
+import type { NetworkError } from '@sleekstack/start/client'
+import { Effect } from 'effect'
+import { Notes } from '${RPC}'
+import type { NoteLocked } from './notes'
+export const saved: Effect.Effect<string, NoteLocked | NetworkError | DecodeError, Notes> = Effect.flatMap(Notes, (n) =>
+  n.save({ params: { id: 1 }, body: { text: 'x' } }),
+)
+export const count: Effect.Effect<number, NetworkError | DecodeError, Notes> = Effect.flatMap(Notes, (n) => n.count())
+// @ts-expect-error the id is a number
+export const text = Effect.flatMap(Notes, (n) => n.save({ params: { id: '1' }, body: { text: 'x' } }))
+`,
+    )
+    expect(typeErrors(root)).toEqual([])
+    // As the declaration reads once the Controller is renamed: the Manifest's route is unknown.
+    fs.writeFileSync(declaration, fs.readFileSync(declaration, 'utf8').replaceAll('notes/[id]', 'memos/[id]'))
+    expect(typeErrors(root).join('\n')).toContain('"PUT api/notes/[id]"')
   })
 })
