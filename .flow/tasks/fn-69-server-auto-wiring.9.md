@@ -34,10 +34,14 @@ The first realworld slice of R10: the infra becomes Layer Files, the smallest se
 - [ ] `pnpm turbo run test typecheck --filter=realworld` and `pnpm --filter realworld check` pass
 
 ## Done summary
-TBD
+Realworld's infra became Layer Files (`server/db.layer.ts`, `token-secret.layer.ts`, `queries.layer.ts`) and comments became an RPC File (`server/comments-api.rpc.ts`, `list`/`add`/`export { remove as delete }`, viewer from `wrap: RpcWrap = asViewer`); `SESSION`, `asViewer`, `secure`, `signIn` moved to `server/session.ts`; `server/app.ts` keeps only `layer: Layer.mergeAll(AppLive, IdentityApiLive, ArticlesApiLive)`; pages import `CommentsApi` from `virtual:sleek/rpc`; comments `contracts.ts` and `comments-api.server.ts` are deleted and `src/server.gen.d.ts` regenerated.
 
+The analyzer's `checkStart` (`packages/analyze/src/serverServices.ts`) now counts a Tag declared by `virtual:sleek/rpc` (RPC File or Manifest, which the discovered app provides) as provided for `start({ services })`; a hand-written Server Service with no implementation Layer is still reported. Test: `serverServices.test.ts` fixture `server-service-start-generated` (run red first: it reported `Notes`).
+
+baseline: green (all Quick commands, turbo cache, pre-edit; recorded by the previous worker)
+stage: impl-review - skipped(policy: user asked for one completion review at the end of the spec)
+Tier: session (jev-unavailable(no_key)); routing block sets opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: efb2b86309e90cc84b292700c051ce86e719254b
+- Tests: pnpm turbo run test typecheck --force --concurrency=1 --filter=@sleekstack/analyze --filter=sleekstack --filter=@sleekstack/ui-vite... --filter=@sleekstack/start... --filter=@sleekstack/testing --filter=realworld --filter=showcase, pnpm --filter realworld check, pnpm --filter realworld build, pnpm turbo run test typecheck build --filter=docs --concurrency=1 --force, pnpm format:check, (cd packages/cli/src/__tests__/fixtures/effect-app && node ../../../../bin/cli.js check --json --entry runtime.ts)
 - PRs:
-
