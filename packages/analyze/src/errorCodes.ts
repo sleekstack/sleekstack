@@ -35,6 +35,9 @@ export type AnalyzeCode =
   | 'LayerFileCycle'
   | 'LayerFileConflict'
   | 'ServerFileShape'
+  | 'RpcMethodShape'
+  | 'RpcRouteUnknown'
+  | 'RpcNameCollision'
 
 export interface ErrorHelp {
   /** What the analyzer checks. */
@@ -51,6 +54,7 @@ const UI = '/docs/errors#component-errors'
 const SERVER = '/docs/errors#server-service-errors'
 const CONTROLLER = '/docs/errors#controller-errors'
 const FILES = '/docs/errors#server-file-errors'
+const RPC = '/docs/errors#rpc-errors'
 
 export const ERROR_CODES: Readonly<Record<AnalyzeCode, ErrorHelp>> = {
   MissingDependency: {
@@ -171,8 +175,12 @@ export const ERROR_CODES: Readonly<Record<AnalyzeCode, ErrorHelp>> = {
     docs: SERVER,
   },
   ServerFileInClientGraph: {
-    rule: 'No server-only file (*.server.ts, *.controller.ts, or a _defaults.ts under the server directory) is value-imported, directly or not, by a module importing virtual:sleek/server.',
-    fix: ['Import the contract, not the implementation', 'Use `import type` for types'],
+    rule: 'No server-only file (*.server.ts, *.controller.ts, *.rpc.ts, *.layer.ts, or a _defaults.ts, rpc.ts or _app.ts under the server directory) is value-imported, directly or not, by a module importing virtual:sleek/server or virtual:sleek/rpc, nor holds a Schema or error class a generated client imports.',
+    fix: [
+      'Import the contract, not the implementation',
+      'Use `import type` for types',
+      'Move a Schema or error class an RPC method uses into a client-safe module',
+    ],
     docs: SERVER,
   },
   ControllerMethodShape: {
@@ -203,13 +211,37 @@ export const ERROR_CODES: Readonly<Record<AnalyzeCode, ErrorHelp>> = {
     docs: FILES,
   },
   ServerFileShape: {
-    rule: "A *.layer.ts file's default export is a Layer, not typed `any`; the server directory's _app.ts exports only onError.",
+    rule: "A *.layer.ts file's default export is a Layer, not typed `any`; the server directory's _app.ts exports only onError; an RPC File's service name is [A-Za-z][A-Za-z0-9]* and a `service` export a string literal; rpc.ts default-exports an object literal of 'VERB route' string literals.",
     fix: [
       'Export the Layer as the default export (`export default Layer.effect(...)`)',
       'Write out the Layer type instead of `any`',
       'Move other _app.ts exports to another module',
+      "Rename the RPC File, or write `export const service = 'Name'`",
+      "Write each RPC Manifest entry inline as `method: 'VERB route'`",
     ],
     docs: FILES,
+  },
+  RpcMethodShape: {
+    rule: 'An RPC method is an exported function declaration, or an arrow or function expression on an exported const, written `(input?: T) => Effect.Effect<A, E, R>`: one typed parameter at most, no generics, async, Effect.fn or `any`, not a Response, R naming no generated Tag; a wrapped Controller Method is written out the same way.',
+    fix: [
+      'Write out the parameter and return types',
+      'Return the value, not a Response; use an RPC File for another shape',
+      "Require the other service's dependencies, not its generated Tag",
+    ],
+    docs: RPC,
+  },
+  RpcRouteUnknown: {
+    rule: "Each RPC Manifest entry 'VERB route' names a Controller route and a method that Controller exports.",
+    fix: [
+      'Use the route name: the path under the routes directory without .controller.ts',
+      'Export the method from the Controller, or remove the entry',
+    ],
+    docs: RPC,
+  },
+  RpcNameCollision: {
+    rule: 'RPC File and RPC Manifest Tag names, ServerService ids, Layer File output Tag keys and serverFn ids are unique.',
+    fix: ['Rename the RPC File or its `service` export', 'Rename the Manifest key or the other Tag'],
+    docs: RPC,
   },
 }
 

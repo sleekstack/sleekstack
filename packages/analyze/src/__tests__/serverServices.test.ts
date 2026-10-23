@@ -88,18 +88,20 @@ describe('analyzeServerServices', () => {
   })
 
   it.each([
-    [undefined, ['users.controller.ts', 'server/routes/_defaults.ts']],
-    ['lib', ['users.controller.ts', 'lib/_defaults.ts']],
+    [undefined, ['users.controller.ts', 'server/routes/_defaults.ts'], ['server/rpc.ts', 'server/_app.ts']],
+    ['lib', ['users.controller.ts', 'lib/_defaults.ts'], []],
   ] as const)(
-    'reports a Controller, and a _defaults.ts only under the server directory (serverDir %s); a test under test/ is no browser entry',
-    (serverDir, files) => {
+    'reports a Controller, RPC and Layer File, and a reserved name only under the server directory (serverDir %s); virtual:sleek/rpc marks a browser entry, a test under test/ does not',
+    (serverDir, fromMain, reserved) => {
       const project = path.join(dir('server-boundary-kinds'), 'tsconfig.json')
-      expect(analyzeServerServices({ project, serverDir }).errors.map((e) => [e.code, e.message])).toEqual(
-        files.map((f) => [
-          'ServerFileInClientGraph',
-          `The server-only "${f}" is reachable from the browser: main.ts -> ${f}`,
-        ]),
-      )
+      const chain = (entry: string) => (f: string) => [
+        'ServerFileInClientGraph',
+        `The server-only "${f}" is reachable from the browser: ${entry} -> ${f}`,
+      ]
+      expect(analyzeServerServices({ project, serverDir }).errors.map((e) => [e.code, e.message])).toEqual([
+        ...fromMain.map(chain('main.ts')),
+        ...['notes.rpc.ts', 'db.layer.ts', ...reserved].map(chain('rpc-page.ts')),
+      ])
     },
   )
 

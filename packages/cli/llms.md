@@ -81,10 +81,13 @@ Anything else is a `CaptiveDependency`. `request` and `component` never nest.
 - `ServerServiceFileShape`: A ServerService file holds only imports, types, Data.TaggedError, Schema.TaggedError and ServerService classes, is not and imports no *.server.ts, and each Tag id has one class.
 - `ServerServiceMethodShape`: Every ServerService method is written out as `(input?) => Effect.Effect<A, E>`: one parameter at most, R = never, no `any`; a `Schema.Schema.Type<typeof X>` names an exported Schema of a client-safe module where the reader can follow it.
 - `ServerServiceTypeNotSerializable`: ServerService and Controller method types are JSON-shaped: primitives, literals, unions, arrays, plain objects, string-keyed records; Server Service errors are Data.TaggedError or Schema.TaggedError classes.
-- `ServerFileInClientGraph`: No server-only file (*.server.ts, *.controller.ts, or a _defaults.ts under the server directory) is value-imported, directly or not, by a module importing virtual:sleek/server.
+- `ServerFileInClientGraph`: No server-only file (*.server.ts, *.controller.ts, *.rpc.ts, *.layer.ts, or a _defaults.ts, rpc.ts or _app.ts under the server directory) is value-imported, directly or not, by a module importing virtual:sleek/server or virtual:sleek/rpc, nor holds a Schema or error class a generated client imports.
 - `ControllerMethodShape`: A Controller method is a named export GET, HEAD, POST, PUT, PATCH, DELETE or OPTIONS: a function of one object `{ params?, query?, body? }` (body only on POST, PUT, PATCH, DELETE) returning an Effect, no `any`; params and query decode from strings.
 - `ControllerParamsMismatch`: The keys of a Controller method's params equal its path's params (`[id]` is `params.id`).
 - `LayerFileCycle`: Layer Files may not require each other in a cycle.
 - `LayerFileConflict`: Each Tag is provided by one Layer File at most.
-- `ServerFileShape`: A *.layer.ts file's default export is a Layer, not typed `any`; the server directory's _app.ts exports only onError.
+- `ServerFileShape`: A *.layer.ts file's default export is a Layer, not typed `any`; the server directory's _app.ts exports only onError; an RPC File's service name is [A-Za-z][A-Za-z0-9]* and a `service` export a string literal; rpc.ts default-exports an object literal of 'VERB route' string literals.
+- `RpcMethodShape`: An RPC method is an exported function declaration, or an arrow or function expression on an exported const, written `(input?: T) => Effect.Effect<A, E, R>`: one typed parameter at most, no generics, async, Effect.fn or `any`, not a Response, R naming no generated Tag; a wrapped Controller Method is written out the same way.
+- `RpcRouteUnknown`: Each RPC Manifest entry 'VERB route' names a Controller route and a method that Controller exports.
+- `RpcNameCollision`: RPC File and RPC Manifest Tag names, ServerService ids, Layer File output Tag keys and serverFn ids are unique.
 <!-- generated:errors:end -->

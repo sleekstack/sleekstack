@@ -25,16 +25,18 @@ const SERVER_SERVICE = 'start/service#ServerService'
 const EFFECT = 'effect/Effect#Effect'
 const START = 'start/start#start'
 const LAYER = 'effect/Layer#Layer'
-const CLIENT_MODULE = 'virtual:sleek/server'
+/** A module importing one of these is a browser entry. */
+const CLIENT_MODULES: ReadonlySet<string> = new Set(['virtual:sleek/server', 'virtual:sleek/rpc'])
 
 /**
  * The server-only files (R12): none may be reachable from a browser entry. A file is server-only by its kind, the suffix
- * before its extension (`*.server.ts`, `*.controller.ts`), anywhere; or by a reserved name (`_defaults.ts`) under the
- * server directory. `sleekstack check` and the Vite plugin both read this one list, through `isServerOnly`.
+ * before its extension (`*.server.ts`, `*.controller.ts`, `*.rpc.ts`, `*.layer.ts`), anywhere; or by a reserved name
+ * (`_defaults.ts`, `rpc.ts`, `_app.ts`) under the server directory. `sleekstack check` and the Vite plugin both read
+ * this one list, through `isServerOnly`.
  */
 export const SERVER_ONLY: { readonly kinds: readonly string[]; readonly reserved: readonly string[] } = {
-  kinds: ['server', 'controller'],
-  reserved: ['_defaults'],
+  kinds: ['server', 'controller', 'rpc', 'layer'],
+  reserved: ['_defaults', 'rpc', '_app'],
 }
 
 /** Whether `file` is server-only (`SERVER_ONLY`) in an app whose server directory is `serverDir`; both absolute. */
@@ -432,7 +434,7 @@ const valueImports = (sf: ts.SourceFile): Array<{ readonly spec: string; readonl
 }
 
 /**
- * `ServerFileInClientGraph`: from every module importing `virtual:sleek/server` (a browser entry), walks the value
+ * `ServerFileInClientGraph`: from every module importing `virtual:sleek/server` or `virtual:sleek/rpc` (a browser entry), walks the value
  * imports and reports each server-only file reached, once, at the importing statement with the shortest chain.
  */
 const serverFilesInClientGraph = (
@@ -448,7 +450,7 @@ const serverFilesInClientGraph = (
     return sf && !sf.isDeclarationFile && !/[\\/]node_modules[\\/]/.test(sf.fileName) ? sf : undefined
   }
   const rel = (sf: ts.SourceFile) => path.relative(root, sf.fileName)
-  const queue = sources.filter((sf) => valueImports(sf).some((i) => i.spec === CLIENT_MODULE))
+  const queue = sources.filter((sf) => valueImports(sf).some((i) => CLIENT_MODULES.has(i.spec)))
   /** Each reached module's chain from its browser entry. */
   const chains = new Map(queue.map((sf) => [sf, [rel(sf)]]))
   for (let i = 0; i < queue.length; i++) {

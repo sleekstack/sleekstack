@@ -16,13 +16,13 @@ import type { AnalyzeCode, AnalyzeError, Location } from './model'
 import { layerOutputs, locationOf, membersOf, propertyOf, readSignature, sourcesOf, startCalls } from './serverServices'
 import { NotSerializable, type TypeSchema, Unreadable } from './typeSchema'
 
-const METHODS = ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'] as const
+export const METHODS = ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'] as const
 export type ControllerMethodName = (typeof METHODS)[number]
 const isMethod = (name: string): name is ControllerMethodName => (METHODS as readonly string[]).includes(name)
 /** The methods that may declare a `body`. */
 const BODY: ReadonlySet<string> = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 const INPUT = ['params', 'query', 'body']
-const CONTROLLER = /\.controller\.ts$/
+export const CONTROLLER = /\.controller\.ts$/
 const DEFAULTS = '_defaults.ts'
 const EFFECT = 'effect/Effect#Effect'
 /** The services `start` provides to every call (`RequestServices` of `@sleekstack/start`). */
@@ -35,6 +35,15 @@ const PARAM = /^\[(\w+)\]$/
 const OPTIONAL = /^\[\[(\w+)\]\]$/
 const SPLAT = /^\[\.\.\.(\w+)\]$/
 const GROUP = /^\([\w.~-]+\)$/
+
+/** The written signature of an exported Controller method: a function, or a variable holding or typed as one. */
+export const signatureOf = (decl: ts.Declaration | undefined): ts.SignatureDeclaration | undefined => {
+  if (decl && ts.isFunctionDeclaration(decl)) return decl
+  if (!decl || !ts.isVariableDeclaration(decl)) return undefined
+  if (decl.type) return ts.isFunctionTypeNode(decl.type) ? decl.type : undefined
+  const init = decl.initializer && unwrap(decl.initializer)
+  return init && (ts.isArrowFunction(init) || ts.isFunctionExpression(init)) ? init : undefined
+}
 
 export interface ControllerRoute {
   /** The path under the Controllers directory without `.controller.ts`, such as `articles/[slug]` or `(admin)/index`. */
@@ -277,15 +286,6 @@ export function analyzeControllers(opts: {
       }
       return undefined
     }
-
-  /** The written signature of an exported method: a function, or a variable holding or typed as one. */
-  const signatureOf = (decl: ts.Declaration | undefined): ts.SignatureDeclaration | undefined => {
-    if (decl && ts.isFunctionDeclaration(decl)) return decl
-    if (!decl || !ts.isVariableDeclaration(decl)) return undefined
-    if (decl.type) return ts.isFunctionTypeNode(decl.type) ? decl.type : undefined
-    const init = decl.initializer && unwrap(decl.initializer)
-    return init && (ts.isArrowFunction(init) || ts.isFunctionExpression(init)) ? init : undefined
-  }
 
   const methodOf = (
     route: ControllerRoute,
