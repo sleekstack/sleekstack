@@ -49,6 +49,7 @@ A continuation worker re-verified commit cb585393 against the acceptance criteri
 Analyzer note: the explicit `layer` does not discharge a Layer File's own requirement. The spec puts `layer` above the Layer Files, which matches the current behavior.
 
 stage: impl-review - skipped(policy: user asked for one completion review at the end of the spec)
+stage: plan-sync - ran (sonnet; updated tasks 2, 6, 11)
 Tier: session (jev-unavailable(no_key)); routing block sets opus at medium
 ## Evidence
 - Commits: cb58539367c098cb37fabfd6d20af0c0074db746
