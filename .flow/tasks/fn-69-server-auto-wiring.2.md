@@ -38,9 +38,24 @@ Recognise `*.rpc.ts` and the server directory's `rpc.ts` with the shared reader 
 - [ ] `pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack` passes
 
 ## Done summary
-TBD
+Added the RPC pass, `analyzeRpc({ project, serverDir?, controllersDir? })` in packages/analyze/src/rpc.ts, exported from `@sleekstack/analyze`. It reads each `*.rpc.ts` under the server directory as one Server Service. Methods are function declarations, or arrow or function expressions on an exported const, read through `readSignature` with `requires: 'any'`. The Tag name is the PascalCase basename or the `service` string literal. The options `wrap`, `bodyLimit`, `origins` and `service` and non-function exports are not methods, and `export { remove as delete }` names `delete`. The pass also reads the RPC Manifest `server/rpc.ts`: an object literal, or `rpc(...)` of one, of `'VERB route'` entries, each resolved through `controllerRoute` and the Controller's export, and read again with RPC options. The RPC face keeps plain numbers and reads the tagged errors. A wrapped method is reported once, at the Manifest entry.
 
+New codes, each with a table row, an errors.mdx "RPC errors" section and an llms.md row (7082 of 8192 bytes):
+- `RpcMethodShape`: generic, async, `Effect.fn`, an unannotated, rest or second parameter, no written return, `any`, a `Response` return, or an `R` that names a generated Tag.
+- `RpcRouteUnknown`: an unknown route, or a verb the Controller does not export.
+- `RpcNameCollision`: a name shared across RPC Files, Manifest keys, `ServerService` ids, Layer File output Tag keys (by Context key, skipping a Layer File that provides a hand-written Server Service's own Tag) and `serverFn` ids, naming both. Same-kind duplicates of hand-written kinds keep their own codes.
+
+`ServerFileShape` now also covers a bad service name, a non-literal `service` and a bad Manifest.
+
+Client-safety (R9): `SERVER_ONLY` gains the kinds `rpc` and `layer` and the reserved names `rpc` and `_app`, and `virtual:sleek/rpc` marks a browser entry. typeSchema.ts now raises a `ServerOnlyReference` (a subclass of `Unreadable`) for a Schema reference into a server-only module, and for a tagged error class declared in one (new). The RPC pass reports it as `ServerFileInClientGraph`, with the chain `virtual:sleek/rpc -> <file>`. The ServerService and Controller passes still see it as an `Unreadable`, so their codes do not change. One known follow-on: the `server-service-in-server-file` fixture now also reports `ServerServiceMethodShape` for its error class, and the fixture marks it.
+
+Tests: packages/analyze/src/__tests__/rpc.test.ts with the fixtures `rpc` and `rpc-manifest-shape` (every accepted and rejected form, the Manifest cases, collisions across all five namespaces, error classes from an RPC File, a Controller and a `*.server.ts` file), plus the extended `server-boundary-kinds` case in serverServices.test.ts.
+
+Notes for later tasks: `controllers.ts` now exports `signatureOf`, `METHODS` and `CONTROLLER` at module level, but not from `index.ts`. Manifest options (`wrap`, `bodyLimit`, `origins`) are not read here. The `rpc(...)` callee is accepted by shape, because task 3 has not written the helper yet: pin it by declaration once it exists. `sleekstack check` does not call `analyzeRpc` yet, because packages/cli/src is outside Touches. The effect-app fixture graph check was not run: no names it reads changed.
+
+stage: impl-review - skipped(policy: user asked for one completion review at the end of the spec)
+Tier: session (jev-unavailable(no_key)); routing block sets opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 98b9ea7045ad463114ae421556a86ad0aae59430
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack, pnpm --filter docs test, pnpm format:check, baseline: green
 - PRs:
