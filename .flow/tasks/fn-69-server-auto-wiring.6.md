@@ -54,6 +54,7 @@ Gates (serial, `--concurrency=1`; the first parallel run timed out in showcase u
 
 baseline: green (ui-vite test+typecheck, turbo cache, pre-edit)
 stage: impl-review - skipped(policy: user asked for one completion review at the end of the spec)
+stage: plan-sync - ran (sonnet; updated tasks 7, 8, 11)
 Tier: session (jev-unavailable(no_key)); routing block sets opus at medium
 ## Evidence
 - Commits: 597df2d3ec328e5bf6840eef39d2d775dd2cc33b, 88e22e5ea4bb5fb4115a122766262a7c26be5c89
