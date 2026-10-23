@@ -53,6 +53,7 @@ Tests: `packages/start/src/__tests__/rpc.test.ts` (builder, wrap on the wire and
 Tier: session (jev-unavailable(no_key)); routing block sets opus at medium
 
 stage: impl-review - skipped(policy: user asked for one completion review at the end of the spec)
+stage: plan-sync - ran (sonnet; updated tasks 4, 5, 6, 8)
 ## Evidence
 - Commits: f94403eddbc68f41883f95d985e678f2dad0240f
 - Tests: pnpm turbo run test typecheck --filter=@sleekstack/start..., pnpm --filter docs test, pnpm format:check, fixture graph check: diff empty
