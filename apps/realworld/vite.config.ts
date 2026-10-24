@@ -10,8 +10,8 @@ export const routes = () => sleekstack().filter((p) => p.name === 'sleekstack:ro
 export default defineConfig({
   plugins: [
     routes(),
-    // Server Services and Controllers: generates `virtual:sleek/server` and its registry from the contracts and
-    // `virtual:sleek/server-app` from `server/routes`, and keeps server files out of the browser.
+    // Server Services and Controllers: generates `virtual:sleek/server`, its registry and `virtual:sleek/rpc` from the
+    // RPC Files and `virtual:sleek/server-app` from `server/routes`, and keeps server files out of the browser.
     serverServices(),
     {
       // The server on the dev server: `server/app.ts`, loaded through Vite so an edit to it applies on the next request.

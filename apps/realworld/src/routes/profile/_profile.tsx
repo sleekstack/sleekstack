@@ -4,7 +4,8 @@ import { Link, useLoader } from '@sleekstack/router'
 import { useAction, useAtomValue, useDerivedAtom, useFormStatus } from '@sleekstack/ui'
 import { Effect, Option } from 'effect'
 import { table } from 'virtual:sleekstack/routes'
-import { IdentityApi, type Profile } from '../../modules/identity'
+import { IdentityApi } from 'virtual:sleek/rpc'
+import type { Profile } from '../../modules/identity'
 import {
   type ArticleSource,
   authLoaders,

@@ -32,7 +32,7 @@ interface Rule {
 }
 const UI = '@sleekstack/ui'
 const ROUTES = 'virtual:sleekstack/routes'
-// The generated Server Service Tags (the RPC Files under server/): client-safe, like the contracts they replace.
+// The generated Server Service Tags (the RPC Files under server/): client-safe.
 const RPC = 'virtual:sleek/rpc'
 const LAYERS = ['domain', 'application', 'infrastructure', 'presentation'] as const
 

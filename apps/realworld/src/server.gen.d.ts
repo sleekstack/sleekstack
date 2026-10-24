@@ -1,22 +1,32 @@
 // Written by @sleekstack/ui-vite from the Server Service contracts, the Controllers, the RPC Files, and the Layer Files; do not edit.
 declare module 'virtual:sleek/server' {
-  const layer: import('effect').Layer.Layer<import("./modules/identity/application/contracts").IdentityApi | import("./modules/articles/application/contracts").ArticlesApi | import('virtual:sleek/rpc').CommentsApi>
+  const layer: import('effect').Layer.Layer<import('virtual:sleek/rpc').ArticlesApi | import('virtual:sleek/rpc').CommentsApi | import('virtual:sleek/rpc').IdentityApi>
   export default layer
 }
 declare module 'virtual:sleek/server-registry' {
-  const services: ReadonlyArray<import('@sleekstack/start/client').ServerServiceEntryOf<typeof import("./modules/identity/application/contracts").IdentityApi | typeof import("./modules/articles/application/contracts").ArticlesApi | typeof import('virtual:sleek/rpc').CommentsApi>>
+  const services: ReadonlyArray<import('@sleekstack/start/client').ServerServiceEntryOf<typeof import('virtual:sleek/rpc').ArticlesApi | typeof import('virtual:sleek/rpc').CommentsApi | typeof import('virtual:sleek/rpc').IdentityApi>>
   export default services
 }
 declare module 'virtual:sleek/rpc' {
+  export interface ArticlesApi {
+    readonly 'virtual:sleek/rpc': "ArticlesApi"
+  }
+  export const ArticlesApi: import('effect').Context.Tag<ArticlesApi, import('@sleekstack/start').GeneratedServiceShape<Pick<typeof import("../server/articles-api.rpc"), "create" | "delete" | "favorite" | "feed" | "get" | "list" | "tags" | "unfavorite" | "update">>>
   export interface CommentsApi {
     readonly 'virtual:sleek/rpc': "CommentsApi"
   }
   export const CommentsApi: import('effect').Context.Tag<CommentsApi, import('@sleekstack/start').GeneratedServiceShape<Pick<typeof import("../server/comments-api.rpc"), "add" | "delete" | "list">>>
+  export interface IdentityApi {
+    readonly 'virtual:sleek/rpc': "IdentityApi"
+  }
+  export const IdentityApi: import('effect').Context.Tag<IdentityApi, import('@sleekstack/start').GeneratedServiceShape<Pick<typeof import("../server/identity-api.rpc"), "current" | "follow" | "login" | "logout" | "profile" | "register" | "unfollow" | "update">>>
 }
 declare module 'virtual:sleek/server-app' {
   /** Each generated Server Service Tag (RPC Files and the RPC Manifest), by key. */
   export interface GeneratedServices {
+    readonly ArticlesApi: import('virtual:sleek/rpc').ArticlesApi
     readonly CommentsApi: import('virtual:sleek/rpc').CommentsApi
+    readonly IdentityApi: import('virtual:sleek/rpc').IdentityApi
   }
 }
 declare module 'virtual:sleek/server-app' {
