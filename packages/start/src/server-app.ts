@@ -5,8 +5,8 @@ declare module 'virtual:sleek/server-app' {
   export default app
   /** The module of each discovered Controller by its route name. */
   export interface ControllerModules {}
-  /** What each Layer File provides, by its path from the app root. */
+  /** What each Layer File provides, by its path from the app root; empty in an app without a `tsconfig.json`, which skips the Layer File pass. */
   export interface LayerFileServices {}
-  /** Each generated Server Service Tag (RPC Files and the RPC Manifest), by key. */
+  /** Each generated Server Service Tag (RPC Files and the RPC Manifest), by its name. */
   export interface GeneratedServices {}
 }
