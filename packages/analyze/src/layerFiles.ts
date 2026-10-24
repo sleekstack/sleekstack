@@ -1,7 +1,7 @@
 /**
  * packages/analyze/src/layerFiles.ts
  *
- * The Layer File pass (ADR 0054): every `*.layer.ts` file of the program but tests, its default export a Layer read
+ * The Layer File pass (ADR 0054): every `*.layer.ts` file of the program, imported or a root, but tests, its default export a Layer read
  * from its type (`ROut` what it provides, `RIn` what it requires), composed by requirement; and the Server Root, the
  * server directory's `_app.ts`, whose one export is `onError`.
  */
@@ -11,7 +11,7 @@ import ts from 'typescript'
 import { analyzeError } from './errorCodes'
 import { programOf } from './extract'
 import type { AnalyzeCode, AnalyzeError, Location } from './model'
-import { layerTypes, locationOf, membersOf, sourcesOf } from './serverServices'
+import { layerTypes, locationOf, membersOf, programSourcesOf } from './serverServices'
 
 const LAYER_FILE = /\.layer\.ts$/
 const SERVER_ROOT = '_app.ts'
@@ -70,7 +70,7 @@ export interface LayerFileReport {
 export function analyzeLayerFiles(opts: { readonly project: string; readonly serverDir?: string }): LayerFileReport {
   const { root, program, checker } = programOf(opts.project)
   const serverDir = path.resolve(root, opts.serverDir ?? 'server')
-  const sources = sourcesOf(program, root)
+  const sources = programSourcesOf(program, root)
   const errors: AnalyzeError[] = []
   const report = (code: AnalyzeCode, n: ts.Node, message: string) =>
     errors.push(analyzeError(code, message, locationOf(root, n)))

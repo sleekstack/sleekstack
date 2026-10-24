@@ -1,7 +1,9 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { describe, expect, it } from 'vitest'
+import ts from 'typescript'
 import { analyzeLayerFiles, ERROR_CODES } from '../index'
+import { programSourcesOf } from '../serverServices'
 
 const fixture = path.join(__dirname, 'fixtures', 'layer-files')
 const report = analyzeLayerFiles({ project: path.join(fixture, 'tsconfig.json') })
@@ -52,5 +54,29 @@ describe('analyzeLayerFiles', () => {
 
   it('reads the Server Root and its onError', () => {
     expect(report.serverRoot).toEqual({ file: path.join('server', '_app.ts'), onError: true })
+  })
+})
+
+describe('programSourcesOf', () => {
+  it('reads files the roots import, without declarations, node_modules, tests or files outside the project', () => {
+    const files: Record<string, string> = {
+      '/app/server/app.ts': "import './z-config.layer'\nimport 'dep'\nimport '../../lib/x.layer'\nimport './t.test'",
+      '/app/server/z-config.layer.ts': 'export default 1',
+      '/app/server/t.test.ts': 'export {}',
+      '/app/node_modules/dep/index.ts': 'export {}',
+      '/lib/x.layer.ts': 'export default 1',
+    }
+    const options = { noLib: true, types: [], moduleResolution: ts.ModuleResolutionKind.Node10 }
+    const host = ts.createCompilerHost(options)
+    host.fileExists = (f) => f in files
+    host.readFile = (f) => files[f]
+    host.getSourceFile = (f, v) => (f in files ? ts.createSourceFile(f, files[f]!, v) : undefined)
+    host.directoryExists = (d) => Object.keys(files).some((f) => f.startsWith(`${d}/`))
+    host.getCurrentDirectory = () => '/app'
+    const program = ts.createProgram({ rootNames: ['/app/server/app.ts'], options, host })
+    expect(programSourcesOf(program, '/app').map((sf) => sf.fileName)).toEqual([
+      '/app/server/z-config.layer.ts',
+      '/app/server/app.ts',
+    ])
   })
 })

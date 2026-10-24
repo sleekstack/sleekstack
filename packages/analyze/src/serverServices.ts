@@ -159,6 +159,19 @@ export const locationOf = (root: string, n: ts.Node): Location => {
   }
 }
 
+/** The project's own source files, its roots and what they import: no declarations, dependencies or tests. */
+export const programSourcesOf = (program: ts.Program, root: string): ts.SourceFile[] =>
+  program.getSourceFiles().filter((sf) => {
+    const rel = path.relative(root, sf.fileName)
+    return (
+      !sf.isDeclarationFile &&
+      !/[\\/]node_modules[\\/]/.test(sf.fileName) &&
+      !rel.startsWith('..') &&
+      !path.isAbsolute(rel) &&
+      !TEST_FILE.test(rel)
+    )
+  })
+
 /** The project's own source files: its root files, without declarations, `node_modules` and tests. */
 export const sourcesOf = (program: ts.Program, root: string): ts.SourceFile[] =>
   program

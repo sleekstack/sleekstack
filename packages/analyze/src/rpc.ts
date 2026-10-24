@@ -14,7 +14,14 @@ import { analyzeError } from './errorCodes'
 import { libId, programOf, unwrap } from './extract'
 import { readLayerFiles } from './layerFiles'
 import type { AnalyzeCode, AnalyzeError, Location } from './model'
-import { analyzeServerServices, locationOf, membersOf, readSignature, sourcesOf } from './serverServices'
+import {
+  analyzeServerServices,
+  locationOf,
+  membersOf,
+  programSourcesOf,
+  readSignature,
+  sourcesOf,
+} from './serverServices'
 import { type MethodSchema, NotSerializable, ServerOnlyReference, Unreadable } from './typeSchema'
 
 const RPC_FILE = /\.rpc\.ts$/
@@ -328,7 +335,7 @@ export function analyzeRpc(opts: {
         kind: 'service',
       })
     }
-    for (const f of readLayerFiles(sources, checker))
+    for (const f of readLayerFiles(programSourcesOf(program, root), checker))
       if ('provides' in f)
         for (const t of f.provides) {
           const decl = t.getSymbol()?.valueDeclaration

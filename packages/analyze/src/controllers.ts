@@ -13,7 +13,16 @@ import { analyzeError } from './errorCodes'
 import { libId, programOf, unwrap } from './extract'
 import { readLayerFiles } from './layerFiles'
 import type { AnalyzeCode, AnalyzeError, Location } from './model'
-import { layerOutputs, locationOf, membersOf, propertyOf, readSignature, sourcesOf, startCalls } from './serverServices'
+import {
+  layerOutputs,
+  locationOf,
+  membersOf,
+  programSourcesOf,
+  propertyOf,
+  readSignature,
+  sourcesOf,
+  startCalls,
+} from './serverServices'
 import { NotSerializable, type TypeSchema, Unreadable } from './typeSchema'
 
 export const METHODS = ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'] as const
@@ -186,7 +195,9 @@ export function analyzeControllers(opts: {
       const layer = options && propertyOf(options, 'layer')
       return tagsOf((layer && layerOutputs(layer, checker)) ?? [])
     }),
-    ...readLayerFiles(sources, checker).flatMap((f) => ('provides' in f ? tagsOf(f.provides) : [])),
+    ...readLayerFiles(programSourcesOf(program, root), checker).flatMap((f) =>
+      'provides' in f ? tagsOf(f.provides) : [],
+    ),
   ])
 
   /** The Encoded type of the Schema a reference names. */
