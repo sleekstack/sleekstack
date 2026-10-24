@@ -885,6 +885,15 @@ export const other: Controllers['users/[id]'] = '/users/1'
 })
 
 describe('RPC Files', () => {
+  const localError = `import { Data, Effect } from 'effect'\nexport class Local extends Data.TaggedError('Local')<{}> {}\nexport const local = (): Effect.Effect<void, Local> => Effect.void\n`
+
+  it('fail the build on a method whose error class is in a server-only file', async () => {
+    const { root } = scaffold({ ...serverApp, ...rpcApp, '../server/bad.rpc.ts': localError })
+    await expect(build({ ...config(root), build: { write: false, ssr: 'src/server.ts' } })).rejects.toThrow(
+      `${root}/server/bad.rpc.ts:3 ServerFileInClientGraph`,
+    )
+  })
+
   it('generate the Tag, the registry entry, the implementation Layer and the client, sharing one Tag object', async () => {
     const { server, src, load } = await serve({ ...serverApp, ...rpcApp })
     expect(await load(RPC)).toBe(
@@ -997,6 +1006,11 @@ export const limit = Effect.map(Comments, (c) => c.bodyLimit)
     )
     for (const id of [RPC, CLIENT, SERVER_APP])
       await expect(load(id)).rejects.toThrow(`${root}/server/bad.rpc.ts:2 RpcMethodShape`)
+    expect(declared()).toBe(before)
+    // A method whose error class the RPC File declares: the client would import the server-only file, so no client.
+    await event('change', 'server/bad.rpc.ts', localError)
+    for (const id of [RPC, CLIENT, SERVER_APP])
+      await expect(load(id)).rejects.toThrow(`${root}/server/bad.rpc.ts:3 ServerFileInClientGraph`)
     expect(declared()).toBe(before)
     expect(await event('unlink', 'server/bad.rpc.ts')).toEqual(every)
     expect(await event('unlink', 'server/jots.rpc.ts')).toEqual(every)

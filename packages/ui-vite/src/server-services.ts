@@ -302,9 +302,8 @@ const readRpc = async (
   if (sources.length === 0 && !files.includes(manifest)) return { services: [], code: '' }
   const { analyzeRpc } = await analyzer()
   const report = analyzeRpc({ project, serverDir: dirs.serverDir, controllersDir: dirs.controllersDir })
-  // As for the contracts: the client build reports that one itself, with the chain it loaded.
-  const errors = report.errors.filter((e) => e.code !== 'ServerFileInClientGraph')
-  if (errors.length) return { error: failed('RPC Files', errors, root) }
+  // Every code fails: a Schema or error class in a server-only file omits its method, leaving the client without it.
+  if (report.errors.length) return { error: failed('RPC Files', report.errors, root) }
   const defaultsOf = defaultsChain(dirs.serverDir, files)
   const wrapped = report.services.some((s) => s.methods.some((m) => m.controller))
   const controllers = new Map((wrapped ? await discoverControllers(dirs) : []).map((c) => [c.route, c.file]))
