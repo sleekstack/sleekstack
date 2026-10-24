@@ -1,6 +1,6 @@
 # @sleekstack/start
 
-The server entry for a `@sleekstack/ui` app: `start({ router, layer, middleware, handlers, controllers, functions, services, origins, bodyLimit, onError })` returns `{ fetch }`, which answers each request through middleware, then server functions and Server Service methods (`POST /_sleek/fn/<id>`), then route handlers, then Controllers, then the router's page. `start()` with no options serves the app that `serverServices()` of `@sleekstack/ui-vite` discovers, and given options merge with it; `router` is optional. Browser code calls server functions through `@sleekstack/start/client`.
+The server entry for a `@sleekstack/ui` app: `start({ router, layer, middleware, handlers, controllers, functions, services, origins, bodyLimit, onError })` returns `{ fetch }`, which answers each request through middleware, then server functions and Server Service methods (`POST /_sleek/fn/<id>`), then route handlers, then Controllers, then the router's page. `start()` with no options serves the app that `serverServices()` of `@sleekstack/ui-vite` discovers (Controllers, the file router, the Layer Files composed by requirement, the generated Server Services of RPC Files and the RPC Manifest, and the Server Root's `onError`), and given options merge with it; `router` is optional. `start({ layer })` and `start({ onError })` win over the discovered ones (ADR 0054). An app with no Tag left to provide omits `layer`: the option does not accept `Layer.empty`. Browser code calls server functions through `@sleekstack/start/client`.
 
 ## Exports
 
@@ -39,7 +39,7 @@ A Controller or a `_defaults.ts` file (Directory Defaults, for every Controller 
 
 ## Origins and CORS
 
-Every server-function call passes a same-origin check: the request's own origin passes, and so does each entry in `origins` and in every Controller or `_defaults.ts` `origins` export. An entry is a bare origin such as `https://app.example` or `http://localhost:3000`. Case, a trailing slash and a default port are normalized; anything else (a path, a query, credentials, a bare host, `*`) fails `start` with `InvalidOrigin`. A Controller has no origin check: its `application/json` rule for bodies stops cross-site form posts.
+Every server-function call passes a same-origin check: the request's own origin passes, and so does each entry in `origins` and in every `origins` export of a Controller, an RPC File, the RPC Manifest or a `_defaults.ts`; an export only adds origins. An entry is a bare origin such as `https://app.example` or `http://localhost:3000`. Case, a trailing slash and a default port are normalized; anything else (a path, a query, credentials, a bare host, `*`) fails `start` with `InvalidOrigin`. A Controller has no origin check: its `application/json` rule for bodies stops cross-site form posts.
 
 `origins` only lets a listed origin's call run. The framework sends no CORS headers, so the app owns them in middleware: answer the preflight and set the allow headers through `ResponseHeaders`, which reach the server function's response.
 
