@@ -44,6 +44,7 @@ gates: full Quick command 1 with --force --concurrency=1: 27/30 green, realworld
 
 baseline: green (full Quick command 1, pre-edit, turbo cache)
 stage: impl-review - skipped(policy: user asked for one completion review at the end of the spec)
+stage: plan-sync - ran (sonnet; updated tasks 8, 11)
 Tier: session (jev-unavailable(no_key)); routing block sets opus at medium
 ## Evidence
 - Commits: 24e979d9cf25debf11540c4d3da3f33dbcd0dc47

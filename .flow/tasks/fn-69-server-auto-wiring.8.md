@@ -20,6 +20,8 @@ Prove the Manifest on a real consumer: showcase's `Tally` becomes a Controller p
 - Types: showcase's `layer` provides `Tally` through `TallyLive` today, and `ServerFnDemo` needs `Tally`. Once `TallyLive` is gone `Tally` comes from the generated implementation Layer, which typechecks only with task 3's relaxation of `start`'s stage requirements. <!-- Updated by plan-sync: fn-69-server-auto-wiring.3 shipped it: `StartOptions` excludes the Tags in the generated `GeneratedServices` and `LayerFileServices` from `Needs`, so the generated declaration (task 4 and 5) must fill them for `Tally` --> <!-- Updated by plan-sync: fn-69-server-auto-wiring.6 fills `LayerFileServices` in the generated declaration, keyed by Layer File (not by Tag) as `Layer.Layer.Success<typeof import(file).default>`, so `tally.layer.ts` must default-export its Layer; `start` reads only the union of the values -->. <!-- Added by plan-sync: fn-68-file-routed-controllers.1 -->
 
 
+<!-- Added by plan-sync: fn-69-server-auto-wiring.10: realworld's `start` dropped `layer` because `start`'s option type (`packages/start/src/start.ts:29-32`, outside this task's Touches and every remaining task's) rejects `Layer.empty` with TS2322. Showcase is not affected: `ItemsLive` stays, so its `layer` is `Layer.mergeAll(AppLive, ItemsLive)` once `TallyLive` goes, which is not `Layer.empty`. Do not pass `Layer.empty` or an `AppLive` that is empty; if the layer ever becomes empty, omit the option as `apps/realworld/server/app.ts` does -->
+
 ### Investigation targets
 **Required** (read before coding):
 - `apps/showcase/server/app.ts:1-32`, `tally.server.ts:7-16`, `src/pages/tally.ts:5-17`, `src/pages/server.tsx:53-81`
