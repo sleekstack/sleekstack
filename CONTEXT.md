@@ -206,7 +206,7 @@ A reserved `_defaults.ts` file whose options apply to the files below its direct
 _Avoid_: middleware
 
 **RPC File**:
-A `*.rpc.ts` file whose exported functions are the methods of one Server Service, each with a written-out signature; the build generates the Tag, registry entry, Layer and browser client from it (ADR 0054).
+A `*.rpc.ts` file under the server directory whose exported functions are the methods of one Server Service, each with a written-out signature; the build generates the Tag, registry entry, Layer and browser client from it (ADR 0054).
 _Avoid_: contract, remote service
 
 **RPC Manifest**:
@@ -214,7 +214,7 @@ The reserved `server/rpc.ts` file that exposes chosen Controller Methods as the 
 _Avoid_: RPC wrapper, router
 
 **Layer File**:
-A `*.layer.ts` file whose default export is a Layer; the build finds every one and composes them by what each requires (ADR 0054).
+A `*.layer.ts` file whose default export is a Layer; the build finds every one outside tests and composes them by what each requires (ADR 0054).
 _Avoid_: provider
 
 **Server Root**:
