@@ -1,8 +1,7 @@
 import { start } from '@sleekstack/start'
-import { NotesLive } from './notes'
 
 /**
- * The server entry. The Vite plugin discovers the Controllers under `server/routes`, so nothing lists them here.
- * `layer` provides what their methods need; with Controllers that need nothing, `start()` alone serves them.
+ * The server entry. The Vite plugin discovers the Controllers under `server/routes`, the Layer Files (`notes.layer.ts`
+ * provides `Notes`), the RPC Files, the Manifest and the Server Root, so nothing is listed here.
  */
-export const app = start({ layer: NotesLive })
+export const app = start()

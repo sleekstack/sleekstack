@@ -74,6 +74,19 @@ export class Unreadable {
   ) {}
 }
 
+/** A Schema or tagged error class of a server-only module, which a generated client cannot import (R9). */
+export class ServerOnlyReference extends Unreadable {
+  constructor(
+    at: ts.Node,
+    why: string,
+    /** The referenced name and its file, relative to the tsconfig directory. */
+    readonly name: string,
+    readonly file: string,
+  ) {
+    super(at, why)
+  }
+}
+
 /**
  * The tagged error base of `class X extends Data.TaggedError('X')<Fields> {}` (its fields as a type node) or of
  * `class X extends Schema.TaggedError<X>()('X', fields) {}` (the class is its own Schema).
@@ -98,7 +111,8 @@ export const taggedErrorBase = (
 /**
  * The method's types as a `MethodSchema`. `written` is the signature, whose parameter and return type nodes are the
  * text a Schema reference is read from: inline, through a type alias of the signature's file, as a property, an array
- * element or a union member. A referenced `X` must be an exported value of a module that is not `serverOnly`. With no
+ * element or a union member. A referenced `X` must be an exported value of a module that is not `serverOnly`, and a
+ * tagged error class must be declared in one (else `ServerOnlyReference`). With no
  * written return type there is no success Schema; `error` undefined leaves `E` unread.
  */
 export const methodSchema = (
@@ -196,7 +210,12 @@ export const methodSchema = (
     if (sf.isDeclarationFile || ts.getCombinedModifierFlags(decl) & ts.ModifierFlags.Ambient)
       return cannot(`to "${name}", which is only declared and has no value at run time`)
     if (ctx.serverOnly(sf.fileName))
-      return cannot(`to "${name}" of the server-only "${file}"; reference a Schema of a client-safe module`)
+      throw new ServerOnlyReference(
+        n,
+        `reads ${at} from a Schema reference to "${name}" of the server-only "${file}"; reference a Schema of a client-safe module`,
+        name,
+        file,
+      )
     const exported = exportName(sf, target)
     if (!exported) return cannot(`to "${name}", which "${file}" does not export as a value`)
     // `Schema.Schema.All`: a Schema of any type, `never` included (invariance keeps `never` out of `Any`).
@@ -330,6 +349,13 @@ export const methodSchema = (
       name: sym.getName(),
       file: path.relative(ctx.root, decl.getSourceFile().fileName),
     } as const
+    if (ctx.serverOnly(decl.getSourceFile().fileName))
+      throw new ServerOnlyReference(
+        m.written.type ?? m.written,
+        `fails with "${error.name}" of the server-only "${error.file}"; declare the error class in a client-safe module`,
+        error.name,
+        error.file,
+      )
     if (base.schema) return [{ ...error, fields: [], schema: true }]
     const at = `error(${sym.getName()})`
     const fields = base.fields ? convert(checker.getTypeFromTypeNode(base.fields), at) : undefined

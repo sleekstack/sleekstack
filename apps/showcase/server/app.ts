@@ -4,7 +4,6 @@ import { AppLive } from '../src/layers'
 import { people } from '../src/pages/router'
 import { addItem, DuplicateItem } from '../src/pages/items'
 import services from 'virtual:sleek/server-registry'
-import { TallyLive } from './tally.server'
 
 /** The list, held by the server process: a server-only service, absent from every client layer. */
 export class Items extends Context.Tag('showcase/server/Items')<Items, Ref.Ref<ReadonlyArray<string>>>() {}
@@ -22,11 +21,12 @@ export const addItemFn = serverFn(
 
 /**
  * The server entry: the router demo's pages, the server functions and the generated Server Service registry, on the
- * app's layer plus the server's own (`TallyLive` implements the `Tally` contract in-process).
+ * app's layer plus the server's own. The tally Controller under `server/routes`, its count (`server/tally.layer.ts`)
+ * and its `Tally` Server Service (`server/rpc.ts`) are discovered by `serverServices()`, so none is listed here.
  */
 export const app = start({
   router: people,
-  layer: Layer.mergeAll(AppLive, ItemsLive, TallyLive),
+  layer: Layer.mergeAll(AppLive, ItemsLive),
   functions: [addItemFn],
   services,
 })

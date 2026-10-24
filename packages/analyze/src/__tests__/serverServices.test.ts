@@ -62,6 +62,7 @@ describe('analyzeServerServices', () => {
     'server-service-duplicate-id',
     'server-service-indirect',
     'server-service-start-missing',
+    'server-service-start-generated',
     'server-boundary',
   ])('%s: code and file:line', (name) => {
     const errors = run(name).errors
@@ -79,6 +80,12 @@ describe('analyzeServerServices', () => {
     ])
   })
 
+  it('counts a Tag generated from an RPC File (virtual:sleek/rpc) as provided, and still names a hand-written one', () => {
+    expect(run('server-service-start-generated').errors.map((e) => e.message)).toEqual([
+      'Server Service "Accounts" is registered in start({ services }) but start\'s layer does not provide it',
+    ])
+  })
+
   it('names the import chain of a server file reachable from the browser', () => {
     expect(run('server-boundary').errors.map((e) => e.message)).toEqual([
       'The server-only "direct.server.ts" is reachable from the browser: main.ts -> direct.server.ts',
@@ -88,18 +95,20 @@ describe('analyzeServerServices', () => {
   })
 
   it.each([
-    [undefined, ['users.controller.ts', 'server/routes/_defaults.ts']],
-    ['lib', ['users.controller.ts', 'lib/_defaults.ts']],
+    [undefined, ['users.controller.ts', 'server/routes/_defaults.ts'], ['server/rpc.ts', 'server/_app.ts']],
+    ['lib', ['users.controller.ts', 'lib/_defaults.ts'], []],
   ] as const)(
-    'reports a Controller, and a _defaults.ts only under the server directory (serverDir %s); a test under test/ is no browser entry',
-    (serverDir, files) => {
+    'reports a Controller, RPC and Layer File, and a reserved name only under the server directory (serverDir %s); virtual:sleek/rpc marks a browser entry, a test under test/ does not',
+    (serverDir, fromMain, reserved) => {
       const project = path.join(dir('server-boundary-kinds'), 'tsconfig.json')
-      expect(analyzeServerServices({ project, serverDir }).errors.map((e) => [e.code, e.message])).toEqual(
-        files.map((f) => [
-          'ServerFileInClientGraph',
-          `The server-only "${f}" is reachable from the browser: main.ts -> ${f}`,
-        ]),
-      )
+      const chain = (entry: string) => (f: string) => [
+        'ServerFileInClientGraph',
+        `The server-only "${f}" is reachable from the browser: ${entry} -> ${f}`,
+      ]
+      expect(analyzeServerServices({ project, serverDir }).errors.map((e) => [e.code, e.message])).toEqual([
+        ...fromMain.map(chain('main.ts')),
+        ...['notes.rpc.ts', 'db.layer.ts', ...reserved].map(chain('rpc-page.ts')),
+      ])
     },
   )
 

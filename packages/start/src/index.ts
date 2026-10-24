@@ -2,7 +2,17 @@
 import './server-app'
 export { start } from './start'
 export type { Start, StartOptions } from './start'
-export type { ControllerEntry, ControllerMethodEntry, ControllerOptions, DiscoveredApp, RpcWrap, Wrap } from './app'
+export type {
+  ControllerEntry,
+  ControllerMethodEntry,
+  ControllerOptions,
+  DiscoveredApp,
+  DiscoveredService,
+  RpcWrap,
+  Wrap,
+} from './app'
+export { rpc, serviceLayer } from './rpc'
+export type { GeneratedMethods, GeneratedServiceShape, RpcManifest, RpcManifestOptions, RpcRoute } from './rpc'
 export { BodyTooLarge, InvalidPathEncoding, MethodNotAllowed, UnsupportedMediaType } from './controller'
 export type { Handler, Method } from './handler'
 export type { Middleware } from './middleware'

@@ -9,9 +9,10 @@ import {
   useLoader,
 } from '@sleekstack/router'
 import { type Context, Effect, Schema } from 'effect'
-import { Article, ArticleList, ArticlesApi } from '../modules/articles'
-import { Comment, CommentsApi } from '../modules/comments'
-import { Account, IdentityApi, Profile } from '../modules/identity'
+import { ArticlesApi, CommentsApi, IdentityApi } from 'virtual:sleek/rpc'
+import { Article, ArticleList } from '../modules/articles'
+import { Comment } from '../modules/comments'
+import { Account, Profile } from '../modules/identity'
 
 // The loaders that a link on another page names, apart from the pages so any page imports them without a cycle.
 
@@ -43,7 +44,7 @@ interface Paging {
 }
 
 /** How a list call fails: the list and feed functions share their errors. */
-type ListFailure = Effect.Effect.Error<ReturnType<Context.Tag.Service<ArticlesApi>['list']>>
+type ListFailure = Effect.Effect.Error<ReturnType<Context.Tag.Service<typeof ArticlesApi>['list']>>
 type Query = (paging: Paging) => Effect.Effect<ArticleList, ListFailure, ArticlesApi | Route>
 
 /** A list of articles: its first page as a loader (server-rendered), any page by `query`. */

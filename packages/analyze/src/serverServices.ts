@@ -25,16 +25,18 @@ const SERVER_SERVICE = 'start/service#ServerService'
 const EFFECT = 'effect/Effect#Effect'
 const START = 'start/start#start'
 const LAYER = 'effect/Layer#Layer'
-const CLIENT_MODULE = 'virtual:sleek/server'
+/** A module importing one of these is a browser entry. */
+const CLIENT_MODULES: ReadonlySet<string> = new Set(['virtual:sleek/server', 'virtual:sleek/rpc'])
 
 /**
  * The server-only files (R12): none may be reachable from a browser entry. A file is server-only by its kind, the suffix
- * before its extension (`*.server.ts`, `*.controller.ts`), anywhere; or by a reserved name (`_defaults.ts`) under the
- * server directory. `sleekstack check` and the Vite plugin both read this one list, through `isServerOnly`.
+ * before its extension (`*.server.ts`, `*.controller.ts`, `*.rpc.ts`, `*.layer.ts`), anywhere; or by a reserved name
+ * (`_defaults.ts`, `rpc.ts`, `_app.ts`) under the server directory. `sleekstack check` and the Vite plugin both read
+ * this one list, through `isServerOnly`.
  */
 export const SERVER_ONLY: { readonly kinds: readonly string[]; readonly reserved: readonly string[] } = {
-  kinds: ['server', 'controller'],
-  reserved: ['_defaults'],
+  kinds: ['server', 'controller', 'rpc', 'layer'],
+  reserved: ['_defaults', 'rpc', '_app'],
 }
 
 /** Whether `file` is server-only (`SERVER_ONLY`) in an app whose server directory is `serverDir`; both absolute. */
@@ -157,6 +159,26 @@ export const locationOf = (root: string, n: ts.Node): Location => {
   }
 }
 
+/** A Tag's Context key: the literal `key` of its class, else its name. */
+export const contextKey = (t: ts.Type, checker: ts.TypeChecker): string => {
+  const sym = t.getSymbol()
+  const key = sym && checker.getPropertyOfType(checker.getTypeOfSymbol(sym), 'key')
+  const type = key && checker.getTypeOfSymbol(key)
+  return type?.isStringLiteral() ? type.value : (sym?.getName() ?? checker.typeToString(t))
+}
+
+/** Every source file of the program, inside the project or not: no declarations, dependencies or tests. */
+export const programSourcesOf = (program: ts.Program, root: string): ts.SourceFile[] =>
+  program
+    .getSourceFiles()
+    .filter(
+      (sf) =>
+        !sf.isDeclarationFile &&
+        !program.isSourceFileFromExternalLibrary(sf) &&
+        !/[\\/]node_modules[\\/]/.test(sf.fileName) &&
+        !TEST_FILE.test(path.relative(root, sf.fileName)),
+    )
+
 /** The project's own source files: its root files, without declarations, `node_modules` and tests. */
 export const sourcesOf = (program: ts.Program, root: string): ts.SourceFile[] =>
   program
@@ -192,13 +214,23 @@ export const propertyOf = (options: ts.ObjectLiteralExpression, name: string): t
   return p && ts.isPropertyAssignment(p) ? p.initializer : p && ts.isShorthandPropertyAssignment(p) ? p.name : undefined
 }
 
+/** `ROut` and `RIn` of a Layer type; undefined when it is not a Layer. */
+export const layerTypes = (
+  type: ts.Type,
+  checker: ts.TypeChecker,
+): { readonly out: ts.Type; readonly in: ts.Type } | undefined => {
+  if (libId(type.aliasSymbol ?? type.getSymbol(), checker) !== LAYER) return undefined
+  const [out, , rIn] = checker.getTypeArguments(type as ts.TypeReference)
+  return out && rIn ? { out, in: rIn } : undefined
+}
+
+/** A union's members; none for `never`. */
+export const membersOf = (t: ts.Type): ts.Type[] => (t.flags & ts.TypeFlags.Never ? [] : t.isUnion() ? t.types : [t])
+
 /** The Tags a Layer expression provides (its `ROut` members); undefined when its type is not a readable Layer. */
 export const layerOutputs = (layer: ts.Expression, checker: ts.TypeChecker): ts.Type[] | undefined => {
-  const type = checker.getTypeAtLocation(layer)
-  if (libId(type.aliasSymbol ?? type.getSymbol(), checker) !== LAYER) return undefined
-  const out = checker.getTypeArguments(type as ts.TypeReference)[0]
-  if (!out || out.flags & ts.TypeFlags.Any) return undefined
-  return out.flags & ts.TypeFlags.Never ? [] : out.isUnion() ? out.types : [out]
+  const out = layerTypes(checker.getTypeAtLocation(layer), checker)?.out
+  return !out || out.flags & ts.TypeFlags.Any ? undefined : membersOf(out)
 }
 
 export interface ServerServiceDecl {
@@ -348,7 +380,13 @@ export function analyzeServerServices(opts: {
     found.forEach(serviceOf)
   }
 
-  /** `start({ services, layer })`: each registered Tag needs an implementation in `layer`, as `start`'s own types require. */
+  /** A Tag `virtual:sleek/rpc` declares (an RPC File's or the Manifest's): the discovered app provides it, as `start`'s `GeneratedServices` does. */
+  const isGenerated = (tag: ts.Type) =>
+    !!tag.getSymbol()?.declarations?.some((d) => {
+      const m = d.parent?.parent
+      return !!m && ts.isModuleDeclaration(m) && ts.isStringLiteral(m.name) && m.name.text === 'virtual:sleek/rpc'
+    })
+  /** `start({ services, layer })`: each registered Tag needs an implementation in `layer` or the discovered app, as `start`'s own types require. */
   const checkStart = (call: ts.CallExpression, options: ts.ObjectLiteralExpression) => {
     const services = propertyOf(options, 'services')
     if (!services) return
@@ -365,7 +403,7 @@ export function analyzeServerServices(opts: {
     if (!provided) return // a Layer it cannot read: leave it to `tsc`
     const have = new Set(provided.map((t) => t.getSymbol()))
     for (const tag of required)
-      if (!have.has(tag.getSymbol()))
+      if (!have.has(tag.getSymbol()) && !isGenerated(tag))
         report(
           'MissingDependency',
           call,
@@ -422,7 +460,7 @@ const valueImports = (sf: ts.SourceFile): Array<{ readonly spec: string; readonl
 }
 
 /**
- * `ServerFileInClientGraph`: from every module importing `virtual:sleek/server` (a browser entry), walks the value
+ * `ServerFileInClientGraph`: from every module importing `virtual:sleek/server` or `virtual:sleek/rpc` (a browser entry), walks the value
  * imports and reports each server-only file reached, once, at the importing statement with the shortest chain.
  */
 const serverFilesInClientGraph = (
@@ -438,7 +476,7 @@ const serverFilesInClientGraph = (
     return sf && !sf.isDeclarationFile && !/[\\/]node_modules[\\/]/.test(sf.fileName) ? sf : undefined
   }
   const rel = (sf: ts.SourceFile) => path.relative(root, sf.fileName)
-  const queue = sources.filter((sf) => valueImports(sf).some((i) => i.spec === CLIENT_MODULE))
+  const queue = sources.filter((sf) => valueImports(sf).some((i) => CLIENT_MODULES.has(i.spec)))
   /** Each reached module's chain from its browser entry. */
   const chains = new Map(queue.map((sf) => [sf, [rel(sf)]]))
   for (let i = 0; i < queue.length; i++) {

@@ -1,11 +1,13 @@
 ---
 title: Controllers
-description: REST on @sleekstack/start from files. A *.controller.ts file's path sets its URL, and its methods are Effect functions typed by their written-out signature.
+description: REST and the rest of the server wiring on @sleekstack/start from files. A *.controller.ts file's path sets its URL, Layer Files provide the services, and RPC Files and the RPC Manifest give pages typed Server Services.
 ---
 
 A Controller is a `*.controller.ts` file under `server/routes` ([ADR 0053](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0053-file-routed-controllers.md)). Its path sets its URL, and each exported HTTP method answers requests from decoded input. Nothing registers it: the `serverServices()` plugin of `@sleekstack/ui-vite` (also part of `sleekstack()`) finds it, and `start()` serves it. There is no wrapper function around a method. The written-out signature is the contract, and the input Schemas are read from it.
 
-The [realworld app](https://github.com/sleekstack/sleekstack/tree/master/apps/realworld/server/routes/api) is the worked example: its whole REST facade is a `_defaults.ts` and 14 Controllers under `server/routes/api`.
+The same plugin finds the rest of the server ([ADR 0054](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0054-server-auto-wiring.md)): [Layer Files](#layer-files) provide the services, the [Server Root](#the-server-root) holds the error sink, and [RPC Files](#rpc-files) and the [RPC Manifest](#the-rpc-manifest) define the Server Services that pages call. A server entry lists none of them.
+
+The [realworld app](https://github.com/sleekstack/sleekstack/tree/master/apps/realworld/server) is the worked example: its whole REST facade is a `_defaults.ts` and 14 Controllers under `server/routes/api`, its infra is three Layer Files, and its pages call three RPC Files.
 
 ## Files and URLs
 
@@ -80,17 +82,66 @@ A `wrap` export takes `(next, request)`, where `next` is decode, method and enco
 
 <include>../../snippets/controllers/server/app.ts</include>
 
-A method's `R` comes from `start({ layer })`, a `wrap`, or the request services. The services are ordinary Tags and Layers: here `Notes` comes from `layer` and `Viewer` from the directory `wrap`.
+A method's `R` comes from a [Layer File](#layer-files), `start({ layer })`, a `wrap`, or the request services. The services are ordinary Tags and Layers: here `Notes` comes from the Layer File `notes.layer.ts` and `Viewer` from the directory `wrap`.
 
 <include>../../snippets/controllers/server/notes.ts</include>
 
 `sleekstack check` counts every Controller as a root, so a service no one provides is a `MissingDependency` with file:line, even in an app with no ui. `start()` with no options and no discovered app fails every request, naming the missing plugin. Auto-wiring needs Vite; a host without it passes the options itself.
 
-The plugin types the Controllers in `src/server.gen.d.ts`, beside the Server Services. `Controllers` maps each route name to its URL pattern, and `ControllerModules` maps it to the type of its module:
+The [Vite plugin](/docs/vite#controllers-and-the-discovered-app) page covers the discovery options, dev reloads and how a dev server forwards Controller paths to `start`.
+
+## Layer Files
+
+A `*.layer.ts` file whose default export is a Layer is a Layer File. The plugin finds every one in the app's TypeScript program except tests (`__tests__/`, `test/` and `tests/` directories, `*.test.*` and `*.spec.*` files) and composes them by requirement: a Layer File's requirement is provided by another Layer File's output. The composed Layer serves the Controllers, the generated Server Services and `start({ layer })`.
+
+<include>../../snippets/controllers/server/notes.layer.ts</include>
+
+- One Layer per file, built once for the app. There are no request-scoped Layer Files. Layers compose by Tag, not by instance, so compose a base once rather than re-export it from several Layer Files.
+- `start({ layer })` wins for any Tag it provides ([Shadowing](/docs/concepts)) and may itself require what Layer Files provide. An app with nothing left to provide omits `layer`: the option does not accept `Layer.empty`.
+- A Layer File that reads `process.env` at the top level reads it at import, so a test sets the variable before importing the app.
+- A Layer File whose build fails fails the first request with the build's cause, and every later request the same way. The app is never served half-built.
+- The pass reads the `tsconfig.json` at the Vite root. An app without one composes no Layer Files.
+
+A cycle between Layer Files is `LayerFileCycle`, and two Layer Files that provide one Tag are `LayerFileConflict`, naming both. A requirement nobody provides is `MissingDependency`. A default export that is not a Layer, or is typed `any`, is `ServerFileShape`. Each fails the discovered app's load, naming the file ([Errors](/docs/errors#server-file-errors)).
+
+## The Server Root
+
+The server directory's `_app.ts` is the Server Root. Its one export, `onError`, is the app's error sink in place of `console.error`, and `start({ onError })` wins over it. Any other export is `ServerFileShape`.
+
+<include>../../snippets/controllers/server/_app.ts</include>
+
+## RPC Files
+
+A `*.rpc.ts` file under the server directory defines one Server Service with no contract file and no `implement`. Each exported function with a written-out signature is a method, and the build generates its Tag, registry entry, implementation Layer and browser client. The wire id is `<Service>.<method>` at `POST /_sleek/fn/<id>`, the wire of [Server Services](/docs/server-services).
+
+<include>../../snippets/controllers/server/notes-api.rpc.ts</include>
+
+- The Tag is the file's basename without `.rpc.ts` in PascalCase: words split at `-`, `_` and `.`, each word's first letter capitalised and the rest kept, so `notes-api.rpc.ts` is `NotesApi`. `export const service = 'Notes'` overrides it with a string literal. Either must match `[A-Za-z][A-Za-z0-9]*`, else it is `ServerFileShape`.
+- A method takes one parameter of any written type, or none, and returns a written `Effect.Effect<A, E, R>` with no `any`. It is a function declaration, or an arrow or function expression on an exported `const`. Generics, `async` and `Effect.fn` are not read. `export { remove as delete }` names a method `delete`. A non-function export is not a method.
+- The types are read as a Controller's are: `Schema.Schema.Type<typeof X>` uses `X`, and any other type is printed from the Server Service subset. `R` may be any service. It must not name another generated Tag.
+- `wrap`, `bodyLimit`, `origins` and `service` are options, not methods. `wrap` is an `RpcWrap`, which keeps the method's value and error types: `(next, request) => Effect<A, E, R2>`. It runs inside the generated Layer's methods, so a wire call, a loader's in-process call and `callService` all run inside it. The Controllers' directory `wrap` never reaches an RPC File, while `bodyLimit` and `origins` from a `_defaults.ts` above it do.
+- A method that cannot be read is `RpcMethodShape`, with file:line. Tag names from RPC Files, Manifest keys, hand-written `ServerService` ids, Layer File output Tags and `serverFn` ids share one namespace, and a collision is `RpcNameCollision`, naming both ([Errors](/docs/errors#rpc-errors)).
+
+## The RPC Manifest
+
+The server directory's `rpc.ts` exposes chosen Controller Methods as Server Services without redefining them. Its default export is `rpc({ Service: { method: 'VERB route-name' } }, { wrap?, bodyLimit?, origins? })`, of string literals only. A route name is typed from the generated route table, so renaming a Controller is a type error.
+
+<include>../../snippets/controllers/server/rpc.ts</include>
+
+- A wrapped method takes the Controller's input, `{ params?, query?, body? }`, or none when the Controller declares none. It returns the Controller's value as it is, an envelope included. A different shape is an RPC File.
+- The RPC face decodes the wire input and runs the method inside the Manifest's own `wrap`, never the Controller's directory `wrap`. Typed errors cross the wire as the method's failure, not as a `Response`, and `ResponseStatus` has no effect. Without a `wrap`, the method's request services still resolve per call.
+- A wrapped method must not read the request body, which the wire has already consumed.
+- An unknown route, a verb the Controller does not export, or a removed method is `RpcRouteUnknown`. A method that returns a `Response`, has no written signature or uses `any` is `RpcMethodShape`. A default export that is not an object literal of string literals is `ServerFileShape`.
+
+## Calling a generated service
+
+A page or loader imports the Tag from `virtual:sleek/rpc` and calls `yield* NotesApi`. On the server the call runs in process. In the browser, `virtual:sleek/server` carries a client for each generated Tag beside the hand-written ones, so a browser entry changes nothing. Each method also fails with `NetworkError | DecodeError`.
+
+<include>../../snippets/controllers/src/notes-page.ts</include>
+
+The plugin types all of this in `src/server.gen.d.ts`, beside the hand-written Server Services. `virtual:sleek/rpc` declares each generated Tag from its file, and `virtual:sleek/server-app` gains `Controllers` (each route name to its URL pattern), `ControllerModules` (each route name to the type of its module), `GeneratedServices` (each generated Tag by name) and `LayerFileServices` (what each Layer File provides, keyed by its path). Services and methods are sorted, and a stale declaration fails `vite build`.
 
 <include>../../snippets/controllers/src/server.gen.d.ts</include>
-
-The [Vite plugin](/docs/vite#controllers-and-the-discovered-app) page covers the discovery options, dev reloads and how a dev server forwards Controller paths to `start`.
 
 ## Testing
 
@@ -102,6 +153,6 @@ A URL that the entry's pattern does not match answers 404. A defect answers an e
 
 ## The browser boundary
 
-`*.controller.ts` files and the `_defaults.ts` files under the server directory are server-only. A browser entry that reaches one fails the client build, naming the import chain, and `sleekstack check` reports `ServerFileInClientGraph`. A page imports the client-safe Schemas a Controller references, never the Controller.
+`*.controller.ts`, `*.rpc.ts` and `*.layer.ts` files, and the `_defaults.ts`, `rpc.ts` and `_app.ts` files under the server directory, are server-only. A browser entry (a module importing `virtual:sleek/server` or `virtual:sleek/rpc`) that reaches one fails the client build, naming the import chain, and `sleekstack check` reports `ServerFileInClientGraph`. A page imports the client-safe Schemas a Controller or RPC File references, never the server file. A Schema or error class that a generated client imports must live in a client-safe module, not in the RPC File or Controller itself.
 
 <include>../../snippets/controllers/src/schemas.ts</include>

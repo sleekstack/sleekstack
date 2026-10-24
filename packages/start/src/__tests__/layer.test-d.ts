@@ -64,3 +64,28 @@ serverFn('undeclared', { input: Schema.Void, success: Schema.Void })(function* (
 // A router annotated without R is not tracked, so the layer is optional.
 declare const untyped: Router
 start({ router: untyped })
+
+// What the generated declaration writes: the Tags the Layer Files provide.
+class FileStore extends Context.Tag('FileStore')<FileStore, { readonly file: true }>() {}
+declare module 'virtual:sleek/server-app' {
+  interface LayerFileServices {
+    readonly FileStore: FileStore
+  }
+}
+const needsFileStore = Layer.effect(Clock, Effect.as(FileStore, { now: 1 }))
+const clockPage = router({
+  table,
+  pages: { home: { render: () => Effect.as(Clock, el('p', {}, 'clock')) }, user: { render: shell } },
+  notFound: shell,
+})
+// The explicit layer may require what a Layer File provides, and a page may need it without any layer.
+start({ router: clockPage, layer: needsFileStore })
+start({
+  router: router({
+    table,
+    pages: { home: { render: () => Effect.as(FileStore, el('p', {}, 'f')) }, user: { render: shell } },
+    notFound: shell,
+  }),
+})
+// @ts-expect-error the explicit layer requires Db, which no Layer File provides
+start({ router: clockPage, layer: Layer.effect(Clock, Effect.as(Db, { now: 1 })) })

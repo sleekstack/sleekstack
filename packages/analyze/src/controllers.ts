@@ -3,25 +3,35 @@
  *
  * The Controller pass (ADR 0053): every `*.controller.ts` file, its route (ADR 0050's path syntax, the one derivation
  * the Vite plugin shares) and its methods, read through the shared signature reader with the input rules of R4. The
- * services a method requires must come from the request services, `start({ layer })` or a `wrap` above it (R3), and
- * so must those a `wrap`'s result requires, from a `wrap` above that one.
+ * services a method requires must come from the request services, `start({ layer })`, a Layer File or a `wrap` above it
+ * (R3), and so must those a `wrap`'s result requires, from a `wrap` above that one.
  */
 
 import * as path from 'node:path'
 import ts from 'typescript'
 import { analyzeError } from './errorCodes'
 import { libId, programOf, unwrap } from './extract'
+import { readLayerFiles } from './layerFiles'
 import type { AnalyzeCode, AnalyzeError, Location } from './model'
-import { layerOutputs, locationOf, propertyOf, readSignature, sourcesOf, startCalls } from './serverServices'
+import {
+  layerOutputs,
+  locationOf,
+  membersOf,
+  programSourcesOf,
+  propertyOf,
+  readSignature,
+  sourcesOf,
+  startCalls,
+} from './serverServices'
 import { NotSerializable, type TypeSchema, Unreadable } from './typeSchema'
 
-const METHODS = ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'] as const
+export const METHODS = ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'] as const
 export type ControllerMethodName = (typeof METHODS)[number]
 const isMethod = (name: string): name is ControllerMethodName => (METHODS as readonly string[]).includes(name)
 /** The methods that may declare a `body`. */
 const BODY: ReadonlySet<string> = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 const INPUT = ['params', 'query', 'body']
-const CONTROLLER = /\.controller\.ts$/
+export const CONTROLLER = /\.controller\.ts$/
 const DEFAULTS = '_defaults.ts'
 const EFFECT = 'effect/Effect#Effect'
 /** The services `start` provides to every call (`RequestServices` of `@sleekstack/start`). */
@@ -34,6 +44,15 @@ const PARAM = /^\[(\w+)\]$/
 const OPTIONAL = /^\[\[(\w+)\]\]$/
 const SPLAT = /^\[\.\.\.(\w+)\]$/
 const GROUP = /^\([\w.~-]+\)$/
+
+/** The written signature of an exported Controller method: a function, or a variable holding or typed as one. */
+export const signatureOf = (decl: ts.Declaration | undefined): ts.SignatureDeclaration | undefined => {
+  if (decl && ts.isFunctionDeclaration(decl)) return decl
+  if (!decl || !ts.isVariableDeclaration(decl)) return undefined
+  if (decl.type) return ts.isFunctionTypeNode(decl.type) ? decl.type : undefined
+  const init = decl.initializer && unwrap(decl.initializer)
+  return init && (ts.isArrowFunction(init) || ts.isFunctionExpression(init)) ? init : undefined
+}
 
 export interface ControllerRoute {
   /** The path under the Controllers directory without `.controller.ts`, such as `articles/[slug]` or `(admin)/index`. */
@@ -126,12 +145,11 @@ export function analyzeControllers(opts: {
     const module = checker.getSymbolAtLocation(sf)
     return module ? checker.getExportsOfModule(module) : []
   }
-  const members = (t: ts.Type) => (t.flags & ts.TypeFlags.Never ? [] : t.isUnion() ? t.types : [t])
   /** `R` of an `Effect.Effect<A, E, R>` type, as its members. */
   const requiresOf = (t: ts.Type) => {
     if (libId(t.aliasSymbol ?? t.getSymbol(), checker) !== EFFECT) return undefined
     const r = checker.getTypeArguments(t as ts.TypeReference)[2]
-    return r && members(r)
+    return r && membersOf(r)
   }
 
   const tagsOf = (types: readonly ts.Type[]) => types.flatMap((t) => t.getSymbol() ?? [])
@@ -171,12 +189,16 @@ export function analyzeControllers(opts: {
       : []
     return [...chain, sf].map(wrapOf)
   }
-  const fromStart = new Set(
-    startCalls(sources, checker).flatMap(({ options }) => {
+  /** What the app provides to every call: `start({ layer })` and the Layer Files. */
+  const fromApp = new Set([
+    ...startCalls(sources, checker).flatMap(({ options }) => {
       const layer = options && propertyOf(options, 'layer')
       return tagsOf((layer && layerOutputs(layer, checker)) ?? [])
     }),
-  )
+    ...readLayerFiles(programSourcesOf(program, root), checker).flatMap((f) =>
+      'provides' in f ? tagsOf(f.provides) : [],
+    ),
+  ])
 
   /** The Encoded type of the Schema a reference names. */
   const encodedOf = (ref: { readonly file: string; readonly name: string }) => {
@@ -276,15 +298,6 @@ export function analyzeControllers(opts: {
       return undefined
     }
 
-  /** The written signature of an exported method: a function, or a variable holding or typed as one. */
-  const signatureOf = (decl: ts.Declaration | undefined): ts.SignatureDeclaration | undefined => {
-    if (decl && ts.isFunctionDeclaration(decl)) return decl
-    if (!decl || !ts.isVariableDeclaration(decl)) return undefined
-    if (decl.type) return ts.isFunctionTypeNode(decl.type) ? decl.type : undefined
-    const init = decl.initializer && unwrap(decl.initializer)
-    return init && (ts.isArrowFunction(init) || ts.isFunctionExpression(init)) ? init : undefined
-  }
-
   const methodOf = (
     route: ControllerRoute,
     name: ControllerMethodName,
@@ -380,7 +393,7 @@ export function analyzeControllers(opts: {
     methods.sort((a, b) => METHODS.indexOf(a.name) - METHODS.indexOf(b.name))
     const provided = new Set<ts.Symbol>()
     const isProvided = (tag: ts.Symbol | undefined) =>
-      tag && (REQUEST_SERVICES.has(libId(tag, checker) ?? '') || fromStart.has(tag) || provided.has(tag))
+      tag && (REQUEST_SERVICES.has(libId(tag, checker) ?? '') || fromApp.has(tag) || provided.has(tag))
     // A wrap's result runs inside the wraps above it only, so only they discharge what it requires.
     for (const wrap of wraps(sf)) {
       for (const t of wrap.requires) {
@@ -392,7 +405,7 @@ export function analyzeControllers(opts: {
         errors.push(
           analyzeError(
             'MissingDependency',
-            `The wrap of "${at.file}" requires "${name}", which no wrap above it and no start({ layer }) provides`,
+            `The wrap of "${at.file}" requires "${name}", which no wrap above it, no Layer File and no start({ layer }) provides`,
             at,
           ),
         )
@@ -400,13 +413,13 @@ export function analyzeControllers(opts: {
       for (const tag of wrap.discharged) provided.add(tag)
     }
     for (const method of methods)
-      for (const t of members(method.requires)) {
+      for (const t of membersOf(method.requires)) {
         const tag = t.getSymbol()
         if (isProvided(tag)) continue
         errors.push(
           analyzeError(
             'MissingDependency',
-            `Controller "${route.route}" ${method.name} requires "${tag?.getName() ?? checker.typeToString(t)}", which no wrap above it and no start({ layer }) provides`,
+            `Controller "${route.route}" ${method.name} requires "${tag?.getName() ?? checker.typeToString(t)}", which no wrap above it, no Layer File and no start({ layer }) provides`,
             method.location,
           ),
         )

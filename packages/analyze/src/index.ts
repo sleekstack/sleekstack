@@ -42,3 +42,9 @@ export type {
   ControllerRoute,
 } from './controllers'
 export type { MethodSchema, PropertySchema, TaggedErrorSchema, TypeSchema } from './typeSchema'
+/** The Layer File pass (ADR 0054): the `*.layer.ts` files in composition order, and the Server Root `_app.ts`. */
+export { analyzeLayerFiles } from './layerFiles'
+export type { LayerFileDecl, LayerFileReport } from './layerFiles'
+/** The RPC pass (ADR 0054): RPC File and RPC Manifest services with their method Schemas, and the one Tag-name namespace. */
+export { analyzeRpc } from './rpc'
+export type { RpcMethod, RpcReport, RpcServiceDecl } from './rpc'

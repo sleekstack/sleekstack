@@ -8,9 +8,11 @@ import services from 'virtual:sleek/server-registry'
 import { act } from 'react'
 import { afterEach, expect, it, vi } from 'vitest'
 import { app } from '../server/app'
-import { devMiddleware } from '../server/dev'
+import { devMiddleware } from '@sleekstack/ui-vite'
+import { Tally } from 'virtual:sleek/rpc'
+import { isControllerPath } from 'virtual:sleek/server-app'
 import { ServerFnDemo } from '../src/pages/server'
-import { Tally, TallyLimit } from '../src/pages/tally'
+import { TallyLimit } from '../src/pages/tally'
 
 afterEach(() => void vi.unstubAllGlobals())
 
@@ -48,7 +50,7 @@ it('the form adds an item through the server function; a duplicate or an empty t
   await dispose()
 })
 
-it('the dev server middleware answers POST /_sleek/fn/<id> through start, and passes every other path to Vite', async () => {
+it('the dev server middleware answers /_sleek/ and the Controller paths through start, and passes every other path to Vite', async () => {
   const host = 'localhost:5173'
   const request = (method: string, url: string, body?: string) =>
     Object.assign(Readable.from(body === undefined ? [] : [Buffer.from(body)]), {
@@ -63,18 +65,28 @@ it('the dev server middleware answers POST /_sleek/fn/<id> through start, and pa
         setHeader: () => res,
         end: (chunk: Buffer) => resolve({ status: res.statusCode, body: chunk.toString(), next: false }),
       }
-      devMiddleware(async () => app)(request(method, url, body) as never, res as never, (error) =>
-        error ? reject(error) : resolve({ next: true }),
-      )
+      devMiddleware(
+        async () => app,
+        (pathname) => pathname.startsWith('/_sleek/') || isControllerPath(pathname),
+      )(request(method, url, body) as never, res as never, (error) => (error ? reject(error) : resolve({ next: true })))
     })
 
-  const added = await respond('POST', '/_sleek/fn/items.add', JSON.stringify({ title: 'tea' }))
-  expect(added.status).toBe(200)
-  expect(JSON.parse(added.body!)).toEqual({ _tag: 'Success', value: expect.arrayContaining(['tea']) })
+  const item = await respond('POST', '/_sleek/fn/items.add', JSON.stringify({ title: 'tea' }))
+  expect(item.status).toBe(200)
+  expect(JSON.parse(item.body!)).toEqual({ _tag: 'Success', value: expect.arrayContaining(['tea']) })
   // The Server Service's generated ids, through the same endpoint.
   const before = JSON.parse((await respond('POST', '/_sleek/fn/Tally.read', '')).body!)
   expect(before).toEqual({ _tag: 'Success', value: expect.any(Number) })
-  expect(JSON.parse((await respond('POST', '/_sleek/fn/Tally.add', JSON.stringify({ by: 0 }))).body!)).toEqual(before)
+  expect(
+    JSON.parse((await respond('POST', '/_sleek/fn/Tally.add', JSON.stringify({ body: { by: 0 } }))).body!),
+  ).toEqual(before)
+  // The Controller behind it answers bare numbers on REST, and a past-limit `by` is 409 `{ limit }`.
+  const count = await respond('GET', '/api/tally')
+  expect([count.status, JSON.parse(count.body!)]).toEqual([200, before.value])
+  const added = await respond('POST', '/api/tally', JSON.stringify({ by: 0 }))
+  expect([added.status, JSON.parse(added.body!)]).toEqual([200, before.value])
+  const past = await respond('POST', '/api/tally', JSON.stringify({ by: 4 }))
+  expect([past.status, JSON.parse(past.body!)]).toEqual([409, { limit: 3 }])
   expect(await respond('GET', '/')).toEqual({ next: true })
 })
 
@@ -116,7 +128,7 @@ it('a test Layer swaps the implementation: plain DI and callService need no netw
   ).toBe(7)
   const entry = services.find((s) => s.tag === Tally)!
   expect(await callService(entry, 'read', undefined, { layer: Full })).toEqual(Exit.succeed(7))
-  const limited = await callService(entry, 'add', { by: 1 }, { layer: Full })
+  const limited = await callService(entry, 'add', { body: { by: 1 } }, { layer: Full })
   expect(limited).toEqual(Exit.fail(new TallyLimit({ limit: 0 })))
   expect(fetch).not.toHaveBeenCalled()
 })

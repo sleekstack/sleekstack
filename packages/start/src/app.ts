@@ -1,6 +1,8 @@
 import type { Router } from '@sleekstack/router'
-import type { Effect, Schema } from 'effect'
+import type { ErrorSink } from '@sleekstack/runtime'
+import type { Effect, Layer, Schema } from 'effect'
 import type { Method } from './handler'
+import type { ServerServiceEntry } from './service'
 
 type AnySchema = Schema.Schema<any, any, never>
 
@@ -77,6 +79,16 @@ export interface ControllerEntry {
   readonly options: ReadonlyArray<ControllerOptions>
 }
 
+/** One generated Server Service (an RPC File or a service of the RPC Manifest) as the discovered app carries it. */
+export interface DiscoveredService {
+  /** The registry entry: its Tag and one set of Schemas per method. */
+  readonly entry: ServerServiceEntry
+  /** The implementation Layer, built over the app's Layer. */
+  readonly layer: Layer.Layer<any, unknown, any>
+  /** The option chain, outermost first: each `_defaults.ts` from the server directory down, then the file's own. */
+  readonly options: ReadonlyArray<Omit<ControllerOptions, 'wrap'>>
+}
+
 /**
  * The app the Vite plugin discovers, served as the default export of `virtual:sleek/server-app` and read by `start()`
  * on its first request.
@@ -86,4 +98,10 @@ export interface DiscoveredApp {
   readonly controllers: ReadonlyArray<ControllerEntry>
   /** The page router built from file routes, when the app has them. */
   readonly router?: Router
+  /** The Layer Files composed by requirement; `start({ layer })` wins for any Tag it provides. */
+  readonly layer?: Layer.Layer<any, unknown>
+  /** The generated Server Services. */
+  readonly services?: ReadonlyArray<DiscoveredService>
+  /** The Server Root's `onError`; `start({ onError })` wins. */
+  readonly onError?: ErrorSink
 }

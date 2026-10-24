@@ -37,7 +37,8 @@ export type SleekstackOptions = JsxOptions &
 /**
  * The SleekStack Vite plugin: ui JSX, stable component ids, `@sleekstack/analyze` diagnostics (dev overlay, failing build),
  * file-based routes (`virtual:sleekstack/routes`), Server Service clients and registry (`virtual:sleek/server`,
- * `virtual:sleek/server-registry`) and the discovered app with its Controllers (`virtual:sleek/server-app`;
+ * `virtual:sleek/server-registry`), the RPC Files' Tags (`virtual:sleek/rpc`) and the discovered app with its Controllers
+ * and generated services (`virtual:sleek/server-app`;
  * `serverServices` alone for apps that pick plugins) and, with `entries`, client and SSR bundles and dev SSR. Add it beside
  * `@vitejs/plugin-react` when the app has React guests.
  */

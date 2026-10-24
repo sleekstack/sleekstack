@@ -107,16 +107,28 @@ describe('size budget (ADR 0022)', () => {
     'the client chunk holds the server function contract, no server module and no server Layer graph',
     { timeout: 60_000 },
     async () => {
-      // Strings only the server side holds: the `Items` Tag key (server/app.ts and its Layer), start's origin check
-      // (origin.ts, beside the endpoint in wire.ts) and its function registry and cookie jar.
-      const serverOnly = ['showcase/server/Items', 'sec-fetch-site', 'DuplicateServerFn', 'InvalidCookie']
+      // Strings only the server side holds: the `Items` Tag key (server/app.ts and its Layer), the tally count's Tag key
+      // (server/tally.layer.ts), start's origin check (origin.ts, beside the endpoint in wire.ts) and its function
+      // registry and cookie jar.
+      const serverOnly = [
+        'showcase/server/Items',
+        'showcase/server/TallyCount',
+        'sec-fetch-site',
+        'DuplicateServerFn',
+        'InvalidCookie',
+      ]
       const server = await measure('../server/app.ts', true, 'ssr')
       for (const marker of serverOnly) expect(server.code).toContain(marker)
-      expect(server.modules.some((id) => id.endsWith('/server/tally.server.ts'))).toBe(true)
+      for (const file of ['/server/routes/api/tally.controller.ts', '/server/tally.layer.ts', '/server/rpc.ts'])
+        expect(
+          server.modules.some((id) => id.endsWith(file)),
+          file,
+        ).toBe(true)
       for (const source of [false, true]) {
         const { code, modules } = await measure('main.tsx', source, 'client')
         expect(code).toContain('items.add') // the page and its stub are in the client
         expect(code).toContain('"Tally"') // the Server Service's generated client, keyed by its Tag id
+        expect(modules.some((id) => id.includes('virtual:sleek/rpc'))).toBe(true) // the generated Tag the page imports
         for (const marker of serverOnly) expect(code, `${marker} (source: ${source})`).not.toContain(marker)
         // No implementation and no server Layer: nothing under server/, no `*.server.ts`.
         expect(modules.filter((id) => /\.server\.[cm]?[jt]sx?$|\/showcase\/server\//.test(id))).toEqual([])
@@ -124,14 +136,14 @@ describe('size budget (ADR 0022)', () => {
     },
   )
 
-  it('a client entry importing a *.server.ts fails the build, naming the chain', { timeout: 60_000 }, async () => {
+  it('a client entry importing a Layer File fails the build, naming the chain', { timeout: 60_000 }, async () => {
     const entry = path.join(mkdtempSync(path.join(tmpdir(), 'showcase-')), 'entry.ts')
     writeFileSync(
       entry,
-      `import { TallyLive } from ${JSON.stringify(path.join(root, 'server/tally.server.ts'))}\nconsole.log(TallyLive)\n`,
+      `import TallyCountLive from ${JSON.stringify(path.join(root, 'server/tally.layer.ts'))}\nconsole.log(TallyCountLive)\n`,
     )
     await expect(measure(entry, false, 'client')).rejects.toThrow(
-      /"server\/tally\.server\.ts" is in the browser build: .*entry\.ts -> server\/tally\.server\.ts/,
+      /"server\/tally\.layer\.ts" is in the browser build: .*entry\.ts -> server\/tally\.layer\.ts/,
     )
   })
 

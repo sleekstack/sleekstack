@@ -3,14 +3,8 @@ import { Atom } from '@sleekstack/core'
 import { Link, loader, Route, useLoader } from '@sleekstack/router'
 import { useAtomValue, useSetAtom } from '@sleekstack/ui'
 import { Effect, Schema } from 'effect'
-import {
-  ArticlePreviews,
-  ArticlesApi,
-  Pagination,
-  type Toggle,
-  useArticleList,
-  useStaleArticleLists,
-} from '../modules/articles'
+import { ArticlePreviews, Pagination, type Toggle, useArticleList, useStaleArticleLists } from '../modules/articles'
+import { ArticlesApi } from 'virtual:sleek/rpc'
 import { table } from 'virtual:sleekstack/routes'
 import { type ArticleSource, articleSource, PAGE_SIZE, type RouteLoaders, signedIn, viewer } from '../pages/loaders'
 import { code, previewTargets } from './_links'

@@ -82,6 +82,8 @@ const run = <R>(fn: Fn<R>, input: unknown) =>
 export interface EndpointOptions {
   readonly origins: ReadonlyArray<string>
   readonly bodyLimit: number
+  /** A registered id's own body limit in place of `bodyLimit`. */
+  readonly limits?: ReadonlyMap<string, number>
 }
 
 /**
@@ -97,9 +99,10 @@ export const endpoint =
       if (!pathname.startsWith(prefix)) return undefined
       if (request.method.toUpperCase() !== 'POST') return empty(405, { allow: 'POST' })
       if (!allowedOrigin(request, options.origins)) return empty(403)
-      const fn = functions.get(pathname.slice(prefix.length))
+      const id = pathname.slice(prefix.length)
+      const fn = functions.get(id)
       if (!fn) return empty(404)
-      const text = yield* Effect.promise(() => readBody(request, options.bodyLimit))
+      const text = yield* Effect.promise(() => readBody(request, options.limits?.get(id) ?? options.bodyLimit))
       if (text === undefined) return empty(413)
       let body: unknown
       try {

@@ -67,17 +67,41 @@ describe('sleekstack check', () => {
     expect(JSON.parse(run(fixture('entry'), '--json').out)).not.toHaveProperty('serverServiceErrors')
   })
 
-  it('a server-only app: its Controllers are roots, and a service nobody provides is MissingDependency', () => {
+  it('a server-only app: its Controllers are roots, a service nobody provides is MissingDependency, one a Layer File provides is not', () => {
     const text = run(fixture('controllers'))
     expect(text.code).toBe(1)
     expect(text.err).toMatch(
-      /server\/routes\/index\.controller\.ts:6 MissingDependency: Controller "index" GET requires "Db", [^\n]*\n {4}fix: /,
+      /server\/routes\/index\.controller\.ts:7 MissingDependency: Controller "index" GET requires "Db", [^\n]*\n {4}fix: /,
     )
     const json = JSON.parse(run(fixture('controllers'), '--json').out)
     expect(json.controllerErrors.map((e: { code: string; line: number }) => [e.code, e.line])).toEqual([
-      ['MissingDependency', 6],
+      ['MissingDependency', 7],
     ])
     expect(JSON.parse(run(fixture('entry'), '--json').out)).not.toHaveProperty('controllerErrors')
+  })
+
+  it('an app of only Layer Files and a start() with no options: they are roots, and their errors exit 1', () => {
+    const clean = run(fixture('layer-files/clean'), '--json')
+    expect(clean.code).toBe(0)
+    expect(JSON.parse(clean.out)).not.toHaveProperty('layerFileErrors')
+    const text = run(fixture('layer-files/bad'))
+    expect(text.code).toBe(1)
+    expect(text.err).toMatch(
+      /server\/db\.layer\.ts:4 MissingDependency: Layer File "server\/db\.layer\.ts" requires "Config", [^\n]*\n {4}fix: /,
+    )
+    const json = JSON.parse(run(fixture('layer-files/bad'), '--json').out)
+    expect(json.layerFileErrors.map((e: { code: string; line: number }) => [e.code, e.line])).toEqual([
+      ['MissingDependency', 4],
+    ])
+  })
+
+  it('an app of only RPC Files: they are roots, and their errors exit 1', () => {
+    const text = run(fixture('rpc'))
+    expect(text.code).toBe(1)
+    expect(text.err).toMatch(/server\/notes\.rpc\.ts:4 RpcMethodShape: [^\n]*\n {4}fix: /)
+    const json = JSON.parse(run(fixture('rpc'), '--json').out)
+    expect(json.rpcErrors.map((e: { code: string; line: number }) => [e.code, e.line])).toEqual([['RpcMethodShape', 4]])
+    expect(JSON.parse(run(fixture('entry'), '--json').out)).not.toHaveProperty('rpcErrors')
   })
 
   it('a crash exits 2', () => {

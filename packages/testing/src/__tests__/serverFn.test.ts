@@ -3,16 +3,20 @@ import {
   type ControllerEntry,
   Cookies,
   DecodeError,
+  type DiscoveredApp,
+  type DiscoveredService,
+  type GeneratedServiceShape,
   implement,
   serverFn,
   ServerService,
   type ServerServiceEntry,
   type ServerServiceEntryOf,
+  serviceLayer,
   start,
   taggedError,
 } from '@sleekstack/start'
 import { Cause, Context, Data, Effect, Exit, Layer, Option, Schema } from 'effect'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { callController, callHandler, callServerFn, callService } from '../index'
 
 class Names extends Context.Tag('Names')<Names, { readonly taken: ReadonlySet<string> }>() {}
@@ -29,6 +33,15 @@ const rename = serverFn('profile.rename', {
   const session = (yield* Cookies).get('session')
   return { name: `${name} by ${session}`, extra: 'dropped' }
 })
+
+// What `serverServices()` would serve as `virtual:sleek/server-app`; nothing is discovered unless a test sets it.
+const discovered: { app?: DiscoveredApp } = {}
+// `start` imports its stand-in for the discovered app from its own `dist`, on the first request.
+vi.mock('../../../start/dist/discovered.js', () => ({
+  get default() {
+    return discovered.app
+  },
+}))
 
 const layer = Layer.succeed(Names, { taken: new Set(['ada']) })
 const failure = (exit: Exit.Exit<unknown, unknown>) =>
@@ -204,5 +217,91 @@ describe('callController', () => {
     const boom = await callController(people, put('boom'), { layer, onError: (cause) => void (defect = cause) })
     expect(await read(boom)).toEqual([500, null, ''])
     expect(defect && Cause.squash(defect)).toEqual(new Error('secret'))
+  })
+})
+
+describe('callService over a generated entry, in an app with a discovered app', () => {
+  // A Layer File: counts its builds.
+  class Store extends Context.Tag('Store')<Store, { readonly build: number }>() {}
+  let builds = 0
+  const StoreLive = Layer.effect(
+    Store,
+    Effect.sync(() => ({ build: ++builds })),
+  )
+  const methods = {
+    count: ({ by }: { readonly by: number }): Effect.Effect<number, Taken, Store> =>
+      by < 0 ? Effect.fail(new Taken({ name: 'negative' })) : Effect.map(Store, (s) => s.build + by),
+  }
+  const generated = (key: string, file: string): DiscoveredService => {
+    class Tag extends Context.Tag(key)<Tag, GeneratedServiceShape<typeof methods>>() {}
+    return {
+      entry: {
+        tag: Tag,
+        methods: {
+          count: {
+            input: Schema.Struct({ by: Schema.Number }),
+            success: Schema.Number,
+            error: taggedError(Taken, { name: Schema.String }),
+          },
+        },
+      },
+      layer: serviceLayer(Tag, methods),
+      options: [{ file }],
+    }
+  }
+  const rpcFile = generated('Tally', 'server/tally.rpc.ts')
+  const manifest = generated('Counter', 'server/rpc.ts')
+  const sunk: Cause.Cause<unknown>[] = []
+
+  afterEach(() => {
+    discovered.app = undefined
+    builds = 0
+    sunk.length = 0
+  })
+
+  const discover = () =>
+    (discovered.app = {
+      controllers: [],
+      layer: StoreLive,
+      services: [rpcFile, manifest],
+      onError: (cause) => void sunk.push(cause),
+    })
+  // The entry as a test reads it from `virtual:sleek/server-registry`.
+  const entryOf = (service: DiscoveredService) =>
+    service.entry as ServerServiceEntry<unknown, GeneratedServiceShape<typeof methods>>
+
+  it.each([
+    ['an RPC File', rpcFile],
+    ['the RPC Manifest', manifest],
+  ])('over %s entry, the test layer replaces the Tag and the entry registers once', async (_, service) => {
+    discover()
+    const entry = entryOf(service)
+    const fake = Layer.succeed(entry.tag as Context.Tag<unknown, GeneratedServiceShape<typeof methods>>, {
+      count: ({ by }) => Effect.succeed(-by),
+    })
+    expect(await callService(entry, 'count', { by: 2 }, { layer: fake })).toEqual(Exit.succeed(-2))
+    // The Layer Files are still built under the test layer.
+    expect(builds).toBe(1)
+    // The generated implementation over the test's own Store: a Tag the test layer provides wins over the Layer File.
+    const store = Layer.succeed(Store, { build: 40 })
+    expect(await callService(entry, 'count', { by: 2 }, { layer: store as never })).toEqual(Exit.succeed(42))
+    expect(failure(await callService(entry, 'count', { by: -1 }, { layer: store as never }))).toBeInstanceOf(Taken)
+  })
+
+  it("a defect is the Exit's cause, never the Server Root's onError", async () => {
+    discover()
+    const entry = entryOf(rpcFile)
+    const dying = Layer.succeed(entry.tag as Context.Tag<unknown, GeneratedServiceShape<typeof methods>>, {
+      count: () => Effect.die(new Error('secret')),
+    })
+    const exit = await callService(entry, 'count', { by: 1 }, { layer: dying })
+    expect([Exit.isFailure(exit) && Cause.squash(exit.cause), sunk.length]).toEqual([new Error('secret'), 0])
+  })
+
+  it('the hand-written entry beside the discovered app is unchanged', async () => {
+    discover()
+    expect(await callService(profiles, 'rename', { name: 'grace' }, { layer: profilesLayer })).toEqual(
+      Exit.succeed({ name: 'grace' }),
+    )
   })
 })
