@@ -3,7 +3,7 @@ title: Server Services
 description: Server operations declared as an Effect contract, implemented in a *.server.ts Layer, with the browser client and the server registry generated from the types.
 ---
 
-A Server Service is a Context Tag whose methods are Effect signatures ([ADR 0051](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0051-server-services.md)). A page calls `yield* Profiles`. On the server that is the implementation, in-process. In the browser it is a client that posts to the server. No Schema, id, `functions` entry or client stub is written by hand: the Vite plugin generates them from the contract's types.
+A Server Service is a Context Tag whose methods are Effect signatures ([ADR 0051](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0051-server-services.md)). This page covers the hand-written kind, a contract plus an implementation. An [RPC File](/docs/controllers#rpc-files) or the [RPC Manifest](/docs/controllers#the-rpc-manifest) generates the contract, the implementation and the wiring from written-out functions instead, and the two kinds work side by side. A page calls `yield* Profiles`. On the server that is the implementation, in-process. In the browser it is a client that posts to the server. No Schema, id, `functions` entry or client stub is written by hand: the Vite plugin generates them from the contract's types.
 
 ## The contract
 
@@ -18,7 +18,7 @@ A Server Service is a Context Tag whose methods are Effect signatures ([ADR 0051
 
 ## The implementation
 
-The implementation is an ordinary Layer in a `*.server.ts` file, given to `start({ layer })` like any other. Unlike a [Controller](/docs/controllers), an implementation is not discovered: the server entry passes it. The Layer is type-checked against the Tag, so a method changed in the contract fails the server compile.
+The implementation is an ordinary Layer in a `*.server.ts` file. A `*.server.ts` file is not discovered: the server entry passes it to `start({ layer })`, or a [Layer File](/docs/controllers#layer-files) default-exports it so the plugin composes it. The Layer is type-checked against the Tag, so a method changed in the contract fails the server compile.
 
 <include>../../snippets/server-services/profiles.server.ts</include>
 
@@ -32,21 +32,24 @@ An implementation that reads the request or its cookies is built with `implement
 - **Other services.** A service the implementation needs once, such as a database, is taken when its Layer is built: `Layer.unwrapEffect` over `Effect.context<Db>()`, then `implement` with methods that provide it.
 - **Errors.** A method can only fail with what its contract declares. `InvalidCookie` from `cookies.set` is not declared, so handle it or turn it into a defect.
 
-The [realworld app](https://github.com/sleekstack/sleekstack/tree/master/apps/realworld) is the worked example: `IdentityApi`, `ArticlesApi` and `CommentsApi`, each implemented in a `server/*.server.ts` file that reads the session cookie per call.
+The [realworld app](https://github.com/sleekstack/sleekstack/tree/master/apps/realworld) reads the session cookie per call in its `IdentityApi`, `ArticlesApi` and `CommentsApi`, which are RPC Files whose `wrap` provides the viewer.
 
 ## The generated modules
 
-`sleekstack()` from `@sleekstack/ui-vite` includes the generator. An app on another Vite setup adds `serverServices()` from the same package to its plugins. It serves three virtual modules, and it writes their types to `src/server.gen.d.ts` (option `serverDeclaration`). Commit that file, as you would `routes.gen.d.ts`.
+`sleekstack()` from `@sleekstack/ui-vite` includes the generator. An app on another Vite setup adds `serverServices()` from the same package to its plugins. It serves four virtual modules, and it writes their types to `src/server.gen.d.ts` (option `serverDeclaration`). Commit that file, as you would `routes.gen.d.ts`.
 
 - `virtual:sleek/server`: a Layer providing every Server Service Tag as a client. A call encodes the input, posts it to `POST /_sleek/fn/<Tag id>.<method>` and decodes the answer.
 - `virtual:sleek/server-registry`: each Tag with its method Schemas, for `start({ services })`.
-- `virtual:sleek/server-app`: the discovered app with its [Controllers](/docs/controllers), which `start()` reads on its first request.
+- `virtual:sleek/server-app`: the discovered app with its [Controllers](/docs/controllers), Layer Files, Server Root and generated services, which `start()` reads on its first request.
+- `virtual:sleek/rpc`: the Tag of each generated Server Service, for pages ([Calling a generated service](/docs/controllers#calling-a-generated-service)).
+
+The first two carry the generated services too, so the registry and the browser Layer list both kinds.
 
 The declaration names each Tag from its contract file:
 
 <include>../../snippets/server-services/server.gen.d.ts</include>
 
-The server entry gives the registry to `start` and the implementation to its layer:
+The server entry gives the registry to `start` and the implementation to its layer. `sleekstack check` counts a Tag that `virtual:sleek/rpc` declares as provided, since the discovered app supplies its implementation. A hand-written Tag in `services` with no implementation Layer is still `MissingDependency`.
 
 <include>../../snippets/server-services/server.tsx</include>
 
@@ -58,13 +61,15 @@ The wire is the Server Function wire of [ADR 0039](https://github.com/sleekstack
 
 ## The browser boundary
 
-A server-only file reachable from browser code fails the client build, naming the import chain (`index.html -> src/main.ts -> src/page.ts -> src/profiles.server.ts`). The server-only files are `*.server.ts`, `*.controller.ts`, and a `_defaults.ts` under the server directory (`server`, option `serverDir`). `sleekstack check` reports the same as `ServerFileInClientGraph`. A server-only file imported only by server code or by tests is not an error, and an `import type` from client code is erased, so it is not an error either. The generated client imports each contract file and never an implementation.
+A server-only file reachable from browser code fails the client build, naming the import chain (`index.html -> src/main.ts -> src/page.ts -> src/profiles.server.ts`). The server-only files are `*.server.ts`, `*.controller.ts`, `*.rpc.ts` and `*.layer.ts`, and a `_defaults.ts`, `rpc.ts` or `_app.ts` under the server directory (`server`, option `serverDir`). `sleekstack check` reports the same as `ServerFileInClientGraph`. A server-only file imported only by server code or by tests is not an error, and an `import type` from client code is erased, so it is not an error either. The generated client imports each contract file and never an implementation.
 
 ## Testing
 
 A test Layer replaces the implementation with no transformer and no network. `callService` from `@sleekstack/testing` runs a method through `start(...).fetch`, the wire path, and resolves to an `Exit` like `callServerFn`. It takes the registry entry, which carries the Schemas.
 
 <include>../../snippets/server-services/profiles.test-example.ts</include>
+
+A generated entry from `virtual:sleek/server-registry` works the same way. In an app whose Vitest config has the `serverServices()` plugin, every `callService` call still builds the app's Layer Files (realworld's `DbLive`, for example): the test layer wins for every Tag it provides but does not stop those builds.
 
 A Controller is tested the same way with `callController`, which takes the Controller's entry from the discovered app ([Controllers](/docs/controllers#testing)).
 
