@@ -11,7 +11,7 @@ import ts from 'typescript'
 import { analyzeError } from './errorCodes'
 import { programOf } from './extract'
 import type { AnalyzeCode, AnalyzeError, Location } from './model'
-import { layerTypes, locationOf, membersOf, programSourcesOf } from './serverServices'
+import { contextKey, layerTypes, locationOf, membersOf, programSourcesOf } from './serverServices'
 
 const LAYER_FILE = /\.layer\.ts$/
 const SERVER_ROOT = '_app.ts'
@@ -76,8 +76,8 @@ export function analyzeLayerFiles(opts: { readonly project: string; readonly ser
     errors.push(analyzeError(code, message, locationOf(root, n)))
   const rel = (sf: ts.SourceFile) => path.relative(root, sf.fileName)
   const name = (t: ts.Type) => t.getSymbol()?.getName() ?? checker.typeToString(t)
-  /** A Tag by its declaration, so two imports of one Tag are one. */
-  const key = (t: ts.Type): unknown => t.getSymbol() ?? t
+  /** A Tag by its Context key, as the runtime Context holds it: two Tag classes with one key are one Tag. */
+  const key = (t: ts.Type) => contextKey(t, checker)
 
   /** By path codepoint. */
   const files: LayerFileTags[] = []
@@ -85,8 +85,8 @@ export function analyzeLayerFiles(opts: { readonly project: string; readonly ser
     if ('shape' in f) report('ServerFileShape', f.at, `Layer File "${rel(f.sf)}" ${f.shape}`)
     else files.push(f)
 
-  const providers = new Map<unknown, LayerFileTags>()
-  const conflicted = new Set<unknown>()
+  const providers = new Map<string, LayerFileTags>()
+  const conflicted = new Set<string>()
   for (const f of files)
     for (const t of f.provides) {
       const other = providers.get(key(t))
@@ -96,7 +96,7 @@ export function analyzeLayerFiles(opts: { readonly project: string; readonly ser
         report(
           'LayerFileConflict',
           f.at,
-          `Tag "${name(t)}" is provided by two Layer Files: "${rel(other.sf)}" and "${rel(f.sf)}"`,
+          `Tag "${key(t)}" is provided by two Layer Files: "${rel(other.sf)}" and "${rel(f.sf)}"`,
         )
       }
     }

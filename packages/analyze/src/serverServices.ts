@@ -159,6 +159,14 @@ export const locationOf = (root: string, n: ts.Node): Location => {
   }
 }
 
+/** A Tag's Context key: the literal `key` of its class, else its name. */
+export const contextKey = (t: ts.Type, checker: ts.TypeChecker): string => {
+  const sym = t.getSymbol()
+  const key = sym && checker.getPropertyOfType(checker.getTypeOfSymbol(sym), 'key')
+  const type = key && checker.getTypeOfSymbol(key)
+  return type?.isStringLiteral() ? type.value : (sym?.getName() ?? checker.typeToString(t))
+}
+
 /** The project's own source files, its roots and what they import: no declarations, dependencies or tests. */
 export const programSourcesOf = (program: ts.Program, root: string): ts.SourceFile[] =>
   program.getSourceFiles().filter((sf) => {

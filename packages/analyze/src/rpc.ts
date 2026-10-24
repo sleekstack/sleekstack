@@ -16,6 +16,7 @@ import { readLayerFiles } from './layerFiles'
 import type { AnalyzeCode, AnalyzeError, Location } from './model'
 import {
   analyzeServerServices,
+  contextKey,
   locationOf,
   membersOf,
   programSourcesOf,
@@ -96,13 +97,7 @@ export function analyzeRpc(opts: {
     const module = checker.getSymbolAtLocation(sf)
     return module ? checker.getExportsOfModule(module) : []
   }
-  /** A Tag's Context key: the literal `key` of its class, else its name. */
-  const keyOf = (t: ts.Type) => {
-    const sym = t.getSymbol()
-    const key = sym && checker.getPropertyOfType(checker.getTypeOfSymbol(sym), 'key')
-    const type = key && checker.getTypeOfSymbol(key)
-    return type?.isStringLiteral() ? type.value : (sym?.getName() ?? checker.typeToString(t))
-  }
+  const keyOf = (t: ts.Type) => contextKey(t, checker)
   const isResponse = (t: ts.Type) =>
     t.getSymbol()?.getName() === 'Response' &&
     !!t.getSymbol()?.declarations?.some((d) => program.isSourceFileDefaultLibrary(d.getSourceFile()))

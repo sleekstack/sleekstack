@@ -8,3 +8,6 @@ export class Pong extends Context.Tag('Pong')<Pong, object>() {}
 export class Clock extends Context.Tag('Clock')<Clock, { readonly now: () => number }>() {}
 export class Mail extends Context.Tag('Mail')<Mail, object>() {}
 export class Smtp extends Context.Tag('Smtp')<Smtp, object>() {}
+/** Two Tag classes with one Context key: at runtime one Context entry. */
+export class SameA extends Context.Tag('Same')<SameA, object>() {}
+export class SameB extends Context.Tag('Same')<SameB, object>() {}

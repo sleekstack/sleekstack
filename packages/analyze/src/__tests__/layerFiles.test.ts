@@ -29,6 +29,8 @@ describe('analyzeLayerFiles', () => {
 
   it('composes by requirement, files that do not depend on each other by path codepoint, a cycle last', () => {
     expect(report.layerFiles.map((f) => [f.file.split(path.sep).join('/'), f.provides, f.requires])).toEqual([
+      ['dup-key/a.layer.ts', ['SameA'], []],
+      ['dup-key/b.layer.ts', ['SameB'], []],
       ['dup/one.layer.ts', ['Clock'], []],
       ['dup/two.layer.ts', ['Clock'], []],
       ['mail.layer.ts', ['Mail'], ['Smtp']],
@@ -43,6 +45,7 @@ describe('analyzeLayerFiles', () => {
   it.each([
     ['cycle/pong.layer.ts', 'Layer File cycle: cycle/ping.layer.ts -> cycle/pong.layer.ts -> cycle/ping.layer.ts'],
     ['dup/two.layer.ts', 'Tag "Clock" is provided by two Layer Files: "dup/one.layer.ts" and "dup/two.layer.ts"'],
+    ['dup-key/b.layer.ts', 'Tag "Same" is provided by two Layer Files: "dup-key/a.layer.ts" and "dup-key/b.layer.ts"'],
     ['mail.layer.ts', 'Layer File "mail.layer.ts" requires "Smtp", which no Layer File provides'],
     ['empty.layer.ts', 'Layer File "empty.layer.ts" has no default export; export default a Layer'],
     ['untyped.layer.ts', 'Layer File "untyped.layer.ts" has a default export typed `any`; write out its Layer type'],
