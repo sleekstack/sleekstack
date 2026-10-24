@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted. Amends ADR 0039 (route handlers at exact pathnames only; the request services gain `ResponseStatus`) and reuses ADR 0050's path syntax. Replaces the term Server Endpoint. Its wiring half is ADR 0054, still Proposed: until it is built, a Controller's services come from `start({ layer })` or a `wrap`, not from found Layers. Built in spec fn-68.
+Accepted. Amends ADR 0039 (route handlers at exact pathnames only; the request services gain `ResponseStatus`) and reuses ADR 0050's path syntax. Replaces the term Server Endpoint. Its wiring half is ADR 0054 (built in spec fn-69): a Controller's services come from Layer Files, `start({ layer })`, a `wrap` or the request services. Built in spec fn-68.
 
 ## Context
 
