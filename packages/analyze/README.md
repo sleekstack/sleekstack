@@ -53,7 +53,29 @@ It reads every `*.controller.ts` file (ADR 0053). `controllerRoute(controllersDi
 - `ControllerMethodShape`: a near-miss export (`get`, `Post`, a default export), a method that is not one function of one `{ params?, query?, body? }` object returning an Effect (written inline: a type alias of the whole `Effect.Effect<...>` is not read, an alias of its success type is), a `body` on `GET`, `HEAD` or `OPTIONS`, or a `params` or `query` value that does not decode from a string.
 - `ControllerParamsMismatch`: the keys of `params` differ from the path's params.
 - `ServerServiceTypeNotSerializable`: an input or written success type outside the Server Service type subset.
-- `MissingDependency`: a service a method requires that no request service, `start({ layer })` or `wrap` above it provides. A `wrap` (in a `_defaults.ts` from the server directory down, or the Controller's own) discharges its `next` requirements minus its result's; what its result requires must come from a request service, `start({ layer })` or a `wrap` above it, else it is reported once at that `wrap`.
+- `MissingDependency`: a service a method requires that no request service, Layer File, `start({ layer })` or `wrap` above it provides. A `wrap` (in a `_defaults.ts` from the server directory down, or the Controller's own) discharges its `next` requirements minus its result's; what its result requires must come from a request service, a Layer File, `start({ layer })` or a `wrap` above it, else it is reported once at that `wrap`.
 - `Unresolvable`: a `*.controller.ts` file whose path is not a route.
 
 `sleekstack check` runs it on every project and counts each Controller as a root, so a server-only app has roots. It always reads the default `server` and `server/routes`: the Vite plugin's `serverDir` and `controllersDir` options do not reach it, and it has no flag for them.
+
+## Layer File pass
+
+```ts
+import { analyzeLayerFiles } from '@sleekstack/analyze'
+
+const { layerFiles, serverRoot, errors } = analyzeLayerFiles({ project: 'tsconfig.json' }) // serverDir optional
+```
+
+It reads every `*.layer.ts` file of the program but tests (ADR 0054). Each default export is a Layer, read from its type: `ROut` is what it provides, `RIn` what it requires. `layerFiles` lists them in composition order (each after the files that provide what it requires, otherwise by path). `serverRoot` is the server directory's `_app.ts` and whether it exports `onError`. It reports `ServerFileShape` (a default export that is not a Layer or is typed `any`, an `_app.ts` export other than `onError`), `LayerFileConflict` (two files provide one Tag), `LayerFileCycle`, and `MissingDependency` (a Tag no Layer File provides).
+
+## RPC pass
+
+```ts
+import { analyzeRpc } from '@sleekstack/analyze'
+
+const { services, errors } = analyzeRpc({ project: 'tsconfig.json' }) // serverDir, controllersDir optional
+```
+
+Each `*.rpc.ts` file under the server directory is one Server Service: its Tag name comes from the basename (`comments-api.rpc.ts` is `CommentsApi`) or a `service` string export, and its methods are its exported functions. Each key of the RPC Manifest (the server directory's `rpc.ts`, `export default rpc({ NoteLookup: { find: 'GET notes/[id]' } })`) is one more Server Service whose methods wrap Controller Methods. Methods go through the Server Service signature reader. It reports `RpcMethodShape`, `RpcRouteUnknown` (a Manifest entry that names no Controller method), `RpcNameCollision` (a Tag name shared with another RPC service, a `ServerService` id, a Layer File output or a `serverFn` id), `ServerFileShape`, `ServerServiceTypeNotSerializable` and `ServerFileInClientGraph`.
+
+`sleekstack check` runs both passes on every project. It counts a Tag declared by `virtual:sleek/rpc` as provided for `start({ services })`, because the discovered app supplies its implementation. A hand-written Server Service with no implementation Layer is still `MissingDependency`.
