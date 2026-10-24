@@ -30,9 +30,14 @@ Make `callService` work over generated registry entries with the discovered Laye
 - [ ] `pnpm turbo run test typecheck --filter=@sleekstack/testing` passes
 
 ## Done summary
-TBD
+`callService` already works over generated registry entries with no API change. New tests in `packages/testing/src/__tests__/serverFn.test.ts` mock start's discovered app (a Layer File, an RPC File service, an RPC Manifest service, the Server Root's `onError`). They pin four things: a test layer replaces the generated Tag; the Layer Files are still built under it; a defect returns as the Exit cause and never reaches the Server Root's `onError`; the explicit entry registers once beside the discovered one. The hand-written entry is unchanged. `apps/docs/content/docs/testing.mdx` documents the pattern. `serverFn.ts` is untouched because no gap showed.
 
+Follow-up risk: Layer Files such as realworld's `DbLive` are still built in `callService` tests in an app with the plugin. Changing that would need a `start` option, which is out of this task's Touches.
+
+Tier: session (jev-unavailable(no_key)); routing block sets opus at medium
+
+stage: impl-review - skipped(policy: user asked for one completion review at the end of the spec)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 6b3e6d00adc3492b9208b6152ca3b8e21530699b
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack --filter=@sleekstack/ui-vite... --filter=@sleekstack/start... --filter=@sleekstack/testing --filter=realworld --filter=showcase --force, pnpm --filter realworld check, pnpm turbo run test typecheck build --filter=docs --concurrency=1 --force, pnpm --filter docs test, pnpm --filter docs build, pnpm format:check
 - PRs:
