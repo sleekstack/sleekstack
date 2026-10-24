@@ -34,9 +34,18 @@ Finish R10: the other two Server Services become RPC Files, pages import generat
 - [ ] `pnpm turbo run test typecheck --filter=realworld` and `pnpm --filter realworld check` pass
 
 ## Done summary
-TBD
+Identity and articles are now RPC Files (`server/identity-api.rpc.ts`, `server/articles-api.rpc.ts`, `wrap: RpcWrap = asViewer`, written signatures reproducing the old contracts; register/login end in `signIn`, logout clears `SESSION`); the two contracts, `implement` calls and `*Live` Layers are deleted, pages and loaders import `IdentityApi`/`ArticlesApi` from `virtual:sleek/rpc`, and `src/server.gen.d.ts` is regenerated. Wire ids are unchanged; tests changed only in a comment.
 
+`server/app.ts` is now `start({ router: pages, services })`: `layer: AppLive` was dropped because `AppLive` is `Layer.empty`, and `start`'s `layer` typing (`Layer<any, any, FileServices>`, packages/start/src/start.ts, outside Touches) rejects `Layer<never, never, never>` with TS2322. Follow-up: accept `Layer.empty` there. `AppLive` stays for the browser (`main.tsx`).
+
+Note: the identity file-level `wrap` now also runs `asViewer` around register/login/logout (previously unwrapped); a stale cookie is cleared before `signIn` sets the new one.
+
+gates: full Quick command 1 with --force --concurrency=1: 27/30 green, realworld#test hit 4 load-induced timeouts (markdown perf test took 57s vs a 3s bound; none touch the changed code); `pnpm turbo run test --force --filter=realworld` re-run: 161/161 green. `pnpm --filter realworld check`, `realworld build`, docs test/typecheck/build and `pnpm format:check` green. Fixture graph check not run: no public package export changed.
+
+baseline: green (full Quick command 1, pre-edit, turbo cache)
+stage: impl-review - skipped(policy: user asked for one completion review at the end of the spec)
+Tier: session (jev-unavailable(no_key)); routing block sets opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 24e979d9cf25debf11540c4d3da3f33dbcd0dc47
+- Tests: pnpm turbo run test typecheck --force --concurrency=1 --filter=@sleekstack/analyze --filter=sleekstack --filter=@sleekstack/ui-vite... --filter=@sleekstack/start... --filter=@sleekstack/testing --filter=realworld --filter=showcase (realworld#test load timeouts; re-run green), pnpm turbo run test --force --filter=realworld, pnpm --filter realworld check, pnpm --filter realworld build, pnpm turbo run test typecheck build --filter=docs --concurrency=1, pnpm format:check
 - PRs:
