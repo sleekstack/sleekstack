@@ -37,9 +37,19 @@ Prove the Manifest on a real consumer: showcase's `Tally` becomes a Controller p
 - [ ] `pnpm turbo run test typecheck --filter=showcase` passes
 
 ## Done summary
-TBD
+Showcase's `Tally` is now a Controller (`server/routes/api/tally.controller.ts`, `GET`/`POST /api/tally`, bare numbers) exposed by the RPC Manifest `server/rpc.ts` as the `Tally` Server Service (wire ids `Tally.add`/`Tally.read` unchanged). The count's `Ref` lives in the Layer File `server/tally.layer.ts`, and `server/routes/api/_defaults.ts` maps `TallyLimit` to 409 `{ limit }` on REST. `src/pages/tally.ts` keeps only the client-safe `TallyLimit`. The page imports `Tally` from `virtual:sleek/rpc` and calls `add({ body: { by: 1 } })`. `server/tally.server.ts` and showcase's own `server/dev.ts` are deleted: `vite.config.ts` uses `devMiddleware` from `@sleekstack/ui-vite` with `/_sleek/` or `isControllerPath`, so the dev server forwards Controller paths. `server.gen.d.ts` is committed as the plugin wrote it.
 
+Tests:
+- `test/server.test.ts`: REST GET/POST bare numbers and the past-limit 409 `{ limit: 3 }` (dev-middleware test), nested `{ body: { by } }` on the wire and in `callService`. The page/TallyLimit test is unchanged and passes.
+- `test/size.test.ts`: the server build holds the Controller, Layer File and Manifest modules; the client build holds `virtual:sleek/rpc` and no `server/` module or the `showcase/server/TallyCount` key; a client entry importing the Layer File fails naming the chain.
+- `test/architecture.test.ts`: `virtual:sleek/rpc` allowed in `pages/`; the `server.gen.d` rule now names `../server/`, `@sleekstack/start` and `virtual:sleek/rpc`.
+
+Gates (all green, cache bypassed with --force, --concurrency=1): the main turbo test+typecheck (showcase 59 tests), `pnpm --filter realworld check`, `pnpm --filter showcase check`, docs test+typecheck+build, `pnpm --filter showcase build`, `pnpm --filter docs test`, `pnpm --filter docs build`, `pnpm format:check`. No public export changed, so the fixture graph check does not apply.
+
+baseline: green (main Quick command, turbo cache, pre-edit)
+stage: impl-review - skipped(policy: user asked for one completion review at the end of the spec)
+Tier: session (jev-unavailable(no_key)); routing block sets opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 7404b9d8a114d5c634f2883cae9bf255f99f0c50
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack --filter=@sleekstack/ui-vite... --filter=@sleekstack/start... --filter=@sleekstack/testing --filter=realworld --filter=showcase --force --concurrency=1, pnpm --filter realworld check, pnpm --filter showcase check, pnpm turbo run test typecheck build --filter=docs --concurrency=1 --force, pnpm --filter showcase build, pnpm --filter docs test, pnpm --filter docs build, pnpm format:check
 - PRs:
