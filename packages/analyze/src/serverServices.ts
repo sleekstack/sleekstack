@@ -167,18 +167,17 @@ export const contextKey = (t: ts.Type, checker: ts.TypeChecker): string => {
   return type?.isStringLiteral() ? type.value : (sym?.getName() ?? checker.typeToString(t))
 }
 
-/** The project's own source files, its roots and what they import: no declarations, dependencies or tests. */
+/** Every source file of the program, inside the project or not: no declarations, dependencies or tests. */
 export const programSourcesOf = (program: ts.Program, root: string): ts.SourceFile[] =>
-  program.getSourceFiles().filter((sf) => {
-    const rel = path.relative(root, sf.fileName)
-    return (
-      !sf.isDeclarationFile &&
-      !/[\\/]node_modules[\\/]/.test(sf.fileName) &&
-      !rel.startsWith('..') &&
-      !path.isAbsolute(rel) &&
-      !TEST_FILE.test(rel)
+  program
+    .getSourceFiles()
+    .filter(
+      (sf) =>
+        !sf.isDeclarationFile &&
+        !program.isSourceFileFromExternalLibrary(sf) &&
+        !/[\\/]node_modules[\\/]/.test(sf.fileName) &&
+        !TEST_FILE.test(path.relative(root, sf.fileName)),
     )
-  })
 
 /** The project's own source files: its root files, without declarations, `node_modules` and tests. */
 export const sourcesOf = (program: ts.Program, root: string): ts.SourceFile[] =>

@@ -61,7 +61,7 @@ describe('analyzeLayerFiles', () => {
 })
 
 describe('programSourcesOf', () => {
-  it('reads files the roots import, without declarations, node_modules, tests or files outside the project', () => {
+  it('reads files the roots import, without declarations, node_modules or tests, outside the project too', () => {
     const files: Record<string, string> = {
       '/app/server/app.ts': "import './z-config.layer'\nimport 'dep'\nimport '../../lib/x.layer'\nimport './t.test'",
       '/app/server/z-config.layer.ts': 'export default 1',
@@ -79,6 +79,7 @@ describe('programSourcesOf', () => {
     const program = ts.createProgram({ rootNames: ['/app/server/app.ts'], options, host })
     expect(programSourcesOf(program, '/app').map((sf) => sf.fileName)).toEqual([
       '/app/server/z-config.layer.ts',
+      '/lib/x.layer.ts',
       '/app/server/app.ts',
     ])
   })
