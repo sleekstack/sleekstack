@@ -33,9 +33,12 @@ Finish the documentation and status work of ADR 0054 once the code exists.
 - [ ] `pnpm turbo run test typecheck build --filter=docs --concurrency=1` passes
 
 ## Done summary
-TBD
+Finished the auto-wiring docs: ADR 0054 Accepted (built in fn-69), ADR 0053 status and docs/adr/README rows updated, the controllers/server-services/vite/testing guides cover Layer Files, the Server Root, RPC Files, the RPC Manifest and virtual:sleek/rpc with type-checked snippets, and the start, ui-vite, analyze, realworld and showcase READMEs plus CONTEXT.md match the shipped behaviour (check counts virtual:sleek/rpc Tags as provided, `layer` omitted rather than Layer.empty, callService still builds Layer Files under the serverServices() plugin, LayerFileServices keyed by file and skipped without a tsconfig). llms.md is 7082 of 8192 bytes; errors.mdx RPC section already shipped in fn-69.2.
 
+Follow-ups (not built): start's `layer` option rejects Layer.empty (typing fix); a start option to skip Layer File builds in callService tests.
+
+stage: impl-review - skipped(policy: user asked for one completion review at the end of the spec)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 95c4a1fb6e31c7880f7684755f79ad6caac2af9f, 1771bf58abb56c8bdababc87441808b01aa90fcf, 5dfbbd7c4aeb3c77f30dc82ef79f9c3d891d374c, e8ca61be540ab72b0e4606535c5ca7d936bc4dc6, 6e11d1b9ecfbd32602187b6502aff4ab1b3bbf16, 5c535bc9e235bc3cd7de452d6b607ec27283afd6
+- Tests: pnpm turbo run test typecheck build --filter=docs --concurrency=1, pnpm format:check, pnpm --filter realworld check, pnpm --filter showcase check, pnpm turbo run test typecheck --filter=@sleekstack/start
 - PRs:
