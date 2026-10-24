@@ -25,6 +25,8 @@ Finish the documentation and status work of ADR 0054 once the code exists.
 **Optional**:
 - `apps/docs/snippets/server-services/server.gen.d.ts`
 
+<!-- Conductor note from task 7: `callService` needed no code change (tests plus a testing.mdx paragraph shipped). Docs must say that in an app whose Vitest config has the `serverServices()` plugin, every `callService` test still builds the app's Layer Files (e.g. realworld's DbLive); the test layer wins for every Tag it provides but does not stop those builds. Avoiding that needs a new `start` option (follow-up). -->
+
 ## Acceptance
 - [ ] the docs describe every new file kind and virtual module with type-checked snippets
 - [ ] ADR 0054 is Accepted with its spec id; ADR 0053 and CONTEXT.md match the shipped behaviour

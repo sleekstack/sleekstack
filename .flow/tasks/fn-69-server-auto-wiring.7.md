@@ -37,6 +37,7 @@ Follow-up risk: Layer Files such as realworld's `DbLive` are still built in `cal
 Tier: session (jev-unavailable(no_key)); routing block sets opus at medium
 
 stage: impl-review - skipped(policy: user asked for one completion review at the end of the spec)
+stage: plan-sync - skipped(policy: the conductor folded the one downstream drift item into task 11 directly)
 ## Evidence
 - Commits: 6b3e6d00adc3492b9208b6152ca3b8e21530699b
 - Tests: pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack --filter=@sleekstack/ui-vite... --filter=@sleekstack/start... --filter=@sleekstack/testing --filter=realworld --filter=showcase --force, pnpm --filter realworld check, pnpm turbo run test typecheck build --filter=docs --concurrency=1 --force, pnpm --filter docs test, pnpm --filter docs build, pnpm format:check
