@@ -20,3 +20,7 @@ playwright-report/
 
 # The RealWorld app's SQLite database, created on boot
 apps/realworld/data/
+
+# Scratch roots of aborted ui-vite test runs
+packages/ui-vite/.tmp-*/
+packages/ui-vite/src/__tests__/.tmp-*/
