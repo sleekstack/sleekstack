@@ -3,7 +3,7 @@ import { client } from '@sleekstack/start/client'
 import { useAction, useAtomValue, useFormStatus } from '@sleekstack/ui'
 import { Cause, Option } from 'effect'
 import { addItem } from './items'
-import { Tally } from './tally'
+import { Tally } from 'virtual:sleek/rpc'
 
 /** Posts to `/_sleek/fn/items.add`, which the dev server answers through `server/app.ts`. */
 const add = client(addItem)
@@ -48,12 +48,12 @@ const ItemsForm = function* () {
 
 /**
  * A Server Service through DI: the action asks for `Tally` and calls it. In the browser the layer's `Tally` posts to
- * `/_sleek/fn/Tally.add`; on the server it would be `TallyLive` itself. The limit arrives as the `TallyLimit` class.
+ * `/_sleek/fn/Tally.add`; on the server it runs the tally Controller's `POST` in-process. The limit arrives as the `TallyLimit` class.
  */
 const TallyForm = function* () {
   const [result, submit] = yield* useAction(function* () {
     const tally = yield* Tally
-    return yield* tally.add({ by: 1 })
+    return yield* tally.add({ body: { by: 1 } })
   })
   const outcome = yield* useAtomValue(result)
   const count =

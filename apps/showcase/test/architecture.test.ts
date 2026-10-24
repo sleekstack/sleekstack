@@ -15,7 +15,7 @@ import { expect, it } from 'vitest'
 //   devtools          dev-only mount of the `@sleekstack/devtools` ui panel, loaded by main
 //   resume/*          the resumable counter and its form: no React, no components, no domain
 //   size/*            size-budget entries: built `@sleekstack/ui` (and `@sleekstack/model`) output only
-//   server.gen.d      the generated Server Service module types, naming each contract under pages/
+//   server.gen.d      the generated module types, naming the Controllers and Layer Files under server/ (types only)
 // Modules reach each other only through `index`, and only along MODULE_DEPS (no cycles).
 const MODULE_DEPS: Record<string, ReadonlyArray<string>> = { identity: [], projects: [], tasks: ['identity'] }
 
@@ -55,6 +55,8 @@ const ruleOf = (mod: string): Rule | undefined => {
         '@sleekstack/model',
         '@sleekstack/router',
         '@sleekstack/start/client',
+        // The generated Server Service Tags (`server/rpc.ts`): client-safe.
+        'virtual:sleek/rpc',
         UI,
       ],
     }
@@ -63,7 +65,10 @@ const ruleOf = (mod: string): Rule | undefined => {
     app: { local: ['layers', 'pages/'], packages: [UI] },
     main: { local: ['app', 'layers', 'devtools'], packages: [UI, '@sleekstack/core', '@sleekstack/devtools'] },
     devtools: { local: [], packages: ['@sleekstack/devtools', UI, 'effect'] },
-    'server.gen.d': { local: ['pages/'], packages: ['effect', '@sleekstack/start/client'] },
+    'server.gen.d': {
+      local: ['../server/'],
+      packages: ['effect', '@sleekstack/start', '@sleekstack/start/client', 'virtual:sleek/rpc'],
+    },
     'size/mount': { local: [], packages: [UI, 'effect'] },
     'size/hydrate': { local: [], packages: ['@sleekstack/core', UI, 'effect'] },
     'size/lazy': { local: ['size/heavy'], packages: [UI, 'effect'] },
