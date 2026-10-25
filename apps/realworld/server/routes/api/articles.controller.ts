@@ -3,7 +3,7 @@ import { Effect, type Schema } from 'effect'
 import type { NotFound, Unauthorized, ValidationError } from '../../../src/errors'
 import type { Article, ArticleList, NewArticle } from '../../../src/modules/articles'
 import type { Viewer } from '../../../src/modules/identity'
-import { type Articles, articles } from '../../articles'
+import { Articles } from '../../articles'
 
 /** Articles filtered by tag, author and favoriting user, newest first; a non-numeric `limit` or `offset` is 422. */
 export const GET = (input: {
@@ -15,7 +15,10 @@ export const GET = (input: {
     readonly favorited?: string
   }
 }): Effect.Effect<Schema.Schema.Type<typeof ArticleList>, ValidationError, Articles | Viewer> =>
-  articles.list(input.query)
+  Effect.gen(function* () {
+    const articles = yield* Articles
+    return yield* articles.list(input.query)
+  })
 
 /** Publishes an article by the signed-in viewer: 201 with the article. */
 export const POST = (input: {
@@ -25,7 +28,9 @@ export const POST = (input: {
   Unauthorized | ValidationError | NotFound,
   Articles | Viewer | ResponseStatus
 > =>
-  articles.create(input.body.article).pipe(
-    Effect.map((article) => ({ article })),
-    Effect.zipLeft(ResponseStatus.set(201)),
-  )
+  Effect.gen(function* () {
+    const articles = yield* Articles
+    const article = yield* articles.create(input.body.article)
+    yield* ResponseStatus.set(201)
+    return { article }
+  })

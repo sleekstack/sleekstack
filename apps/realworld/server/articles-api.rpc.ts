@@ -3,7 +3,7 @@ import { Effect, type Schema } from 'effect'
 import type { Forbidden, NotFound, Unauthorized, ValidationError } from '../src/errors'
 import type { Article, ArticleList, ArticleQuery, NewArticle, Page, UpdateArticle } from '../src/modules/articles'
 import type { Viewer } from '../src/modules/identity'
-import { type Articles, articles } from './articles'
+import { Articles } from './articles'
 import { asViewer } from './session'
 
 /**
@@ -16,26 +16,38 @@ export const wrap: RpcWrap = asViewer
 export const list = (
   input: Schema.Schema.Type<typeof ArticleQuery>,
 ): Effect.Effect<Schema.Schema.Type<typeof ArticleList>, ValidationError | Unauthorized, Articles | Viewer> =>
-  articles.list(input)
+  Effect.gen(function* () {
+    const articles = yield* Articles
+    return yield* articles.list(input)
+  })
 
 /** The articles of the authors the viewer follows, newest first. */
 export const feed = (
   input: Schema.Schema.Type<typeof Page>,
 ): Effect.Effect<Schema.Schema.Type<typeof ArticleList>, ValidationError | Unauthorized, Articles | Viewer> =>
-  articles.feed(input)
+  Effect.gen(function* () {
+    const articles = yield* Articles
+    return yield* articles.feed(input)
+  })
 
 /** The article at `slug`. */
 export const get = (input: {
   readonly slug: string
 }): Effect.Effect<Schema.Schema.Type<typeof Article>, Unauthorized | NotFound, Articles | Viewer> =>
-  articles.get(input.slug)
+  Effect.gen(function* () {
+    const articles = yield* Articles
+    return yield* articles.get(input.slug)
+  })
 
 /** Writes the viewer's new article. */
 export const create = (
   input: Schema.Schema.Type<typeof NewArticle>,
 ): Effect.Effect<Schema.Schema.Type<typeof Article>, ValidationError | Unauthorized, Articles | Viewer> =>
   // The article just written is always found: a `NotFound` here is a defect.
-  articles.create(input).pipe(Effect.catchTag('NotFound', Effect.die))
+  Effect.gen(function* () {
+    const articles = yield* Articles
+    return yield* articles.create(input)
+  }).pipe(Effect.catchTag('NotFound', Effect.die))
 
 /** Updates the given fields of the viewer's own article at `slug`. */
 export const update = (input: {
@@ -45,25 +57,43 @@ export const update = (input: {
   Schema.Schema.Type<typeof Article>,
   ValidationError | Unauthorized | Forbidden | NotFound,
   Articles | Viewer
-> => articles.update(input.slug, input.article)
+> =>
+  Effect.gen(function* () {
+    const articles = yield* Articles
+    return yield* articles.update(input.slug, input.article)
+  })
 
 /** Deletes the viewer's own article at `slug`. */
 const remove = (input: {
   readonly slug: string
-}): Effect.Effect<void, Unauthorized | Forbidden | NotFound, Articles | Viewer> => articles.delete(input.slug)
+}): Effect.Effect<void, Unauthorized | Forbidden | NotFound, Articles | Viewer> =>
+  Effect.gen(function* () {
+    const articles = yield* Articles
+    return yield* articles.delete(input.slug)
+  })
 export { remove as delete }
 
 /** Favorites the article at `slug`. */
 export const favorite = (input: {
   readonly slug: string
 }): Effect.Effect<Schema.Schema.Type<typeof Article>, Unauthorized | NotFound, Articles | Viewer> =>
-  articles.favorite(input.slug)
+  Effect.gen(function* () {
+    const articles = yield* Articles
+    return yield* articles.favorite(input.slug)
+  })
 
 /** Unfavorites the article at `slug`. */
 export const unfavorite = (input: {
   readonly slug: string
 }): Effect.Effect<Schema.Schema.Type<typeof Article>, Unauthorized | NotFound, Articles | Viewer> =>
-  articles.unfavorite(input.slug)
+  Effect.gen(function* () {
+    const articles = yield* Articles
+    return yield* articles.unfavorite(input.slug)
+  })
 
 /** Every tag in use, sorted. */
-export const tags = (): Effect.Effect<ReadonlyArray<string>, Unauthorized, Articles | Viewer> => articles.tags()
+export const tags = (): Effect.Effect<ReadonlyArray<string>, Unauthorized, Articles | Viewer> =>
+  Effect.gen(function* () {
+    const articles = yield* Articles
+    return yield* articles.tags()
+  })

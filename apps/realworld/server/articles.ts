@@ -4,7 +4,7 @@ import { Forbidden, NotFound, requireFields, ValidationError } from '../src/erro
 import type { Article, ArticleList, ArticleQuery, NewArticle, Page, UpdateArticle } from '../src/modules/articles'
 import { Viewer } from '../src/modules/identity'
 import { Db } from './db'
-import { accessors, Service } from './service'
+import { Service } from './service'
 import { requireViewer } from './identity'
 
 interface Row {
@@ -284,6 +284,3 @@ export class Articles extends Service<Articles>()('realworld/server/Articles', {
     return yield* this.get(slug)
   }
 }
-
-/** The `Articles` methods as functions that ask for the service: `articles.get(slug)` needs `Articles` in its environment. */
-export const articles = accessors(Articles)

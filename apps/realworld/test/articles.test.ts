@@ -1,6 +1,7 @@
 import { Effect, Layer, TestClock, TestContext } from 'effect'
 import { describe, expect, it } from 'vitest'
-import { Articles, articles } from '../server/articles'
+import { Articles } from '../server/articles'
+import { articles } from './articles-effects'
 import { addComment } from '../server/comments'
 import { Db, DbLive } from '../server/db'
 import { follow, register, TokenSecret, ViewerLive } from '../server/identity'
