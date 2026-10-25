@@ -24,7 +24,7 @@ export { InvalidOrigin } from './origin'
 export { DecodeError } from './wire'
 export { implement } from './implement'
 export { accessors, Controller, Service } from './class'
-export type { Accessors, Call, Gen } from './class'
+export type { Accessors, Call, ControllerMethodsOf, Gen } from './class'
 export { ServerService, taggedError } from './service'
 export type {
   ServerServiceEntry,

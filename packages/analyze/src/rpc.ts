@@ -51,8 +51,12 @@ export interface RpcMethod {
   readonly requires: ts.Type
   /** The input as the wire carries it (a printed `number` is a plain number), the success and the tagged errors. */
   readonly schema: MethodSchema
-  /** The Controller Method a Manifest entry wraps. */
-  readonly controller?: { readonly route: string; readonly method: ControllerMethodName }
+  /** The Controller Method a Manifest entry wraps, and the form of its Controller (`ControllerDecl.kind`). */
+  readonly controller?: {
+    readonly route: string
+    readonly method: ControllerMethodName
+    readonly kind: 'functions' | 'class'
+  }
 }
 
 export interface RpcServiceDecl {
@@ -291,7 +295,7 @@ export function analyzeRpc(opts: {
               name: method,
               location: locationOf(root, spec),
               ...read,
-              controller: { route, method: verb as ControllerMethodName },
+              controller: { route, method: verb as ControllerMethodName, kind: cls ? 'class' : 'functions' },
             })
         }
         services.push({

@@ -1,6 +1,7 @@
 import { Cause, Context, Effect, Exit, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 import { accessors, Controller, type Gen, Service } from '../index'
+import { Greeter, rowsAgain } from './fixtures/greeter'
 
 class Db extends Context.Tag('test/Db')<Db, { readonly rows: ReadonlyArray<string> }>() {}
 const db = Layer.succeed(Db, { rows: ['a', 'b'] })
@@ -75,9 +76,17 @@ describe('Service', () => {
       () => class extends Service<unknown>()('test/Ctor', { constructor: Db }) {}.Default,
       /collides/,
     ],
-    ['a duplicate key', () => Service<unknown>()('test/Rows'), /already used/],
+    ['a key used in another file', rowsAgain, /already used/],
   ])('is a defect for %s', (_, define, message) => {
     expect(define).toThrow(message)
+  })
+
+  it('lets a file that runs again, as on a dev reload, define its key again', async () => {
+    const again: typeof import('./fixtures/greeter') = await import('./fixtures/greeter?reload=1' as string)
+    expect(again.Greeter).not.toBe(Greeter)
+    expect(await Effect.runPromise(accessors(again.Greeter).greet().pipe(Effect.provide(again.Greeter.Default)))).toBe(
+      'hello',
+    )
   })
 })
 

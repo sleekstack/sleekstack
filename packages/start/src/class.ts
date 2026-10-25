@@ -47,6 +47,16 @@ export type Accessors<Self> = {
     : never
 }
 
+/**
+ * The Controller Methods of the class Controller `C` as the functions they run as, each an Effect of its written `Gen`.
+ * The generated `ControllerModules` names it for a class Controller file, so an RPC Manifest entry types against it.
+ */
+export type ControllerMethodsOf<C extends abstract new (...args: any) => any> = {
+  readonly [K in Extract<keyof InstanceType<C>, Method>]: InstanceType<C>[K] extends (...args: infer A) => infer G
+    ? (...args: A) => Call<never, G>
+    : never
+}
+
 type ServiceClass<Self, D extends Deps> = (new (provided: Provided<D>) => Provided<D>) &
   Context.Tag<Self, Self> & { readonly Default: Layer.Layer<Self, never, Needs<D>> }
 
@@ -93,7 +103,19 @@ const generators = (proto: object, base: object, deps: Deps, reserved: ReadonlyA
   return list
 }
 
-const keys = new Set<string>()
+/** Each Service key and the file that defined it. */
+const keys = new Map<string, string | undefined>()
+
+/**
+ * The file of the code calling `Service<Self>()(...)`, without its query, from the V8 stack: a dev reload re-runs a
+ * Service file (often with a `?t=` query) while `@sleekstack/start` stays loaded, and must not be a duplicate key.
+ * shortcut: two Services with one key in one file are not caught; key the registry by module instance if that matters.
+ */
+const callerFile = (): string | undefined =>
+  new Error().stack
+    ?.split('\n')[3]
+    ?.match(/\(?([^()\s]+?):\d+:\d+\)?$/)?.[1]
+    ?.replace(/\?.*$/, '')
 
 /**
  * A base class for a service written as a plain class of generator methods. The second argument names the Tags the
@@ -105,8 +127,8 @@ const keys = new Set<string>()
  * - The class is itself the Tag: `yield* Articles`, `Layer.succeed(Articles, ...)`.
  * - TypeScript types a generator method as a `Generator`, so a caller that is not itself a generator uses
  *   {@link accessors}. `super` calls to an inherited generator method are not supported.
- * - A key used by another `Service`, and a declared name that is `constructor` or a method of the class, are defects
- *   when the class is defined or first built.
+ * - A key used by a `Service` of another file, and a declared name that is `constructor` or a method of the class, are
+ *   defects when the class is defined or first built. A file that runs again (a dev reload) may define its keys again.
  *
  * @example
  * ```ts
@@ -130,8 +152,10 @@ const keys = new Set<string>()
 export const Service =
   <Self>() =>
   <const D extends Deps = {}>(key: string, deps?: D): ServiceClass<Self, D> => {
-    if (keys.has(key)) throw new Error(`The Service key "${key}" is already used by another Service`)
-    keys.add(key)
+    const file = callerFile()
+    if (keys.has(key) && (file === undefined || keys.get(key) !== file))
+      throw new Error(`The Service key "${key}" is already used by another Service`)
+    keys.set(key, file)
     const declared: Deps = deps ?? {}
     const tag = Context.GenericTag<Self, Self>(key)
     const layers = new WeakMap<object, Layer.Layer<any, never, any>>()

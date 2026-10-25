@@ -57,11 +57,11 @@ describe('analyzeRpc', () => {
     expect(method('Notes', 'get').schema.error.map((e) => e.name)).toEqual(['Missing'])
     expect(method('Items', 'get').schema.input).toEqual(object('params', object('id', { kind: 'number' })))
     expect(method('Tally', 'add').schema.error.map((e) => e.name)).toEqual(['TallyLimit'])
-    expect(method('Tally', 'add').controller).toEqual({ route: 'api/tally', method: 'POST' })
+    expect(method('Tally', 'add').controller).toEqual({ route: 'api/tally', method: 'POST', kind: 'functions' })
     // A class Controller's generator method, read through its `Gen`.
     expect(method('Items', 'note').schema.input).toEqual(object('params', object('id', { kind: 'number' })))
     expect(method('Items', 'note').schema.success).toEqual({ kind: 'string' })
-    expect(method('Items', 'note').controller).toEqual({ route: 'api/notes/[id]', method: 'GET' })
+    expect(method('Items', 'note').controller).toEqual({ route: 'api/notes/[id]', method: 'GET', kind: 'class' })
   })
 
   it.each([
