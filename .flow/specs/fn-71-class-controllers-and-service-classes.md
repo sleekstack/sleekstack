@@ -42,17 +42,22 @@ New public names of `@sleekstack/start`: `Service`, `Controller`, `Gen`, `access
 
 ## Edge Cases & Constraints
 
-- A file is one form: a default class together with a named Controller Method export is `ControllerMethodShape`.
-- A class with no HTTP-named method, an HTTP-named member that is not a generator method, a method without a written `Gen`, or a default export that is not a `Controller(...)` subclass is `ControllerMethodShape` naming the file.
-- A declared Tag that nothing provides (a `wrap`, a Layer File, `start({ layer })` or a request service) is `MissingDependency` naming the class.
+- A file is one form: a default class together with a named Controller Method export (not `wrap`, `bodyLimit` or `origins`, and not a type-only export) is `ControllerMethodShape`.
+- A class that does not extend `Controller(...)` directly (no `super` chain through another class), has no HTTP-named method, has an HTTP-named member that is not a generator method, or has an HTTP-named method without a written `Gen` is `ControllerMethodShape` naming the file and line and the fix. A default export that is a `records(...)` call (fn-70) is not the class form and is left to that spec's reader; this spec adds only the class branch at the default-export dispatch.
+- `Gen` is read by the imported symbol (an aliased import is fine); a local type alias of the whole `Gen` is refused like the existing local-alias case.
+- `Controller({})` and `Controller()` are valid: a per-request instance with no declared Tags. A declared name equal to `constructor`, an HTTP method name or a method of the class, and a duplicate Service key, are defects at class definition.
+- A declared Tag counts as provided by the same rule as a method's `R`: a `wrap` above it, a Layer File, `start({ layer })` or a request service. At run time the instance is built inside the `wrap` chain, so a `wrap`-provided service resolves. A Tag missing at run time is an ordinary missing-service defect (500, reaching `onError`); an exception in the instance build is a defect too.
+- A Controller method runs through its generated entry's `run`, which builds the instance and binds `this`; the RPC Manifest and `callController` use that path, so there is no detached-method call. `HEAD`, `OPTIONS` and `Allow` are computed from the entry's methods, as today. Request-service writes (`ResponseStatus`, `Set-Cookie`) happen in the same fiber and context as for a function Controller.
 - An option export (`wrap`, `bodyLimit`, `origins`) runs before the instance is built, so it cannot read the declared dependencies.
-- A generator method must run as an Effect also when another method calls it with `yield* this.method()`.
-- The `accessors` helper exists because a class cannot type its own statics from its own body.
+- A generator method must run as an Effect also when another method calls it with `yield* this.method()`. `Service` wraps once per instance; `Controller` wraps once per class. `super` calls to an inherited method are not supported.
+- A Service may declare another Service as a dependency; the Layers compose by requirement as Layer Files do.
+- The `accessors` helper exists because a class cannot type its own statics from its own body. Method generics, overloads and optional-parameter forms are not preserved by it.
+- fn-70-served-records edits the same default-export dispatch (`controllers.ts`), the same codegen (`server-services.ts`), `CONTEXT.md`, `docs/adr/README.md`, `errors.mdx` and `llms.md` (8192-byte cap, shared). Whichever spec lands second rebases and re-checks the size.
 
 ## Acceptance Criteria
 
 - **R1:** `@sleekstack/start` exports `Service`, `Controller`, `Gen` and `accessors`. `Service` builds `Default` from its declared Tags (built once with the app's Layer), is its own Tag, wraps every generator method as a spanned Effect (also for internal `yield* this.method()` calls and for inherited methods) and leaves a non-generator method alone. Errors: a method name `constructor` or a declared Tag name that collides with a method name is a defect at class definition.
-- **R2:** `Controller` is built per request: the request's Effect resolves the declared Tags, builds the instance and runs the method, with each generator method wrapped once per class. A declared Tag may be a per-request service provided by a `wrap`. Errors: a missing declared Tag fails the request as any missing requirement does (the analyzer reports it earlier as R5).
+- **R2:** `Controller` is built per request: the request's Effect resolves the declared Tags, builds the instance and runs the method, with each generator method wrapped once per class. A declared Tag may be a per-request service provided by a `wrap`. Errors: a missing declared Tag fails the request as any missing requirement does (the analyzer reports it earlier as R4).
 - **R3:** The analyzer reads a `*.controller.ts` default-exported class extending `Controller(...)`: HTTP-named generator methods with a written `input` type and a written `Gen<A, E, R>`, as it reads a named-export Controller Method, and the declared Tag record. Errors: `ControllerMethodShape` for each shape in Edge Cases, naming file and line.
 - **R4:** `sleekstack check` counts the declared Tags and each method's written `R` as the class's requirements and reports one nobody provides as `MissingDependency` naming the class. Errors: the existing diagnostics only.
 - **R5:** The Vite plugin generates the `ControllerEntry` of a class Controller and the app serves it through `start()`: params, query and body decode, the method runs on a per-request instance, the answer encodes, `wrap` and Directory Defaults apply as today, and `HEAD` and `OPTIONS` defaults hold. Errors: a discovery error fails the build in build mode and is reported in dev, as for function Controllers.
@@ -76,6 +81,7 @@ Task 1 (`Service` and `accessors` in `@sleekstack/start`) with `Articles` moved 
 - Do not remove or change named-export Controllers, RPC Files, the Manifest or Layer Files.
 - No decorators. No Controller dependency that is not a Tag.
 - Do not stage the fn-70 files; they belong to another spec.
+- Out of scope: class RPC Files, `super` or inheritance between Controllers, a Controller class outside `*.controller.ts`, and per-method options on the class.
 
 ## Decision Context
 
@@ -85,13 +91,13 @@ Task 1 (`Service` and `accessors` in `@sleekstack/start`) with `Articles` moved 
 
 ## Requirement coverage
 
-| Req | Description | Task(s) | Status |
+| Req | Description | Task(s) | Gap justification |
 | --- | --- | --- | --- |
-| R1 | Service, accessors, Gen exports | | |
-| R2 | per-request Controller runtime | | |
-| R3 | analyzer reads class Controllers | | |
-| R4 | check counts declared dependencies | | |
-| R5 | codegen and serving | | |
-| R6 | Manifest and callController | | |
-| R7 | realworld migration | | |
-| R8 | ADR, CONTEXT.md, docs | | |
+| R1 | `@sleekstack/start` exports `Service`, `Controller`, `Gen` and `accessors`. `Service` builds `Default` from its declared Tags (built once with the app's Layer), is its own Tag, wraps every generator method as a spanned Effect (also for internal `yield* this.method()` calls and for inherited methods) and leaves a non-generator method alone. Errors: a method name `constructor` or a declared Tag name that collides with a method name is a defect at class definition. | fn-71-class-controllers-and-service-classes.1 | — |
+| R2 | `Controller` is built per request: the request's Effect resolves the declared Tags, builds the instance and runs the method, with each generator method wrapped once per class. A declared Tag may be a per-request service provided by a `wrap`. Errors: a missing declared Tag fails the request as any missing requirement does (the analyzer reports it earlier as R5). | fn-71-class-controllers-and-service-classes.1 | — |
+| R3 | The analyzer reads a `*.controller.ts` default-exported class extending `Controller(...)`: HTTP-named generator methods with a written `input` type and a written `Gen<A, E, R>`, as it reads a named-export Controller Method, and the declared Tag record. Errors: `ControllerMethodShape` for each shape in Edge Cases, naming file and line. | fn-71-class-controllers-and-service-classes.2 | — |
+| R4 | `sleekstack check` counts the declared Tags and each method's written `R` as the class's requirements and reports one nobody provides as `MissingDependency` naming the class. Errors: the existing diagnostics only. | fn-71-class-controllers-and-service-classes.3 | — |
+| R5 | The Vite plugin generates the `ControllerEntry` of a class Controller and the app serves it through `start()`: params, query and body decode, the method runs on a per-request instance, the answer encodes, `wrap` and Directory Defaults apply as today, and `HEAD` and `OPTIONS` defaults hold. Errors: a discovery error fails the build in build mode and is reported in dev, as for function Controllers. | fn-71-class-controllers-and-service-classes.4 | — |
+| R6 | An RPC Manifest entry may name a Method of a class Controller, and `callController` serves a generated class entry. Errors: no error surface beyond the existing Manifest and `callController` errors. | fn-71-class-controllers-and-service-classes.3, fn-71-class-controllers-and-service-classes.4 | — |
+| R7 | Realworld's Articles migrate: `Articles` is a `Service` from `@sleekstack/start` and the article Controllers are class Controllers declaring `Articles`. Behavior, routes, statuses and the 161 realworld tests are unchanged. Errors: no error surface beyond the existing tests. | fn-71-class-controllers-and-service-classes.5 | — |
+| R8 | ADR 0056 is Accepted. CONTEXT.md names Service Class, Class Controller and Declared Dependency. The Server Services and Controllers guides show `Effect.Service` and the class form side by side, with type-checked snippets; the READMEs, `llms.md` (under 8192 bytes) and the `errors.mdx` rows describe the new diagnostics' causes. Errors: no error surface beyond the generated API docs, which come from `generate:api` and are not hand-edited. | fn-71-class-controllers-and-service-classes.6 | — |
