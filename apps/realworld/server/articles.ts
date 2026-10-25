@@ -1,6 +1,5 @@
 import type { DatabaseSync } from 'node:sqlite'
 import { Clock, Effect, Option } from 'effect'
-import type { YieldWrap } from 'effect/Utils'
 import { Forbidden, NotFound, requireFields, ValidationError } from '../src/errors'
 import type { Article, ArticleList, ArticleQuery, NewArticle, Page, UpdateArticle } from '../src/modules/articles'
 import { Viewer } from '../src/modules/identity'
@@ -135,29 +134,34 @@ export class Articles extends Effect.Service<Articles>()('realworld/server/Artic
   effect: Effect.map(Db, (db) => ({ db })),
 }) {
   /** The article at `slug` as the viewer sees it, or `NotFound`. */
-  *get(slug: string) {
+  get = Effect.fn('Articles.get')(function* (this: Articles, slug: string) {
     const row = this.db.prepare(`${SELECT} WHERE a.slug = $slug`).get({ viewer: yield* viewerId, slug }) as
       Row | undefined
     return row ? toArticle(row) : yield* new NotFound({ resource: 'article' })
-  }
+  })
 
   /** The id and author of the article at `slug`, or `NotFound`. */
-  *at(slug: string) {
+  at = Effect.fn('Articles.at')(function* (this: Articles, slug: string) {
     const row = this.db.prepare('SELECT id, author_id FROM articles WHERE slug = ?').get(slug) as
       { id: number; author_id: number } | undefined
     return row ?? (yield* new NotFound({ resource: 'article' }))
-  }
+  })
 
   /** The article at `slug`, if the viewer wrote it: `Forbidden` otherwise. */
-  *owned(slug: string) {
+  owned = Effect.fn('Articles.owned')(function* (this: Articles, slug: string) {
     const viewer = yield* requireViewer
     const row = yield* this.at(slug)
     if (row.author_id !== viewer.id) return yield* new Forbidden({ errors: { article: ['is not yours'] } })
     return row
-  }
+  })
 
   /** The page of articles matching every `where` clause, newest first, with the total match. */
-  *page(where: ReadonlyArray<string>, params: Record<string, string | number>, query: Page) {
+  page = Effect.fn('Articles.page')(function* (
+    this: Articles,
+    where: ReadonlyArray<string>,
+    params: Record<string, string | number>,
+    query: Page,
+  ) {
     const { limit, offset } = yield* paging(query)
     const clause = where.length ? `WHERE ${where.join(' AND ')}` : ''
     const rows = this.db
@@ -167,10 +171,10 @@ export class Articles extends Effect.Service<Articles>()('realworld/server/Artic
       .prepare(`SELECT COUNT(*) AS n FROM articles a JOIN users u ON u.id = a.author_id ${clause}`)
       .get(params) as { n: number }
     return { articles: rows.map(toArticle), articlesCount: n } satisfies ArticleList
-  }
+  })
 
   /** Articles filtered by tag, author and favoriting user (combined), newest first. */
-  *list(query: ArticleQuery) {
+  list = Effect.fn('Articles.list')(function* (this: Articles, query: ArticleQuery) {
     const where: string[] = []
     const params: Record<string, string> = {}
     if (query.tag !== undefined) {
@@ -190,29 +194,29 @@ export class Articles extends Effect.Service<Articles>()('realworld/server/Artic
       params.favorited = query.favorited
     }
     return yield* this.page(where, params, query)
-  }
+  })
 
   /** Articles by the authors the signed-in viewer follows, newest first. */
-  *feed(query: Page) {
+  feed = Effect.fn('Articles.feed')(function* (this: Articles, query: Page) {
     const viewer = yield* requireViewer
     return yield* this.page(
       ['a.author_id IN (SELECT followed_id FROM follows WHERE follower_id = $follower)'],
       { follower: viewer.id },
       query,
     )
-  }
+  })
 
   /** Every tag in use, sorted. */
-  *tags() {
+  tags = Effect.fn('Articles.tags')(function* (this: Articles) {
     return (
       this.db
         .prepare('SELECT DISTINCT t.name FROM tags t JOIN article_tags at ON at.tag_id = t.id ORDER BY t.name')
         .all() as Array<{ name: string }>
     ).map((r) => r.name)
-  }
+  })
 
   /** Publishes an article by the signed-in viewer, under a slug made unique from its title. */
-  *create(input: NewArticle) {
+  create = Effect.fn('Articles.create')(function* (this: Articles, input: NewArticle) {
     const viewer = yield* requireViewer
     yield* requireFields({ title: input.title, description: input.description, body: input.body })
     const at = yield* now
@@ -231,10 +235,10 @@ export class Articles extends Effect.Service<Articles>()('realworld/server/Artic
       return slug
     })
     return yield* this.get(slug)
-  }
+  })
 
   /** Updates the given fields of the viewer's own article; a new title gives a new slug, returned in the article. */
-  *update(slug: string, input: UpdateArticle) {
+  update = Effect.fn('Articles.update')(function* (this: Articles, slug: string, input: UpdateArticle) {
     const { id } = yield* this.owned(slug)
     yield* requireFields({
       ...(input.title !== undefined && { title: input.title }),
@@ -262,60 +266,30 @@ export class Articles extends Effect.Service<Articles>()('realworld/server/Artic
         : slug
     })
     return yield* this.get(next)
-  }
+  })
 
   /** Deletes the viewer's own article with its tags links, favorites and comments. */
-  *delete(slug: string) {
+  delete = Effect.fn('Articles.delete')(function* (this: Articles, slug: string) {
     const { id } = yield* this.owned(slug)
     this.db.prepare('DELETE FROM articles WHERE id = ?').run(id)
-  }
+  })
 
   /** Favorites the article at `slug`; favoriting twice is a no-op. */
-  *favorite(slug: string) {
+  favorite = Effect.fn('Articles.favorite')(function* (this: Articles, slug: string) {
     const viewer = yield* requireViewer
     const { id } = yield* this.at(slug)
     this.db.prepare('INSERT OR IGNORE INTO favorites (user_id, article_id) VALUES (?, ?)').run(viewer.id, id)
     return yield* this.get(slug)
-  }
+  })
 
   /** Unfavorites the article at `slug`; unfavoriting twice is a no-op. */
-  *unfavorite(slug: string) {
+  unfavorite = Effect.fn('Articles.unfavorite')(function* (this: Articles, slug: string) {
     const viewer = yield* requireViewer
     const { id } = yield* this.at(slug)
     this.db.prepare('DELETE FROM favorites WHERE user_id = ? AND article_id = ?').run(viewer.id, id)
     return yield* this.get(slug)
-  }
+  })
 }
 
-/** A generator method of `Articles` as the Effect it runs: `yield*` its result, or `Effect.gen(() => method(...))`. */
-type Run<G> =
-  G extends Generator<infer Y, infer A, any>
-    ? Effect.Effect<
-        A,
-        [Y] extends [never] ? never : [Y] extends [YieldWrap<Effect.Effect<any, infer E, any>>] ? E : never,
-        [Y] extends [never] ? never : [Y] extends [YieldWrap<Effect.Effect<any, any, infer R>>] ? R : never
-      >
-    : never
-
-/** The generator methods of `Articles` as functions that ask for the service: `articles.get(slug)` needs `Articles`. */
-export const articles = new Proxy(
-  {} as {
-    [K in keyof Articles as Articles[K] extends (...args: any) => Generator ? K : never]: Articles[K] extends (
-      ...args: infer A
-    ) => infer G
-      ? (
-          ...args: A
-        ) => Effect.Effect<
-          Effect.Effect.Success<Run<G>>,
-          Effect.Effect.Error<Run<G>>,
-          Articles | Effect.Effect.Context<Run<G>>
-        >
-      : never
-  },
-  {
-    get:
-      (_, name: string) =>
-      (...args: unknown[]) =>
-        Effect.flatMap(Articles, (service) => Effect.gen(() => (service as any)[name](...args))),
-  },
-)
+/** The `Articles` methods as functions that ask for the service: `articles.get(slug)` needs `Articles` in its environment. */
+export const articles = Effect.serviceFunctions(Articles)
