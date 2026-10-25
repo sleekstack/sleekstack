@@ -50,15 +50,15 @@ declare module 'virtual:sleek/server-app' {
   /** The module of each discovered Controller by its route name. */
   export interface ControllerModules {
     readonly "api/index": typeof import("../server/routes/api/index.controller")
-    readonly "api/articles": typeof import("../server/routes/api/articles.controller")
-    readonly "api/articles/feed": typeof import("../server/routes/api/articles/feed.controller")
-    readonly "api/articles/[slug]": typeof import("../server/routes/api/articles/[slug].controller")
+    readonly "api/articles": import('@sleekstack/start').ControllerMethodsOf<typeof import("../server/routes/api/articles.controller").default>
+    readonly "api/articles/feed": import('@sleekstack/start').ControllerMethodsOf<typeof import("../server/routes/api/articles/feed.controller").default>
+    readonly "api/articles/[slug]": import('@sleekstack/start').ControllerMethodsOf<typeof import("../server/routes/api/articles/[slug].controller").default>
     readonly "api/articles/[slug]/comments": typeof import("../server/routes/api/articles/[slug]/comments.controller")
     readonly "api/articles/[slug]/comments/[id]": typeof import("../server/routes/api/articles/[slug]/comments/[id].controller")
-    readonly "api/articles/[slug]/favorite": typeof import("../server/routes/api/articles/[slug]/favorite.controller")
+    readonly "api/articles/[slug]/favorite": import('@sleekstack/start').ControllerMethodsOf<typeof import("../server/routes/api/articles/[slug]/favorite.controller").default>
     readonly "api/profiles/[username]": typeof import("../server/routes/api/profiles/[username].controller")
     readonly "api/profiles/[username]/follow": typeof import("../server/routes/api/profiles/[username]/follow.controller")
-    readonly "api/tags": typeof import("../server/routes/api/tags.controller")
+    readonly "api/tags": import('@sleekstack/start').ControllerMethodsOf<typeof import("../server/routes/api/tags.controller").default>
     readonly "api/user": typeof import("../server/routes/api/user.controller")
     readonly "api/users": typeof import("../server/routes/api/users.controller")
     readonly "api/users/login": typeof import("../server/routes/api/users/login.controller")

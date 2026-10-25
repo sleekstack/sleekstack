@@ -1,9 +1,9 @@
-import { Effect } from 'effect'
+import { Controller, type Gen } from '@sleekstack/start'
 import { Articles } from '../../articles'
 
-/** Every tag in use, by name. */
-export const GET = (): Effect.Effect<{ readonly tags: readonly string[] }, never, Articles> =>
-  Effect.gen(function* () {
-    const articles = yield* Articles
-    return { tags: yield* articles.tags() }
-  })
+export default class extends Controller({ articles: Articles }) {
+  /** Every tag in use, by name. */
+  *GET(): Gen<{ readonly tags: readonly string[] }> {
+    return { tags: yield* this.articles.tags() }
+  }
+}
