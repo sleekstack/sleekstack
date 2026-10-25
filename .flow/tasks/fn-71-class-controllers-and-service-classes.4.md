@@ -41,9 +41,15 @@ Generate the `ControllerEntry` of a class Controller and serve it through `start
 - [ ] TBD
 
 ## Done summary
-TBD
+The Vite plugin now generates class Controller entries and the app serves them: a class file's entry runs `<alias>.default.run('<METHOD>')`, and a Manifest entry that wraps a class method calls the same helper. `RpcMethod.controller` gained a `kind` field from the analyzer for this. The declaration types a class module as `import('@sleekstack/start').ControllerMethodsOf<typeof import(file).default>` in `ControllerModules` and in the Manifest Tag shape. `ControllerMethodsOf` is a new public type of start: the HTTP-named methods as Effect functions through `Call<never, G>`.
 
+- Dev reload: the Service key registry now records which file defined each key (read from the V8 caller frame, query dropped). A file that runs again may define its key again. A key reused from another file still throws "already used". Known limit: two Services with one key in the same file are no longer caught (shortcut comment in class.ts). The existing duplicate-key test now defines the duplicate from a fixture file.
+- Tests: packages/start/src/__tests__/class.test.ts (re-import under `?reload=1`, red without the fix); packages/ui-vite/src/__tests__/server-services.test.ts tests named "serves a class Controller through start()", "fails the build on an invalid class Controller ...", "runs a Service file again on a dev reload", plus the describe block "the RPC Manifest over a class Controller" (wire, in-process, committed declaration with consumer typecheck); packages/testing/src/__tests__/serverFn.test.ts "callController over a class Controller entry". Fixture: packages/ui-vite/src/__tests__/fixtures/class-controller-app.
+- ui-vite tests run against start's dist: rebuild start (`pnpm --filter @sleekstack/start build`) before running them alone.
+
+stage: impl-review - skipped(policy: user asked for one completion review at the end of the spec)
+Tier: implementer opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: e3068e39, 37757c36
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/ui-vite... --filter=@sleekstack/start... --filter=@sleekstack/testing --filter=@sleekstack/analyze --filter=sleekstack --filter=realworld --filter=showcase, pnpm --filter realworld check, pnpm --filter showcase check, pnpm turbo run test typecheck build --filter=docs, pnpm format:check
 - PRs:
