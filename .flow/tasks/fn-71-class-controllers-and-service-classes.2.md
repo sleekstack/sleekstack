@@ -39,10 +39,18 @@ Teach the Controller pass to read a `*.controller.ts` whose default export is a 
 - [ ] TBD
 
 ## Done summary
-TBD
+The Controller pass reads a `*.controller.ts` whose default export is a class extending `Controller(...)` directly, producing the same `ControllerMethod` records (names, input/success schemas, `requires`) as the equivalent named-export Controller. The five invalid shapes are each a `ControllerMethodShape` naming file, line and fix; no new `AnalyzeCode`.
 
+Gen-reading decision: `readSignature` (serverServices.ts) takes a different branch for a generator `MethodDeclaration`. It reads the written return type node with `genOf` (typeSchema.ts), which matches a type reference whose name resolves by imported symbol to `start/class#Gen`, so an aliased import works. Its type arguments, read with `getTypeFromTypeNode`, are success, error and requirement, and a missing `E` or `R` is `never`. Reading the resolved type does not work: `Gen` is an alias of `Generator<YieldWrap<...>>`, and TypeScript attaches no `aliasSymbol` to an interface reference. A local `type X = Gen<...>` does not match and is refused as a missing written `Gen`. A named-export `function*` keeps the Effect-only path. `methodSchema` takes the success Schema node from `Gen`'s first argument as it does for `Effect.Effect`.
+
+Report: `ControllerDecl` gains `kind: 'functions' | 'class'` and `declared: readonly ControllerDependency[]`, where `ControllerDependency = { name, tag: ts.Type /* typeof Tag */, location }` is exported from `@sleekstack/analyze`. Methods keep their shape. The location of a class method is the member.
+
+fn-70: fn-70 has not landed. A `records(...)` default export is not a class, so it still reaches the existing "exports \"default\", which is not served" report unchanged. fn-70 owns that branch.
+
+Tests: packages/analyze/src/__tests__/controllers.test.ts. The class-equals-named test covers `twin/class/[id]` against `twin/named/[id]`, plus the declared Tags. One row per invalid shape is in the it.each over `classes/{no-method,not-generator,no-gen (missing and local alias),indirect,two-forms}.controller.ts`, and the `@error` markers are read by the file:line test.
+
+stage: impl-review - skipped(policy: user asked for one completion review at the end of the spec)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 819b79c3c19373bb3e0569cffd231d3249944594
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack --filter=@sleekstack/start..., pnpm --filter realworld check, pnpm --filter showcase check, pnpm format:check
 - PRs:
-- <!-- Updated by conductor: fn-71.1 shipped. `Gen<A, E = never, R = never>` is `Generator<YieldWrap<Effect.Effect<any, E, R>>, A, any>` exported from `@sleekstack/start` (`packages/start/src/class.ts`), so the analyzer reads a `Gen` reference's three type arguments (success, error, requirement) by the imported symbol; the spike only has to confirm that. A class field before a `*GET()` member needs a trailing `;` in fixtures (Prettier keeps it). -->
