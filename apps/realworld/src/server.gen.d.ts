@@ -53,8 +53,8 @@ declare module 'virtual:sleek/server-app' {
     readonly "api/articles": import('@sleekstack/start').ControllerMethodsOf<typeof import("../server/routes/api/articles.controller").default>
     readonly "api/articles/feed": import('@sleekstack/start').ControllerMethodsOf<typeof import("../server/routes/api/articles/feed.controller").default>
     readonly "api/articles/[slug]": import('@sleekstack/start').ControllerMethodsOf<typeof import("../server/routes/api/articles/[slug].controller").default>
-    readonly "api/articles/[slug]/comments": typeof import("../server/routes/api/articles/[slug]/comments.controller")
-    readonly "api/articles/[slug]/comments/[id]": typeof import("../server/routes/api/articles/[slug]/comments/[id].controller")
+    readonly "api/articles/[slug]/comments": import('@sleekstack/start').ControllerMethodsOf<typeof import("../server/routes/api/articles/[slug]/comments.controller").default>
+    readonly "api/articles/[slug]/comments/[id]": import('@sleekstack/start').ControllerMethodsOf<typeof import("../server/routes/api/articles/[slug]/comments/[id].controller").default>
     readonly "api/articles/[slug]/favorite": import('@sleekstack/start').ControllerMethodsOf<typeof import("../server/routes/api/articles/[slug]/favorite.controller").default>
     readonly "api/profiles/[username]": typeof import("../server/routes/api/profiles/[username].controller")
     readonly "api/profiles/[username]/follow": typeof import("../server/routes/api/profiles/[username]/follow.controller")
