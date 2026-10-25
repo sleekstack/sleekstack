@@ -68,4 +68,4 @@ export const unfavorite = (input: {
 
 /** Every tag in use, sorted. */
 export const tags = (): Effect.Effect<ReadonlyArray<string>, Unauthorized, Articles | Viewer> =>
-  Effect.flatMap(Articles, (articles) => articles.tags)
+  Effect.flatMap(Articles, (articles) => articles.tags())

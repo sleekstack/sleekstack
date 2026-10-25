@@ -131,170 +131,181 @@ export const now = Effect.map(Clock.currentTimeMillis, (ms) => new Date(ms).toIS
  * needs only the viewer; `Articles.Default` is the Layer.
  */
 export class Articles extends Effect.Service<Articles>()('realworld/server/Articles', {
-  accessors: true,
-  effect: Effect.gen(function* () {
-    const db = yield* Db
-    /** The article at `slug` as the viewer sees it, or `NotFound`. */
-    const get = (slug: string) =>
-      Effect.gen(function* () {
-        const row = db.prepare(`${SELECT} WHERE a.slug = $slug`).get({ viewer: yield* viewerId, slug }) as
-          Row | undefined
-        return row ? toArticle(row) : yield* new NotFound({ resource: 'article' })
-      })
+  effect: Effect.map(Db, (db) => ({ db })),
+}) {
+  /** The article at `slug` as the viewer sees it, or `NotFound`. */
+  get(slug: string) {
+    return Effect.gen(this, function* () {
+      const row = this.db.prepare(`${SELECT} WHERE a.slug = $slug`).get({ viewer: yield* viewerId, slug }) as
+        Row | undefined
+      return row ? toArticle(row) : yield* new NotFound({ resource: 'article' })
+    })
+  }
 
-    /** The id and author of the article at `slug`, or `NotFound`. */
-    const at = (slug: string) =>
-      Effect.suspend(() => {
-        const row = db.prepare('SELECT id, author_id FROM articles WHERE slug = ?').get(slug) as
-          { id: number; author_id: number } | undefined
-        return row ? Effect.succeed(row) : Effect.fail(new NotFound({ resource: 'article' }))
-      })
+  /** The id and author of the article at `slug`, or `NotFound`. */
+  at(slug: string) {
+    return Effect.suspend(() => {
+      const row = this.db.prepare('SELECT id, author_id FROM articles WHERE slug = ?').get(slug) as
+        { id: number; author_id: number } | undefined
+      return row ? Effect.succeed(row) : Effect.fail(new NotFound({ resource: 'article' }))
+    })
+  }
 
-    /** The article at `slug`, if the viewer wrote it: `Forbidden` otherwise. */
-    const owned = (slug: string) =>
-      Effect.gen(function* () {
-        const viewer = yield* requireViewer
-        const row = yield* at(slug)
-        if (row.author_id !== viewer.id) return yield* new Forbidden({ errors: { article: ['is not yours'] } })
-        return row
-      })
+  /** The article at `slug`, if the viewer wrote it: `Forbidden` otherwise. */
+  owned(slug: string) {
+    return Effect.gen(this, function* () {
+      const viewer = yield* requireViewer
+      const row = yield* this.at(slug)
+      if (row.author_id !== viewer.id) return yield* new Forbidden({ errors: { article: ['is not yours'] } })
+      return row
+    })
+  }
 
-    /** The page of articles matching every `where` clause, newest first, with the total match. */
-    const page = (where: ReadonlyArray<string>, params: Record<string, string | number>, query: Page) =>
-      Effect.gen(function* () {
-        const { limit, offset } = yield* paging(query)
-        const clause = where.length ? `WHERE ${where.join(' AND ')}` : ''
-        const rows = db
-          .prepare(`${SELECT} ${clause} ${ORDER} LIMIT $limit OFFSET $offset`)
-          .all({ ...params, viewer: yield* viewerId, limit, offset }) as unknown as Row[]
-        const { n } = db
-          .prepare(`SELECT COUNT(*) AS n FROM articles a JOIN users u ON u.id = a.author_id ${clause}`)
-          .get(params) as { n: number }
-        return { articles: rows.map(toArticle), articlesCount: n } satisfies ArticleList
-      })
+  /** The page of articles matching every `where` clause, newest first, with the total match. */
+  page(where: ReadonlyArray<string>, params: Record<string, string | number>, query: Page) {
+    return Effect.gen(this, function* () {
+      const { limit, offset } = yield* paging(query)
+      const clause = where.length ? `WHERE ${where.join(' AND ')}` : ''
+      const rows = this.db
+        .prepare(`${SELECT} ${clause} ${ORDER} LIMIT $limit OFFSET $offset`)
+        .all({ ...params, viewer: yield* viewerId, limit, offset }) as unknown as Row[]
+      const { n } = this.db
+        .prepare(`SELECT COUNT(*) AS n FROM articles a JOIN users u ON u.id = a.author_id ${clause}`)
+        .get(params) as { n: number }
+      return { articles: rows.map(toArticle), articlesCount: n } satisfies ArticleList
+    })
+  }
 
-    /** Articles filtered by tag, author and favoriting user (combined), newest first. */
-    const list = (query: ArticleQuery) => {
-      const where: string[] = []
-      const params: Record<string, string> = {}
-      if (query.tag !== undefined) {
-        where.push(
-          'EXISTS (SELECT 1 FROM article_tags at JOIN tags t ON t.id = at.tag_id WHERE at.article_id = a.id AND t.name = $tag)',
-        )
-        params.tag = query.tag
-      }
-      if (query.author !== undefined) {
-        where.push('u.username = $author')
-        params.author = query.author
-      }
-      if (query.favorited !== undefined) {
-        where.push(
-          'EXISTS (SELECT 1 FROM favorites f JOIN users fu ON fu.id = f.user_id WHERE f.article_id = a.id AND fu.username = $favorited)',
-        )
-        params.favorited = query.favorited
-      }
-      return page(where, params, query)
-    }
-
-    /** Articles by the authors the signed-in viewer follows, newest first. */
-    const feed = (query: Page) =>
-      Effect.flatMap(requireViewer, (viewer) =>
-        page(
-          ['a.author_id IN (SELECT followed_id FROM follows WHERE follower_id = $follower)'],
-          { follower: viewer.id },
-          query,
-        ),
+  /** Articles filtered by tag, author and favoriting user (combined), newest first. */
+  list(query: ArticleQuery) {
+    const where: string[] = []
+    const params: Record<string, string> = {}
+    if (query.tag !== undefined) {
+      where.push(
+        'EXISTS (SELECT 1 FROM article_tags at JOIN tags t ON t.id = at.tag_id WHERE at.article_id = a.id AND t.name = $tag)',
       )
+      params.tag = query.tag
+    }
+    if (query.author !== undefined) {
+      where.push('u.username = $author')
+      params.author = query.author
+    }
+    if (query.favorited !== undefined) {
+      where.push(
+        'EXISTS (SELECT 1 FROM favorites f JOIN users fu ON fu.id = f.user_id WHERE f.article_id = a.id AND fu.username = $favorited)',
+      )
+      params.favorited = query.favorited
+    }
+    return this.page(where, params, query)
+  }
 
-    /** Every tag in use, sorted. */
-    const tags = Effect.sync(() =>
+  /** Articles by the authors the signed-in viewer follows, newest first. */
+  feed(query: Page) {
+    return Effect.flatMap(requireViewer, (viewer) =>
+      this.page(
+        ['a.author_id IN (SELECT followed_id FROM follows WHERE follower_id = $follower)'],
+        { follower: viewer.id },
+        query,
+      ),
+    )
+  }
+
+  /** Every tag in use, sorted. */
+  tags() {
+    return Effect.sync(() =>
       (
-        db
+        this.db
           .prepare('SELECT DISTINCT t.name FROM tags t JOIN article_tags at ON at.tag_id = t.id ORDER BY t.name')
           .all() as Array<{ name: string }>
       ).map((r) => r.name),
     )
+  }
 
-    /** Publishes an article by the signed-in viewer, under a slug made unique from its title. */
-    const create = (input: NewArticle) =>
-      Effect.gen(function* () {
-        const viewer = yield* requireViewer
-        yield* requireFields({ title: input.title, description: input.description, body: input.body })
-        const at = yield* now
-        const slug = yield* transaction(db, () => {
-          let id = 0
-          const slug = withSlug(input.title, (slug) => {
-            id = Number(
-              db
-                .prepare(
-                  'INSERT INTO articles (slug, title, description, body, author_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                )
-                .run(slug, input.title.trim(), input.description, input.body, viewer.id, at, at).lastInsertRowid,
-            )
-          })
-          setTags(db, id, input.tagList ?? [])
-          return slug
-        })
-        return yield* get(slug)
-      })
-
-    /** Updates the given fields of the viewer's own article; a new title gives a new slug, returned in the article. */
-    const update = (slug: string, input: UpdateArticle) =>
-      Effect.gen(function* () {
-        const { id } = yield* owned(slug)
-        yield* requireFields({
-          ...(input.title !== undefined && { title: input.title }),
-          ...(input.description !== undefined && { description: input.description }),
-          ...(input.body !== undefined && { body: input.body }),
-        })
-        const at = yield* now
-        // Only the given columns are written, so a concurrent update to another field is kept.
-        const changes: Record<string, string> = {
-          ...(input.title !== undefined && { title: input.title.trim() }),
-          ...(input.description !== undefined && { description: input.description }),
-          ...(input.body !== undefined && { body: input.body }),
-          updated_at: at,
-        }
-        const columns = Object.keys(changes)
-        const next = yield* transaction(db, () => {
-          // The title before this write, read in its transaction: a new title is what gives a new slug.
-          const current = db.prepare('SELECT title FROM articles WHERE id = ?').get(id) as { title: string }
-          db.prepare(`UPDATE articles SET ${columns.map((c) => `${c} = ?`).join(', ')} WHERE id = ?`).run(
-            ...Object.values(changes),
-            id,
+  /** Publishes an article by the signed-in viewer, under a slug made unique from its title. */
+  create(input: NewArticle) {
+    return Effect.gen(this, function* () {
+      const viewer = yield* requireViewer
+      yield* requireFields({ title: input.title, description: input.description, body: input.body })
+      const at = yield* now
+      const slug = yield* transaction(this.db, () => {
+        let id = 0
+        const slug = withSlug(input.title, (slug) => {
+          id = Number(
+            this.db
+              .prepare(
+                'INSERT INTO articles (slug, title, description, body, author_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+              )
+              .run(slug, input.title.trim(), input.description, input.body, viewer.id, at, at).lastInsertRowid,
           )
-          if (input.tagList !== undefined) setTags(db, id, input.tagList)
-          return changes.title !== undefined && changes.title !== current.title
-            ? withSlug(changes.title, (s) => db.prepare('UPDATE articles SET slug = ? WHERE id = ?').run(s, id))
-            : slug
         })
-        return yield* get(next)
+        setTags(this.db, id, input.tagList ?? [])
+        return slug
       })
+      return yield* this.get(slug)
+    })
+  }
 
-    /** Deletes the viewer's own article with its tags links, favorites and comments. */
-    const remove = (slug: string) =>
-      Effect.gen(function* () {
-        const { id } = yield* owned(slug)
-        db.prepare('DELETE FROM articles WHERE id = ?').run(id)
+  /** Updates the given fields of the viewer's own article; a new title gives a new slug, returned in the article. */
+  update(slug: string, input: UpdateArticle) {
+    return Effect.gen(this, function* () {
+      const { id } = yield* this.owned(slug)
+      yield* requireFields({
+        ...(input.title !== undefined && { title: input.title }),
+        ...(input.description !== undefined && { description: input.description }),
+        ...(input.body !== undefined && { body: input.body }),
       })
+      const at = yield* now
+      // Only the given columns are written, so a concurrent update to another field is kept.
+      const changes: Record<string, string> = {
+        ...(input.title !== undefined && { title: input.title.trim() }),
+        ...(input.description !== undefined && { description: input.description }),
+        ...(input.body !== undefined && { body: input.body }),
+        updated_at: at,
+      }
+      const columns = Object.keys(changes)
+      const next = yield* transaction(this.db, () => {
+        // The title before this write, read in its transaction: a new title is what gives a new slug.
+        const current = this.db.prepare('SELECT title FROM articles WHERE id = ?').get(id) as { title: string }
+        this.db
+          .prepare(`UPDATE articles SET ${columns.map((c) => `${c} = ?`).join(', ')} WHERE id = ?`)
+          .run(...Object.values(changes), id)
+        if (input.tagList !== undefined) setTags(this.db, id, input.tagList)
+        return changes.title !== undefined && changes.title !== current.title
+          ? withSlug(changes.title, (s) => this.db.prepare('UPDATE articles SET slug = ? WHERE id = ?').run(s, id))
+          : slug
+      })
+      return yield* this.get(next)
+    })
+  }
 
-    /** Favorites the article at `slug`; favoriting twice is a no-op. */
-    const favorite = (slug: string) =>
-      Effect.gen(function* () {
-        const viewer = yield* requireViewer
-        const { id } = yield* at(slug)
-        db.prepare('INSERT OR IGNORE INTO favorites (user_id, article_id) VALUES (?, ?)').run(viewer.id, id)
-        return yield* get(slug)
-      })
+  /** Deletes the viewer's own article with its tags links, favorites and comments. */
+  delete(slug: string) {
+    return Effect.gen(this, function* () {
+      const { id } = yield* this.owned(slug)
+      this.db.prepare('DELETE FROM articles WHERE id = ?').run(id)
+    })
+  }
 
-    /** Unfavorites the article at `slug`; unfavoriting twice is a no-op. */
-    const unfavorite = (slug: string) =>
-      Effect.gen(function* () {
-        const viewer = yield* requireViewer
-        const { id } = yield* at(slug)
-        db.prepare('DELETE FROM favorites WHERE user_id = ? AND article_id = ?').run(viewer.id, id)
-        return yield* get(slug)
-      })
-    return { at, get, list, feed, tags, create, update, delete: remove, favorite, unfavorite }
-  }),
-}) {}
+  /** Favorites the article at `slug`; favoriting twice is a no-op. */
+  favorite(slug: string) {
+    return Effect.gen(this, function* () {
+      const viewer = yield* requireViewer
+      const { id } = yield* this.at(slug)
+      this.db.prepare('INSERT OR IGNORE INTO favorites (user_id, article_id) VALUES (?, ?)').run(viewer.id, id)
+      return yield* this.get(slug)
+    })
+  }
+
+  /** Unfavorites the article at `slug`; unfavoriting twice is a no-op. */
+  unfavorite(slug: string) {
+    return Effect.gen(this, function* () {
+      const viewer = yield* requireViewer
+      const { id } = yield* this.at(slug)
+      this.db.prepare('DELETE FROM favorites WHERE user_id = ? AND article_id = ?').run(viewer.id, id)
+      return yield* this.get(slug)
+    })
+  }
+}
+
+/** The `Articles` methods as functions that ask for the service: `articles.get(slug)` needs `Articles` in its environment. */
+export const articles = Effect.serviceFunctions(Articles)

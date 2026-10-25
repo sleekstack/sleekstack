@@ -1,6 +1,6 @@
 import { Effect, Layer, TestClock, TestContext } from 'effect'
 import { describe, expect, it } from 'vitest'
-import { Articles } from '../server/articles'
+import { Articles, articles } from '../server/articles'
 import { addComment, deleteComment, listComments } from '../server/comments'
 import { type Db, DbLive } from '../server/db'
 import { follow, register, TokenSecret, ViewerLive } from '../server/identity'
@@ -30,7 +30,7 @@ const user = (name: string) =>
 const seeded = Effect.gen(function* () {
   const alice = yield* user('alice')
   const bob = yield* user('bob')
-  yield* alice(Articles.create({ title: 'T', description: 'd', body: 'b' }))
+  yield* alice(articles.create({ title: 'T', description: 'd', body: 'b' }))
   const first = yield* bob(addComment('t', { body: 'first' }))
   return { alice, bob, first }
 })
