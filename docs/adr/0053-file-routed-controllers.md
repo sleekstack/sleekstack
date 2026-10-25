@@ -37,5 +37,5 @@ ADR 0050 already turns files into routes for pages, and the Start proposal (`doc
 - **A cast the author decodes in the body** (`yield* Body(S)`). A cast can lie, and the RPC wire needs a Schema value at run time, not a type.
 - **A `status` option export, or a returned `Response` for the status.** A returned `Response` cannot cross the RPC wire (ADR 0054).
 - **Controllers beside pages in `src/routes`.** The page scan takes every `.ts` file there, and `src` is the client graph.
-- **Decorators and class controllers.** The repo is Effect functions and Layers; a class adds a second way to provide services.
+- **Decorators and class controllers.** The repo is Effect functions and Layers; a class adds a second way to provide services. ADR 0056 reverses this for the class form it describes (a default class extending `Controller(...)`); decorators stay rejected.
 - **A Controller that is also a Server Service by default.** Each method would have two faces with different auth (a token header against a cookie) and different error shapes. ADR 0054 makes the second face opt in.
