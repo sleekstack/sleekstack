@@ -1,14 +1,19 @@
 import { Effect, Layer, TestClock, TestContext } from 'effect'
 import { describe, expect, it } from 'vitest'
-import { createArticle } from '../server/articles'
+import { Articles } from '../server/articles'
 import { addComment, deleteComment, listComments } from '../server/comments'
 import { type Db, DbLive } from '../server/db'
 import { follow, register, TokenSecret, ViewerLive } from '../server/identity'
 
 // One in-memory database per test, a fixed secret and the test clock.
-const run = <A, E>(body: Effect.Effect<A, E, Db | TokenSecret>) =>
+const run = <A, E>(body: Effect.Effect<A, E, Db | TokenSecret | Articles>) =>
   Effect.runPromise(
-    Effect.provide(body, Layer.mergeAll(DbLive(':memory:'), Layer.succeed(TokenSecret, 's'), TestContext.TestContext)),
+    Effect.provide(
+      body,
+      Layer.mergeAll(Articles.Default, Layer.succeed(TokenSecret, 's'), TestContext.TestContext).pipe(
+        Layer.provideMerge(DbLive(':memory:')),
+      ),
+    ),
   )
 
 /** `effect` as the viewer presenting `token` (anonymous when undefined). */
@@ -25,7 +30,7 @@ const user = (name: string) =>
 const seeded = Effect.gen(function* () {
   const alice = yield* user('alice')
   const bob = yield* user('bob')
-  yield* alice(createArticle({ title: 'T', description: 'd', body: 'b' }))
+  yield* alice(Articles.create({ title: 'T', description: 'd', body: 'b' }))
   const first = yield* bob(addComment('t', { body: 'first' }))
   return { alice, bob, first }
 })

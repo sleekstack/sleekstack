@@ -70,6 +70,7 @@ declare module 'virtual:sleek/server-app' {
 declare module 'virtual:sleek/server-app' {
   /** What each Layer File provides, by file. */
   export interface LayerFileServices {
+    readonly "server/articles.layer.ts": import('effect').Layer.Layer.Success<typeof import("../server/articles.layer").default>
     readonly "server/db.layer.ts": import('effect').Layer.Layer.Success<typeof import("../server/db.layer").default>
     readonly "server/queries.layer.ts": import('effect').Layer.Layer.Success<typeof import("../server/queries.layer").default>
     readonly "server/token-secret.layer.ts": import('effect').Layer.Layer.Success<typeof import("../server/token-secret.layer").default>

@@ -1,4 +1,4 @@
-import { ArticlesLive } from './articles'
+import { Articles } from './articles'
 
 /** The `Articles` service over the app's `Db`. */
-export default ArticlesLive
+export default Articles.Default

@@ -1,7 +1,7 @@
 import { Effect } from 'effect'
 import { Forbidden, NotFound, requireFields } from '../src/errors'
 import type { Comment, NewComment } from '../src/modules/comments'
-import { articleAt, now, viewerId } from './articles'
+import { Articles, now, viewerId } from './articles'
 import { Db } from './db'
 import { requireViewer } from './identity'
 
@@ -33,7 +33,7 @@ const toComment = (row: Row): Comment => ({
 /** The comments on the article at `slug`, newest first. */
 export const listComments = (slug: string) =>
   Effect.gen(function* () {
-    const { id } = yield* articleAt(slug)
+    const { id } = yield* Articles.at(slug)
     const db = yield* Db
     const rows = db
       .prepare(`${SELECT} WHERE c.article_id = $article ORDER BY c.created_at DESC, c.id DESC`)
@@ -46,7 +46,7 @@ export const addComment = (slug: string, input: NewComment) =>
   Effect.gen(function* () {
     const viewer = yield* requireViewer
     yield* requireFields({ body: input.body })
-    const { id } = yield* articleAt(slug)
+    const { id } = yield* Articles.at(slug)
     const db = yield* Db
     const at = yield* now
     const { lastInsertRowid } = db
@@ -62,7 +62,7 @@ export const addComment = (slug: string, input: NewComment) =>
 export const deleteComment = (slug: string, commentId: number) =>
   Effect.gen(function* () {
     const viewer = yield* requireViewer
-    const article = yield* articleAt(slug)
+    const article = yield* Articles.at(slug)
     const db = yield* Db
     const row = db
       .prepare('SELECT author_id FROM comments WHERE id = ? AND article_id = ?')
