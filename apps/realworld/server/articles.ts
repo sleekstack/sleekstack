@@ -1,10 +1,10 @@
 import type { DatabaseSync } from 'node:sqlite'
+import { Service } from '@sleekstack/start'
 import { Clock, Effect, Option } from 'effect'
 import { Forbidden, NotFound, requireFields, ValidationError } from '../src/errors'
 import type { Article, ArticleList, ArticleQuery, NewArticle, Page, UpdateArticle } from '../src/modules/articles'
 import { Viewer } from '../src/modules/identity'
 import { Db } from './db'
-import { Service } from './service'
 import { requireViewer } from './identity'
 
 interface Row {
