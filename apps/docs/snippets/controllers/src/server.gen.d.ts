@@ -32,11 +32,15 @@ declare module 'virtual:sleek/server-app' {
   export interface Controllers {
     readonly notes: '/notes'
     readonly 'notes/[id]': '/notes/:id'
+    readonly 'notes/[id]/title': '/notes/:id/title'
   }
   /** The module of each discovered Controller by its route name. */
   export interface ControllerModules {
     readonly notes: typeof import('../server/routes/notes.controller')
     readonly 'notes/[id]': typeof import('../server/routes/notes/[id].controller')
+    readonly 'notes/[id]/title': import('@sleekstack/start').ControllerMethodsOf<
+      typeof import('../server/routes/notes/[id]/title.controller').default
+    >
   }
   /** Whether a discovered Controller's pattern matches `pathname`, so a dev server forwards it to `start`. */
   export const isControllerPath: (pathname: string) => boolean
