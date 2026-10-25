@@ -36,9 +36,17 @@ Move the article Controllers of realworld onto the class form, declaring `Articl
 - [ ] TBD
 
 ## Done summary
-TBD
+Realworld's seven article Controllers (articles, feed, [slug], favorite, comments, comments/[id], tags) are now `export default class extends Controller({ articles: Articles })` with HTTP-named generator methods and written `Gen<...>` returns; `_defaults.ts`, routes, statuses (201 via ResponseStatus, 204 void), envelopes and the feed/slug order are unchanged, and `src/server.gen.d.ts` is as the plugin wrote it (`ControllerMethodsOf<...>` entries).
 
+- `comments.ts` and the RPC files are unchanged: the comments tests call `listComments`/`addComment`/`deleteComment(slug, ...)` directly, so the comment Controllers declare `Articles` but reach it through those functions' context (written R keeps `Db | Articles | Viewer`).
+- No RPC Manifest in realworld, so no Manifest wrap change; `Articles` comes from the `articles.layer.ts` Layer File.
+- README names the article Controllers as class Controllers declaring `Articles`.
+- Client build (`dist/assets`) carries no server code (grep for Articles key, SQL, comment errors: none).
+- One test run had 7 timeouts at 30s under load; the rerun was 161/161 green with no change.
+
+stage: impl-review - skipped(policy: user asked for one completion review at the end of the spec)
+Tier: implementer opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 62dbecfd6ed2c84f4fc798dadd6f5d1841f6a682, 993315942bf64d513636cfdc1675f55637cd937b, 686835c760efef840388610c061b06d8e7060473
+- Tests: pnpm turbo run test typecheck --filter=realworld --filter=showcase --concurrency=1, pnpm --filter realworld check, pnpm --filter showcase check, pnpm --filter realworld build, pnpm format:check
 - PRs:
