@@ -45,3 +45,4 @@ TBD
 - Commits:
 - Tests:
 - PRs:
+- <!-- Updated by conductor: fn-71.1 shipped. `Gen<A, E = never, R = never>` is `Generator<YieldWrap<Effect.Effect<any, E, R>>, A, any>` exported from `@sleekstack/start` (`packages/start/src/class.ts`), so the analyzer reads a `Gen` reference's three type arguments (success, error, requirement) by the imported symbol; the spike only has to confirm that. A class field before a `*GET()` member needs a trailing `;` in fixtures (Prettier keeps it). -->

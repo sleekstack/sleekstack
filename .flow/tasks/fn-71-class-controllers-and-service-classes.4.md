@@ -3,14 +3,14 @@ satisfies: [R5, R6]
 ---
 # fn-71-class-controllers-and-service-classes.4 ui-vite and start: generate and serve class Controller entries
 
-Touches: [packages/ui-vite/src/server-services.ts, packages/ui-vite/src/__tests__/server-services.test.ts, packages/ui-vite/src/__tests__/fixtures/**, packages/start/src/rpc.ts, packages/start/src/app.ts, packages/start/src/__tests__/**, packages/testing/src/__tests__/serverFn.test.ts]
+Touches: [packages/start/src/class.ts, packages/ui-vite/src/server-services.ts, packages/ui-vite/src/__tests__/server-services.test.ts, packages/ui-vite/src/__tests__/fixtures/**, packages/start/src/rpc.ts, packages/start/src/app.ts, packages/start/src/__tests__/**, packages/testing/src/__tests__/serverFn.test.ts]
 
 ## Description
 Generate the `ControllerEntry` of a class Controller and serve it through `start()`, the RPC Manifest and `callController`.
 
 **Size:** M
 **Files:** `packages/ui-vite/src/server-services.ts`, its tests and fixtures, `packages/start/src/rpc.ts`, `packages/start/src/app.ts`, `packages/testing/src/__tests__/serverFn.test.ts`
-**Touches:** [packages/ui-vite/src/server-services.ts, packages/ui-vite/src/__tests__/server-services.test.ts, packages/ui-vite/src/__tests__/fixtures/**, packages/start/src/rpc.ts, packages/start/src/app.ts, packages/start/src/__tests__/**, packages/testing/src/__tests__/serverFn.test.ts]
+**Touches:** [packages/start/src/class.ts, packages/ui-vite/src/server-services.ts, packages/ui-vite/src/__tests__/server-services.test.ts, packages/ui-vite/src/__tests__/fixtures/**, packages/start/src/rpc.ts, packages/start/src/app.ts, packages/start/src/__tests__/**, packages/testing/src/__tests__/serverFn.test.ts]
 
 ### Approach
 - `readControllers` (`server-services.ts:431-438`) keeps only `{name, schema}`; carry the class kind and declared Tag keys from the analyzer report (task 2).
@@ -44,3 +44,4 @@ TBD
 - Commits:
 - Tests:
 - PRs:
+- <!-- Updated by conductor: fn-71.1 shipped. The per-request helper is a static method of the class: `static run(this: C, method)` returning `ControllerMethodEntry['run']`, so the generated entry is `GET: { run: <alias>.default.run('GET'), ...schemas }`. It checks the method name and declared names when called, so a bad class fails when the generated module loads. A missing declared Tag ends the request as a defect. Spans: `<ClassName>.<method>`; an anonymous default class reads `Controller.<method>`. Risk to settle here: the duplicate-Service-key registry lives as long as `@sleekstack/start`, so a dev reload that re-runs a Service file would throw 'already used'; make a dev reload of the same file not throw (and test it). -->

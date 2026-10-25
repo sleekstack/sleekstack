@@ -40,3 +40,4 @@ TBD
 - Commits:
 - Tests:
 - PRs:
+- <!-- Updated by conductor: fn-71.1 shipped. A class field followed by a `*GET(...)` member needs a trailing `;` on the field line or JavaScript reads it as a multiplication; Prettier keeps it. The Controller helper is `static run(method)` on the class (task 4 generates the call); a Controller's declared names must not equal a method name or an HTTP method name. -->
