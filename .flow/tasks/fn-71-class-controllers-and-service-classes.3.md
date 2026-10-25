@@ -34,10 +34,15 @@ Make `sleekstack check` treat a class Controller's declared Tags as requirements
 - [ ] TBD
 
 ## Done summary
-TBD
+The Controller pass now checks a class Controller's declared Tags by the same rule as a method's `R` (request services, `start({ layer })`, Layer Files, a `wrap` above it). A declared Tag nobody provides is `MissingDependency` at the declaration line, naming the route and class (`Controller "classes/declared" class Declared declares "audit" as "Audit", ...`). `analyzeRpc` finds a Manifest entry's method as a generator method of the default class, through the shared `defaultClassOf` reader now exported from controllers.ts. It reads success through `Gen` for the Response check. A missing class method is `RpcRouteUnknown` ("has no generator method DELETE in its Controller class"). No new AnalyzeCode, and the report shape is unchanged, so check.ts needed no change.
 
+Tests: packages/analyze/src/__tests__/controllers.test.ts reads the fixtures `classes/declared.controller.ts` (Audit unprovided, Users from start, Clock from a Layer File, Request a request service) and `users/declared.controller.ts` (Viewer provided by the directory wrap). packages/analyze/src/__tests__/rpc.test.ts covers `Items.note` over `api/notes/[id]` (a class method: input, success and controller) and `Broken.method` (RpcRouteUnknown).
+
+Drift for task 4: an RpcMethod of a class-backed entry carries the same `controller: { route, method }` as a function entry, with no kind. ui-vite's `server-services.ts:315-319` emits `{ file, name: verb }` as a named import. For a class it must tell the forms apart, either by `ControllerDecl.kind` from analyzeControllers keyed by route or by the generated ControllerEntry's `run`, and then build the instance.
+
+stage: impl-review - skipped(policy: user asked for one completion review at the end of the spec)
+Tier: implementer opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 3335ed560948aff753247644308388aedf00e620
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack --filter=@sleekstack/start..., pnpm --filter realworld check, pnpm --filter showcase check, pnpm format:check
 - PRs:
-- <!-- Updated by conductor: fn-71.2 shipped. `ControllerDecl` gained `kind: 'functions' | 'class'` and `declared: readonly ControllerDependency[]` (`{ name, tag: ts.Type, location }`, written order, empty for named exports; the type is exported from `@sleekstack/analyze`); `ControllerMethod` is unchanged. `tag` is the type of the declared value (`typeof Users`): match it against provided Tags with `tag.getSymbol()`. A class method's location is its member line; `ControllerDecl` has no class location, so a `MissingDependency` that names the class uses the dependency's location (or add a class location). The `Gen` reading lives in `typeSchema.ts` (`genOf`): the written return type node must name `Gen` from `@sleekstack/start` by its imported symbol. -->
