@@ -42,9 +42,16 @@ Port the prototype of `apps/realworld/server/service.ts` into `@sleekstack/start
 - [ ] TBD
 
 ## Done summary
-TBD
+`@sleekstack/start` now exports `Service`, `Controller`, `Gen` and `accessors` (plus the `Call`/`Accessors` types) from `packages/start/src/class.ts`; realworld's `Articles` runs on the library `Service` and `apps/realworld/server/service.ts` is deleted, with the 161 realworld tests unchanged and green.
 
+- `Controller(deps?)` returns a base whose static `run(method)` is the generated entry's `run`: per request it resolves the declared Tags with `Effect.all`, builds the instance (own properties point at the once-per-class `Effect.fn` wrappers, spanned `<ClassName>.<method>`, `Controller` for an anonymous `default` class) and calls the method with `this` bound. `run` checks the method exists and the declared names at call time, so a generated `{ run: C.run('GET') }` fails at module load.
+- Defects: a declared name `constructor`, equal to a class method, or (Controller) an HTTP method name throws "collides"; a duplicate Service key throws "already used". The type checker also refuses a declared-name/method collision.
+- Tests: packages/start/src/__tests__/class.test.ts (14 cases, one per AC item and defect).
+- Follow-up note: a class field initializer followed by a `*GET` generator method needs a `;` (ASI reads `x = 1 *GET(...)` as multiplication); prettier keeps it.
+- Risk: the duplicate-key registry is module-level; a dev HMR re-evaluation of a Service file without re-evaluating `@sleekstack/start` would throw "already used".
+
+stage: impl-review - skipped(policy: user asked for one completion review at the end of the spec)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: f2f1382999718f03573098e022a137a1649dbbc0
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/start... --filter=@sleekstack/testing --filter=realworld --filter=showcase, pnpm --filter realworld check, pnpm --filter showcase check, pnpm turbo run test typecheck build --filter=docs, pnpm format:check
 - PRs:
