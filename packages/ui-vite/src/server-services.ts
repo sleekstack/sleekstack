@@ -172,6 +172,12 @@ const importType = (dir: string, file: string) => {
   return `import(${JSON.stringify(rel.startsWith('.') ? rel : `./${rel}`)})`
 }
 
+/** The type of a Controller module as `ControllerModules` names it: a class Controller's methods as Effect functions. */
+const moduleType = (dir: string, file: string, kind: 'functions' | 'class') =>
+  kind === 'class'
+    ? `import('@sleekstack/start').ControllerMethodsOf<typeof ${importType(dir, file)}.default>`
+    : `typeof ${importType(dir, file)}`
+
 /**
  * The generated Tags' types: each Tag's service is its methods (an RPC File's own, or the Controller Methods a Manifest
  * entry wraps) with `R` erased and `NetworkError | DecodeError` added (`GeneratedServiceShape`), and each Tag's key is
@@ -183,7 +189,7 @@ const rpcDeclaration = (rpc: readonly RpcService[], dir: string) => {
     const picked = methods.map((m) => JSON.stringify(m.name)).join(' | ') || 'never'
     const shape = RPC_FILE.test(file)
       ? `Pick<typeof ${importType(dir, file)}, ${picked}>`
-      : `{ ${implementations.map((m) => `readonly ${JSON.stringify(m.method)}: typeof ${importType(dir, m.file)}[${JSON.stringify(m.name)}]`).join('; ')} }`
+      : `{ ${implementations.map((m) => `readonly ${JSON.stringify(m.method)}: ${moduleType(dir, m.file, m.kind)}[${JSON.stringify(m.name)}]`).join('; ')} }`
     return `
   export interface ${name} {
     readonly '${RPC}': ${JSON.stringify(name)}
@@ -268,7 +274,12 @@ interface RpcService {
   readonly contract: Contract
   readonly file: string
   readonly defaults: readonly string[]
-  readonly implementations: ReadonlyArray<{ readonly method: string; readonly file: string; readonly name: string }>
+  readonly implementations: ReadonlyArray<{
+    readonly method: string
+    readonly file: string
+    readonly name: string
+    readonly kind: 'functions' | 'class'
+  }>
 }
 
 /** The RPC Files' and the Manifest's services and the code of `virtual:sleek/rpc`, or the error that fails every load. */
@@ -315,8 +326,13 @@ const readRpc = async (
       defaults: defaultsOf(file),
       implementations: methods.map((m) =>
         m.controller
-          ? { method: m.name, file: controllers.get(m.controller.route)!, name: m.controller.method }
-          : { method: m.name, file, name: m.name },
+          ? {
+              method: m.name,
+              file: controllers.get(m.controller.route)!,
+              name: m.controller.method,
+              kind: m.controller.kind,
+            }
+          : { method: m.name, file, name: m.name, kind: 'functions' as const },
       ),
     }
   })
@@ -421,18 +437,27 @@ export const discoverControllers = async ({
   return controllers
 }
 
-/** A Controller's methods as the generator needs them, by the analyzer's Controller pass. */
-type ControllerMethods = ReadonlyArray<{
-  readonly name: string
-  readonly schema: { readonly input: TypeSchema; readonly success: TypeSchema | undefined }
-}>
+/** A Controller as the generator needs it, by the analyzer's Controller pass: its form and methods. */
+interface ControllerRead {
+  readonly kind: 'functions' | 'class'
+  readonly methods: ReadonlyArray<{
+    readonly name: string
+    readonly schema: { readonly input: TypeSchema; readonly success: TypeSchema | undefined }
+  }>
+}
 
-/** The analyzer's Controller pass over the tsconfig at `project`: each Controller's methods by route name. */
+/** The analyzer's Controller pass over the tsconfig at `project`: each Controller by route name. */
 const readControllers = async (project: string, serverDir: string, controllersDir: string) => {
   const { analyzeControllers } = await analyzer()
   const { controllers, errors } = analyzeControllers({ project, serverDir, controllersDir })
-  const methods = new Map<string, ControllerMethods>(
-    controllers.map((c) => [c.route, c.methods.map(({ name, schema }) => ({ name, schema }))]),
+  const methods = new Map<string, ControllerRead>(
+    controllers.map((c) => [
+      c.route,
+      {
+        kind: c.kind,
+        methods: c.methods.map(({ name, schema }) => ({ name, schema })),
+      },
+    ]),
   )
   return { methods, errors }
 }
@@ -446,7 +471,8 @@ const defined = (t: TypeSchema): TypeSchema => {
 
 /**
  * The discovered app's module: each Controller's entry (`ControllerEntry` of `@sleekstack/start`), with its methods'
- * Schemas from `read` and its option chain from the files' exports; each RPC File's service (`DiscoveredService`: its
+ * Schemas from `read` and its option chain from the files' exports (a class Controller's `run` is its class's static
+ * `run`, which builds the instance per request, also for a Manifest entry wrapping it); each RPC File's service (`DiscoveredService`: its
  * entry, its implementation Layer from `serviceLayer` over the file's methods and `wrap`, and its option chain without
  * `wrap`); the Layer Files' `layer`, each over the ones before it (composition order), and the Server Root's `onError`;
  * the page router over `virtual:sleekstack/routes` when `pages` is given; and `isControllerPath`, the dev servers'
@@ -454,7 +480,7 @@ const defined = (t: TypeSchema): TypeSchema => {
  */
 const appCode = (
   controllers: readonly DiscoveredController[],
-  read: ReadonlyMap<string, ControllerMethods>,
+  read: ReadonlyMap<string, ControllerRead>,
   pages: { readonly notFound: boolean } | undefined,
   root: string,
   rpc: readonly RpcService[],
@@ -464,22 +490,27 @@ const appCode = (
     return 'export default { controllers: [] }\nexport const isControllerPath = () => false\n'
   const { alias, imports } = importMap(root)
   const entries = controllers.map((c) => {
-    const methods = read.get(c.route)
-    if (!methods)
+    const controller = read.get(c.route)
+    if (!controller)
       throw new Error(
         `sleekstack: Controller file ${c.file} is not in the TypeScript project of the Vite root, so its methods cannot be read; include it in tsconfig.json`,
       )
-    const method = ({ name, schema }: ControllerMethods[number]) => {
+    // A class Controller's method runs on a per-request instance through the class's static `run`.
+    const run = (name: string) =>
+      controller.kind === 'class'
+        ? `${alias(c.file, '*')}.default.run(${JSON.stringify(name)})`
+        : `${alias(c.file, '*')}.${name}`
+    const method = ({ name, schema }: ControllerRead['methods'][number]) => {
       const parts = schema.input.kind === 'object' ? schema.input.properties : []
       const part = (p: PropertySchema) =>
         `, ${p.name}: ${printSchema(p.name === 'body' ? p.type : defined(p.type), alias)}`
       const success = schema.success ? `, success: ${printSchema(schema.success, alias)}` : ''
-      return `${name}: { run: ${alias(c.file, '*')}.${name}${parts.map(part).join('')}${success} }`
+      return `${name}: { run: ${run(name)}${parts.map(part).join('')}${success} }`
     }
     const chain = [...c.defaults, c.file].map(
       (f) => `options(${JSON.stringify(normalizePath(path.relative(root, f)))}, ${alias(f, '*')})`,
     )
-    return `  { route: ${JSON.stringify(c.route)}, pattern: ${JSON.stringify(c.pattern)}, methods: { ${methods.map(method).join(', ')} }, options: [${chain.join(', ')}] },\n`
+    return `  { route: ${JSON.stringify(c.route)}, pattern: ${JSON.stringify(c.pattern)}, methods: { ${controller.methods.map(method).join(', ')} }, options: [${chain.join(', ')}] },\n`
   })
   const limits = (file: string, options: string) =>
     `limits(${JSON.stringify(normalizePath(path.relative(root, file)))}, ${options})`
@@ -487,7 +518,10 @@ const appCode = (
     // The Manifest's options are its default export's, an RPC File's its named exports.
     const own = RPC_FILE.test(file) ? alias(file, '*') : `manifest(${alias(file, '*')})`
     const methods = implementations
-      .map((m) => `${JSON.stringify(m.method)}: ${alias(m.file, '*')}.${m.name}`)
+      .map(
+        (m) =>
+          `${JSON.stringify(m.method)}: ${alias(m.file, '*')}${m.kind === 'class' ? `.default.run(${JSON.stringify(m.name)})` : `.${m.name}`}`,
+      )
       .join(', ')
     const chain = [...defaults.map((f) => limits(f, alias(f, '*'))), limits(file, own)]
     return `      { entry: ${entryCode(contract, alias)}, layer: serviceLayer(${alias(RPC, contract.name)}, { ${methods} }, ${own}.wrap), options: [${chain.join(', ')}] },\n`
@@ -533,13 +567,19 @@ export const isControllerPath = (pathname) => {
 type Discovered =
   | {
       readonly controllers: readonly DiscoveredController[]
+      /** The route names of the class Controllers. */
+      readonly classes: readonly string[]
       readonly layerFiles: readonly string[]
       readonly code: string
     }
   | { readonly error: string }
 
 /** The Controllers section of the declaration: each route name's URL pattern, in match order, and module. */
-const controllersDeclaration = (controllers: readonly DiscoveredController[], dir: string) => {
+const controllersDeclaration = (
+  controllers: readonly DiscoveredController[],
+  classes: readonly string[],
+  dir: string,
+) => {
   if (controllers.length === 0) return ''
   const entries = (value: (c: DiscoveredController) => string) =>
     controllers.map((c) => `\n    readonly ${JSON.stringify(c.route)}: ${value(c)}`).join('')
@@ -548,7 +588,7 @@ const controllersDeclaration = (controllers: readonly DiscoveredController[], di
   export interface Controllers {${entries((c) => JSON.stringify(c.pattern))}
   }
   /** The module of each discovered Controller by its route name. */
-  export interface ControllerModules {${entries((c) => `typeof ${importType(dir, c.file)}`)}
+  export interface ControllerModules {${entries((c) => moduleType(dir, c.file, classes.includes(c.route) ? 'class' : 'functions'))}
   }
   /** Whether a discovered Controller's pattern matches \`pathname\`, so a dev server forwards it to \`start\`. */
   export const isControllerPath: (pathname: string) => boolean
@@ -627,7 +667,7 @@ export const serverServices = (options: ServerServicesOptions = {}): Plugin => {
       const controllers = await discoverControllers({ serverDir, controllersDir, routesDir })
       const { methods, errors } = controllers.length
         ? await readControllers(project, serverDir, controllersDir)
-        : { methods: new Map<string, ControllerMethods>(), errors: [] }
+        : { methods: new Map<string, ControllerRead>(), errors: [] }
       if (errors.length) return { error: failed('Controllers', errors, root) }
       const r = await rpcRead()
       if ('error' in r) return r
@@ -637,6 +677,7 @@ export const serverServices = (options: ServerServicesOptions = {}): Plugin => {
       const found = pages?.found.length ? { notFound: !!pages.notFound } : undefined
       return {
         controllers,
+        classes: [...methods].flatMap(([route, c]) => (c.kind === 'class' ? [route] : [])),
         layerFiles: layers.files,
         code: appCode(controllers, methods, found, root, r.services, layers),
       }
@@ -696,7 +737,7 @@ export const serverServices = (options: ServerServicesOptions = {}): Plugin => {
     ]
     const dir = normalizePath(path.dirname(declarationFile))
     const text = `// Written by @sleekstack/ui-vite from ${new Intl.ListFormat('en').format(sources.filter((x): x is string => !!x))}; do not edit.
-${g.declaration}${controllersDeclaration(d.controllers, dir)}${layerFilesDeclaration(d.layerFiles, root, dir)}`
+${g.declaration}${controllersDeclaration(d.controllers, d.classes, dir)}${layerFilesDeclaration(d.layerFiles, root, dir)}`
     // An app with no contracts, RPC Files, Controllers or Layer Files gets no file.
     if (
       !fs.existsSync(declarationFile)

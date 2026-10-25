@@ -1,10 +1,12 @@
 import { NotFound, Redirect, redirect } from '@sleekstack/router'
 import {
+  Controller,
   type ControllerEntry,
   Cookies,
   DecodeError,
   type DiscoveredApp,
   type DiscoveredService,
+  type Gen,
   type GeneratedServiceShape,
   implement,
   serverFn,
@@ -217,6 +219,34 @@ describe('callController', () => {
     const boom = await callController(people, put('boom'), { layer, onError: (cause) => void (defect = cause) })
     expect(await read(boom)).toEqual([500, null, ''])
     expect(defect && Cause.squash(defect)).toEqual(new Error('secret'))
+  })
+})
+
+describe('callController over a class Controller entry', () => {
+  class Viewer extends Context.Tag('Viewer')<Viewer, string>() {}
+  class Greet extends Controller({ viewer: Viewer }) {
+    *GET(input: { readonly params: { readonly name: string } }): Gen<string> {
+      return `${this.viewer} greets ${input.params.name}`
+    }
+  }
+  // The entry generated for a class Controller file, under a `_defaults.ts` whose `wrap` provides the declared viewer.
+  const greet = (wrapped: boolean): ControllerEntry => ({
+    route: 'greet/[name]',
+    pattern: '/greet/:name',
+    methods: { GET: { run: Greet.run('GET'), params: Schema.Struct({ name: Schema.String }), success: Schema.String } },
+    options: [
+      { file: 'server/_defaults.ts', wrap: wrapped ? (next) => Effect.provideService(next, Viewer, 'ann') : undefined },
+    ],
+  })
+  const get = new Request('http://x.test/greet/bo')
+
+  it('runs the method on an instance built with the viewer the wrap provides; a missing one reaches onError', async () => {
+    const ok = await callController(greet(true), get, { layer })
+    expect([ok.status, await ok.text()]).toEqual([200, '"ann greets bo"'])
+    let defect: Cause.Cause<unknown> | undefined
+    const missing = await callController(greet(false), get, { layer, onError: (cause) => void (defect = cause) })
+    expect(missing.status).toBe(500)
+    expect(defect && Cause.isDie(defect)).toBe(true)
   })
 })
 

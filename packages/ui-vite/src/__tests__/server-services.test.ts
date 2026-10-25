@@ -39,6 +39,9 @@ const controllerFiles = appFiles('controllers')
 /** One Controller with a referenced Schema, string codecs and an option chain (`_defaults.ts` maps decode failures to 422). */
 const CONTROLLER_APP = path.join(import.meta.dirname, 'fixtures/controller-app')
 const controllerApp = appFiles('controller-app')
+/** A class Controller declaring a viewer its directory `wrap` provides, a Manifest wrapping two of its methods, a Server Root's `onError` and a Service file. */
+const CLASS_CONTROLLER_APP = path.join(import.meta.dirname, 'fixtures/class-controller-app')
+const classControllerApp = appFiles('class-controller-app')
 /** One RPC File (`delete`, a typed error class, a referenced Schema, its own bodyLimit) under a `_defaults.ts` adding an origin. */
 const RPC_APP = path.join(import.meta.dirname, 'fixtures/rpc-files')
 const rpcApp = appFiles('rpc-files')
@@ -610,6 +613,63 @@ export const n: number = app
     `)
   })
 
+  it('serves a class Controller through start(): a per-request instance, the declared viewer from the wrap, HEAD, OPTIONS and 405, a defect to onError', async () => {
+    const { server, src, load } = await serve({ ...serverApp, ...classControllerApp })
+    const causes: unknown[] = ((globalThis as { classControllerCauses?: unknown[] }).classControllerCauses = [])
+    const { app } = await server.ssrLoadModule(path.join(src, 'server.ts'))
+    const call = async (url: string, init?: RequestInit) => {
+      const response: Response = await app.fetch(new Request(`http://x.test${url}`, init))
+      return [response.status, await response.text(), response.headers.get('allow')]
+    }
+    const viewer = { 'x-viewer': 'ann' }
+    expect(await call('/users/7', { headers: viewer })).toEqual([200, '{"id":7,"by":"ann"}', null])
+    expect(await call('/users/7')).toEqual([200, '{"id":7,"by":"anonymous"}', null])
+    expect(await call('/users/x')).toEqual([422, '', null])
+    const put = (name: string): RequestInit => ({
+      ...json({ name }),
+      headers: { ...viewer, 'content-type': 'application/json' },
+    })
+    expect(await call('/users/7', put('Bo'))).toEqual([200, '"ann names 7 Bo"', null])
+    // The referenced `Name` is `Schema.NonEmptyString`; the class file's bodyLimit (32) is an option export.
+    expect(await call('/users/7', put(''))).toEqual([422, '', null])
+    expect((await call('/users/7', put('a'.repeat(32))))[0]).toBe(413)
+    expect(await call('/users/7', { method: 'HEAD' })).toEqual([200, '', null])
+    const allow = 'GET, HEAD, PUT, DELETE, OPTIONS'
+    expect(await call('/users/7', { method: 'OPTIONS' })).toEqual([204, '', allow])
+    expect(await call('/users/7', { method: 'POST' })).toEqual([405, '', allow])
+    expect(await call('/users/7', { method: 'DELETE' })).toEqual([500, '', null])
+    const { Cause } = await server.ssrLoadModule('effect')
+    expect(causes.map((c) => Cause.squash(c))).toEqual(['boom'])
+    expect(await load(SERVER_APP)).toMatch(
+      /methods: \{ GET: \{ run: (\$\d+)\.default\.run\("GET"\), params: .*, PUT: \{ run: \1\.default\.run\("PUT"\), .*DELETE: \{ run: \1\.default\.run\("DELETE"\)/,
+    )
+  })
+
+  it('fails the build on an invalid class Controller, also in a later build of the same plugin, and reports it at the dev load', async () => {
+    const bad = {
+      '../server/routes/bad.controller.ts': `import { Controller } from '@sleekstack/start'\nexport default class extends Controller() {\n  GET() {}\n}\n`,
+    }
+    const { root } = scaffold({ ...serverApp, ...classControllerApp })
+    const plugins = [serverServices()]
+    const ssr = () => build({ ...config(root), plugins, build: { write: false, ssr: 'src/server.ts' } })
+    await ssr()
+    fs.writeFileSync(path.join(root, 'server/routes/bad.controller.ts'), bad['../server/routes/bad.controller.ts'])
+    await expect(ssr()).rejects.toThrow(`${root}/server/routes/bad.controller.ts:3 ControllerMethodShape`)
+    fs.rmSync(base, { recursive: true, force: true })
+    const { root: devRoot, load } = await serve({ ...serverApp, ...classControllerApp, ...bad })
+    await expect(load(SERVER_APP)).rejects.toThrow(`${devRoot}/server/routes/bad.controller.ts:3 ControllerMethodShape`)
+  })
+
+  it('runs a Service file again on a dev reload without a duplicate key', async () => {
+    const { server, src } = await serve({ ...serverApp, ...classControllerApp })
+    const file = path.join(src, 'greeter.ts')
+    const first = (await server.ssrLoadModule(file)).Greeter
+    const env = server.environments.ssr
+    env.moduleGraph.invalidateModule(env.moduleGraph.getModuleById(file)!)
+    const again = (await server.ssrLoadModule(file)).Greeter
+    expect(again).not.toBe(first)
+  })
+
   it('writes the committed declaration of the fixture, which types a consumer', async () => {
     const { root, src, declaration } = await serve({ ...serverApp, ...controllerApp })
     expect(fs.readFileSync(declaration, 'utf8')).toBe(
@@ -1098,6 +1158,58 @@ export const text = Effect.flatMap(Notes, (n) => n.save({ params: { id: '1' }, b
     // As the declaration reads once the Controller is renamed: the Manifest's route is unknown.
     fs.writeFileSync(declaration, fs.readFileSync(declaration, 'utf8').replaceAll('notes/[id]', 'memos/[id]'))
     expect(typeErrors(root).join('\n')).toContain('"PUT api/notes/[id]"')
+  })
+})
+
+describe('the RPC Manifest over a class Controller', () => {
+  it('runs each wrapped method on a per-request instance under the Manifest wrap, on the wire and in process', async () => {
+    const { server, src, load } = await serve({ ...serverApp, ...classControllerApp })
+    expect(await load(SERVER_APP)).toMatch(
+      /serviceLayer\(People_\d+, \{ "get": (\$\d+)\.default\.run\("GET"\), "rename": \1\.default\.run\("PUT"\) \}, manifest\(\$\d+\)\.wrap\)/,
+    )
+    const { app } = await server.ssrLoadModule(path.join(src, 'server.ts'))
+    const response: Response = await app.fetch(
+      new Request('http://x.test/_sleek/fn/People.get', {
+        method: 'POST',
+        headers: { origin: 'http://x.test' },
+        body: JSON.stringify({ params: { id: 2 } }),
+      }),
+    )
+    expect(await response.text()).toBe('{"_tag":"Success","value":{"id":2,"by":"rpc"}}')
+    const { Effect } = await server.ssrLoadModule('effect')
+    const { People } = await server.ssrLoadModule(RPC)
+    const { Request: RequestTag } = await server.ssrLoadModule('@sleekstack/start')
+    const { services } = (await server.ssrLoadModule(SERVER_APP)).default
+    const renamed = Effect.flatMap(People, (people: any) =>
+      people.rename({ params: { id: 3 }, body: { name: 'Cy' } }),
+    ).pipe(Effect.provide(services[0].layer), Effect.provideService(RequestTag, new Request('http://x.test/')))
+    expect(await Effect.runPromise(renamed)).toBe('rpc names 3 Cy')
+  })
+
+  it('writes the committed declaration of the fixture, which types the Manifest and ControllerModules by the class', async () => {
+    const { root, declaration } = await serve({ ...serverApp, ...classControllerApp })
+    expect(fs.readFileSync(declaration, 'utf8')).toBe(
+      fs.readFileSync(path.join(CLASS_CONTROLLER_APP, 'src/server.gen.d.ts'), 'utf8'),
+    )
+    fs.writeFileSync(
+      path.join(root, 'src/consumer.ts'),
+      `import type { DecodeError, RpcRoute } from '@sleekstack/start'
+import type { NetworkError } from '@sleekstack/start/client'
+import { Effect } from 'effect'
+import { People } from '${RPC}'
+import type { ControllerModules } from '${SERVER_APP}'
+export const got: Effect.Effect<{ readonly id: number; readonly by: string }, NetworkError | DecodeError, People> =
+  Effect.flatMap(People, (p) => p.get({ params: { id: 1 } }))
+type Put = Parameters<ControllerModules['users/[id]']['PUT']>[0]
+export const put: Put = { params: { id: 1 }, body: { name: 'a' } }
+export const route: RpcRoute = 'DELETE users/[id]'
+// @ts-expect-error the class has no POST
+export const post: RpcRoute = 'POST users/[id]'
+// @ts-expect-error the id is a number
+export const text = Effect.flatMap(People, (p) => p.get({ params: { id: '1' } }))
+`,
+    )
+    expect(typeErrors(root)).toEqual([])
   })
 })
 
