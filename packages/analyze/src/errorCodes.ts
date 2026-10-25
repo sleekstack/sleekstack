@@ -184,11 +184,12 @@ export const ERROR_CODES: Readonly<Record<AnalyzeCode, ErrorHelp>> = {
     docs: SERVER,
   },
   ControllerMethodShape: {
-    rule: 'A Controller method is a named export GET, HEAD, POST, PUT, PATCH, DELETE or OPTIONS: a function of one object `{ params?, query?, body? }` (body only on POST, PUT, PATCH, DELETE) returning an Effect, no `any`; params and query decode from strings.',
+    rule: 'A Controller method is a named export GET, HEAD, POST, PUT, PATCH, DELETE or OPTIONS: a function of one object `{ params?, query?, body? }` (body only on POST, PUT, PATCH, DELETE) returning an Effect, no `any`; params and query decode from strings. Or the default export is one class extending `Controller(...)` directly, its HTTP-named members generator methods with a written `Gen`, beside no named method.',
     fix: [
       'Name the export in capitals (`GET`, not `get`), or give a helper another name',
       'Take one object with only params, query and body',
       'Reference a Schema that encodes to strings for params and query',
+      'In a class Controller, extend `Controller(...)` directly and write each method `*GET(input): Gen<A, E, R>`',
     ],
     docs: CONTROLLER,
   },
