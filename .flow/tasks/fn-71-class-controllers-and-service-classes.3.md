@@ -40,3 +40,4 @@ TBD
 - Commits:
 - Tests:
 - PRs:
+- <!-- Updated by conductor: fn-71.2 shipped. `ControllerDecl` gained `kind: 'functions' | 'class'` and `declared: readonly ControllerDependency[]` (`{ name, tag: ts.Type, location }`, written order, empty for named exports; the type is exported from `@sleekstack/analyze`); `ControllerMethod` is unchanged. `tag` is the type of the declared value (`typeof Users`): match it against provided Tags with `tag.getSymbol()`. A class method's location is its member line; `ControllerDecl` has no class location, so a `MissingDependency` that names the class uses the dependency's location (or add a class location). The `Gen` reading lives in `typeSchema.ts` (`genOf`): the written return type node must name `Gen` from `@sleekstack/start` by its imported symbol. -->
