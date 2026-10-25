@@ -105,7 +105,51 @@ describe('analyzeControllers', () => {
     ])
   })
 
+  it('reads a default-exported class Controller as the equivalent named-export one, with its declared Tags', () => {
+    const read = (route: string) => report.controllers.find((c) => c.route === route)!
+    const methods = (route: string) =>
+      read(route).methods.map((m) => [m.name, m.schema, report.checker.typeToString(m.requires)])
+    expect(read('twin/class/[id]').kind).toBe('class')
+    expect(read('twin/named/[id]')).toMatchObject({ kind: 'functions', declared: [] })
+    expect(methods('twin/class/[id]')).toEqual(methods('twin/named/[id]'))
+    expect(methods('twin/class/[id]').map(([name]) => name)).toEqual(['GET', 'DELETE'])
+    expect(
+      read('twin/class/[id]').declared.map((d) => [d.name, report.checker.typeToString(d.tag), d.location.line]),
+    ).toEqual([['users', 'typeof Users', 7]])
+  })
+
   it.each([
+    [
+      'classes/no-method.controller.ts',
+      3,
+      'Controller "classes/no-method" default-exports a class with no HTTP-named generator method; name a method GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS',
+    ],
+    [
+      'classes/not-generator.controller.ts',
+      5,
+      'Controller "classes/not-generator" GET is not a generator method of the class; write `*GET(input: { ... }): Gen<A, E, R> { ... }`',
+    ],
+    [
+      'classes/no-gen.controller.ts',
+      6,
+      'Controller "classes/no-gen" GET does not return a written `Gen<A, E, R>`; write the return type `Gen<A, E, R>` imported from `@sleekstack/start`',
+    ],
+    [
+      // A local alias of the whole `Gen` is refused.
+      'classes/no-gen.controller.ts',
+      7,
+      'Controller "classes/no-gen" POST does not return a written `Gen<A, E, R>`; write the return type `Gen<A, E, R>` imported from `@sleekstack/start`',
+    ],
+    [
+      'classes/indirect.controller.ts',
+      5,
+      'Controller "classes/indirect" default-exports a class that does not extend `Controller(...)` of @sleekstack/start directly; write `export default class extends Controller({ ... }) { ... }`',
+    ],
+    [
+      'classes/two-forms.controller.ts',
+      8,
+      'Controller "classes/two-forms" exports "POST" beside its default class; a file is one form, so make it a generator method of the class',
+    ],
     [
       'near-miss.controller.ts',
       3,

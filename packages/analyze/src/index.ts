@@ -36,6 +36,7 @@ export { TEST_FILE } from './extract'
 export { analyzeControllers, controllerRoute } from './controllers'
 export type {
   ControllerDecl,
+  ControllerDependency,
   ControllerMethod,
   ControllerMethodName,
   ControllerReport,
