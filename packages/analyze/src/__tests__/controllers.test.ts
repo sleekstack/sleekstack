@@ -102,6 +102,8 @@ describe('analyzeControllers', () => {
       'Controller "missing" POST requires "Viewer", which no wrap above it, no Layer File and no start({ layer }) provides',
       // Once for both Controllers beneath it; the inner wrap's `Viewer` comes from it.
       'The wrap of "server/routes/audited/_defaults.ts" requires "Audit", which no wrap above it, no Layer File and no start({ layer }) provides',
+      // A declared Tag is provided as a method's `R` is: `users/declared`'s wrap-provided `Viewer` is not reported.
+      'Controller "classes/declared" class Declared declares "audit" as "Audit", which no wrap above it, no Layer File and no start({ layer }) provides',
     ])
   })
 

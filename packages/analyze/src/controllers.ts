@@ -58,6 +58,22 @@ export const signatureOf = (decl: ts.Declaration | undefined): ts.SignatureDecla
   return init && (ts.isArrowFunction(init) || ts.isFunctionExpression(init)) ? init : undefined
 }
 
+/**
+ * The default export of `sf` when it is a class, with the `Controller(...)` call it extends directly (undefined when it
+ * extends anything else).
+ */
+export const defaultClassOf = (sf: ts.SourceFile, checker: ts.TypeChecker) => {
+  const module = checker.getSymbolAtLocation(sf)
+  const exported = module && checker.getExportsOfModule(module).find((e) => e.name === 'default')
+  const cls = (exported && exported.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(exported) : exported)
+    ?.valueDeclaration
+  if (!cls || !ts.isClassLike(cls)) return undefined
+  const base = cls.heritageClauses?.find((h) => h.token === ts.SyntaxKind.ExtendsKeyword)?.types[0]?.expression
+  const isController =
+    base && ts.isCallExpression(base) && libId(checker.getSymbolAtLocation(base.expression), checker) === CLASS_BASE
+  return { cls, base: isController ? base : undefined }
+}
+
 export interface ControllerRoute {
   /** The path under the Controllers directory without `.controller.ts`, such as `articles/[slug]` or `(admin)/index`. */
   readonly route: string
@@ -414,15 +430,10 @@ export function analyzeControllers(opts: {
   }
   /** The default export of `sf` when it is a class extending `Controller(...)` directly, with its declared Tags. */
   const controllerClassOf = (sf: ts.SourceFile, route: ControllerRoute) => {
-    const exported = exportsOf(sf).find((e) => e.name === 'default')
-    const cls = exported && resolve(exported).valueDeclaration
-    if (!cls || !ts.isClassLike(cls)) return undefined
-    const base = cls.heritageClauses?.find((h) => h.token === ts.SyntaxKind.ExtendsKeyword)?.types[0]?.expression
-    if (
-      !base ||
-      !ts.isCallExpression(base) ||
-      libId(checker.getSymbolAtLocation(base.expression), checker) !== CLASS_BASE
-    ) {
+    const found = defaultClassOf(sf, checker)
+    if (!found) return undefined
+    const { cls, base } = found
+    if (!base) {
       report(
         'ControllerMethodShape',
         cls,
@@ -501,6 +512,19 @@ export function analyzeControllers(opts: {
         )
       }
       for (const tag of wrap.discharged) provided.add(tag)
+    }
+    // A declared Tag is resolved where the method runs, so it is provided as the method's `R` is (R4).
+    const className = `class${controllerClass?.cls.name ? ` ${controllerClass.cls.name.text}` : ''}`
+    for (const dep of controllerClass?.declared ?? []) {
+      const tag = dep.tag.getSymbol()
+      if (isProvided(tag)) continue
+      errors.push(
+        analyzeError(
+          'MissingDependency',
+          `Controller "${route.route}" ${className} declares "${dep.name}" as "${tag?.getName() ?? checker.typeToString(dep.tag)}", which no wrap above it, no Layer File and no start({ layer }) provides`,
+          dep.location,
+        ),
+      )
     }
     for (const method of methods)
       for (const t of membersOf(method.requires)) {
