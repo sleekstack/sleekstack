@@ -37,9 +37,15 @@ Finish the documentation and status of ADR 0056 once the code exists. Land after
 - [ ] TBD
 
 ## Done summary
-TBD
+ADR 0056 is Accepted ("Built in spec fn-71") with each line checked against the build (Gen read by imported symbol, static `run`, per-instance Service and per-class Controller wrapping, ControllerMethodsOf, the Service-key reload rule, `kind` in the report; the Settled section dropped); ADR 0053's class-controller rejection points to it and the index has the 0056 row (no 0055 row). CONTEXT.md has Service Class, Class Controller and Declared Dependency; the Controllers guide has a Class Controllers section (snippet `server/routes/notes/[id]/title.controller.ts`, declared in the snippet `server.gen.d.ts` as `ControllerMethodsOf`) and the Server Services guide shows `Effect.Service` and the Service Class side by side (`greeter-effect.ts`, `greeter-class.ts`); errors.mdx, the start/analyze/ui-vite READMEs and llms.md (7485 bytes) describe the class form.
 
+- llms.md's error section is generated from `ERROR_CODES`, so the `ControllerMethodShape` rule (and one fix line) changed in `packages/analyze/src/errorCodes.ts`, outside the task's Touches list; llms.md has one added vocabulary line.
+- realworld README already carried the class Controller sentence (fn-71.5); unchanged.
+- fn-70 also edits CONTEXT.md, errors.mdx, llms.md and the ADR index: whichever lands second rebases and re-checks llms.md's size.
+
+stage: impl-review - skipped(policy: user asked for one completion review at the end of the spec)
+Tier: implementer opus at medium
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 6217c0d904c3e33b2a7453e85befa9769c71a36a, 65491fadd24a5accab95b8cfc57f3b9c28829656, 0223933714339a43a75caae06adb58e3d63a7abd, b6b4492a98103bfe8beefd75bb60c7c2d8e3f1d6, 63eefa16015d0de1c1d119ddfd5a911e70785fa1
+- Tests: pnpm turbo run test typecheck build --filter=docs --concurrency=1, pnpm --filter realworld check, pnpm --filter showcase check, pnpm format:check, cd packages/cli && npx vitest run llms, cd packages/analyze && npx vitest run errorCodes, pnpm turbo run test typecheck --filter=@sleekstack/analyze --filter=sleekstack --concurrency=1
 - PRs:
