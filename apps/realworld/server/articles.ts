@@ -1,5 +1,5 @@
 import type { DatabaseSync } from 'node:sqlite'
-import { Clock, Effect, Option } from 'effect'
+import { Clock, Context, Effect, Layer, Option } from 'effect'
 import { Forbidden, NotFound, requireFields, ValidationError } from '../src/errors'
 import type { Article, ArticleList, ArticleQuery, NewArticle, Page, UpdateArticle } from '../src/modules/articles'
 import { Viewer } from '../src/modules/identity'
@@ -293,3 +293,28 @@ export const unfavorite = (slug: string) =>
     db.prepare('DELETE FROM favorites WHERE user_id = ? AND article_id = ?').run(viewer.id, id)
     return yield* getArticle(slug)
   })
+
+/** The methods over one database: what the `Articles` service holds, with `Db` provided so callers need only the viewer. */
+const closeOver = (db: DatabaseSync) => {
+  const close =
+    <A extends ReadonlyArray<any>, X, E, R>(method: (...args: A) => Effect.Effect<X, E, R>) =>
+    (...args: A) =>
+      Effect.provideService(method(...args), Db, db)
+  return {
+    list: close(listArticles),
+    feed: close(feed),
+    get: close(getArticle),
+    create: close(createArticle),
+    update: close(updateArticle),
+    delete: close(deleteArticle),
+    favorite: close(favorite),
+    unfavorite: close(unfavorite),
+    tags: () => Effect.provideService(tags, Db, db),
+  }
+}
+
+/** The articles of the Conduit database: what a Controller or an RPC File calls. */
+export class Articles extends Context.Tag('realworld/server/Articles')<Articles, ReturnType<typeof closeOver>>() {}
+
+/** `Articles` over the `Db` it is built with. */
+export const ArticlesLive = Layer.effect(Articles, Effect.map(Db, closeOver))

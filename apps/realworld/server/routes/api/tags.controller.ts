@@ -1,7 +1,6 @@
 import { Effect } from 'effect'
-import { tags } from '../../articles'
-import type { Db } from '../../db'
+import { Articles } from '../../articles'
 
 /** Every tag in use, by name. */
-export const GET = (): Effect.Effect<{ readonly tags: readonly string[] }, never, Db> =>
-  Effect.map(tags, (list) => ({ tags: list }))
+export const GET = (): Effect.Effect<{ readonly tags: readonly string[] }, never, Articles> =>
+  Effect.flatMap(Articles, (articles) => articles.tags()).pipe(Effect.map((list) => ({ tags: list })))
