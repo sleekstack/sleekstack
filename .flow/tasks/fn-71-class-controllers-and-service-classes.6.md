@@ -18,6 +18,7 @@ Finish the documentation and status of ADR 0056 once the code exists. Land after
 - Guides show `Effect.Service` and the class form side by side with type-checked snippets (`examples.test.ts` typechecks them in place; a snippet that uses a virtual module needs a committed declaration beside it, declared once in the shared TS program; every snippet file must be included by a guide).
 - `errors.mdx` rows for `ControllerMethodShape` (class shapes) and `MissingDependency` (declared Tags); `llms.md` is 7082 of 8192 bytes, so keep the additions short and re-check the size.
 - READMEs: start export table (`Service`, `Controller`, `Gen`, `accessors`), analyzer Controller pass bullets, realworld "Two server surfaces".
+- <!-- Updated by conductor: fn-71.4 shipped. Document the new public type `ControllerMethodsOf` (TSDoc is in `@sleekstack/start`), the Service-key reload rule (a file may re-define its key; a different file reusing a key throws; two Services with one key in one file are not caught), the analyzer report fields `ControllerDecl.kind`/`declared` and `RpcMethod.controller.kind`, and the class module's generated declaration shape. The ui-vite tests import start's built `dist`, so start must be rebuilt before running them alone. -->
 
 ### Investigation targets
 **Required**:
