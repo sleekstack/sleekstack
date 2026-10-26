@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted. Reverses the "Decorators and class controllers" rejection of ADR 0053 and extends ADR 0054's wiring. The named-export Controller of ADR 0053 stays valid. Built in spec fn-71.
+Accepted. Reverses the "Decorators and class controllers" rejection of ADR 0053 and extends ADR 0054's wiring. The named-export Controller of ADR 0053 stays valid. Built in spec fn-71. Amended by ADR 0057: a `records(...)` default export is a third Controller form, and named Controller Methods beside it stay ordinary.
 
 ## Context
 

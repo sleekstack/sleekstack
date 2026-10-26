@@ -205,6 +205,10 @@ _Avoid_: handler, action
 A Controller written as one `export default class extends Controller({ ... })` whose generator methods named after HTTP methods are its Controller Methods, each with a written `input` type and a written `Gen<A, E, R>` return (ADR 0056). It is built per request inside the `wrap` chain, so a Declared Dependency may be a request service. Its options stay named exports beside the class. A file is one form: a default class beside a named Controller Method export is `ControllerMethodShape`.
 _Avoid_: controller object, decorated controller
 
+**Record Controller**:
+A `[id].controller.ts` whose default export is `records(Record)` (`@sleekstack/start`, ADR 0057). It serves the Record Type at its path: `GET` answers the Record Adapter's `find(id)` and `PATCH` decodes the body with `record.change` and answers its `save(id, change)`, both as the record's wire form. Named Controller Methods beside it stay ordinary, except a `GET` or `PATCH` (`RecordsMethodCollision`).
+_Avoid_: ViewSet, records route
+
 **Service Class**:
 A class extending `Service<Self>()(id, { ... })` from `@sleekstack/start`: it is its own Tag, its generator methods run as spanned Effects, and its static `Default` Layer builds it once with the app's Layer from its Declared Dependencies (ADR 0056). A caller that is not a generator reaches the methods through `accessors(Class)`. Distinct from `Effect.Service`, whose methods come from a constructor function.
 _Avoid_: service object, injectable
@@ -289,8 +293,12 @@ One field's wire format, made by `defineTransformation(name, options => ({ from,
 _Avoid_: serializer, transform registry
 
 **Record Adapter**:
-The wire contract of one Record Type: an app-written Service (`RecordAdapter`, behind an app-declared `Effect.Tag`, supplied as a Layer) whose `find(id)` and `save(id, change)` remove the response envelope and shape the request and PATCH bodies. Swapping REST for GraphQL changes only its Layer; a missing one shows in `R`.
+The wire contract of one Record Type: an app-written Service (`RecordAdapter`, behind an app-declared `Effect.Tag`, supplied as a Layer) whose `find(id)` and `save(id, change)` remove the response envelope and shape the request and PATCH bodies. Swapping REST for GraphQL changes only its Layer; a missing one shows in `R`. For a Served Record the same Tag has a Layer per side: on the server an app Layer File provides it from the database, in the browser a generated HTTP Layer (ADR 0057).
 _Avoid_: serializer, HTTP client, data source
+
+**Served Record**:
+A Record Type that a Record Controller serves (ADR 0057). Its fields are the wire shape and nothing else: `readOnly(schema)` marks a field the client reads and never writes, and `record.change` is the PATCH body (every editable field, in wire form). The database stays behind its Record Adapter Tag in a server-only Layer File; the record module and the Tag stay client-safe. Failures are `RecordNotFound` (404) and `RecordRejected` (422).
+_Avoid_: serializer, `table`, server model
 
 **Record Reference**:
 One entry of a relationship: `RecordRef { id, value }`, the target's id as the owner holds it and the target record (`None` until it is in the Identity Map). `record.related(id, field)` is a derived atom of them that follows the owner and every target and never fetches; a missing target keeps its id and position.

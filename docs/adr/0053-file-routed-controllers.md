@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted. Amends ADR 0039 (route handlers at exact pathnames only; the request services gain `ResponseStatus`) and reuses ADR 0050's path syntax. Replaces the term Server Endpoint. Its wiring half is ADR 0054 (built in spec fn-69): a Controller's services come from Layer Files, `start({ layer })`, a `wrap` or the request services. Built in spec fn-68.
+Accepted. Amends ADR 0039 (route handlers at exact pathnames only; the request services gain `ResponseStatus`) and reuses ADR 0050's path syntax. Replaces the term Server Endpoint. Its wiring half is ADR 0054 (built in spec fn-69): a Controller's services come from Layer Files, `start({ layer })`, a `wrap` or the request services. Built in spec fn-68. Amended by ADR 0057: `export default records(Record)` is the one call form allowed in a Controller file.
 
 ## Context
 
@@ -32,7 +32,7 @@ ADR 0050 already turns files into routes for pages, and the Start proposal (`doc
 
 ## Rejected
 
-- **A `method({ params, success, error }, fn)` helper.** The Schemas would sit in a server-only file, and the browser client that ADR 0054 generates must import them. Stripping the file in the client build rests on import pruning, which ADR 0051 rejected.
+- **A `method({ params, success, error }, fn)` helper.** The Schemas would sit in a server-only file, and the browser client that ADR 0054 generates must import them. Stripping the file in the client build rests on import pruning, which ADR 0051 rejected. This stands; ADR 0057's `records(...)` is the one exception, since its Schemas come from a client-safe record module.
 - **A keyed `schema` export or a sibling Schema File paired by name,** with `status` as a field of it. It needs a second place to look and an annotation anyway to type the method.
 - **A cast the author decodes in the body** (`yield* Body(S)`). A cast can lie, and the RPC wire needs a Schema value at run time, not a type.
 - **A `status` option export, or a returned `Response` for the status.** A returned `Response` cannot cross the RPC wire (ADR 0054).
