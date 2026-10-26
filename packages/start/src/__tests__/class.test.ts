@@ -77,6 +77,15 @@ describe('Service', () => {
       /collides/,
     ],
     ['a key used in another file', rowsAgain, /already used/],
+    [
+      'a key used by another Service of the same file',
+      () => {
+        class A extends Service<A>()('test/Twice') {}
+        class B extends Service<B>()('test/Twice') {}
+        return [A, B]
+      },
+      /already used/,
+    ],
   ])('is a defect for %s', (_, define, message) => {
     expect(define).toThrow(message)
   })

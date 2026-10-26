@@ -103,19 +103,18 @@ const generators = (proto: object, base: object, deps: Deps, reserved: ReadonlyA
   return list
 }
 
-/** Each Service key and the file that defined it. */
+/** Each Service key and the site that defined it. */
 const keys = new Map<string, string | undefined>()
 
 /**
- * The file of the code calling `Service<Self>()(...)`, without its query, from the V8 stack: a dev reload re-runs a
- * Service file (often with a `?t=` query) while `@sleekstack/start` stays loaded, and must not be a duplicate key.
- * shortcut: two Services with one key in one file are not caught; key the registry by module instance if that matters.
+ * The `file:line:column` of the `Service<Self>()(...)` call, the file without its query, from the V8 stack: a dev reload
+ * re-runs a Service file (often with a `?t=` query) while `@sleekstack/start` stays loaded, and the same site running
+ * again must not be a duplicate key, while another site with the key, in any file, is.
  */
-const callerFile = (): string | undefined =>
-  new Error().stack
-    ?.split('\n')[3]
-    ?.match(/\(?([^()\s]+?):\d+:\d+\)?$/)?.[1]
-    ?.replace(/\?.*$/, '')
+const callerSite = (): string | undefined => {
+  const site = new Error().stack?.split('\n')[3]?.match(/\(?([^()\s]+?):(\d+:\d+)\)?$/)
+  return site ? `${site[1]!.replace(/\?.*$/, '')}:${site[2]}` : undefined
+}
 
 /**
  * A base class for a service written as a plain class of generator methods. The second argument names the Tags the
@@ -127,8 +126,9 @@ const callerFile = (): string | undefined =>
  * - The class is itself the Tag: `yield* Articles`, `Layer.succeed(Articles, ...)`.
  * - TypeScript types a generator method as a `Generator`, so a caller that is not itself a generator uses
  *   {@link accessors}. `super` calls to an inherited generator method are not supported.
- * - A key used by a `Service` of another file, and a declared name that is `constructor` or a method of the class, are
- *   defects when the class is defined or first built. A file that runs again (a dev reload) may define its keys again.
+ * - A key used by another `Service`, in the same file or another, and a declared name that is `constructor` or a method
+ *   of the class, are defects when the class is defined or first built. A file that runs again (a dev reload) may
+ *   define its keys again from the same place.
  *
  * @example
  * ```ts
@@ -152,10 +152,10 @@ const callerFile = (): string | undefined =>
 export const Service =
   <Self>() =>
   <const D extends Deps = {}>(key: string, deps?: D): ServiceClass<Self, D> => {
-    const file = callerFile()
-    if (keys.has(key) && (file === undefined || keys.get(key) !== file))
+    const site = callerSite()
+    if (keys.has(key) && (site === undefined || keys.get(key) !== site))
       throw new Error(`The Service key "${key}" is already used by another Service`)
-    keys.set(key, file)
+    keys.set(key, site)
     const declared: Deps = deps ?? {}
     const tag = Context.GenericTag<Self, Self>(key)
     const layers = new WeakMap<object, Layer.Layer<any, never, any>>()
