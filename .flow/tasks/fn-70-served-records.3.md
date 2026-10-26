@@ -36,9 +36,13 @@ The server half of `export default records(Record)`: a function of the record th
 - [ ] TBD
 
 ## Done summary
-TBD
+Added `records(record)` and `recordsMethods(value)` to @sleekstack/start (packages/start/src/records.ts). `recordsMethods` builds the GET and PATCH Controller Method entries. `params` is `{ id: string }`, the PATCH body is `record.change`, and `success` is `Schema.encodedBoundSchema(record.schema)`. `run` calls the adapter Tag directly. RecordNotFound answers 404 and RecordRejected 422 as a JSON `Response` carrying the error's fields. Every other failure reaches `wrap` unchanged. Tests are in packages/start/src/__tests__/records.test.ts (one test per AC: GET wire form, 404, PATCH saved wire form with a read-only key ignored, 422, 400 DecodeError, 415, 405 with Allow, failure reaches wrap, encode defect 500 plus error sink). The type tests are in records.test-d.ts: no Store in R, no adapter is a type error, Service-needing Schemas are a type error, and a non-adapter Tag is a type error.
 
+Deviations: @sleekstack/start does not depend on @sleekstack/model, and package.json was outside Touches. So `records` reads the record structurally (`ServableRecord`) and matches the two errors by `_tag`. The tests build a defineRecord-shaped value by hand. A Service-needing record is rejected by the constraint `schema: Schema<any, any, never>` rather than a `never` conditional. The 404/422 bodies are returned as a `Response`, not set through `ResponseStatus`, because `success` would otherwise try to encode the error body as the record. Follow-up: task .4 (HTTP adapter) will likely add model as a dependency of start, and the `_tag` match could then become `instanceof`.
+
+Tier: implementer (actual_model: claude-opus-5-5)
+stage: impl-review - skipped(config: REVIEW_MODE=none)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: ed7e088121bbdd17a2a59075162e085b977f7f20
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/start...
 - PRs:
