@@ -33,8 +33,17 @@ export interface Records<R extends ServableRecord> {
  *
  * @example
  * ```ts
+ * import { defineRecord, type RecordAdapter, type RecordNotFound } from '@sleekstack/model'
  * import { records } from '@sleekstack/start'
- * import { Article } from '../../src/records/article'
+ * import { Context, Schema } from 'effect'
+ *
+ * // In an app, the record and its Tag sit in a client-safe module the Controller imports.
+ * type ArticleWire = { readonly id: string; readonly title: string }
+ * class ArticleApi extends Context.Tag('ArticleApi')<
+ *   ArticleApi,
+ *   RecordAdapter<ArticleWire, Omit<ArticleWire, 'id'>, RecordNotFound>
+ * >() {}
+ * const Article = defineRecord('article', { fields: { id: Schema.String, title: Schema.String }, adapter: ArticleApi })
  *
  * export default records(Article)
  * ```
