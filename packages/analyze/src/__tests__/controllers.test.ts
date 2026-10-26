@@ -214,8 +214,8 @@ describe('analyzeControllers: records(...)', () => {
     expect(records.errors.map((e) => `${e.code} ${at(e)}`).sort()).toEqual(markers(dir).sort())
   })
 
-  it.each(['articles/[id]', 'barrel/[id]'])(
-    '%s serves GET and PATCH with params { id }, its record and adapter Tag (a re-export barrel too)',
+  it.each(['articles/[id]', 'barrel/[id]', 'aliased/[id]'])(
+    '%s serves GET and PATCH with params { id }, its record and adapter Tag (a re-export barrel and an aliased import too)',
     (route) => {
       const c = read(route)!
       const id = {

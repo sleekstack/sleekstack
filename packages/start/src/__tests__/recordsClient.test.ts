@@ -58,7 +58,7 @@ describe('recordAdapterLayer', () => {
       'Bad Request',
       new RecordRejected({ type: 'article', id: '1', message: 'bad' }),
     ],
-    [422, '', 'Unprocessable', new RecordRejected({ type: 'article', id: '1', message: 'Unprocessable' })],
+    [422, '{}', 'Unprocessable', new RecordRejected({ type: 'article', id: '1', message: 'Unprocessable' })],
   ])('status %i is a typed failure', async (status, body, statusText, error) => {
     fake(status, body, statusText)
     expect(await save('1', {})).toEqual(Exit.fail(error))
@@ -69,6 +69,9 @@ describe('recordAdapterLayer', () => {
     ['500', () => fake(500, '{}')],
     ['an array body', () => fake(200, '[]')],
     ['a non-JSON body', () => fake(200, 'oops')],
+    ['a 404 with an array body', () => fake(404, '[]')],
+    ['a 400 with a non-JSON body', () => fake(400, 'oops')],
+    ['a 422 with an empty body', () => fake(422, '')],
     ['a rejected fetch', () => vi.stubGlobal('fetch', () => Promise.reject(new TypeError('offline')))],
   ])('%s is a defect', async (_, setup) => {
     setup()

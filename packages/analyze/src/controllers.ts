@@ -537,9 +537,14 @@ export function analyzeControllers(opts: {
       requires: tagSymbol ? checker.getDeclaredTypeOfSymbol(tagSymbol) : tag,
       schema: { input, success: undefined },
     }))
+    // The const's name in its own module, not the caller's spelling (`import { Article as Story }`).
+    const declFile = decl.getSourceFile()
+    const moduleSymbol = checker.getSymbolAtLocation(declFile)
+    const exportName =
+      moduleSymbol && checker.getExportsOfModule(moduleSymbol).find((e) => resolve(e) === resolve(sym))?.name
     const served: ServedRecord = {
-      name,
-      file: path.relative(root, decl.getSourceFile().fileName),
+      name: exportName ?? (ts.isIdentifier(decl.name) ? decl.name.text : name),
+      file: path.relative(root, declFile.fileName),
       adapter: tag,
       location,
     }

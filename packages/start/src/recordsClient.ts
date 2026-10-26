@@ -35,10 +35,15 @@ export const recordAdapterLayer = <R extends ServedRecordRef>(
         return { res, body }
       }),
       ({ res, body }): Effect.Effect<Record<string, unknown>, RecordNotFound | RecordRejected> => {
-        if (res.ok && isObject(body)) return Effect.succeed(body)
+        // Every answer is a JSON object (R6): anything else is not from a served record, so it is a defect, not a typed failure.
+        if (!isObject(body))
+          return Effect.dieMessage(
+            `${init.method} ${res.url || pattern} of '${record.type}' answered ${res.status} without a JSON object`,
+          )
+        if (res.ok) return Effect.succeed(body)
         if (res.status === 404) return Effect.fail(new RecordNotFound({ type: record.type, id }))
         if (res.status === 400 || res.status === 422) {
-          const message = isObject(body) && typeof body.message === 'string' ? body.message : res.statusText
+          const message = typeof body.message === 'string' ? body.message : res.statusText
           return Effect.fail(new RecordRejected({ type: record.type, id, message }))
         }
         return Effect.dieMessage(`${init.method} ${res.url || pattern} of '${record.type}' answered ${res.status}`)
