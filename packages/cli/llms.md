@@ -57,6 +57,7 @@ Anything else is a `CaptiveDependency`. `request` and `component` never nest.
 - **Tag**: an Effect `Context.Tag`. **Layer**: an Effect `Layer` that builds services. **Declared Layer**: a Layer plus its Lifetime (`declareLayer`). **Module**: a named group of entries with `imports` and `exports`; unexported Tags are private to the module.
 - **Lifetime**: `app` | `request` | `component`. **Shadowing**: a more local provider of a Tag overrides an outer one.
 - **Service Class** / **Class Controller** (`@sleekstack/start`): `class X extends Service<X>()(id, { db: Db })` / `export default class extends Controller({ db: Db })`, generator methods returning `Gen<A, E, R>`, each declared Tag on `this`.
+- **Served Record**: `export default records(R)` (`@sleekstack/start`) in a `[id].controller.ts` serves `GET`/`PATCH` via R's adapter Tag (a `*.layer.ts` on the server, generated in the browser). `readOnly(schema)` drops a field from `R.change`; failures `RecordNotFound` 404, `RecordRejected` 422.
 - Avoid: "provider", "container", "registry", "injector", "token"; say Layer, Graph, Module, Tag.
 
 ## Errors

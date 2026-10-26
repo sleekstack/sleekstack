@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed (draft). Amends ADR 0053: its rejection of a `method(...)` helper stands, and the `records(...)` call form is the one exception. Amends ADR 0056's "a file is one form or the other" for a `records(...)` default export. Extends ADR 0041 (records layer) with read-only fields, `record.change` and two package-defined errors. Planned in spec fn-70.
+Accepted. Amends ADR 0053: its rejection of a `method(...)` helper stands, and the `records(...)` call form is the one exception. Amends ADR 0056's "a file is one form or the other" for a `records(...)` default export. Extends ADR 0041 (records layer) with read-only fields, `record.change` and two package-defined errors. Built in spec fn-70.
 
 ## Context
 

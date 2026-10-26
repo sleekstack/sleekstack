@@ -185,6 +185,29 @@ With an adapter, a Record Type has `find` and `commit`; without one, it has the 
 5. Provide the Store and the adapter Layer to the app's Layer, and to the Query Client Layer when using `queryOf`.
 6. Test with a fake adapter Layer.
 
+### Served records
+
+A **Served Record** is a Record Type that the app's own server serves, so neither the REST route nor the browser adapter is written by hand ([ADR 0057](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0057-served-records.md)). The record is the wire shape and nothing else. The adapter Tag gets a Layer for each side, as a [Server Service](/docs/server-services) does. It takes three files:
+
+- The record module, with the record and its adapter Tag. It is client-safe and imports nothing server-side.
+- A **Record Controller**: a `[id].controller.ts` under `server/routes` whose default export is `records(Record)` from `@sleekstack/start`.
+- A Layer File (`*.layer.ts`, server-only) that provides the adapter Tag from the database.
+
+<include>../../snippets/models/served/src/article.ts</include>
+
+<include>../../snippets/models/served/server/routes/articles/[id].controller.ts</include>
+
+<include>../../snippets/models/served/server/article.layer.ts</include>
+
+- `GET` answers the adapter's `find(id)` and `PATCH` decodes the body with `record.change`, then answers the adapter's `save(id, change)`. Each answers the record's wire form as bare JSON, 200. `HEAD` and `OPTIONS` follow the [Controller](/docs/controllers) defaults, and any other method is `MethodNotAllowed`.
+- `RecordNotFound { type, id }` answers 404 and `RecordRejected { type, id, message }` answers 422, each with its fields and `_tag` as the body. They are exported from `@sleekstack/model` and matched by `_tag`. Any other failure reaches `wrap`, as for every Controller.
+- `readOnly(schema)` marks a field the client reads and never writes (`createdAt`, a server counter); `id` is read-only without a marker. Such a field stays in the record and the wire form, and is left out of the Draft, `RecordChange` and `record.change`.
+- `record.change` is the PATCH body's Schema: every editable field, required, in wire form, which is exactly what `commit` sends. Decoding drops a read-only field or an unknown key. A missing editable field is a `ParseError`, which answers 400 `DecodeError` unless `wrap` maps it.
+- On the server, the Layer File provides the Tag in-process to the Controller, SSR and loaders. In the browser, the `serverServices()` Vite plugin generates the Tag's Layer with `recordAdapterLayer` from `@sleekstack/start/client` and adds it to the browser Layer of `virtual:sleek/server`. `find` calls `GET` and `save` calls `PATCH` of the route. 404 fails with `RecordNotFound`, 400 and 422 fail with `RecordRejected` (the body's `message`, else the status text), and any other status, a failed `fetch` or a body that is not a JSON object is a defect. Renaming the Controller file changes the URL and nothing else.
+- Authorization goes in the Layer File's implementation, which runs with the request services. There is no `authorize` hook.
+- `sleekstack check` reads the call. It reports `RecordsRouteShape` when the path does not end in exactly `[id]`, when the argument is not a `defineRecord` const with an `adapter`, or when the fields' Schemas need a Service. It reports `RecordsMethodCollision` when the file also exports a named `GET` or `PATCH`; another named method (`DELETE`) is an ordinary Controller Method. With no Layer File providing the Tag, it reports `MissingDependency` ([errors](/docs/errors)).
+- v1 serves `find` and `save` only: no `list`, `create`, `remove`, partial PATCH or custom envelope. For another wire, write the adapter Layer by hand as above, beside served records in the same Store. Showcase serves its `User` record this way and keeps `Post`'s hand-written adapter.
+
 ## Tests
 
 Test a spec with no UI: `fromDto` with a literal `ctx`, `toDto` with its Services provided, and the schema on the seed. The seed test catches the blank-field class of bug that a round trip on good data never reaches: an edit Draft's seed must pass its own schema, and a create Draft's must fail until its required fields are filled.
@@ -229,4 +252,4 @@ ADR 0038 leaves these to user code ([Rejected](https://github.com/sleekstack/sle
 Records leave these out of v1 ([ADR 0041, Consequences](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0041-records-layer.md#consequences)):
 
 - Inverse sync between relationship sides, optimistic writes to the shared record, partial records and unknown relationship membership, pagination and polymorphism.
-- An HTTP client or a JSON:API format: the Record Adapter is app code.
+- An HTTP client or a JSON:API format: the Record Adapter is app code, except a served record's browser Layer, which is generated.
