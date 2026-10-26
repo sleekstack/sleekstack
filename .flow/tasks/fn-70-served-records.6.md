@@ -37,9 +37,22 @@ Emit, from the Analyzer's read, the Controller entry for a served record and the
 - [ ] TBD
 
 ## Done summary
-TBD
+The ui-vite codegen now handles served records (packages/ui-vite/src/server-services.ts). In a records Controller's entry in `virtual:sleek/server-app`, `methods` is `{ ...recordsMethods(<module>.default), <named methods except GET/PATCH> }`. `virtual:sleek/server` default-exports `Layer.mergeAll(serverClients(entries), recordAdapterLayer(<Record>, "<pattern>"), ...)`. That code imports `recordAdapterLayer` from `@sleekstack/start/client` and the record from its own client-safe module. The declaration types the browser `layer` with each record's adapter Tag identifier. The registry and the server app never contain `recordAdapterLayer` (R7). In dev, editing a served record's module invalidates the discovered app the same way a Controller edit does. The first step was the task-5 drift fix: `ControllerRead.kind` is now `ControllerDecl['kind']`.
 
+Tests are in packages/ui-vite/src/__tests__/server-services.test.ts, `describe('served records')`, over the new fixture fixtures/records/ (record + Tag in src/article.ts, `records(Article)` beside a named DELETE, and an in-memory Layer File).
+- Test 1 (AC1/AC3) covers GET 200/404 and PATCH 200/422 through `start()`, and that DELETE stays an ordinary method. It also checks that the server app and registry hold no `recordAdapterLayer`, that the client Layer's `find` fetches `/articles/a%20b`, and that a consumer typechecks against the declaration.
+- Test 2 (AC2): renaming the Controller file changes only the pattern in the client module.
+- Test 3: a record-module edit reloads the app in dev.
+Tests 1 and 3 were confirmed red against the pre-change codegen. Test 2 passed vacuously at first, so a precondition was added. AC4 (no-records output unchanged) is pinned by the existing inline snapshots of the client module and the controller-app server module, which pass unchanged.
+
+Deviations:
+- packages/ui-vite does not depend on `@sleekstack/model`. The test scaffold maps `@sleekstack/model` to the model source through tsconfig `paths` and a Vite alias, and it is a test-only change.
+- dev.ts needed no change: the reload lives in server-services.ts's watcher.
+- When discovery fails, the client module omits the record Layers rather than failing. The server-app load and the build already report that error.
+
+Tier: implementer (actual_model: claude-opus-5-5)
+stage: impl-review - skipped(config: REVIEW_MODE=none)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: d2c7896f041a82f412cac518efb98b2772e195cd
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/ui-vite... (baseline: red - ui-vite typecheck TS2769 at server-services.ts:454, task-5 drift, fixed in this task), pnpm turbo run test typecheck --filter=@sleekstack/ui-vite...
 - PRs:
