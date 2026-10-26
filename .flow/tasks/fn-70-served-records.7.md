@@ -34,9 +34,17 @@ The first adopter. `User` becomes a served record; `Post` keeps its hand-written
 - [ ] TBD
 
 ## Done summary
-TBD
+Showcase now serves its `User` record. `User` and `UserApi` live in the client-safe `src/modules/users/domain/user.ts`. `server/routes/api/users/[id].controller.ts` is `export default records(User)`, and the Layer File `server/user.layer.ts` holds the users table in a `Ref`; it fails `RecordNotFound` for an unknown id and `RecordRejected` for a name another user already has. The model page provides only `PostApiLive`, so `UserApi` comes from the generated browser Layer in `virtual:sleek/server`, and `Post` keeps its hand-written adapter in the same Store. No mismatch appeared between the by-shape check, the Analyzer's read, the generated Layer (`server.gen.d.ts` now types it with `UserApi`) and the Controller; no other package was edited.
 
+Tests (`apps/showcase/test/model.test.ts`): the records test now stubs `fetch` to `app.fetch` and asserts the PATCH to `/api/users/u1`. Two named tests were added: "saving a user the server no longer has shows RecordNotFound", where the PATCH is pointed at a missing id, and "saving a name the server refuses shows RecordRejected". The stub waits 50 ms before answering, standing in for the old fake's 100 ms sleep, so the existing 'Saving' assertion keeps its strength.
+
+`architecture.test.ts` now has a `users` module, domain code may import `@sleekstack/model`, and `server.gen.d` may reach a module's `domain/`, because the generated types name a record in the module that defines it. The README's Model and Draft row describes both paths. Baseline was green: `pnpm turbo run test typecheck --filter=showcase`.
+
+Follow-ups: none. I did not add a `readOnly` field because the User record has no server-assigned field.
+
+Tier: implementer (actual_model: claude-opus-5-5)
+stage: impl-review - skipped(config: REVIEW_MODE=none)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 41d1020fefdbe0304a93887230587eb4f2346274
+- Tests: pnpm turbo run test typecheck --filter=showcase, pnpm --filter showcase check, npx prettier --check apps/showcase
 - PRs:
