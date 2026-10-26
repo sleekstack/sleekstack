@@ -37,9 +37,11 @@ The client-safe vocabulary the server and the generated client share: a read-onl
 - [ ] TBD
 
 ## Done summary
-TBD
+Added `readOnly(schema)` (an AST annotation plus a type brand), one `editableFields` predicate that `Editable<F>`/`RecordChange`, the derived Draft and `record.change` share, `record.change` on every `RecordDefinition` (encodedBoundSchema of the editable fields; a record with no editable field drops every key and accepts `{}`), and the `RecordNotFound`/`RecordRejected` tagged errors in a new `errors.ts`. Tests: `record.test.ts` "readOnly fields and record.change" block (R1 runtime, related through a readOnly ref, R2 drop/missing/malformed/refined/empty cases, R3 errors), `readonly.test-d.ts` (type level: RecordChange, change, Draft field, non-Schema rejected, exact error fields), `exportNames.test.ts` lists the new names, and `bundle.test.ts` now also excludes `errors.ts` from a Draft-only bundle. Fixture graph check output identical before and after.
 
+Tier: implementer (actual model: claude-opus-5-5)
+stage: impl-review - skipped(config: REVIEW_MODE=none)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 3c128733bd7a3ea3c096a8edbb5cff679cbae809
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/model... --filter=@sleekstack/analyze, fixture graph check (effect-app check --json --entry runtime.ts): identical before/after
 - PRs:
