@@ -25,6 +25,8 @@ export { DecodeError } from './wire'
 export { implement } from './implement'
 export { accessors, Controller, Service } from './class'
 export type { Accessors, Call, ControllerMethodsOf, Gen } from './class'
+export { records, recordsMethods } from './records'
+export type { Records, RecordsMethodEntry, ServableRecord } from './records'
 export { ServerService, taggedError } from './service'
 export type {
   ServerServiceEntry,
