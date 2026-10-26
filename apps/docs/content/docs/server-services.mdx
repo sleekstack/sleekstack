@@ -47,7 +47,7 @@ A Service Class from `@sleekstack/start` writes the same service as a class of g
 - `Service<Self>()(id, { ... })` declares the Tags it needs; each is on `this` under its name. The class is its own Tag, and `Greeter.Default` is the Layer that builds it once with the app's Layer, so a [Layer File](/docs/controllers#layer-files) default-exports it. A Service Class may declare another one, and the Layers compose by requirement.
 - Each generator method runs as an Effect spanned `<id>.<method>`, also through `yield* this.method()` and when inherited. A non-generator method is left alone, and `super` calls to a generator method are not supported. A written `Gen<A, E, R>` return type is optional here.
 - `accessors(Greeter)` gives each generator method as an Effect that asks for the service, for a caller that is not a generator. It keeps no method generics, overloads or optional-parameter forms.
-- An id another Service already uses, in the same file or another, and a declared name that is `constructor` or a method of the class, are defects when the class is defined or first built. A dev reload may run a file again, which keeps its ids where they are written.
+- A declared name that is `constructor` or a method of the class is a defect when the class is defined or first built. An id is claimed by its file and class name when the class is first built or its `Default` first read; another class name, or the same name in another file, with that id is a defect there. A dev reload may run a file again, which keeps its ids on whatever line they move to.
 
 ## The generated modules
 

@@ -7,5 +7,13 @@ export class Greeter extends Service<Greeter>()('test/Greeter') {
   }
 }
 
-/** Defines the key `test/Rows` again from this file. */
-export const rowsAgain = () => Service<unknown>()('test/Rows')
+/** `Greeter` again from this file, its `Service<Self>()(...)` call on another line, as after an edit and a reload. */
+export const movedGreeter = (): typeof Greeter =>
+  class Greeter extends Service<Greeter>()('test/Greeter') {
+    *greet() {
+      return 'moved'
+    }
+  }
+
+/** The key `test/Rows` again from this file, on a class with the test file's class name. */
+export const rowsAgain = () => class Shared extends Service<unknown>()('test/Rows') {}.Default

@@ -1,7 +1,7 @@
 import { Cause, Context, Effect, Exit, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 import { accessors, Controller, type Gen, Service } from '../index'
-import { Greeter, rowsAgain } from './fixtures/greeter'
+import { Greeter, movedGreeter, rowsAgain } from './fixtures/greeter'
 
 class Db extends Context.Tag('test/Db')<Db, { readonly rows: ReadonlyArray<string> }>() {}
 const db = Layer.succeed(Db, { rows: ['a', 'b'] })
@@ -76,14 +76,22 @@ describe('Service', () => {
       () => class extends Service<unknown>()('test/Ctor', { constructor: Db }) {}.Default,
       /collides/,
     ],
-    ['a key used in another file', rowsAgain, /already used/],
+    ['a key used in another file by a class of the same name', () => [Rows.Default, rowsAgain()], /already used/],
     [
-      'a key used by another Service of the same file',
+      'a key used by another class of the same file',
       () => {
         class A extends Service<A>()('test/Twice') {}
         class B extends Service<B>()('test/Twice') {}
-        return [A, B]
+        return Layer.merge(A.Default, B.Default)
       },
+      /already used/,
+    ],
+    [
+      'a key used by two anonymous classes',
+      () => [
+        class extends Service<unknown>()('test/Anonymous') {}.Default,
+        class extends Service<unknown>()('test/Anonymous') {}.Default,
+      ],
       /already used/,
     ],
     [
@@ -99,11 +107,18 @@ describe('Service', () => {
   })
 
   it('lets a file that runs again, as on a dev reload, define its key again', async () => {
+    expect(Greeter.Default).toBeDefined()
     const again: typeof import('./fixtures/greeter') = await import('./fixtures/greeter?reload=1' as string)
     expect(again.Greeter).not.toBe(Greeter)
     expect(await Effect.runPromise(accessors(again.Greeter).greet().pipe(Effect.provide(again.Greeter.Default)))).toBe(
       'hello',
     )
+  })
+
+  it('lets a reload define its key again from another line of the same file', async () => {
+    expect(Greeter.Default).toBeDefined()
+    const Moved = movedGreeter()
+    expect(await Effect.runPromise(accessors(Moved).greet().pipe(Effect.provide(Moved.Default)))).toBe('moved')
   })
 })
 

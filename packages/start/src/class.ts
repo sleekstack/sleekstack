@@ -109,18 +109,19 @@ const generators = (proto: object, base: object, deps: Deps, reserved: ReadonlyA
   return list
 }
 
-/** Each Service key and the site that defined it. */
+/** Each Service key and the definition file and class name that use it, `undefined` when either is unknown. */
 const keys = new Map<string, string | undefined>()
 
 /**
- * The `file:line:column` of the `Service<Self>()(...)` call, the file without its query, from the V8 stack: a dev reload
- * re-runs a Service file (often with a `?t=` query) while `@sleekstack/start` stays loaded, and the same site running
- * again must not be a duplicate key, while another site with the key, in any file, is.
+ * The file of the `Service<Self>()(...)` call, without its query, from the V8 stack. A dev reload re-runs a Service file
+ * (often with a `?t=` query, its call perhaps on another line) while `@sleekstack/start` stays loaded, so the file and
+ * the class name, not the line, tell a reload from another Service with the key.
  */
-const callerSite = (): string | undefined => {
-  const site = new Error().stack?.split('\n')[3]?.match(/\(?([^()\s]+?):(\d+:\d+)\)?$/)
-  return site ? `${site[1]!.replace(/\?.*$/, '')}:${site[2]}` : undefined
-}
+const callerFile = (): string | undefined =>
+  new Error().stack
+    ?.split('\n')[3]
+    ?.match(/\(?([^()\s]+?):\d+:\d+\)?$/)?.[1]
+    ?.replace(/\?.*$/, '')
 
 /**
  * A base class for a service written as a plain class of generator methods. The second argument names the Tags the
@@ -132,9 +133,10 @@ const callerSite = (): string | undefined => {
  * - The class is itself the Tag: `yield* Articles`, `Layer.succeed(Articles, ...)`.
  * - TypeScript types a generator method as a `Generator`, so a caller that is not itself a generator uses
  *   {@link accessors}. `super` calls to an inherited generator method are not supported.
- * - A key used by another `Service`, in the same file or another, and a declared name that is `constructor` or a method
- *   of the class, are defects when the class is defined or first built. A file that runs again (a dev reload) may
- *   define its keys again from the same place.
+ * - A declared name that is `constructor` or a method of the class is a defect when the class is defined or first built.
+ *   A key used by a class of another name or another file is a defect when either class is first built or its `Default`
+ *   first read; an anonymous class, or one whose file is unknown, may not share its key at all. A file that runs again
+ *   (a dev reload) may define its classes again, on any line.
  *
  * @example
  * ```ts
@@ -158,16 +160,27 @@ const callerSite = (): string | undefined => {
 export const Service =
   <Self>() =>
   <const D extends Deps = {}>(key: string, deps?: D): ServiceClass<Self, D> => {
-    const site = callerSite()
-    if (keys.has(key) && (site === undefined || keys.get(key) !== site))
-      throw new Error(`The Service key "${key}" is already used by another Service`)
-    keys.set(key, site)
+    const file = callerFile()
     const declared: Deps = deps ?? {}
     const tag = Context.GenericTag<Self, Self>(key)
     const layers = new WeakMap<object, Layer.Layer<any, never, any>>()
+    const claimed = new WeakSet<object>()
+
+    // The class name exists only once the subclass does, so the key is claimed where a class first uses it.
+    const claim = (cls: Function) => {
+      let own = cls
+      while (own !== Base && Object.getPrototypeOf(own) !== Base) own = Object.getPrototypeOf(own)
+      if (claimed.has(own)) return
+      const id = file && own !== Base && own.name ? `${file}#${own.name}` : undefined
+      if (keys.has(key) && (id === undefined || keys.get(key) !== id))
+        throw new Error(`The Service key "${key}" is already used by another Service`)
+      keys.set(key, id)
+      claimed.add(own)
+    }
 
     class Base {
       constructor(provided: Provided<D>) {
+        claim(new.target)
         Object.assign(this, provided)
         for (const [name, method] of generators(Object.getPrototypeOf(this), Base.prototype, declared, [])) {
           Object.defineProperty(this, name, { value: Effect.fn(`${key}.${name}`)(method) })
@@ -183,6 +196,7 @@ export const Service =
           if (prop !== 'Default') return Reflect.get(target, prop, receiver)
           let layer = layers.get(receiver)
           if (!layer) {
+            claim(receiver)
             generators(receiver.prototype, Base.prototype, declared, [])
             layer = Layer.effect(
               receiver,
