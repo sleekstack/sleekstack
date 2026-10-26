@@ -16,6 +16,8 @@ import { discoverControllers, printSchema, serverServices, type ServerServicesOp
 
 const FIXTURE = path.join(import.meta.dirname, 'fixtures/server-services')
 const START_CLIENT = path.resolve(import.meta.dirname, '../../../start/src/client.ts')
+/** `@sleekstack/model` is no dependency of ui-vite; a served record's fixture reaches its source. */
+const MODEL = path.resolve(import.meta.dirname, '../../../model/src/index.ts')
 const CLIENT = 'virtual:sleek/server'
 const REGISTRY = 'virtual:sleek/server-registry'
 const SERVER_APP = 'virtual:sleek/server-app'
@@ -51,6 +53,8 @@ const manifestApp = appFiles('rpc-manifest')
 /** Three Layer Files (one outside the server directory) composed by requirement, one under `test/`, a Server Root's `onError`, and a server entry whose explicit `layer` shadows `Config`. */
 const LAYER_APP = path.join(import.meta.dirname, 'fixtures/layer-files')
 const layerApp = appFiles('layer-files')
+/** A served record: the record and its adapter Tag in `src/article.ts`, `records(Article)` beside a named DELETE, and a Layer File holding the table. */
+const recordsApp = appFiles('records')
 
 describe('the printed Schemas over the wire', () => {
   const str = { kind: 'string' } as const
@@ -235,7 +239,7 @@ const scaffold = (extra: Record<string, string> = {}) => {
         moduleResolution: 'Bundler',
         skipLibCheck: true,
         noEmit: true,
-        paths: { '@sleekstack/start/client': [START_CLIENT] },
+        paths: { '@sleekstack/start/client': [START_CLIENT], '@sleekstack/model': [MODEL] },
       },
       // The analyzer reads the Controllers under `server` and `api` (the `controllersDir` test).
       include: ['src', 'server', 'api'],
@@ -256,7 +260,7 @@ const config = (root: string, options?: ServerServicesOptions): InlineConfig => 
   configFile: false,
   logLevel: 'silent',
   plugins: [serverServices(options)],
-  resolve: { alias: { '@sleekstack/start/client': START_CLIENT } },
+  resolve: { alias: { '@sleekstack/start/client': START_CLIENT, '@sleekstack/model': MODEL } },
 })
 
 /** A dev server (no file watching: tests emit watcher events) over `scaffold(extra)`. */
@@ -1314,5 +1318,109 @@ export const missing = start({ layer: Layer.effect(Extra, Unknown) })
     expect(declared()).toBe(before)
     expect(await event('unlink', 'src/extra.layer.ts')).toEqual(app)
     expect(declared()).not.toContain('extra.layer')
+  })
+})
+
+describe('served records', () => {
+  const ROUTE = 'server/routes/articles/[id].controller.ts'
+
+  it('serves GET and PATCH through the generated app; only the browser Layer provides the adapter Tag, over the route', async () => {
+    const { server, root, src, load } = await serve({ ...serverApp, ...recordsApp })
+    const { app } = await server.ssrLoadModule(path.join(src, 'server.ts'))
+    const call = async (url: string, init?: RequestInit) => {
+      const response: Response = await app.fetch(new Request(`http://x.test${url}`, init))
+      return [response.status, await response.text()]
+    }
+    const patch = (title: string): RequestInit => ({
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title }),
+    })
+    expect(await call('/articles/1')).toEqual([200, '{"id":"1","title":"First"}'])
+    expect(await call('/articles/9')).toEqual([404, '{"_tag":"RecordNotFound","type":"Article","id":"9"}'])
+    expect(await call('/articles/1', patch('New'))).toEqual([200, '{"id":"1","title":"New"}'])
+    expect(await call('/articles/1', patch(''))).toEqual([
+      422,
+      '{"_tag":"RecordRejected","type":"Article","id":"1","message":"empty title"}',
+    ])
+    // The named export beside `records(Article)` is an ordinary method.
+    expect(await call('/articles/1', { method: 'DELETE' })).toEqual([200, '"deleted 1"'])
+
+    // The server app serves the record through its default export and the Layer File; no HTTP adapter (no LayerFileConflict).
+    const appCode = await load(SERVER_APP)
+    expect(appCode).toMatch(
+      /methods: \{ \.\.\.recordsMethods\((\$\d+)\.default\), DELETE: \{ run: \1\.DELETE, params: /,
+    )
+    expect(appCode).not.toContain('recordAdapterLayer')
+    expect(await load(REGISTRY)).not.toContain('article')
+
+    const client = await load(CLIENT)
+    expect(client).toMatch(
+      /^import \{ Layer, Schema \} from 'effect'\nimport \{ recordAdapterLayer, serverClients, taggedError \} from '@sleekstack\/start\/client'\n/,
+    )
+    expect(client).toMatch(/import \{ Article as (Article_\d+) \} from "<root>\/src\/article\.ts"\n/)
+    expect(client).toMatch(
+      /export default Layer\.mergeAll\(serverClients\(entries\), recordAdapterLayer\(Article_\d+, "\/articles\/:id"\)\)\n$/,
+    )
+    // The Layer runs: `find` calls the route's GET.
+    const { Effect } = await server.ssrLoadModule('effect')
+    const { ArticleAdapter } = await server.ssrLoadModule(path.join(src, 'article.ts'))
+    const fetch = vi.fn(async (_url: string) => Response.json({ id: 'a b', title: 'T' }))
+    vi.stubGlobal('fetch', fetch)
+    try {
+      const found = await Effect.runPromise(
+        Effect.provide(
+          Effect.flatMap(ArticleAdapter, (a: { find: (id: string) => unknown }) => a.find('a b')),
+          (await server.ssrLoadModule(CLIENT)).default,
+        ),
+      )
+      expect(found).toEqual({ id: 'a b', title: 'T' })
+      expect(fetch.mock.calls.map(([url]) => url)).toEqual(['/articles/a%20b'])
+    } finally {
+      vi.unstubAllGlobals()
+    }
+
+    // The declaration types the browser Layer with the adapter Tag.
+    fs.writeFileSync(
+      path.join(src, 'consumer.ts'),
+      `import layer from '${CLIENT}'
+import { Effect } from 'effect'
+import { ArticleAdapter } from './article'
+export const run: Effect.Effect<unknown, unknown, never> = Effect.provide(Effect.flatMap(ArticleAdapter, (a) => a.find('1')), layer)
+`,
+    )
+    expect(typeErrors(root)).toEqual([])
+  })
+
+  it('changes only the pattern of the browser Layer when the Controller file is renamed', async () => {
+    const { server, root, load } = await serve({ ...serverApp, ...recordsApp })
+    const before = await load(CLIENT)
+    expect(before).toContain('"/articles/:id")')
+    const from = path.join(root, ROUTE)
+    const to = path.join(root, 'server/routes/posts/[id].controller.ts')
+    fs.mkdirSync(path.dirname(to), { recursive: true })
+    fs.renameSync(from, to)
+    server.watcher.emit('unlink', from)
+    server.watcher.emit('add', to)
+    await new Promise((r) => setTimeout(r, 0))
+    expect(await load(CLIENT)).toBe(before.replace('"/articles/:id"', '"/posts/:id"'))
+  })
+
+  it("reloads the discovered app in dev when the record's module is edited", async () => {
+    const { server, src, load } = await serve({ ...serverApp, ...recordsApp })
+    for (const env of Object.values(server.environments)) await env.transformRequest(SERVER_APP)
+    const spies = Object.values(server.environments).map((env) => vi.spyOn(env.moduleGraph, 'invalidateModule'))
+    const reload = vi.spyOn(server.ws, 'send')
+    const file = path.join(src, 'article.ts')
+    fs.appendFileSync(file, '// edited\n')
+    server.watcher.emit('change', file)
+    await new Promise((r) => setTimeout(r, 0))
+    await load(SERVER_APP)
+    await new Promise((r) => setTimeout(r, 0))
+    // Vite also invalidates an edited file's importers, passing its own propagation arguments; the plugin passes the module only.
+    expect(spies.map((spy) => spy.mock.calls.filter((args) => args.length === 1).map(([mod]) => mod.id))).toEqual(
+      spies.map(() => [`\0${SERVER_APP}`]),
+    )
+    expect(reload).toHaveBeenCalledWith({ type: 'full-reload' })
   })
 })
