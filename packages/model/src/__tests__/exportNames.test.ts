@@ -30,5 +30,7 @@ it('no name is exported by two model entry points with different declarations', 
       meaning.set(s.name, target)
     }
   expect(meaning.size).toBeGreaterThan(0)
+  // The served records' vocabulary (ADR 0057).
+  expect([...meaning.keys()]).toEqual(expect.arrayContaining(['readOnly', 'RecordNotFound', 'RecordRejected']))
   expect(clashes).toEqual([])
 })

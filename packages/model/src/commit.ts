@@ -23,7 +23,31 @@ export class SaveResponseError extends Data.TaggedError('SaveResponseError')<{
 /** The failure of the adapter's `save`. */
 export type SaveError<Ad extends AdapterTag> = Effect.Effect.Error<ReturnType<Context.Tag.Service<Ad>['save']>>
 
-type Editable<F> = Omit<F, 'id'>
+const ReadOnlyId: unique symbol = Symbol.for('@sleekstack/model/readOnly')
+/** The type brand of a field marked by `readOnly`. */
+export interface ReadOnlyField {
+  readonly [ReadOnlyId]: true
+}
+
+/**
+ * `readOnly(schema)`: a record field the client reads and never writes (`createdAt`, a server counter). It stays in the
+ * record and its wire form, and is left out of the Draft, `RecordChange` and `record.change`, as `id` always is.
+ */
+export const readOnly = <S extends Schema.Schema.Any>(schema: S): S & ReadOnlyField => {
+  const marked = schema.annotations({ [ReadOnlyId]: true })
+  // `annotations` makes a new Schema without what a field factory set beside it (a `ref`'s `target`): keep it.
+  return Object.assign(marked, Object.fromEntries(Object.entries(schema).filter(([k]) => !(k in marked)))) as never
+}
+
+/** The fields a change carries: all but `id` and the `readOnly` ones. `Editable<F>` is the same filter on the type. */
+export const editableFields = (fields: Schema.Struct.Fields): Schema.Struct.Fields =>
+  Object.fromEntries(
+    Object.entries(fields).filter(
+      ([k, f]) => k !== 'id' && !(Schema.isSchema(f) && f.ast.annotations[ReadOnlyId] === true),
+    ),
+  )
+
+type Editable<F> = Pick<F, { [K in keyof F]: K extends 'id' ? never : F[K] extends ReadOnlyField ? never : K }[keyof F]>
 // A `field(...)` Schema (its wire may be `undefined`): the Draft holds its `to` input.
 type InputFields<F> = {
   [K in keyof Editable<F>]: F[K] extends TransformedField<any, infer To>
@@ -32,9 +56,9 @@ type InputFields<F> = {
       : F[K]
     : F[K]
 }
-/** What a record's derived Draft holds: every field but `id`, in its input (Encoded) form; a date holds its string. */
+/** What a record's derived Draft holds: every field but `id` and the `readOnly` ones, in its input (Encoded) form; a date holds its string. */
 export type RecordInput<F extends Schema.Struct.Fields> = Schema.Struct.Encoded<InputFields<F>>
-/** What `commit` sends to the adapter's `save`: every field but `id`, serialized to its wire form. */
+/** What `commit` sends to the adapter's `save`: every field but `id` and the `readOnly` ones, serialized to its wire form. */
 export type RecordChange<F extends Schema.Struct.Fields> = Schema.Struct.Encoded<Editable<F>>
 /** The Draft of a record (`record.useDraft(id)`): its `toDto()` validates and serializes it to a `RecordChange`. */
 export type RecordDraft<F extends Schema.Struct.Fields> = Draft<
@@ -59,7 +83,7 @@ const transformedTo = (s: unknown): Schema.Schema.Any | undefined => {
  * seed follows the record: an edited Draft keeps its edits and measures `dirty` against the newest record.
  */
 export const derivedSpec = (fields: Schema.Struct.Fields): DraftSpec<any, any, Option.Option<any>, never, any, any> => {
-  const editable = Object.fromEntries(Object.entries(fields).filter(([k]) => k !== 'id'))
+  const editable = editableFields(fields)
   const inputs = Object.fromEntries(Object.entries(editable).map(([k, f]) => [k, transformedTo(f) ?? f]))
   const input = Schema.Struct(inputs) as unknown as Schema.Schema<any, any>
   const change = Schema.Struct(editable) as unknown as Schema.Schema<any, any>
