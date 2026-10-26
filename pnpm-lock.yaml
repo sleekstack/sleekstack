@@ -537,6 +537,9 @@ importers:
         specifier: workspace:*
         version: link:../runtime
     devDependencies:
+      '@sleekstack/model':
+        specifier: workspace:*
+        version: link:../model
       '@sleekstack/router':
         specifier: workspace:*
         version: link:../router
