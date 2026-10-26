@@ -2,13 +2,34 @@
 import { flush, render } from '@sleekstack/testing'
 import { renderToString } from '@sleekstack/ui'
 import { jsx } from '@sleekstack/ui/jsx-runtime'
+import { Layer } from 'effect'
 import { act } from 'react'
-import { expect, it, vi } from 'vitest'
+import ServerServicesLive from 'virtual:sleek/server'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { app as server } from '../server/app'
 import { ViewerLive } from '../src/layers'
 import { ModelDraftDemo } from '../src/pages/model'
 
 const app = () => jsx(ModelDraftDemo, {})
-const layer = ViewerLive('u1')
+// The generated browser Layer serves `User`; no hand-written adapter for it.
+const layer = Layer.merge(ViewerLive('u1'), ServerServicesLive)
+
+/**
+ * The browser's `fetch`, answered by the server entry itself after a network's round trip: `User` round-trips through
+ * its Controller and the Layer File's table.
+ */
+const answer = (url: string, init: RequestInit) =>
+  new Promise((resolve) => setTimeout(resolve, 50)).then(() =>
+    server.fetch(
+      new Request(new URL(url, location.origin), { ...init, headers: { ...init.headers, origin: location.origin } }),
+    ),
+  )
+const serve = vi.fn(answer)
+beforeEach(() => void vi.stubGlobal('fetch', serve))
+afterEach(() => {
+  serve.mockClear()
+  vi.unstubAllGlobals()
+})
 
 /** Seed, pristine re-seed, edited keep, per-field errors, a ParseError in the Result, reset, then a save. */
 const editAndSave = async (container: HTMLElement) => {
@@ -106,7 +127,37 @@ it('records: a post follows its author through related, and a save of the user u
     'Ada King',
     true,
   ]) // the Draft's baseline moved to the saved user
+  expect(serve).toHaveBeenCalledWith('/api/users/u1', expect.objectContaining({ method: 'PATCH' }))
   expect(onError).not.toHaveBeenCalled()
+  await dispose()
+})
+
+/** Renders the records, types `name` into the user's Draft and submits it; answers the page's text getter. */
+const saveUser = async (name: string) => {
+  const rendered = await render(app(), { layer })
+  const q = <E extends Element = HTMLElement>(s: string) => rendered.container.querySelector<E>(s)
+  await vi.waitFor(() => expect(q('.user')?.textContent).toMatch(/^User: /))
+  q<HTMLInputElement>('input.user-name')!.value = name
+  await act(async () => void q('input.user-name')!.dispatchEvent(new Event('input', { bubbles: true })))
+  await act(async () => q<HTMLFormElement>('form.user-draft')!.requestSubmit())
+  await flush()
+  return { ...rendered, text: (s: string) => q(s)?.textContent }
+}
+
+it('saving a user the server no longer has shows RecordNotFound', async () => {
+  // The user is gone between load and save: the PATCH reaches the Controller for an id the table lacks.
+  serve.mockImplementation((url, init) => answer(init.method === 'PATCH' ? '/api/users/gone' : url, init))
+  const { text, dispose } = await saveUser('Ada Byron')
+  await vi.waitFor(() => expect(text('.user-not-saved')).toBe('Not saved: the user is gone'))
+  expect(text('.user')).not.toBe('User: Ada Byron') // a failed commit writes nothing
+  serve.mockImplementation(answer)
+  await dispose()
+})
+
+it('saving a name the server refuses shows RecordRejected', async () => {
+  const { text, dispose } = await saveUser('Charles Babbage') // u2's name: valid to the record, refused by the table
+  await vi.waitFor(() => expect(text('.user-not-saved')).toBe('Not saved: Charles Babbage is taken'))
+  expect(text('.user')).not.toBe('User: Charles Babbage')
   await dispose()
 })
 
