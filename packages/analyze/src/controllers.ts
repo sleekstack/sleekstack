@@ -34,6 +34,7 @@ const INPUT = ['params', 'query', 'body']
 export const CONTROLLER = /\.controller\.ts$/
 const DEFAULTS = '_defaults.ts'
 const EFFECT = 'effect/Effect#Effect'
+const CLASS_BASE = 'start/class#Controller'
 /** The services `start` provides to every call (`RequestServices` of `@sleekstack/start`). */
 const REQUEST_SERVICES: ReadonlySet<string> = new Set(
   ['Request', 'Cookies', 'ResponseHeaders', 'ResponseStatus'].map((name) => `start/services#${name}`),
@@ -45,13 +46,32 @@ const OPTIONAL = /^\[\[(\w+)\]\]$/
 const SPLAT = /^\[\.\.\.(\w+)\]$/
 const GROUP = /^\([\w.~-]+\)$/
 
-/** The written signature of an exported Controller method: a function, or a variable holding or typed as one. */
+/**
+ * The written signature of a Controller method: an exported function, or a variable holding or typed as one, or a
+ * method of a class Controller.
+ */
 export const signatureOf = (decl: ts.Declaration | undefined): ts.SignatureDeclaration | undefined => {
-  if (decl && ts.isFunctionDeclaration(decl)) return decl
+  if (decl && (ts.isFunctionDeclaration(decl) || ts.isMethodDeclaration(decl))) return decl
   if (!decl || !ts.isVariableDeclaration(decl)) return undefined
   if (decl.type) return ts.isFunctionTypeNode(decl.type) ? decl.type : undefined
   const init = decl.initializer && unwrap(decl.initializer)
   return init && (ts.isArrowFunction(init) || ts.isFunctionExpression(init)) ? init : undefined
+}
+
+/**
+ * The default export of `sf` when it is a class, with the `Controller(...)` call it extends directly (undefined when it
+ * extends anything else).
+ */
+export const defaultClassOf = (sf: ts.SourceFile, checker: ts.TypeChecker) => {
+  const module = checker.getSymbolAtLocation(sf)
+  const exported = module && checker.getExportsOfModule(module).find((e) => e.name === 'default')
+  const cls = (exported && exported.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(exported) : exported)
+    ?.valueDeclaration
+  if (!cls || !ts.isClassLike(cls)) return undefined
+  const base = cls.heritageClauses?.find((h) => h.token === ts.SyntaxKind.ExtendsKeyword)?.types[0]?.expression
+  const isController =
+    base && ts.isCallExpression(base) && libId(checker.getSymbolAtLocation(base.expression), checker) === CLASS_BASE
+  return { cls, base: isController ? base : undefined }
 }
 
 export interface ControllerRoute {
@@ -109,9 +129,21 @@ export interface ControllerMethod {
   readonly schema: { readonly input: TypeSchema; readonly success: TypeSchema | undefined }
 }
 
+/** A Tag a class Controller declares in `Controller({ name: Tag })`, on `this` under `name`. */
+export interface ControllerDependency {
+  readonly name: string
+  /** The type of the declared value (the Tag class, `typeof Tag`). */
+  readonly tag: ts.Type
+  readonly location: Location
+}
+
 export interface ControllerDecl extends ControllerRoute {
   /** The file, relative to the tsconfig directory. */
   readonly file: string
+  /** `'functions'`: the methods are named exports; `'class'`: they are generator methods of the default-exported class. */
+  readonly kind: 'functions' | 'class'
+  /** The Tags a class Controller declares, in written order; empty for named exports. */
+  readonly declared: readonly ControllerDependency[]
   /** The methods read without an error, in the order GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS. */
   readonly methods: readonly ControllerMethod[]
 }
@@ -298,16 +330,15 @@ export function analyzeControllers(opts: {
       return undefined
     }
 
+  /** The method `name` written at `at` with the signature `sig` (undefined when it is not written as a function). */
   const methodOf = (
     route: ControllerRoute,
     name: ControllerMethodName,
-    exported: ts.Symbol,
-    sf: ts.SourceFile,
+    sig: ts.SignatureDeclaration | undefined,
+    at: ts.Node,
   ): ControllerMethod | undefined => {
     const label = `Controller "${route.route}" ${name}`
-    const at = exported.declarations?.[0] ?? sf
     const shape = (n: ts.Node, why: string) => void report('ControllerMethodShape', n, `${label} ${why}`)
-    const sig = signatureOf(resolve(exported).valueDeclaration)
     if (!sig) return shape(at, `is not written as a function; write \`export const ${name} = (input: { ... }) => ...\``)
     const read = readSignature({ program, checker, root, serverDir }, sig, {
       requires: 'any',
@@ -363,6 +394,64 @@ export function analyzeControllers(opts: {
     }
   }
 
+  /**
+   * The methods of a default-exported class extending `Controller(...)` directly (R3): each HTTP-named member a
+   * generator method with a written `Gen<A, E, R>`, read as a named export is.
+   */
+  const classMethods = (route: ControllerRoute, cls: ts.ClassLikeDeclaration): ControllerMethod[] => {
+    const methods: ControllerMethod[] = []
+    let named = false
+    for (const member of cls.members) {
+      const name = member.name && ts.isIdentifier(member.name) ? member.name.text : ''
+      if (!isMethod(name)) continue
+      named = true
+      const generator =
+        ts.isMethodDeclaration(member) &&
+        member.asteriskToken &&
+        !ts.getModifiers(member)?.some((m) => m.kind === ts.SyntaxKind.StaticKeyword)
+      if (!generator) {
+        report(
+          'ControllerMethodShape',
+          member,
+          `Controller "${route.route}" ${name} is not a generator method of the class; write \`*${name}(input: { ... }): Gen<A, E, R> { ... }\``,
+        )
+        continue
+      }
+      const method = methodOf(route, name, signatureOf(member), member)
+      if (method) methods.push(method)
+    }
+    if (!named)
+      report(
+        'ControllerMethodShape',
+        cls,
+        `Controller "${route.route}" default-exports a class with no HTTP-named generator method; name a method ${METHODS.join(', ')}`,
+      )
+    return methods
+  }
+  /** The default export of `sf` when it is a class extending `Controller(...)` directly, with its declared Tags. */
+  const controllerClassOf = (sf: ts.SourceFile, route: ControllerRoute) => {
+    const found = defaultClassOf(sf, checker)
+    if (!found) return undefined
+    const { cls, base } = found
+    if (!base) {
+      report(
+        'ControllerMethodShape',
+        cls,
+        `Controller "${route.route}" default-exports a class that does not extend \`Controller(...)\` of @sleekstack/start directly; write \`export default class extends Controller({ ... }) { ... }\``,
+      )
+      return null
+    }
+    const deps = base.arguments[0]
+    const declared = deps
+      ? checker.getPropertiesOfType(checker.getTypeAtLocation(deps)).map((p) => ({
+          name: p.name,
+          tag: checker.getTypeOfSymbol(p),
+          location: locationOf(root, p.valueDeclaration ?? deps),
+        }))
+      : []
+    return { cls, declared }
+  }
+
   const controllers: ControllerDecl[] = []
   /** A `_defaults.ts` wrap is checked for each Controller beneath it, and reported once per missing service. */
   const reportedWraps = new Set<string>()
@@ -375,15 +464,27 @@ export function analyzeControllers(opts: {
       continue
     }
     if (!route) continue
-    const methods: ControllerMethod[] = []
+    const controllerClass = controllerClassOf(sf, route)
+    const methods: ControllerMethod[] = controllerClass ? classMethods(route, controllerClass.cls) : []
     for (const exported of exportsOf(sf)) {
       const name = exported.getName()
       // A type export is erased: never served.
       if (!(resolve(exported).flags & ts.SymbolFlags.Value)) continue
-      if (isMethod(name)) {
-        const method = methodOf(route, name, exported, sf)
+      if (controllerClass && isMethod(name))
+        report(
+          'ControllerMethodShape',
+          exported.declarations?.[0] ?? sf,
+          `Controller "${route.route}" exports "${name}" beside its default class; a file is one form, so make it a generator method of the class`,
+        )
+      else if (isMethod(name)) {
+        const method = methodOf(
+          route,
+          name,
+          signatureOf(resolve(exported).valueDeclaration),
+          exported.declarations?.[0] ?? sf,
+        )
         if (method) methods.push(method)
-      } else if (name === 'default' || isMethod(name.toUpperCase()))
+      } else if ((name === 'default' && controllerClass === undefined) || isMethod(name.toUpperCase()))
         report(
           'ControllerMethodShape',
           exported.declarations?.[0] ?? sf,
@@ -412,6 +513,19 @@ export function analyzeControllers(opts: {
       }
       for (const tag of wrap.discharged) provided.add(tag)
     }
+    // A declared Tag is resolved where the method runs, so it is provided as the method's `R` is (R4).
+    const className = `class${controllerClass?.cls.name ? ` ${controllerClass.cls.name.text}` : ''}`
+    for (const dep of controllerClass?.declared ?? []) {
+      const tag = dep.tag.getSymbol()
+      if (isProvided(tag)) continue
+      errors.push(
+        analyzeError(
+          'MissingDependency',
+          `Controller "${route.route}" ${className} declares "${dep.name}" as "${tag?.getName() ?? checker.typeToString(dep.tag)}", which no wrap above it, no Layer File and no start({ layer }) provides`,
+          dep.location,
+        ),
+      )
+    }
     for (const method of methods)
       for (const t of membersOf(method.requires)) {
         const tag = t.getSymbol()
@@ -424,7 +538,13 @@ export function analyzeControllers(opts: {
           ),
         )
       }
-    controllers.push({ ...route, file: path.relative(root, sf.fileName), methods })
+    controllers.push({
+      ...route,
+      file: path.relative(root, sf.fileName),
+      kind: controllerClass ? 'class' : 'functions',
+      declared: controllerClass?.declared ?? [],
+      methods,
+    })
   }
   return { controllers, errors, checker }
 }

@@ -201,6 +201,18 @@ _Avoid_: Server Endpoint, API route
 One exported HTTP method of a Controller (`GET`, `POST`, ...): an Effect function of `{ params?, query?, body? }` whose written-out signature is its contract. It reads and shapes the request through the request services (`Request`, `Cookies`, `ResponseHeaders`, `ResponseStatus`) in the Request Scope.
 _Avoid_: handler, action
 
+**Class Controller**:
+A Controller written as one `export default class extends Controller({ ... })` whose generator methods named after HTTP methods are its Controller Methods, each with a written `input` type and a written `Gen<A, E, R>` return (ADR 0056). It is built per request inside the `wrap` chain, so a Declared Dependency may be a request service. Its options stay named exports beside the class. A file is one form: a default class beside a named Controller Method export is `ControllerMethodShape`.
+_Avoid_: controller object, decorated controller
+
+**Service Class**:
+A class extending `Service<Self>()(id, { ... })` from `@sleekstack/start`: it is its own Tag, its generator methods run as spanned Effects, and its static `Default` Layer builds it once with the app's Layer from its Declared Dependencies (ADR 0056). A caller that is not a generator reaches the methods through `accessors(Class)`. Distinct from `Effect.Service`, whose methods come from a constructor function.
+_Avoid_: service object, injectable
+
+**Declared Dependency**:
+A Tag named in the record a Service Class or Class Controller passes to its base class; its Service is on `this` under the record's name. `sleekstack check` counts it as a requirement, with each method's written `R`, and reports one nothing provides as `MissingDependency` (ADR 0056). A Declared Dependency no method reads only documents the need.
+_Avoid_: injected field, constructor parameter
+
 **Directory Defaults**:
 A reserved `_defaults.ts` file whose options apply to the files below its directory: `wrap` to every Controller, `bodyLimit` and `origins` to Controllers and RPC Files too (ADR 0053).
 _Avoid_: middleware

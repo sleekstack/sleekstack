@@ -41,6 +41,21 @@ Before the method runs, `params` is decoded from the path, `query` from the URL 
 
 `sleekstack check` and the Vite plugin report a method they cannot read as `ControllerMethodShape`, with file:line. A near-miss export (`get`, `Post`, a default export) is one, and so is an Effect return type written through a type alias. Write `Effect.Effect<A, E, R>` inline and alias only the success value. See [Errors](/docs/errors#controller-errors).
 
+## Class Controllers
+
+A Controller may instead be one default-exported class ([ADR 0056](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0056-class-controllers-and-service-classes.md)). It extends `Controller({ ... })` from `@sleekstack/start`, and its generator methods named after HTTP methods are its Controller Methods. Beside the function form above, the class names its services once instead of yielding them in each method:
+
+<include>../../snippets/controllers/server/routes/notes/[id]/title.controller.ts</include>
+
+- A method takes the same input as a function method and returns a written `Gen<A, E, R>`, the generator form of `Effect.Effect<A, E, R>`, imported from `@sleekstack/start` (an aliased import works; a local alias of the whole `Gen` does not). Inputs and answers decode and encode as above.
+- The record names the Declared Dependencies. The class is built per request inside the `wrap` chain: each Tag is resolved from the request's context and is on `this` under its name, so a `wrap`-provided service such as `Viewer` works. A field may hold request data, and nothing outlives the request. A Tag missing at run time fails the request as a defect, an empty 500 that reaches `onError`.
+- `sleekstack check` counts the declared Tags and each method's written `R` as the class's requirements, and reports one nobody provides as `MissingDependency` naming the class. A Declared Dependency that no method reads only documents the need. To have it count, pass `this.<name>` along.
+- `wrap`, `bodyLimit` and `origins` stay named exports beside the class. A `wrap` runs before the class is built, so it provides services to it but cannot read them.
+- `yield* this.method()` runs a method as an Effect. Each one is spanned `<ClassName>.<method>`, or `Controller.<method>` for an unnamed class. `super` calls and inheritance between Controllers are not supported. `Controller()` declares nothing.
+- A file is one form. A default class beside a named Controller Method export, a class that does not extend `Controller(...)` directly, one with no HTTP-named generator method, an HTTP-named member that is not a generator method, and a method without a written `Gen` are each `ControllerMethodShape`. A declared name that is `constructor`, an HTTP method or a method of the class is a defect when the class is defined.
+
+An RPC Manifest entry may name a method of a class Controller. The generated `ControllerModules` types a class file as `ControllerMethodsOf<typeof default>`, the HTTP-named methods as Effect functions. The [realworld app](https://github.com/sleekstack/sleekstack/tree/master/apps/realworld/server/routes/api) has both forms: its article Controllers are classes declaring `Articles`, and its user and profile Controllers are named exports.
+
 ## Answers
 
 - A value answers as JSON with 200. With a written success type, the value is encoded through its Schema, so fields outside it are not sent. Without one, the value is serialized as it is.

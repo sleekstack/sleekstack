@@ -9,7 +9,14 @@
 
 import * as path from 'node:path'
 import ts from 'typescript'
-import { CONTROLLER, type ControllerMethodName, controllerRoute, METHODS, signatureOf } from './controllers'
+import {
+  CONTROLLER,
+  type ControllerMethodName,
+  controllerRoute,
+  defaultClassOf,
+  METHODS,
+  signatureOf,
+} from './controllers'
 import { analyzeError } from './errorCodes'
 import { libId, programOf, unwrap } from './extract'
 import { readLayerFiles } from './layerFiles'
@@ -23,7 +30,7 @@ import {
   readSignature,
   sourcesOf,
 } from './serverServices'
-import { type MethodSchema, NotSerializable, ServerOnlyReference, Unreadable } from './typeSchema'
+import { genOf, type MethodSchema, NotSerializable, ServerOnlyReference, Unreadable } from './typeSchema'
 
 const RPC_FILE = /\.rpc\.ts$/
 const MANIFEST = 'rpc.ts'
@@ -44,8 +51,12 @@ export interface RpcMethod {
   readonly requires: ts.Type
   /** The input as the wire carries it (a printed `number` is a plain number), the success and the tagged errors. */
   readonly schema: MethodSchema
-  /** The Controller Method a Manifest entry wraps. */
-  readonly controller?: { readonly route: string; readonly method: ControllerMethodName }
+  /** The Controller Method a Manifest entry wraps, and the form of its Controller (`ControllerDecl.kind`). */
+  readonly controller?: {
+    readonly route: string
+    readonly method: ControllerMethodName
+    readonly kind: 'functions' | 'class'
+  }
 }
 
 export interface RpcServiceDecl {
@@ -108,9 +119,11 @@ export function analyzeRpc(opts: {
    */
   const readMethod = (label: string, sig: ts.SignatureDeclaration, at?: ts.Node) => {
     const shape = (n: ts.Node, why: string) => void report('RpcMethodShape', at ?? n, `${label} ${why}`)
+    const gen = sig.type && genOf(sig.type, checker)
     const ret = sig.type && checker.getTypeFromTypeNode(sig.type)
-    const [success] =
-      ret && (ret as ts.ObjectType).objectFlags & ts.ObjectFlags.Reference
+    const [success] = gen
+      ? (gen.typeArguments ?? []).map((a) => checker.getTypeFromTypeNode(a))
+      : ret && (ret as ts.ObjectType).objectFlags & ts.ObjectFlags.Reference
         ? checker.getTypeArguments(ret as ts.TypeReference)
         : []
     if (success && isResponse(success))
@@ -253,11 +266,21 @@ export function analyzeRpc(opts: {
             report('RpcRouteUnknown', spec, `${label} names a route no Controller under the routes directory serves`)
             continue
           }
-          const target = exportsOf(controller).find((e) => e.name === verb)
-          const decl =
-            target && resolve(target).flags & ts.SymbolFlags.Value ? resolve(target).valueDeclaration : undefined
+          // A class Controller's method is a generator method of its default class (R6); else a named export.
+          const cls = defaultClassOf(controller, checker)
+          const target = cls ? undefined : exportsOf(controller).find((e) => e.name === verb)
+          const decl = cls
+            ? cls.base &&
+              cls.cls.members.find(
+                (m): m is ts.MethodDeclaration =>
+                  ts.isMethodDeclaration(m) && !!m.asteriskToken && ts.isIdentifier(m.name) && m.name.text === verb,
+              )
+            : target && resolve(target).flags & ts.SymbolFlags.Value
+              ? resolve(target).valueDeclaration
+              : undefined
           if (!decl) {
-            report('RpcRouteUnknown', spec, `${label}: Controller "${rel(controller)}" does not export ${verb}`)
+            const what = cls ? `has no generator method ${verb} in its Controller class` : `does not export ${verb}`
+            report('RpcRouteUnknown', spec, `${label}: Controller "${rel(controller)}" ${what}`)
             continue
           }
           const sig = signatureOf(decl)
@@ -272,7 +295,7 @@ export function analyzeRpc(opts: {
               name: method,
               location: locationOf(root, spec),
               ...read,
-              controller: { route, method: verb as ControllerMethodName },
+              controller: { route, method: verb as ControllerMethodName, kind: cls ? 'class' : 'functions' },
             })
         }
         services.push({

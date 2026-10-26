@@ -13,6 +13,7 @@ import { analyzeError } from './errorCodes'
 import { libId, programOf, TEST_FILE } from './extract'
 import type { AnalyzeCode, AnalyzeError, Location } from './model'
 import {
+  genOf,
   type MethodSchema,
   methodSchema,
   NotSerializable,
@@ -96,9 +97,10 @@ const isAny = (t: ts.Type) => !!(t.flags & ts.TypeFlags.Any)
 
 /**
  * The signature reader Server Service, Controller and RPC methods share (R4): `sig` as written, one parameter or none,
- * no `any`, returning a written `Effect.Effect<A, E, R>`. With `returns: 'optional'` the return type may be left out:
- * the inferred one must still be an Effect, and there is no success Schema. A refusal is `Unreadable` (the method's
- * shape) or `NotSerializable`.
+ * no `any`, returning a written `Effect.Effect<A, E, R>`, or, for a generator method of a class, a written `Gen<A, E, R>`
+ * (`E` and `R` default to `never`). With `returns: 'optional'` an Effect return type may be left out: the inferred one
+ * must still be an Effect, and there is no success Schema. A refusal is `Unreadable` (the method's shape) or
+ * `NotSerializable`.
  */
 export function readSignature(
   ctx: SignatureContext,
@@ -124,11 +126,27 @@ export function readSignature(
     return new Unreadable(sig.parameters[1]!, 'takes more than one parameter; pass one object')
   const param = sig.parameters[0]
   const input = param ? checker.getTypeAtLocation(param) : undefined
-  const inferred = checker.getSignatureFromDeclaration(sig)
-  const ret = sig.type ? checker.getTypeFromTypeNode(sig.type) : inferred && checker.getReturnTypeOfSignature(inferred)
   const at = sig.type ?? sig
-  if (!ret || libId(ret.aliasSymbol ?? ret.getSymbol(), checker) !== EFFECT) return new Unreadable(at, effect)
-  const [success, error, requires] = checker.getTypeArguments(ret as ts.TypeReference)
+  let types: readonly (ts.Type | undefined)[]
+  if (ts.isMethodDeclaration(sig) && sig.asteriskToken) {
+    // A generator method's `Gen<A, E, R>` is read from its written type arguments: the type it names is a `Generator`.
+    const gen = sig.type && genOf(sig.type, checker)
+    if (!gen)
+      return new Unreadable(
+        at,
+        'does not return a written `Gen<A, E, R>`; write the return type `Gen<A, E, R>` imported from `@sleekstack/start`',
+      )
+    const [a, e, r] = gen.typeArguments ?? []
+    types = [a, e, r].map((n) => (n ? checker.getTypeFromTypeNode(n) : checker.getNeverType()))
+  } else {
+    const inferred = checker.getSignatureFromDeclaration(sig)
+    const ret = sig.type
+      ? checker.getTypeFromTypeNode(sig.type)
+      : inferred && checker.getReturnTypeOfSignature(inferred)
+    if (!ret || libId(ret.aliasSymbol ?? ret.getSymbol(), checker) !== EFFECT) return new Unreadable(at, effect)
+    types = checker.getTypeArguments(ret as ts.TypeReference)
+  }
+  const [success, error, requires] = types
   if (!success || !error || !requires) return new Unreadable(at, effect)
   if ([input, success, error, requires].some((t) => t && isAny(t)))
     return new Unreadable(sig, 'is typed with `any`; write out the types')

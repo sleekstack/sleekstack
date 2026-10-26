@@ -42,7 +42,7 @@ describe('analyzeRpc', () => {
       ['Notes', 'server/notes.rpc.ts', ['add', 'delete', 'get', 'list', 'rename']],
       ['Broken', 'server/rpc.ts', []],
       ['Clock', 'server/rpc.ts', ['now']],
-      ['Items', 'server/rpc.ts', ['get']],
+      ['Items', 'server/rpc.ts', ['get', 'note']],
       ['Ping', 'server/rpc.ts', ['now']],
       ['Tally', 'server/rpc.ts', ['add', 'get']],
     ])
@@ -57,7 +57,11 @@ describe('analyzeRpc', () => {
     expect(method('Notes', 'get').schema.error.map((e) => e.name)).toEqual(['Missing'])
     expect(method('Items', 'get').schema.input).toEqual(object('params', object('id', { kind: 'number' })))
     expect(method('Tally', 'add').schema.error.map((e) => e.name)).toEqual(['TallyLimit'])
-    expect(method('Tally', 'add').controller).toEqual({ route: 'api/tally', method: 'POST' })
+    expect(method('Tally', 'add').controller).toEqual({ route: 'api/tally', method: 'POST', kind: 'functions' })
+    // A class Controller's generator method, read through its `Gen`.
+    expect(method('Items', 'note').schema.input).toEqual(object('params', object('id', { kind: 'number' })))
+    expect(method('Items', 'note').schema.success).toEqual({ kind: 'string' })
+    expect(method('Items', 'note').controller).toEqual({ route: 'api/notes/[id]', method: 'GET', kind: 'class' })
   })
 
   it.each([
@@ -95,6 +99,11 @@ describe('analyzeRpc', () => {
       'server/rpc.ts',
       'missing',
       'RPC Manifest entry "Broken.missing" (DELETE api/tally): Controller "server/routes/api/tally.controller.ts" does not export DELETE',
+    ],
+    [
+      'server/rpc.ts',
+      'method',
+      'RPC Manifest entry "Broken.method" (DELETE api/notes/[id]): Controller "server/routes/api/notes/[id].controller.ts" has no generator method DELETE in its Controller class',
     ],
     [
       'server/rpc.ts',

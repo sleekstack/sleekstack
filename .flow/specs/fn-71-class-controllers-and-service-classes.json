@@ -1,0 +1,146 @@
+{
+  "branch_name": "fn-71-class-controllers-and-service-classes",
+  "completion_review_status": "ship",
+  "completion_reviewed_at": "2026-10-26T06:54:01.613710Z",
+  "created_at": "2026-10-25T15:01:06.663906Z",
+  "default_impl": null,
+  "default_review": null,
+  "default_sync": null,
+  "depends_on_epics": [],
+  "id": "fn-71-class-controllers-and-service-classes",
+  "impl_review_rounds": {},
+  "next_task": 1,
+  "plan_review_rounds": 0,
+  "plan_review_status": "unknown",
+  "plan_reviewed_at": null,
+  "review_attempts": [
+    {
+      "artifact_sha256": "31c17166241d5eb148ce7ed914464dfcd52bab1530719c17d17ba795ff8b1b31",
+      "backend": "codex",
+      "base_sha": "b880412d55e789cb54632aaef61ef9ff00824c93",
+      "counter_kind": "plan",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-16988208c02a2508ef7640473dcc0ba9",
+            "classification": "introduced",
+            "findingId": "finding-16988208c02a2508ef7640473dcc0ba9",
+            "firstSeenThisRound": true,
+            "severity": "P1",
+            "status": "open"
+          },
+          {
+            "chainRoot": "finding-fe0afdf13ccf642c7c2705bf0a99b3bb",
+            "classification": "introduced",
+            "findingId": "finding-fe0afdf13ccf642c7c2705bf0a99b3bb",
+            "firstSeenThisRound": true,
+            "severity": "P2",
+            "status": "open"
+          }
+        ],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "be106bd46c4980ca9c04d7bc29dd89a2389c3083",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-6.1-sol",
+      "outcome": "verdict",
+      "output_bytes": 478996,
+      "output_sha256": "6310015c3d3092f0851e7d1b2d2ad50342f9f54c32da90fea986eae348e8cb49",
+      "reservation_id": "19ac1ba878834cdc91fe7e1c5f2876d4",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-10-26T06:38:45.305767Z",
+      "tool_calls": 14,
+      "verdict": "NEEDS_WORK"
+    },
+    {
+      "artifact_sha256": "503b256a46511d49bd5d2a6b5ccfa59146d2e10b47c18e48004e77882c2a55eb",
+      "backend": "codex",
+      "base_sha": "b880412d55e789cb54632aaef61ef9ff00824c93",
+      "counter_kind": "plan",
+      "effort": "medium",
+      "failure_class": null,
+      "finalized": {
+        "digest": "complete",
+        "receipt": "complete",
+        "status": "complete"
+      },
+      "findings_digest": {
+        "backend": "codex",
+        "digest_truncated": false,
+        "items": [
+          {
+            "chainRoot": "finding-16988208c02a2508ef7640473dcc0ba9",
+            "classification": "introduced",
+            "findingId": "finding-16988208c02a2508ef7640473dcc0ba9",
+            "firstSeenThisRound": false,
+            "severity": "P1",
+            "status": "fixed"
+          },
+          {
+            "chainRoot": "finding-fe0afdf13ccf642c7c2705bf0a99b3bb",
+            "classification": "introduced",
+            "findingId": "finding-fe0afdf13ccf642c7c2705bf0a99b3bb",
+            "firstSeenThisRound": false,
+            "severity": "P2",
+            "status": "fixed"
+          }
+        ],
+        "reviewKind": "completion"
+      },
+      "forced": false,
+      "hash_epoch": 0,
+      "head_sha": "d8c7a7d13866303da34aef828ef5893b05f71180",
+      "head_sha_observed": true,
+      "kind": "completion",
+      "model": "gpt-6.1-sol",
+      "outcome": "verdict",
+      "output_bytes": 4491,
+      "output_sha256": "7ea9eb06a9204d517e5e24d3ccf3d32519c56e1c4901a702cde808b2d7da6a24",
+      "reservation_id": "c57e994f86874463892f4e283405bc17",
+      "round_consumed": true,
+      "scope": "completion",
+      "superseded_by": null,
+      "task": null,
+      "timestamp": "2026-10-26T06:54:01.611102Z",
+      "verdict": "SHIP"
+    }
+  ],
+  "review_hash_epoch": {
+    "plan#completion": 1
+  },
+  "review_pending_rounds": {},
+  "review_reservations": {},
+  "review_transport_failures": {
+    "completion": 0
+  },
+  "spec_path": ".flow/specs/fn-71-class-controllers-and-service-classes.md",
+  "status": "open",
+  "title": "Class Controllers and Service classes",
+  "tracker": {
+    "baseHashFlow": null,
+    "baseHashTracker": null,
+    "depRelations": [],
+    "id": null,
+    "identifier": null,
+    "lastSyncedAt": null,
+    "mergeBaseFlow": null,
+    "mergeBaseTracker": null,
+    "url": null
+  },
+  "updated_at": "2026-10-26T06:54:01.614023Z"
+}

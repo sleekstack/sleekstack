@@ -15,6 +15,11 @@ const TAGGED_ERROR = 'effect/Data#TaggedError'
 const SCHEMA_TAGGED_ERROR = 'effect/Schema#TaggedError'
 const SCHEMA_TYPE = 'effect/Schema#Type'
 const EFFECT = 'effect/Effect#Effect'
+const GEN = 'start/class#Gen'
+
+/** `n` when it names `Gen` of `@sleekstack/start` by its imported symbol; a local alias of the whole `Gen` is not it. */
+export const genOf = (n: ts.TypeNode, checker: ts.TypeChecker): ts.TypeReferenceNode | undefined =>
+  ts.isTypeReferenceNode(n) && libId(checker.getSymbolAtLocation(n.typeName), checker) === GEN ? n : undefined
 /** Router control flow: carried by the wire's own envelope, not by the error Schema. */
 const CONTROL = new Set(['router/resolve#Redirect', 'router/resolve#NotFound'])
 
@@ -370,9 +375,9 @@ export const methodSchema = (
     ts.isTypeReferenceNode(returns) &&
     libId(checker.getSymbolAtLocation(returns.typeName), checker) === EFFECT
       ? returns
-      : undefined
+      : returns && genOf(returns, checker)
   try {
-    // Only `A` of a written `Effect.Effect<A, E, R>` may hold a reference.
+    // Only `A` of a written `Effect.Effect<A, E, R>` or `Gen<A, E, R>` may hold a reference.
     for (const n of effect ? (effect.typeArguments?.slice(1) ?? []) : written ? [written] : [])
       if (referencesIn(n).size) unfollowable(n)
     return {

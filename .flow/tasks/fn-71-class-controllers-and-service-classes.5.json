@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-25T15:11:29.978811Z",
+  "depends_on": [
+    "fn-71-class-controllers-and-service-classes.4"
+  ],
+  "id": "fn-71-class-controllers-and-service-classes.5",
+  "priority": null,
+  "spec": "fn-71-class-controllers-and-service-classes",
+  "spec_path": ".flow/tasks/fn-71-class-controllers-and-service-classes.5.md",
+  "status": "todo",
+  "title": "realworld: article Controllers become classes",
+  "updated_at": "2026-10-25T15:11:29.978811Z"
+}

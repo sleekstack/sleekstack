@@ -56,6 +56,7 @@ Anything else is a `CaptiveDependency`. `request` and `component` never nest.
 
 - **Tag**: an Effect `Context.Tag`. **Layer**: an Effect `Layer` that builds services. **Declared Layer**: a Layer plus its Lifetime (`declareLayer`). **Module**: a named group of entries with `imports` and `exports`; unexported Tags are private to the module.
 - **Lifetime**: `app` | `request` | `component`. **Shadowing**: a more local provider of a Tag overrides an outer one.
+- **Service Class** / **Class Controller** (`@sleekstack/start`): `class X extends Service<X>()(id, { db: Db })` / `export default class extends Controller({ db: Db })`, generator methods returning `Gen<A, E, R>`, each declared Tag on `this`.
 - Avoid: "provider", "container", "registry", "injector", "token"; say Layer, Graph, Module, Tag.
 
 ## Errors
@@ -82,7 +83,7 @@ Anything else is a `CaptiveDependency`. `request` and `component` never nest.
 - `ServerServiceMethodShape`: Every ServerService method is written out as `(input?) => Effect.Effect<A, E>`: one parameter at most, R = never, no `any`; a `Schema.Schema.Type<typeof X>` names an exported Schema of a client-safe module where the reader can follow it.
 - `ServerServiceTypeNotSerializable`: ServerService and Controller method types are JSON-shaped: primitives, literals, unions, arrays, plain objects, string-keyed records; Server Service errors are Data.TaggedError or Schema.TaggedError classes.
 - `ServerFileInClientGraph`: No server-only file (*.server.ts, *.controller.ts, *.rpc.ts, *.layer.ts, or a _defaults.ts, rpc.ts or _app.ts under the server directory) is value-imported, directly or not, by a module importing virtual:sleek/server or virtual:sleek/rpc, nor holds a Schema or error class a generated client imports.
-- `ControllerMethodShape`: A Controller method is a named export GET, HEAD, POST, PUT, PATCH, DELETE or OPTIONS: a function of one object `{ params?, query?, body? }` (body only on POST, PUT, PATCH, DELETE) returning an Effect, no `any`; params and query decode from strings.
+- `ControllerMethodShape`: A Controller method is a named export GET, HEAD, POST, PUT, PATCH, DELETE or OPTIONS: a function of one object `{ params?, query?, body? }` (body only on POST, PUT, PATCH, DELETE) returning an Effect, no `any`; params and query decode from strings. Or the default export is one class extending `Controller(...)` directly, its HTTP-named members generator methods with a written `Gen`, beside no named method.
 - `ControllerParamsMismatch`: The keys of a Controller method's params equal its path's params (`[id]` is `params.id`).
 - `LayerFileCycle`: Layer Files may not require each other in a cycle.
 - `LayerFileConflict`: Each Tag is provided by one Layer File at most.

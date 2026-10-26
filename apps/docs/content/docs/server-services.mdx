@@ -34,6 +34,21 @@ An implementation that reads the request or its cookies is built with `implement
 
 The [realworld app](https://github.com/sleekstack/sleekstack/tree/master/apps/realworld) reads the session cookie per call in its `IdentityApi`, `ArticlesApi` and `CommentsApi`, which are RPC Files whose `wrap` provides the viewer.
 
+## Services as classes
+
+A service the implementation or a Controller needs, such as a database or a domain service, is an ordinary Tag and Layer. `Effect.Service` writes one as a constructor that yields each dependency and returns the methods:
+
+<include>../../snippets/server-services/greeter-effect.ts</include>
+
+A Service Class from `@sleekstack/start` writes the same service as a class of generator methods ([ADR 0056](https://github.com/sleekstack/sleekstack/blob/master/docs/adr/0056-class-controllers-and-service-classes.md)):
+
+<include>../../snippets/server-services/greeter-class.ts</include>
+
+- `Service<Self>()(id, { ... })` declares the Tags it needs; each is on `this` under its name. The class is its own Tag, and `Greeter.Default` is the Layer that builds it once with the app's Layer, so a [Layer File](/docs/controllers#layer-files) default-exports it. A Service Class may declare another one, and the Layers compose by requirement.
+- Each generator method runs as an Effect spanned `<id>.<method>`, also through `yield* this.method()` and when inherited. A non-generator method is left alone, and `super` calls to a generator method are not supported. A written `Gen<A, E, R>` return type is optional here.
+- `accessors(Greeter)` gives each generator method as an Effect that asks for the service, for a caller that is not a generator. It keeps no method generics, overloads or optional-parameter forms.
+- A declared name that is `constructor` or a method of the class is a defect when the class is defined or first built. An id is claimed by its file and class name when the class is first built or its `Default` first read; another class name, or the same name in another file, with that id is a defect there. A dev reload may run a file again, which keeps its ids on whatever line they move to.
+
 ## The generated modules
 
 `sleekstack()` from `@sleekstack/ui-vite` includes the generator. An app on another Vite setup adds `serverServices()` from the same package to its plugins. It serves four virtual modules, and it writes their types to `src/server.gen.d.ts` (option `serverDeclaration`). Commit that file, as you would `routes.gen.d.ts`.
