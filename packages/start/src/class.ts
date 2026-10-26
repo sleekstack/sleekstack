@@ -78,7 +78,8 @@ const found = new WeakMap<object, Generators>()
 
 /**
  * The generator methods of `proto`'s class, inherited ones included, down to `base` (the nearest definition of a name
- * wins). A declared name that is `constructor`, `reserved` or a method of the class is a defect.
+ * wins). A generator method named `constructor`, and a declared name that is `constructor`, `reserved` or a method of
+ * the class, are defects.
  */
 const generators = (proto: object, base: object, deps: Deps, reserved: ReadonlyArray<string>): Generators => {
   let list = found.get(proto)
@@ -87,10 +88,15 @@ const generators = (proto: object, base: object, deps: Deps, reserved: ReadonlyA
   const generators: Array<readonly [string, (...args: any) => any]> = []
   for (let p = proto; p && p !== base; p = Object.getPrototypeOf(p)) {
     for (const name of Object.getOwnPropertyNames(p)) {
-      if (name === 'constructor' || seen.has(name)) continue
-      seen.add(name)
       const method = Object.getOwnPropertyDescriptor(p, name)?.value
-      if (method?.constructor === GeneratorFunction) generators.push([name, method])
+      const generator = method?.constructor === GeneratorFunction
+      if (name === 'constructor') {
+        if (generator) throw new Error('A generator method may not be named constructor')
+        continue
+      }
+      if (seen.has(name)) continue
+      seen.add(name)
+      if (generator) generators.push([name, method])
     }
   }
   for (const name of Object.keys(deps)) {

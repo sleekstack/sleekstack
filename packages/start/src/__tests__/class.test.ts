@@ -86,6 +86,14 @@ describe('Service', () => {
       },
       /already used/,
     ],
+    [
+      'a generator method named constructor',
+      () =>
+        class extends Service<unknown>()('test/CtorMethod') {
+          *['constructor']() {}
+        }.Default,
+      /named constructor/,
+    ],
   ])('is a defect for %s', (_, define, message) => {
     expect(define).toThrow(message)
   })
@@ -175,5 +183,13 @@ describe('Controller', () => {
     ],
   ])('is a defect for a declared name equal to %s', (_, define) => {
     expect(define).toThrow(/collides/)
+  })
+
+  it('is a defect for a generator method named constructor', () => {
+    expect(() =>
+      class extends Controller() {
+        *['constructor']() {}
+      }.run('GET' as never),
+    ).toThrow(/named constructor/)
   })
 })
