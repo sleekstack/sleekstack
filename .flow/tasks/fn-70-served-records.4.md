@@ -34,9 +34,15 @@ The browser half: a function the generated code calls to build the Layer that pr
 - [ ] TBD
 
 ## Done summary
-TBD
+Added `recordAdapterLayer(record, pattern)` in `packages/start/src/recordsClient.ts`, exported from both `@sleekstack/start/client` (the browser entry the generated `virtual:sleek/server` should import) and `@sleekstack/start`. It provides the record's adapter Tag through global `fetch` with a relative URL, the same way `serverClient` does. `find` calls GET and `save` calls PATCH with a JSON body and `content-type: application/json`. The id is percent-encoded into `:id`. A 404 fails with `RecordNotFound`, a 400 or 422 fails with `RecordRejected` (`message` from the body, else the status text), and any other status, a rejected fetch, or a body that is not a JSON object dies. `@sleekstack/model` is now a peer and dev dependency of start: peer, so that a single copy of the error classes is loaded. Only the start importer hunk is in the lockfile, because a local excluded `apps/sleek-codes` added unrelated entries that were left out.
 
+Tests in `__tests__/recordsClient.test.ts` cover the GET/PATCH shape, encoding of `/` and `%`, the 404/400/422 typed failures, five defect cases (401, 500, an array body, a non-JSON body, a rejected fetch), and the client-safe import boundary (the imports are exactly `@sleekstack/model` and `effect`). Two mutations (no encoding, no 400 mapping) were confirmed to turn the tests red.
+
+Note: `records.ts` still matches `RecordNotFound`/`RecordRejected` by `_tag`. Switching it to `instanceof` was left out because the file is outside this task's Touches; it needs a follow-up, and `records.test.ts` defines its own local error classes and would need to import the model ones.
+
+Tier: implementer (actual model: claude-opus-5-5)
+stage: impl-review - skipped(config: REVIEW_MODE=none)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: addc581b37768bf4c8bce962d0290b7f9fbf10d9
+- Tests: pnpm turbo run test typecheck --filter=@sleekstack/start..., baseline: green via handoff (verified at d19051a1 by fn-70-served-records.3)
 - PRs:
