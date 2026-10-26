@@ -11,7 +11,7 @@
   "priority": null,
   "spec": "fn-68-file-routed-controllers",
   "spec_path": ".flow/tasks/fn-68-file-routed-controllers.9.md",
-  "status": "todo",
+  "status": "done",
   "title": "testing: callController",
   "updated_at": "2026-10-22T14:09:41.798473Z"
 }

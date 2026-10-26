@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-22T21:40:41.878016Z",
+  "depends_on": [
+    "fn-70-served-records.2"
+  ],
+  "id": "fn-70-served-records.4",
+  "priority": null,
+  "spec": "fn-70-served-records",
+  "spec_path": ".flow/tasks/fn-70-served-records.4.md",
+  "status": "todo",
+  "title": "start: the HTTP adapter Layer for a served record",
+  "updated_at": "2026-10-22T21:40:41.878016Z"
+}

@@ -1,0 +1,27 @@
+{
+  "branch_name": "fn-70-served-records",
+  "created_at": "2026-10-22T21:40:37.558061Z",
+  "depends_on_epics": [
+    "fn-68-file-routed-controllers",
+    "fn-69-server-auto-wiring"
+  ],
+  "id": "fn-70-served-records",
+  "next_task": 1,
+  "plan_review_status": "unknown",
+  "plan_reviewed_at": null,
+  "spec_path": ".flow/specs/fn-70-served-records.md",
+  "status": "open",
+  "title": "Served records",
+  "tracker": {
+    "baseHashFlow": null,
+    "baseHashTracker": null,
+    "depRelations": [],
+    "id": null,
+    "identifier": null,
+    "lastSyncedAt": null,
+    "mergeBaseFlow": null,
+    "mergeBaseTracker": null,
+    "url": null
+  },
+  "updated_at": "2026-10-22T21:40:47.665281Z"
+}
