@@ -33,9 +33,14 @@ Write the design record before any code, as AGENTS.md requires for a decided beh
 - [ ] TBD
 
 ## Done summary
-TBD
+Wrote ADR 0057 (Proposed (draft)). It records the served-records decisions taken from the spec's API Contracts, Decision Context and Boundaries. It states that it amends ADR 0053: the `method(...)` rejection still stands, and `records(...)` is the one exception. It states that it amends ADR 0056's one-form rule. It lists the new public names and both `AnalyzeCode` values. ADR 0057 is in the index, and the amendment is noted on the 0053 and 0056 rows and Status lines. CONTEXT.md gains Record Controller and Served Record, and its Record Adapter entry now says that on the server a Layer File provides the same Tag.
 
+Note: ADR 0056's Status line was edited because the task's Approach asks for it. `docs/adr/0056-class-controllers-and-service-classes.md` is missing from the task's Touches list.
+
+Tier: implementer (actual model: claude-opus-5-5)
+
+stage: impl-review - skipped(config: REVIEW_MODE=none)
 ## Evidence
-- Commits:
-- Tests:
+- Commits: 0404e57c
+- Tests: pnpm turbo run test typecheck build --filter=docs
 - PRs:
