@@ -6,6 +6,19 @@ import { analyzeControllers, controllerRoute, ERROR_CODES } from '../index'
 const fixture = path.join(__dirname, 'fixtures', 'controllers')
 const report = analyzeControllers({ project: path.join(fixture, 'tsconfig.json') })
 const at = ({ file, line }: { readonly file: string; readonly line: number }) => `${file}:${line}`
+/** Each `// @error Code` marker of the fixture `dir` as `Code file:line`. */
+const markers = (dir: string) =>
+  (fs.readdirSync(dir, { recursive: true }) as string[])
+    .filter((f) => f.endsWith('.ts'))
+    .flatMap((file) =>
+      fs
+        .readFileSync(path.join(dir, file), 'utf8')
+        .split('\n')
+        .flatMap((l, i) => {
+          const m = /\/\/ @error (\w+)/.exec(l)
+          return m ? [`${m[1]} ${at({ file, line: i + 1 })}`] : []
+        }),
+    )
 
 describe('controllerRoute', () => {
   const dir = path.join(path.sep, 'app', 'server', 'routes')
@@ -37,18 +50,7 @@ describe('controllerRoute', () => {
 
 describe('analyzeControllers', () => {
   it('reports each diagnostic at its file:line, with its code docs', () => {
-    const expected = (fs.readdirSync(fixture, { recursive: true }) as string[])
-      .filter((f) => f.endsWith('.ts'))
-      .flatMap((file) =>
-        fs
-          .readFileSync(path.join(fixture, file), 'utf8')
-          .split('\n')
-          .flatMap((l, i) => {
-            const m = /\/\/ @error (\w+)/.exec(l)
-            return m ? [`${m[1]} ${at({ file, line: i + 1 })}`] : []
-          }),
-      )
-    expect(report.errors.map((e) => `${e.code} ${at(e)}`).sort()).toEqual(expected.sort())
+    expect(report.errors.map((e) => `${e.code} ${at(e)}`).sort()).toEqual(markers(fixture).sort())
     for (const e of report.errors) expect(e.docs).toBe(ERROR_CODES[e.code].docs)
   })
 
@@ -200,5 +202,76 @@ describe('analyzeControllers', () => {
   ])('%s:%i says what is wrong', (file, line, message) => {
     const found = report.errors.find((e) => e.file === path.join('server', 'routes', file) && e.line === line)
     expect(found?.message).toBe(message)
+  })
+})
+
+describe('analyzeControllers: records(...)', () => {
+  const dir = path.join(__dirname, 'fixtures', 'records-controller')
+  const records = analyzeControllers({ project: path.join(dir, 'tsconfig.json') })
+  const read = (route: string) => records.controllers.find((c) => c.route === route)
+
+  it('reports each diagnostic at its file:line, and nothing else', () => {
+    expect(records.errors.map((e) => `${e.code} ${at(e)}`).sort()).toEqual(markers(dir).sort())
+  })
+
+  it.each(['articles/[id]', 'barrel/[id]'])(
+    '%s serves GET and PATCH with params { id }, its record and adapter Tag (a re-export barrel too)',
+    (route) => {
+      const c = read(route)!
+      const id = {
+        kind: 'object',
+        properties: [
+          {
+            name: 'params',
+            optional: false,
+            type: { kind: 'object', properties: [{ name: 'id', optional: false, type: { kind: 'string' } }] },
+          },
+        ],
+      }
+      expect(c.kind).toBe('records')
+      expect([c.record?.name, c.record?.file, records.checker.typeToString(c.record!.adapter)]).toEqual([
+        'Article',
+        'article.ts',
+        'typeof ArticleAdapter',
+      ])
+      expect(
+        c.methods
+          .filter((m) => m.name !== 'DELETE')
+          .map((m) => [m.name, m.schema.input, records.checker.typeToString(m.requires)]),
+      ).toEqual([
+        ['GET', id, 'ArticleAdapter'],
+        ['PATCH', id, 'ArticleAdapter'],
+      ])
+    },
+  )
+
+  it('a named DELETE beside records(...) is an ordinary Controller Method', () => {
+    expect(read('articles/[id]')!.methods.map((m) => m.name)).toEqual(['GET', 'PATCH', 'DELETE'])
+  })
+
+  it.each([
+    ['wrong/[slug]', "serves a record at /wrong/:slug; a served record's file path ends in exactly [id]"],
+    ['local/[id]', 'default-exports a `records` call that is not `records` of @sleekstack/start; import it from there'],
+    [
+      'unresolvable/[id]',
+      'serves "notARecord", which does not resolve to a const `defineRecord(...)`; pass the record itself',
+    ],
+    ['no-adapter/[id]', 'serves the record "Note", which has no adapter; give `defineRecord` an `adapter` Tag'],
+    [
+      'needy/[id]',
+      'serves the record "Needy", whose fields need the Service "Lookup"; a served record\'s Schemas need none',
+    ],
+  ])('RecordsRouteShape: %s', (route, why) => {
+    expect(records.errors.find((e) => e.code === 'RecordsRouteShape' && e.file.includes(route))?.message).toBe(
+      `Controller "${route}" ${why}`,
+    )
+    expect(read(route)!.kind).toBe('functions')
+  })
+
+  it('RecordsMethodCollision: a named GET beside records(...)', () => {
+    expect(records.errors.find((e) => e.code === 'RecordsMethodCollision')?.message).toBe(
+      'Controller "collision/[id]" exports "GET" beside its default `records(...)`, which serves GET; remove the export or write the Controller by hand',
+    )
+    expect(read('collision/[id]')!.methods.map((m) => m.name)).toEqual(['GET', 'PATCH'])
   })
 })

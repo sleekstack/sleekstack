@@ -1,0 +1,10 @@
+{
+  "extends": "../../../../../../tsconfig.base.json",
+  "compilerOptions": {
+    "paths": {
+      "@sleekstack/start": ["../../../../../start/src/index.ts"],
+      "@sleekstack/model": ["../../../../../model/src/index.ts"]
+    }
+  },
+  "include": ["."]
+}
