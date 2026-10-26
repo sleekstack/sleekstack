@@ -132,7 +132,7 @@
     "completion": 0
   },
   "spec_path": ".flow/specs/fn-70-served-records.md",
-  "status": "open",
+  "status": "done",
   "title": "Served records",
   "tracker": {
     "baseHashFlow": null,
@@ -145,5 +145,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-26T12:45:09.454141Z"
+  "updated_at": "2026-10-26T13:13:18.084758Z"
 }

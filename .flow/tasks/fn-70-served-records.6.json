@@ -12,7 +12,7 @@
   "priority": null,
   "spec": "fn-70-served-records",
   "spec_path": ".flow/tasks/fn-70-served-records.6.md",
-  "status": "todo",
+  "status": "done",
   "title": "ui-vite: codegen for served records and the generated browser Layer",
   "updated_at": "2026-10-22T21:40:41.878055Z"
 }

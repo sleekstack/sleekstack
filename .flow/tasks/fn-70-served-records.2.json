@@ -8,7 +8,7 @@
   "priority": null,
   "spec": "fn-70-served-records",
   "spec_path": ".flow/tasks/fn-70-served-records.2.md",
-  "status": "todo",
+  "status": "done",
   "title": "model: readOnly fields, record.change and the record error classes",
   "updated_at": "2026-10-22T21:40:41.877956Z"
 }

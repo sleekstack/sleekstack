@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-70-served-records",
   "spec_path": ".flow/tasks/fn-70-served-records.4.md",
-  "status": "todo",
+  "status": "done",
   "title": "start: the HTTP adapter Layer for a served record",
   "updated_at": "2026-10-22T21:40:41.878016Z"
 }
