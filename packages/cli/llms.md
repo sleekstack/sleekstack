@@ -57,6 +57,7 @@ Anything else is a `CaptiveDependency`. `request` and `component` never nest.
 - **Tag**: an Effect `Context.Tag`. **Layer**: an Effect `Layer` that builds services. **Declared Layer**: a Layer plus its Lifetime (`declareLayer`). **Module**: a named group of entries with `imports` and `exports`; unexported Tags are private to the module.
 - **Lifetime**: `app` | `request` | `component`. **Shadowing**: a more local provider of a Tag overrides an outer one.
 - **Service Class** / **Class Controller** (`@sleekstack/start`): `class X extends Service<X>()(id, { db: Db })` / `export default class extends Controller({ db: Db })`, generator methods returning `Gen<A, E, R>`, each declared Tag on `this`.
+- **Served Record**: `export default records(R)` (`@sleekstack/start`) in a `[id].controller.ts` serves `GET`/`PATCH` via R's adapter Tag (a `*.layer.ts` on the server, generated in the browser). `readOnly(schema)` drops a field from `R.change`; failures `RecordNotFound` 404, `RecordRejected` 422.
 - Avoid: "provider", "container", "registry", "injector", "token"; say Layer, Graph, Module, Tag.
 
 ## Errors
@@ -85,6 +86,8 @@ Anything else is a `CaptiveDependency`. `request` and `component` never nest.
 - `ServerFileInClientGraph`: No server-only file (*.server.ts, *.controller.ts, *.rpc.ts, *.layer.ts, or a _defaults.ts, rpc.ts or _app.ts under the server directory) is value-imported, directly or not, by a module importing virtual:sleek/server or virtual:sleek/rpc, nor holds a Schema or error class a generated client imports.
 - `ControllerMethodShape`: A Controller method is a named export GET, HEAD, POST, PUT, PATCH, DELETE or OPTIONS: a function of one object `{ params?, query?, body? }` (body only on POST, PUT, PATCH, DELETE) returning an Effect, no `any`; params and query decode from strings. Or the default export is one class extending `Controller(...)` directly, its HTTP-named members generator methods with a written `Gen`, beside no named method.
 - `ControllerParamsMismatch`: The keys of a Controller method's params equal its path's params (`[id]` is `params.id`).
+- `RecordsRouteShape`: A Controller default-exporting `records(Record)` sits at a path ending in exactly `[id]`, calls `records` of @sleekstack/start, and passes a const `defineRecord(...)` with an `adapter` whose fields' Schemas need no Service.
+- `RecordsMethodCollision`: A Controller default-exporting `records(...)` exports no named GET or PATCH, which it serves.
 - `LayerFileCycle`: Layer Files may not require each other in a cycle.
 - `LayerFileConflict`: Each Tag is provided by one Layer File at most.
 - `ServerFileShape`: A *.layer.ts file's default export is a Layer, not typed `any`; the server directory's _app.ts exports only onError; an RPC File's service name is [A-Za-z][A-Za-z0-9]* and a `service` export a string literal; rpc.ts default-exports an object literal of 'VERB route' string literals.

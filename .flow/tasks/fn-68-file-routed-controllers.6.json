@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-68-file-routed-controllers",
   "spec_path": ".flow/tasks/fn-68-file-routed-controllers.6.md",
-  "status": "todo",
+  "status": "done",
   "title": "start: Controller decode, encode, wrap chain and option merging",
   "updated_at": "2026-10-22T14:05:48.874118Z"
 }

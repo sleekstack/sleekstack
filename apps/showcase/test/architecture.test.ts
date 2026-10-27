@@ -3,8 +3,8 @@ import * as path from 'node:path'
 import { expect, it } from 'vitest'
 
 // Layout of src/ (modular clean architecture; dependencies point inward):
-//   modules/<name>/   one per domain (identity, projects, tasks), each with its own layers:
-//     domain/           pure model: entities, errors, ports (service Tags); no framework
+//   modules/<name>/   one per domain (identity, projects, tasks, users), each with its own layers:
+//     domain/           pure model: entities, errors, ports (service Tags), records; no framework but the model's
 //     application/      use cases and UI state over the domain
 //     infrastructure/   adapters for the module's ports; `infrastructure/index` exports its Layers
 //     presentation/     the UI; `guests` / `avatar` are plain React and know nothing of the app
@@ -17,7 +17,12 @@ import { expect, it } from 'vitest'
 //   size/*            size-budget entries: built `@sleekstack/ui` (and `@sleekstack/model`) output only
 //   server.gen.d      the generated module types, naming the Controllers and Layer Files under server/ (types only)
 // Modules reach each other only through `index`, and only along MODULE_DEPS (no cycles).
-const MODULE_DEPS: Record<string, ReadonlyArray<string>> = { identity: [], projects: [], tasks: ['identity'] }
+const MODULE_DEPS: Record<string, ReadonlyArray<string>> = {
+  identity: [],
+  projects: [],
+  tasks: ['identity'],
+  users: [],
+}
 
 interface Rule {
   /** Local module prefixes (`dir/` = anything in it, else exact) this file may import, besides the module rules below. */
@@ -35,7 +40,7 @@ const ruleOf = (mod: string): Rule | undefined => {
     if (rest === 'index') return { local: ['domain/', 'application/', 'presentation/'], packages: [] }
     if (PLAIN_REACT.has(rest)) return { local: [], packages: ['react', UI] }
     const layer = rest.split('/')[0]
-    if (layer === 'domain') return { local: ['domain/'], packages: ['effect'] }
+    if (layer === 'domain') return { local: ['domain/'], packages: ['effect', '@sleekstack/model'] }
     if (layer === 'application')
       return {
         local: ['domain/', 'application/'],
@@ -147,6 +152,8 @@ it('files import only what their layer allows, and modules reach each other only
         // Another module: its `index`, along MODULE_DEPS. Its `infrastructure` only from the `layers` root.
         const [, name, rest] = other as unknown as [string, string, string]
         if (mod === 'layers' && (rest === 'infrastructure/index' || rest === 'index')) continue
+        // The generated types name a served record in the module that defines it.
+        if (mod === 'server.gen.d' && rest.startsWith('domain/')) continue
         if (rest !== 'index')
           violations.push(`${mod} must reach modules/${name} only through its index (imports ./${target})`)
         else if (!self && !mod.startsWith('pages/') && mod !== 'app')

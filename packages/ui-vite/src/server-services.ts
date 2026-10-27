@@ -1,6 +1,6 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import type { AnalyzeError, PropertySchema, TaggedErrorSchema, TypeSchema } from '@sleekstack/analyze'
+import type { AnalyzeError, ControllerDecl, PropertySchema, TaggedErrorSchema, TypeSchema } from '@sleekstack/analyze'
 import { type Environment, normalizePath, type Plugin } from 'vite'
 import { matchOrder, type RoutesOptions, scan, sortKey } from './routes.js'
 
@@ -155,15 +155,27 @@ const entryCode = (c: Contract, alias: Alias) =>
     )
     .join(', ')} } }`
 
-/** The registry entries as module code, importing each Tag and error class from its contract file (absolute, under `root`). */
-const entriesCode = (contracts: readonly Contract[], root: string): string => {
+/** A served record as the browser Layer needs it: the record's `const` and file (absolute) and its Controller's pattern. */
+interface ServedRoute {
+  readonly name: string
+  readonly file: string
+  readonly pattern: string
+}
+
+/**
+ * The registry entries as module code, importing each Tag and error class from its contract file (absolute, under
+ * `root`), and the `recordAdapterLayer` call of each served record, importing the record from its client-safe module.
+ */
+const entriesCode = (contracts: readonly Contract[], root: string, served: readonly ServedRoute[] = []) => {
   const { alias, imports } = importMap(root)
   const entries = contracts.map((c) => `  ${entryCode(c, alias)},\n`)
-  return `import { Schema } from 'effect'
-import { serverClients, taggedError } from '${START_CLIENT}'
+  const layers = served.map((r) => `recordAdapterLayer(${alias(r.file, r.name)}, ${JSON.stringify(r.pattern)})`)
+  const code = `import { ${layers.length ? 'Layer, ' : ''}Schema } from 'effect'
+import { ${layers.length ? 'recordAdapterLayer, ' : ''}serverClients, taggedError } from '${START_CLIENT}'
 ${imports()}const entries = [
 ${entries.join('')}]
 `
+  return { code, layers }
 }
 
 /** The `import()` type of the absolute `file` from the declaration's directory `dir`. */
@@ -207,10 +219,19 @@ declare module '${SERVER_APP}' {
 }
 
 /** The modules' types, each Tag named by `import()` from its contract file, relative to the declaration's directory. */
-const declarationOf = (contracts: readonly Contract[], rpc: readonly RpcService[], root: string, dir: string) => {
+const declarationOf = (
+  contracts: readonly Contract[],
+  rpc: readonly RpcService[],
+  served: readonly ServedRoute[],
+  root: string,
+  dir: string,
+) => {
   const tag = (c: Contract) => `${importType(dir, path.resolve(root, c.file))}.${c.name}`
   const generated = rpc.map((s) => `import('${RPC}').${s.contract.name}`)
-  const tags = [...contracts.map(tag), ...generated].join(' | ') || 'never'
+  const adapters = served.map(
+    (r) => `import('effect').Context.Tag.Identifier<(typeof ${importType(dir, r.file)}.${r.name})['adapter']>`,
+  )
+  const tags = [...contracts.map(tag), ...generated, ...adapters].join(' | ') || 'never'
   const classes = [...contracts.map(tag), ...generated].map((t) => `typeof ${t}`).join(' | ') || 'never'
   return `declare module '${CLIENT}' {
   const layer: import('effect').Layer.Layer<${tags}>
@@ -439,7 +460,9 @@ export const discoverControllers = async ({
 
 /** A Controller as the generator needs it, by the analyzer's Controller pass: its form and methods. */
 interface ControllerRead {
-  readonly kind: 'functions' | 'class'
+  readonly kind: ControllerDecl['kind']
+  /** A `'records'` Controller's record: its `const` and file, relative to the tsconfig directory. */
+  readonly record: { readonly name: string; readonly file: string } | undefined
   readonly methods: ReadonlyArray<{
     readonly name: string
     readonly schema: { readonly input: TypeSchema; readonly success: TypeSchema | undefined }
@@ -455,6 +478,7 @@ const readControllers = async (project: string, serverDir: string, controllersDi
       c.route,
       {
         kind: c.kind,
+        record: c.record && { name: c.record.name, file: c.record.file },
         methods: c.methods.map(({ name, schema }) => ({ name, schema })),
       },
     ]),
@@ -510,7 +534,15 @@ const appCode = (
     const chain = [...c.defaults, c.file].map(
       (f) => `options(${JSON.stringify(normalizePath(path.relative(root, f)))}, ${alias(f, '*')})`,
     )
-    return `  { route: ${JSON.stringify(c.route)}, pattern: ${JSON.stringify(c.pattern)}, methods: { ${controller.methods.map(method).join(', ')} }, options: [${chain.join(', ')}] },\n`
+    // A served record's GET and PATCH come from its default export; its named exports beside it are ordinary methods.
+    const methods =
+      controller.kind === 'records'
+        ? [
+            `...recordsMethods(${alias(c.file, '*')}.default)`,
+            ...controller.methods.filter((m) => m.name !== 'GET' && m.name !== 'PATCH').map(method),
+          ]
+        : controller.methods.map(method)
+    return `  { route: ${JSON.stringify(c.route)}, pattern: ${JSON.stringify(c.pattern)}, methods: { ${methods.join(', ')} }, options: [${chain.join(', ')}] },\n`
   })
   const limits = (file: string, options: string) =>
     `limits(${JSON.stringify(normalizePath(path.relative(root, file)))}, ${options})`
@@ -527,6 +559,7 @@ const appCode = (
     return `      { entry: ${entryCode(contract, alias)}, layer: serviceLayer(${alias(RPC, contract.name)}, { ${methods} }, ${own}.wrap), options: [${chain.join(', ')}] },\n`
   })
   const manifest = rpc.some((s) => !RPC_FILE.test(s.file))
+  const served = [...read.values()].some((c) => c.kind === 'records')
   // `Layer.provideMerge(next, before)`: each Layer File gets what the files before it provide.
   const layer = layers.files
     .map((f) => alias(f, 'default'))
@@ -535,7 +568,7 @@ const appCode = (
   const notFound = pages?.notFound ? 'routes.notFound' : '() => jsx(Fragment, {})'
   return `import { ${layer ? 'Layer, ' : ''}Schema } from 'effect'
 import { bind, ${pages ? 'router, ' : ''}segments } from '@sleekstack/router'
-${rpc.length ? `import { serviceLayer } from '@sleekstack/start'\nimport { taggedError } from '${START_CLIENT}'\n` : ''}${pages ? `import * as routes from 'virtual:sleekstack/routes'\n` : ''}${pages && !pages.notFound ? `import { Fragment, jsx } from '@sleekstack/ui/jsx-runtime'\n` : ''}${imports()}const options = (file, m) => ({ file, wrap: m.wrap, bodyLimit: m.bodyLimit, origins: m.origins })
+${rpc.length || served ? `import { ${[served && 'recordsMethods', rpc.length && 'serviceLayer'].filter(Boolean).join(', ')} } from '@sleekstack/start'\n` : ''}${rpc.length ? `import { taggedError } from '${START_CLIENT}'\n` : ''}${pages ? `import * as routes from 'virtual:sleekstack/routes'\n` : ''}${pages && !pages.notFound ? `import { Fragment, jsx } from '@sleekstack/ui/jsx-runtime'\n` : ''}${imports()}const options = (file, m) => ({ file, wrap: m.wrap, bodyLimit: m.bodyLimit, origins: m.origins })
 ${rpc.length ? 'const limits = (file, m) => ({ file, bodyLimit: m.bodyLimit, origins: m.origins })\n' : ''}${
     // `rpc(services, options)` gives both; a plain table has no options.
     manifest
@@ -569,6 +602,8 @@ type Discovered =
       readonly controllers: readonly DiscoveredController[]
       /** The route names of the class Controllers. */
       readonly classes: readonly string[]
+      /** The served records, for the browser Layer. */
+      readonly records: readonly ServedRoute[]
       readonly layerFiles: readonly string[]
       readonly code: string
     }
@@ -644,7 +679,11 @@ const layerFilesDeclaration = (files: readonly string[], root: string, dir: stri
  * removed or edited regenerates and invalidates the modules like a contract or Controller does. The analyzer's Layer
  * File pass gives the discovered app its `layer` (the `*.layer.ts` files, tests excluded, composed by requirement) and
  * the Server Root's (`_app.ts` under `serverDir`) `onError`, and the declaration's `LayerFileServices`; they are
- * discovered, failed and invalidated as the Controllers are.
+ * discovered, failed and invalidated as the Controllers are. A served record's Controller (`export default
+ * records(Record)`, ADR 0057) gets its `GET` and `PATCH` from `recordsMethods` of its default export; the browser Layer
+ * also provides the record's adapter Tag through `recordAdapterLayer` over the Controller's pattern, importing the record
+ * from its client-safe module (never part of the server app, so never beside the Layer File providing that Tag); in dev,
+ * editing the record's module reloads the discovered app as a Controller edit does.
  */
 export const serverServices = (options: ServerServicesOptions = {}): Plugin => {
   let project = ''
@@ -678,6 +717,10 @@ export const serverServices = (options: ServerServicesOptions = {}): Plugin => {
       return {
         controllers,
         classes: [...methods].flatMap(([route, c]) => (c.kind === 'class' ? [route] : [])),
+        records: controllers.flatMap(({ route, pattern }) => {
+          const record = methods.get(route)?.record
+          return record ? [{ name: record.name, file: normalizePath(path.resolve(root, record.file)), pattern }] : []
+        }),
         layerFiles: layers.files,
         code: appCode(controllers, methods, found, root, r.services, layers),
       }
@@ -692,12 +735,19 @@ export const serverServices = (options: ServerServicesOptions = {}): Plugin => {
       if (errors.length) return { error: failed('Server Service contracts', errors, root) }
       const r = await rpcRead()
       if ('error' in r) return r
-      const entries = entriesCode([...contracts, ...r.services.map((s) => s.contract)], root)
+      const all = [...contracts, ...r.services.map((s) => s.contract)]
+      // A failing discovery fails the server app's load and the build; the browser Layer then omits its records.
+      const d = await discovery()
+      const served = 'error' in d ? [] : d.records
+      const { code, layers } = entriesCode(all, root, served)
+      const client = layers.length
+        ? `Layer.mergeAll(serverClients(entries), ${layers.join(', ')})`
+        : 'serverClients(entries)'
       return {
-        client: `${entries}export default serverClients(entries)\n`,
-        registry: `${entries}export default entries\n`,
+        client: `${code}export default ${client}\n`,
+        registry: `${entriesCode(all, root).code}export default entries\n`,
         rpc: r.code,
-        declaration: declarationOf(contracts, r.services, root, normalizePath(path.dirname(declarationFile))),
+        declaration: declarationOf(contracts, r.services, served, root, normalizePath(path.dirname(declarationFile))),
         empty: contracts.length === 0 && r.services.length === 0,
       }
     } catch (cause) {
@@ -837,7 +887,8 @@ ${g.declaration}${controllersDeclaration(d.controllers, d.classes, dir)}${layerF
         const discoveryFile =
           ([serverDir, controllersDir].some((dir) => file.startsWith(`${dir}/`)) &&
             (CONTROLLER.test(file) || RPC_FILE.test(file) || RESERVED.has(path.posix.basename(file)))) ||
-          (LAYER_FILE.test(file) && !TEST_FILE.test(path.relative(root, file)))
+          (LAYER_FILE.test(file) && !TEST_FILE.test(path.relative(root, file))) ||
+          ('error' in after[1] ? false : after[1].records.some((r) => r.file === file))
         const ids = [...(same(0) ? [] : MODULES), ...(same(1) && !discoveryFile ? [] : [SERVER_APP])]
         if (ids.length === 0) return
         for (const env of Object.values(server.environments))

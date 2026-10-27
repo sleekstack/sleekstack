@@ -461,7 +461,7 @@
     "plan": 0
   },
   "spec_path": ".flow/specs/fn-69-server-auto-wiring.md",
-  "status": "open",
+  "status": "done",
   "title": "Server auto-wiring",
   "tracker": {
     "baseHashFlow": null,
@@ -474,5 +474,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-24T07:14:39.112262Z"
+  "updated_at": "2026-10-26T11:51:12.536215Z"
 }

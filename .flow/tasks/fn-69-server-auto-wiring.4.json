@@ -11,7 +11,7 @@
   "priority": null,
   "spec": "fn-69-server-auto-wiring",
   "spec_path": ".flow/tasks/fn-69-server-auto-wiring.4.md",
-  "status": "todo",
+  "status": "done",
   "title": "ui-vite: RPC File codegen (Tag, registry entry, implementation Layer, client, virtual:sleek/rpc)",
   "updated_at": "2026-10-22T14:05:54.581688Z"
 }

@@ -30,7 +30,8 @@
   "peerDependencies": {
     "effect": "^3.15.0",
     "@sleekstack/ui": "workspace:*",
-    "@sleekstack/router": "workspace:*"
+    "@sleekstack/router": "workspace:*",
+    "@sleekstack/model": "workspace:*"
   },
   "devDependencies": {
     "effect": "^3.15.0",
@@ -41,6 +42,7 @@
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "@types/react": "^19.2.17",
-    "jsdom": "^29.1.1"
+    "jsdom": "^29.1.1",
+    "@sleekstack/model": "workspace:*"
   }
 }

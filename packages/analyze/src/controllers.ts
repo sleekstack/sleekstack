@@ -35,6 +35,10 @@ export const CONTROLLER = /\.controller\.ts$/
 const DEFAULTS = '_defaults.ts'
 const EFFECT = 'effect/Effect#Effect'
 const CLASS_BASE = 'start/class#Controller'
+const RECORDS = 'start/records#records'
+const DEFINE_RECORD = 'model/record#defineRecord'
+/** The methods `records(...)` serves. */
+const SERVED: readonly ControllerMethodName[] = ['GET', 'PATCH']
 /** The services `start` provides to every call (`RequestServices` of `@sleekstack/start`). */
 const REQUEST_SERVICES: ReadonlySet<string> = new Set(
   ['Request', 'Cookies', 'ResponseHeaders', 'ResponseStatus'].map((name) => `start/services#${name}`),
@@ -137,11 +141,26 @@ export interface ControllerDependency {
   readonly location: Location
 }
 
+/** The record a `records(...)` Controller serves (ADR 0057). */
+export interface ServedRecord {
+  /** The `const` holding the `defineRecord` call, and its file relative to the tsconfig directory. */
+  readonly name: string
+  readonly file: string
+  /** The type of its adapter Tag (the Tag class, `typeof Tag`). */
+  readonly adapter: ts.Type
+  readonly location: Location
+}
+
 export interface ControllerDecl extends ControllerRoute {
   /** The file, relative to the tsconfig directory. */
   readonly file: string
-  /** `'functions'`: the methods are named exports; `'class'`: they are generator methods of the default-exported class. */
-  readonly kind: 'functions' | 'class'
+  /**
+   * `'functions'`: the methods are named exports; `'class'`: they are generator methods of the default-exported class;
+   * `'records'`: the default export is `records(Record)`, serving `GET` and `PATCH`, beside named exports.
+   */
+  readonly kind: 'functions' | 'class' | 'records'
+  /** The served record of a `'records'` Controller. */
+  readonly record?: ServedRecord
   /** The Tags a class Controller declares, in written order; empty for named exports. */
   readonly declared: readonly ControllerDependency[]
   /** The methods read without an error, in the order GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS. */
@@ -452,6 +471,86 @@ export function analyzeControllers(opts: {
     return { cls, declared }
   }
 
+  /**
+   * The default export of `sf` when it is a call of a function named `records`: the record it serves with the served
+   * methods (params `{ id }`; the body and answer are the record's), or null once a `RecordsRouteShape` is reported.
+   */
+  const recordsOf = (sf: ts.SourceFile, route: ControllerRoute) => {
+    const at = exportsOf(sf).find((e) => e.name === 'default')?.declarations?.[0]
+    if (!at || !ts.isExportAssignment(at)) return undefined
+    const call = unwrap(at.expression)
+    if (!ts.isCallExpression(call)) return undefined
+    const callee = unwrap(call.expression)
+    const named = ts.isIdentifier(callee) ? callee.text : ts.isPropertyAccessExpression(callee) ? callee.name.text : ''
+    if (named !== 'records') return undefined
+    const shape = (why: string) => {
+      report('RecordsRouteShape', at, `Controller "${route.route}" ${why}`)
+      return null
+    }
+    if (libId(checker.getSymbolAtLocation(call.expression), checker) !== RECORDS)
+      return shape('default-exports a `records` call that is not `records` of @sleekstack/start; import it from there')
+    if (route.pattern.split('/').at(-1) !== ':id')
+      return shape(`serves a record at ${route.pattern}; a served record's file path ends in exactly [id]`)
+    const arg = call.arguments[0]
+    const name = arg?.getText() ?? ''
+    const sym = arg && checker.getSymbolAtLocation(arg)
+    const decl = sym && resolve(sym).valueDeclaration
+    const init =
+      decl &&
+      ts.isVariableDeclaration(decl) &&
+      ts.getCombinedNodeFlags(decl) & ts.NodeFlags.Const &&
+      decl.initializer &&
+      unwrap(decl.initializer)
+    if (
+      !init ||
+      !ts.isCallExpression(init) ||
+      libId(checker.getSymbolAtLocation(init.expression), checker) !== DEFINE_RECORD
+    )
+      return shape(`serves "${name}", which does not resolve to a const \`defineRecord(...)\`; pass the record itself`)
+    const record = checker.getTypeAtLocation(arg)
+    const adapter = checker.getPropertyOfType(record, 'adapter')
+    if (!adapter)
+      return shape(`serves the record "${name}", which has no adapter; give \`defineRecord\` an \`adapter\` Tag`)
+    const schema = checker.getPropertyOfType(record, 'schema')
+    const context = schema && checker.getPropertyOfType(checker.getTypeOfSymbol(schema), 'Context')
+    const needs = context && checker.getTypeOfSymbol(context)
+    if (!needs || !(needs.flags & ts.TypeFlags.Never))
+      return shape(
+        `serves the record "${name}", whose fields need the Service "${needs ? checker.typeToString(needs) : 'unknown'}"; a served record's Schemas need none`,
+      )
+    const tag = checker.getTypeOfSymbol(adapter)
+    const tagSymbol = tag.getSymbol()
+    const location = locationOf(root, at)
+    const input: TypeSchema = {
+      kind: 'object',
+      properties: [
+        {
+          name: 'params',
+          optional: false,
+          type: { kind: 'object', properties: [{ name: 'id', optional: false, type: { kind: 'string' } }] },
+        },
+      ],
+    }
+    const methods: ControllerMethod[] = SERVED.map((method) => ({
+      name: method,
+      location,
+      requires: tagSymbol ? checker.getDeclaredTypeOfSymbol(tagSymbol) : tag,
+      schema: { input, success: undefined },
+    }))
+    // The const's name in its own module, not the caller's spelling (`import { Article as Story }`).
+    const declFile = decl.getSourceFile()
+    const moduleSymbol = checker.getSymbolAtLocation(declFile)
+    const exportName =
+      moduleSymbol && checker.getExportsOfModule(moduleSymbol).find((e) => resolve(e) === resolve(sym))?.name
+    const served: ServedRecord = {
+      name: exportName ?? (ts.isIdentifier(decl.name) ? decl.name.text : name),
+      file: path.relative(root, declFile.fileName),
+      adapter: tag,
+      location,
+    }
+    return { record: served, methods }
+  }
+
   const controllers: ControllerDecl[] = []
   /** A `_defaults.ts` wrap is checked for each Controller beneath it, and reported once per missing service. */
   const reportedWraps = new Set<string>()
@@ -465,6 +564,7 @@ export function analyzeControllers(opts: {
     }
     if (!route) continue
     const controllerClass = controllerClassOf(sf, route)
+    const served = controllerClass === undefined ? recordsOf(sf, route) : undefined
     const methods: ControllerMethod[] = controllerClass ? classMethods(route, controllerClass.cls) : []
     for (const exported of exportsOf(sf)) {
       const name = exported.getName()
@@ -476,6 +576,12 @@ export function analyzeControllers(opts: {
           exported.declarations?.[0] ?? sf,
           `Controller "${route.route}" exports "${name}" beside its default class; a file is one form, so make it a generator method of the class`,
         )
+      else if (served !== undefined && SERVED.includes(name as ControllerMethodName))
+        report(
+          'RecordsMethodCollision',
+          exported.declarations?.[0] ?? sf,
+          `Controller "${route.route}" exports "${name}" beside its default \`records(...)\`, which serves ${name}; remove the export or write the Controller by hand`,
+        )
       else if (isMethod(name)) {
         const method = methodOf(
           route,
@@ -484,14 +590,16 @@ export function analyzeControllers(opts: {
           exported.declarations?.[0] ?? sf,
         )
         if (method) methods.push(method)
-      } else if ((name === 'default' && controllerClass === undefined) || isMethod(name.toUpperCase()))
+      } else if (
+        (name === 'default' && controllerClass === undefined && served === undefined) ||
+        isMethod(name.toUpperCase())
+      )
         report(
           'ControllerMethodShape',
           exported.declarations?.[0] ?? sf,
           `Controller "${route.route}" exports "${name}", which is not served; a method is a named export ${METHODS.join(', ')}`,
         )
     }
-    methods.sort((a, b) => METHODS.indexOf(a.name) - METHODS.indexOf(b.name))
     const provided = new Set<ts.Symbol>()
     const isProvided = (tag: ts.Symbol | undefined) =>
       tag && (REQUEST_SERVICES.has(libId(tag, checker) ?? '') || fromApp.has(tag) || provided.has(tag))
@@ -526,6 +634,15 @@ export function analyzeControllers(opts: {
         ),
       )
     }
+    // The served methods require the adapter Tag and nothing else: one requirement of the Controller.
+    if (served && !isProvided(served.record.adapter.getSymbol()))
+      errors.push(
+        analyzeError(
+          'MissingDependency',
+          `Controller "${route.route}" records(${served.record.name}) requires the adapter "${served.record.adapter.getSymbol()?.getName() ?? checker.typeToString(served.record.adapter)}", which no wrap above it, no Layer File and no start({ layer }) provides`,
+          served.record.location,
+        ),
+      )
     for (const method of methods)
       for (const t of membersOf(method.requires)) {
         const tag = t.getSymbol()
@@ -538,10 +655,13 @@ export function analyzeControllers(opts: {
           ),
         )
       }
+    if (served) methods.push(...served.methods)
+    methods.sort((a, b) => METHODS.indexOf(a.name) - METHODS.indexOf(b.name))
     controllers.push({
       ...route,
       file: path.relative(root, sf.fileName),
-      kind: controllerClass ? 'class' : 'functions',
+      kind: controllerClass ? 'class' : served ? 'records' : 'functions',
+      ...(served && { record: served.record }),
       declared: controllerClass?.declared ?? [],
       methods,
     })

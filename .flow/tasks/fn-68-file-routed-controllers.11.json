@@ -10,7 +10,7 @@
   "priority": null,
   "spec": "fn-68-file-routed-controllers",
   "spec_path": ".flow/tasks/fn-68-file-routed-controllers.11.md",
-  "status": "todo",
+  "status": "done",
   "title": "realworld: migrate the remaining REST routes and delete rest.ts",
   "updated_at": "2026-10-22T14:09:42.417098Z"
 }

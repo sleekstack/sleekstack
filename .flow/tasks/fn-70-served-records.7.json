@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-22T21:40:41.878073Z",
+  "depends_on": [
+    "fn-70-served-records.6"
+  ],
+  "id": "fn-70-served-records.7",
+  "priority": null,
+  "spec": "fn-70-served-records",
+  "spec_path": ".flow/tasks/fn-70-served-records.7.md",
+  "status": "done",
+  "title": "showcase: serve the User record and keep Post hand-written beside it",
+  "updated_at": "2026-10-22T21:40:41.878073Z"
+}

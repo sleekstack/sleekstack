@@ -758,7 +758,7 @@
     "plan": 0
   },
   "spec_path": ".flow/specs/fn-68-file-routed-controllers.md",
-  "status": "open",
+  "status": "done",
   "title": "File-routed Controllers",
   "tracker": {
     "baseHashFlow": null,
@@ -771,5 +771,5 @@
     "mergeBaseTracker": null,
     "url": null
   },
-  "updated_at": "2026-10-23T14:37:54.506676Z"
+  "updated_at": "2026-10-26T11:51:12.037729Z"
 }

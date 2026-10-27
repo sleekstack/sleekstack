@@ -12,7 +12,7 @@
   "priority": null,
   "spec": "fn-68-file-routed-controllers",
   "spec_path": ".flow/tasks/fn-68-file-routed-controllers.7.md",
-  "status": "todo",
+  "status": "done",
   "title": "ui-vite: Controller discovery, collisions, declaration and dev reload",
   "updated_at": "2026-10-22T14:05:48.874139Z"
 }

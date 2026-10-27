@@ -6,6 +6,8 @@ import type { ServerServiceEntry, ServerServiceMethodSchemas } from './service'
 import { DecodeError, decodeResult, prefix } from './wire'
 
 export { DecodeError } from './wire'
+export { recordAdapterLayer } from './recordsClient'
+export type { ServedRecordRef } from './recordsClient'
 export { ServerService, taggedError } from './service'
 export type {
   ServerServiceEntry,

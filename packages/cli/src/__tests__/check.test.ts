@@ -95,6 +95,21 @@ describe('sleekstack check', () => {
     ])
   })
 
+  it.each([
+    ['missing', 'controllerErrors', [['MissingDependency', 4]]],
+    ['conflict', 'layerFileErrors', [['LayerFileConflict', 4]]],
+    // R8: a client-safe record module importing a Layer File, reached from the browser entry.
+    ['boundary', 'serverServiceErrors', [['ServerFileInClientGraph', 3]]],
+  ])('a served record whose adapter Tag is %s: %s', (name, key, expected) => {
+    const json = run(fixture(`records/${name}`), '--json')
+    expect(json.code).toBe(1)
+    expect(JSON.parse(json.out)[key].map((e: { code: string; line: number }) => [e.code, e.line])).toEqual(expected)
+  })
+
+  it('a served record whose adapter Tag one Layer File provides is clean', () => {
+    expect(run(fixture('records/clean'), '--json').code).toBe(0)
+  })
+
   it('an app of only RPC Files: they are roots, and their errors exit 1', () => {
     const text = run(fixture('rpc'))
     expect(text.code).toBe(1)

@@ -32,6 +32,8 @@ export type AnalyzeCode =
   | 'ServerFileInClientGraph'
   | 'ControllerMethodShape'
   | 'ControllerParamsMismatch'
+  | 'RecordsRouteShape'
+  | 'RecordsMethodCollision'
   | 'LayerFileCycle'
   | 'LayerFileConflict'
   | 'ServerFileShape'
@@ -196,6 +198,21 @@ export const ERROR_CODES: Readonly<Record<AnalyzeCode, ErrorHelp>> = {
   ControllerParamsMismatch: {
     rule: "The keys of a Controller method's params equal its path's params (`[id]` is `params.id`).",
     fix: ['Name each params key after a path param', 'Declare params with every path param on each method'],
+    docs: CONTROLLER,
+  },
+  RecordsRouteShape: {
+    rule: "A Controller default-exporting `records(Record)` sits at a path ending in exactly `[id]`, calls `records` of @sleekstack/start, and passes a const `defineRecord(...)` with an `adapter` whose fields' Schemas need no Service.",
+    fix: [
+      'Rename the file to `[id].controller.ts`',
+      'Import `records` from @sleekstack/start and pass the record itself',
+      'Give `defineRecord` an `adapter` Tag',
+      'Serve a record whose Schemas need no Service, or write the Controller Methods by hand',
+    ],
+    docs: CONTROLLER,
+  },
+  RecordsMethodCollision: {
+    rule: 'A Controller default-exporting `records(...)` exports no named GET or PATCH, which it serves.',
+    fix: ['Remove the named GET or PATCH export', 'Write the Controller by hand instead of `records(...)`'],
     docs: CONTROLLER,
   },
   LayerFileCycle: {

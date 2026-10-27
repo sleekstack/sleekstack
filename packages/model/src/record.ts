@@ -5,6 +5,8 @@ import { type AdapterTag, type FindError, findOf, ingest, type RecordAdapter } f
 import {
   commitOf,
   derivedSpec,
+  editableFields,
+  type RecordChange,
   type RecordDraft,
   type SaveError,
   type SaveInFlight,
@@ -21,6 +23,11 @@ export type RecordFields = Schema.Struct.Fields & { readonly id: Schema.Schema<s
 export interface RecordDefinition<T extends string, F extends RecordFields> {
   readonly type: T
   readonly schema: Schema.Struct<F>
+  /**
+   * The Schema of a change (a PATCH body): every field but `id` and the `readOnly` ones, all required, in wire form,
+   * exactly the `RecordChange` that `commit` sends. Decoding drops unknown keys and read-only fields.
+   */
+  readonly change: Schema.Schema<RecordChange<F>>
   /** The record of `id` in the reading Store, `None` until pushed or after `evict`; the same atom for an id on every call. */
   readonly atom: (id: string) => Atom.Atom<Option.Option<Schema.Schema.Type<Schema.Struct<F>>>>
   /** Decodes `wire` with the fields' Schema and replaces the record of its id; a failure writes nothing. */
@@ -37,7 +44,7 @@ export interface RecordDefinition<T extends string, F extends RecordFields> {
    */
   readonly related: <K extends RelationKey<F>>(id: string, field: K) => Atom.Atom<Option.Option<Related<F[K]>>>
   /**
-   * The Draft of the record `id`: every field but `id`, in its input form (a date holds its string, a `field(...)` its
+   * The Draft of the record `id`: every field but `id` and the `readOnly` ones, in its input form (a date holds its string, a `field(...)` its
    * `to` input), validated by the fields' Schemas, seeded from the map (a transformation's `defaultValue` while the
    * record is missing). When the record changes, a pristine Draft re-seeds; an edited one keeps its edits and measures
    * `dirty` against the new record. Takes a slot like `useDraft`, so call it unconditionally. Only for fields whose
@@ -93,6 +100,14 @@ export type RelationKey<F> = {
 }[keyof F] &
   string
 
+const changeOf = (fields: RecordFields): Schema.Schema<any> => {
+  const editable = editableFields(fields)
+  // An empty `Schema.Struct` keeps every key it is given, so a record with no editable field drops them itself.
+  return Object.keys(editable).length > 0
+    ? Schema.encodedBoundSchema(Schema.Struct(editable))
+    : Schema.transform(Schema.Object, Schema.Struct({}), { strict: false, decode: () => ({}), encode: (c) => c })
+}
+
 /**
  * `defineRecord(type, { fields, adapter? })`: a record type. Every `push` of one type and id, from any source, writes
  * the same slot of the Store's identity map, and `atom(id)` reads it. A pushed record stays until the Store is disposed
@@ -122,6 +137,7 @@ export function defineRecord<const T extends string, F extends RecordFields>(
   const base: RecordDefinition<T, F> = {
     type,
     schema,
+    change: changeOf(def.fields),
     atom: (id) => recordAtom(type, id) as Atom.Atom<Option.Option<A>>,
     push: (wire) =>
       Effect.flatMap(decode(wire), (record) => Effect.map(Store, (s) => ingest(s, type, idOf(record), record))),

@@ -11,7 +11,7 @@
   "priority": null,
   "spec": "fn-69-server-auto-wiring",
   "spec_path": ".flow/tasks/fn-69-server-auto-wiring.9.md",
-  "status": "todo",
+  "status": "done",
   "title": "realworld: Layer Files, comments RPC File and the server entry",
   "updated_at": "2026-10-22T14:12:08.000033Z"
 }

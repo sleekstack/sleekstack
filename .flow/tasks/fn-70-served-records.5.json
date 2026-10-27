@@ -1,0 +1,16 @@
+{
+  "assignee": null,
+  "claim_note": "",
+  "claimed_at": null,
+  "created_at": "2026-10-22T21:40:41.878036Z",
+  "depends_on": [
+    "fn-70-served-records.3"
+  ],
+  "id": "fn-70-served-records.5",
+  "priority": null,
+  "spec": "fn-70-served-records",
+  "spec_path": ".flow/tasks/fn-70-served-records.5.md",
+  "status": "done",
+  "title": "analyze: recognize records(...) default export, RecordsRouteShape and RecordsMethodCollision",
+  "updated_at": "2026-10-22T21:40:41.878036Z"
+}

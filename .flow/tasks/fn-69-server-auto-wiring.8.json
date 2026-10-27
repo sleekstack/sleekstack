@@ -12,7 +12,7 @@
   "priority": null,
   "spec": "fn-69-server-auto-wiring",
   "spec_path": ".flow/tasks/fn-69-server-auto-wiring.8.md",
-  "status": "todo",
+  "status": "done",
   "title": "showcase: Tally as a Controller and the RPC Manifest",
   "updated_at": "2026-10-22T14:05:54.581771Z"
 }

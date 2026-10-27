@@ -30,7 +30,7 @@ const bundled = async (code: string) => {
     .map(([id]) => id)
 }
 
-const RECORDS = /[\\/]model[\\/]src[\\/](adapter|commit|query|record|registry|relations|transformation)\.ts$/
+const RECORDS = /[\\/]model[\\/]src[\\/](adapter|commit|errors|query|record|registry|relations|transformation)\.ts$/
 const QUERY = /[\\/]query[\\/](src|dist)[\\/]|[\\/]@tanstack[\\/]query-core[\\/]/
 
 it('a bundle importing only @sleekstack/model has no react and no router code', { timeout: 60_000 }, async () => {
